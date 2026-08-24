@@ -323,7 +323,7 @@ test.describe( 'VIP Workflow — stage agents', () => {
 			// failing in place: drive cron until the post lands on `review`.
 			let status;
 			for ( let i = 0; i < 30; i++ ) {
-				await runDueCron( requestUtils );
+				await runDueCron();
 				status = await getWorkflowStatus( requestUtils, postId );
 				if ( status.current.key === 'review' ) {
 					break;
