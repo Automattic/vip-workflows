@@ -1,0 +1,45 @@
+/**
+ * Shared keyframes.
+ *
+ * Every animation declared here is played from a different stylesheet:
+ * AssistantPanel.css runs dot-bounce, TopBar.css runs pulse, MoodBoard.css and
+ * StoryDiscovery.css run shimmer. A `@keyframes` name is global but it is not
+ * inherited — the definition has to be in a stylesheet the page actually
+ * loaded, or `animation` resolves to nothing and the element sits still with no
+ * error anywhere.
+ *
+ * They previously sat in pages/Ideation.css, which reached those components
+ * only because every admin stylesheet happens to land in one bundle. Imported
+ * by the admin entry stylesheet instead, they arrive with the entry rather than
+ * with a sibling page, and keep working if that bundle is ever split.
+ *
+ * The names keep the `-ideation-` segment they were registered under: every
+ * class that plays them is an ideation surface.
+ */
+
+/* AssistantPanel: the three-dot "thinking" indicator, each dot delayed against
+   the next. */
+@keyframes vip-workflow-ideation-dot-bounce {
+	0%, 80%, 100% {
+		transform: scale(0.4);
+		opacity: 0.3;
+	}
+	40% {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+/* TopBar: pulse while an assistant is running a follow-up query. */
+@keyframes vip-workflow-ideation-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.5; }
+}
+
+/* MoodBoard + StoryDiscovery: the sweep across a skeleton loading card. The
+   offsets are absolute, so how far the highlight travels across the card is
+   set by the `background-size` of the gradient the consuming rule paints. */
+@keyframes vip-workflow-ideation-shimmer {
+	0% { background-position: -400px 0; }
+	100% { background-position: 400px 0; }
+}

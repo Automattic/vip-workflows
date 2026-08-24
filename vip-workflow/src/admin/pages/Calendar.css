@@ -1,0 +1,566 @@
+/**
+ * Calendar screen — container, header (filter + view switcher), the
+ * month/week/day/year views with their react-big-calendar (.rbc-*) overrides,
+ * and the post / day-posts modals.
+ */
+
+.vip-workflow-calendar-container {
+	height: 100%;
+	background: var(--wpds-color-background-surface-neutral-strong); /* wpds-allow R6 -- page surface behind the calendar; Stack has no background prop */
+}
+
+/* Header controls (nav/today buttons, filter select, view switcher) are
+   plain WPDS components sized via their own props — no overrides here. */
+
+/* Calendar body */
+.vip-workflow-calendar-body {
+	/* Half the space between two day cards. Each column pays it on both sides,
+	   so neighbours end up a full gap apart — see the note below for why the
+	   space cannot be a flex `gap` on the row. Declared here rather than on
+	   `.rbc-month-view` because every consumer is scoped to this element, and
+	   the week/day all-day row uses the same rbc classes from outside the month
+	   view — there the property would be invalid and the inset silently zero. */
+	--vip-workflow-calendar-column-inset: calc(var(--wpds-dimension-gap-xs) / 2);
+
+	flex: 1;
+	overflow: hidden;
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+.vip-workflow-calendar-loading {
+	height: 100%;
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted colour for the loading label; neither Stack nor Text exposes a colour prop */
+}
+
+/* ============================================================================
+   React Big Calendar Overrides (Mac Calendar Style)
+   ============================================================================ */
+
+.vip-workflow-calendar-body .rbc-calendar { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	height: 100%;
+	font-family: var(--wpds-typography-font-family-body);
+}
+
+/* Month view header (weekday names) */
+.vip-workflow-calendar-body .rbc-header { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-sm);
+	font: var(--vip-workflow-text-heading-sm);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflow-calendar-body .rbc-time-header {
+	background-color: var(--wpds-color-background-surface-neutral);
+}
+
+.vip-workflow-calendar-body .rbc-month-header {
+	background-color: var(--wpds-color-background-surface-neutral);
+}
+
+.vip-workflow-calendar-body .rbc-month-header .rbc-header {
+	border-bottom: none;
+}
+
+.vip-workflow-calendar-body .rbc-time-header.rbc-overflowing {
+	border-right: none;
+}
+
+.vip-workflow-calendar-body .rbc-header + .rbc-header {
+	border-left: none;
+}
+
+/* Date cells */
+.vip-workflow-calendar-body .rbc-month-view { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	background-color: var(--wpds-color-background-surface-neutral);
+	/* Vertical only: .rbc-month-view is a column flex container, so this
+	   separates week rows and never touches the seven day columns. */
+	gap: var(--wpds-dimension-gap-xs); /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	padding: var(--wpds-dimension-padding-sm);
+	border: none;
+}
+
+.vip-workflow-calendar-body .rbc-month-row + .rbc-month-row {
+	border-top: none;
+}
+
+/* Month grid geometry — why the space between day cards is drawn inside each
+   column instead of as a flex `gap` on the row.
+
+   react-big-calendar sizes every event segment with an inline
+   `flex-basis`/`max-width` of `len / slots * 100%` — a fraction of the WHOLE row,
+   on the assumption that the seven columns tile it edge to edge. EventRow also
+   only pads an event row to the LEFT of a chip (it renders a spacer for the run
+   before each event and nothing after the last one), so a row holding a single
+   Wednesday chip is 4/7 of a row wide, not 7/7. A `gap` on those rows is
+   therefore absorbed differently in every row — a short row overflows nothing
+   and shifts its chip right by a whole gap, a full row overflows and shrinks
+   every segment — so chips slide off the day cards beneath them by an amount
+   that changes per column and per row.
+
+   With no gap anywhere on the row, each column is exactly 1/7 of it, and both
+   layers agree: the day card is inset half a gap on each side of its column,
+   and the chip takes the same inset plus its own breathing room.
+
+   rbc also pins the background row 1px short of the row's right edge, which
+   would make the seven cards span 1px less than the seven segment slots. */
+.vip-workflow-calendar-body .rbc-row-bg { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	right: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+.vip-workflow-calendar-body .rbc-day-bg { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	margin-inline: var(--vip-workflow-calendar-column-inset); /* wpds-allow R3 -- the card is inset within a column react-big-calendar sizes itself; there is no wrapper to hold a gap, and a gap on the row is what broke chip alignment */
+	background-color: var(--wpds-color-background-surface-neutral-strong);
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-lg);
+}
+
+.vip-workflow-calendar-body .rbc-day-bg.rbc-off-range-bg {
+	background: var(--wpds-color-background-surface-neutral);
+	/* Transparent, not `none`. Every column is `flex: 1 0 0%`, so the seven
+	   cards only tile at exactly 1/7 while they share a border width — drop the
+	   border on the off-range cells and they take a different flex base size,
+	   the columns stop agreeing with the segment row above them, and the chips
+	   drift again on the first and last week of every month. */
+	border-color: transparent;
+}
+
+.vip-workflow-calendar-body .rbc-day-bg.rbc-today {
+	background: color-mix(in srgb, var(--wpds-color-background-interactive-brand-strong) 5%, transparent);
+}
+
+/* Date number. The inline padding is measured from the day card's edge, not the
+   column's, so it adds the column inset the card already spends. */
+.vip-workflow-calendar-body .rbc-date-cell {
+	padding-block: var(--wpds-dimension-padding-sm);
+	padding-inline: calc(var(--vip-workflow-calendar-column-inset) + var(--wpds-dimension-padding-sm));
+	text-align: right;
+}
+
+.vip-workflow-calendar-body .rbc-date-cell > a { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	font: var(--vip-workflow-text-heading-md);
+	color: var(--wpds-color-foreground-content-neutral);
+	text-decoration: none;
+}
+
+.vip-workflow-calendar-body .rbc-date-cell.rbc-off-range > a {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflow-calendar-body .rbc-date-cell.rbc-now > a { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	display: inline-flex; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	align-items: center; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	justify-content: center; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	width: 28px;
+	height: 28px;
+	background: var(--wpds-color-background-interactive-brand-strong);
+	color: var(--wpds-color-foreground-interactive-brand-strong);
+	border-radius: var( --vip-workflow-border-radius-full );
+}
+
+/* Events in month view. Like the date number, the chip's inline inset is
+   measured from the day card's edge: the column inset the card spends, plus the
+   breathing room that keeps the chip clear of the card's rounded border. */
+.vip-workflow-calendar-body .rbc-row-segment {
+	padding-block: 0 var(--wpds-dimension-padding-xs);
+	padding-inline: calc(var(--vip-workflow-calendar-column-inset) + var(--wpds-dimension-padding-xs));
+}
+
+/* Event chip — styled directly on rbc's own .rbc-event box, so there's a
+   single styled element (not a nested custom one). The per-event status color
+   arrives as --vip-workflow-calendar-event-color (set via eventPropGetter) and
+   tints the fill; falls back to a neutral stroke if absent.
+
+   Chips are the one piece of rbc chrome NOT scoped under
+   .vip-workflow-calendar-body. rbc portals the month view's "+N more" popup to
+   <body> (react-overlays <Overlay> with no `container`), so a chip inside that
+   popup has no .vip-workflow-calendar-body ancestor and a wrapper-scoped rule
+   never reaches it — which is why popup chips used to fall back to rbc's
+   default blue. Instead these rules key off .vip-workflow-calendar-event, the
+   class eventPropGetter hands rbc for every event it renders (see Calendar.js),
+   so one rule covers the grid, the popup and the drag preview alike. Pairing it
+   with .rbc-event keeps each rule at two classes, which outranks rbc's own
+   single-class defaults regardless of which stylesheet the admin loads first. */
+.rbc-event.vip-workflow-calendar-event { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	--vip-workflow-calendar-event-color: var(--wpds-color-stroke-interactive-neutral);
+
+	padding-block: var(--wpds-dimension-padding-xs);
+	padding-inline: var(--wpds-dimension-padding-md);
+	background: color-mix(in srgb, var(--vip-workflow-calendar-event-color) 10%, transparent);
+	border: none;
+	border-radius: var(--wpds-border-radius-lg);
+	font: var(--vip-workflow-text-body-md);
+	color: var(--wpds-color-foreground-content-neutral);
+	outline: none;
+	overflow: hidden;
+	cursor: pointer;
+	transition: background 0.15s ease;
+}
+
+.rbc-event.vip-workflow-calendar-event:hover {
+	background: var(--wpds-color-background-interactive-neutral-weak-active);
+}
+
+/* Time-grid-only: the popup's EventCell never renders a label, so this one
+   stays scoped to the wrapper. */
+.vip-workflow-calendar-body .rbc-event-label {
+	display: none;
+}
+
+/* rbc renders the title text straight into .rbc-event-content. */
+.vip-workflow-calendar-event .rbc-event-content {
+	width: 100%;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vip-workflow-calendar-body .rbc-addons-dnd-drag-preview {
+	max-width: 180px;
+	overflow: hidden;
+	opacity: 0.85;
+}
+
+.vip-workflow-calendar-body .rbc-month-view .rbc-addons-dnd-drag-row {
+	opacity: 0.4;
+	pointer-events: none;
+}
+
+.vip-workflow-calendar-body .rbc-month-view .rbc-addons-dnd-dragged-event {
+	opacity: 0.3;
+}
+
+.vip-workflow-calendar-body .rbc-month-view.rbc-addons-dnd-is-dragging
+	.rbc-event:not(.rbc-addons-dnd-dragged-event):not(.rbc-addons-dnd-drag-preview) {
+	opacity: 1;
+}
+
+.rbc-event.vip-workflow-calendar-event:focus {
+	outline: none;
+}
+
+/* Keep our tint on selection rather than rbc's default blue fill. */
+.rbc-event.vip-workflow-calendar-event.rbc-selected {
+	background: color-mix(in srgb, var(--vip-workflow-calendar-event-color) 10%, transparent);
+}
+
+/* "Show more" link */
+.vip-workflow-calendar-body .rbc-show-more { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	color: var(--wpds-color-foreground-interactive-brand);
+	font: var(--vip-workflow-text-heading-sm);
+	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
+	background: transparent;
+}
+
+.vip-workflow-calendar-body .rbc-show-more:hover {
+	text-decoration: underline;
+}
+
+/* The popup "+N more" opens. rbc portals it to <body>, so unlike every other
+   .rbc-* rule here it cannot be scoped under .vip-workflow-calendar-body; and
+   rbc hardcodes the class name "rbc-overlay" with no theming prop, while its
+   own unscoped default for that class ships in the same global admin
+   stylesheet. Qualifying on :has() of our own event class is the namespace we
+   do have: it can only ever match a popup this calendar rendered, never another
+   plugin's react-big-calendar. Where :has() is unsupported the whole rule is
+   dropped and the popup falls back to rbc's default chrome — the chips
+   themselves are unaffected, they carry their own class.
+
+   The surface token has to match .rbc-day-bg: chip fills are a color-mix()
+   against `transparent`, so a chip only reads the same inside the popup as it
+   does in the grid when it composites over the same background. */
+.rbc-overlay:has(.vip-workflow-calendar-event) {
+	background: var(--wpds-color-background-surface-neutral-strong);
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-lg);
+}
+
+/* rbc separates stacked popup chips by 1px, which lets two same-status tints
+   read as one block. Match the 4px rhythm .rbc-row-segment gives them in the
+   month grid. */
+.rbc-overlay:has(.vip-workflow-calendar-event) > * + * { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	margin-top: var(--wpds-dimension-gap-xs); /* wpds-allow R3 -- overriding a third-party sibling margin; no wrapper to hold a gap */
+}
+
+.rbc-overlay:has(.vip-workflow-calendar-event) .rbc-overlay-header { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	font: var(--vip-workflow-text-heading-sm);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+/* Week/Day view */
+.vip-workflow-calendar-body .rbc-time-view {
+	border: none;
+}
+
+.vip-workflow-calendar-body .rbc-time-header-content {
+	border-right: none;
+}
+
+.vip-workflow-calendar-body .rbc-time-header-cell {
+	min-height: var(--wpds-dimension-size-lg);
+}
+
+/* Week/day header: the weekday label is a drilldown <button> that's
+   shrink-wrapped to its text by default. Move the cell's padding onto the
+   button and let it fill the cell so the whole column header is a real
+   click target, not just the words. */
+.vip-workflow-calendar-body .rbc-time-header .rbc-header { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+.vip-workflow-calendar-body .rbc-time-header .rbc-button-link { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	display: block;
+	width: 100%;
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-sm);
+	font: inherit; /* wpds-allow R5 -- intentional inherit/reset */
+	color: inherit;
+	text-align: center;
+	cursor: pointer;
+}
+
+.vip-workflow-calendar-body .rbc-time-header .rbc-button-link:hover {
+	background: var(--wpds-color-background-interactive-neutral-weak-active);
+}
+
+/* Remove the all-day strip from week/day view. rbc renders it
+   unconditionally (no prop to disable it), and this calendar never surfaces
+   all-day events in the time views, so hide the otherwise-empty row. */
+.vip-workflow-calendar-body .rbc-allday-cell {
+	display: none;
+}
+
+.vip-workflow-calendar-body .rbc-header.rbc-today {
+	background: color-mix(in srgb, var(--wpds-color-background-interactive-brand-strong) 5%, transparent);
+}
+
+.vip-workflow-calendar-body .rbc-time-content {
+	border-top: none;
+}
+
+.vip-workflow-calendar-body .rbc-time-gutter { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	font: var(--vip-workflow-text-body-sm);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflow-calendar-body .rbc-timeslot-group {
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	min-height: var(--wpds-dimension-size-lg);
+}
+
+.vip-workflow-calendar-body .rbc-day-slot .rbc-time-slot {
+	border-top: none;
+}
+
+.vip-workflow-calendar-body .rbc-day-slot .rbc-events-container { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	margin-right: 0; /* wpds-allow R3 -- resets react-big-calendar's own margin on an element it renders; there is no wrapper to hold a gap */
+	left: 0; /* wpds-allow R2 -- zero needs no token */
+	right: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* Events here carry no duration (start === end), so rbc absolutely-positions
+   them with an inline `height: 0%` — a sliver that clips the label. Two
+   things have to give:
+   1. The event box: override rbc's inline height (only !important beats an
+      inline style). With `top` set and `height: auto`, an absolutely-
+      positioned box sizes to its content.
+   2. The content box: rbc makes `.rbc-event-content` a flex item with
+      `flex: 1 1 0` (flex-basis 0). In an auto-height column, `height: auto`
+      lets Safari collapse it to that 0 basis — nothing to grow into. Pin it
+      to `fit-content` so it takes its intrinsic (text) height regardless. */
+.vip-workflow-calendar-body .rbc-day-slot .rbc-event {
+	height: auto !important;
+	max-height: none;
+	min-height: var(--wpds-dimension-size-sm);
+}
+
+.vip-workflow-calendar-body .rbc-day-slot .rbc-event-content { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	font: var(--vip-workflow-text-body-md);
+	display: flex; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	flex-direction: row; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	align-items: center; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+}
+
+.vip-workflow-calendar-body .rbc-current-time-indicator {
+	background: var(--wpds-color-background-interactive-error-strong);
+	height: 2px;
+}
+
+.vip-workflow-calendar-body .rbc-current-time-indicator::before { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	content: "";
+	position: absolute;
+	left: -6px; /* wpds-allow R2 -- positioning offset; no spacing token applies */
+	top: -4px; /* wpds-allow R2 -- positioning offset; no spacing token applies */
+	width: 10px;
+	height: 10px;
+	background: var(--wpds-color-background-interactive-error-strong);
+	border-radius: var( --vip-workflow-border-radius-full );
+}
+
+/* Today column in day/week view */
+.vip-workflow-calendar-body .rbc-day-slot.rbc-today {
+	background: color-mix(in srgb, var(--wpds-color-background-interactive-brand-strong) 3%, transparent);
+}
+
+/* ============================================================================
+   Year View Styles
+   ============================================================================ */
+
+.vip-workflow-calendar-year-view {
+	padding: var(--wpds-dimension-padding-2xl);
+	height: 100%;
+	overflow-y: auto;
+	background-color: var(--wpds-color-background-surface-neutral);
+}
+
+.vip-workflow-calendar-year-view__grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: var(--wpds-dimension-gap-xl);
+}
+
+@media (max-width: 1200px) {
+	.vip-workflow-calendar-year-view__grid {
+		grid-template-columns: repeat(3, 1fr);
+	}
+}
+
+@media (max-width: 900px) {
+	.vip-workflow-calendar-year-view__grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+}
+
+/* The tile is a <Stack direction="column" gap="md"> (header, weekday row, day
+   grid); only its surface chrome stays here. */
+.vip-workflow-calendar-year-view__month {
+	background: var(--wpds-color-background-surface-neutral-strong); /* wpds-allow R6 -- tile surface on the layout Stack; no background prop */
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak); /* wpds-allow R6 -- tile border on the layout Stack; no border prop */
+	border-radius: var(--wpds-border-radius-lg); /* wpds-allow R6 -- tile corner radius on the layout Stack; no radius prop */
+	padding: var(--wpds-dimension-padding-lg);
+}
+
+/* Type comes from the <Text variant="heading-md"> that carries this class. */
+.vip-workflow-calendar-year-view__month-header {
+	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- heading colour on <Text>; Text has no colour prop */
+	text-align: center;
+}
+
+.vip-workflow-calendar-year-view__weekdays {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 2px;
+}
+
+.vip-workflow-calendar-year-view__weekdays span {
+	font: var(--vip-workflow-text-heading-sm);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	text-align: center;
+}
+
+.vip-workflow-calendar-year-view__days {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 2px;
+}
+
+/* A day cell stacks its date over its count (see YearView in Calendar.js), both
+   in flow — the count used to be an absolutely-positioned badge pulled outside
+   the cell's box, which put it on top of the neighbouring day. In flow it is
+   confined to its own grid track, so it cannot reach a neighbour at any column
+   count or event density.
+
+   aspect-ratio keeps the familiar square/circle cell wherever the column is
+   wide enough; min-height is the floor that keeps both lines legible once the
+   4-column layout squeezes columns below two line-heights. min-width: 0 stops a
+   wide count (three digits) from inflating its 1fr track and skewing the grid —
+   it clips inside the cell instead. */
+.vip-workflow-calendar-year-view__day {
+	width: 100%;
+	min-width: 0;
+	aspect-ratio: 1;
+	min-height: var(--wpds-dimension-size-md);
+	font: var(--vip-workflow-text-body-sm);
+	color: var(--wpds-color-foreground-content-neutral);
+	border-radius: var( --vip-workflow-border-radius-full );
+	cursor: default;
+}
+
+.vip-workflow-calendar-year-view__day--empty {
+	visibility: hidden;
+}
+
+.vip-workflow-calendar-year-view__day--today {
+	background: var(--wpds-color-background-interactive-brand-strong);
+	color: var(--wpds-color-foreground-interactive-brand-strong);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.vip-workflow-calendar-year-view__day--has-events {
+	cursor: pointer;
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.vip-workflow-calendar-year-view__day--has-events:not(.vip-workflow-calendar-year-view__day--today) {
+	background: color-mix(in srgb, var(--wpds-color-background-interactive-brand-strong) 10%, transparent);
+	color: var(--wpds-color-foreground-interactive-brand);
+}
+
+.vip-workflow-calendar-year-view__day--has-events:hover:not(.vip-workflow-calendar-year-view__day--today) {
+	background: color-mix(in srgb, var(--wpds-color-background-interactive-brand-strong) 20%, transparent);
+}
+
+/* The pill sizes from its own text: min-width makes a single digit a circle,
+   and extra digits widen it up to the cell, past which it clips rather than
+   spilling. Height is the 16px line box of the type token, so the two stacked
+   lines total the cell's min-height exactly. */
+.vip-workflow-calendar-year-view__day-count {
+	min-width: var(--wpds-dimension-size-2xs);
+	max-width: 100%;
+	padding: 0 var(--wpds-dimension-padding-xs);
+	background: var(--wpds-color-background-interactive-error-strong);
+	color: var(--vip-workflow-color-fg-on-color);
+	font: var(--vip-workflow-text-heading-sm);
+	border-radius: var( --vip-workflow-border-radius-full );
+	overflow: hidden;
+	display: flex; /* wpds-allow R4 -- pill's centring is inseparable from its own fill/type/radius chrome; a Stack would restate every one of them as an override */
+	align-items: center; /* wpds-allow R4 -- see above */
+	justify-content: center; /* wpds-allow R4 -- see above */
+}
+
+.vip-workflow-calendar-year-view__day--today .vip-workflow-calendar-year-view__day-count {
+	background: var(--wpds-color-background-surface-neutral-strong);
+	color: var(--wpds-color-foreground-interactive-brand);
+}
+
+/* ============================================================================
+   Post Preview Modal
+   ============================================================================ */
+
+/* Secondary meta rows (author, date, workflow): the muted tone their text
+   inherits, and which the workflow row's <Icon> picks up through currentColor.
+   That icon is the only one of the three — the date row carries none, and the
+   author row is the shared <AuthorCell>, whose avatar paints its own tone.
+   Typography comes from the <Text> components; this only sets the tone. */
+.vip-workflow-calendar-post-modal__meta-row {
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted tone for the rows' text and the workflow row's icon; none of Stack, Text or AuthorCell exposes a colour prop */
+}
+
+/* No avatar rule here any more. The author row is the shared <AuthorCell>, which
+   owns the picture, its size, and the fall back to initials when a Gravatar is
+   blocked or 404s — which this modal's bare <img> did not, so it drew the
+   browser's broken-image glyph instead. */
+
+/* Day Posts List (Year View) */
+
+/* This modal hosts a full-bleed DataViews activity feed; zero the Modal's
+   content padding and let the DataViews wrapper handle inner spacing. */
+.vip-workflow-calendar-day-posts-modal .components-modal__content { /* wpds-allow R6 -- @wordpress/components Modal exposes no content-padding prop */
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* Status icon rendered into the activity feed's media slot. Deliberately
+   inline-flex so it sits on the text baseline; Stack's stylesheet is a
+   block-level `display: flex`, which would reflow the slot. */
+.vip-workflow-calendar-day-posts__status-icon {
+	display: inline-flex; /* wpds-allow R4 -- inline-flex glyph wrapper; Stack renders block-level `display: flex` */
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}

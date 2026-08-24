@@ -1,0 +1,128 @@
+/**
+ * Ideation recent projects & pipeline styles.
+ *
+ * The recent-ideas cards, their grid, and the "show more" control are gone: the
+ * block is a `@wordpress/dataviews` grid now (styled by the enqueued
+ * `vip-workflow-dataviews` stylesheet), which owns the card, the search box and
+ * the pagination. What is left here is the block's own header, the status badge
+ * render, and the pipeline disclosure.
+ */
+
+/* Recent Projects */
+
+/* Outer wrapper is a <Stack direction="column" gap="2xl"> owning the gap between
+   the ideas block and the pipeline; its own top offset stays. */
+.vip-workflow-ideation-recent {
+	margin-top: 48px; /* wpds-allow R3 -- top offset from the seed input above; owned by page layout, no in-component Stack */
+}
+
+.vip-workflow-ideation-recent__badge {
+	text-transform: uppercase; /* wpds-allow R6 -- uppercase status style; Badge has no text-case prop */
+	letter-spacing: 0.3px; /* wpds-allow R5 -- tracking for the uppercase label; no --wpds tracking token, and Badge has no prop */
+	flex-shrink: 0;
+}
+
+/* An idea has no artwork of its own, so the grid card's media slot has nothing
+   to show. The layout reserves a placeholder block above every card regardless
+   of `showMedia`, so it is hidden here rather than left as an empty band. */
+.vip-workflow-ideation-recent .dataviews-view-grid__media {
+	display: none;
+}
+
+/* Pipeline Section — gap from the ideas block above is owned by the outer
+   <Stack direction="column" gap="2xl">. */
+
+/* Collapsible.Trigger renders a bare <button> (no default flex); style it as the
+   inline disclosure row the native <summary> used to be. */
+.vip-workflow-ideation-pipeline__summary {
+	font: var(--vip-workflow-text-heading-md); /* wpds-allow R6 -- Collapsible.Trigger exposes no typography prop, so the UA button font is replaced here */
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- Collapsible.Trigger exposes no tone prop, so the muted heading colour is set here */
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-sm);
+	width: 100%;
+	padding: var(--wpds-dimension-padding-sm) 0;
+	background: none; /* wpds-allow R6 -- Collapsible.Trigger has no unstyled/plain variant, so the UA button surface is taken away here */
+	border: none; /* wpds-allow R6 -- the same UA button box (see above) */
+	cursor: pointer;
+	user-select: none;
+	text-align: start;
+}
+
+/* Points right when shut, down when open. Base UI sets `aria-expanded` on the
+   trigger, so the open state needs no JS to style. */
+.vip-workflow-ideation-pipeline__chevron {
+	display: inline-block;
+	font-size: 10px; /* wpds-allow R5 -- chevron glyph size; a decorative marker, below the smallest type token */
+	transition: transform 0.15s ease;
+}
+
+.vip-workflow-ideation-pipeline__summary[aria-expanded="true"]
+	.vip-workflow-ideation-pipeline__chevron {
+	transform: rotate(90deg);
+}
+
+.vip-workflow-ideation-pipeline__count {
+	display: inline-flex; /* wpds-allow R4 -- inline-flex count pill; centered glyph, not a block Stack */
+	align-items: center; /* wpds-allow R4 -- inline-flex count pill; centered glyph, not a block Stack */
+	justify-content: center; /* wpds-allow R4 -- inline-flex count pill; centered glyph, not a block Stack */
+	min-width: 20px;
+	height: 20px;
+	padding: 0 var(--wpds-dimension-padding-sm);
+	border-radius: var( --wpds-border-radius-lg );
+	background: var(--wpds-color-background-surface-neutral-weak);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font: var(--vip-workflow-text-body-sm);
+}
+
+.vip-workflow-ideation-pipeline__table {
+	width: 100%;
+	border-collapse: collapse;
+	margin-top: 8px; /* wpds-allow R3 -- spacing below the disclosure trigger; the panel wraps the table directly */
+}
+
+.vip-workflow-ideation-pipeline__table th {
+	text-align: left;
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.vip-workflow-ideation-pipeline__row {
+	cursor: pointer;
+	transition: background 0.1s ease;
+}
+
+.vip-workflow-ideation-pipeline__row:hover {
+	background: var(--wpds-color-background-surface-neutral-weak);
+}
+
+.vip-workflow-ideation-pipeline__row td {
+	font: var(--vip-workflow-text-body-md);
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-md);
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.vip-workflow-ideation-pipeline__cell-title {
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	color: var(--wpds-color-foreground-content-neutral);
+}
+
+/* The title is a link-variant <Button> — the row's keyboard path (see
+   RecentProjects.js). It keeps the cell's title typography: Button imposes its
+   own font and is-link paints link-blue + underline, which would turn the
+   table into a column of links beside the row's own hover affordance. */
+.vip-workflow-ideation-pipeline__cell-title .components-button {
+	font: var(--vip-workflow-text-body-md); /* wpds-allow R6 -- Button sets its own font; restore the cell's type */
+	font-weight: var(--wpds-typography-font-weight-emphasis); /* wpds-allow R6 -- the title weight the cell rule carries (see above) */
+	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- neutral title tone over is-link's link color */
+	text-decoration: none;
+}
+
+.vip-workflow-ideation-pipeline__cell-date {
+	font: var(--vip-workflow-text-body-sm);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflow-ideation-pipeline__badge {
+	white-space: nowrap;
+}

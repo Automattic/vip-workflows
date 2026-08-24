@@ -1,0 +1,77 @@
+/**
+ * Tool Failures Modal — shared chrome.
+ *
+ * Rendered in BOTH bundles: the editor (WorkflowStatusPanel) and the admin
+ * Ideation workspace (IdeationWorkspace). The two webpack entries emit
+ * separate stylesheets, so this partial is @imported by both src/editor/
+ * style.css and src/admin/style.css to keep the markup styled on every
+ * surface. Previously these rules lived only in editor/style.css, leaving the
+ * admin modal unstyled.
+ */
+
+/* The message is a callout, not a paragraph: an error-tinted surface with a
+   rule down its leading edge. It renders as a <Text>, which carries the type
+   and nothing else — @wordpress/ui 0.9 has no primitive that paints a surface
+   short of <Card>, whose own chrome would have to be overridden to get here. */
+.vip-workflow-tool-failures-modal__message {
+	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- callout body tone; <Text> exposes only `variant`, no color prop */
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+	background: var(--wpds-color-background-surface-error-weak); /* wpds-allow R6 -- error-tinted callout surface; <Text> has no background prop */
+	border-left: var(--wpds-border-width-md) solid var(--wpds-color-stroke-surface-error-strong); /* wpds-allow R6 -- the callout's leading rule; <Text> has no border prop */
+	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds that same callout surface; <Text> has no radius prop */
+}
+
+/* The `<Stack gap="lg">` in ToolFailuresModal owns every gap down this column —
+   callout to first section, and section to section. The gap between a section's
+   heading and its list comes from that section's own `<Stack gap="md">`. */
+
+.vip-workflow-tool-failures-modal__section h4 {
+	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- section heading tone; <Text> exposes only `variant`, no color prop */
+}
+
+/* The list is a `<Stack render={<ul/>} direction="column" gap="sm">`, so the
+   column and the spacing between items come from its props. */
+.vip-workflow-tool-failures-modal__list {
+	list-style: none;
+	margin: 0; /* wpds-allow R3 -- resets the browser's own list margin; a user-agent reset, not spacing between siblings */
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* The item is a `<Stack render={<li/>} direction="row" gap="sm">`, so the row,
+   the icon's top alignment and the gap beside it all come from props. What is
+   left here paints the item's surface — <Stack> has no prop for any of it. */
+.vip-workflow-tool-failures-modal__item {
+	font: var(--vip-workflow-text-body-md); /* wpds-allow R6 -- the item's body type; <Stack> takes no `variant`, and the <strong> prefix inside rules out swapping the row for a <Text> */
+	padding: var(--wpds-dimension-padding-md); /* wpds-allow R6 -- the item's own inset; <Stack> has no padding prop */
+	border-radius: var( --wpds-border-radius-md ); /* wpds-allow R6 -- rounds that surface; <Stack> has no radius prop */
+}
+
+.vip-workflow-tool-failures-modal__list--hard .vip-workflow-tool-failures-modal__item {
+	background: var(--wpds-color-background-surface-error-weak); /* wpds-allow R6 -- hard-failure surface tint; <Stack> has no background prop */
+	border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-error); /* wpds-allow R6 -- the surface boundary; <Stack> has no border prop */
+}
+
+.vip-workflow-tool-failures-modal__list--soft .vip-workflow-tool-failures-modal__item {
+	background: var(--wpds-color-background-surface-caution-weak); /* wpds-allow R6 -- soft-warning surface tint; <Stack> has no background prop */
+	border: var(--wpds-border-width-xs) solid var(--wpds-color-stroke-surface-warning); /* wpds-allow R6 -- the surface boundary; <Stack> has no border prop */
+}
+
+.vip-workflow-tool-failures-modal__icon {
+	flex-shrink: 0;
+}
+
+.vip-workflow-tool-failures-modal__list--hard .vip-workflow-tool-failures-modal__icon {
+	color: var(--wpds-color-foreground-content-error-weak);
+}
+
+.vip-workflow-tool-failures-modal__list--soft .vip-workflow-tool-failures-modal__icon {
+	color: var(--wpds-color-foreground-content-warning-weak);
+}
+
+.vip-workflow-tool-failures-modal__text {
+	flex: 1;
+}
+
+.vip-workflow-tool-failures-modal__text strong {
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}

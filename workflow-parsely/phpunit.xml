@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
+    bootstrap="tests/bootstrap.php"
+    colors="true"
+    cacheResultFile=".phpunit.cache/test-results"
+    executionOrder="depends,defects"
+    beStrictAboutOutputDuringTests="true"
+    failOnRisky="true"
+    verbose="true"
+>
+    <php>
+        <!-- Error paths under test call error_log(); in CLI that clutters output. -->
+        <ini name="error_log" value="/dev/null"/>
+    </php>
+
+    <testsuites>
+        <!-- Integration only. This plugin is a bridge: everything it does depends
+             on wp-parsely's service classes and VIP Workflow's registries being
+             loaded, so there is no meaningful unit surface to test in isolation. -->
+        <testsuite name="integration">
+            <directory>tests</directory>
+        </testsuite>
+    </testsuites>
+</phpunit>

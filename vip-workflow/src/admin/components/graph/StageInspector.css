@@ -1,0 +1,16 @@
+/**
+ * StageInspector — the AI-stage agent warning.
+ *
+ * An amber-tinted inline block rather than a `Notice`: the inspector is a dense
+ * column of controls and a full notice at each control would dominate it. The
+ * tone still has to read as "needs attention", because a post entering a stage
+ * whose agent cannot run errors on arrival — taking the stage's on-error route
+ * when one is set, and stopping there when it is not.
+ */
+
+.vip-workflow-stage-agent-warning {
+	padding: var(--wpds-dimension-padding-sm);
+	border-left: 2px solid var(--wpds-color-stroke-surface-warning-strong); /* wpds-allow R6 -- warning accent for the inline block; Stack has no border prop */
+	background: var(--wpds-color-background-surface-warning-weak); /* wpds-allow R6 -- warning tint; Stack has no background prop */
+	color: var(--wpds-color-foreground-content-warning-weak); /* wpds-allow R6 -- warning tone for the whole block; Stack exposes no color prop in @wordpress/ui 0.9 */
+}

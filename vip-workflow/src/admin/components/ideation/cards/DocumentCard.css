@@ -1,0 +1,37 @@
+/**
+ * Ideation Document card styles.
+ */
+
+/* Document Card. The surface (background, border, radius) comes from
+   <Card.Root>, the hover / .is-pinned / transition chrome from
+   `.vip-workflow-ideation-card` in shared.css; only the document-specific
+   layout lives here. */
+
+.vip-workflow-ideation-card--document {
+	cursor: pointer;
+}
+
+.vip-workflow-ideation-card--document__icon {
+	flex-shrink: 0;
+	width: 40px;
+	height: 40px;
+	background: var(--wpds-color-background-surface-neutral); /* wpds-allow R6 -- decorative surface fill on layout Stack; no bg prop */
+	border-radius: var( --wpds-border-radius-lg ); /* wpds-allow R6 -- corner radius on layout Stack; no prop */
+}
+
+.vip-workflow-ideation-card--document__size {
+	font: var(--vip-workflow-text-body-sm);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflow-ideation-card--document__processing .components-spinner { /* wpds-allow R6 -- sizing/reset of library Spinner internals */
+	width: 14px;
+	height: 14px;
+	margin: 0; /* wpds-allow R3 -- reset library Spinner default margin */
+}
+
+.vip-workflow-ideation-card--document__processing-label {
+	font: var(--vip-workflow-text-body-sm);
+	font-style: italic;
+	color: var(--wpds-color-foreground-interactive-brand);
+}

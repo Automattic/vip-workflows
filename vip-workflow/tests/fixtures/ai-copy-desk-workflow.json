@@ -1,0 +1,79 @@
+{
+	"type": "workflow",
+	"name": "AI Copy Desk",
+	"description": "Demo sequence for Agent Stages: Draft → AI Copy Desk (copy-edit agent) → Review → Published. The AI stage copy-edits the story and routes itself: pass → Review, fail → Draft, error → Review.",
+	"config": {
+		"version": "2.0",
+		"statuses": [
+			{
+				"key": "draft",
+				"label": "Draft",
+				"color": "#8c8f94",
+				"is_initial": true,
+				"status": "draft",
+				"region_entry": true,
+				"transitions": [
+					{
+						"to": "ai_copy_desk",
+						"label": "Send to AI Copy Desk"
+					}
+				]
+			},
+			{
+				"key": "ai_copy_desk",
+				"label": "AI Copy Desk",
+				"color": "#674ea7",
+				"is_in_progress": true,
+				"status": "draft",
+				"transitions": [
+					{
+						"to": "review",
+						"label": "Advance to Review"
+					},
+					{
+						"to": "draft",
+						"label": "Bump back to Draft"
+					}
+				],
+				"agent": {
+					"ability_id": "workflow-agent-copy-edit/copy-edit",
+					"settings": {
+						"style": "Short punchy paragraphs (1-2 sentences each), with an image after roughly every two paragraphs."
+					},
+					"routing": {
+						"pass": "review",
+						"fail": "draft",
+						"error": "review"
+					}
+				}
+			},
+			{
+				"key": "review",
+				"label": "Review",
+				"color": "#dba617",
+				"show_in_queue": true,
+				"status": "pending",
+				"region_entry": true,
+				"transitions": [
+					{
+						"to": "published",
+						"label": "Publish"
+					}
+				]
+			},
+			{
+				"key": "published",
+				"label": "Published",
+				"color": "#00a32a",
+				"is_terminal": true,
+				"status": "publish",
+				"region_entry": true,
+				"transitions": []
+			}
+		],
+		"post_types": [
+			"post"
+		],
+		"metadata_fields": []
+	}
+}

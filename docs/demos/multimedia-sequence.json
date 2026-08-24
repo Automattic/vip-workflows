@@ -1,0 +1,291 @@
+{
+	"type": "workflow",
+	"name": "Multimedia Production",
+	"description": "Video and multimedia packages: rights intake up front, AI metadata enrichment and claim verification before publication, and post-publish archive enrichment so assets land in the archive reusable.",
+	"config": {
+		"version": "2.0",
+		"statuses": [
+			{
+				"key": "brief",
+				"label": "Brief & Rights Intake",
+				"color": "#3858e9",
+				"transitions": [
+					{
+						"to": "ingest",
+						"label": "Request Assets",
+						"required_tools": []
+					}
+				],
+				"is_terminal": false,
+				"status": "draft",
+				"region_entry": true
+			},
+			{
+				"key": "ingest",
+				"label": "Media Ingest",
+				"color": "#7f54b3",
+				"transitions": [
+					{
+						"to": "enrich",
+						"label": "Send for Enrichment",
+						"required_tools": []
+					}
+				],
+				"is_terminal": false,
+				"status": "draft"
+			},
+			{
+				"key": "enrich",
+				"label": "AI Metadata Enrichment",
+				"color": "#00a0d2",
+				"transitions": [
+					{
+						"to": "verify",
+						"label": "Metadata Consistent",
+						"required_tools": []
+					},
+					{
+						"to": "desk",
+						"label": "Metadata Needs Work",
+						"required_tools": []
+					}
+				],
+				"is_terminal": false,
+				"status": "draft",
+				"agent": {
+					"ability_id": "workflow-agent-tag-sanity-check/tag-sanity-check",
+					"routing": {
+						"pass": "verify",
+						"fail": "desk",
+						"error": "desk"
+					}
+				}
+			},
+			{
+				"key": "verify",
+				"label": "Claim Verification",
+				"color": "#f0b849",
+				"transitions": [
+					{
+						"to": "rights",
+						"label": "Claims Supported",
+						"required_tools": []
+					},
+					{
+						"to": "desk",
+						"label": "Claims Flagged",
+						"required_tools": []
+					}
+				],
+				"is_terminal": false,
+				"status": "draft"
+			},
+			{
+				"key": "desk",
+				"label": "Desk Review",
+				"color": "#d63638",
+				"transitions": [
+					{
+						"to": "enrich",
+						"label": "Re-run Enrichment",
+						"required_tools": []
+					},
+					{
+						"to": "rights",
+						"label": "Clear for Rights",
+						"required_tools": []
+					}
+				],
+				"is_terminal": false,
+				"status": "draft"
+			},
+			{
+				"key": "rights",
+				"label": "Rights & Clearance",
+				"color": "#996800",
+				"transitions": [
+					{
+						"to": "ready",
+						"label": "Cleared for Publication",
+						"required_tools": [
+							"workflow-tool-checklist/checklist"
+						]
+					},
+					{
+						"to": "desk",
+						"label": "Rights Blocked",
+						"required_tools": []
+					}
+				],
+				"is_terminal": false,
+				"status": "pending",
+				"region_entry": true
+			},
+			{
+				"key": "ready",
+				"label": "Ready to Publish",
+				"color": "#008a20",
+				"transitions": [
+					{
+						"to": "published",
+						"label": "Publish",
+						"required_tools": []
+					}
+				],
+				"is_terminal": false,
+				"status": "pending"
+			},
+			{
+				"key": "published",
+				"label": "Published",
+				"color": "#9b51e0",
+				"transitions": [
+					{
+						"to": "archive",
+						"label": "Send to Archive Enrichment",
+						"required_tools": []
+					}
+				],
+				"is_terminal": false,
+				"status": "publish",
+				"region_entry": true
+			},
+			{
+				"key": "archive",
+				"label": "Archive Enrichment",
+				"color": "#2271b1",
+				"transitions": [
+					{
+						"to": "archive_ready",
+						"label": "Archive Record Clean",
+						"required_tools": []
+					},
+					{
+						"to": "archive_fix",
+						"label": "Archive Record Needs Work",
+						"required_tools": []
+					}
+				],
+				"is_terminal": false,
+				"status": "publish"
+			},
+			{
+				"key": "archive_fix",
+				"label": "Archive Remediation",
+				"color": "#b26200",
+				"transitions": [
+					{
+						"to": "archive",
+						"label": "Re-run Archive Enrichment",
+						"required_tools": []
+					}
+				],
+				"is_terminal": false,
+				"status": "publish"
+			},
+			{
+				"key": "archive_ready",
+				"label": "Archive Ready — Reusable",
+				"color": "#00450c",
+				"transitions": [],
+				"is_terminal": true,
+				"status": "publish"
+			}
+		],
+		"settings": {
+			"allow_skip": false
+		},
+		"metadata_fields": [
+			{
+				"key": "asset_type",
+				"label": "Asset type",
+				"type": "select",
+				"required": true,
+				"searchable": true,
+				"options": [
+					"Video Package",
+					"Raw Footage",
+					"B-Roll",
+					"Photo Essay",
+					"Audio",
+					"Motion Graphic"
+				]
+			},
+			{
+				"key": "business_unit",
+				"label": "Business unit",
+				"type": "select",
+				"required": true,
+				"searchable": true,
+				"options": [
+					"WSJ",
+					"Barron's",
+					"MarketWatch",
+					"Dow Jones Newswires",
+					"Financial News"
+				]
+			},
+			{
+				"key": "rights_holder",
+				"label": "Rights holder",
+				"type": "text",
+				"required": true,
+				"searchable": true
+			},
+			{
+				"key": "licence_expiry",
+				"label": "Licence expiry",
+				"type": "date",
+				"required": false,
+				"searchable": false
+			},
+			{
+				"key": "talent_release",
+				"label": "Talent release",
+				"type": "select",
+				"required": true,
+				"searchable": true,
+				"options": [
+					"On file",
+					"Not required",
+					"Pending",
+					"Unavailable"
+				]
+			},
+			{
+				"key": "transcript_status",
+				"label": "Transcript",
+				"type": "select",
+				"required": false,
+				"searchable": true,
+				"options": [
+					"None",
+					"Machine-generated",
+					"Human-reviewed"
+				]
+			},
+			{
+				"key": "archive_reuse",
+				"label": "Reuse terms",
+				"type": "select",
+				"required": true,
+				"searchable": true,
+				"options": [
+					"Cleared for reuse",
+					"Internal use only",
+					"Single use — do not reuse"
+				]
+			},
+			{
+				"key": "clearance_owner",
+				"label": "Clearance owner",
+				"type": "user",
+				"required": false,
+				"searchable": true
+			}
+		],
+		"post_types": [
+			"video"
+		]
+	}
+}

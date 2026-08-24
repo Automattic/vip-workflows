@@ -1,0 +1,120 @@
+{
+	"_comment": [
+		"Golden fixture for the region math that decides whether a post-status change",
+		"touches a workflow, and how loudly.",
+		"",
+		"The same rule is implemented THREE times: StatusManager::status_to_region() /",
+		"crosses_publish_boundary() in PHP, and statusToRegion() /",
+		"evaluateStatusChange() in src/entries/confirm-workflow-side-effect.js. Until",
+		"this file existed they were synced only by a 'MUST change together' comment,",
+		"and they had already drifted twice — `inherit` was filtered in PHP but not JS,",
+		"and an unresolvable region failed closed in PHP while the client merely warned.",
+		"",
+		"Both languages read THIS file. Change the rule here and both suites fail until",
+		"both implementations agree. Consumers:",
+		"  tests/phpunit/Unit/RegionMathFixtureTest.php",
+		"  tests/unit-js/workflow-side-effect.test.js"
+	],
+
+	"statusToRegion": [
+		{
+			"status": "future",
+			"region": "publish",
+			"why": "Scheduling is a delayed publish. Publish-side HERE so it cannot route around the boundary; still an overlay for the reseat, which is a separate decision (Sequence::OVERLAY_STATUSES)."
+		},
+		{
+			"status": "auto-draft",
+			"region": "draft",
+			"why": "Core's embryo of a draft."
+		},
+		{ "status": "draft", "region": "draft", "why": "Maps to itself." },
+		{ "status": "pending", "region": "pending", "why": "Maps to itself." },
+		{ "status": "private", "region": "private", "why": "Maps to itself." },
+		{ "status": "publish", "region": "publish", "why": "Maps to itself." },
+		{
+			"status": "trash",
+			"region": "trash",
+			"why": "Handed back verbatim. NOT a region — callers filter it before comparing, or trashing a live post reads as an out-of-publish crossing."
+		},
+		{
+			"status": "inherit",
+			"region": "inherit",
+			"why": "Handed back verbatim. Core-internal (revisions, attachments); filtered like trash."
+		}
+	],
+
+	"crossesPublishBoundary": [
+		{
+			"currentRegion": "draft",
+			"targetStatus": "draft",
+			"crosses": false,
+			"why": "Same region — nothing moves."
+		},
+		{
+			"currentRegion": "draft",
+			"targetStatus": "pending",
+			"crosses": false,
+			"why": "Two non-publish regions: a reseat, but not a boundary crossing."
+		},
+		{
+			"currentRegion": "pending",
+			"targetStatus": "draft",
+			"crosses": false,
+			"why": "Same, in reverse."
+		},
+		{
+			"currentRegion": "private",
+			"targetStatus": "draft",
+			"crosses": false,
+			"why": "`private` is its own region and is not publish-side."
+		},
+		{
+			"currentRegion": "draft",
+			"targetStatus": "publish",
+			"crosses": true,
+			"why": "Into publish."
+		},
+		{
+			"currentRegion": "publish",
+			"targetStatus": "draft",
+			"crosses": true,
+			"why": "Out of publish. The veto is SYMMETRIC: a user barred from publishing must not be able to unpublish."
+		},
+		{
+			"currentRegion": "pending",
+			"targetStatus": "publish",
+			"crosses": true,
+			"why": "Into publish from any non-publish region."
+		},
+		{
+			"currentRegion": "draft",
+			"targetStatus": "future",
+			"crosses": true,
+			"why": "Scheduling is a publish crossing — otherwise cron publishes on the user's behalf and the guard is bypassed."
+		},
+		{
+			"currentRegion": "publish",
+			"targetStatus": "future",
+			"crosses": false,
+			"why": "Re-scheduling a post already in the publish region stays publish-side."
+		},
+		{
+			"currentRegion": "publish",
+			"targetStatus": "trash",
+			"crosses": false,
+			"why": "Trash is an overlay that suspends the workflow in place, in either direction."
+		},
+		{
+			"currentRegion": "draft",
+			"targetStatus": "trash",
+			"crosses": false,
+			"why": "Same."
+		},
+		{
+			"currentRegion": "publish",
+			"targetStatus": "inherit",
+			"crosses": false,
+			"why": "Core-internal, never a user-initiated editorial move. This is the case that drifted: PHP filtered it, JS did not, so the client vetoed what the server allowed."
+		}
+	]
+}

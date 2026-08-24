@@ -1,0 +1,24 @@
+# Dependencies
+vendor/
+node_modules/
+
+# Build output
+build/
+
+# Test artifacts
+.phpunit.cache/
+.phpunit.result.cache
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*

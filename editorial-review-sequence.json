@@ -1,0 +1,92 @@
+{
+  "name": "Editorial Review",
+  "type": "workflow",
+  "description": "Standard editorial workflow for blog posts and articles",
+  "config": {
+    "version": "2.0",
+    "post_types": [
+      "post"
+    ],
+    "registers_cpt": false,
+    "reviewer_roles": [
+      "editor",
+      "administrator"
+    ],
+    "statuses": [
+      {
+        "key": "draft",
+        "label": "Draft",
+        "description": "Author is writing the content",
+        "color": "#3498db",
+        "icon": "edit",
+        "transitions": [
+          {
+            "to": "review",
+            "label": "Submit for Review"
+          }
+        ]
+      },
+      {
+        "key": "review",
+        "label": "In Review",
+        "description": "Editor is reviewing the content",
+        "color": "#f39c12",
+        "icon": "visibility",
+        "transitions": [
+          {
+            "to": "ready",
+            "label": "Approve"
+          },
+          {
+            "to": "draft",
+            "label": "Request Changes"
+          }
+        ]
+      },
+      {
+        "key": "ready",
+        "label": "Ready to Publish",
+        "description": "Approved and awaiting publication",
+        "color": "#27ae60",
+        "icon": "yes-alt",
+        "transitions": [
+          {
+            "to": "publish",
+            "label": "Publish Now"
+          },
+          {
+            "to": "future",
+            "label": "Schedule"
+          },
+          {
+            "to": "review",
+            "label": "Send Back for Review"
+          }
+        ]
+      },
+      {
+        "key": "publish",
+        "label": "Published",
+        "description": "Content is live",
+        "color": "#9b59b6",
+        "icon": "megaphone",
+        "is_terminal": true,
+        "publish": true,
+        "transitions": []
+      }
+    ],
+    "automations": [
+      {
+        "trigger": "status.review.entered",
+        "action": "notify",
+        "config": {
+          "to": "role:editor",
+          "message": "{{post.title}} is ready for review"
+        }
+      }
+    ],
+    "settings": {
+      "allow_skip": false
+    }
+  }
+}

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- Synthetic development content for VIP Workflow's local wp-env site. -->
+<rss version="2.0"
+	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+	xmlns:content="http://purl.org/rss/1.0/modules/content/"
+	xmlns:dc="http://purl.org/dc/elements/1.1/"
+	xmlns:wp="http://wordpress.org/export/1.2/"
+>
+	<channel>
+		<title>VIP Workflow Demo</title>
+		<link>http://localhost:8888</link>
+		<description>Synthetic editorial workflow fixtures</description>
+		<pubDate>Thu, 15 Jan 2026 12:00:00 +0000</pubDate>
+		<language>en-US</language>
+		<wp:wxr_version>1.2</wp:wxr_version>
+		<wp:base_site_url>http://localhost:8888</wp:base_site_url>
+		<wp:base_blog_url>http://localhost:8888</wp:base_blog_url>
+
+		<wp:author>
+			<wp:author_id>1</wp:author_id>
+			<wp:author_login><![CDATA[admin]]></wp:author_login>
+			<wp:author_email><![CDATA[admin@example.test]]></wp:author_email>
+			<wp:author_display_name><![CDATA[Demo Editor]]></wp:author_display_name>
+			<wp:author_first_name><![CDATA[Demo]]></wp:author_first_name>
+			<wp:author_last_name><![CDATA[Editor]]></wp:author_last_name>
+		</wp:author>
+
+		<wp:category>
+			<wp:term_id>2</wp:term_id>
+			<wp:category_nicename><![CDATA[workflow-demo]]></wp:category_nicename>
+			<wp:category_parent><![CDATA[]]></wp:category_parent>
+			<wp:cat_name><![CDATA[Workflow Demo]]></wp:cat_name>
+		</wp:category>
+
+		<item>
+			<title>City council opens a new public garden</title>
+			<link>http://localhost:8888/?p=101</link>
+			<pubDate>Mon, 05 Jan 2026 14:00:00 +0000</pubDate>
+			<dc:creator><![CDATA[admin]]></dc:creator>
+			<guid isPermaLink="false">vip-workflow-demo-post-101</guid>
+			<description></description>
+			<content:encoded><![CDATA[This synthetic article gives local development environments a safe editorial fixture. It describes a fictional city council opening a public garden after a community planning process.]]></content:encoded>
+			<excerpt:encoded><![CDATA[A fictional local-news fixture for workflow testing.]]></excerpt:encoded>
+			<wp:post_id>101</wp:post_id>
+			<wp:post_date><![CDATA[2026-01-05 14:00:00]]></wp:post_date>
+			<wp:post_date_gmt><![CDATA[2026-01-05 14:00:00]]></wp:post_date_gmt>
+			<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+			<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+			<wp:post_name><![CDATA[city-council-opens-public-garden]]></wp:post_name>
+			<wp:status><![CDATA[publish]]></wp:status>
+			<wp:post_parent>0</wp:post_parent>
+			<wp:menu_order>0</wp:menu_order>
+			<wp:post_type><![CDATA[post]]></wp:post_type>
+			<wp:post_password><![CDATA[]]></wp:post_password>
+			<wp:is_sticky>0</wp:is_sticky>
+			<category domain="category" nicename="workflow-demo"><![CDATA[Workflow Demo]]></category>
+		</item>
+
+		<item>
+			<title>Library pilots an evening makers program</title>
+			<link>http://localhost:8888/?p=102</link>
+			<pubDate>Thu, 08 Jan 2026 16:30:00 +0000</pubDate>
+			<dc:creator><![CDATA[admin]]></dc:creator>
+			<guid isPermaLink="false">vip-workflow-demo-post-102</guid>
+			<description></description>
+			<content:encoded><![CDATA[This entirely fictional story outlines a library pilot that offers evening workshops in basic electronics, sewing, and digital fabrication.]]></content:encoded>
+			<excerpt:encoded><![CDATA[A synthetic culture-desk fixture.]]></excerpt:encoded>
+			<wp:post_id>102</wp:post_id>
+			<wp:post_date><![CDATA[2026-01-08 16:30:00]]></wp:post_date>
+			<wp:post_date_gmt><![CDATA[2026-01-08 16:30:00]]></wp:post_date_gmt>
+			<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+			<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+			<wp:post_name><![CDATA[library-evening-makers-program]]></wp:post_name>
+			<wp:status><![CDATA[publish]]></wp:status>
+			<wp:post_parent>0</wp:post_parent>
+			<wp:menu_order>0</wp:menu_order>
+			<wp:post_type><![CDATA[post]]></wp:post_type>
+			<wp:post_password><![CDATA[]]></wp:post_password>
+			<wp:is_sticky>0</wp:is_sticky>
+			<category domain="category" nicename="workflow-demo"><![CDATA[Workflow Demo]]></category>
+		</item>
+
+		<item>
+			<title>Transit agency tests quieter electric buses</title>
+			<link>http://localhost:8888/?p=103</link>
+			<pubDate>Mon, 12 Jan 2026 09:15:00 +0000</pubDate>
+			<dc:creator><![CDATA[admin]]></dc:creator>
+			<guid isPermaLink="false">vip-workflow-demo-post-103</guid>
+			<description></description>
+			<content:encoded><![CDATA[This synthetic report follows a fictional transit agency as it evaluates electric buses on two neighborhood routes. All names and details are invented.]]></content:encoded>
+			<excerpt:encoded><![CDATA[A synthetic transportation fixture.]]></excerpt:encoded>
+			<wp:post_id>103</wp:post_id>
+			<wp:post_date><![CDATA[2026-01-12 09:15:00]]></wp:post_date>
+			<wp:post_date_gmt><![CDATA[2026-01-12 09:15:00]]></wp:post_date_gmt>
+			<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+			<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+			<wp:post_name><![CDATA[transit-agency-tests-electric-buses]]></wp:post_name>
+			<wp:status><![CDATA[draft]]></wp:status>
+			<wp:post_parent>0</wp:post_parent>
+			<wp:menu_order>0</wp:menu_order>
+			<wp:post_type><![CDATA[post]]></wp:post_type>
+			<wp:post_password><![CDATA[]]></wp:post_password>
+			<wp:is_sticky>0</wp:is_sticky>
+			<category domain="category" nicename="workflow-demo"><![CDATA[Workflow Demo]]></category>
+		</item>
+
+		<item>
+			<title>Community theater announces its spring season</title>
+			<link>http://localhost:8888/?p=104</link>
+			<pubDate>Thu, 15 Jan 2026 11:45:00 +0000</pubDate>
+			<dc:creator><![CDATA[admin]]></dc:creator>
+			<guid isPermaLink="false">vip-workflow-demo-post-104</guid>
+			<description></description>
+			<content:encoded><![CDATA[This fictional arts brief provides a neutral fixture for editing, assignment, and transition testing in a local WordPress site.]]></content:encoded>
+			<excerpt:encoded><![CDATA[A synthetic arts-desk fixture.]]></excerpt:encoded>
+			<wp:post_id>104</wp:post_id>
+			<wp:post_date><![CDATA[2026-01-15 11:45:00]]></wp:post_date>
+			<wp:post_date_gmt><![CDATA[2026-01-15 11:45:00]]></wp:post_date_gmt>
+			<wp:comment_status><![CDATA[closed]]></wp:comment_status>
+			<wp:ping_status><![CDATA[closed]]></wp:ping_status>
+			<wp:post_name><![CDATA[community-theater-spring-season]]></wp:post_name>
+			<wp:status><![CDATA[pending]]></wp:status>
+			<wp:post_parent>0</wp:post_parent>
+			<wp:menu_order>0</wp:menu_order>
+			<wp:post_type><![CDATA[post]]></wp:post_type>
+			<wp:post_password><![CDATA[]]></wp:post_password>
+			<wp:is_sticky>0</wp:is_sticky>
+			<category domain="category" nicename="workflow-demo"><![CDATA[Workflow Demo]]></category>
+		</item>
+	</channel>
+</rss>

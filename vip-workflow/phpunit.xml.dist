@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.6/phpunit.xsd"
+    bootstrap="tests/phpunit/bootstrap.php"
+    colors="true"
+    cacheResultFile=".phpunit.cache/test-results"
+    executionOrder="depends,defects"
+    forceCoversAnnotation="false"
+    beStrictAboutCoversAnnotation="false"
+    beStrictAboutOutputDuringTests="true"
+    failOnRisky="true"
+    failOnWarning="false"
+    verbose="true"
+>
+    <php>
+        <!-- Many tests deliberately exercise error paths whose production code
+             calls error_log() (SSRF rejections, corrupted options, failed
+             migrations, duplicate channels). In CLI those writes go to stderr
+             and clutter the test output. Redirect them to /dev/null; this only
+             affects the destination of error_log(), not its return value or any
+             Brain\Monkey-stubbed expectations. -->
+        <ini name="error_log" value="/dev/null"/>
+    </php>
+
+    <testsuites>
+        <testsuite name="unit">
+            <directory>tests/phpunit/Unit</directory>
+        </testsuite>
+        <testsuite name="integration">
+            <directory>tests/phpunit/Integration</directory>
+        </testsuite>
+    </testsuites>
+
+    <!-- Uncomment for coverage reports (requires Xdebug or PCOV)
+    <coverage>
+        <include>
+            <directory suffix=".php">includes</directory>
+        </include>
+        <exclude>
+            <directory>includes/admin</directory>
+            <file>includes/index.php</file>
+        </exclude>
+        <report>
+            <html outputDirectory="coverage"/>
+            <text outputFile="php://stdout" showOnlySummary="true"/>
+        </report>
+    </coverage>
+    -->
+</phpunit>

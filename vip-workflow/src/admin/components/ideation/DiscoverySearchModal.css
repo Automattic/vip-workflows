@@ -1,0 +1,29 @@
+/**
+ * Ideation discovery search modal styles.
+ */
+
+/* Discovery Search Modal */
+
+.vip-workflow-ideation-discovery-modal__filter {
+	min-width: 160px;
+	flex: 1;
+}
+
+.vip-workflow-ideation-discovery-modal__filters-loading,
+.vip-workflow-ideation-discovery-modal__results-loading {
+	padding: var(--wpds-dimension-padding-2xl);
+}
+
+.vip-workflow-ideation-discovery-modal__no-results {
+	text-align: center;
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted empty-state color on <Text>; Text has no color prop */
+	padding: var(--wpds-dimension-padding-2xl);
+}
+
+.vip-workflow-ideation-discovery-modal__results-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+	gap: var(--wpds-dimension-gap-md);
+	max-height: 400px;
+	overflow-y: auto;
+}

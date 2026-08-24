@@ -1,0 +1,20 @@
+/**
+ * Eyebrow / section-label treatment.
+ *
+ * The uppercase section-label type IS a WPDS variant: `Text
+ * variant="heading-sm"` ships the heading family, 11px/16px, medium weight and
+ * `text-transform: uppercase` together. Everything about the type comes from
+ * there.
+ *
+ * What is left is the muted color, which the variant cannot carry because
+ * `Text` exposes no color prop — so the eyebrow headers across the plugin share
+ * this one class rather than re-declaring the token per file.
+ *
+ * It lived in the admin stylesheet until a shared component wanted it too: the
+ * event notes dialog labels each note this way, and that dialog opens in the
+ * editor as well as the admin. Imported by both entry stylesheets.
+ */
+
+.vip-workflow-eyebrow {
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- eyebrow muted color on <Text>; no Text color prop */
+}

@@ -1,0 +1,75 @@
+/**
+ * Schema-driven option rows (tool-option items) and the check-mode pill
+ * toggle. Rendered by SchemaSettings.js (shared across Tools, Agents,
+ * and Notifications schema panels).
+ */
+
+/* Individual Options */
+.vip-workflow-tool-option {
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+	background: var(--wpds-color-background-surface-neutral);
+	border-radius: var(--wpds-border-radius-lg);
+	transition: background 0.15s ease;
+}
+
+.vip-workflow-tool-option:hover {
+	background: var(--wpds-color-background-surface-neutral-weak);
+}
+
+.vip-workflow-tool-option__header {
+	margin-bottom: 8px; /* wpds-allow R3 -- label wrapper spacing; parent option row is a surface div, not a Stack */
+}
+
+.vip-workflow-tool-option__label {
+	font: var(--vip-workflow-text-heading-md);
+	color: var(--wpds-color-foreground-content-neutral);
+}
+
+/* Wrapper for the label + number input; now a <Stack direction="row"> (gap/align
+   are props). Only the flex-child grow stays. */
+.vip-workflow-tool-option__input-group {
+	flex: 1;
+}
+
+.vip-workflow-tool-option__toggle-group {
+	flex: 1;
+}
+
+/* TextControl/TextareaControl wrappers — visual chrome comes from the components */
+.vip-workflow-tool-option__number {
+	width: 72px;
+}
+
+.vip-workflow-tool-option__number .components-text-control__input {
+	text-align: center;
+}
+
+.vip-workflow-tool-option__textarea {
+	width: 100%;
+}
+
+.vip-workflow-tool-option__textarea textarea {
+	font-size: var(--wpds-typography-font-size-md); /* wpds-allow R6 -- monospace prompt editor; TextareaControl has no mono/size prop */
+	font-family: var(--wpds-typography-font-family-mono); /* wpds-allow R6 -- monospace prompt editor */
+	line-height: 1.5; /* wpds-allow R5,R6 -- monospace prompt editor line rhythm; leading must stay unitless to track the mono size, and the WPDS line-height scale is absolute px */
+	resize: vertical;
+	min-height: 120px;
+}
+
+/* The check-enforcement segmented control now uses
+   `__experimentalToggleGroupControl` (@wordpress/components) — no custom CSS. */
+
+/* The field column every schema-driven form renders into.
+
+   Deliberately surface-free. Every consumer renders this inside a Card.Content
+   that already draws the chrome, so the padding/background/radius this rule used
+   to add was a second surface inside the first — which is why both migrated
+   screens had to pass a class whose only job was to take it back off. The bottom
+   margin went with it: Card.Content is a `Stack gap="lg"` on those screens, so it
+   added to the gap rather than supplying one. A group of fields that genuinely
+   needs framing outside a card gets a SettingsSection, which is borderless. */
+.vip-workflow-schema-settings {
+	display: flex; /* wpds-allow R4 -- the shared component's own root <div>; a consumer cannot pass Stack props into it */
+	flex-direction: column; /* wpds-allow R4 -- shared field column (see above) */
+	gap: var(--wpds-dimension-gap-lg); /* wpds-allow R4 -- shared field column (see above) */
+}

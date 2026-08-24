@@ -1,0 +1,172 @@
+/**
+ * VIP Workflow styles for classic wp-admin screens.
+ *
+ * The plugin's two non-React surfaces: the "My Workflow" dashboard widget
+ * (includes/admin/class-dashboard-widget.php) and the Workflow column plus
+ * Quick Edit box on the posts list (includes/admin/class-posts-columns.php).
+ * Neither screen loads the admin bundle, so these rules used to be echoed from
+ * PHP — a `\3c style>` block in the widget, `style="…"` attributes on the column —
+ * where no stylesheet linter or token audit could see them.
+ *
+ * Its own CSS-only webpack entry (`classic-admin` -> build/classic-admin.css,
+ * see webpack.config.js), enqueued by VIPWorkflow\Admin\AdminStyles. It lives in
+ * src/entries/ rather than src/styles/ because it is a build entry, not a shared
+ * stylesheet: nothing imports it. Two consequences worth knowing before editing:
+ *
+ *   - Only --wpds-* tokens may be used here. The supplemental
+ *     --vip-workflow-* token set (src/styles/tokens.css) ships inside
+ *     build/style-admin.css, which these screens never load, so referencing one
+ *     would resolve to nothing. AdminStyles enqueues the WPDS token
+ *     definitions alongside this file so the --wpds-* values are defined.
+ *   - Per-stage color is dynamic — it comes from a sequence's config — so PHP
+ *     (and the Quick Edit script) set it as --vip-workflow-stage-color on the
+ *     element itself. Everything that isn't the color lives here.
+ */
+
+/* ── Dashboard widget ─────────────────────────────────────────────────────── */
+
+.vip-workflow-dashboard h4 {
+	margin: var(--wpds-dimension-gap-md) 0 var(--wpds-dimension-gap-sm); /* wpds-allow R3 -- PHP-rendered wp-admin markup; there is no Stack here to own the spacing */
+	font-size: var(--wpds-typography-font-size-md);
+}
+
+.vip-workflow-dashboard h4:first-child {
+	margin-top: 0; /* wpds-allow R3 -- PHP-rendered wp-admin markup; there is no Stack here to own the spacing */
+}
+
+.vip-workflow-dashboard__list {
+	margin: 0; /* wpds-allow R3 -- resets the wp-admin list margin; no Stack in PHP-rendered markup */
+	padding: 0; /* wpds-allow R2 -- zero, not a step on the spacing scale */
+	list-style: none;
+}
+
+.vip-workflow-dashboard__list li {
+	display: flex; /* wpds-allow R4 -- PHP-rendered wp-admin markup; a Stack is not available here */
+	justify-content: space-between; /* wpds-allow R4 -- PHP-rendered wp-admin markup; a Stack is not available here */
+	align-items: center; /* wpds-allow R4 -- PHP-rendered wp-admin markup; a Stack is not available here */
+	padding: var(--wpds-dimension-padding-xs) 0;
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.vip-workflow-dashboard__list li:last-child {
+	border-bottom: none;
+}
+
+/*
+ * Stage pill. Both the text and its wash come from the stage's own color, set
+ * on the element as --vip-workflow-stage-color.
+ */
+.vip-workflow-dashboard__status {
+	font-size: var(--wpds-typography-font-size-xs);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
+	border-radius: var(--wpds-border-radius-sm);
+	color: var(--vip-workflow-stage-color);
+	background: color-mix(in srgb, var(--vip-workflow-stage-color) 12%, transparent);
+}
+
+.vip-workflow-dashboard__empty {
+	margin: var(--wpds-dimension-gap-sm) 0; /* wpds-allow R3 -- PHP-rendered wp-admin markup; there is no Stack here to own the spacing */
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-style: italic;
+}
+
+.vip-workflow-dashboard__summary {
+	display: flex; /* wpds-allow R4 -- PHP-rendered wp-admin markup; a Stack is not available here */
+	flex-direction: column; /* wpds-allow R4 -- PHP-rendered wp-admin markup; a Stack is not available here */
+	gap: var(--wpds-dimension-gap-xs); /* wpds-allow R4 -- PHP-rendered wp-admin markup; a Stack is not available here */
+}
+
+.vip-workflow-dashboard__sequence {
+	display: flex; /* wpds-allow R4 -- PHP-rendered wp-admin markup; a Stack is not available here */
+	justify-content: space-between; /* wpds-allow R4 -- PHP-rendered wp-admin markup; a Stack is not available here */
+	align-items: center; /* wpds-allow R4 -- PHP-rendered wp-admin markup; a Stack is not available here */
+	padding: var(--wpds-dimension-padding-xs) 0;
+}
+
+.vip-workflow-dashboard__count {
+	font-size: var(--wpds-typography-font-size-sm);
+	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
+	border-radius: var(--wpds-border-radius-lg);
+	background: var(--wpds-color-background-surface-neutral-weak);
+}
+
+.vip-workflow-dashboard__actions {
+	margin-top: var(--wpds-dimension-gap-md); /* wpds-allow R3 -- PHP-rendered wp-admin markup; there is no Stack here to own the spacing */
+	padding-top: var(--wpds-dimension-padding-md);
+	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+/* ── Posts list: the Workflow column ──────────────────────────────────────── */
+
+.vip-workflow-column {
+	display: inline-flex; /* wpds-allow R4 -- list-table cell rendered by PHP; a Stack is not available here */
+	align-items: center; /* wpds-allow R4 -- list-table cell rendered by PHP; a Stack is not available here */
+	gap: var(--wpds-dimension-gap-xs); /* wpds-allow R4 -- list-table cell rendered by PHP; a Stack is not available here */
+}
+
+/* Stage swatch. Its color is the stage's, set as --vip-workflow-stage-color. */
+.vip-workflow-column__dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%; /* wpds-allow R2 -- a circle, not a step on the radius scale */
+	background: var(--vip-workflow-stage-color);
+}
+
+/*
+ * "Live" reflects the post's committed core status, so its green is semantic —
+ * a published state, not a category — and stays on the WPDS success token
+ * rather than moving onto the qualitative stage palette.
+ */
+.vip-workflow-column__live {
+	font-size: var(--wpds-typography-font-size-xs);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	color: var(--wpds-color-foreground-content-success-weak);
+}
+
+/* ── Posts list: the Quick Edit workflow box ──────────────────────────────── */
+
+.vip-workflow-quick-edit__current {
+	display: inline-flex; /* wpds-allow R4 -- Quick Edit markup rendered by PHP; a Stack is not available here */
+	align-items: center; /* wpds-allow R4 -- Quick Edit markup rendered by PHP; a Stack is not available here */
+	gap: var(--wpds-dimension-gap-xs); /* wpds-allow R4 -- Quick Edit markup rendered by PHP; a Stack is not available here */
+	margin-bottom: var(--wpds-dimension-gap-sm); /* wpds-allow R3 -- Quick Edit markup rendered by PHP; there is no Stack here to own the spacing */
+}
+
+/* Same swatch as the column, one size up, and colored the same way. */
+.vip-workflow-quick-edit__dot {
+	width: 10px;
+	height: 10px;
+	border-radius: 50%; /* wpds-allow R2 -- a circle, not a step on the radius scale */
+	background: var(--vip-workflow-stage-color);
+}
+
+.vip-workflow-quick-edit__label {
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.vip-workflow-quick-edit__transitions {
+	display: flex; /* wpds-allow R4 -- Quick Edit markup rendered by PHP; a Stack is not available here */
+	flex-wrap: wrap; /* wpds-allow R4 -- Quick Edit markup rendered by PHP; a Stack is not available here */
+	gap: var(--wpds-dimension-gap-xs); /* wpds-allow R4 -- Quick Edit markup rendered by PHP; a Stack is not available here */
+}
+
+/*
+ * Transition buttons are core `.button.button-small` elements, which set their
+ * own size; !important is what makes them compact enough for the Quick Edit row.
+ */
+.vip-workflow-quick-edit__btn {
+	font-size: var(--wpds-typography-font-size-sm) !important;
+	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm) !important;
+	min-height: auto !important;
+}
+
+.vip-workflow-quick-edit__message {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-style: italic;
+}
+
+/* Core floats its spinner left; inside the transitions row it must not. */
+.vip-workflow-quick-edit__spinner {
+	float: none;
+}

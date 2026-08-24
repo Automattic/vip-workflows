@@ -1,0 +1,6 @@
+/**
+ * Ideation add source modal styles.
+ *
+ * The tabs + form group is laid out by a `<Stack direction="column" gap>`
+ * inside the WPDS Modal (see AddSourceModal.js); no local spacing rules needed.
+ */

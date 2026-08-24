@@ -1,0 +1,451 @@
+/**
+ * Admin Page pattern.
+ *
+ * Mirrors the rendered shape and style of WordPress core's
+ * `@wordpress/admin-ui` `Page` + `Breadcrumbs` components by hand. We do not
+ * import that package: it is on the dependency-extraction plugin's
+ * `BUNDLED_PACKAGES` list (no `wp.*` script handle for plugins to consume) and
+ * opts into private APIs that its own acknowledgement string says "will break
+ * in the next version of WordPress." See AdminPage.js for the full rationale.
+ *
+ * The header is a single sticky row — a distinct bar with its own background
+ * and a bottom divider — over the neutral surface the page recolors onto the
+ * wp-admin body, so one background fills the rest of the screen. Token values
+ * track core's `page/style.module.css`:
+ *   page/body bg   wpds-color/bg/surface/neutral
+ *   header bg      wpds-color/bg/surface/neutral/strong
+ *   header border  wpds-border/width/xs  stroke/surface/neutral/weak
+ *   title          Text heading-lg  (font-size/lg, line-height/sm, weight medium)
+ *   crumb link     Text body-lg + Link tone neutral  (fg/interactive/neutral, underlined)
+ *   separator      stroke/surface/neutral
+ *   subtitle       Text body-md  fg/content/neutral/weak
+ *
+ * Two measures have no WPDS token and live as custom properties on
+ * `.vip-workflow-admin-page`: --vip-workflow-admin-page-icon-size (24px, ready
+ * to swap for --wpds-dimension-size-sm once @wordpress/theme ships that set)
+ * and --vip-workflow-admin-page-content-width (settled — see its declaration).
+ *
+ * @package VIPWorkflow
+ */
+
+/* The AdminPage owns a full-bleed layout. Neutralize the wp-admin insets the
+   page renders inside so it sits flush against the admin menu — rather than
+   fighting them with collapse-prone negative margins, which produced an
+   inconsistent 10px top gap between screens. Scoped via `:has()` so only our
+   screens are affected, not the rest of wp-admin.
+     - `.wrap` default margin: 10px 20px 0 2px
+     - `#wpcontent` default padding-left: 20px (the core content gutter) */
+.wrap:has( .vip-workflow-admin-page ) {
+	margin: 0;
+}
+
+#wpcontent:has( .vip-workflow-admin-page ) {
+	padding-left: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* Height of the fixed wp-admin admin bar. The canvas starts just below it, so a
+   viewport-pinned screen subtracts it and the page's sticky header tucks under
+   it. Declared on `#wpbody-content` rather than on the page because a custom
+   property only travels downwards, and that box is the one that pins itself to
+   the viewport on a full-bleed screen (see below) — from here the value still
+   reaches `.wrap`, the page, and its header. */
+#wpbody-content:has( .vip-workflow-admin-page ) {
+	--vip-workflow-admin-page-viewport-offset: 32px;
+}
+
+/* Always reserve the page scrollbar's gutter. Our constrained column is
+   centered with `margin-inline: auto`, so without this the column shifts
+   sideways whenever the vertical scrollbar toggles — between tall and short
+   tabs/screens, and on first paint when content grows past the viewport.
+   Set on the document scroll container (`html`); Safari uses overlay
+   scrollbars and is unaffected. */
+html:has( .vip-workflow-admin-page ) {
+	scrollbar-gutter: stable;
+}
+
+/* Recolor the wp-admin background (set on `body` by colors.css) to our neutral
+   surface so one background fills the whole screen. The page stays transparent
+   and shows it through; only the header paints its own (stronger) layer. */
+body:has( .vip-workflow-admin-page ) {
+	background: var( --wpds-color-background-surface-neutral );
+}
+
+/* ============================================================================
+   wp-admin typography reset (defer to the DS cascade layer)
+   ----------------------------------------------------------------------------
+   @wordpress/ui components style themselves inside `@layer wp-ui-components`
+   (e.g. Text's `.body-sm` sets font-family/size/line-height/weight there).
+   wp-admin's common.css styles the bare flow tags — `p`, `.wrap h1`, … — with
+   UNLAYERED rules, and an unlayered *normal* declaration beats *any* layered
+   one regardless of specificity. So a `<Text variant="body-sm">` rendered as a
+   `<p>` loses its DS typography to common.css `p {}`, and a heading loses to
+   `.wrap h1`.
+
+   This rule is unlayered too, so it competes with common.css on specificity.
+   `.wrap:has( … )` lands it at (0,2,0) — enough to out-specify wp-admin's
+   `.wrap h1` / `.wrap p` globals (0,1,1) — then hands typography back to the DS
+   layer with `revert-layer` and zeroes the margins the globals inject (DS
+   components are margin-free; the surrounding Stack owns spacing). Wrapping the
+   tags in `:where()` keeps the element contribution at zero, so each
+   component's own layered styles still win over this reset.
+
+   This reset only reaches the admin canvas. Modals portal to document.body and
+   have no `.wrap` ancestor, so they get their own copy of this fix — see
+   src/styles/modal-reset.css.
+
+   `.description` is excluded: it's a wp-admin-classed helper, not a DS element,
+   so `revert-layer` (which rolls back past *every* unlayered rule, not just
+   wp-admin's) would strip its 13px/italic.
+
+   The `.notice` subtree is excluded for the same reason — descendants included,
+   since the styled element is the notice's own `<p>`, not the notice box. Admin
+   notices print above this `.wrap`, and wp-admin then relocates them *into* it,
+   at the `<hr class="wp-header-end">` the render callback emits. That puts them
+   in range of this reset, where `.wrap:has( … ) p` (0,2,0) would beat core's
+   `.notice p` (0,1,1) and strip the paragraph margins that give a notice its
+   height — rendering it as a jammed-up strip. Excluding rather than
+   out-specifying is the fix: core's notice styling then applies unopposed,
+   exactly as it does everywhere else in wp-admin.
+
+   Add any other intentionally wp-admin-styled flow element to the `:not()`
+   list. An ID-scoped wp-admin rule would out-specify this (0,2,0) rule and
+   needs its own targeted override.
+   ============================================================================ */
+.wrap:has( .vip-workflow-admin-page )
+	:where( p, h1, h2, h3, h4, h5, h6 ):where(
+		:not( .description, .notice, .notice * )
+	) {
+	font: revert-layer; /* wpds-allow R5 -- not raw type styling; reverts to the DS @layer wp-ui-components value over wp-admin globals */
+	margin: 0; /* wpds-allow R2,R3 -- not spacing between siblings; strips the margin wp-admin injects onto a margin-free DS component, and zero needs no token */
+}
+
+/* ============================================================================
+   `<fieldset>` keeps a UA `min-inline-size: min-content`, so it refuses to
+   shrink below its own content and overflows any constrained flex or grid
+   parent. Measured: a fieldset asked for 50px in a 200px flex row takes 207px
+   without this, and 50px with it.
+
+   This is the element's own UA rule, not wp-admin's, and it is not what
+   `@wordpress/ui`'s `Fieldset` resets — that stylesheet zeroes `border`,
+   `margin` and `padding` and stops. So it belongs here, once, rather than on
+   each group's own class: one call site renders `Fieldset.Root` with no class
+   of its own, and a per-component fix would keep missing the next one.
+
+   Scoped to the admin canvas like every other reset in this file. Modals get
+   their copy from src/styles/modal-reset.css.
+   ============================================================================ */
+.wrap:has( .vip-workflow-admin-page ) fieldset {
+	min-inline-size: 0; /* wpds-allow R2 -- zero needs no token; undoes a UA min-content floor, not a design dimension */
+}
+
+/* Muted help/description text on a DS component. The DS-consistent replacement
+   for wp-admin's legacy `.description` class: keep the `<Text variant>` (its
+   typography is now owned by the reset above, since the element is no longer
+   `.description`) and supply the muted foreground token here. Use this instead
+   of `className="description"` on a `<Text>` — that class is unlayered wp-admin
+   CSS that clobbers the component and is deliberately excluded from the reset. */
+.vip-workflow-description {
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* The page is a flex column holding a sticky header over the content. Header
+   and content each own their padding (matching core), so the page itself adds
+   none. It also defines the two measures WPDS doesn't tokenize. */
+.vip-workflow-admin-page {
+	--vip-workflow-admin-page-icon-size: 24px;
+
+	/* The canonical content width for this project: 42.5rem = 680px, the
+	   measure every `constrained` screen's header and content column cap at.
+	   Deliberately NOT a WPDS token, and not an open question. WPDS ships
+	   --wpds-dimension-surface-width-lg (560px) and -xl (720px) with nothing
+	   between them; 560 is too narrow for the settings forms these screens
+	   carry (label + control + description on one line) and 720 pushes prose
+	   past a comfortable reading measure. 680 is the value chosen between
+	   them. Rounding to whichever token is nearer is a regression, not a
+	   cleanup — change this only with a deliberate design decision behind it,
+	   and change it here, not per screen. */
+	--vip-workflow-admin-page-content-width: 42.5rem;
+	box-sizing: border-box;
+	min-height: 100%;
+	display: flex;
+	flex-direction: column;
+}
+
+/* On a full-bleed screen the wp-admin canvas — not the page — owns the viewport
+   height, and hands the page whatever is left of it. The page shares its column
+   with anything wp-admin puts above it, and admin notices are exactly that:
+   real blocks, above the app, with real height. Whatever subtracts the offset
+   from `100vh` is therefore the box those blocks have to be measured against,
+   and it has to be one whose own top edge is known: a box that starts lower
+   than the offset assumed is still given the full height below the admin bar,
+   so it ends past the bottom of the screen by however far it was pushed down —
+   the canvas running under the viewport, and the second scrollbar the offset
+   exists to prevent.
+
+   `#wpbody-content` is that box. It opens at the admin bar's lower edge on
+   every admin screen, and everything core prints above the page lives inside
+   it: the screen-meta strip, and the notices core's own JS declines to relocate
+   into `.wrap` — it moves `div.updated, div.error, div.notice` but skips the
+   `.inline` ones, which is what the core update nag is, on every screen of a
+   site with an update pending. As a flex column each takes its natural height
+   first and `.wrap` absorbs the remainder, so the canvas ends exactly at the
+   viewport edge however much sits above it.
+
+   Core's bottom gutter for the footer goes with it: the footer is hidden on
+   these screens (below), and on a box that is now exactly one viewport tall
+   that padding is just empty space pushing a second scrollbar. */
+#wpbody-content:has( .vip-workflow-admin-page--full-bleed ) {
+	display: flex;
+	flex-direction: column;
+	height: calc( 100vh - var( --vip-workflow-admin-page-viewport-offset ) );
+	padding-bottom: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* Core lays the Screen Options / Help strip out with `float: right`, and a
+   float is ignored on a flex item — so making the box above a flex column would
+   otherwise drop that strip out of the top-right corner into a full-width row
+   of its own, eating canvas height on any screen that registers a help tab or a
+   screen option. `align-self` is where a flex column says the same thing. */
+#wpbody-content:has( .vip-workflow-admin-page--full-bleed )
+	> #screen-meta-links {
+	align-self: flex-end;
+}
+
+/* `.wrap` takes what is left of that box, and stays a flex column of its own so
+   the notices core *does* relocate into it — after `.wp-header-end`, above the
+   app — are absorbed the same way. */
+.wrap:has( .vip-workflow-admin-page--full-bleed ) {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+/* Hand that height down the mount chain. `:has()` picks out exactly the boxes
+   between the canvas and the page — the React root and the AppShell's view
+   wrappers — without naming any of them, so the chain still resolves if those
+   wrappers change; and it cannot reach into page content, since nothing inside
+   the page contains the page. */
+.wrap:has( .vip-workflow-admin-page--full-bleed )
+	*:has( .vip-workflow-admin-page--full-bleed ) {
+	flex: 1;
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+/* Full-bleed variant — board/calendar app screens own the whole canvas, pinned
+   to the viewport height. The header (if present) stays fixed at the top and
+   the content fills the remaining height, scrolling internally rather than the
+   page. The inner content (e.g. .kanban-wrapper, .calendar-container) fills the
+   content column with height: 100%. */
+.vip-workflow-admin-page--full-bleed {
+	flex: 1;
+	min-height: 0;
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* The page doesn't scroll in app-canvas mode, so the header is a static flex
+   item at the top rather than a sticky overlay. */
+.vip-workflow-admin-page--full-bleed .vip-workflow-admin-page__header {
+	position: static;
+}
+
+/* Content fills the height below the header and owns its own scroll. The
+   board/calendar supply their own padding, so the content wrapper adds none. */
+.vip-workflow-admin-page--full-bleed .vip-workflow-admin-page__content {
+	min-height: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.vip-workflow-admin-page--full-bleed .vip-workflow-admin-page__content-inner {
+	flex: 1;
+	min-height: 0;
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+	display: flex;
+	flex-direction: column;
+}
+
+/* wp-admin grows its fixed admin bar from 32px to 46px at its own 782px
+   breakpoint, so the desktop offset leaves full-bleed screens 14px too tall
+   below that width — the very double-scrollbar this offset exists to prevent.
+   Match core's breakpoint so the clearance stays correct at every width. */
+@media screen and ( max-width: 782px ) {
+	#wpbody-content:has( .vip-workflow-admin-page ) {
+		--vip-workflow-admin-page-viewport-offset: 46px;
+	}
+}
+
+/* A full-bleed screen is pinned to the viewport, so the wp-admin footer
+   ("Thank you for creating with WordPress") would push the page past 100vh and
+   add a second vertical scrollbar. These screens own the whole canvas — drop
+   the footer so the only scrolling is inside the board/calendar itself. */
+body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
+	display: none;
+}
+
+/* ============================================================================
+   Header — a sticky, full-width bar with its own background and a bottom
+   divider. The bar spans edge to edge; its inner content is what `constrained`
+   caps and centers, so the divider always runs the full width.
+   ============================================================================ */
+
+.vip-workflow-admin-page__header {
+	position: sticky;
+	/* Tuck just below the fixed wp-admin bar rather than scrolling under it. */
+	top: var( --vip-workflow-admin-page-viewport-offset );
+	z-index: 10;
+	background: var( --wpds-color-background-surface-neutral-strong );
+	border-block-end: var( --wpds-border-width-xs ) solid
+		var( --wpds-color-stroke-surface-neutral-weak );
+}
+
+.vip-workflow-admin-page__header-inner {
+	display: flex;
+	flex-direction: column;
+	gap: var( --wpds-dimension-gap-xs );
+	padding: var( --wpds-dimension-padding-lg ) var( --wpds-dimension-padding-2xl );
+}
+
+.vip-workflow-admin-page__header-inner.is-constrained {
+	width: 100%;
+	max-width: var( --vip-workflow-admin-page-content-width );
+	margin-inline: auto;
+}
+
+/* The single header row: visual + trail/title on the left, actions on the
+   right. `min-height` keeps short headers (no subtitle) a consistent bar
+   height, matching the 32px control height core's header uses. */
+.vip-workflow-admin-page__header-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: var( --wpds-dimension-gap-lg );
+	min-height: var( --wpds-dimension-size-md );
+}
+
+.vip-workflow-admin-page__header-main {
+	display: flex;
+	align-items: center;
+	gap: var( --wpds-dimension-gap-sm );
+	min-width: 0;
+}
+
+.vip-workflow-admin-page__icon {
+	display: inline-flex;
+	flex-shrink: 0;
+	width: var( --vip-workflow-admin-page-icon-size );
+	height: var( --vip-workflow-admin-page-icon-size );
+	color: var( --wpds-color-foreground-content-neutral );
+}
+
+/* ============================================================================
+   Breadcrumbs — an inline list whose final item is the page <h1>.
+   ============================================================================ */
+
+.vip-workflow-admin-page__breadcrumbs {
+	min-width: 0;
+}
+
+.vip-workflow-admin-page__breadcrumb-list {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	list-style: none;
+	margin: 0;
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* Parent items keep their intrinsic width; only the last (the heading) is
+   allowed to shrink so its truncation engages. */
+.vip-workflow-admin-page__breadcrumb-item {
+	display: inline-flex;
+	align-items: center;
+	flex-shrink: 0;
+	min-width: 0;
+}
+
+.vip-workflow-admin-page__breadcrumb-item:last-child {
+	flex-shrink: 1;
+}
+
+/* Link tone neutral: colored, underlined, with a weak decoration color. */
+.vip-workflow-admin-page__breadcrumb-link,
+.vip-workflow-admin-page__breadcrumb-link:visited {
+	font: var( --vip-workflow-text-body-lg );
+	color: var( --wpds-color-foreground-interactive-neutral );
+	text-decoration-line: underline;
+	text-decoration-thickness: 0.5px;
+	text-decoration-color: var( --wpds-color-stroke-interactive-neutral );
+	text-underline-offset: 0.2em;
+}
+
+.vip-workflow-admin-page__breadcrumb-link:hover,
+.vip-workflow-admin-page__breadcrumb-link:active {
+	color: var( --wpds-color-foreground-interactive-neutral-active );
+}
+
+.vip-workflow-admin-page__breadcrumb-separator {
+	font: var( --vip-workflow-text-body-lg );
+	margin-inline: var( --wpds-dimension-gap-sm );
+	color: var( --wpds-color-stroke-surface-neutral );
+	user-select: none;
+}
+
+/* ============================================================================
+   Title box model + truncation. Typography (heading-lg) comes from
+   `<Text variant="heading-lg">` via the DS layer — the reset above hands it back
+   over wp-admin's `.wrap h1`. This scoped selector (0,2,0) only out-specifies
+   the box model `.wrap h1` injects (padding) and clips the title to an ellipsis.
+   The h1 renders both as the trail's final item and, trail-less, on its own;
+   this selector covers both since each sits inside the header.
+   ============================================================================ */
+
+.vip-workflow-admin-page__header .vip-workflow-admin-page__title {
+	margin: 0;
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+	color: var( --wpds-color-foreground-content-neutral );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* ============================================================================
+   Actions
+   ============================================================================ */
+
+.vip-workflow-admin-page__actions {
+	display: flex;
+	align-items: center;
+	gap: var( --wpds-dimension-gap-sm );
+	flex-shrink: 0;
+}
+
+/* ============================================================================
+   Subtitle (body-md)
+   ============================================================================ */
+
+.vip-workflow-admin-page__subtitle {
+	margin: 0;
+	padding-block-end: var( --wpds-dimension-padding-xs );
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* ============================================================================
+   Content
+   ============================================================================ */
+
+.vip-workflow-admin-page__content {
+	flex-grow: 1;
+}
+
+.vip-workflow-admin-page__content-inner {
+	padding: var( --wpds-dimension-padding-lg ) var( --wpds-dimension-padding-2xl );
+}
+
+.vip-workflow-admin-page__content-inner.is-constrained {
+	width: 100%;
+	max-width: var( --vip-workflow-admin-page-content-width );
+	margin-inline: auto;
+}

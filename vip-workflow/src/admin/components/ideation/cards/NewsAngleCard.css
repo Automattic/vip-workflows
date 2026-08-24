@@ -1,0 +1,47 @@
+/**
+ * Ideation News Angle card styles.
+ */
+
+/* Flex sizing (flex/max-width) is shared with .vip-workflow-ideation-card--tags
+   in shared.css. */
+
+/* The fill and border are the news angle's identity, not chrome: the card is
+   colour-coded against the other insight cards, so it keeps them rather than
+   taking <Card.Root>'s neutral surface. Everything else about the surface —
+   the radius, and the neutral base underneath — comes from Card. */
+.vip-workflow-ideation-card--angle {
+	background: linear-gradient(135deg, var(--wpds-color-background-surface-caution-weak) 0%, var(--wpds-color-background-surface-caution) 100%); /* wpds-allow R6 -- Card.Root exposes no surface/tone prop, so the news angle's colour coding is painted over its neutral fill here */
+	border-color: var(--wpds-color-stroke-surface-warning); /* wpds-allow R6 -- the matching edge of that same colour coding; Card.Root has no border prop */
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-sm);
+}
+
+.vip-workflow-ideation-card--angle__icon {
+	color: var(--wpds-color-foreground-content-caution-weak);
+}
+
+.vip-workflow-ideation-card--angle__icon svg {
+	display: inline-block;
+}
+
+.vip-workflow-ideation-card--angle__quote {
+	font: var(--vip-workflow-text-heading-md);
+	color: var(--wpds-color-foreground-content-neutral);
+	/* margin:0 resets the blockquote UA margin; the root's flex `gap` owns the
+	   spacing to the label below. */
+	margin: 0; /* wpds-allow R3 -- reset blockquote UA margin; parent Stack gap owns spacing */
+	font-style: italic;
+	border: none;
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+.vip-workflow-ideation-card--angle__label {
+	font: var(--vip-workflow-text-heading-sm);
+	display: inline-block;
+	align-self: flex-start;
+	text-transform: uppercase;
+	letter-spacing: 1px; /* wpds-allow R5 -- eyebrow tracking; WPDS ships no letter-spacing token */
+	color: var(--wpds-color-foreground-content-warning-weak);
+	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
+	background: color-mix(in srgb, var(--vip-workflow-color-bg-frosted) 60%, transparent);
+	border-radius: var( --wpds-border-radius-lg );
+}

@@ -1,0 +1,19 @@
+/**
+ * The one save bar per settings screen (see SettingsFooter.js).
+ *
+ * The row itself is an <ActionRow> — its flex layout, right-alignment and gap
+ * are the primitive's. What lives here is the bar's own chrome: the rule that
+ * separates it from the content, the surface that keeps that content from
+ * showing through while it is pinned, and the space around the button.
+ */
+
+.vip-workflow-settings-footer {
+	position: sticky;
+	bottom: 0; /* wpds-allow R2 -- zero needs no token */
+	z-index: 1;
+	padding: var(--wpds-dimension-padding-lg) 0;
+	background: var(
+		--wpds-color-background-surface-neutral
+	); /* wpds-allow R6 -- pinned bar needs an opaque surface so content does not show through; ActionRow has no surface prop */
+	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak); /* wpds-allow R6 -- separates the bar from the content it floats over; ActionRow has no border prop */
+}

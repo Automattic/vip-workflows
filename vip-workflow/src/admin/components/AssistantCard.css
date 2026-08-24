@@ -1,0 +1,20 @@
+/**
+ * Agent card — the two tones the card sets, and nothing else.
+ *
+ * Almost nothing is left here on purpose. The card takes its surface, border and
+ * radius from `Card.Root`; the header and content take their rhythm from a
+ * `Stack`; the title keeps the type `Card.Title` ships. What remains is the two
+ * muted tones `@wordpress/ui` exposes no prop for.
+ */
+
+/* Which plugin the agent came from, under its name. */
+.vip-workflow-assistant-card__origin {
+	/* wpds-allow R6 -- muted tone for the card subtitle; Text exposes no color prop in @wordpress/ui 0.9 */
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+/* Low-emphasis stand-in for the warning notice when the agent is switched off. */
+.vip-workflow-assistant-card__hint {
+	/* wpds-allow R6 -- muted tone for the whole demoted hint; Stack exposes no color prop in @wordpress/ui 0.9 */
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}

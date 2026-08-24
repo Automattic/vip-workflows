@@ -1,0 +1,70 @@
+/**
+ * Ideation prompt preview modal styles.
+ */
+
+/* Prompt Preview Modal */
+
+.vip-workflow-ideation-prompt-preview__date {
+	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- prominent date color on <Text>; Text has no color prop */
+}
+
+.vip-workflow-ideation-prompt-preview__description {
+	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- body copy color on <Text>; Text has no color prop */
+}
+
+.vip-workflow-ideation-prompt-preview__details {
+	padding: var(--wpds-dimension-padding-lg);
+	background: var(--wpds-color-background-surface-neutral); /* wpds-allow R6 -- inset panel surface; Stack has no background prop */
+	border-radius: var(--wpds-border-radius-lg); /* wpds-allow R6 -- inset panel surface; Stack has no radius prop */
+}
+
+.vip-workflow-ideation-prompt-preview__detail-row {
+	font: var(--vip-workflow-text-body-md); /* wpds-allow R6 -- row base typography; Stack has no type prop */
+}
+
+.vip-workflow-ideation-prompt-preview__detail-label {
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	min-width: 100px;
+	flex-shrink: 0;
+}
+
+.vip-workflow-ideation-prompt-preview__detail-value {
+	color: var(--wpds-color-foreground-content-neutral);
+}
+
+.vip-workflow-ideation-prompt-preview__links {
+	list-style: none;
+	margin: 0; /* wpds-allow R3 -- reset native <ul> margin (list reset); not gap spacing */
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+.vip-workflow-ideation-prompt-preview__links a {
+	word-break: break-all;
+}
+
+.vip-workflow-ideation-prompt-preview__contacts {
+	list-style: none;
+	margin: 0; /* wpds-allow R3 -- reset native <ul> margin (list reset); not gap spacing */
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+.vip-workflow-ideation-prompt-preview__contact {
+	font: var(--vip-workflow-text-body-md);
+	display: flex; /* wpds-allow R4 -- wrapping contact line; needs two-axis gap (row xs / col md) Stack can't express */
+	flex-wrap: wrap; /* wpds-allow R4 -- see two-axis gap note above */
+	gap: var(--wpds-dimension-gap-xs) var(--wpds-dimension-gap-md); /* wpds-allow R4 -- two-axis gap (row xs / col md); Stack gap is single-value */
+	color: var(--wpds-color-foreground-content-neutral);
+}
+
+.vip-workflow-ideation-prompt-preview__contact-name {
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.vip-workflow-ideation-prompt-preview__contact-role {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflow-ideation-prompt-preview__contact-phone {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}

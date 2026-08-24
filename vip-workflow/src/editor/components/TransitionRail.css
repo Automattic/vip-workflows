@@ -1,0 +1,275 @@
+/**
+ * Transition Rail styles.
+ *
+ * The rail is one drawing: an SVG track behind the buttons (measured from
+ * them at render time, so it cannot drift), the sequence editor's marks and
+ * tones, and the indent geometry the track points into. Layout inside the
+ * rows is `<Stack>`; what lives here is the drawing, the indents the drawing
+ * aims at, and the tones `<Text>` exposes no prop for.
+ */
+
+.vip-workflow-rail {
+	position: relative;
+}
+
+/* --- The track ---------------------------------------------------------- */
+
+.vip-workflow-rail__track {
+	position: absolute;
+	top: 0; /* wpds-allow R2 -- pins the drawing to the box it was measured against; no spacing token applies */
+	left: 0; /* wpds-allow R2 -- pins the drawing to the box it was measured against; no spacing token applies */
+	overflow: visible;
+	pointer-events: none;
+}
+
+.vip-workflow-rail__track path {
+	fill: none;
+	/* The editor's edge line at rest: 1px, neutral-strong. 2px and the brand
+	   tone are its hover / selection / outbound states, which this surface
+	   doesn't have (SequenceGraphEditor.css). */
+	stroke: var( --wpds-color-stroke-surface-neutral-strong );
+	stroke-width: 1;
+}
+
+.vip-workflow-rail__track-head {
+	stroke-linecap: round;
+	stroke-linejoin: round;
+}
+
+/* --- The current stage --------------------------------------------------- */
+
+.vip-workflow-rail__now {
+	min-height: 34px;
+}
+
+/* Above the track, so the trunk reads as leaving the dot's edge — the same
+   reason EdgeOverlay skips the socket on a node's own source handle. The
+   fixed height seats the dot beside the stage name's first line however tall
+   the header grows (badge, "you are here", a stage description). */
+.vip-workflow-rail__mark {
+	position: relative;
+	z-index: 1;
+	display: flex; /* wpds-allow R4 -- centres a drawn mark in a fixed 18px column the track is measured against; a <Stack> would be layout, this is registration */
+	flex: 0 0 18px;
+	align-items: center;
+	justify-content: center;
+	width: 18px;
+	height: 34px;
+}
+
+.vip-workflow-rail__dot {
+	width: 15px;
+	height: 15px;
+	border-radius: var( --vip-workflow-border-radius-full );
+	background: var( --wpds-color-stroke-interactive-brand );
+}
+
+.vip-workflow-rail__dot--neutral {
+	background: var( --wpds-color-stroke-surface-neutral-strong );
+}
+
+/* The green check a finished workflow wears — drawn, because no icon at this
+   size carries the pass tone as a filled disc. */
+.vip-workflow-rail__done {
+	display: flex; /* wpds-allow R4 -- centres the drawn tick inside its own disc; not a layout concern <Stack> covers */
+	align-items: center;
+	justify-content: center;
+	width: 17px;
+	height: 17px;
+	border-radius: var( --vip-workflow-border-radius-full );
+	background: var( --wf-outcome-pass );
+}
+
+.vip-workflow-rail__done::after {
+	content: '';
+	width: 5px;
+	height: 9px;
+	margin-top: -2px; /* wpds-allow R2 -- optical centring of the drawn tick; no spacing token applies */
+	border: solid var( --vip-workflow-color-fg-on-color );
+	border-width: 0 1.8px 1.8px 0;
+	transform: rotate( 43deg );
+}
+
+.vip-workflow-rail__spinner.components-spinner {
+	margin: 0; /* wpds-allow R2 -- cancels the Spinner's own outer margin so it centres in the 18px mark column */
+}
+
+/* The three subordinate lines under the stage heading: where the post is,
+   which ending it reached once the heading has been given over to the fact
+   that it reached one, and the stage's authored description. */
+.vip-workflow-rail__here,
+.vip-workflow-rail__ending,
+.vip-workflow-rail__description {
+	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* --- Transitions --------------------------------------------------------- */
+
+.vip-workflow-rail__actions {
+	margin-top: var( --wpds-dimension-gap-md );
+}
+
+/* Indented past the trunk so the arrowheads have a border to point at. */
+.vip-workflow-rail__transition.components-button {
+	justify-content: flex-start;
+	width: calc( 100% - 28px );
+	margin-left: 28px; /* wpds-allow R2 -- the track's TARGET_INSET (transition-rail-geometry.js); the drawing and the layout share this number */
+	text-align: left;
+}
+
+.vip-workflow-rail__help {
+	width: calc( 100% - 28px );
+	margin: 0 0 0 28px; /* wpds-allow R2 -- aligned under the button at the track's TARGET_INSET */
+	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+.vip-workflow-rail__empty {
+	margin: 0 0 0 28px; /* wpds-allow R2 -- aligned with the actions column at the track's TARGET_INSET */
+	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+.vip-workflow-rail__end {
+	margin-left: 28px; /* wpds-allow R2 -- the track's TARGET_INSET; the END pill rides the rail like a button */
+}
+
+/* --- Check dependencies --------------------------------------------------- */
+
+/* Nested under the transition they gate, past its border: no edge, no
+   arrowhead — a check is a precondition on the move, not somewhere the post
+   goes. */
+.vip-workflow-rail__dep {
+	margin: var( --wpds-dimension-gap-xs ) 0 0 34px; /* wpds-allow R2 -- nests the dependency row under its transition, clear of the track */
+}
+
+.vip-workflow-rail__dep-indicator {
+	display: flex; /* wpds-allow R4 -- centres a 14px state mark in a fixed 14px column; registration for the drawing, not layout */
+	flex: 0 0 14px;
+	align-items: center;
+	justify-content: center;
+	width: 14px;
+	height: 32px;
+}
+
+.vip-workflow-rail__dep-spinner.components-spinner {
+	width: 13px;
+	height: 13px;
+	margin: 0; /* wpds-allow R2 -- cancels the Spinner's own outer margin so it fits the 14px indicator column */
+}
+
+.vip-workflow-rail__check.components-button {
+	flex: 1 1 auto;
+	justify-content: flex-start;
+}
+
+/* The state mark: the sequence editor's outcome glyphs (check / cross /
+   triangle), state held OUTSIDE the control that acts on it. The tone names
+   the verdict, always at full strength — the drawn dot wore age as a ring of
+   its tone, but a glyph has no hollow variant and a faded tone fails the 3:1
+   non-text contrast floor, so a stale result keeps its full-tone glyph and
+   the age lives in words (the indicator's title and the visible stale note;
+   the `--stale` class is the state hook and draws nothing). The neutral dash
+   (`--none`) = never asked. Inside an agent outcome button the mark rides the
+   Button's icon slot, which owns the icon–label spacing. */
+.vip-workflow-rail__outcome {
+	flex: 0 0 auto;
+	/* wpds-allow R6 -- <Icon> exposes no tone prop; the outcome tone must be set here. */
+	fill: var( --wf-outcome-tone );
+}
+
+.vip-workflow-rail__outcome--pass {
+	--wf-outcome-tone: var( --wf-outcome-pass );
+}
+
+.vip-workflow-rail__outcome--fail {
+	--wf-outcome-tone: var( --wf-outcome-fail );
+}
+
+.vip-workflow-rail__outcome--error {
+	--wf-outcome-tone: var( --wf-outcome-error );
+}
+
+.vip-workflow-rail__outcome--none {
+	--wf-outcome-tone: var( --wpds-color-stroke-surface-neutral );
+}
+
+/* --- Check details -------------------------------------------------------- */
+
+.vip-workflow-rail__issues {
+	width: calc( 100% - 56px );
+	margin: var( --wpds-dimension-gap-xs ) 0 0 56px; /* wpds-allow R2 -- aligned under the check button, past indicator and inset */
+}
+
+.vip-workflow-rail__stale-note {
+	margin: var( --wpds-dimension-gap-xs ) 0 0 56px; /* wpds-allow R2 -- aligned under the check button, past indicator and inset */
+	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+.vip-workflow-rail__rollup {
+	font-weight: 600; /* wpds-allow R5 -- the roll-up is the one emphasised line of the details; <Text> exposes no weight prop */
+}
+
+.vip-workflow-rail__rollup--hard {
+	/* wpds-allow R6 -- <Text> styles typography only; the outcome tone has to be set here. */
+	color: var( --wf-outcome-fail );
+}
+
+.vip-workflow-rail__rollup--soft {
+	/* wpds-allow R6 -- <Text> styles typography only; the outcome tone has to be set here. */
+	color: var( --wf-outcome-error );
+}
+
+.vip-workflow-rail__issue {
+	position: relative;
+	padding-left: 9px; /* wpds-allow R2 -- room for the drawn 3px bullet */
+	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+.vip-workflow-rail__issue::before {
+	content: '';
+	position: absolute;
+	top: 8px; /* wpds-allow R2 -- optical alignment of the drawn bullet to the first text line */
+	left: 1px; /* wpds-allow R2 -- optical alignment of the drawn bullet */
+	width: 3px;
+	height: 3px;
+	border-radius: var( --vip-workflow-border-radius-full );
+	background: var( --wpds-color-stroke-surface-neutral );
+}
+
+/* A line whose grade differs from the roll-up carries its own word. */
+.vip-workflow-rail__issue-grade {
+	margin-right: var( --wpds-dimension-gap-xs );
+	font-weight: 600; /* wpds-allow R5 -- the grade word is emphasised inline; <Text> exposes no weight prop */
+}
+
+.vip-workflow-rail__issue--hard .vip-workflow-rail__issue-grade {
+	/* wpds-allow R6 -- <Text> styles typography only; the outcome tone has to be set here. */
+	color: var( --wf-outcome-fail );
+}
+
+.vip-workflow-rail__issue--soft .vip-workflow-rail__issue-grade {
+	/* wpds-allow R6 -- <Text> styles typography only; the outcome tone has to be set here. */
+	color: var( --wf-outcome-error );
+}
+
+.vip-workflow-rail__more,
+.vip-workflow-rail__full-result.components-button {
+	align-self: flex-start;
+}
+
+.vip-workflow-rail__more {
+	padding: 0;
+	font: var( --vip-workflow-text-body-sm ); /* wpds-allow R6 -- Collapsible.Trigger exposes no typography prop, so the UA button font is replaced here */
+	color: var( --wpds-color-foreground-interactive-brand ); /* wpds-allow R6 -- Collapsible.Trigger exposes no tone prop; <Link tone="brand"> carries the colour but underlines at rest, which this control must not do */
+	background: none; /* wpds-allow R6 -- Collapsible.Trigger has no unstyled/plain variant, so the UA button surface is taken away here */
+	border: none; /* wpds-allow R6 -- the same UA button box (see above) */
+	cursor: pointer;
+}
+
+.vip-workflow-rail__more:hover {
+	text-decoration: underline; /* wpds-allow R6 -- the underline-on-hover-only affordance no Collapsible.Trigger or <Link> variant offers */
+}

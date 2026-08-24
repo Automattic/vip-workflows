@@ -1,0 +1,46 @@
+name: PHPCS
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  phpcs:
+    name: PHP coding standards
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.2'
+          tools: composer:v2
+          coverage: none
+
+      - name: Install coding standards
+        working-directory: vip-workflow
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Lint core plugin
+        run: vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=vip-workflow/.phpcs.xml.dist vip-workflow
+
+      - name: Lint Parse.ly integration
+        run: vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=workflow-parsely/.phpcs.xml.dist workflow-parsely
+
+      - name: Lint extension plugins
+        run: |
+          vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-agent-copy-edit
+          vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-agent-tag-sanity-check
+          vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-assistant-wikipedia
+          vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-tool-checklist

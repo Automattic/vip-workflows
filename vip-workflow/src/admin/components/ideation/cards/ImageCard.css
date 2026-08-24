@@ -1,0 +1,127 @@
+/**
+ * Ideation Image card styles.
+ */
+
+/* The surface (background, border, radius) comes from <Card.Root>. `overflow`
+   is not surface styling: it is the clip that keeps the media inside the card's
+   rounded corners, which the card must supply because the media runs edge to
+   edge. */
+.vip-workflow-ideation-card--image {
+	/* Inner radius shared by the cover image, video thumb/placeholder, and the
+	   hover overlay so their rounded corners stay in sync. */
+	--vip-workflow-ideation-image-radius: 5px;
+	overflow: hidden;
+	aspect-ratio: 4 / 3;
+	position: relative;
+}
+
+.vip-workflow-ideation-card--image.is-pinned {
+	outline: 3px solid var(--wpds-color-stroke-interactive-brand);
+	outline-offset: -3px;
+	border-radius: var(--wpds-border-radius-lg);
+}
+
+.vip-workflow-ideation-card--image.is-pinned::after {
+	content: '';
+	position: absolute;
+	top: 6px; /* wpds-allow R2 -- positioning offset; no spacing token applies */
+	right: 6px; /* wpds-allow R2 -- positioning offset; no spacing token applies */
+	width: 20px;
+	height: 20px;
+	background: var(--wpds-color-background-interactive-brand-strong);
+	border-radius: var( --vip-workflow-border-radius-full );
+	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12 2C8.1 2 5 5.1 5 9c0 5.2 7 13 7 13s7-7.8 7-13c0-3.9-3.1-7-7-7zm0 9.5c-1.4 0-2.5-1.1-2.5-2.5S10.6 6.5 12 6.5s2.5 1.1 2.5 2.5S13.4 11.5 12 11.5z'/%3E%3C/svg%3E");
+	background-size: 14px;
+	background-repeat: no-repeat;
+	background-position: center;
+	z-index: 2;
+	box-shadow: var(--vip-workflow-elevation-xs);
+}
+
+.vip-workflow-ideation-card--image > img,
+.vip-workflow-ideation-card--image__video-thumb img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	display: block;
+	border-radius: var(--vip-workflow-ideation-image-radius);
+}
+
+.vip-workflow-ideation-card--image__overlay {
+	position: absolute;
+	inset: 0; /* wpds-allow R2 -- zero needs no token */
+	padding: var(--wpds-dimension-padding-sm);
+	background: linear-gradient(transparent 50%, color-mix(in srgb, var(--vip-workflow-color-bg-scrim) 40%, transparent)); /* wpds-allow R6 -- hover-reveal scrim on layout Stack; no bg prop */
+	opacity: 0; /* wpds-allow R6 -- hover-reveal opacity on layout Stack; no prop */
+	transition: opacity 0.15s;
+	border-radius: var(--vip-workflow-ideation-image-radius); /* wpds-allow R6 -- corner radius on layout Stack; no prop */
+}
+
+.vip-workflow-ideation-card--image:hover .vip-workflow-ideation-card--image__overlay {
+	opacity: 1; /* wpds-allow R6 -- hover-reveal opacity on layout Stack; no prop */
+}
+
+.vip-workflow-ideation-card--image__source {
+	font: var(--vip-workflow-text-body-sm);
+	color: var(--vip-workflow-color-fg-on-color);
+	text-shadow: 0 1px 2px color-mix(in srgb, var(--vip-workflow-color-bg-scrim) 50%, transparent);
+}
+
+.vip-workflow-ideation-card--image__actions .vip-workflow-ideation-card__action {
+	color: var(--vip-workflow-color-fg-on-color) !important; /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
+}
+
+/* Video thumbnail on image cards */
+
+.vip-workflow-ideation-card--image__video-thumb {
+	position: relative;
+	width: 100%;
+	height: 100%;
+}
+
+.vip-workflow-ideation-card--image__video-placeholder {
+	width: 100%;
+	height: 100%;
+	background: var(--vip-workflow-color-bg-inverse); /* wpds-allow R6 -- decorative surface fill on layout Stack; no bg prop */
+	border-radius: var(--vip-workflow-ideation-image-radius); /* wpds-allow R6 -- corner radius on layout Stack; no prop */
+	color: var(--vip-workflow-color-fg-on-color); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
+}
+
+.vip-workflow-ideation-card--image__play-badge {
+	position: absolute;
+	bottom: 6px; /* wpds-allow R2 -- positioning offset; no spacing token applies */
+	left: 6px; /* wpds-allow R2 -- positioning offset; no spacing token applies */
+	width: 24px;
+	height: 24px;
+	background: color-mix(in srgb, var(--vip-workflow-color-bg-scrim) 70%, transparent); /* wpds-allow R6 -- media-chrome fill on layout Stack; no bg prop */
+	border-radius: var( --vip-workflow-border-radius-full ); /* wpds-allow R6 -- corner radius on layout Stack; no prop */
+	backdrop-filter: blur(4px); /* wpds-allow R6 -- media-chrome blur on layout Stack; no prop */
+}
+
+.vip-workflow-ideation-card--image__has-notes {
+	margin-left: auto; /* wpds-allow R3 -- margin-auto aligns notes flag to overlay end; no Stack prop */
+}
+
+.vip-workflow-ideation-card--image__has-ai {
+	color: var(--vip-workflow-color-fg-on-color); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
+	opacity: 0.8; /* wpds-allow R6 -- hover-reveal opacity on layout Stack; no prop */
+}
+
+/* Media Card Placeholder */
+
+.vip-workflow-ideation-card--image__placeholder {
+	width: 100%;
+	aspect-ratio: 16 / 10;
+	background: var(--wpds-color-background-surface-neutral-weak); /* wpds-allow R6 -- decorative surface fill on layout Stack; no bg prop */
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
+	border-radius: var( --wpds-border-radius-lg ); /* wpds-allow R6 -- corner radius on layout Stack; no prop */
+}
+
+.vip-workflow-ideation-card--image__placeholder span {
+	font: var(--vip-workflow-text-body-sm); /* wpds-allow R6 -- eyebrow type on layout Stack; no font prop */
+	max-width: 90%;
+	text-align: center;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}

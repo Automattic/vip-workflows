@@ -1,0 +1,100 @@
+#!/bin/sh
+#
+# Pre-commit hook: incrementally converge staged vip-workflow files on the
+# project standards. The codebase is mostly unformatted; rather than one
+# repo-wide reformat (which conflicts with every open branch), we whittle it
+# down file-by-file — each file converges the moment someone commits a change
+# to it. See .githooks/README.md.
+#
+#   JS/JSX  WordPress Prettier standard (wp-scripts format)
+#   PHP     incrementally-enforced phpcs sniffs (vip-workflow/.phpcs-incremental.xml)
+#
+# Activate once per clone:   git config core.hooksPath .githooks
+# (Root `npm install` / `npm run setup` does this for you.)
+# Bypass for one commit:     git commit --no-verify
+
+set -e
+
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+
+# --- wp-env tests config: keep .wp-env.tests.json in sync with .wp-env.json ---
+# .wp-env.tests.json is generated from .wp-env.json (see scripts/gen-wp-env-tests.js).
+# If either the base config or the generator is staged, regenerate and re-stage
+# the derived file so the two never drift. CI enforces this too (fails closed).
+
+if printf '%s\n' "$staged" | grep -qE '^(\.wp-env\.json|scripts/gen-wp-env-tests\.js)$'; then
+	if command -v node >/dev/null 2>&1; then
+		# Skip if the base config has unstaged changes: regenerating from the
+		# working-tree copy would sweep those unstaged edits into the commit.
+		if git diff --quiet -- .wp-env.json; then
+			node scripts/gen-wp-env-tests.js
+			git add .wp-env.tests.json
+		else
+			echo "wp-env-config-hook: .wp-env.json has unstaged changes — left .wp-env.tests.json untouched this commit." >&2
+		fi
+	else
+		echo "wp-env-config-hook: node not found — skipping .wp-env.tests.json regen." >&2
+	fi
+fi
+
+# --- JS/JSX: auto-format to the WordPress Prettier standard ---
+
+staged_js=$(printf '%s\n' "$staged" | grep -E '^vip-workflow/(src|js)/.*\.(js|jsx)$' || true)
+js_bin="vip-workflow/node_modules/.bin/wp-scripts"
+
+if [ -n "$staged_js" ] && [ ! -x "$js_bin" ]; then
+	echo "prettier-hook: $js_bin not found — run \`npm run setup\`; skipping auto-format." >&2
+elif [ -n "$staged_js" ]; then
+	format=""
+	for f in $staged_js; do
+		# Skip files that ALSO have unstaged changes: formatting the working-tree
+		# copy and re-staging it would sweep those unstaged hunks into the commit.
+		if ! git diff --quiet -- "$f"; then
+			echo "prettier-hook: $f has unstaged changes — left unformatted this commit." >&2
+			continue
+		fi
+		format="$format $f"
+	done
+
+	if [ -n "$format" ]; then
+		# wp-scripts injects the @wordpress/prettier-config; paths are repo-root
+		# relative, matching the hook's cwd.
+		# shellcheck disable=SC2086
+		"$js_bin" format $format
+		# shellcheck disable=SC2086
+		git add $format
+	fi
+fi
+
+# --- PHP: auto-fix the incrementally-enforced phpcs sniffs ---
+
+staged_php=$(printf '%s\n' "$staged" | grep -E '^vip-workflow/.*\.php$' || true)
+phpcbf_bin="vip-workflow/vendor/bin/phpcbf"
+
+if [ -n "$staged_php" ] && [ ! -x "$phpcbf_bin" ]; then
+	echo "phpcs-hook: $phpcbf_bin not found — run \`composer install\` in vip-workflow; skipping auto-fix." >&2
+elif [ -n "$staged_php" ]; then
+	fix=""
+	for f in $staged_php; do
+		# Same unstaged-changes guard as above.
+		if ! git diff --quiet -- "$f"; then
+			echo "phpcs-hook: $f has unstaged changes — left unfixed this commit." >&2
+			continue
+		fi
+		fix="$fix $f"
+	done
+
+	if [ -n "$fix" ]; then
+		# build/vendor/tests excludes live in the ruleset, so passing such files is harmless.
+		# phpcbf exits 1 when it made fixes; only >=2 is a failure.
+		status=0
+		# shellcheck disable=SC2086
+		"$phpcbf_bin" --standard=vip-workflow/.phpcs-incremental.xml -q $fix || status=$?
+		if [ "$status" -gt 1 ]; then
+			echo "phpcs-hook: phpcbf failed (exit $status)." >&2
+			exit "$status"
+		fi
+		# shellcheck disable=SC2086
+		git add $fix
+	fi
+fi

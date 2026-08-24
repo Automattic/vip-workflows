@@ -1,0 +1,112 @@
+/**
+ * Checklist Tool Admin Styles
+ */
+
+.vip-checklist-settings {
+	margin-top: 16px;
+	padding-top: var(--wpds-dimension-padding-lg);
+	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.vip-checklist-settings__header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 12px;
+	font-weight: 600;
+}
+
+.vip-checklist-settings__legend {
+	display: flex;
+	gap: 12px;
+	font-size: 12px;
+	font-weight: normal;
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-checklist-legend {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+}
+
+.vip-checklist-settings__items {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.vip-checklist-settings__empty {
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-style: italic;
+	margin: 0;
+	padding: var(--wpds-dimension-padding-md);
+	background: var(--wpds-color-background-surface-neutral);
+	border-radius: var( --wpds-border-radius-md );
+	text-align: center;
+}
+
+.vip-checklist-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: var(--wpds-dimension-padding-sm);
+	background: var(--wpds-color-background-surface-neutral);
+	border-radius: var( --wpds-border-radius-md );
+}
+
+.vip-checklist-item .components-text-control__input {
+	flex: 1;
+}
+
+.vip-checklist-item__mode {
+	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-md);
+	border: 1px solid var(--wpds-color-stroke-surface-neutral);
+	border-radius: var( --wpds-border-radius-md );
+	background: var(--wpds-color-background-surface-neutral-strong);
+	cursor: pointer;
+	font-size: 12px;
+	white-space: nowrap;
+	transition: all 0.15s ease;
+}
+
+.vip-checklist-item__mode:hover {
+	background: var(--wpds-color-background-surface-neutral-weak);
+}
+
+.vip-checklist-item__mode--hard {
+	background: var(--wpds-color-background-surface-error-weak);
+	border-color: var(--wpds-color-stroke-surface-error);
+	/* Interactive toggle chip — keep the same red as the remove control. */
+	color: var(--wpds-color-foreground-interactive-error);
+}
+
+.vip-checklist-item__remove {
+	color: var(--wpds-color-foreground-content-neutral-weak) !important;
+	min-width: 24px !important;
+	padding: 0 !important; /* wpds-allow R2 -- zero needs no token */
+}
+
+.vip-checklist-item__remove:hover {
+	color: var(--wpds-color-foreground-content-error-weak) !important;
+}
+
+.vip-checklist-settings__add {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+}
+
+.vip-checklist-settings__add .components-text-control__input {
+	flex: 1;
+}
+
+.vip-checklist-settings__loading {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: var(--wpds-dimension-padding-md);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	font-size: 13px;
+}

@@ -1,0 +1,56 @@
+<?xml version="1.0"?>
+<ruleset name="WordPress Coding Standards for VIP Workflow">
+	<description>Generally-applicable sniffs for the VIP Workflow plugin</description>
+
+	<!-- Rules: WordPress Coding Standards - see
+		https://github.com/WordPress-Coding-Standards/WordPress-Coding-Standards -->
+	<rule ref="WordPress-Extra"/> <!-- Includes WordPress-Core -->
+	<rule ref="WordPress-Docs"/>
+	<rule ref="WordPress-VIP-Go"/>
+
+	<!-- The codebase uses namespaced, PSR-style PascalCase class names (e.g. UtilityController
+		in class-utility-controller.php) with a composer classmap; renaming 93 classes/files to
+		WPCS Snake_Case naming would break autoloading for no platform benefit. -->
+	<rule ref="WordPress.Files.FileName">
+		<severity>0</severity>
+	</rule>
+
+	<!-- Long array syntax is enforced incrementally: the pre-commit hook (.githooks/pre-commit)
+		converts touched files via .phpcs-incremental.xml, so files converge change-by-change
+		instead of one repo-wide reformat. Move this rule back into force (delete this exclusion
+		and .phpcs-incremental.xml) once a phpcs run against .phpcs-incremental.xml reports clean. -->
+	<rule ref="Universal.Arrays.DisallowShortArraySyntax">
+		<severity>0</severity>
+	</rule>
+
+	<!-- For help in understanding this minimum_supported_wp_version:
+		https://github.com/WordPress-Coding-Standards/WordPress-Coding-Standards/wiki/Customizable-sniff-properties#setting-minimum-supported-wp-version-for-all-sniffs-in-one-go-wpcs-0140 -->
+	<config name="minimum_supported_wp_version" value="7.0"/>
+
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" type="array">
+				<element value="vip-workflow"/>
+			</property>
+		</properties>
+	</rule>
+
+	<rule ref="PHPCompatibilityWP"/>
+	<config name="testVersion" value="8.2-"/>
+
+	<!-- How to scan -->
+	<arg value="sp"/> <!-- Show sniff and progress -->
+	<arg value="n"/> <!-- No warnings -->
+	<arg name="colors"/> <!-- Show results with colors. Disable if working on Windows -->
+	<arg name="basepath" value="."/> <!-- Strip the file paths down to the relevant bit -->
+	<arg name="parallel" value="8"/> <!-- Enables parallel processing when available for faster results -->
+	<arg name="extensions" value="php"/> <!-- Limit to PHP files -->
+
+	<!-- Allow invoking just `phpcs` on command line without assuming STDIN for file input. -->
+	<file>.</file>
+
+	<exclude-pattern>*/build/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+</ruleset>

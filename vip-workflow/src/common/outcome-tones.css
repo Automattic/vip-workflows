@@ -1,0 +1,22 @@
+/**
+ * The three tones an outcome is read by — green, red, amber — shared by every
+ * surface that draws a check or agent result as a small mark: the sequence
+ * editor's canvas (outcome handles and the edges they anchor, plus the stage
+ * panel's route read-out in Inspector.css) and the editor sidebar's
+ * transition rail (check indicators and agent outcome buttons).
+ *
+ * These are stroke/weak tones, not the `fg-content-*` ones the status text
+ * elsewhere uses: those are near-black tints meant to be read as type on a
+ * tinted surface, and an 11px dot or a 1px line painted with them reads as
+ * black rather than as green or red. Caution has no stroke token in the
+ * pinned WPDS set, so its `-weak` foreground stands in.
+ *
+ * Declared on :root rather than a wrapper class so both bundles can consume
+ * them without sharing an ancestor element; the values resolve against the
+ * WPDS token sheet each surface already loads.
+ */
+:root {
+	--wf-outcome-pass: var( --wpds-color-stroke-surface-success-strong );
+	--wf-outcome-fail: var( --wpds-color-stroke-surface-error-strong );
+	--wf-outcome-error: var( --wpds-color-foreground-content-caution-weak );
+}

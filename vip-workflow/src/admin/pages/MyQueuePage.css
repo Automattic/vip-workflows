@@ -1,0 +1,23 @@
+/**
+ * My Queue page — intro, empty state, and the queue cells (title link, author,
+ * waiting, and the per-row action buttons). The table itself is a
+ * `@wordpress/dataviews` DataView (styled by the enqueued `vip-workflow-dataviews`
+ * stylesheet) wrapped in `.vip-workflow-card-surface`.
+ */
+
+/* The column and its 8px gap come from the empty state's <Stack>; only the
+   centring and the padding are left here. */
+.vip-workflow-my-queue__empty {
+	text-align: center;
+	padding: var(--wpds-dimension-padding-2xl);
+}
+
+/* Title and author use the shared `TitleLink` / `AuthorCell` cells (see
+   DataViewCells.js); only the waiting cell needs a local rule. The cell is the
+   shared `<Timestamp>` (common/datetime.js) — a `<time>` carrying the
+   instant, rendered through `<Text variant="body-sm">`, which is where its type
+   comes from. */
+
+.vip-workflow-my-queue__waiting {
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted waiting-cell tone; <Text> exposes no color prop */
+}

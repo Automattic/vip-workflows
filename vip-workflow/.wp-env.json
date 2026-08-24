@@ -1,0 +1,5 @@
+{
+	"$schema": "https://raw.githubusercontent.com/WordPress/gutenberg/trunk/schemas/json/wp-env.json",
+	"phpVersion": "8.2",
+	"testsEnvironment": false
+}

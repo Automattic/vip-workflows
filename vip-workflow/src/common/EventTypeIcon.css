@@ -1,0 +1,32 @@
+/**
+ * Event type icon — the rail glyph's tone.
+ *
+ * Categorical rather than semantic to the component that draws it: <Icon> takes
+ * no colour prop, so the tone has to be supplied here.
+ *
+ * The disc the icon sits in belongs to the DataViews `activity` layout — its
+ * size, inset ring and padding are set by
+ * `.dataviews-view-activity__item-type-icon svg` — which is why nothing here
+ * touches geometry. `@wordpress/ui`'s <Icon> paints with `fill="currentColor"`,
+ * so setting `color` is the whole of the glyph's tone.
+ */
+
+.vip-workflow-event-icon--neutral {
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- glyph tone on <Icon>, which exposes no colour prop */
+}
+
+.vip-workflow-event-icon--success {
+	color: var(--wpds-color-foreground-content-success); /* wpds-allow R6 -- glyph tone on <Icon>, which exposes no colour prop */
+}
+
+.vip-workflow-event-icon--info {
+	color: var(--wpds-color-foreground-content-info); /* wpds-allow R6 -- glyph tone on <Icon>, which exposes no colour prop */
+}
+
+.vip-workflow-event-icon--warning {
+	color: var(--wpds-color-foreground-content-warning); /* wpds-allow R6 -- glyph tone on <Icon>, which exposes no colour prop */
+}
+
+.vip-workflow-event-icon--error {
+	color: var(--wpds-color-foreground-content-error); /* wpds-allow R6 -- glyph tone on <Icon>, which exposes no colour prop */
+}

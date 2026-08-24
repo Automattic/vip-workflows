@@ -1,0 +1,38 @@
+/**
+ * Shared DataViews cell styles (see DataViewCells.js). Kept minimal: the Link
+ * owns its own color/underline, the shared <Avatar> owns its own size and
+ * fallback, and the author row's direction/alignment/gap are <Stack> props.
+ * What is left is the handful of things those components expose no prop for.
+ */
+
+/* <Stack> is `display: flex`, i.e. block-level. The author cell has to stay
+   inline-level: on the list pages it shares a table cell, and in the audit
+   log it is one item in the activity layout's inline "date · name · post"
+   meta row. Stack has no `inline` prop, so the display mode is set here. */
+.vip-workflow-dataview-author {
+	display: inline-flex;
+}
+
+/* No radius override here. A table cell used to square the avatar to match the
+   cell chrome around it, which meant one person was a circle on a Kanban card
+   and a rounded square in a list two clicks away. The shape belongs to <Avatar>,
+   because it belongs to the person rather than to whatever is drawing them. */
+
+/* The two actors that are not people, each in its own tone: the AI purple this
+   plugin uses everywhere for agent work, and info blue for the site itself. The
+   surface and glyph colour are all that separate either from a person's avatar —
+   same box, same size, same radius — which is what lets a column of mixed actors
+   scan as one column. */
+.vip-workflow-dataview-avatar--agent {
+	background: var(--vip-workflow-color-bg-ai-weak);
+	color: var(--vip-workflow-color-fg-ai);
+}
+
+/* `fg-content-info-weak` rather than `fg-content-info`: the base info
+   foreground is a near-black navy meant for body text on a tinted surface, and a
+   glyph painted in it does not read as blue at all. The weak step is the actual
+   blue, and it is the pairing this plugin's informational badges already use. */
+.vip-workflow-dataview-avatar--system {
+	background: var(--wpds-color-background-surface-info-weak);
+	color: var(--wpds-color-foreground-content-info-weak);
+}

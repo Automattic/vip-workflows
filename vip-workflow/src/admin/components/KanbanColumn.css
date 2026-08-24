@@ -1,0 +1,132 @@
+/**
+ * Kanban column — header (indicator / title / count / hide), scrolling body,
+ * and per-column empty state.
+ */
+
+/* Column. Kept a <div>: this is the dnd-kit droppable node, and the tint,
+   border, radius and drop-state transition below are the column's own surface —
+   a <Stack> expresses none of them, so binding the class to one would keep every
+   declaration and only relabel them as overrides. */
+.vip-workflow-kanban-column {
+	flex: 0 0 300px;
+	max-height: 100%;
+	background: color-mix(in srgb, var(--vip-workflow-color-bg-frosted) 50%, transparent);
+	border: 1px solid color-mix(in srgb, var(--vip-workflow-color-bg-scrim) 8%, transparent);
+	border-radius: var( --wpds-border-radius-lg );
+	display: flex; /* wpds-allow R4 -- see above: the column surface stays a <div> */
+	flex-direction: column; /* wpds-allow R4 -- see above: the column surface stays a <div> */
+	transition: background-color 0.2s ease, border-color 0.2s ease, opacity 0.2s ease;
+}
+
+.vip-workflow-kanban-column--over {
+	background: color-mix(in srgb, var(--vip-workflow-color-bg-frosted) 80%, transparent);
+	border-color: color-mix(in srgb, var(--vip-workflow-color-bg-scrim) 15%, transparent);
+}
+
+/* A column the dragged card cannot legally move to — the server's transition
+   list for the card names no edge here. The droppable itself is disabled in
+   dnd-kit, so the drop physically cannot land; this dimming is the visible
+   half of that refusal, for the duration of the drag only. */
+.vip-workflow-kanban-column--drop-disabled {
+	opacity: 0.45;
+}
+
+/* Column header — a <Stack> owns the row and its two ends; only the box it
+   sits in is left here. */
+.vip-workflow-kanban-column__header {
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-sm);
+	flex-shrink: 0;
+}
+
+.vip-workflow-kanban-column__header-left {
+	min-width: 0;
+}
+
+.vip-workflow-kanban-column__indicator {
+	width: 10px;
+	height: 10px;
+	border-radius: var( --vip-workflow-border-radius-full );
+	flex-shrink: 0;
+}
+
+.vip-workflow-kanban-column__title {
+	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- <Text> exposes no color prop, so the title's tone is set here */
+	/* display:block keeps single-line ellipsis working now that this renders
+	   via <Text> (whose intrinsic display isn't guaranteed to be block). */
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vip-workflow-kanban-column__count {
+	font: var(--vip-workflow-text-body-sm);
+	background: color-mix(in srgb, var(--vip-workflow-color-bg-scrim) 10%, transparent);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	padding: 2px var(--wpds-dimension-gap-sm);
+	border-radius: var( --wpds-border-radius-lg );
+	flex-shrink: 0;
+}
+
+.vip-workflow-kanban-column__header-right {
+	flex-shrink: 0;
+}
+
+/* Hover-reveal affordance: the hide button is invisible until the column is
+   hovered. <Button> exposes no prop for "visible only while my container is
+   hovered", so all three states are drawn here. The `!important` is load-bearing
+   — the parent-hover selector below is more specific than this one. */
+.vip-workflow-kanban-column__hide-btn {
+	opacity: 0; /* wpds-allow R6 -- see above; <Button> has no parent-hover visibility prop */
+	transition: opacity 0.15s ease;
+}
+
+.vip-workflow-kanban-column:hover .vip-workflow-kanban-column__hide-btn {
+	opacity: 0.6; /* wpds-allow R6 -- see above; <Button> has no parent-hover visibility prop */
+}
+
+.vip-workflow-kanban-column__hide-btn:hover {
+	opacity: 1 !important; /* wpds-allow R6 -- see above; <Button> has no parent-hover visibility prop */
+}
+
+/* Column body — a <Stack> stacks the cards with a uniform gap (replacing each
+   card's former margin-bottom) and collapses to zero space around the single
+   empty-state child. Only the scroll box is left here. */
+.vip-workflow-kanban-column__body {
+	flex: 1;
+	overflow-y: auto;
+	padding: 0 var(--wpds-dimension-gap-sm) var(--wpds-dimension-gap-sm);
+	min-height: 60px;
+	/* scrollbar-color is INHERITED: the board container sets a non-auto value
+	   (KanbanBoard.css), and inheriting it here would make Chromium ≥121 ignore
+	   this element's ::-webkit-scrollbar rules below and draw its default-width
+	   bar instead. Reset so the styled 8px thumb keeps applying. */
+	scrollbar-color: auto;
+}
+
+.vip-workflow-kanban-column__body::-webkit-scrollbar {
+	width: 8px;
+}
+
+/* The scrollbar rules here paint the body's own ::-webkit-scrollbar
+   pseudo-elements, not the <Stack> element's surface; no component prop
+   reaches them. */
+.vip-workflow-kanban-column__body::-webkit-scrollbar-track {
+	background: transparent; /* wpds-allow R6 -- scrollbar pseudo-element, not the <Stack> surface; lets the column tint show through */
+}
+
+.vip-workflow-kanban-column__body::-webkit-scrollbar-thumb {
+	background: color-mix(in srgb, var(--vip-workflow-color-bg-scrim) 15%, transparent); /* wpds-allow R6 -- painted on a scrollbar pseudo-element, not the <Stack> surface */
+	border-radius: var(--wpds-border-radius-md); /* wpds-allow R6 -- scrollbar pseudo-element, not the <Stack> surface */
+}
+
+.vip-workflow-kanban-column__body::-webkit-scrollbar-thumb:hover {
+	background: color-mix(in srgb, var(--vip-workflow-color-bg-scrim) 25%, transparent); /* wpds-allow R6 -- painted on a scrollbar pseudo-element, not the <Stack> surface */
+}
+
+/* Type comes from <Text variant="body-md">. */
+.vip-workflow-kanban-column__empty {
+	padding: var(--wpds-dimension-padding-lg);
+	text-align: center;
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- <Text> exposes no color prop, so the muted tone is set here */
+}

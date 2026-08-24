@@ -1,0 +1,9 @@
+/**
+ * My Dashboard page.
+ *
+ * Previously held dashboard card, my-assignments, my-pitches, pitch
+ * badge/notes, and urgency role-select modal styles. All confirmed dead
+ * (no JS consumers anywhere in src/) and removed in the WPDS audit.
+ * The admin-side role-select-modal variant was a duplicate of the live
+ * rules in src/editor/style.css.
+ */

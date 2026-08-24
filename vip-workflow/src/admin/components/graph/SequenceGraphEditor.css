@@ -1,0 +1,1256 @@
+/**
+ * Sequence graph editor — canvas, nodes, edges, and the docked inspector.
+ *
+ * Colors, elevation, and on-scale spacing come from WPDS tokens (`--wpds-*`),
+ * matching the rest of the admin: neutral surfaces/strokes for chrome, the brand
+ * tone for selection, and the caution tone for a flagged stage — red is kept
+ * for what actually stops the sequence being saved. The stage's palette
+ * color appears nowhere on the canvas — it identifies the stage in badges and
+ * the inspector, and the card's tinted states carry the node's meaning here.
+ * Type comes from the `--vip-workflow-text-*` composites and the WPDS
+ * `--wpds-typography-*` scale; motion and the uppercase micro-labels' 0.4px tracking
+ * stay literal — the pinned WPDS set ships neither motion tokens nor a
+ * letter-spacing scale (see Feedback.md).
+ */
+
+/* Where a @wordpress/ui tooltip sits in the stack.
+
+   `Tooltip.Popup` portals its positioner to <body>, and the package leaves that
+   positioner at `z-index: var( --wp-ui-tooltip-z-index, initial )` — so by
+   default a tooltip is an unpositioned element competing with whatever the page
+   has raised. The inspector panel below is raised (`z-index: 10`), and a
+   positioned element at 10 paints over one at `auto` regardless of DOM order,
+   which is why the panel's own InfoTip popups opened behind it.
+
+   Set on `:root`, not on the panel: the portal's parent is <body>, so a custom
+   property declared anywhere inside the editor never reaches the popup. Above
+   the canvas right-click menu (`z-index: 20`), the highest of this editor's
+   floating layers, so a tooltip always clears the chrome it explains — and
+   because this is the design system's own knob, every other @wordpress/ui
+   tooltip in the admin clears it too. */
+:root {
+	--wp-ui-tooltip-z-index: 30;
+}
+
+/* Layout: the canvas fills the whole surface and the inspector floats above it
+   as a card, inset equally from the top, right, and bottom edges. The canvas
+   runs full-bleed underneath on purpose — the dotted background reaches the
+   viewport edge, so the panel reads as hovering over the graph rather than
+   walling it off. */
+.wf-sequence-editor {
+	/* Motion for layout changes (nodes/edges easing into place). Literal values
+	   mirroring the WPDS motion scale — duration-md and the balanced easing for
+	   on-screen movement — since the pinned WPDS set ships no motion tokens.
+	   Swap to `var( --wpds-motion-* )` once @wordpress/theme provides them. */
+	--wf-motion-duration: 200ms;
+	--wf-motion-easing: ease-in-out;
+
+	/* The `--wf-outcome-*` tones both zones of the editor read (the canvas for
+	   the outcome handles and the edges they anchor, `Inspector.css` for the
+	   stage panel's route read-out) are declared in the shared
+	   `src/common/outcome-tones.css` — the editor sidebar's transition rail
+	   reads the same three — imported from `SequenceGraphEditor.js`. */
+
+	/* One inset for every floating thing on this surface, so the panel, the
+	   notices, and the canvas controls all sit the same distance from the edge. */
+	--wf-float-inset: var( --wpds-dimension-gap-md );
+	/* The column React Flow's zoom/fit controls occupy: their own 26px width
+	   plus an inset on either side. Anything else pinned to the same edge of the
+	   canvas starts after it rather than landing on top of it. */
+	--wf-canvas-gutter: calc( var( --wf-float-inset ) * 2 + 26px );
+	--wf-inspector-width: 360px;
+	/* Horizontal room the floating panel takes out of the canvas: its own width
+	   plus the gap on either side. GraphCanvas `centerOn` recomputes this from
+	   the two vars above rather than reading this one — a custom property whose
+	   value is a calc() comes back from getComputedStyle unresolved. */
+	--wf-inspector-reserve: calc(
+		var( --wf-inspector-width ) + var( --wf-float-inset ) * 2
+	);
+
+	position: relative;
+	height: 100%;
+	min-height: 0;
+	background: var( --wpds-color-background-surface-neutral-strong );
+}
+
+.wf-sequence-editor__canvas {
+	position: relative;
+	width: 100%;
+	height: 100%;
+}
+
+/* The floating panel. Chrome (surface, border, radius, elevation) comes from
+   the WPDS <Card> that InspectorShell renders inside this wrapper — the same
+   card used for the Sequences list — so only placement is set here. Full height
+   minus the insets rather than hugging its content: the panel would otherwise
+   resize on every selection.
+
+   The aside is a <Stack> (`SequenceGraphEditor`), which is what makes the card
+   inside it stretch to the box these insets describe. */
+.wf-sequence-editor__inspector {
+	position: absolute;
+	z-index: 10;
+	top: var( --wf-float-inset );
+	right: var( --wf-float-inset );
+	bottom: var( --wf-float-inset );
+	width: var( --wf-inspector-width );
+	/* The wrapper keeps its full height even when the panel collapses to its
+	   header, so it would otherwise sit over the canvas as an invisible blocker.
+	   The card switches events back on for itself. */
+	pointer-events: none;
+}
+
+.wf-sequence-editor__notice {
+	position: absolute;
+	z-index: 5;
+	top: var( --wf-float-inset );
+	left: var( --wf-float-inset );
+	/* Stop short of the floating panel instead of sliding underneath it. */
+	right: calc( var( --wf-inspector-reserve ) + var( --wf-float-inset ) );
+}
+
+/* --- Mobile ------------------------------------------------------------- */
+
+/* wp-admin switches to its mobile chrome at 782px, and `admin-page.css` already
+   tracks that width for the admin bar's height — matching it here keeps the
+   editor changing shape at the same moment as everything around it.
+   `Inspector.js` holds the same number, because "collapsed by default" is React
+   state rather than something a media query can set.
+
+   Below it the editor stops being canvas-plus-side-panel: there is no width to
+   spare for a 360px column, so the inspector docks across the bottom of the
+   viewport instead — collapsed by default, which leaves it a title bar the
+   canvas can breathe above. */
+@media screen and ( max-width: 782px ) {
+	.wf-sequence-editor {
+		/* Nothing is held back horizontally any more: the panel spans the full
+		   width, so the graph centres in the whole canvas. GraphCanvas's
+		   `inspectorReserve` reads this and reserves nothing at zero. */
+		--wf-inspector-width: 0px;
+	}
+
+	.wf-sequence-editor__inspector {
+		top: auto;
+		left: var( --wf-float-inset );
+		right: var( --wf-float-inset );
+		bottom: var( --wf-float-inset );
+		width: auto;
+		/* Expanded, it takes at most half the height so the graph it describes
+		   stays partly in view behind it; the body scrolls inside that. With
+		   `top: auto` a collapsed panel still shrinks to its header bar. */
+		max-height: 50%;
+	}
+
+	.wf-sequence-editor__notice {
+		right: var( --wf-float-inset );
+		/* Clear the canvas controls, which move into this corner below. */
+		left: var( --wf-canvas-gutter );
+	}
+
+	/* The zoom/fit controls live bottom-left, which is exactly where the docked
+	   panel now sits — move them to the top left, clear of it. React Flow
+	   positions its panels with `bottom/left: 0` plus a margin, so both the edge
+	   and the margin have to be restated. */
+	.wf-sequence-editor .react-flow__controls.react-flow__panel { /* wpds-allow R6 -- third-party chrome (React Flow); panel position is a mount-time prop, not something we can vary by breakpoint */
+		top: 0; /* wpds-allow R2 -- zero needs no token */
+		bottom: auto;
+		left: 0; /* wpds-allow R2 -- zero needs no token */
+		margin: var( --wf-float-inset ); /* wpds-allow R3 -- React Flow's own offset mechanism for a floating panel; no Stack here to carry it as a gap */
+	}
+}
+
+/* --- React Flow surface ------------------------------------------------- */
+
+.wf-canvas__viewport {
+	width: 100%;
+	height: 100%;
+}
+
+.wf-sequence-editor .react-flow {
+	background: var( --wpds-color-background-surface-neutral-strong );
+}
+
+.wf-canvas__background {
+	color: var( --wpds-color-stroke-surface-neutral-weak ); /* dot color */
+}
+
+/* Animate layout changes so adding, removing, or reconnecting a stage eases
+   into place instead of snapping. Position only: nodes slide via their
+   transform, edges re-route via their `d`, and each edge's insert "+" rides
+   along with it. Timing comes from --wf-motion-* vars (WPDS-aligned). */
+.react-flow__node {
+	transition: transform var( --wf-motion-duration )
+		var( --wf-motion-easing );
+}
+
+.wf-transition-edge,
+.wf-transition-edge__halo {
+	transition: d var( --wf-motion-duration ) var( --wf-motion-easing ),
+		stroke 0.1s ease, stroke-width 0.1s ease;
+}
+
+.wf-transition-edge__controls {
+	transition: transform var( --wf-motion-duration )
+		var( --wf-motion-easing );
+}
+
+/* Anything being dragged must track the cursor 1:1 — easing it would make it
+   lag behind the pointer. That's an edge endpoint being rewired (`updating`),
+   and a node being moved by hand, which drags its edges along with it
+   (`is-dragging`, set from React Flow's position changes). */
+.react-flow__edge.updating .wf-transition-edge,
+.react-flow__edge.updating .wf-transition-edge__halo,
+.react-flow__edge.updating .wf-transition-edge__controls,
+.wf-canvas__viewport.is-dragging .react-flow__node,
+.wf-canvas__viewport.is-dragging .wf-transition-edge,
+.wf-canvas__viewport.is-dragging .wf-transition-edge__halo,
+.wf-canvas__viewport.is-dragging .wf-transition-edge__controls {
+	transition: none;
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.react-flow__node,
+	.wf-transition-edge,
+	.wf-transition-edge__halo,
+	.wf-transition-edge__controls {
+		transition: none;
+	}
+}
+
+/* React Flow gives every edge layer its own `<svg>` at `z-index: 1` and every
+   node `z-index: 0` or more, but leaves the label layer — where `<EdgeLabelRenderer>`
+   puts the "+" — at `auto`. Painting order is by z-index before DOM order, so the
+   affordance loses to both the line it belongs to and any status band it crosses,
+   and the edge's own wide interaction stroke swallows the click. Lift the layer
+   over them. It takes no pointer events itself (React Flow sets `none`, and only
+   the controls inside switch them back on), so nothing else becomes unclickable. */
+.wf-sequence-editor .react-flow__edgelabel-renderer { /* wpds-allow R6 -- third-party chrome (React Flow); no theming API */
+	z-index: 5;
+}
+
+/* Circular "+" affordance — the insert-stage control at an edge's midpoint.
+   Positioning is set on `.wf-transition-edge__add`; the look lives here. */
+.wf-add-button {
+	display: inline-flex; /* wpds-allow R4 -- a <Stack> is always display:flex, and it carries none of this pill (surface, border, radius, elevation), so binding the class to one would only turn all of that into overrides */
+	align-items: center; /* wpds-allow R4 -- centres the glyph inside that inline-flex <button> */
+	justify-content: center; /* wpds-allow R4 -- centres the glyph inside that inline-flex <button> */
+	width: 22px;
+	height: 22px;
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+	background: var( --wpds-color-background-surface-neutral );
+	border: 1px solid var( --wpds-color-stroke-surface-neutral );
+	border-radius: var( --vip-workflow-border-radius-full );
+	box-shadow: var( --vip-workflow-elevation-xs );
+	cursor: pointer;
+	opacity: 0;
+	pointer-events: none;
+	z-index: 1;
+	transition: opacity 0.1s ease;
+}
+
+.wf-add-button svg {
+	fill: currentColor;
+}
+
+.wf-add-button:hover {
+	color: var( --wpds-color-foreground-interactive-brand );
+	border-color: var( --wpds-color-stroke-interactive-brand );
+}
+
+/* The "+" lives in React Flow's label layer, which can't inherit the SVG line's
+   hover, so GraphCanvas flags the hovered/selected edge instead. */
+.wf-add-button.is-visible,
+.wf-add-button:focus-visible {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/* --- Stage node --------------------------------------------------------- */
+
+.wf-stage-node {
+	position: relative;
+	box-sizing: border-box;
+	width: 200px;
+	height: 80px;
+	display: flex; /* wpds-allow R4 -- the card's whole state treatment (surface, border, per-state tints) is CSS with no <Stack> prop behind it; binding the class would keep every one of those declarations and only relabel them as overrides */
+	padding: var( --wpds-dimension-padding-lg );
+	background: var( --wpds-color-background-surface-neutral );
+	border: 1px solid var( --wpds-color-stroke-interactive-neutral );
+	border-radius: var( --wpds-border-radius-lg );
+	box-shadow: var( --vip-workflow-elevation-xs );
+	/* Nodes are hand-placeable, so they read as grabbable rather than clickable
+	   (React Flow's own `.draggable` cursor sits on the wrapper, which this
+	   inner element covers). */
+	cursor: grab;
+	transition: border-color 0.1s ease, background-color 0.1s ease;
+}
+
+.react-flow__node.dragging .wf-stage-node,
+.react-flow__node.dragging .wf-terminal-node {
+	cursor: grabbing;
+}
+
+.wf-stage-node:hover {
+	border-color: var( --wpds-color-stroke-interactive-neutral-strong );
+}
+
+/* Selection is the card itself — a brand border over a brand-washed surface —
+   rather than a ring around it. The stroke thickens to the 2px a selected edge
+   draws at, and the padding gives back the extra pixel so the text doesn't
+   shift when selection lands. */
+.wf-stage-node.is-selected {
+	border-color: var( --wpds-color-stroke-interactive-brand );
+	border-width: 2px;
+	padding: calc( var( --wpds-dimension-padding-lg ) - 1px );
+	background: var( --wpds-color-background-interactive-brand-weak-active );
+}
+
+/* A stage the validator flagged wears the caution tone whole-card, like
+   selection does the brand: amber border, amber-washed surface, and the flag in
+   the title. Caution rather than error because these are hints — a dangling
+   transition, a stage nothing reaches — that the author can save straight past;
+   only `validation.errors` stop the save, and those are said in the blocked
+   notice. Painting both states red made a hint indistinguishable from a
+   blocker, and the louder reading won.
+
+   The border is the caution family's own strong surface stroke; the wash is its
+   weak surface. */
+.wf-stage-node.is-warning {
+	border-color: var( --wpds-color-stroke-surface-caution-strong );
+	background: var( --wpds-color-background-surface-caution-weak );
+}
+
+/* An AI stage takes the purple used for every other AI surface in the product
+   as its whole card — border and a light wash of the same tone — so "an agent
+   runs here" is legible from across the canvas.
+
+   Ordered after the base states so it wins over them; the warning treatment
+   still wins over this, since a broken route is the more urgent thing to see. */
+.wf-stage-node.is-agent {
+	border-color: var( --vip-workflow-color-stroke-ai );
+	background: color-mix(
+		in srgb,
+		var( --vip-workflow-color-stroke-ai ) 5%,
+		var( --wpds-color-background-surface-neutral )
+	);
+}
+
+/* The same wash, deepened the way the brand one deepens for selection. */
+.wf-stage-node.is-agent.is-selected {
+	border-color: var( --vip-workflow-color-stroke-ai );
+	background: color-mix(
+		in srgb,
+		var( --vip-workflow-color-stroke-ai ) 12%,
+		var( --wpds-color-background-surface-neutral )
+	);
+}
+
+.wf-stage-node.is-agent.is-warning {
+	border-color: var( --wpds-color-stroke-surface-caution-strong );
+	background: var( --wpds-color-background-surface-caution-weak );
+}
+
+/* The card's one in-flow child — the title row stacked over the footer row.
+   Both rows, and the gaps within and between them, are <Stack>s in `StageNode`;
+   what is left here is the sizing that makes the body fill the card. */
+.wf-stage-node__body {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.wf-stage-node__label {
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	color: var( --wpds-color-foreground-content-neutral );
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.wf-stage-node__flag {
+	flex: 0 0 auto;
+	/* wpds-allow R6 -- <Icon> renders the raw SVG and exposes no color prop; `fill` is the only way to tint the flag */
+	fill: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* The caution amber, in its icon-legible weight — `fg-content-caution` proper
+   is a near-black tint meant for type on a tinted surface. The same value the
+   card's border derives from, so the glyph and the border it sits inside are
+   one tone. */
+.wf-stage-node__flag--warning {
+	/* wpds-allow R6 -- <Icon> renders the raw SVG and exposes no color prop; `fill` is the only way to tint the flag */
+	fill: var( --wpds-color-foreground-content-caution-weak );
+}
+
+/* Both footer read-outs are <Text variant="body-sm"> (`StageNode`), which is
+   where their type comes from; only the tone is left here. */
+.wf-stage-node__meta {
+	/* wpds-allow R6 -- <Text> exposes no color prop; the muted tone has to be set here */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+.wf-stage-node__publishes {
+	display: inline-flex;
+	align-items: center;
+	/* Off the token scale on purpose: the glyph belongs to the word beside it,
+	   and the smallest gap token (4px) reads as a space between two things. */
+	gap: 2px;
+	/* wpds-allow R6 -- <Text> exposes no color prop; the brand tone has to be set here */
+	color: var( --wpds-color-foreground-interactive-brand );
+}
+
+.wf-stage-node__publishes svg {
+	/* wpds-allow R6 -- the glyph follows the <Text>'s own color, and neither <Text> nor <Icon> exposes a prop for it */
+	fill: currentColor;
+}
+
+/* --- Start / End terminal nodes ----------------------------------------- */
+
+/* The pill's look (surface, border, radius, label type) is the shared
+   `.wf-terminal-pill` from `src/common/terminal-pill.css`, which the
+   transition rail's END mark wears too; this class carries only what the
+   canvas adds to it. */
+.wf-terminal-node {
+	cursor: grab;
+}
+
+.wf-terminal-node__handle.react-flow__handle {
+	width: 9px;
+	height: 9px;
+	background: var( --wpds-color-background-surface-neutral );
+	border: 1.5px solid var( --wpds-color-stroke-interactive-neutral );
+}
+
+.wf-terminal-node__handle.react-flow__handle:hover {
+	border-color: var( --wpds-color-stroke-interactive-brand );
+}
+
+/* Drop sheet — the whole node is the target handle, so a connection can be
+   released anywhere on it instead of onto a dot. Invisible, and inert until a
+   connection is actually in flight (`is-connecting`, set from `useConnection`):
+   React Flow finds the drop target with `elementFromPoint`, so the sheet has to
+   take pointer events then — but at rest it would sit over the node's own
+   content and swallow hovers and clicks. */
+.wf-stage-node__drop.react-flow__handle, /* wpds-allow R6 -- third-party chrome (React Flow); no theming API */
+.wf-terminal-node__drop.react-flow__handle {
+	inset: 0; /* wpds-allow R2 -- zero needs no token */
+	width: auto;
+	height: auto;
+	min-width: 0; /* wpds-allow R2 -- zero needs no token */
+	min-height: 0; /* wpds-allow R2 -- zero needs no token */
+	background: none;
+	border: none;
+	border-radius: inherit;
+	opacity: 0; /* wpds-allow R2 -- fully transparent, not a color */
+	transform: none;
+	pointer-events: none;
+}
+
+.wf-stage-node.is-connecting .wf-stage-node__drop.react-flow__handle,
+.wf-terminal-node.is-connecting .wf-terminal-node__drop.react-flow__handle {
+	pointer-events: all;
+}
+
+/* Source (bottom) handle — the drag-out grip, shown as the block-editor drag
+   icon straddling the border. It's an affordance rather than chrome, so it
+   fades in with the pointer (see the hover rule below) and a stage at rest
+   reads as just a labelled box. */
+.wf-stage-node__handle--source.react-flow__handle { /* wpds-allow R6 -- third-party chrome (React Flow); no theming API */
+	display: flex; /* wpds-allow R4 -- React Flow's <Handle> renders this element and positions it absolutely against the node; a <Stack> cannot replace it */
+	align-items: center; /* wpds-allow R4 -- centres the grip glyph inside that <Handle> */
+	justify-content: center; /* wpds-allow R4 -- centres the grip glyph inside that <Handle> */
+	width: 22px;
+	height: 22px;
+	/* Same pill surface as the "+" affordances. */
+	background: var( --wpds-color-background-surface-neutral );
+	border: 1px solid var( --wpds-color-stroke-surface-neutral );
+	border-radius: var( --vip-workflow-border-radius-full );
+	box-shadow: var( --vip-workflow-elevation-xs );
+	/* Above the hover-bridge pseudo so the grip stays draggable. */
+	z-index: 1;
+	color: var( --wpds-color-foreground-content-neutral-weak );
+	opacity: 0; /* wpds-allow R2 -- fully transparent, not a color */
+	transition: opacity 0.1s ease, color 0.1s ease, border-color 0.1s ease;
+}
+
+.wf-stage-node__handle--source svg {
+	fill: currentColor;
+	pointer-events: none;
+}
+
+/* Pointer events stay React Flow's business (`.connectionindicator`), so the
+   grip is hit-testable while transparent — reaching for the half that hangs
+   below the border hovers the node and brings it up rather than finding
+   nothing. `connectingfrom` keeps it up for the length of its own drag, which
+   outlives the hover the moment the pointer leaves the node. */
+.wf-stage-node:hover .wf-stage-node__handle--source.react-flow__handle,
+.wf-stage-node__handle--source.react-flow__handle:hover,
+.wf-stage-node__handle--source.react-flow__handle.connectingfrom {
+	opacity: 1;
+	color: var( --wpds-color-foreground-interactive-brand );
+	border-color: var( --wpds-color-stroke-interactive-brand );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wf-stage-node__handle--source.react-flow__handle {
+		transition: none;
+	}
+}
+
+/* Outcome handles — an AI stage's three exits, one per agent outcome. The grip
+   above is the pattern: the same 22px pill straddling the bottom border, fading
+   in with the pointer so a stage at rest still reads as just a labelled box.
+   Each wears its outcome's tone on the glyph and the border — a check, a cross
+   and a warning triangle, so which handle is which survives being read at a
+   glance (and by someone who can't tell the three hues apart).
+
+   Clustered around the node's midpoint at the grip's own 4px gap — 22px pills at
+   26px centres — rather than spread across the border. Three exits from one
+   stage are one decision, and spacing them out read as three unrelated things.
+
+   The edges no longer leave from these: an outcome edge floats to whichever
+   border faces its destination like every other edge, and its color says which
+   outcome it carries. */
+.wf-stage-node__handle--outcome.react-flow__handle { /* wpds-allow R6 -- third-party chrome (React Flow); no theming API */
+	display: flex; /* wpds-allow R4 -- React Flow's <Handle> renders this element and positions it absolutely against the node; a <Stack> cannot replace it */
+	align-items: center; /* wpds-allow R4 -- centres the outcome glyph inside that <Handle> */
+	justify-content: center; /* wpds-allow R4 -- centres the outcome glyph inside that <Handle> */
+	width: 22px;
+	height: 22px;
+	background: var( --wpds-color-background-surface-neutral );
+	border: 1px solid var( --wf-outcome-tone );
+	border-radius: var( --vip-workflow-border-radius-full );
+	box-shadow: var( --vip-workflow-elevation-xs );
+	/* Above the node's own content so the half that hangs below the border
+	   stays draggable, matching the grip. */
+	z-index: 1;
+	color: var( --wf-outcome-tone );
+	opacity: 0; /* wpds-allow R2 -- fully transparent, not a color */
+	transition: opacity 0.1s ease, background-color 0.1s ease;
+}
+
+.wf-stage-node__handle--outcome svg {
+	fill: currentColor;
+	pointer-events: none;
+}
+
+/* A routed outcome fills — the pill equivalent of a filled dot, so "this
+   outcome leads somewhere" is legible while the handles are up, and an unrouted
+   one still reads as an empty socket waiting to be dragged. */
+.wf-stage-node__handle--outcome.is-routed.react-flow__handle {
+	background: var( --wf-outcome-tone );
+	color: var( --vip-workflow-color-fg-on-color );
+}
+
+/* Same reveal as the grip: pointer events stay React Flow's business
+   (`.connectionindicator`), so a handle is hit-testable while transparent, and
+   `connectingfrom` holds it up for the length of its own drag — which outlives
+   the hover the moment the pointer leaves the node. */
+.wf-stage-node:hover .wf-stage-node__handle--outcome.react-flow__handle,
+.wf-stage-node__handle--outcome.react-flow__handle:hover,
+.wf-stage-node__handle--outcome.react-flow__handle.connectingfrom {
+	opacity: 1;
+}
+
+/* 22px pills at a 4px gap: centres 26px apart, the middle one on the node's
+   own centre. The offsets are inline (`StageNode`), because which outcome
+   takes which slot is not fixed: the badges follow their edges' ports
+   (`edge-pipeline.js`), so the green edge always leaves under the green
+   badge. Only the tones live here. */
+.wf-stage-node__handle--pass {
+	--wf-outcome-tone: var( --wf-outcome-pass );
+}
+
+.wf-stage-node__handle--fail {
+	--wf-outcome-tone: var( --wf-outcome-fail );
+}
+
+.wf-stage-node__handle--error {
+	--wf-outcome-tone: var( --wf-outcome-error );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wf-stage-node__handle--outcome.react-flow__handle {
+		transition: none;
+	}
+}
+
+/* --- Status regions ------------------------------------------------------ */
+
+/* A region is a section of the canvas, not a shape on it, so the node that
+   spans the band draws nothing at all: only its checkpoint slot is visible. The
+   boundary line and the label are screen-space chrome (`RegionBands` below).
+
+   The node is made inert in `layout.js`, on the node's own `style` — React Flow
+   writes `pointer-events: all` inline on every node wrapper, so a rule here
+   could never outrank it. */
+.wf-region {
+	box-sizing: border-box;
+	width: 100%;
+	height: 100%;
+}
+
+/* --- Status region boundaries and labels (screen space) ------------------ */
+
+/* Both layers cover the whole pane and take no pointer events; each section is
+   positioned inside it from the viewport transform (see `RegionBands`).
+
+   The lines sit *under* the graph — z-index 0 clears React Flow's background
+   (-1) and stays below its renderer (4) — so the checkpoint stage straddles the
+   boundary and transitions cross it. */
+.wf-region-bands {
+	position: absolute;
+	inset: 0; /* wpds-allow R2 -- zero needs no token */
+	z-index: 0;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+/* The boundary the section opens with, run edge to edge: the region continues
+   past both sides of the viewport, because a post status does. Only the top is
+   drawn — where one section ends is where the next one begins. */
+.wf-region-bands__section {
+	position: absolute;
+	left: 0; /* wpds-allow R2 -- zero needs no token */
+	right: 0; /* wpds-allow R2 -- zero needs no token */
+	border-top: 1px solid var( --wpds-color-stroke-surface-neutral-strong );
+	transition: background 0.1s ease, border-color 0.1s ease;
+}
+
+.wf-region-bands__section.is-selected {
+	border-top-color: var( --wpds-color-stroke-interactive-brand );
+}
+
+/* While a stage is being dragged toward a region it isn't in yet: letting go
+   here changes the stage's post status, so the whole section says so. */
+.wf-region-bands__section.is-drop-target {
+	background: var( --wpds-color-background-surface-info-weak );
+	border-top-color: var( --wpds-color-stroke-interactive-brand );
+}
+
+/* The labels ride *over* the graph — chrome, like the zoom controls — so a
+   stage panned across the left edge can't swallow the one thing that says which
+   status is being looked at. */
+.wf-region-labels {
+	position: absolute;
+	inset: 0; /* wpds-allow R2 -- zero needs no token */
+	z-index: 5;
+	overflow: hidden;
+	pointer-events: none;
+}
+
+/* Sticky to the left edge of the viewport rather than to a point in the graph,
+   and sitting just below its line. Screen-space, so it neither grows with zoom
+   nor scrolls off sideways. Indented past the zoom controls' column: a boundary
+   can come to rest anywhere, including across that corner. */
+.wf-region-labels__label {
+	position: absolute;
+	left: var( --wf-canvas-gutter );
+	margin-top: var( --wpds-dimension-gap-sm ); /* wpds-allow R3 -- the label's `top` is a screen-space coordinate written inline from the viewport transform; this is its offset below that line, not spacing between siblings, and the layer holds no <Stack> to carry it */
+	display: inline-flex; /* wpds-allow R4 -- a <Stack> is always display:flex, and it carries none of this pill (surface, border, radius), so binding the class would only turn those into overrides */
+	align-items: center; /* wpds-allow R4 -- centres the glyph and the two labels inside that pill */
+	gap: var( --wpds-dimension-gap-sm ); /* wpds-allow R4 -- spaces them inside the same pill */
+	padding: var( --wpds-dimension-padding-xs )
+		var( --wpds-dimension-padding-md );
+	background: var( --wpds-color-background-surface-neutral );
+	border: 1px solid var( --wpds-color-stroke-surface-neutral );
+	border-radius: var( --vip-workflow-border-radius-full );
+	cursor: pointer;
+	pointer-events: auto;
+}
+
+.wf-region-labels__label:hover {
+	border-color: var( --wpds-color-stroke-surface-neutral-strong );
+}
+
+.wf-region-labels__label.is-selected,
+.wf-region-labels__label.is-drop-target {
+	border-color: var( --wpds-color-stroke-interactive-brand );
+}
+
+.wf-region-labels__icon {
+	/* wpds-allow R6 -- <Icon> renders the raw SVG and exposes no color prop; `fill` is the only way to tint it from a stylesheet */
+	fill: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+.wf-region-labels__name {
+	font: var( --vip-workflow-text-heading-sm );
+	text-transform: uppercase;
+	letter-spacing: 0.4px; /* wpds-allow R5 -- the pinned WPDS set ships no letter-spacing scale; uppercase micro-type needs the tracking to stay readable */
+	color: var( --wpds-color-foreground-content-neutral );
+}
+
+.wf-region-labels__count {
+	font: var( --vip-workflow-text-body-sm );
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* --- Region entry checkpoint slot ---------------------------------------- */
+
+/* A stage-sized outline straddling the group's top border, marking where the
+   region's entry checkpoint goes. There is no checkpoint *marker*: the stage
+   that holds it is docked here by `layout.js`, so the slot is only ever seen
+   empty, or while a drag is in flight and it's a target to aim at.
+
+   Geometry has to match `checkpointSlot()` exactly — a slot the eye and the
+   drop test disagree about is worse than none. */
+/* Position comes from `layout.js` via `RegionNode`'s inline `left` / `top` — the
+   slot follows the checkpoint stage along the border, so it can't be centred
+   here. Half a stage node above the band's top edge is the default, and that is
+   computed there too (`checkpointSlot`). */
+.wf-region__slot {
+	position: absolute;
+	box-sizing: border-box;
+	display: flex; /* wpds-allow R4 -- the outline's dashed border, its tinted drop and unset states, and the inline coordinates `RegionNode` places it at are all beyond <Stack>, which would keep every one of them */
+	align-items: center; /* wpds-allow R4 -- centres the glyph and its caption in the stage-sized outline */
+	justify-content: center; /* wpds-allow R4 -- centres the glyph and its caption in the stage-sized outline */
+	gap: var( --wpds-dimension-gap-sm ); /* wpds-allow R4 -- spaces the two inside that same outline */
+	width: 200px;
+	height: 80px;
+	background: var( --wpds-color-background-surface-neutral-strong );
+	border: 1px dashed var( --wpds-color-stroke-surface-neutral-strong );
+	border-radius: var( --wpds-border-radius-lg );
+	font: var( --vip-workflow-text-body-sm );
+	color: var( --wpds-color-foreground-content-neutral-weak );
+	transition: border-color 0.1s ease, background 0.1s ease, color 0.1s ease;
+}
+
+.wf-region__slot svg {
+	fill: currentColor;
+}
+
+/* Empty with nothing in flight: the sequence can't be saved like this, so the
+   slot says so in the same tone the node warnings use. */
+.wf-region.is-unset .wf-region__slot {
+	border-color: var( --wpds-color-foreground-content-caution );
+	color: var( --wpds-color-foreground-content-caution );
+}
+
+/* Letting go here makes the dragged stage this region's checkpoint. */
+.wf-region__slot.is-target {
+	background: var( --wpds-color-background-surface-info-weak );
+	border-style: solid;
+	border-color: var( --wpds-color-stroke-interactive-brand );
+	color: var( --wpds-color-foreground-interactive-brand );
+}
+
+/* The stage docked in the slot. It sits on the boundary rather than inside the
+   group, so it reads as sitting *on* the canvas — a heavier shadow than a stage
+   at rest, and the entry glyph in its title. No border of its own: the border
+   is where the card states (selected, warning, agent) live, and a checkpoint
+   can be any of them. */
+.wf-stage-node.is-checkpoint {
+	box-shadow: var( --vip-workflow-elevation-sm );
+}
+
+/* --- Canvas right-click menu -------------------------------------------- */
+
+.wf-canvas-menu {
+	position: absolute;
+	z-index: 20;
+	min-width: 220px;
+	padding: var( --wpds-dimension-padding-xs );
+	background: var( --wpds-color-background-surface-neutral );
+	border: 1px solid var( --wpds-color-stroke-surface-neutral );
+	border-radius: var( --wpds-border-radius-md );
+	box-shadow: var( --vip-workflow-elevation-md );
+}
+
+.wf-canvas-menu__item {
+	display: flex; /* wpds-allow R4 -- the item's stripped-button treatment (background, border, radius, hover and disabled tones) has no <Stack> prop behind it, so binding the class would keep all of it and only relabel it as overrides */
+	align-items: center; /* wpds-allow R4 -- centres the glyph against the item's label */
+	gap: var( --wpds-dimension-gap-sm ); /* wpds-allow R4 -- spaces the glyph from that label inside the same <button> */
+	width: 100%;
+	padding: var( --wpds-dimension-padding-sm )
+		var( --wpds-dimension-padding-md );
+	background: none;
+	border: none;
+	border-radius: var( --wpds-border-radius-sm );
+	color: var( --wpds-color-foreground-content-neutral );
+	text-align: left;
+	cursor: pointer;
+}
+
+.wf-canvas-menu__item:hover:not( :disabled ) {
+	background: var( --wpds-color-background-surface-neutral-weak );
+}
+
+.wf-canvas-menu__item:focus-visible {
+	outline: var( --wpds-border-width-focus ) solid
+		var( --wpds-color-stroke-focus );
+	outline-offset: -1px;
+}
+
+.wf-canvas-menu__item:disabled {
+	color: var( --wpds-color-foreground-content-neutral-weak );
+	cursor: default;
+}
+
+.wf-canvas-menu__icon {
+	/* wpds-allow R6 -- <Icon> renders the raw SVG and exposes no color prop; `fill` is the only way to make the glyph follow the item's own color through hover and disabled */
+	fill: currentColor;
+}
+
+/* --- Transition edge ---------------------------------------------------- */
+
+/* Edge state is carried on React Flow's edge group as two custom properties:
+   `color`, which the line and its arrowhead paint with, and `--wf-edge-halo`,
+   the ring drawn under the line. So a state only has to declare its tones —
+   the geometry below never changes.
+
+   The states mirror the stage node: neutral at rest, darker on hover, brand
+   when selected, with the halo standing in for the focus ring an SVG path can
+   take neither `outline` nor `box-shadow` for. Two additions the node has no
+   equivalent of: the line thickens on hover, because a 1px path is a small
+   target and a tone shift alone barely registers on one; and `is-outbound`
+   (set in `GraphCanvas`) puts every edge leaving the selected stage in the
+   brand tone without the ring, which stays the mark of the selection itself.
+
+   Order matters — `is-outbound` overrides only the tone, so an outbound edge
+   under the pointer keeps its hover ring, and `selected` wins over both. */
+.wf-sequence-editor .react-flow__edge {
+	--wf-edge-halo: transparent;
+
+	color: var( --wpds-color-stroke-surface-neutral-strong );
+	transition: color 0.1s ease;
+}
+
+.wf-sequence-editor .react-flow__edge:hover {
+	--wf-edge-halo: var( --wpds-color-stroke-surface-neutral );
+	--wf-edge-width: 2;
+
+	color: var( --wpds-color-stroke-interactive-neutral-strong );
+}
+
+.wf-sequence-editor .react-flow__edge.is-outbound {
+	--wf-edge-width: 2;
+
+	color: var( --wpds-color-stroke-interactive-brand );
+}
+
+/* React Flow clears its own outline on a focused edge, so keyboard focus has to
+   land on the same ring as selection. */
+.wf-sequence-editor .react-flow__edge.selected,
+.wf-sequence-editor .react-flow__edge:focus-visible {
+	--wf-edge-halo: var( --wpds-color-stroke-surface-brand );
+	--wf-edge-width: 2;
+
+	color: var( --wpds-color-stroke-interactive-brand );
+}
+
+/* An agent outcome's edge wears its tone at all times.
+
+   It used to come up only while the stage was selected or the edge hovered, to
+   keep three permanently colored lines out of one stage from making the canvas
+   read as alarmed. That cost more than it saved: an AI stage can route two
+   outcomes to one destination, and then two lines run between the same pair of
+   cards with nothing at rest to tell them apart — which is how it was
+   reported. Identifying the route beats the calm, and the calm is largely kept
+   anyway, because only the weight changes on hover and selection: at rest
+   these are 1px lines, not three alarms.
+
+   Declared after `selected`, and heavier by the extra classes, so the tone
+   beats the brand recolor in those states; the halo rules set only
+   `--wf-edge-halo` and `--wf-edge-width`, so nothing is lost. */
+.wf-sequence-editor .react-flow__edge.is-outcome.is-pass {
+	color: var( --wf-outcome-pass );
+}
+
+.wf-sequence-editor .react-flow__edge.is-outcome.is-fail {
+	color: var( --wf-outcome-fail );
+}
+
+.wf-sequence-editor .react-flow__edge.is-outcome.is-error {
+	color: var( --wf-outcome-error );
+}
+
+/* A disabled transition — one an AI stage holds but no longer lets anyone use,
+   because its agent owns every way out. Drawn dashed and in the weakest stroke
+   tone: still there, still selectable (deleting it is a deliberate act), but
+   reading as inert rather than as a path content can take.
+
+   Last of the tone rules so it wins over hover and selection. It never competes
+   with the outcome hues: an edge is disabled precisely because no outcome claims
+   it, so the two are mutually exclusive by construction (`buildGraph`). Hover
+   and selection still add their halo and weight, which is what keeps a dotted
+   grey line findable enough to click.
+
+   The dots themselves are set inline by `TransitionEdge`, from the same two
+   constants the underpass ghost uses — one texture for "this line is not the
+   thing it looks like", and one place it is measured. */
+.wf-sequence-editor .react-flow__edge.is-disabled {
+	color: var( --wpds-color-stroke-surface-neutral );
+}
+
+/* The path element carries React Flow's `.react-flow__edge-path` too, whose
+   stroke rules are equally specific — the `path` qualifier is what settles it
+   regardless of which stylesheet the build emits first. */
+.wf-sequence-editor .react-flow__edge path.wf-transition-edge {
+	stroke: currentColor;
+	stroke-width: var( --wf-edge-width, 1 );
+}
+
+/* Under the line and wider than it, so the exposed shoulders read as an outline
+   around the path rather than a thicker path. Transparent until a state gives
+   `--wf-edge-halo` a tone. */
+.wf-transition-edge__halo {
+	fill: none;
+	stroke: var( --wf-edge-halo );
+	stroke-width: 6;
+	stroke-linecap: round;
+	pointer-events: none;
+}
+
+/* The mouth of an underpass: a short cap across each end of a break, square to
+   the line it terminates and bowed toward the card (`edge-tunnel.js`). Colored
+   with the line, since it is part of it. */
+.wf-transition-edge__cap {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: var( --wf-edge-width, 1 );
+	stroke-linecap: round;
+	pointer-events: none;
+}
+
+/* The layer for the parts of an edge that have to clear the cards
+   (`EdgeOverlay`): each edge's two end marks, and the hidden span of a tunnelled
+   one repainted faint and dotted. It sits over even an elevated (selected or
+   dragged) node — a mark on a border a neighbour overlaps is the whole reason it
+   is here, and 1000 is what React Flow raises an elevated node to — and takes no
+   pointer events, so nothing beneath it becomes unclickable.
+
+   Clearing everything means it would also clear a node's own exit handles, which
+   sit inside that card's stacking context and cannot be raised out of it. That
+   is not solved by lowering this: a socket whose point lands on one of its own
+   node's source handles is simply not drawn (`EdgeOverlay`), because the handle
+   is the port there — and an arrowhead landing on an AI stage's outcome badge
+   yields for as long as the badge is painted (the `is-yielding` rule below).
+
+   Both layers above the cards are the same box: a 1x1 sheet pinned to the flow
+   origin with `overflow: visible`, so a `ViewportPortal` child draws in flow
+   coordinates without a transform of its own. Declared once so the two cannot
+   drift apart; only their stacking order differs. */
+.wf-edge-overlay,
+.wf-edge-anchors {
+	position: absolute;
+	left: 0; /* wpds-allow R2 -- zero needs no token */
+	top: 0; /* wpds-allow R2 -- zero needs no token */
+	width: 1px;
+	height: 1px;
+	overflow: visible;
+	pointer-events: none;
+}
+
+.wf-edge-overlay {
+	z-index: 1001; /* wpds-allow R2 -- stacking order, not a color */
+}
+
+/* The head is an open chevron drawn at the line's own width, so the stroke runs
+   at one weight from socket to point and thickens with it on hover and
+   selection; the socket is a filled half-disc, which needs no stroke because it
+   is a solid shape; the ghost is the line itself, dotted. */
+.wf-edge-overlay__arrow {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: var( --wf-edge-width, 1 );
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	/* Fades at the outcome badges' own 0.1s (their reveal rules above), so a
+	   yielding head and the badge beneath it trade places rather than pop. */
+	transition: opacity 0.1s ease;
+}
+
+/* A head over an AI stage's outcome badge would stamp itself across the
+   badge's glyph, so it yields — but only while the badge is actually painted
+   (its stage hovered, or a connection in flight from it; `EdgeOverlay` sets
+   the class), and it returns the moment the badge fades. At rest every
+   arrival keeps its mark. */
+.wf-edge-overlay__arrow.is-yielding {
+	opacity: 0; /* wpds-allow R2 -- fully transparent, not a color */
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wf-edge-overlay__arrow {
+		transition: none;
+	}
+}
+
+.wf-edge-overlay__socket {
+	fill: currentColor;
+	stroke: none;
+}
+
+/* An agent outcome edge's departure: a filled disc in the outcome's own tone
+   carrying the outcome's glyph, on the exact point the line leaves the card.
+   Painted at rest — that is the whole point of it. Two lines between the same
+   pair of stages are the ordinary shape of an AI stage with two outcomes
+   routed to one place, and a mark that only appeared under the pointer left
+   them indistinguishable until one was clicked.
+
+   The disc takes the edge's `currentColor`, so it is the same tone as the line
+   it starts; the glyph is knocked out of it. The size is set in `EdgeOverlay`
+   from `PORT_SPREAD`, the pitch ports on one border are normally placed at, so
+   two of these sit rim to rim rather than piling up — see the note there for
+   what a border crowded past that pitch does. */
+.wf-edge-overlay__outcome-disc {
+	fill: currentColor;
+	stroke: none;
+}
+
+.wf-edge-overlay__outcome svg {
+	fill: var( --vip-workflow-color-fg-on-color );
+}
+
+/* Yields to the badge under it on the same terms the arrowhead does, and fades
+   at the badge's own 0.1s so the two trade places rather than pop. */
+.wf-edge-overlay__outcome {
+	transition: opacity 0.1s ease;
+}
+
+.wf-edge-overlay__outcome.is-yielding {
+	opacity: 0; /* wpds-allow R2 -- fully transparent, not a color */
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wf-edge-overlay__outcome {
+		transition: none;
+	}
+}
+
+.wf-edge-overlay__ghost {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: var( --wf-edge-width, 1 );
+}
+
+/* One set of tones for everything on the layer. They mirror the edge-state rules
+   above, because these *are* that edge — drawn somewhere else so a card can't
+   cover them. `is-hovered` is a class rather than `:hover` (`GraphCanvas` sets
+   it): the pointer is over the line, which is in another layer entirely. */
+.wf-edge-overlay > g > * {
+	color: var( --wpds-color-stroke-surface-neutral-strong );
+}
+
+.wf-edge-overlay .is-hovered {
+	--wf-edge-width: 2;
+
+	color: var( --wpds-color-stroke-interactive-neutral-strong );
+}
+
+.wf-edge-overlay .is-outbound,
+.wf-edge-overlay .selected {
+	--wf-edge-width: 2;
+
+	color: var( --wpds-color-stroke-interactive-brand );
+}
+
+/* Permanent, like the line's own tone above — these marks *are* that line. */
+.wf-edge-overlay .is-outcome.is-pass {
+	color: var( --wf-outcome-pass );
+}
+
+.wf-edge-overlay .is-outcome.is-fail {
+	color: var( --wf-outcome-fail );
+}
+
+.wf-edge-overlay .is-outcome.is-error {
+	color: var( --wf-outcome-error );
+}
+
+.wf-edge-overlay .is-disabled {
+	color: var( --wpds-color-stroke-surface-neutral );
+}
+
+/* The edge one of whose ends is being dragged. Its line still runs to where
+   that end no longer is, and the drag line already says where it is going —
+   drawing both puts the transition in two places at once. The marks go with it:
+   they are the same edge on another layer. */
+.wf-sequence-editor .react-flow__edge.is-reconnecting,
+.wf-edge-overlay .is-reconnecting {
+	opacity: 0; /* wpds-allow R2 -- fully transparent, not a color */
+}
+
+/* The layer holding the grab handles that move an edge's ends (`EdgeAnchors`).
+   Above the marks, on the same two planned ports, so a ring always sits on top
+   of the socket or arrowhead it belongs to.
+
+   The sheet takes no pointer events and the circles do, so the canvas beneath
+   stays live. While an end is actually travelling even those go transparent:
+   the drop is decided by what is under the cursor, and the layer following the
+   cursor must never be the answer. */
+.wf-edge-anchors {
+	z-index: 1002; /* wpds-allow R2 -- stacking order, not a color */
+}
+
+.wf-edge-anchors__anchor {
+	pointer-events: all;
+	cursor: grab;
+}
+
+.wf-edge-anchors.is-dragging .wf-edge-anchors__anchor {
+	pointer-events: none;
+}
+
+/* An end in flight. The cursor is claimed from the canvas rather than from the
+   anchor, which takes no pointer events for the length of the drag (above) and
+   so never paints one; `*` because whatever is passed over — a card, a band,
+   the pane — sets its own, and `.wf-sequence-editor` to out-rank React Flow's
+   own two-class pane and node rules whichever stylesheet loads second. */
+.wf-sequence-editor .wf-canvas__viewport.is-rewiring,
+.wf-sequence-editor .wf-canvas__viewport.is-rewiring * {
+	cursor: grabbing;
+}
+
+/* Wider than the ring it surrounds, for the reason the edge carries a wide
+   invisible hit stroke: the mark is small and the pointer is not precise. */
+.wf-edge-anchors__grab {
+	fill: transparent; /* wpds-allow R2 -- a hit area, not a painted surface */
+	stroke: none;
+}
+
+/* A knob on the end of the line: filled with the canvas so the line and the
+   mark under it stop cleanly at its edge, ringed in the edge's own tone so it
+   reads as belonging to that edge rather than as another node. */
+.wf-edge-anchors__ring {
+	fill: var( --wpds-color-background-surface-neutral );
+	stroke: currentColor;
+	stroke-width: 2;
+}
+
+/* The line while an end is in flight, and the outline of the card that would be
+   made if it were let go over empty canvas. Neither is ever a target. */
+.wf-edge-anchors__lead {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
+	pointer-events: none;
+}
+
+.wf-edge-anchors__ghost {
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-dasharray: 4 4;
+	rx: var( --wpds-border-radius-lg );
+	pointer-events: none;
+}
+
+/* Tones, mirroring `.wf-edge-overlay` above — these are that edge, drawn on one
+   more layer. `currentColor` on the group is what the ring, the lead and the
+   ghost all take. */
+.wf-edge-anchors > g {
+	color: var( --wpds-color-stroke-interactive-brand );
+}
+
+.wf-edge-anchors > g.is-outcome.is-pass {
+	color: var( --wf-outcome-pass );
+}
+
+.wf-edge-anchors > g.is-outcome.is-fail {
+	color: var( --wf-outcome-fail );
+}
+
+.wf-edge-anchors > g.is-outcome.is-error {
+	color: var( --wf-outcome-error );
+}
+
+.wf-edge-anchors > g.is-disabled {
+	color: var( --wpds-color-stroke-surface-neutral );
+}
+
+/* What the drop would do, said in colour while the end is still being held —
+   which is what keeps a refused move from reading as a broken control when it
+   springs back. A move the model accepts keeps the edge's own tone above; only
+   these two overrule it, and they are qualified by the drag (and so declared
+   after) to beat the outcome hues they have to sit on top of. */
+.wf-edge-anchors.is-dragging > g.is-unchanged {
+	color: var( --wpds-color-stroke-surface-neutral-strong );
+}
+
+.wf-edge-anchors.is-dragging > g.is-invalid {
+	color: var( --wpds-color-stroke-surface-error-strong );
+}
+
+/* Carries the insert "+" and, on a shared outcome edge, the mark saying its
+   transition record is not its own. Only the button itself takes pointer
+   events, so the wrapper never shadows the line beneath it.
+
+   The "+" is the row's only child in flow, so the row shrink-wraps to it and
+   the -50%/-50% transform in `TransitionEdge` centers *the button* on the edge
+   midpoint. That is not a nicety: the midpoint is the point the "+" inserts a
+   stage at, so it has to be the point the "+" is drawn over. The mark is taken
+   out of flow and hung off the button's left edge below, which is what keeps
+   that true whatever the mark's width; in the row it pushed the button half a
+   mark clear of the midpoint the click still used.
+
+   The "+" keeps its box while hidden (it fades rather than unmounts, see
+   `.wf-add-button`), so the mark beside it does not shift when the pointer
+   arrives. The row itself is a `<Stack>` (`TransitionEdge`); only the
+   positioning is here, because it is what the inline transform anchors on. */
+.wf-transition-edge__controls {
+	position: absolute;
+	pointer-events: none;
+}
+
+/* "This line is one of a set standing on one transition." An AI stage may route
+   two outcomes to the same destination, and a stage holds at most one
+   transition per target — so the two edges are one record drawn twice and share
+   every setting on it. Every line of the set wears the mark, painted at all
+   times: what it corrects is what the canvas says at rest, and it has to say it
+   on whichever of the lines the reader is following.
+
+   A filled disc with a link glyph knocked out of it — the treatment
+   `EdgeOverlay` gives an outcome's departure, in the neutral tone that layer's
+   unattributed marks take, because what this reports is a fact about the record
+   rather than about the outcome. Its size is set in `TransitionEdge` from
+   `PORT_SPREAD`, and that is what makes marking every line affordable: a shared
+   set is exactly what the router gathers into a bundle, whose lanes close to
+   that same pitch, so two of these sit rim to rim instead of burying each other.
+
+   Unlike the "+" it is not a control, so it inherits the wrapper's
+   `pointer-events: none` and stays click-through — the line keeps its own
+   midpoint, which a permanent mark that answered a click with nothing would
+   have taken.
+
+   Kept in CSS on a plain element rather than bound to a `<Stack>`, for the
+   reason `.wf-add-button` is: the disc is surface, radius and a knocked-out
+   glyph, none of which a `<Stack>` carries, so binding it would restate every
+   one of them as a library override to gain a flex box. */
+.wf-transition-edge__shared {
+	/* Out of the row and hung off the button's left edge: `right: 100%` is the
+	   wrapper's left edge, and the wrapper is the button. Anything else and the
+	   mark's own width decides where the "+" lands. */
+	position: absolute;
+	top: 50%;
+	right: 100%;
+	margin-right: var( --wpds-dimension-gap-xs ); /* wpds-allow R3 -- the mark is deliberately out of the row, so the <Stack>'s gap cannot reach it; this is that gap restated as the clearance of an absolutely positioned sibling, and putting it back in the row is the defect this fixes */
+	transform: translateY( -50% );
+	display: inline-flex; /* wpds-allow R4 -- see above: a <Stack> is always display:flex and carries none of this disc, so binding the class to one would only turn all of it into overrides */
+	align-items: center; /* wpds-allow R4 -- centres the glyph inside that inline-flex disc */
+	justify-content: center; /* wpds-allow R4 -- centres the glyph inside that inline-flex disc */
+	color: var( --vip-workflow-color-fg-on-color );
+	background: var( --wpds-color-stroke-surface-neutral-strong );
+	border-radius: var( --vip-workflow-border-radius-full );
+}
+
+.wf-transition-edge__shared svg {
+	fill: currentColor;
+}
+
+/* Sits on the line, so it needs an opaque center to read against it. It re-enables
+   pointer events for itself (via `.wf-add-button.is-visible`) inside the
+   pointer-transparent wrapper — while hidden it stays click-through. */
+.wf-transition-edge__add {
+	background: var( --wpds-color-background-surface-neutral );
+}
+
+.wf-transition-edge__add:focus-visible {
+	outline: var( --wpds-border-width-focus ) solid
+		var( --wpds-color-stroke-interactive-brand );
+	outline-offset: 1px;
+}
+
+/* The inspector panel styles itself — see `Inspector.css`, imported by
+   `Inspector.js`. Only `.wf-sequence-editor__inspector` above (the aside that
+   frames it) lives here, because that is the two-zone layout. */

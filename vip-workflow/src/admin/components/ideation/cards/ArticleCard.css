@@ -1,0 +1,10 @@
+/**
+ * Ideation Article card styles.
+ */
+
+/* Clickable cards */
+
+.vip-workflow-ideation-card--article,
+.vip-workflow-ideation-card--image {
+	cursor: pointer;
+}

@@ -1,0 +1,41 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "VIP Workflow — Playground",
+		"description": "Boots WordPress 7.0, installs the MCP Adapter companion plugin, activates VIP Workflow, and lands on the Workflows dashboard. The VIP Workflow plugin is supplied by mounting it from this monorepo; see PLAYGROUND.md for the run command.",
+		"author": "vip-workflow"
+	},
+	"landingPage": "/wp-admin/admin.php?page=vip-workflow",
+	"preferredVersions": {
+		"php": "8.2",
+		"wp": "7.0"
+	},
+	"phpExtensionBundles": [ "kitchen-sink" ],
+	"features": {
+		"networking": true
+	},
+	"login": true,
+	"steps": [
+		{
+			"step": "defineWpConfigConsts",
+			"consts": {
+				"WP_DEBUG": true,
+				"WP_DEBUG_LOG": true,
+				"WP_DEBUG_DISPLAY": false,
+				"SCRIPT_DEBUG": true
+			}
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://github.com/WordPress/mcp-adapter/releases/latest/download/mcp-adapter.zip"
+			},
+			"options": { "activate": true }
+		},
+		{
+			"step": "activatePlugin",
+			"pluginPath": "vip-workflow/vip-workflow.php"
+		}
+	]
+}

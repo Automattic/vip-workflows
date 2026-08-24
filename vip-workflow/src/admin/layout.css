@@ -1,0 +1,35 @@
+/**
+ * VIP Workflow - Admin Screen Layout
+ *
+ * Per-screen layout primitives shared across pages. The page chrome (content
+ * wrapper, header, sections) is owned by the AdminPage component
+ * (admin-page.css); what remains here is the route-transition treatment
+ * applied as screens swap in the AppShell.
+ *
+ * @package VIPWorkflow
+ */
+
+/* ============================================================================
+   Route Transitions
+   ============================================================================ */
+
+.vip-workflow-view-container {
+	position: relative;
+	min-height: 100%;
+}
+
+.vip-workflow-view {
+	opacity: 1;
+	transition: opacity 0.15s ease-out;
+}
+
+.vip-workflow-view.vip-workflow-view-entering {
+	opacity: 0;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+	.vip-workflow-view {
+		transition: none;
+	}
+}
