@@ -70,6 +70,7 @@ run_quiet bash -c "cd '$CORE_DIR' && npm run build"
 rsync -a \
 	--include='vip-workflow.php' \
 	--include='uninstall.php' \
+	--include='autoload-paths.php' \
 	--include='includes/***' \
 	--include='build/***' \
 	--include='languages/***' \
