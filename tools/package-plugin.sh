@@ -288,19 +288,20 @@ install_vendor() {
 }
 
 stamp_version() {
-	local entry="$1" slug="$2" had_const header_version
+	local entry="$1" slug="$2" version_constant had_const header_version
+	version_constant="$(printf '%s' "$slug" | tr '[:lower:]-' '[:upper:]_')_VERSION"
 	had_const=0
-	grep -qE "define\([[:space:]]*'[A-Z0-9_]+_VERSION'" "$entry" && had_const=1
+	grep -qE "define\([[:space:]]*'${version_constant}'" "$entry" && had_const=1
 
 	sed_inplace "s|^([[:space:]]*\*[[:space:]]*Version:[[:space:]]*).*$|\1${VERSION}|" "$entry"
-	sed_inplace "s|(define\([[:space:]]*'[A-Z0-9_]+_VERSION'[[:space:]]*,[[:space:]]*')[^']*('[[:space:]]*\)[[:space:]]*;)|\1${VERSION}\2|" "$entry"
+	sed_inplace "s|(define\([[:space:]]*'${version_constant}'[[:space:]]*,[[:space:]]*')[^']*('[[:space:]]*\)[[:space:]]*;)|\1${VERSION}\2|" "$entry"
 
 	# A silently no-op stamp ships the wrong version, so assert the result.
 	header_version="$(grep -aoE "^[[:space:]]*\*[[:space:]]*Version:[[:space:]]*.*$" "$entry" | head -1 | sed -E 's|.*Version:[[:space:]]*||' | tr -d '\r')"
 	[ "$header_version" = "$VERSION" ] || die "$slug: plugin header Version is '$header_version' after stamping, expected '$VERSION'"
 	if [ "$had_const" -eq 1 ]; then
-		grep -qE "define\([[:space:]]*'[A-Z0-9_]+_VERSION'[[:space:]]*,[[:space:]]*'${VERSION//./\\.}'" "$entry" \
-			|| die "$slug: *_VERSION constant was not stamped to '$VERSION'"
+		grep -qE "define\([[:space:]]*'${version_constant}'[[:space:]]*,[[:space:]]*'${VERSION//./\\.}'" "$entry" \
+			|| die "$slug: $version_constant was not stamped to '$VERSION'"
 	fi
 }
 
