@@ -10,8 +10,20 @@
  * `post`) is the default fixture: stages draft → review → ready → publish.
  */
 
+const { execFile } = require( 'node:child_process' );
+const path = require( 'node:path' );
+const { promisify } = require( 'node:util' );
+
 const EDITORIAL_REVIEW_SLUG = 'editorial-review';
 const WF = '/vip-workflow/v1/workflow';
+const REPO_ROOT = path.resolve( __dirname, '..', '..', '..', '..' );
+const WP_ENV_BIN = path.join(
+	REPO_ROOT,
+	'node_modules',
+	'.bin',
+	process.platform === 'win32' ? 'wp-env.cmd' : 'wp-env'
+);
+const execFileAsync = promisify( execFile );
 
 /**
  * The workflow sidebar's own root — the `<Stack className="vip-workflow-sidebar">`
@@ -296,23 +308,34 @@ async function createAiStageSequence(
 }
 
 /**
- * Run any due WP-Cron events synchronously.
+ * Run the next queued stage-agent event synchronously.
  *
  * Stage agents dispatch via `wp_schedule_single_event`, so the agent only runs
  * once cron fires. The tests environment sets DISABLE_WP_CRON (WP's loopback
- * spawn can't run with egress blocked), so nothing fires the queue on its own —
- * a spec drives it by requesting wp-cron.php directly, which processes due
- * events in that request. Uses the absolute base URL because requestUtils'
- * request context has no baseURL for non-REST paths.
+ * spawn can't run with egress blocked), so nothing fires the queue on its own.
+ * Run only this hook through WP-CLI: requesting wp-cron.php is not synchronous
+ * because WordPress flushes the HTTP response before processing events, and a
+ * concurrent cron lock can therefore leave the post pending until after the
+ * test's polling window.
  *
- * @param {import('@wordpress/e2e-test-utils-playwright').RequestUtils} requestUtils
  * @return {Promise<void>}
  */
-async function runDueCron( requestUtils ) {
-	const baseURL = process.env.WP_BASE_URL || 'http://localhost:8889';
-	await requestUtils.request.get( `${ baseURL }/wp-cron.php`, {
-		failOnStatusCode: false,
-	} );
+async function runDueCron() {
+	await execFileAsync(
+		WP_ENV_BIN,
+		[
+			'run',
+			'cli',
+			'--config',
+			'.wp-env.tests.json',
+			'wp',
+			'cron',
+			'event',
+			'run',
+			'vip_workflow_run_stage_agent',
+		],
+		{ cwd: REPO_ROOT }
+	);
 }
 
 /**
@@ -336,7 +359,7 @@ async function waitForAgentStatus(
 	{ attempts = 30, intervalMs = 500 } = {}
 ) {
 	for ( let i = 0; i < attempts; i++ ) {
-		await runDueCron( requestUtils );
+		await runDueCron();
 		const status = await getWorkflowStatus( requestUtils, postId );
 		if ( status.agent_job?.status === wanted ) {
 			return status;
