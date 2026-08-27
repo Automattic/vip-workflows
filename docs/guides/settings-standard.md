@@ -546,7 +546,6 @@ Sentence case everywhere, and the vocabulary table in
 | `Creating Custom Tools` (modal title) | Match the trigger: `Add custom tools` |
 | `Show in Command Palette (⌘K)` | `Show in command palette` — the shortcut is not part of the setting's name |
 | `General AI Model` | `AI model` |
-| `SLA Breached`, `SLA Warning`, `Goal At Risk` | `SLA breached`, `SLA warning`, `Goal at risk` — event labels reach the Routing matrix verbatim |
 
 A section heading that ends in the type of thing it contains (`Check Tools`
 under a page titled `Tools`) is saying "Tools" twice. Drop the noun the page

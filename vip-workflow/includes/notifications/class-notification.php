@@ -140,17 +140,6 @@ class Notification {
 			);
 		}
 
-		// Goal fields.
-		if ( 'goal.at_risk' === $this->type ) {
-			$current = $this->get( 'current', 0 );
-			$target = $this->get( 'target', 0 );
-			$fields[] = array(
-				'title' => __( 'Progress', 'vip-workflow' ),
-				'value' => sprintf( '%d / %d', $current, $target ),
-				'short' => true,
-			);
-		}
-
 		return $fields;
 	}
 }

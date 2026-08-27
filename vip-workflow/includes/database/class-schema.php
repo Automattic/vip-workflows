@@ -481,6 +481,10 @@ class Schema {
 			// Both tables are dropped rather than left orphaned: neither can hold
 			// a row a site would miss, and get_owned_tables() no longer lists them
 			// for uninstall to reach.
+			//
+			// The same release retires SLA and `goal.at_risk`, which were offered
+			// as routable notification events; drop_retired_event_routing() below
+			// forgets whatever a site had ticked for them.
 			array(
 				'version' => '2.24.0',
 				'run'     => function (): void {
@@ -492,7 +496,7 @@ class Schema {
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}vip_automation_flows" );
 
-					self::drop_retired_sla_routing();
+					self::drop_retired_event_routing();
 				},
 			),
 		);
@@ -653,26 +657,41 @@ class Schema {
 	}
 
 	/**
-	 * Forget notification routing for the retired SLA events.
+	 * Forget notification routing for the events retired in 2.24.0.
 	 *
-	 * SLA was removed in 2.24.0: nothing set a stage's target duration, so the
-	 * check that would have fired `sla.warning` and `sla.breached` never had an
-	 * input and neither event was ever emitted. The Notifications screen still
-	 * offered both as routable events, so a site can hold rows for them.
+	 * SLA had no input: nothing set a stage's target duration, so the check that
+	 * would have fired `sla.warning` and `sla.breached` never had one to read.
+	 * `goal.at_risk` had no emitter at all — two listeners disagreeing about the
+	 * payload, and no caller in any commit. All three were offered on the
+	 * Notifications screen as routable events, so a site can hold rows for them.
 	 *
-	 * They are inert — should_notify_channel() is an isset() lookup against ids
-	 * nothing dispatches — but leaving them means the option keeps describing a
-	 * feature that is gone, and a later event reusing either id would silently
-	 * inherit whatever an admin ticked years earlier.
+	 * Both spellings are dropped. The 2.21.0 migration re-keys the underscored
+	 * ids the old System Events matrix wrote onto the dotted ones the dispatcher
+	 * fired, and it runs first — but a site can arrive here having skipped it,
+	 * and asking about four keys is cheaper than reasoning about which.
+	 *
+	 * The rows are inert — should_notify_channel() is an isset() lookup against
+	 * ids nothing dispatches — but leaving them means the option keeps
+	 * describing features that are gone, and a later event reusing one of these
+	 * ids would silently inherit whatever an admin ticked years earlier.
 	 */
-	protected static function drop_retired_sla_routing(): void {
+	protected static function drop_retired_event_routing(): void {
 		$routing = get_option( 'vip_workflow_notification_routing', array() );
 		if ( ! is_array( $routing ) ) {
 			return;
 		}
 
+		$retired = array(
+			'sla.warning',
+			'sla.breached',
+			'sla_warning',
+			'sla_breach',
+			'goal.at_risk',
+			'goal_at_risk',
+		);
+
 		$changed = false;
-		foreach ( array( 'sla.warning', 'sla.breached', 'sla_warning', 'sla_breach' ) as $event_id ) {
+		foreach ( $retired as $event_id ) {
 			if ( array_key_exists( $event_id, $routing ) ) {
 				unset( $routing[ $event_id ] );
 				$changed = true;

@@ -42,9 +42,6 @@ class WorkflowEvents implements ModuleInterface {
 		// publishes (cron future→publish, quick edit, REST, CLI) emit here —
 		// suppressed while a workflow transition is mid-commit.
 		add_action( 'transition_post_status', array( $this, 'on_go_live' ), 10, 3 );
-
-		// Goal events.
-		add_action( 'vip_workflow_goal_at_risk', array( $this, 'on_goal_at_risk' ), 10, 2 );
 	}
 
 	/**
@@ -213,32 +210,6 @@ class WorkflowEvents implements ModuleInterface {
 				'sequence_name'   => $sequence->name ?? '',
 			),
 			array( 'post_id' => $post->ID )
-		);
-	}
-
-	/**
-	 * Handle goal at risk.
-	 *
-	 * @param int   $post_id Post ID.
-	 * @param array $data    Risk data.
-	 */
-	public function on_goal_at_risk( int $post_id, array $data ): void {
-		$event_bus = Plugin::get_instance()->get_event_bus();
-		if ( ! $event_bus ) {
-			return;
-		}
-
-		$post = get_post( $post_id );
-
-		$event_bus->emit(
-			'goal.at_risk',
-			array(
-				'post_id'        => $post_id,
-				'post_title'     => $post ? $post->post_title : '',
-				'goal_date'      => $data['goal_date'] ?? '',
-				'time_remaining' => $data['time_remaining'] ?? '',
-			),
-			array( 'post_id' => $post_id )
 		);
 	}
 }

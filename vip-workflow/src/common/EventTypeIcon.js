@@ -35,7 +35,6 @@ import {
 	published,
 	tool,
 	trash,
-	trendingDown,
 	unlock,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/ui';
@@ -92,7 +91,6 @@ const EVENT_TYPE_ICONS = {
 	'post.workflow_completed': { icon: published, tone: 'success' },
 	// Went live, publicly — distinct from reaching the last stage of a workflow.
 	'post.published': { icon: globe, tone: 'success' },
-	'goal.at_risk': { icon: trendingDown, tone: 'warning' },
 	// The nightly prune, which is the one thing that reaches the log with no
 	// post and no actor behind it.
 	'maintenance.cleanup': { icon: trash, tone: 'neutral' },

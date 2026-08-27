@@ -110,7 +110,7 @@ class NotificationDispatcherTest extends TestCase
         Functions\when( 'get_option' )->alias(
             function ( $option, $default = [] ) {
                 if ( 'vip_workflow_notification_routing' === $option ) {
-                    return [ 'goal.at_risk' => [ 'slack' ] ]; // only goal.at_risk → slack
+                    return [ 'transition' => [ 'slack' ] ]; // only transition → slack
                 }
                 return $default;
             }
@@ -157,7 +157,6 @@ class NotificationDispatcherTest extends TestCase
         // The routing matrix is built from these ids and should_notify_channel()
         // matches them with isset(), so they have to be the ids dispatch() fires.
         // Ticking a row whose id nothing emits is a notification that never sends.
-        $this->assertArrayHasKey( 'goal.at_risk', $types );
         $this->assertArrayHasKey( 'published', $types );
     }
 

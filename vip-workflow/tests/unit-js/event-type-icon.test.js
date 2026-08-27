@@ -41,7 +41,6 @@ const EVENT_TYPES = {
 	'post.workflow_assigned': 'info',
 	'post.workflow_completed': 'success',
 	'post.published': 'success',
-	'goal.at_risk': 'warning',
 	'task.created': 'info',
 	'task.completed': 'success',
 	'stage.copy_desk.entered': 'info',

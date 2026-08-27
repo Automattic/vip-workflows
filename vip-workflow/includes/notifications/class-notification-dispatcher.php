@@ -118,7 +118,6 @@ class NotificationDispatcher implements ModuleInterface {
 
 		// Listen for workflow events.
 		add_action( 'vip_workflow_status_transition', array( $this, 'handle_status_transition' ), 10, 5 );
-		add_action( 'vip_workflow_goal_at_risk', array( $this, 'handle_goal_at_risk' ) );
 
 		// Go-live notifies via two complementary paths, exactly-once by
 		// construction: workflow-driven publishes notify from the workflow stage
@@ -308,15 +307,6 @@ class NotificationDispatcher implements ModuleInterface {
 				'args'     => array( 'post_title', 'from_label', 'to_label' ),
 				'color'    => '#2271b1',
 				'icon'     => '📝',
-			),
-			'goal.at_risk' => array(
-				'severity' => 'warning',
-				'title'    => __( 'Goal At Risk', 'vip-workflow' ),
-				/* translators: %1$s: goal name, %2$d: current progress count, %3$d: target progress count. */
-				'message'  => __( '%1$s: %2$d of %3$d complete', 'vip-workflow' ),
-				'args'     => array( 'goal_name', 'current', 'target' ),
-				'color'    => '#dba617',
-				'icon'     => '🎯',
 			),
 		);
 
@@ -537,15 +527,6 @@ class NotificationDispatcher implements ModuleInterface {
 	}
 
 	/**
-	 * Handle goal at risk event.
-	 *
-	 * @param array $data Event data.
-	 */
-	public function handle_goal_at_risk( array $data ): void {
-		$this->dispatch( 'goal.at_risk', $data );
-	}
-
-	/**
 	 * Send transition notifications configured in sequence.
 	 *
 	 * @param int   $post_id      Post ID.
@@ -597,7 +578,6 @@ class NotificationDispatcher implements ModuleInterface {
 		// is silent: should_notify_channel() is a plain isset() lookup, and a row
 		// the admin ticks under an id nothing emits simply never matches.
 		$events = array(
-			'goal.at_risk' => __( 'Goal at risk', 'vip-workflow' ),
 			// Go-live is a system event (core transition_post_status), not a
 			// per-transition one, so it routes through the global matrix.
 			'published'    => __( 'Published', 'vip-workflow' ),

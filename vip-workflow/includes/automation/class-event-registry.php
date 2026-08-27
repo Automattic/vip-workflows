@@ -82,16 +82,6 @@ class EventRegistry {
 			)
 		);
 
-		// Goal events.
-		$this->register(
-			'goal.at_risk',
-			array(
-				'label'       => 'Goal At Risk',
-				'description' => 'Fired when a post is at risk of missing its goal date',
-				'category'    => 'goal',
-			)
-		);
-
 		// Post events.
 		$this->register(
 			'post.published',
