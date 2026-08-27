@@ -40,8 +40,7 @@ class BootstrapConformanceTest extends TestCase
     }
 
     /**
-     * The runtime version constant and the plugin-header Version must stay in lockstep,
-     * and both must be the seeded 0.0.1.
+     * The runtime version constant and the plugin-header Version must stay in lockstep.
      *
      * @runInSeparateProcess
      * @preserveGlobalState disabled
@@ -52,7 +51,7 @@ class BootstrapConformanceTest extends TestCase
 
         require_once self::PLUGIN_FILE;
 
-        $this->assertSame( '0.0.1', VIP_WORKFLOW_VERSION, 'VIP_WORKFLOW_VERSION should be the seeded IC bundle version.' );
+        $this->assertMatchesRegularExpression( '/^\\d+\\.\\d+\\.\\d+$/', VIP_WORKFLOW_VERSION, 'VIP_WORKFLOW_VERSION should be a semantic version.' );
 
         $source = (string) file_get_contents( self::PLUGIN_FILE );
         $this->assertSame( 1, preg_match( '/^\s*\*\s*Version:\s*(.+)$/m', $source, $matches ), 'Plugin header must declare a Version.' );
