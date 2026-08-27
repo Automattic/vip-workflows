@@ -16,7 +16,7 @@ class Notification {
 
 
 	/**
-	 * Event type (e.g., 'sla.breached', 'published').
+	 * Event type (e.g., 'published', 'transition').
 	 *
 	 * @var string
 	 */
@@ -140,28 +140,6 @@ class Notification {
 			);
 		}
 
-		// Time-based fields.
-		$time_remaining = $this->get( 'time_remaining' );
-		if ( $time_remaining ) {
-			$fields[] = array(
-				'title' => __( 'Time Remaining', 'vip-workflow' ),
-				'value' => self::format_duration( $time_remaining ),
-				'short' => true,
-			);
-		}
-
-		$time_elapsed = $this->get( 'time_elapsed' );
-		if ( $time_elapsed ) {
-			$target = $this->get( 'target', 0 );
-			if ( $target < $time_elapsed && 0 < $target ) {
-				$fields[] = array(
-					'title' => __( 'Overdue By', 'vip-workflow' ),
-					'value' => self::format_duration( $time_elapsed - $target ),
-					'short' => true,
-				);
-			}
-		}
-
 		// Goal fields.
 		if ( 'goal.at_risk' === $this->type ) {
 			$current = $this->get( 'current', 0 );
@@ -174,32 +152,5 @@ class Notification {
 		}
 
 		return $fields;
-	}
-
-	/**
-	 * Format duration for display.
-	 *
-	 * @param  int $seconds Duration in seconds.
-	 * @return string
-	 */
-	public static function format_duration( int $seconds ): string {
-		if ( $seconds < 60 ) {
-			/* translators: %d: number of seconds. */
-			return sprintf( _n( '%d second', '%d seconds', $seconds, 'vip-workflow' ), $seconds );
-		}
-		if ( $seconds < 3600 ) {
-			$minutes = round( $seconds / 60 );
-			/* translators: %d: number of minutes. */
-			return sprintf( _n( '%d minute', '%d minutes', $minutes, 'vip-workflow' ), $minutes );
-		}
-		if ( $seconds < 86400 ) {
-			$hours = round( $seconds / 3600, 1 );
-			/* translators: %s: number of hours. */
-			return sprintf( _n( '%s hour', '%s hours', (int) $hours, 'vip-workflow' ), $hours );
-		}
-
-		$days = round( $seconds / 86400, 1 );
-		/* translators: %s: number of days. */
-		return sprintf( _n( '%s day', '%s days', (int) $days, 'vip-workflow' ), $days );
 	}
 }

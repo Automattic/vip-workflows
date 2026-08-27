@@ -117,8 +117,6 @@ class NotificationDispatcher implements ModuleInterface {
 		add_action( 'vip_workflow_send_notification', array( $this, 'handle_async_send' ), 10, 3 );
 
 		// Listen for workflow events.
-		add_action( 'vip_workflow_sla_warning', array( $this, 'handle_sla_warning' ) );
-		add_action( 'vip_workflow_sla_breached', array( $this, 'handle_sla_breach' ) );
 		add_action( 'vip_workflow_status_transition', array( $this, 'handle_status_transition' ), 10, 5 );
 		add_action( 'vip_workflow_goal_at_risk', array( $this, 'handle_goal_at_risk' ) );
 
@@ -181,7 +179,7 @@ class NotificationDispatcher implements ModuleInterface {
 	/**
 	 * Dispatch a notification to all enabled channels.
 	 *
-	 * @param string $event_type Event type (e.g., 'sla.breached').
+	 * @param string $event_type Event type (e.g., 'published').
 	 * @param array  $data       Event data.
 	 */
 	public function dispatch( string $event_type, array $data ): void {
@@ -293,24 +291,6 @@ class NotificationDispatcher implements ModuleInterface {
 		$notification->post_id = (int) ( $data['post_id'] ?? 0 );
 
 		$templates = array(
-			'sla.warning' => array(
-				'severity' => 'warning',
-				'title'    => __( 'SLA Warning', 'vip-workflow' ),
-				/* translators: %1$s: post title, %2$s: workflow status label. */
-				'message'  => __( '"%1$s" is approaching its deadline in %2$s', 'vip-workflow' ),
-				'args'     => array( 'post_title', 'status_label' ),
-				'color'    => '#dba617',
-				'icon'     => '⚠️',
-			),
-			'sla.breached' => array(
-				'severity' => 'critical',
-				'title'    => __( 'SLA Breached', 'vip-workflow' ),
-				/* translators: %1$s: post title, %2$s: workflow status label. */
-				'message'  => __( '"%1$s" is overdue in %2$s', 'vip-workflow' ),
-				'args'     => array( 'post_title', 'status_label' ),
-				'color'    => '#d63638',
-				'icon'     => '🚨',
-			),
 			'published' => array(
 				'severity' => 'success',
 				'title'    => __( 'Published', 'vip-workflow' ),
@@ -397,24 +377,6 @@ class NotificationDispatcher implements ModuleInterface {
 	// =========================================================================
 	// Event Handlers
 	// =========================================================================
-
-	/**
-	 * Handle SLA warning event.
-	 *
-	 * @param array $data Event data.
-	 */
-	public function handle_sla_warning( array $data ): void {
-		$this->dispatch( 'sla.warning', $data );
-	}
-
-	/**
-	 * Handle SLA breach event.
-	 *
-	 * @param array $data Event data.
-	 */
-	public function handle_sla_breach( array $data ): void {
-		$this->dispatch( 'sla.breached', $data );
-	}
 
 	/**
 	 * Handle workflow status transition event.
@@ -635,8 +597,6 @@ class NotificationDispatcher implements ModuleInterface {
 		// is silent: should_notify_channel() is a plain isset() lookup, and a row
 		// the admin ticks under an id nothing emits simply never matches.
 		$events = array(
-			'sla.breached' => __( 'SLA breached', 'vip-workflow' ),
-			'sla.warning'  => __( 'SLA warning', 'vip-workflow' ),
 			'goal.at_risk' => __( 'Goal at risk', 'vip-workflow' ),
 			// Go-live is a system event (core transition_post_status), not a
 			// per-transition one, so it routes through the global matrix.

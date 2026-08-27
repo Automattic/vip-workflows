@@ -51,7 +51,6 @@ class JobScheduler implements ModuleInterface {
 		}
 
 		// Register built-in jobs.
-		$this->register_job( new SlaCheckJob() );
 		$this->register_job( new CleanupJob() );
 
 		// Allow plugins to register additional jobs.

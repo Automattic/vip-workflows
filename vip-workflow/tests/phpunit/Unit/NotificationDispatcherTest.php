@@ -84,7 +84,7 @@ class NotificationDispatcherTest extends TestCase
     public function test_dispatch_does_nothing_when_no_channels_registered(): void
     {
         // Should complete without errors when there are no matching channels.
-        $this->dispatcher->dispatch( 'sla.warning', [ 'post_id' => 1 ] );
+        $this->dispatcher->dispatch( 'published', [ 'post_id' => 1 ] );
         $this->assertTrue( true );
     }
 
@@ -98,7 +98,7 @@ class NotificationDispatcherTest extends TestCase
         $channel->shouldNotReceive( 'send' );
 
         $this->dispatcher->register_channel( $channel );
-        $this->dispatcher->dispatch( 'sla.warning', [ 'post_id' => 1 ] );
+        $this->dispatcher->dispatch( 'published', [ 'post_id' => 1 ] );
     }
 
     // -------------------------------------------------------------------------
@@ -118,11 +118,11 @@ class NotificationDispatcherTest extends TestCase
 
         $channel = $this->make_channel( 'slack', configured: true );
         $channel->shouldNotReceive( 'send' );
-        // Routing has no entry for 'sla.warning', which is the whole answer now —
+        // Routing has no entry for 'published', which is the whole answer now —
         // there is no per-channel list left to fall back to.
 
         $this->dispatcher->register_channel( $channel );
-        $this->dispatcher->dispatch( 'sla.warning', [ 'post_id' => 1 ] );
+        $this->dispatcher->dispatch( 'published', [ 'post_id' => 1 ] );
     }
 
     // -------------------------------------------------------------------------
@@ -132,7 +132,7 @@ class NotificationDispatcherTest extends TestCase
     public function test_handle_async_send_skips_unknown_channel(): void
     {
         // Should not throw for a non-existent channel_id.
-        $this->dispatcher->handle_async_send( 'nonexistent', 'sla.warning', [] );
+        $this->dispatcher->handle_async_send( 'nonexistent', 'published', [] );
         $this->assertTrue( true );
     }
 
@@ -142,7 +142,7 @@ class NotificationDispatcherTest extends TestCase
         $channel->shouldNotReceive( 'send' );
         $this->dispatcher->register_channel( $channel );
 
-        $this->dispatcher->handle_async_send( 'email', 'sla.warning', [] );
+        $this->dispatcher->handle_async_send( 'email', 'published', [] );
     }
 
     // -------------------------------------------------------------------------
@@ -157,8 +157,6 @@ class NotificationDispatcherTest extends TestCase
         // The routing matrix is built from these ids and should_notify_channel()
         // matches them with isset(), so they have to be the ids dispatch() fires.
         // Ticking a row whose id nothing emits is a notification that never sends.
-        $this->assertArrayHasKey( 'sla.breached', $types );
-        $this->assertArrayHasKey( 'sla.warning', $types );
         $this->assertArrayHasKey( 'goal.at_risk', $types );
         $this->assertArrayHasKey( 'published', $types );
     }

@@ -28,13 +28,20 @@ class EventRegistryTest extends TestCase
     {
         $all = $this->registry->get_all();
         $this->assertNotEmpty( $all );
-        $this->assertGreaterThanOrEqual( 10, count( $all ) );
+
+        // Name the events rather than count them: a bare count passes for any
+        // ten entries and has to be edited every time one is added or retired,
+        // which says nothing about whether the core vocabulary is registered.
+        $this->assertArrayHasKey( 'post.stage_changed', $all );
+        $this->assertArrayHasKey( 'post.workflow_assigned', $all );
+        $this->assertArrayHasKey( 'post.workflow_completed', $all );
+        $this->assertArrayHasKey( 'post.published', $all );
+        $this->assertArrayHasKey( 'stage.*.entered', $all );
     }
 
     public function test_is_valid_with_exact_match(): void
     {
         $this->assertTrue( $this->registry->is_valid( 'post.stage_changed' ) );
-        $this->assertTrue( $this->registry->is_valid( 'sla.warning' ) );
         $this->assertTrue( $this->registry->is_valid( 'post.published' ) );
     }
 

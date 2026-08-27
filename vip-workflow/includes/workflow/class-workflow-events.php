@@ -43,10 +43,6 @@ class WorkflowEvents implements ModuleInterface {
 		// suppressed while a workflow transition is mid-commit.
 		add_action( 'transition_post_status', array( $this, 'on_go_live' ), 10, 3 );
 
-		// SLA events.
-		add_action( 'vip_workflow_sla_warning', array( $this, 'on_sla_warning' ), 10, 2 );
-		add_action( 'vip_workflow_sla_breached', array( $this, 'on_sla_breached' ), 10, 2 );
-
 		// Goal events.
 		add_action( 'vip_workflow_goal_at_risk', array( $this, 'on_goal_at_risk' ), 10, 2 );
 	}
@@ -217,60 +213,6 @@ class WorkflowEvents implements ModuleInterface {
 				'sequence_name'   => $sequence->name ?? '',
 			),
 			array( 'post_id' => $post->ID )
-		);
-	}
-
-	/**
-	 * Handle SLA warning.
-	 *
-	 * @param int   $post_id Post ID.
-	 * @param array $data    Warning data.
-	 */
-	public function on_sla_warning( int $post_id, array $data ): void {
-		$event_bus = Plugin::get_instance()->get_event_bus();
-		if ( ! $event_bus ) {
-			return;
-		}
-
-		$post = get_post( $post_id );
-
-		$event_bus->emit(
-			'sla.warning',
-			array(
-				'post_id'        => $post_id,
-				'post_title'     => $post ? $post->post_title : '',
-				'stage'          => $data['stage'] ?? '',
-				'time_remaining' => $data['time_remaining'] ?? '',
-				'sla_hours'      => $data['sla_hours'] ?? 0,
-			),
-			array( 'post_id' => $post_id )
-		);
-	}
-
-	/**
-	 * Handle SLA breach.
-	 *
-	 * @param int   $post_id Post ID.
-	 * @param array $data    Breach data.
-	 */
-	public function on_sla_breached( int $post_id, array $data ): void {
-		$event_bus = Plugin::get_instance()->get_event_bus();
-		if ( ! $event_bus ) {
-			return;
-		}
-
-		$post = get_post( $post_id );
-
-		$event_bus->emit(
-			'sla.breached',
-			array(
-				'post_id'    => $post_id,
-				'post_title' => $post ? $post->post_title : '',
-				'stage'      => $data['stage'] ?? '',
-				'overdue_by' => $data['overdue_by'] ?? '',
-				'sla_hours'  => $data['sla_hours'] ?? 0,
-			),
-			array( 'post_id' => $post_id )
 		);
 	}
 

@@ -491,6 +491,8 @@ class Schema {
 
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 					$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}vip_automation_flows" );
+
+					self::drop_retired_sla_routing();
 				},
 			),
 		);
@@ -643,6 +645,38 @@ class Schema {
 			$routing[ $canonical ] = array_values( array_unique( $merged ) );
 			unset( $routing[ $legacy ] );
 			$changed = true;
+		}
+
+		if ( $changed ) {
+			update_option( 'vip_workflow_notification_routing', $routing, false );
+		}
+	}
+
+	/**
+	 * Forget notification routing for the retired SLA events.
+	 *
+	 * SLA was removed in 2.24.0: nothing set a stage's target duration, so the
+	 * check that would have fired `sla.warning` and `sla.breached` never had an
+	 * input and neither event was ever emitted. The Notifications screen still
+	 * offered both as routable events, so a site can hold rows for them.
+	 *
+	 * They are inert — should_notify_channel() is an isset() lookup against ids
+	 * nothing dispatches — but leaving them means the option keeps describing a
+	 * feature that is gone, and a later event reusing either id would silently
+	 * inherit whatever an admin ticked years earlier.
+	 */
+	protected static function drop_retired_sla_routing(): void {
+		$routing = get_option( 'vip_workflow_notification_routing', array() );
+		if ( ! is_array( $routing ) ) {
+			return;
+		}
+
+		$changed = false;
+		foreach ( array( 'sla.warning', 'sla.breached', 'sla_warning', 'sla_breach' ) as $event_id ) {
+			if ( array_key_exists( $event_id, $routing ) ) {
+				unset( $routing[ $event_id ] );
+				$changed = true;
+			}
 		}
 
 		if ( $changed ) {
