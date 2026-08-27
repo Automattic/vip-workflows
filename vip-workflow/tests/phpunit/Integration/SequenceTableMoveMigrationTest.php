@@ -3,7 +3,7 @@
  * Integration coverage for the 2.23.0 storage rename.
  *
  * The migration moves rows from wp_vip_blueprints into wp_vip_sequences, drops
- * the old table, and carries vip_automation_flows.blueprint_id onto sequence_id.
+ * the old table, and stays safe when the retired vip_automation_flows is absent.
  * Both are irreversible, and neither had a test — the review that found the
  * unconditional DROP found no coverage of it either.
  *
@@ -176,45 +176,34 @@ class SequenceTableMoveMigrationTest extends TestCase
 	}
 
 	/**
-	 * The automation flows column is carried over, not silently abandoned.
+	 * The move runs clean when the automation-flows table is not there.
 	 *
-	 * dbDelta no-ops a column rename and adds the new column instead, so without
-	 * this every scoped flow would read as globally scoped.
+	 * 2.24.0 removed the automation-flow engine and its tables, but a fresh
+	 * install replays every migration from 0.0.0 — this one included. It names
+	 * vip_automation_flows to carry blueprint_id onto sequence_id, and a
+	 * statement against a missing table sets $wpdb->last_error, which
+	 * run_migrations() turns into a thrown RuntimeException. So the table's
+	 * absence has to be asked about, not discovered by failing.
 	 */
-	public function test_a_flow_keeps_its_sequence_after_the_column_rename(): void
+	public function test_the_move_survives_a_missing_automation_flows_table(): void
 	{
 		global $wpdb;
 
-		// Reproduce what dbDelta leaves: the old column beside the new one.
-		$wpdb->query( "ALTER TABLE `{$this->flows}` ADD COLUMN blueprint_id bigint(20) unsigned DEFAULT NULL" );
-		$wpdb->insert(
-			$this->flows,
-			array(
-				'uuid'           => wp_generate_uuid4(),
-				'name'           => 'Scoped flow',
-				'trigger_events' => wp_json_encode( array() ),
-				'actions'        => wp_json_encode( array() ),
-				'status'         => 'active',
-				'priority'       => 10,
-				'created_by'     => 1,
-				'created_at'     => current_time( 'mysql' ),
-				'updated_at'     => current_time( 'mysql' ),
-				'blueprint_id'   => 4242,
-				'sequence_id'    => null,
-			)
-		);
-		$flow_id = (int) $wpdb->insert_id;
+		$wpdb->query( "DROP TABLE IF EXISTS `{$this->flows}`" );
+		$this->seed_old_row( 'editorial' );
 
+		$wpdb->last_error = '';
 		$this->run_move();
 
 		$this->assertSame(
-			'4242',
-			$wpdb->get_var( $wpdb->prepare( "SELECT sequence_id FROM `{$this->flows}` WHERE id = %d", $flow_id ) ),
-			'the flow lost the sequence it was scoped to'
+			'',
+			$wpdb->last_error,
+			'the move touched the dropped flows table, which fails the install'
 		);
-		$this->assertEmpty(
-			$wpdb->get_results( $wpdb->prepare( "SHOW COLUMNS FROM `{$this->flows}` LIKE %s", 'blueprint_id' ) ),
-			'the retired column should be gone, not left shadowing the new one'
+		$this->assertSame(
+			'1',
+			$wpdb->get_var( "SELECT COUNT(*) FROM `{$this->new_table}`" ),
+			'the sequence rows still moved'
 		);
 	}
 

@@ -682,15 +682,6 @@ class Sequence {
 	}
 
 	/**
-	 * Get automations configuration.
-	 *
-	 * @return array
-	 */
-	public function get_automations(): array {
-		return $this->config['automations'] ?? array();
-	}
-
-	/**
 	 * Get settings.
 	 *
 	 * @return array
