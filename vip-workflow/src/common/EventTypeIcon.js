@@ -34,6 +34,7 @@ import {
 	plusCircle,
 	published,
 	tool,
+	trash,
 	trendingDown,
 	unlock,
 } from '@wordpress/icons';
@@ -92,6 +93,9 @@ const EVENT_TYPE_ICONS = {
 	// Went live, publicly — distinct from reaching the last stage of a workflow.
 	'post.published': { icon: globe, tone: 'success' },
 	'goal.at_risk': { icon: trendingDown, tone: 'warning' },
+	// The nightly prune, which is the one thing that reaches the log with no
+	// post and no actor behind it.
+	'maintenance.cleanup': { icon: trash, tone: 'neutral' },
 	'task.created': { icon: plusCircle, tone: 'info' },
 	'task.completed': { icon: check, tone: 'success' },
 };

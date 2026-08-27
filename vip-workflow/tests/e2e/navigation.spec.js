@@ -2,7 +2,7 @@
  * Navigation — guards the Phase A menu restructure.
  *
  * Covers removal of the old Dashboard and standalone Queue, plus the split of
- * Integrations into Notifications, Agents, Tools, and Jobs.
+ * Integrations into Notifications, Agents, and Tools.
  *
  * Asserts the new menu shape exists, so a change that breaks it fails here.
  */
@@ -33,7 +33,6 @@ test.describe( 'VIP Workflow — navigation', () => {
 		'vip-workflow-notifications',
 		'vip-workflow-agents',
 		'vip-workflow-tools',
-		'vip-workflow-jobs',
 	];
 	for ( const slug of splitPages ) {
 		test( `${ slug } page loads the workflow shell`, async ( {
@@ -115,9 +114,6 @@ test.describe( 'VIP Workflow — navigation', () => {
 		).toBeVisible();
 		await expect(
 			submenu.getByRole( 'link', { name: 'Tools', exact: true } )
-		).toBeVisible();
-		await expect(
-			submenu.getByRole( 'link', { name: 'Jobs', exact: true } )
 		).toBeVisible();
 	} );
 } );

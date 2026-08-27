@@ -53,7 +53,6 @@ class Admin implements ModuleInterface {
 			new PostsColumns(),
 			new DashboardWidget(),
 			new Settings(),
-			new JobsAdmin(),
 		);
 
 		foreach ( $sub_components as $component ) {
@@ -275,15 +274,6 @@ class Admin implements ModuleInterface {
 				'vip-workflow-tools',
 				array( $this, 'render_tools_page' )
 			);
-
-			add_submenu_page(
-				'vip-workflow',
-				__( 'Jobs', 'vip-workflow' ),
-				__( 'Jobs', 'vip-workflow' ),
-				'manage_options',
-				'vip-workflow-jobs',
-				array( $this, 'render_jobs_page' )
-			);
 		} elseif ( current_user_can( 'edit_posts' ) ) {
 			// Authors get My Dashboard as landing page.
 			add_menu_page(
@@ -404,7 +394,6 @@ class Admin implements ModuleInterface {
 			'vip-workflow-agents'        => 32,
 			'vip-workflow-tools'         => 33,
 			'vip-workflow-audit-log'     => 34,
-			'vip-workflow-jobs'          => 35,
 			'vip-workflow-settings'      => 36,
 		);
 
@@ -803,13 +792,6 @@ class Admin implements ModuleInterface {
 	 * Render Tools page.
 	 */
 	public function render_tools_page(): void {
-		self::render_app_root();
-	}
-
-	/**
-	 * Render Jobs page.
-	 */
-	public function render_jobs_page(): void {
 		self::render_app_root();
 	}
 

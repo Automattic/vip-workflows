@@ -146,7 +146,6 @@ the sidebar's own readouts and split one feature across two places.
 
   Both toggles persist via `AbilitySettings` → `wp_options` (`vip_workflow_ability_settings`).
 - **Assistants** - Unified view of research abilities + discovery providers, one card per plugin (see [architecture.md § 5a](architecture.md#5a-unified-assistants-integrations-page)). An unavailable card names each unmet requirement from the ability's or provider's `availability_callback` and links to where it can be satisfied — for the built-in services that is core's Settings → Connectors, not this plugin
-- **Jobs** - View and manage background jobs
 
 **Settings Page** (tabbed):
 - **General** - Workflow enforcement, bypass roles, audit log access

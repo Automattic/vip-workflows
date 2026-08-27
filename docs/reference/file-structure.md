@@ -49,7 +49,7 @@ includes/
 │       ├── get-my-assignments.php     # Query user's assignments
 │       ├── get-posts-by-status.php    # Query posts by workflow status
 │       ├── get-recent-activity.php    # Query recent events
-│       ├── get-stale-posts.php        # Query SLA-breaching posts
+│       ├── get-stale-posts.php        # Posts unmodified for N days
 │       ├── get-transition-history.php # Query transition history
 │       └── get-workflow-summary.php   # Dashboard summary data
 │
@@ -60,14 +60,8 @@ includes/
 │   └── class-assistant-registry.php   # Unified assistant registry (research + discovery)
 │
 ├── automation/
-│   ├── class-event-bus.php            # Pub/sub event dispatcher
-│   ├── class-event-registry.php       # Event type definitions
-│   ├── class-condition-evaluator.php  # Flow condition evaluation
-│   ├── class-action-dispatcher.php    # Action execution
-│   ├── class-action-handler-interface.php  # Handler contract
-│   └── handlers/
-│       ├── class-notification-handler.php  # Notification action handler
-│       └── class-stub-handler.php     # Placeholder handler
+│   ├── class-event-bus.php            # Records every event the plugin emits
+│   └── class-event-registry.php       # Event type definitions
 │
 ├── sequences/
 │   ├── class-sequence.php            # Sequence data object
@@ -126,14 +120,8 @@ includes/
 │   ├── class-you-tube-transcript.php  # YouTube transcript extraction
 │   └── class-guideline-context-provider.php  # Read guideline context from Gutenberg/Core for AI
 │
-├── jobs/
-│   ├── class-job-scheduler.php        # ActionScheduler wrapper
-│   ├── class-job.php                  # Abstract job base class
-│   ├── class-cleanup-job.php          # Cleanup old data
-│   └── class-sla-check-job.php        # SLA monitoring
-│
-├── monitoring/
-│   └── class-sla-monitor.php          # SLA tracking
+├── maintenance/
+│   └── class-cleanup.php              # Nightly prune, reported to the audit log
 │
 ├── notifications/
 │   ├── class-notification-dispatcher.php  # Central notification dispatcher
@@ -167,7 +155,6 @@ includes/
     ├── class-general-settings-controller.php  # General settings
     ├── class-ideation-controller.php      # Story ideation
     ├── class-ideation-sources-controller.php  # Research sources CRUD
-    ├── class-jobs-controller.php          # Background jobs
     ├── class-notifications-controller.php # Notification channels
     └── class-utility-controller.php       # Shared utility endpoints
 ```

@@ -20,7 +20,7 @@ use VIPWorkflow\Workflow\PostTypeManager;
 use VIPWorkflow\Workflow\PublishBoundaryGuard;
 use VIPWorkflow\Workflow\StatusManager;
 use VIPWorkflow\Workflow\WorkflowEvents;
-use VIPWorkflow\Jobs\JobScheduler;
+use VIPWorkflow\Maintenance\Cleanup;
 use VIPWorkflow\Notifications\NotificationDispatcher;
 use VIPWorkflow\Experiments\ExperimentCLI;
 use VIPWorkflow\Experiments\ExperimentRegistry;
@@ -65,12 +65,6 @@ final class Plugin {
 	 */
 	private ?StatusManager $status_manager = null;
 
-	/**
-	 * Job scheduler.
-	 *
-	 * @var JobScheduler|null
-	 */
-	private ?JobScheduler $job_scheduler = null;
 
 	/**
 	 * Feature registry.
@@ -193,7 +187,7 @@ final class Plugin {
 		// --- Modules (self-contained, order does NOT matter) ---
 
 		$this->register_module( new EditorIntegration() );
-		$this->register_module( new JobScheduler() );
+		$this->register_module( new Cleanup() );
 		$this->register_module( new Story() );
 		$this->register_module( new WorkflowEvents() );
 		$this->register_module( new AgentRunner() );
@@ -222,12 +216,6 @@ final class Plugin {
 		// Initialize all registered modules.
 		foreach ( $this->modules as $module ) {
 			$module->init();
-		}
-
-		// Store JobScheduler reference (core service accessed via getter).
-		$job_scheduler = $this->get_module( 'job-scheduler' );
-		if ( $job_scheduler instanceof JobScheduler ) {
-			$this->job_scheduler = $job_scheduler;
 		}
 
 		$this->init_ai_client();
@@ -483,15 +471,6 @@ final class Plugin {
 	 */
 	public function get_status_manager(): StatusManager {
 		return $this->status_manager;
-	}
-
-	/**
-	 * Get the job scheduler.
-	 *
-	 * @return JobScheduler
-	 */
-	public function get_job_scheduler(): JobScheduler {
-		return $this->job_scheduler;
 	}
 
 	/**
