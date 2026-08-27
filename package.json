@@ -13,6 +13,7 @@
 		"build": "run-p build:*",
 		"build:vip-workflow": "npm --prefix vip-workflow run build",
 		"build:checklist": "npm --prefix workflow-tool-checklist run build",
+		"release": "./bin/release",
 		"watch": "run-p watch:*",
 		"watch:vip-workflow": "npm --prefix vip-workflow run start",
 		"watch:checklist": "npm --prefix workflow-tool-checklist run start",
