@@ -1,0 +1,88 @@
+#!/bin/sh
+
+set -eu
+
+increment_version() {
+	version=$1
+	release_type=$2
+
+	major=$(printf '%s' "$version" | cut -d. -f1)
+	minor=$(printf '%s' "$version" | cut -d. -f2)
+	patch=$(printf '%s' "$version" | cut -d. -f3)
+
+	case "$release_type" in
+		major)
+			major=$((major + 1))
+			minor=0
+			patch=0
+			;;
+		minor)
+			minor=$((minor + 1))
+			patch=0
+			;;
+		patch)
+			patch=$((patch + 1))
+			;;
+		*)
+			printf 'Invalid release type. Use major, minor, or patch.\n' >&2
+			exit 1
+			;;
+	esac
+
+	printf '%s.%s.%s\n' "$major" "$minor" "$patch"
+}
+
+if [ "$#" -ne 1 ]; then
+	printf 'Usage: %s <major|minor|patch>\n' "$0" >&2
+	exit 1
+fi
+
+release_type=$1
+php_file="vip-workflow/vip-workflow.php"
+package_file="vip-workflow/package.json"
+lock_file="vip-workflow/package-lock.json"
+
+current_version=$(sed -n 's/.*Version: *//p' "$php_file" | head -n 1 | tr -d '[:space:]')
+if ! printf '%s' "$current_version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+	printf 'Could not read a valid current version from %s.\n' "$php_file" >&2
+	exit 1
+fi
+
+node - "$current_version" "$package_file" "$lock_file" <<'NODE'
+const fs = require( 'fs' );
+
+const [ expectedVersion, packageFile, lockFile ] = process.argv.slice( 2 );
+const packageJson = JSON.parse( fs.readFileSync( packageFile, 'utf8' ) );
+const packageLock = JSON.parse( fs.readFileSync( lockFile, 'utf8' ) );
+const versions = {
+	[ packageFile ]: packageJson.version,
+	[ lockFile ]: packageLock.version,
+	[ `${ lockFile } packages[""]` ]: packageLock.packages?.['']?.version,
+};
+
+for ( const [ source, version ] of Object.entries( versions ) ) {
+	if ( version !== expectedVersion ) {
+		throw new Error(
+			`${ source } has version ${ version }, expected ${ expectedVersion }`
+		);
+	}
+}
+NODE
+
+new_version=$(increment_version "$current_version" "$release_type")
+
+tmp_file="${php_file}.tmp.$$"
+sed \
+	-e "s/Version: $current_version/Version: $new_version/" \
+	-e "s/define( 'VIP_WORKFLOW_VERSION', '$current_version' );/define( 'VIP_WORKFLOW_VERSION', '$new_version' );/" \
+	"$php_file" > "$tmp_file"
+mv "$tmp_file" "$php_file"
+
+npm --prefix vip-workflow version "$new_version" --no-git-tag-version
+
+branch="release/v$new_version"
+git checkout -b "$branch"
+git add "$php_file" "$package_file" "$lock_file"
+git commit -m "v$new_version"
+
+printf 'Prepared %s on %s.\n' "$new_version" "$branch"
