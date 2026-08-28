@@ -43,7 +43,7 @@ The refactor is purely about the settings UI on the Integrations page.
 
 ## Backend: AssistantRegistry
 
-### New file: `vip-workflow/includes/assistants/class-assistant-registry.php`
+### New file: `vip-workflows/includes/assistants/class-assistant-registry.php`
 
 A singleton that combines research abilities, stage-eligible abilities, and discovery providers into a unified assistant list, grouped by plugin slug.
 

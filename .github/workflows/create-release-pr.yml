@@ -29,7 +29,7 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: vip-workflow/package-lock.json
+          cache-dependency-path: vip-workflows/package-lock.json
 
       - name: Configure Git
         run: |
@@ -42,7 +42,7 @@ jobs:
         run: |
           ./bin/release "${{ inputs.release_type }}"
 
-          VERSION=$(sed -n 's/.*Version: *//p' vip-workflow/vip-workflow.php | head -n 1 | tr -d '[:space:]')
+          VERSION=$(sed -n 's/.*Version: *//p' vip-workflows/vip-workflows.php | head -n 1 | tr -d '[:space:]')
           BRANCH="release/v${VERSION}"
 
           echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"

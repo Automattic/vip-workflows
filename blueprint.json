@@ -3,7 +3,7 @@
 	"meta": {
 		"title": "VIP Workflow — Playground",
 		"description": "Boots WordPress trunk (the nightly build), installs the MCP Adapter companion plugin, activates VIP Workflow, and lands on the Workflows dashboard. The VIP Workflow plugin is supplied by mounting it from this monorepo; see PLAYGROUND.md for the run command.",
-		"author": "vip-workflow"
+		"author": "vip-workflows"
 	},
 	"landingPage": "/wp-admin/admin.php?page=vip-workflow",
 	"preferredVersions": {
@@ -35,7 +35,7 @@
 		},
 		{
 			"step": "activatePlugin",
-			"pluginPath": "vip-workflow/vip-workflow.php"
+			"pluginPath": "vip-workflows/vip-workflows.php"
 		}
 	]
 }

@@ -243,7 +243,7 @@ stored row remains valid. Two notes:
   process is gone. Authors can redraw them once the rule is lifted, but the
   original shape is not recoverable and the release notes should say so.
 - **Demo and fixture sequences** (`docs/demos/multimedia-sequence.json`,
-  `vip-workflow/tests/fixtures/ai-copy-desk-workflow.json`) were authored around
+  `vip-workflows/tests/fixtures/ai-copy-desk-workflow.json`) were authored around
   the rule. `multimedia-sequence.json`'s `rights → desk` edge can be restored to
   its intended target.
 
@@ -278,17 +278,17 @@ stored row remains valid. Two notes:
 
 ## Code entry points
 
-- `vip-workflow/includes/sequences/class-sequence.php` — `illegal_crossings()`,
+- `vip-workflows/includes/sequences/class-sequence.php` — `illegal_crossings()`,
   `reroute_illegal_crossings()`, `prepare_config_for_write()`, `normalize_stages()`,
   `get_region_entry_stage()`
-- `vip-workflow/includes/workflow/class-status-manager.php` — `transition()`
+- `vip-workflows/includes/workflow/class-status-manager.php` — `transition()`
   (already unconstrained), `assign_sequence()`, `resolve_reseat_stage()`,
   `dispatch_stage_change()`, `current_user_can_cross_region()`
-- `vip-workflow/includes/sequences/class-sequence-repository.php` —
+- `vip-workflows/includes/sequences/class-sequence-repository.php` —
   `repair_stage_regions()`
-- `vip-workflow/includes/database/class-schema.php` — `replay_stored_stage_configs()`
-- `vip-workflow/src/admin/components/graph/graph-model.js` — `canEnter()`,
+- `vip-workflows/includes/database/class-schema.php` — `replay_stored_stage_configs()`
+- `vip-workflows/src/admin/components/graph/graph-model.js` — `canEnter()`,
   `illegalCrossings()`, `rerouteIllegalCrossings()`, `validateSequence()`,
   `regionEntryStage()`
-- `vip-workflow/src/admin/components/graph/SequenceGraphEditor.js` — the repair
+- `vip-workflows/src/admin/components/graph/SequenceGraphEditor.js` — the repair
   action and the two connection validators

@@ -38,9 +38,9 @@ if [ "$#" -ne 1 ]; then
 fi
 
 release_type=$1
-php_file="vip-workflow/vip-workflow.php"
-package_file="vip-workflow/package.json"
-lock_file="vip-workflow/package-lock.json"
+php_file="vip-workflows/vip-workflows.php"
+package_file="vip-workflows/package.json"
+lock_file="vip-workflows/package-lock.json"
 
 current_version=$(sed -n 's/.*Version: *//p' "$php_file" | head -n 1 | tr -d '[:space:]')
 if ! printf '%s' "$current_version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
@@ -78,7 +78,7 @@ sed \
 	"$php_file" > "$tmp_file"
 mv "$tmp_file" "$php_file"
 
-npm --prefix vip-workflow version "$new_version" --no-git-tag-version
+npm --prefix vip-workflows version "$new_version" --no-git-tag-version
 
 branch="release/v$new_version"
 git checkout -b "$branch"

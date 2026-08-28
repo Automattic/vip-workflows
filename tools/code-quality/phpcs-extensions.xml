@@ -4,7 +4,7 @@
 		Shared PHPCS baseline for the workflow-* extension plugins, which ship no
 		ruleset of their own. Single-sources the core plugin's ruleset so the two
 		can't silently diverge (bump the WP floor or add a sniff exclusion once,
-		in vip-workflow/.phpcs.xml.dist, and both follow). The ONLY difference is
+		in vip-workflows/.phpcs.xml.dist, and both follow). The ONLY difference is
 		the text-domain pin: each extension owns a different text domain, so the
 		vip-workflow-pinned i18n sniff is dropped and re-added without a domain.
 
@@ -14,7 +14,7 @@
 	</description>
 
 	<!-- Inherit everything from the core plugin's ruleset… -->
-	<rule ref="../../vip-workflow/.phpcs.xml.dist">
+	<rule ref="../../vip-workflows/.phpcs.xml.dist">
 		<!-- …except its vip-workflow-pinned text-domain check. -->
 		<exclude name="WordPress.WP.I18n"/>
 	</rule>

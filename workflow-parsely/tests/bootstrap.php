@@ -6,7 +6,7 @@
  * plugins loaded: wp-parsely (the capability source), vip-workflow (the
  * extension points), and workflow-parsely itself.
  *
- * vip-workflow's own bootstrap deliberately loads only vip-workflow.php, and
+ * vip-workflow's own bootstrap deliberately loads only vip-workflows.php, and
  * extending it to load extension plugins would couple core's test harness to
  * every extension in the monorepo. This suite exists instead, and is the
  * pattern any other `workflow-*` plugin can copy.
@@ -69,7 +69,7 @@ tests_add_filter(
 			);
 		}
 
-		require_once $wfp_plugin_dir . '/vip-workflow/vip-workflow.php';
+		require_once $wfp_plugin_dir . '/vip-workflows/vip-workflows.php';
 
 		/*
 		 * Shared ability-tool helpers.
@@ -81,7 +81,7 @@ tests_add_filter(
 		 * StageAgent::read_post() calls require_post_edit_permission() from it.
 		 * Loaded here for the same reason vip-workflow's own bootstrap loads it.
 		 */
-		require_once $wfp_plugin_dir . '/vip-workflow/includes/abilities/tools/helpers.php';
+		require_once $wfp_plugin_dir . '/vip-workflows/includes/abilities/tools/helpers.php';
 
 		require_once dirname( __DIR__ ) . '/workflow-parsely.php';
 	}

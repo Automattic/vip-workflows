@@ -53,7 +53,7 @@ after(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })));
 
 describe('plugins()', () => {
 	it('lists core first, then workflow-* sorted', () => {
-		const root = fixture({ 'workflow-zebra': {}, 'workflow-alpha': {}, 'vip-workflow': {} });
+		const root = fixture({ 'workflow-zebra': {}, 'workflow-alpha': {}, 'vip-workflows': {} });
 		assert.deepEqual(plugins(root), [CORE, 'workflow-alpha', 'workflow-zebra']);
 	});
 
@@ -93,7 +93,7 @@ describe('phpunitConfig()', () => {
 describe('withComposer()', () => {
 	it('selects only plugins carrying a composer.json', () => {
 		const root = fixture({
-			'vip-workflow': { 'composer.json': '{}' },
+			'vip-workflows': { 'composer.json': '{}' },
 			'workflow-has': { 'composer.json': '{}' },
 			'workflow-has-not': {},
 		});
@@ -159,13 +159,13 @@ describe('mountedInWpEnv()', () => {
 				'.wp-env.json': JSON.stringify({
 					plugins: [
 						'https://downloads.wordpress.org/plugin/gutenberg.zip',
-						'./vip-workflow',
+						'./vip-workflows',
 						'./workflow-parsely',
 					],
 				}),
 			}
 		);
-		assert.deepEqual(mountedInWpEnv(root), ['vip-workflow', 'workflow-parsely']);
+		assert.deepEqual(mountedInWpEnv(root), ['vip-workflows', 'workflow-parsely']);
 	});
 
 	it('returns empty when the file is absent or declares no plugins', () => {

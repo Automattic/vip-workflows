@@ -618,7 +618,7 @@ Retired by this standard: `getSaveButtonLabel`, `UnsavedChangesHint`
 
 ## Appendix A — audit findings (2026-08-17)
 
-Measured across `vip-workflow/src/admin/` at
+Measured across `vip-workflows/src/admin/` at
 `43bf7250`. Ordered worst-first, which matches the migration order.
 
 All four screens have since migrated; the findings are kept as the record of what

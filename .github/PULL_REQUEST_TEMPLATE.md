@@ -1,5 +1,5 @@
 <!--
-PR style for vip-workflow. Keep the section headings below; delete any guidance
+PR style for vip-workflows. Keep the section headings below; delete any guidance
 comments and any section that doesn't apply. Aim for "what changed and why I'm
 confident it works" — group changes under bold sub-headings, and make the test
 steps something a reviewer can actually run.
@@ -35,7 +35,7 @@ data survives. Delete this section if not applicable. -->
 
 <!-- Numbered, runnable steps. Conventionally:
 1. `npm run build` (root) — compiles clean.
-2. `cd vip-workflow && composer test` — unit tests pass.
+2. `cd vip-workflows && composer test` — unit tests pass.
 3. With wp-env running: `npm run test:e2e[ -- tests/e2e/<spec>.js]` — ...
 4. Manual (wp-env), as an editor/admin:
    - ...

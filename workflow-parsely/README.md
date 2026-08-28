@@ -11,7 +11,7 @@ Still planned: Traffic Boost as a post-publish stage.
 
 ## Requirements
 
-- `vip-workflow` active
+- `vip-workflows` active
 - `wp-parsely` active and configured with a Parse.ly Site ID and API Secret
 
 wp-parsely is installed into the local dev environment via `.wp-env.json`.

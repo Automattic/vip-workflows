@@ -5,7 +5,7 @@ WordPress Design System (`@wordpress/components`, `@wordpress/ui`, and the
 `--wpds-*` design tokens). These patterns are intended to seed a future
 **WPDS usage audit skill**.
 
-> Source case study: `vip-workflow/src/admin/components/GeneralSettings.js`
+> Source case study: `vip-workflows/src/admin/components/GeneralSettings.js`
 > + `GeneralSettings.css` (the shared `vip-workflow-settings-*` chrome).
 
 ## Guiding principle
@@ -217,7 +217,7 @@ selector still loses to a bare `p {}`. You can't out-specify it; you have to win
 the *unlayered* contest.
 
 **The fix — canonical implementation: the "wp-admin typography reset" block in
-[`vip-workflow/src/admin/admin-page.css`](../../vip-workflow/src/admin/admin-page.css).**
+[`vip-workflows/src/admin/admin-page.css`](../../vip-workflows/src/admin/admin-page.css).**
 An **unlayered**, canvas-scoped rule that (a) out-specifies wp-admin's globals and
 (b) hands the property back to the DS layer:
 
@@ -270,8 +270,8 @@ layer" reason.
 
 A CSS linter can't find these — the conflict is a cross-stylesheet cascade
 interaction that only exists against real DOM. The detector is therefore a
-runtime e2e audit: [`tests/e2e/wpds-cascade-audit.spec.js`](../../vip-workflow/tests/e2e/wpds-cascade-audit.spec.js)
-(logic in [`helpers/wpds-cascade-audit.js`](../../vip-workflow/tests/e2e/helpers/wpds-cascade-audit.js)).
+runtime e2e audit: [`tests/e2e/wpds-cascade-audit.spec.js`](../../vip-workflows/tests/e2e/wpds-cascade-audit.spec.js)
+(logic in [`helpers/wpds-cascade-audit.js`](../../vip-workflows/tests/e2e/helpers/wpds-cascade-audit.js)).
 
 ```bash
 npm run test:e2e -- wpds-cascade-audit      # from vip-workflow/

@@ -127,7 +127,7 @@ add_filter( 'vip_workflow_media_providers', function( $providers ) {
 > `ApiKeysController` were removed. A third-party provider either
 > reads its key from a `wp-config.php` constant (as above) or registers its own
 > core connector. See
-> [`vip-workflow/docs/PLUGIN-INTEGRATION.md` § API Keys](../../vip-workflow/docs/PLUGIN-INTEGRATION.md#api-keys).
+> [`vip-workflows/docs/PLUGIN-INTEGRATION.md` § API Keys](../../vip-workflows/docs/PLUGIN-INTEGRATION.md#api-keys).
 
 ### 2. Custom Notification Channels
 

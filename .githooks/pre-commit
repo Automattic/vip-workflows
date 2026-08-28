@@ -1,13 +1,13 @@
 #!/bin/sh
 #
-# Pre-commit hook: incrementally converge staged vip-workflow files on the
+# Pre-commit hook: incrementally converge staged vip-workflows files on the
 # project standards. The codebase is mostly unformatted; rather than one
 # repo-wide reformat (which conflicts with every open branch), we whittle it
 # down file-by-file — each file converges the moment someone commits a change
 # to it. See .githooks/README.md.
 #
 #   JS/JSX  WordPress Prettier standard (wp-scripts format)
-#   PHP     incrementally-enforced phpcs sniffs (vip-workflow/.phpcs-incremental.xml)
+#   PHP     incrementally-enforced phpcs sniffs (vip-workflows/.phpcs-incremental.xml)
 #
 # Activate once per clone:   git config core.hooksPath .githooks
 # (Root `npm install` / `npm run setup` does this for you.)
@@ -39,8 +39,8 @@ fi
 
 # --- JS/JSX: auto-format to the WordPress Prettier standard ---
 
-staged_js=$(printf '%s\n' "$staged" | grep -E '^vip-workflow/(src|js)/.*\.(js|jsx)$' || true)
-js_bin="vip-workflow/node_modules/.bin/wp-scripts"
+staged_js=$(printf '%s\n' "$staged" | grep -E '^vip-workflows/(src|js)/.*\.(js|jsx)$' || true)
+js_bin="vip-workflows/node_modules/.bin/wp-scripts"
 
 if [ -n "$staged_js" ] && [ ! -x "$js_bin" ]; then
 	echo "prettier-hook: $js_bin not found — run \`npm run setup\`; skipping auto-format." >&2
@@ -68,11 +68,11 @@ fi
 
 # --- PHP: auto-fix the incrementally-enforced phpcs sniffs ---
 
-staged_php=$(printf '%s\n' "$staged" | grep -E '^vip-workflow/.*\.php$' || true)
-phpcbf_bin="vip-workflow/vendor/bin/phpcbf"
+staged_php=$(printf '%s\n' "$staged" | grep -E '^vip-workflows/.*\.php$' || true)
+phpcbf_bin="vip-workflows/vendor/bin/phpcbf"
 
 if [ -n "$staged_php" ] && [ ! -x "$phpcbf_bin" ]; then
-	echo "phpcs-hook: $phpcbf_bin not found — run \`composer install\` in vip-workflow; skipping auto-fix." >&2
+	echo "phpcs-hook: $phpcbf_bin not found — run \`composer install\` in vip-workflows; skipping auto-fix." >&2
 elif [ -n "$staged_php" ]; then
 	fix=""
 	for f in $staged_php; do
@@ -89,7 +89,7 @@ elif [ -n "$staged_php" ]; then
 		# phpcbf exits 1 when it made fixes; only >=2 is a failure.
 		status=0
 		# shellcheck disable=SC2086
-		"$phpcbf_bin" --standard=vip-workflow/.phpcs-incremental.xml -q $fix || status=$?
+		"$phpcbf_bin" --standard=vip-workflows/.phpcs-incremental.xml -q $fix || status=$?
 		if [ "$status" -gt 1 ]; then
 			echo "phpcs-hook: phpcbf failed (exit $status)." >&2
 			exit "$status"

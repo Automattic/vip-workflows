@@ -29,7 +29,7 @@ jobs:
           cache: npm
           cache-dependency-path: |
             package-lock.json
-            vip-workflow/package-lock.json
+            vip-workflows/package-lock.json
             workflow-tool-checklist/package-lock.json
 
       - name: Setup PHP
@@ -45,23 +45,23 @@ jobs:
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
           npm ci
-          npm --prefix vip-workflow ci
+          npm --prefix vip-workflows ci
           npm --prefix workflow-tool-checklist ci
-          composer --working-dir=vip-workflow install --no-interaction --prefer-dist --no-progress
+          composer --working-dir=vip-workflows install --no-interaction --prefer-dist --no-progress
           composer --working-dir=workflow-parsely install --no-interaction --prefer-dist --no-progress
 
       - name: Build plugins
         run: npm run build
 
       - name: Install Playwright browser
-        working-directory: vip-workflow
+        working-directory: vip-workflows
         run: npx playwright install chromium --with-deps
 
       - name: Start WordPress test environment
         run: npm run wp-env:start:tests
 
       - name: Run end-to-end tests
-        working-directory: vip-workflow
+        working-directory: vip-workflows
         env:
           CI: true
         run: npm run test:e2e
@@ -71,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-artifacts
-          path: vip-workflow/artifacts
+          path: vip-workflows/artifacts
           if-no-files-found: ignore
 
       - name: Stop WordPress test environment

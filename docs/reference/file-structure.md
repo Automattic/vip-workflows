@@ -10,7 +10,7 @@ Pair with [architecture.md](architecture.md) for the conceptual model and [code-
 
 ```
 vip-workflow/
-├── vip-workflow.php          # Plugin header, bootstrap, activation hooks
+├── vip-workflows.php          # Plugin header, bootstrap, activation hooks
 ├── autoload-paths.php        # Autoloader path resolver (class_to_relative_path); required before includes/
 ├── uninstall.php             # Cleanup on uninstall
 ├── composer.json             # PHP dependencies (Abilities API, Action Scheduler, php-ai-client)

@@ -1,6 +1,6 @@
 # Database Schema Reference
 
-Generated from `vip-workflow/includes/database/class-schema.php` (v2.14.0).
+Generated from `vip-workflows/includes/database/class-schema.php` (v2.14.0).
 
 ---
 

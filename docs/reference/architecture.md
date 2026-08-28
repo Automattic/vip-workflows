@@ -142,7 +142,7 @@ wp_register_ability('vip-workflow/seo-check', [
 - **Check tools**: Validate content (SEO, readability, brand safety)
 - **Helper tools**: Generate/transform content (headline generator, excerpt)
 
-**Built-In Tools** (in vip-workflow/includes/abilities/tools/):
+**Built-In Tools** (in vip-workflows/includes/abilities/tools/):
 
 1. **SEO Check** (`vip-workflow/seo-check`):
    - Word count (min/max thresholds)
@@ -535,7 +535,7 @@ VIPWorkflow\Plugin (Singleton Bootstrap)
 ### Bootstrap Flow
 
 ```php
-// vip-workflow.php
+// vip-workflows.php
 add_action('plugins_loaded', 'VIPWorkflow\init');
 
 function init() {

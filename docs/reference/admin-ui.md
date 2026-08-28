@@ -128,7 +128,7 @@ the sidebar's own readouts and split one feature across two places.
 
 > **Rendering model:** Following the app-shell removal, these screens render as standard wp-admin pages in the normal admin canvas — no fullscreen shell, no injected React sidebar, no `vipWorkflowAdmin.menuItems` global. Navigation is the native Workflows submenu (ordered Main → System → Integrations in `Admin::cleanup_menu()`). The System screens (Settings, Notifications, Agents, Tools, Jobs) use the shared `AdminPage` scaffold (`src/admin/components/AdminPage.js`), whose header + breadcrumbs match WordPress core's `@wordpress/admin-ui` `Page` pattern. Its stylesheet (`admin-page.css`) carries the **wp-admin typography reset** that stops wp-admin's unlayered `common.css` from overriding `@wordpress/ui` component styles — see [`docs/guides/wpds-usage-audit-patterns.md` → "wp-admin ↔ WPDS cascade-layer conflicts"](../guides/wpds-usage-audit-patterns.md#wp-admin--wpds-cascade-layer-conflicts-why-ds-styles-get-overridden); expect to reapply it on any new surface (modals/slideouts portal outside this canvas).
 >
-> The page inventory below is partially out of date — it predates the menu restructuring. Treat `includes/admin/class-admin.php` and [`vip-workflow/docs/PLUGIN-INTEGRATION.md`](../../vip-workflow/docs/PLUGIN-INTEGRATION.md) as the source of truth. The API-key section reflects the current connector-based credential flow.
+> The page inventory below is partially out of date — it predates the menu restructuring. Treat `includes/admin/class-admin.php` and [`vip-workflows/docs/PLUGIN-INTEGRATION.md`](../../vip-workflows/docs/PLUGIN-INTEGRATION.md) as the source of truth. The API-key section reflects the current connector-based credential flow.
 
 **Main Pages**:
 1. **Dashboard** - Workflow overview and stats
@@ -162,4 +162,4 @@ The plugin has no API-key entry UI. Keys for the built-in services (OpenAI, Anth
 
 All credential reads go through the `VIPWorkflow\AI\Credentials` facade, which prefers a `VIP_WORKFLOW_*_KEY` constant and otherwise resolves through core connectors (or a legacy fallback store on installs without them). `Credentials::has_admin_credential_ui()` reports whether this install has a credential screen at all — code that points a user at one must check it rather than assuming Connectors exists.
 
-See [`vip-workflow/docs/PLUGIN-INTEGRATION.md` § API Keys](../../vip-workflow/docs/PLUGIN-INTEGRATION.md#api-keys) for how a third-party plugin supplies its own key.
+See [`vip-workflows/docs/PLUGIN-INTEGRATION.md` § API Keys](../../vip-workflows/docs/PLUGIN-INTEGRATION.md#api-keys) for how a third-party plugin supplies its own key.

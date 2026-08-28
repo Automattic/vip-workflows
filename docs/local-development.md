@@ -35,7 +35,7 @@ For watch mode:
 npm run watch
 ```
 
-The test environment is separate from the development environment and listens on port 8889. Use the commands documented in [Testing](../vip-workflow/docs/TESTING.md); do not point integration tests at the development database.
+The test environment is separate from the development environment and listens on port 8889. Use the commands documented in [Testing](../vip-workflows/docs/TESTING.md); do not point integration tests at the development database.
 
 ## Quality checks
 
@@ -44,4 +44,4 @@ npm run check:all
 npm run test:php:integration
 ```
 
-Run `vip-workflow/vendor/bin/phpcbf` on changed PHP files before committing.
+Run `vip-workflows/vendor/bin/phpcbf` on changed PHP files before committing.

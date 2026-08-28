@@ -14,13 +14,13 @@ Packaging takes the version to stamp into the archives, and writes them to `dist
 
 ```bash
 tools/package-plugin.sh 1.2.0                  # every plugin
-tools/package-plugin.sh 1.2.0 vip-workflow     # just the core plugin
+tools/package-plugin.sh 1.2.0 vip-workflows     # just the core plugin
 tools/package-plugin.sh 1.2.0 --pick           # choose extensions interactively
 ```
 
 The version is stamped only into the staged copy that gets archived; the working
 tree is left untouched. `--pick` is the only mode that needs `gum`, so unattended
-builds neither require it nor can block on a prompt. From `vip-workflow/`, the
+builds neither require it nor can block on a prompt. From `vip-workflows/`, the
 same script runs as `npm run package -- 1.2.0`.
 
 Run the repository checks from the root:

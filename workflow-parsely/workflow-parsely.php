@@ -5,7 +5,7 @@
  * Version: 0.1.0
  * Author: WordPress VIP
  * Author URI: https://wpvip.com/
- * Requires Plugins: vip-workflow
+ * Requires Plugins: vip-workflows
  * Text Domain: workflow-parsely
  *
  * NOTE ON THE wp-parsely DEPENDENCY
