@@ -9,7 +9,7 @@
  *
  * Entries come from two sources:
  *
- *   1. Manifests registered via the `vip_workflow_register_assistant_meta`
+ *   1. Manifests registered via the `vip_workflows_register_assistant_meta`
  *      action. Plugins that span multiple capabilities use this to group
  *      their ability(ies) and provider(s) under one slug.
  *
@@ -17,18 +17,18 @@
  *      manifest. Existing single-capability plugins keep working without
  *      any changes.
  *
- * @package VIPWorkflow\Assistants
+ * @package VIPWorkflows\Assistants
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Assistants;
+namespace VIPWorkflows\Assistants;
 
-use VIPWorkflow\Abilities\Ability;
-use VIPWorkflow\Abilities\AbilitySettings;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Abilities\Ability;
+use VIPWorkflows\Abilities\AbilitySettings;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 
 /**
  * Assistant Registry.
@@ -128,7 +128,7 @@ class AssistantRegistry {
 		 *
 		 * @param AssistantRegistry $registry The registry instance.
 		 */
-		do_action( 'vip_workflow_register_assistant_meta', $this );
+		do_action( 'vip_workflows_register_assistant_meta', $this );
 	}
 
 	/**
@@ -459,7 +459,7 @@ class AssistantRegistry {
 	/**
 	 * Warn when an availability callback is registered somewhere it is ignored.
 	 *
-	 * Only `vip_workflow_register_ability()` sets `ability_class`, so an ability
+	 * Only `vip_workflows_register_ability()` sets `ability_class`, so an ability
 	 * registered through core's `wp_register_ability()` is a plain `WP_Ability`
 	 * with no `is_available()`. This surface then treats it as permanently
 	 * available and its `availability_callback` is discarded without a trace —
@@ -492,7 +492,7 @@ class AssistantRegistry {
 		_doing_it_wrong(
 			__METHOD__,
 			sprintf(
-				'Ability "%s" declares an availability_callback but was not registered through vip_workflow_register_ability(), so the callback is ignored and the agent will always report as available.',
+				'Ability "%s" declares an availability_callback but was not registered through vip_workflows_register_ability(), so the callback is ignored and the agent will always report as available.',
 				esc_html( $id )
 			),
 			'1.0.0'
@@ -503,7 +503,7 @@ class AssistantRegistry {
 	 * Check whether an ability should appear in the unified Agents surface.
 	 *
 	 * Core stage-only abilities stay internal until they are migrated into
-	 * plugin-scoped agents; otherwise every `vip-workflow/*` stage ability would
+	 * plugin-scoped agents; otherwise every `vip-workflows/*` stage ability would
 	 * collapse into the same auto-generated agent slug.
 	 *
 	 * @param string $id       Ability ID.
@@ -520,7 +520,7 @@ class AssistantRegistry {
 			return false;
 		}
 
-		return ! str_starts_with( $id, 'vip-workflow/' );
+		return ! str_starts_with( $id, 'vip-workflows/' );
 	}
 
 	/**
@@ -634,7 +634,7 @@ class AssistantRegistry {
 			'options'         => $options,
 			'settings_schema' => $settings_schema,
 			'display_order'   => $display_order,
-			'origin'          => $first_ability_id && str_starts_with( $first_ability_id, 'vip-workflow/' ) ? 'built-in' : 'plugin',
+			'origin'          => $first_ability_id && str_starts_with( $first_ability_id, 'vip-workflows/' ) ? 'built-in' : 'plugin',
 		);
 	}
 
@@ -892,8 +892,8 @@ class AssistantRegistry {
 	 *
 	 * Taking only the prefix collapsed every ability a plugin registers onto one
 	 * slug, which the entry slug cannot support — it is how a card addresses
-	 * itself. `vip-workflow/web-researcher` and `vip-workflow/media-scout` both
-	 * derived `vip-workflow`, so `get()` returned whichever came first and saving
+	 * itself. `vip-workflows/web-researcher` and `vip-workflows/media-scout` both
+	 * derived `vip-workflows`, so `get()` returned whichever came first and saving
 	 * Media Scout's card wrote to Web Researcher's ability.
 	 *
 	 * Grouping several abilities onto one card is what a manifest is for, and a

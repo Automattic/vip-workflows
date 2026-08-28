@@ -3,18 +3,18 @@
  * Integration coverage that the migrated AI-tool queries resolve by stage meta
  * (not the removed prefixed post_status) for both pre- and post-publish stages.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StatusManager;
 
-use function VIPWorkflow\Abilities\Tools\execute_get_posts_by_status;
-use function VIPWorkflow\Abilities\Tools\execute_get_stale_posts;
+use function VIPWorkflows\Abilities\Tools\execute_get_posts_by_status;
+use function VIPWorkflows\Abilities\Tools\execute_get_stale_posts;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/get-posts-by-status.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/get-stale-posts.php';

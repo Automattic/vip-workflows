@@ -6,18 +6,18 @@
  * Returns video URLs, thumbnails, durations, and channel info.
  *
  * Requires a YouTube Data API v3 key configured via
- * VIP_WORKFLOW_YOUTUBE_KEY constant or the settings UI.
+ * VIP_WORKFLOWS_YOUTUBE_KEY constant or the settings UI.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementFactory;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementFactory;
 use WP_Error;
 
 /**
@@ -43,7 +43,7 @@ class YouTubeVideoProvider implements MediaProviderInterface, MediaProviderRequi
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'YouTube Videos', 'vip-workflow' );
+		return __( 'YouTube Videos', 'vip-workflows' );
 	}
 
 	/**

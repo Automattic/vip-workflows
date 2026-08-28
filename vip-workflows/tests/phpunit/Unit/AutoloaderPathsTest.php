@@ -6,12 +6,12 @@
  * in vip-workflows.php on a case-sensitive filesystem (Linux/WPVIP). Without this
  * guard, a mismatched filename works on macOS but fatals in production.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
@@ -85,25 +85,25 @@ class AutoloaderPathsTest extends TestCase
     {
         return array(
             'standard class' => array(
-                'VIPWorkflow\\Integrations\\GuidelineContextProvider',
+                'VIPWorkflows\\Integrations\\GuidelineContextProvider',
                 'integrations/class-guideline-context-provider.php',
             ),
             'acronym in class name' => array(
-                'VIPWorkflow\\Integrations\\YouTubeTranscript',
+                'VIPWorkflows\\Integrations\\YouTubeTranscript',
                 'integrations/class-you-tube-transcript.php',
             ),
             'acronym in nested namespace and class name' => array(
-                'VIPWorkflow\\AI\\AiInference',
+                'VIPWorkflows\\AI\\AiInference',
                 'ai/class-ai-inference.php',
             ),
             // Illustrative (no live class required): documents how a leading
             // multi-letter acronym in the class name is lowercased as one run.
             'leading acronym in class name' => array(
-                'VIPWorkflow\\Integrations\\AIMediaHelper',
+                'VIPWorkflows\\Integrations\\AIMediaHelper',
                 'integrations/class-ai-media-helper.php',
             ),
             'nested acronym directory and class' => array(
-                'VIPWorkflow\\Ideation\\Assistants\\YouTubeVideoProvider',
+                'VIPWorkflows\\Ideation\\Assistants\\YouTubeVideoProvider',
                 'ideation/assistants/class-you-tube-video-provider.php',
             ),
         );
@@ -184,15 +184,15 @@ class AutoloaderPathsTest extends TestCase
             $namespace = trim( $ns_match[1] );
             $class_name = $cls_match[1];
 
-            if ( strpos( $namespace, 'VIPWorkflow' ) !== 0 ) {
+            if ( strpos( $namespace, 'VIPWorkflows' ) !== 0 ) {
                 continue;
             }
-            if ( strpos( $namespace, 'VIPWorkflow\\Tests' ) === 0 ) {
+            if ( strpos( $namespace, 'VIPWorkflows\\Tests' ) === 0 ) {
                 continue;
             }
 
             $fqcn = $namespace . '\\' . $class_name;
-            $relative = \VIPWorkflow\class_to_relative_path( $fqcn );
+            $relative = \VIPWorkflows\class_to_relative_path( $fqcn );
             $expected = 'includes/' . $relative;
 
             if ( $file !== $expected ) {
@@ -220,6 +220,6 @@ class AutoloaderPathsTest extends TestCase
      */
     public function test_class_to_relative_path( string $class_name, string $expected ): void
     {
-        $this->assertSame( $expected, \VIPWorkflow\class_to_relative_path( $class_name ) );
+        $this->assertSame( $expected, \VIPWorkflows\class_to_relative_path( $class_name ) );
     }
 }

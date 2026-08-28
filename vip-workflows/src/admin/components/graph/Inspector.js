@@ -192,8 +192,8 @@ function renderPanel( {
 			<InspectorShell
 				eyebrow={
 					isStart
-						? __( 'Flow entry', 'vip-workflow' )
-						: __( 'Flow exit', 'vip-workflow' )
+						? __( 'Flow entry', 'vip-workflows' )
+						: __( 'Flow exit', 'vip-workflows' )
 				}
 				title={ stageLabel( stages, stageKey ) }
 			>
@@ -205,11 +205,11 @@ function renderPanel( {
 					{ isStart
 						? __(
 								'Content enters the flow at this stage. Drag the Start connection to another stage to change the entry point.',
-								'vip-workflow'
+								'vip-workflows'
 						  )
 						: __(
 								'This is a final stage — content exits the flow here. Delete this connection to make the stage non-final.',
-								'vip-workflow'
+								'vip-workflows'
 						  ) }
 				</Text>
 			</InspectorShell>
@@ -267,8 +267,8 @@ function renderPanel( {
 		} = sequenceSettings;
 		return (
 			<InspectorShell
-				eyebrow={ __( 'Sequence', 'vip-workflow' ) }
-				title={ name || __( 'Untitled sequence', 'vip-workflow' ) }
+				eyebrow={ __( 'Sequence', 'vip-workflows' ) }
+				title={ name || __( 'Untitled sequence', 'vip-workflows' ) }
 			>
 				<Stack direction="column" gap="lg" align="stretch">
 					<SequenceIdentityFields
@@ -279,7 +279,7 @@ function renderPanel( {
 						// workflow.
 						namePlaceholder={ __(
 							'e.g. Ideation Gate',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 						description={ description }
 						onDescriptionChange={ onDescriptionChange }

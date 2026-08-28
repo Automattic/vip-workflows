@@ -20,15 +20,15 @@ export default function MyDashboard() {
 		<AdminPage
 			breadcrumbs={ [
 				{
-					label: __( 'Workflows', 'vip-workflow' ),
-					href: 'admin.php?page=vip-workflow',
+					label: __( 'Workflows', 'vip-workflows' ),
+					href: 'admin.php?page=vip-workflows',
 				},
-				{ label: __( 'My Dashboard', 'vip-workflow' ) },
+				{ label: __( 'My Dashboard', 'vip-workflows' ) },
 			] }
-			title={ __( 'My Dashboard', 'vip-workflow' ) }
+			title={ __( 'My Dashboard', 'vip-workflows' ) }
 			subtitle={ __(
 				'Your personal workspace for work and ideation.',
-				'vip-workflow'
+				'vip-workflows'
 			) }
 		>
 			<MyDashboardPage />

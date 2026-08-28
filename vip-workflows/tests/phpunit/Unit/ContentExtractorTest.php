@@ -2,15 +2,15 @@
 /**
  * Tests for ContentExtractor.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Integrations\ContentExtractor;
+use VIPWorkflows\Integrations\ContentExtractor;
 use WP_Error;
 
 /**

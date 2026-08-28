@@ -95,8 +95,8 @@ function getInitials( name, limit ) {
 export function Avatar( { src, name, icon, size = 'sm', className = '' } ) {
 	const { glyph, initials } = SIZES[ size ];
 	const classNames = [
-		'vip-workflow-avatar',
-		`vip-workflow-avatar--${ size }`,
+		'vip-workflows-avatar',
+		`vip-workflows-avatar--${ size }`,
 		className,
 	]
 		.filter( Boolean )
@@ -107,9 +107,9 @@ export function Avatar( { src, name, icon, size = 'sm', className = '' } ) {
 			<BaseAvatar.Image
 				src={ src }
 				alt=""
-				className="vip-workflow-avatar__image"
+				className="vip-workflows-avatar__image"
 			/>
-			<BaseAvatar.Fallback className="vip-workflow-avatar__initials">
+			<BaseAvatar.Fallback className="vip-workflows-avatar__initials">
 				{ icon ? (
 					<Icon icon={ icon } size={ glyph } />
 				) : (

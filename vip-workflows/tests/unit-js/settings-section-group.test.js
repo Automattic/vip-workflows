@@ -88,7 +88,7 @@ describe( 'SettingsSection', () => {
 		expect( group() ).not.toHaveAttribute( 'aria-describedby' );
 		expect(
 			group().querySelector(
-				'.vip-workflow-settings-section__description'
+				'.vip-workflows-settings-section__description'
 			)
 		).toBeNull();
 	} );

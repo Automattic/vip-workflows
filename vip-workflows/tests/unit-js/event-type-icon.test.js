@@ -71,8 +71,8 @@ describe( 'EventTypeIcon', () => {
 			);
 			const svg = container.querySelector( 'svg' );
 
-			expect( svg ).toHaveClass( 'vip-workflow-event-icon' );
-			expect( svg ).toHaveClass( `vip-workflow-event-icon--${ tone }` );
+			expect( svg ).toHaveClass( 'vip-workflows-event-icon' );
+			expect( svg ).toHaveClass( `vip-workflows-event-icon--${ tone }` );
 		}
 	);
 
@@ -106,7 +106,7 @@ describe( 'EventTypeIcon', () => {
 		);
 		const svg = container.querySelector( 'svg' );
 
-		expect( svg ).toHaveClass( 'vip-workflow-event-icon--neutral' );
+		expect( svg ).toHaveClass( 'vip-workflows-event-icon--neutral' );
 		expect( svg.querySelector( 'path' ) ).not.toBeNull();
 	} );
 
@@ -146,7 +146,7 @@ describe( 'eventIconField', () => {
 		const { container } = render( field.render( { item } ) );
 
 		expect( container.querySelector( 'svg' ) ).toHaveClass(
-			'vip-workflow-event-icon--error'
+			'vip-workflows-event-icon--error'
 		);
 	} );
 } );

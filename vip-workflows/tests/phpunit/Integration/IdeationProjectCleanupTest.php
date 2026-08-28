@@ -8,17 +8,17 @@
  * do — the claim worth pinning is that every attachment is gone afterwards,
  * including past the page size, which only a real posts table can answer.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\Ideation\Research\IdeationPostTypes;
 
 /**
- * @covers \VIPWorkflow\Ideation\Research\IdeationPostTypes::cleanup_project_data
+ * @covers \VIPWorkflows\Ideation\Research\IdeationPostTypes::cleanup_project_data
  */
 class IdeationProjectCleanupTest extends TestCase
 {

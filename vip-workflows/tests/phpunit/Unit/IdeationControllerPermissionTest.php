@@ -2,16 +2,16 @@
 /**
  * Ideation controller authorization tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\API\IdeationController;
+use VIPWorkflows\API\IdeationController;
 
 /**
  * Project-scoped reads and the mentor write are gated by ownership (the gate

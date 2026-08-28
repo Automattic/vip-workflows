@@ -13,7 +13,7 @@ import { eventActorField } from '../../src/common/workflow-event-fields';
 
 const html = ( ui ) => render( ui ).container.innerHTML;
 
-// The shape every route serves (see `VIPWorkflow\Workflow\Actor`). Built here
+// The shape every route serves (see `VIPWorkflows\Workflow\Actor`). Built here
 // rather than spelled out per test so a test reads as "this person" instead of
 // as three loose props.
 const person = {
@@ -36,7 +36,7 @@ describe( 'AuthorCell', () => {
 			const { container } = render( <AuthorCell actor={ actor } /> );
 
 			expect(
-				container.querySelector( '.vip-workflow-dataview-avatar' )
+				container.querySelector( '.vip-workflows-dataview-avatar' )
 			).not.toBeNull();
 		} );
 	} );
@@ -45,7 +45,7 @@ describe( 'AuthorCell', () => {
 		const out = html( <AuthorCell actor={ person } /> );
 
 		expect( out ).toContain( 'Ada Lovelace' );
-		expect( out ).toContain( 'vip-workflow-dataview-avatar--user' );
+		expect( out ).toContain( 'vip-workflows-dataview-avatar--user' );
 	} );
 
 	it( 'renders an agent with the sparkle in place of a picture', () => {
@@ -54,7 +54,7 @@ describe( 'AuthorCell', () => {
 		expect( container.textContent ).toContain( 'Fact Check Agent' );
 		expect(
 			container.querySelector(
-				'.vip-workflow-dataview-avatar--agent svg'
+				'.vip-workflows-dataview-avatar--agent svg'
 			)
 		).not.toBeNull();
 		// The AI tone rides on the modifier class, so an agent is not mistakable
@@ -68,7 +68,7 @@ describe( 'AuthorCell', () => {
 		expect( container.textContent ).toContain( 'System' );
 		expect(
 			container.querySelector(
-				'.vip-workflow-dataview-avatar--system svg'
+				'.vip-workflows-dataview-avatar--system svg'
 			)
 		).not.toBeNull();
 	} );
@@ -103,9 +103,11 @@ describe( 'AuthorCell', () => {
 			</AuthorCell>
 		);
 
-		const row = container.querySelector( '.vip-workflow-dataview-author' );
+		const row = container.querySelector( '.vip-workflows-dataview-author' );
 		const slot = row.querySelector( 'em' );
-		const name = row.querySelector( '.vip-workflow-dataview-author__name' );
+		const name = row.querySelector(
+			'.vip-workflows-dataview-author__name'
+		);
 
 		expect( slot ).not.toBeNull();
 		// Inside the row, and immediately after the name.
@@ -117,7 +119,7 @@ describe( 'AuthorCell', () => {
 		const { container } = render( <AuthorCell actor={ person } /> );
 
 		expect(
-			container.querySelector( '.vip-workflow-dataview-author__name' )
+			container.querySelector( '.vip-workflows-dataview-author__name' )
 				.textContent
 		).toBe( 'Ada Lovelace' );
 	} );
@@ -136,7 +138,7 @@ describe( 'eventActorField', () => {
 
 		expect( container.textContent ).toContain( 'Ada Lovelace' );
 		expect( container.innerHTML ).toContain(
-			'vip-workflow-dataview-avatar--user'
+			'vip-workflows-dataview-avatar--user'
 		);
 	} );
 
@@ -149,7 +151,7 @@ describe( 'eventActorField', () => {
 
 		expect( container.textContent ).toContain( 'Fact Check Agent' );
 		expect( container.innerHTML ).toContain(
-			'vip-workflow-dataview-avatar--agent'
+			'vip-workflows-dataview-avatar--agent'
 		);
 	} );
 
@@ -160,7 +162,7 @@ describe( 'eventActorField', () => {
 
 		expect( container.textContent ).toContain( 'System' );
 		expect( container.innerHTML ).toContain(
-			'vip-workflow-dataview-avatar--system'
+			'vip-workflows-dataview-avatar--system'
 		);
 	} );
 } );

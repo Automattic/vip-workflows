@@ -1,5 +1,5 @@
 /**
- * VIP Workflow Admin
+ * VIP Workflows Admin
  *
  * @package
  */
@@ -18,7 +18,7 @@ import './layout.css';
 // Initialize apps when DOM is ready.
 document.addEventListener( 'DOMContentLoaded', () => {
 	// Main workflow app with AppShell (all pages)
-	const workflowRoot = document.getElementById( 'vip-workflow-root' );
+	const workflowRoot = document.getElementById( 'vip-workflows-root' );
 	if ( workflowRoot ) {
 		createRoot( workflowRoot ).render( <AppShell /> );
 	}

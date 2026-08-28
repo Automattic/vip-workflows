@@ -20,26 +20,26 @@
  * needs a missing-credential requirement answered on the card itself rather
  * than by a link.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Fixtures\InCardSource {
+namespace VIPWorkflows\Tests\Fixtures\InCardSource {
 
-	use VIPWorkflow\Abilities\Availability;
-	use VIPWorkflow\Abilities\RequirementFactory;
-	use VIPWorkflow\Abilities\RequirementGroup;
+	use VIPWorkflows\Abilities\Availability;
+	use VIPWorkflows\Abilities\RequirementFactory;
+	use VIPWorkflows\Abilities\RequirementGroup;
 
 	/**
 	 * Option the fixture stores its one credential in.
 	 */
-	const OPTION_KEY = 'vip_workflow_tests_in_card_fixture';
+	const OPTION_KEY = 'vip_workflows_tests_in_card_fixture';
 
 	/**
 	 * Ability id the fixture registers, mirroring a real research assistant.
 	 */
-	const ABILITY_ID = 'vip-workflow-tests/in-card-fixture';
+	const ABILITY_ID = 'vip-workflows-tests/in-card-fixture';
 
 	/**
 	 * Whether the fixture's one credential is set.
@@ -80,7 +80,7 @@ namespace VIPWorkflow\Tests\Fixtures\InCardSource {
 	 * Register a discovery provider pointing at check_availability(), mirroring
 	 * how a real source registers.
 	 *
-	 * @param \VIPWorkflow\Discovery\DiscoveryProviderRegistry $registry Discovery provider registry.
+	 * @param \VIPWorkflows\Discovery\DiscoveryProviderRegistry $registry Discovery provider registry.
 	 */
 	function register_provider( $registry ): void {
 		$registry->register(
@@ -121,11 +121,11 @@ namespace VIPWorkflow\Tests\Fixtures\InCardSource {
 	 * mirroring how a real source's provider and ability share one identity.
 	 */
 	function register_ability(): void {
-		if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+		if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
 			return;
 		}
 
-		vip_workflow_register_ability(
+		vip_workflows_register_ability(
 			ABILITY_ID,
 			array(
 				'label'               => 'In-Card Fixture',
@@ -163,19 +163,19 @@ namespace VIPWorkflow\Tests\Fixtures\InCardSource {
 	}
 }
 
-namespace VIPWorkflow\Tests\Integration {
+namespace VIPWorkflows\Tests\Integration {
 
-	use VIPWorkflow\Abilities\Availability;
-	use VIPWorkflow\Abilities\Destination;
-	use VIPWorkflow\Abilities\Requirement;
-	use VIPWorkflow\Abilities\RequirementGroup;
-	use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
+	use VIPWorkflows\Abilities\Availability;
+	use VIPWorkflows\Abilities\Destination;
+	use VIPWorkflows\Abilities\Requirement;
+	use VIPWorkflows\Abilities\RequirementGroup;
+	use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 
-	use function VIPWorkflow\Tests\Fixtures\InCardSource\check_availability;
-	use function VIPWorkflow\Tests\Fixtures\InCardSource\register_provider;
+	use function VIPWorkflows\Tests\Fixtures\InCardSource\check_availability;
+	use function VIPWorkflows\Tests\Fixtures\InCardSource\register_provider;
 
-	use const VIPWorkflow\Tests\Fixtures\InCardSource\ABILITY_ID;
-	use const VIPWorkflow\Tests\Fixtures\InCardSource\OPTION_KEY;
+	use const VIPWorkflows\Tests\Fixtures\InCardSource\ABILITY_ID;
+	use const VIPWorkflows\Tests\Fixtures\InCardSource\OPTION_KEY;
 
 	class InCardAvailabilityTest extends TestCase {
 
@@ -321,7 +321,7 @@ namespace VIPWorkflow\Tests\Integration {
 				'The provider and the ability must point at one callback so their requirement ids collide by construction.'
 			);
 			$this->assertSame(
-				'VIPWorkflow\Tests\Fixtures\InCardSource\check_availability',
+				'VIPWorkflows\Tests\Fixtures\InCardSource\check_availability',
 				$provider['availability_callback']
 			);
 		}
@@ -329,7 +329,7 @@ namespace VIPWorkflow\Tests\Integration {
 		/**
 		 * Meta of the registered fixture ability.
 		 *
-		 * `vip_workflow_register_ability()` only functions while
+		 * `vip_workflows_register_ability()` only functions while
 		 * `wp_abilities_api_init` is running, so the hook is fired again with
 		 * other listeners detached — WP_UnitTestCase restores `$wp_filter`
 		 * afterwards. Registration is global and outlives the test, hence the
@@ -347,7 +347,7 @@ namespace VIPWorkflow\Tests\Integration {
 
 			if ( ! in_array( ABILITY_ID, $registered, true ) ) {
 				remove_all_actions( 'wp_abilities_api_init' );
-				add_action( 'wp_abilities_api_init', 'VIPWorkflow\Tests\Fixtures\InCardSource\register_ability' );
+				add_action( 'wp_abilities_api_init', 'VIPWorkflows\Tests\Fixtures\InCardSource\register_ability' );
 				do_action( 'wp_abilities_api_init' );
 			}
 

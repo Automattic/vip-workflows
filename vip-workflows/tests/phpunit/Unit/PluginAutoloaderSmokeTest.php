@@ -5,7 +5,7 @@
  * Boots the plugin entrypoint and ensures representative classes resolve
  * through the registered autoloader on demand.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
@@ -19,8 +19,8 @@ class PluginAutoloaderSmokeTest extends TestCase
     public static function autoload_target_classes(): array
     {
         return array(
-            'youtube transcript' => array( 'VIPWorkflow\\Integrations\\YouTubeTranscript' ),
-            'youtube video provider' => array( 'VIPWorkflow\\Ideation\\Assistants\\YouTubeVideoProvider' ),
+            'youtube transcript' => array( 'VIPWorkflows\\Integrations\\YouTubeTranscript' ),
+            'youtube video provider' => array( 'VIPWorkflows\\Ideation\\Assistants\\YouTubeVideoProvider' ),
         );
     }
 
@@ -35,7 +35,7 @@ class PluginAutoloaderSmokeTest extends TestCase
 
         require_once self::PLUGIN_FILE;
 
-        \VIPWorkflow\autoloader( $class_name );
+        \VIPWorkflows\autoloader( $class_name );
 
         $this->assertTrue(
             class_exists( $class_name, false ),

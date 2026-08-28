@@ -43,10 +43,10 @@ import IdeationWorkspace from '../../src/admin/components/ideation/IdeationWorks
 
 import { disabledVipAbility, vipAbility } from './helpers/abilities-fixture';
 
-const ABILITY = 'vip-workflow/web-researcher';
+const ABILITY = 'vip-workflows/web-researcher';
 const OFF_ABILITY = 'workflow-discovery-foresight/foresight-research';
 
-const ABILITIES_PATH = '/vip-workflow/v1/abilities?category=research';
+const ABILITIES_PATH = '/vip-workflows/v1/abilities?category=research';
 
 /*
  * The abilities response as `AbilitiesController::get_items()` builds it, from the
@@ -139,7 +139,7 @@ describe( 'ideation workspace — the abilities fetch', () => {
 	beforeEach( () => {
 		// Auto-refresh off, so the mentor never runs and the only requests under
 		// test are the ones this fixture drives.
-		localStorage.setItem( 'vip_workflow_mentor_auto', '0' );
+		localStorage.setItem( 'vip_workflows_mentor_auto', '0' );
 
 		apiFetch.mockReset();
 		apiFetch.mockImplementation( ( { path } ) => {
@@ -169,7 +169,7 @@ describe( 'ideation workspace — the abilities fetch', () => {
 		await waitFor( () => {
 			const titles = Array.from(
 				container.querySelectorAll(
-					'.vip-workflow-ideation-section__title'
+					'.vip-workflows-ideation-section__title'
 				)
 			).map( ( node ) => node.textContent );
 
@@ -190,7 +190,7 @@ describe( 'ideation workspace — the abilities fetch', () => {
 		);
 		const titles = Array.from(
 			container.querySelectorAll(
-				'.vip-workflow-ideation-section__title'
+				'.vip-workflows-ideation-section__title'
 			)
 		).map( ( node ) => node.textContent );
 		expect( titles ).toContain( 'Web Researcher' );
@@ -199,7 +199,7 @@ describe( 'ideation workspace — the abilities fetch', () => {
 
 describe( 'ideation workspace — the first-load batch', () => {
 	beforeEach( () => {
-		localStorage.setItem( 'vip_workflow_mentor_auto', '0' );
+		localStorage.setItem( 'vip_workflows_mentor_auto', '0' );
 
 		apiFetch.mockReset();
 		apiFetch.mockImplementation( ( { path } ) => {

@@ -4,12 +4,12 @@
  *
  * Manages available search providers and selection.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Research\SearchProviders;
+namespace VIPWorkflows\Ideation\Research\SearchProviders;
 
 /**
  * Registry for search providers.
@@ -20,7 +20,7 @@ class SearchProviderRegistry {
 	/**
 	 * Option name for storing the selected provider.
 	 */
-	private const OPTION_NAME = 'vip_workflow_search_provider';
+	private const OPTION_NAME = 'vip_workflows_search_provider';
 
 	/**
 	 * Default provider ID.
@@ -71,7 +71,7 @@ class SearchProviderRegistry {
 		 *
 		 * @param SearchProviderRegistry $registry The provider registry.
 		 */
-		do_action( 'vip_workflow_register_search_providers', $this );
+		do_action( 'vip_workflows_register_search_providers', $this );
 	}
 
 	/**

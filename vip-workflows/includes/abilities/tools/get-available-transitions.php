@@ -4,12 +4,12 @@
  *
  * Returns what status moves are available for a post and user.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the available transitions query.
@@ -26,12 +26,12 @@ function execute_get_available_transitions( ?array $input = null ) {
 	$user_id = get_current_user_id();
 
 	if ( ! $post_id ) {
-		return new \WP_Error( 'missing_post_id', __( 'The "post_id" parameter is required.', 'vip-workflow' ) );
+		return new \WP_Error( 'missing_post_id', __( 'The "post_id" parameter is required.', 'vip-workflows' ) );
 	}
 
 	$post = get_post( $post_id );
 	if ( ! $post ) {
-		return new \WP_Error( 'not_found', __( 'Post not found.', 'vip-workflow' ) );
+		return new \WP_Error( 'not_found', __( 'Post not found.', 'vip-workflows' ) );
 	}
 
 	$permission_error = require_post_edit_permission( $post_id );
@@ -39,7 +39,7 @@ function execute_get_available_transitions( ?array $input = null ) {
 		return $permission_error;
 	}
 
-	$status_manager = new \VIPWorkflow\Workflow\StatusManager();
+	$status_manager = new \VIPWorkflows\Workflow\StatusManager();
 	$current_status = $status_manager->get_current_status( $post_id );
 	$transitions    = $status_manager->get_available_transitions( $post_id, $user_id );
 
@@ -65,9 +65,9 @@ function execute_get_available_transitions( ?array $input = null ) {
  * Mirrors the REST payload's `guard` block deliberately — same keys, same
  * meanings — so the two cannot describe the same post differently.
  *
- * @param  \VIPWorkflow\Workflow\StatusManager $status_manager Status manager.
- * @param  int                                 $post_id        Post ID.
- * @param  array|null                          $current_status Resolved current stage, or null.
+ * @param  \VIPWorkflows\Workflow\StatusManager $status_manager Status manager.
+ * @param  int                                  $post_id        Post ID.
+ * @param  array|null                           $current_status Resolved current stage, or null.
  * @return array
  */
 function build_transition_guard_context( $status_manager, int $post_id, ?array $current_status ): array {
@@ -87,13 +87,13 @@ function build_transition_guard_context( $status_manager, int $post_id, ?array $
 			);
 		} catch ( \InvalidArgumentException $e ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Cannot resolve the stage region for post %d; the transition guard context reports an unresolved region: %s', $post_id, $e->getMessage() ) );
+			error_log( sprintf( '[VIP Workflows] Cannot resolve the stage region for post %d; the transition guard context reports an unresolved region: %s', $post_id, $e->getMessage() ) );
 		}
 	}
 
 	return array(
 		'current_region' => $current_region,
-		'can_bypass'     => \VIPWorkflow\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
+		'can_bypass'     => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
 		'agent_pending'  => $status_manager->has_pending_agent_job( $post_id, $stage_key ),
 	);
 }
@@ -105,11 +105,11 @@ function build_transition_guard_context( $status_manager, int $post_id, ?array $
  */
 function register_get_available_transitions(): void {
 	wp_register_ability(
-		'vip-workflow/get-available-transitions',
+		'vip-workflows/get-available-transitions',
 		array(
-			'label'               => __( 'Get Available Transitions', 'vip-workflow' ),
-			'description'         => __( 'Returns what workflow status transitions are available for a given post and user.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Get Available Transitions', 'vip-workflows' ),
+			'description'         => __( 'Returns what workflow status transitions are available for a given post and user.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -117,7 +117,7 @@ function register_get_available_transitions(): void {
 				'properties'           => array(
 					'post_id' => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID to check transitions for.', 'vip-workflow' ),
+						'description' => __( 'The post ID to check transitions for.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -127,25 +127,25 @@ function register_get_available_transitions(): void {
 				'properties'           => array(
 					'post_id'        => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID.', 'vip-workflow' ),
+						'description' => __( 'The post ID.', 'vip-workflows' ),
 					),
 					'post_title'     => array(
 						'type'        => 'string',
-						'description' => __( 'The post title.', 'vip-workflow' ),
+						'description' => __( 'The post title.', 'vip-workflows' ),
 					),
 					'current_status' => array(
 						// Null when the post has no workflow, or when its stored
 						// stage no longer resolves in the sequence (dangling key).
 						'type'        => array( 'object', 'null' ),
-						'description' => __( 'Current workflow status details, or null when unresolved.', 'vip-workflow' ),
+						'description' => __( 'Current workflow status details, or null when unresolved.', 'vip-workflows' ),
 					),
 					'transitions'    => array(
 						'type'        => 'array',
-						'description' => __( 'Array of available transitions.', 'vip-workflow' ),
+						'description' => __( 'Array of available transitions.', 'vip-workflows' ),
 					),
 					'guard'          => array(
 						'type'        => 'object',
-						'description' => __( 'What performing one of these transitions would set off. `current_region` is the editorial region (draft/pending/private/publish) of the post\'s stage, or null when it cannot be resolved; a move whose target region differs, with either side being publish, is refused for a user whose `can_bypass` is false. `agent_pending` is true when an AI agent is mid-run on this post, in which case any transition out of the stage stops it and must be confirmed with transition-post\'s acknowledge_warnings.', 'vip-workflow' ),
+						'description' => __( 'What performing one of these transitions would set off. `current_region` is the editorial region (draft/pending/private/publish) of the post\'s stage, or null when it cannot be resolved; a move whose target region differs, with either side being publish, is refused for a user whose `can_bypass` is false. `agent_pending` is true when an AI agent is mid-run on this post, in which case any transition out of the stage stops it and must be confirmed with transition-post\'s acknowledge_warnings.', 'vip-workflows' ),
 					),
 				),
 			),

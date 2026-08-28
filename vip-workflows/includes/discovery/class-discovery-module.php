@@ -5,14 +5,14 @@
  * Initializes the Story Discovery framework: provider registry,
  * REST endpoints, and admin hooks.
  *
- * @package VIPWorkflow\Discovery
+ * @package VIPWorkflows\Discovery
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Discovery;
+namespace VIPWorkflows\Discovery;
 
-use VIPWorkflow\ModuleInterface;
+use VIPWorkflows\ModuleInterface;
 
 /**
  * Discovery Module.
@@ -39,13 +39,13 @@ class DiscoveryModule implements ModuleInterface {
 
 	/**
 	 * Make provider metadata available to admin JS via the existing
-	 * vip-workflow-admin script handle (already enqueued by core).
+	 * vip-workflows-admin script handle (already enqueued by core).
 	 */
 	public function localize_discovery_data(): void {
 		add_action(
 			'admin_enqueue_scripts',
 			function ( string $hook ): void {
-				if ( 'toplevel_page_vip-workflow' !== $hook ) {
+				if ( 'toplevel_page_vip-workflows' !== $hook ) {
 					return;
 				}
 
@@ -64,8 +64,8 @@ class DiscoveryModule implements ModuleInterface {
 				}
 
 				wp_localize_script(
-					'vip-workflow-admin',
-					'vipWorkflowDiscovery',
+					'vip-workflows-admin',
+					'vipWorkflowsDiscovery',
 					array(
 						'providers' => $providers,
 					)

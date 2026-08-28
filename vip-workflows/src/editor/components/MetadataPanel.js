@@ -68,7 +68,7 @@ function useAssignableUser( userId, refreshKey = 0 ) {
 		const fetchUser = async () => {
 			try {
 				const result = await apiFetch( {
-					path: `/vip-workflow/v1/assignable-users?include=${ encodeURIComponent(
+					path: `/vip-workflows/v1/assignable-users?include=${ encodeURIComponent(
 						String( userId )
 					) }&per_page=1`,
 					signal: controller.signal,
@@ -161,7 +161,7 @@ function MetadataUserRow( {
 		} else if ( missing ) {
 			valueLabel = sprintf(
 				/* translators: %s: numeric user ID. */
-				__( 'User #%s (unavailable)', 'vip-workflow' ),
+				__( 'User #%s (unavailable)', 'vip-workflows' ),
 				String( userId )
 			);
 		} else if ( error ) {
@@ -169,11 +169,11 @@ function MetadataUserRow( {
 			// the neutral id without the "(unavailable)" claim.
 			valueLabel = sprintf(
 				/* translators: %s: numeric user ID. */
-				__( 'User #%s', 'vip-workflow' ),
+				__( 'User #%s', 'vip-workflows' ),
 				String( userId )
 			);
 		} else {
-			valueLabel = __( 'Loading…', 'vip-workflow' );
+			valueLabel = __( 'Loading…', 'vip-workflows' );
 		}
 	}
 
@@ -184,7 +184,7 @@ function MetadataUserRow( {
 			required={ required }
 			blocking={ blocking }
 			valueLabel={ valueLabel }
-			emptyLabel={ __( 'Assign a user', 'vip-workflow' ) }
+			emptyLabel={ __( 'Assign a user', 'vip-workflows' ) }
 			onPopoverClose={ () => {
 				// Re-resolve after a failed lookup so a recovered network
 				// heals the trigger without needing the id to change.
@@ -247,7 +247,7 @@ function MetadataDateRow( {
 			required={ required }
 			blocking={ blocking }
 			valueLabel={ valueLabel }
-			emptyLabel={ __( 'Choose a date', 'vip-workflow' ) }
+			emptyLabel={ __( 'Choose a date', 'vip-workflows' ) }
 			renderContent={ ( { onClose } ) => (
 				<>
 					<DatePicker
@@ -269,7 +269,7 @@ function MetadataDateRow( {
 									onClose();
 								} }
 							>
-								{ __( 'Remove', 'vip-workflow' ) }
+								{ __( 'Remove', 'vip-workflows' ) }
 							</Button>
 						</ActionRow>
 					) }
@@ -313,7 +313,7 @@ function MetadataField( { field, blocking, meta, setMeta } ) {
 					required={ field.required }
 					blocking={ blocking }
 					valueLabel={ currentValue }
-					emptyLabel={ __( 'Add text', 'vip-workflow' ) }
+					emptyLabel={ __( 'Add text', 'vip-workflows' ) }
 					renderContent={ () => (
 						<TextareaControl
 							__nextHasNoMarginBottom
@@ -328,7 +328,7 @@ function MetadataField( { field, blocking, meta, setMeta } ) {
 
 		case 'select': {
 			const options = [
-				{ label: __( '— Select —', 'vip-workflow' ), value: '' },
+				{ label: __( '— Select —', 'vip-workflows' ), value: '' },
 				...( field.options || [] ).map( ( opt ) => ( {
 					label: opt,
 					value: opt,
@@ -343,7 +343,7 @@ function MetadataField( { field, blocking, meta, setMeta } ) {
 					required={ field.required }
 					blocking={ blocking }
 					valueLabel={ currentValue }
-					emptyLabel={ __( 'Choose an option', 'vip-workflow' ) }
+					emptyLabel={ __( 'Choose an option', 'vip-workflows' ) }
 					renderContent={ ( { onClose } ) => (
 						<SelectControl
 							__next40pxDefaultSize
@@ -395,7 +395,7 @@ function MetadataField( { field, blocking, meta, setMeta } ) {
 					required={ field.required }
 					blocking={ blocking }
 					valueLabel={ currentValue }
-					emptyLabel={ __( 'Add text', 'vip-workflow' ) }
+					emptyLabel={ __( 'Add text', 'vip-workflows' ) }
 					renderContent={ ( { onClose } ) => (
 						<TextControl
 							__next40pxDefaultSize
@@ -452,7 +452,7 @@ export function MetadataPanel() {
 
 	return (
 		<Stack
-			className="vip-workflow-metadata-panel"
+			className="vip-workflows-metadata-panel"
 			direction="column"
 			gap="xs"
 		>

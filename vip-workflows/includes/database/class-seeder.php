@@ -2,15 +2,15 @@
 /**
  * Database seeder.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Database;
+namespace VIPWorkflows\Database;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StagePalette;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StagePalette;
 
 /**
  * Seeds initial data for the plugin.
@@ -52,7 +52,7 @@ class Seeder {
 	private function seed_roles(): void {
 		global $wpdb;
 
-		$table = Schema::get_table_name( 'workflow_roles' );
+		$table = Schema::get_table_name( 'workflows_roles' );
 
 		$roles = array(
 			array(

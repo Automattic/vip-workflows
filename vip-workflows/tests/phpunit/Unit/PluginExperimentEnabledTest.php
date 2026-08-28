@@ -2,15 +2,15 @@
 /**
  * Tests for Plugin::experiment_enabled().
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Plugin;
-use VIPWorkflow\Experiments\ExperimentRegistry;
+use VIPWorkflows\Plugin;
+use VIPWorkflows\Experiments\ExperimentRegistry;
 
 /**
  * Tests for the Plugin::experiment_enabled() static convenience wrapper.

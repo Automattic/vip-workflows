@@ -11,22 +11,22 @@
  * so setting `color` is the whole of the glyph's tone.
  */
 
-.vip-workflow-event-icon--neutral {
+.vip-workflows-event-icon--neutral {
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- glyph tone on <Icon>, which exposes no colour prop */
 }
 
-.vip-workflow-event-icon--success {
+.vip-workflows-event-icon--success {
 	color: var(--wpds-color-foreground-content-success); /* wpds-allow R6 -- glyph tone on <Icon>, which exposes no colour prop */
 }
 
-.vip-workflow-event-icon--info {
+.vip-workflows-event-icon--info {
 	color: var(--wpds-color-foreground-content-info); /* wpds-allow R6 -- glyph tone on <Icon>, which exposes no colour prop */
 }
 
-.vip-workflow-event-icon--warning {
+.vip-workflows-event-icon--warning {
 	color: var(--wpds-color-foreground-content-warning); /* wpds-allow R6 -- glyph tone on <Icon>, which exposes no colour prop */
 }
 
-.vip-workflow-event-icon--error {
+.vip-workflows-event-icon--error {
 	color: var(--wpds-color-foreground-content-error); /* wpds-allow R6 -- glyph tone on <Icon>, which exposes no colour prop */
 }

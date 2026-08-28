@@ -2,16 +2,16 @@
 /**
  * Cleanup unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Maintenance\Cleanup;
+use VIPWorkflows\Maintenance\Cleanup;
 
 /**
  * Tests for the nightly cleanup routine.
@@ -79,7 +79,7 @@ class CleanupTest extends TestCase
 
         $this->cleanup->run();
 
-        $this->assertSame( 'wp_vip_workflow_events', $target );
+        $this->assertSame( 'wp_vip_workflows_events', $target );
         $this->assertSame( Cleanup::EVENT_TYPE, $recorded['event_type'] );
 
         return array( $recorded, json_decode( $recorded['event_data'], true ) );

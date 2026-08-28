@@ -48,7 +48,7 @@ export function InfoTip( { about, children } ) {
 					className="wf-inspector-infotip"
 					aria-label={ sprintf(
 						/* translators: %s: the setting being explained, e.g. "Post status". */
-						__( 'About %s', 'vip-workflow' ),
+						__( 'About %s', 'vip-workflows' ),
 						about
 					) }
 				>

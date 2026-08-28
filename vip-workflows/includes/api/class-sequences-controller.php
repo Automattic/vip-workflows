@@ -2,17 +2,17 @@
 /**
  * Sequences REST API controller.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Plugin;
-use VIPWorkflow\Workflow\StagePalette;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Plugin;
+use VIPWorkflows\Workflow\StagePalette;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_REST_Request;
@@ -477,7 +477,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflow' ),
+				__( 'Sequence not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -498,7 +498,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflow' ),
+				__( 'Sequence not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -509,7 +509,7 @@ class SequencesController extends WP_REST_Controller {
 	/**
 	 * Prepare sequence for response.
 	 *
-	 * @param  \VIPWorkflow\Sequences\Sequence $sequence Sequence.
+	 * @param  \VIPWorkflows\Sequences\Sequence $sequence Sequence.
 	 * @return array
 	 */
 	private function prepare_sequence_response( $sequence ): array {
@@ -578,7 +578,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflow' ),
+				__( 'Sequence not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -588,7 +588,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $deleted ) {
 			return new WP_Error(
 				'rest_sequence_delete_failed',
-				__( 'Failed to delete sequence.', 'vip-workflow' ),
+				__( 'Failed to delete sequence.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -781,7 +781,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( Sequence::TYPE_PHASE === $type && ! Plugin::experiment_enabled( 'ideation' ) ) {
 			return new WP_Error(
 				'rest_sequence_type_disabled',
-				__( 'Phase sequences require the Ideation feature to be enabled.', 'vip-workflow' ),
+				__( 'Phase sequences require the Ideation feature to be enabled.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -847,7 +847,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $id ) {
 			return new WP_Error(
 				'rest_sequence_create_failed',
-				__( 'Failed to create sequence.', 'vip-workflow' ),
+				__( 'Failed to create sequence.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -870,7 +870,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $existing ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflow' ),
+				__( 'Sequence not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -933,7 +933,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $new_id ) {
 			return new WP_Error(
 				'rest_sequence_update_failed',
-				__( 'Failed to update sequence.', 'vip-workflow' ),
+				__( 'Failed to update sequence.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -1246,7 +1246,7 @@ class SequencesController extends WP_REST_Controller {
 					throw new \InvalidArgumentException(
 						sprintf(
 							/* translators: %s: phase key, e.g. "ideation". */
-							esc_html__( 'A phase sequence must declare the “%s” phase.', 'vip-workflow' ),
+							esc_html__( 'A phase sequence must declare the “%s” phase.', 'vip-workflows' ),
 							esc_html( $key )
 						)
 					);
@@ -1259,7 +1259,7 @@ class SequencesController extends WP_REST_Controller {
 				throw new \InvalidArgumentException(
 					sprintf(
 						/* translators: 1: source phase key, 2: target phase key. */
-						esc_html__( 'A phase sequence must declare the hand-off from “%1$s” to “%2$s”.', 'vip-workflow' ),
+						esc_html__( 'A phase sequence must declare the hand-off from “%1$s” to “%2$s”.', 'vip-workflows' ),
 						esc_html( $edge['from'] ),
 						esc_html( $edge['to'] )
 					)
@@ -1281,7 +1281,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflow' ),
+				__( 'Sequence not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -1309,13 +1309,13 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflow' ),
+				__( 'Sequence not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
 
 		// StageQuery owns the (now stage-meta) aggregation.
-		$stats = \VIPWorkflow\Workflow\StageQuery::counts_by_stage( $sequence );
+		$stats = \VIPWorkflows\Workflow\StageQuery::counts_by_stage( $sequence );
 
 		return new WP_REST_Response( $stats );
 	}
@@ -1349,7 +1349,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( false === $repaired ) {
 			return new WP_Error(
 				'sequence_repair_failed',
-				__( 'The sequence could not be saved.', 'vip-workflow' ),
+				__( 'The sequence could not be saved.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -1359,7 +1359,7 @@ class SequencesController extends WP_REST_Controller {
 			// The row was written a moment ago; its disappearance is a real fault.
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflow' ),
+				__( 'Sequence not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -1386,7 +1386,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( empty( $sequence_json['type'] ) || ! in_array( $sequence_json['type'], array( 'workflow', 'phase' ), true ) ) {
 			return new WP_Error(
 				'invalid_sequence_type',
-				__( 'Sequence type must be "workflow" or "phase".', 'vip-workflow' ),
+				__( 'Sequence type must be "workflow" or "phase".', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -1394,7 +1394,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( 'phase' === $sequence_json['type'] && ! Plugin::experiment_enabled( 'ideation' ) ) {
 			return new WP_Error(
 				'rest_sequence_type_disabled',
-				__( 'Phase sequences require the Ideation feature to be enabled.', 'vip-workflow' ),
+				__( 'Phase sequences require the Ideation feature to be enabled.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -1402,7 +1402,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( empty( $sequence_json['name'] ) ) {
 			return new WP_Error(
 				'missing_sequence_name',
-				__( 'Sequence name is required.', 'vip-workflow' ),
+				__( 'Sequence name is required.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -1410,7 +1410,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( empty( $sequence_json['config'] ) || ! is_array( $sequence_json['config'] ) ) {
 			return new WP_Error(
 				'invalid_sequence_config',
-				__( 'Sequence config is required and must be an object.', 'vip-workflow' ),
+				__( 'Sequence config is required and must be an object.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -1418,7 +1418,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( empty( $sequence_json['config']['statuses'] ) || ! is_array( $sequence_json['config']['statuses'] ) ) {
 			return new WP_Error(
 				'invalid_sequence_statuses',
-				__( 'Sequence must have at least one stage.', 'vip-workflow' ),
+				__( 'Sequence must have at least one stage.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -1528,7 +1528,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence_id ) {
 			return new WP_Error(
 				'sequence_import_failed',
-				__( 'Failed to import sequence.', 'vip-workflow' ),
+				__( 'Failed to import sequence.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -1541,7 +1541,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'sequence_not_found',
-				__( 'Sequence was created but could not be retrieved.', 'vip-workflow' ),
+				__( 'Sequence was created but could not be retrieved.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -1611,7 +1611,7 @@ class SequencesController extends WP_REST_Controller {
 				return new WP_Error(
 					'invalid_status_agent',
 					/* translators: %s: stage key */
-					sprintf( __( 'Stage "%s" has an agent that is not an object.', 'vip-workflow' ), $stage_key ),
+					sprintf( __( 'Stage "%s" has an agent that is not an object.', 'vip-workflows' ), $stage_key ),
 					array( 'status' => 400 )
 				);
 			}
@@ -1621,7 +1621,7 @@ class SequencesController extends WP_REST_Controller {
 				return new WP_Error(
 					'invalid_status_agent_ability',
 					/* translators: %s: stage key */
-					sprintf( __( 'Stage "%s" has an agent that requires a non-empty "ability_id".', 'vip-workflow' ), $stage_key ),
+					sprintf( __( 'Stage "%s" has an agent that requires a non-empty "ability_id".', 'vip-workflows' ), $stage_key ),
 					array( 'status' => 400 )
 				);
 			}
@@ -1635,7 +1635,7 @@ class SequencesController extends WP_REST_Controller {
 					'invalid_status_agent_ability_unknown',
 					sprintf(
 						/* translators: 1: stage key, 2: ability ID */
-						__( 'Stage "%1$s" names the agent ability "%2$s", which is not a registered stage-eligible agent.', 'vip-workflow' ),
+						__( 'Stage "%1$s" names the agent ability "%2$s", which is not a registered stage-eligible agent.', 'vip-workflows' ),
 						$stage_key,
 						$ability_id
 					),
@@ -1648,7 +1648,7 @@ class SequencesController extends WP_REST_Controller {
 				return new WP_Error(
 					'invalid_status_agent_routing',
 					/* translators: %s: stage key */
-					sprintf( __( 'Stage "%s" has an agent whose routing is not an object mapping outcomes to destination stages.', 'vip-workflow' ), $stage_key ),
+					sprintf( __( 'Stage "%s" has an agent whose routing is not an object mapping outcomes to destination stages.', 'vip-workflows' ), $stage_key ),
 					array( 'status' => 400 )
 				);
 			}
@@ -1662,7 +1662,7 @@ class SequencesController extends WP_REST_Controller {
 						'invalid_status_agent_routing_key',
 						sprintf(
 							/* translators: 1: stage key, 2: routing key */
-							__( 'Stage "%1$s" has an agent routing outcome "%2$s" that is not valid. Use "pass", "fail", or "error".', 'vip-workflow' ),
+							__( 'Stage "%1$s" has an agent routing outcome "%2$s" that is not valid. Use "pass", "fail", or "error".', 'vip-workflows' ),
 							$stage_key,
 							$outcome
 						),
@@ -1691,7 +1691,7 @@ class SequencesController extends WP_REST_Controller {
 						'invalid_status_agent_routing_target',
 						sprintf(
 							/* translators: 1: stage key, 2: outcome name, 3: target stage key */
-							__( 'Stage "%1$s" routes the agent outcome "%2$s" to "%3$s", which is not a configured transition of that stage.', 'vip-workflow' ),
+							__( 'Stage "%1$s" routes the agent outcome "%2$s" to "%3$s", which is not a configured transition of that stage.', 'vip-workflows' ),
 							$stage_key,
 							$outcome,
 							$target
@@ -1843,7 +1843,7 @@ class SequencesController extends WP_REST_Controller {
 	 * Validate assignment slot keys and the gates that point at them.
 	 *
 	 * A transition input of type `assignment` declares a slot: taking that
-	 * transition writes an assignment into `_vip_workflow_assignment_{key}` on the
+	 * transition writes an assignment into `_vip_workflows_assignment_{key}` on the
 	 * post. A transition's `requires_assignment` is a pointer at one of those
 	 * slots — the gate reads the slot back and refuses the transition to anyone
 	 * the assignment does not name.
@@ -1887,7 +1887,7 @@ class SequencesController extends WP_REST_Controller {
 							'invalid_assignment_key',
 							sprintf(
 								/* translators: %s: stage key */
-								__( 'Stage "%s" has a transition that assigns work without an assignment key. Every assignment slot needs one.', 'vip-workflow' ),
+								__( 'Stage "%s" has a transition that assigns work without an assignment key. Every assignment slot needs one.', 'vip-workflows' ),
 								$stage_key
 							),
 							array( 'status' => 400 )
@@ -1899,7 +1899,7 @@ class SequencesController extends WP_REST_Controller {
 							'duplicate_assignment_key',
 							sprintf(
 								/* translators: %s: duplicate assignment key */
-								__( 'Duplicate assignment key: "%s". Two transitions assigning the same key overwrite each other\'s assignment.', 'vip-workflow' ),
+								__( 'Duplicate assignment key: "%s". Two transitions assigning the same key overwrite each other\'s assignment.', 'vip-workflows' ),
 								$key
 							),
 							array( 'status' => 400 )
@@ -1933,7 +1933,7 @@ class SequencesController extends WP_REST_Controller {
 						'invalid_requires_assignment',
 						sprintf(
 							/* translators: %s: stage key */
-							__( 'Stage "%s" has a transition restricted to an assignee but names no assignment key, so nobody can take it.', 'vip-workflow' ),
+							__( 'Stage "%s" has a transition restricted to an assignee but names no assignment key, so nobody can take it.', 'vip-workflows' ),
 							$stage_key
 						),
 						array( 'status' => 400 )
@@ -1945,7 +1945,7 @@ class SequencesController extends WP_REST_Controller {
 						'unknown_assignment_key',
 						sprintf(
 							/* translators: 1: stage key, 2: assignment key */
-							__( 'Stage "%1$s" has a transition restricted to assignment key "%2$s", which no transition assigns. Nobody could take that transition.', 'vip-workflow' ),
+							__( 'Stage "%1$s" has a transition restricted to assignment key "%2$s", which no transition assigns. Nobody could take that transition.', 'vip-workflows' ),
 							$stage_key,
 							$referenced
 						),
@@ -1966,7 +1966,7 @@ class SequencesController extends WP_REST_Controller {
 	 * gates point at those keys by value, though, so the rename runs as one pass
 	 * that records old => new and a second that re-points every `requires_assignment`
 	 * at the same slot: renaming the slot alone leaves a gate reading
-	 * `_vip_workflow_assignment_{old_key}`, which nothing writes any more, and the
+	 * `_vip_workflows_assignment_{old_key}`, which nothing writes any more, and the
 	 * transition then fails closed for good.
 	 *
 	 * The wiring is validated before this runs ({@see validate_assignment_keys()}),
@@ -2026,7 +2026,7 @@ class SequencesController extends WP_REST_Controller {
 						esc_html(
 							sprintf(
 								/* translators: 1: stage key, 2: assignment key */
-								__( 'Stage "%1$s" has a transition restricted to assignment key "%2$s", which no transition assigns, so the gate cannot be re-pointed at the imported slot.', 'vip-workflow' ),
+								__( 'Stage "%1$s" has a transition restricted to assignment key "%2$s", which no transition assigns, so the gate cannot be re-pointed at the imported slot.', 'vip-workflows' ),
 								$this->status_key( $status ),
 								$referenced
 							)
@@ -2059,7 +2059,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! is_array( $metadata_fields ) ) {
 			return new WP_Error(
 				'invalid_metadata_fields',
-				__( 'metadata_fields must be an array.', 'vip-workflow' ),
+				__( 'metadata_fields must be an array.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -2073,7 +2073,7 @@ class SequencesController extends WP_REST_Controller {
 				return new WP_Error(
 					'invalid_metadata_field',
 					/* translators: %d: field index */
-					sprintf( __( 'metadata_fields[%d] must be an object.', 'vip-workflow' ), $index ),
+					sprintf( __( 'metadata_fields[%d] must be an object.', 'vip-workflows' ), $index ),
 					array( 'status' => 400 )
 				);
 			}
@@ -2083,7 +2083,7 @@ class SequencesController extends WP_REST_Controller {
 				return new WP_Error(
 					'invalid_metadata_field_key',
 					/* translators: %d: field index */
-					sprintf( __( 'metadata_fields[%d] key must be a non-empty string of lowercase letters, digits, and underscores.', 'vip-workflow' ), $index ),
+					sprintf( __( 'metadata_fields[%d] key must be a non-empty string of lowercase letters, digits, and underscores.', 'vip-workflows' ), $index ),
 					array( 'status' => 400 )
 				);
 			}
@@ -2092,7 +2092,7 @@ class SequencesController extends WP_REST_Controller {
 				return new WP_Error(
 					'duplicate_metadata_field_key',
 					/* translators: %s: duplicate key */
-					sprintf( __( 'Duplicate metadata field key: "%s".', 'vip-workflow' ), $key ),
+					sprintf( __( 'Duplicate metadata field key: "%s".', 'vip-workflows' ), $key ),
 					array( 'status' => 400 )
 				);
 			}
@@ -2103,7 +2103,7 @@ class SequencesController extends WP_REST_Controller {
 				return new WP_Error(
 					'invalid_metadata_field_label',
 					/* translators: %s: field key */
-					sprintf( __( 'metadata field "%s" is missing a label.', 'vip-workflow' ), $key ),
+					sprintf( __( 'metadata field "%s" is missing a label.', 'vip-workflows' ), $key ),
 					array( 'status' => 400 )
 				);
 			}
@@ -2113,7 +2113,7 @@ class SequencesController extends WP_REST_Controller {
 				return new WP_Error(
 					'invalid_metadata_field_type',
 					/* translators: %1$s: field key, %2$s: allowed types list */
-					sprintf( __( 'metadata field "%1$s" has invalid type. Allowed: %2$s.', 'vip-workflow' ), $key, implode( ', ', $allowed_types ) ),
+					sprintf( __( 'metadata field "%1$s" has invalid type. Allowed: %2$s.', 'vip-workflows' ), $key, implode( ', ', $allowed_types ) ),
 					array( 'status' => 400 )
 				);
 			}
@@ -2124,7 +2124,7 @@ class SequencesController extends WP_REST_Controller {
 					return new WP_Error(
 						'invalid_metadata_field_options',
 						/* translators: %s: field key */
-						sprintf( __( 'metadata field "%s" of type "select" requires a non-empty options array.', 'vip-workflow' ), $key ),
+						sprintf( __( 'metadata field "%s" of type "select" requires a non-empty options array.', 'vip-workflows' ), $key ),
 						array( 'status' => 400 )
 					);
 				}

@@ -26,7 +26,7 @@ export default function ProjectEditModal( { project, onSave, onClose } ) {
 
 	const handleSave = async () => {
 		if ( ! name.trim() ) {
-			setError( __( 'Project name is required.', 'vip-workflow' ) );
+			setError( __( 'Project name is required.', 'vip-workflows' ) );
 			return;
 		}
 
@@ -51,7 +51,7 @@ export default function ProjectEditModal( { project, onSave, onClose } ) {
 
 	return (
 		<Modal
-			title={ __( 'Edit Project', 'vip-workflow' ) }
+			title={ __( 'Edit Project', 'vip-workflows' ) }
 			onRequestClose={ onClose }
 			size="small"
 		>
@@ -64,7 +64,7 @@ export default function ProjectEditModal( { project, onSave, onClose } ) {
 			<TextControl
 				__next40pxDefaultSize
 				__nextHasNoMarginBottom
-				label={ __( 'Project Name', 'vip-workflow' ) }
+				label={ __( 'Project Name', 'vip-workflows' ) }
 				value={ name }
 				onChange={ setName }
 				onKeyDown={ handleKeyDown }
@@ -77,7 +77,7 @@ export default function ProjectEditModal( { project, onSave, onClose } ) {
 					onClick={ onClose }
 					disabled={ saving }
 				>
-					{ __( 'Cancel', 'vip-workflow' ) }
+					{ __( 'Cancel', 'vip-workflows' ) }
 				</Button>
 				<Button
 					variant="primary"
@@ -85,7 +85,7 @@ export default function ProjectEditModal( { project, onSave, onClose } ) {
 					isBusy={ saving }
 					disabled={ saving }
 				>
-					{ __( 'Save', 'vip-workflow' ) }
+					{ __( 'Save', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 		</Modal>

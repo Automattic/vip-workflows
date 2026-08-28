@@ -5,16 +5,16 @@
  * Searches for video content through Tavily by scoping queries to
  * video platforms (YouTube, Vimeo). Returns video URLs with thumbnails.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementFactory;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementFactory;
 use WP_Error;
 
 /**
@@ -45,7 +45,7 @@ class TavilyVideoProvider implements MediaProviderInterface, MediaProviderRequir
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'Web Videos (Tavily)', 'vip-workflow' );
+		return __( 'Web Videos (Tavily)', 'vip-workflows' );
 	}
 
 	/**

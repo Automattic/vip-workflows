@@ -61,14 +61,14 @@ import './NotificationChannelsTab.css';
 
 /**
  * The built-in Slack group, described with the same shape plugins register via
- * the `vipWorkflow.channelGroups` filter, so add/remove is one code path for
+ * the `vipWorkflows.channelGroups` filter, so add/remove is one code path for
  * every group rather than a Slack special case plus a plugin case.
  */
 const SLACK_GROUP = {
 	prefix: 'slack-',
-	label: __( 'Slack', 'vip-workflow' ),
-	addEndpoint: '/vip-workflow/v1/slack-destinations',
-	newName: __( 'Slack (New)', 'vip-workflow' ),
+	label: __( 'Slack', 'vip-workflows' ),
+	addEndpoint: '/vip-workflows/v1/slack-destinations',
+	newName: __( 'Slack (New)', 'vip-workflows' ),
 	defaultConfig: {
 		webhook_url: '',
 		bot_name: 'Workflow Bot',
@@ -88,7 +88,7 @@ const SLACK_GROUP = {
  * @return {Array} Channel groups.
  */
 function getChannelGroups() {
-	return [ SLACK_GROUP, ...applyFilters( 'vipWorkflow.channelGroups', [] ) ];
+	return [ SLACK_GROUP, ...applyFilters( 'vipWorkflows.channelGroups', [] ) ];
 }
 
 /**
@@ -115,7 +115,7 @@ export async function fetchChannelDestinations( group ) {
 				/* translators: %s: REST endpoint path. */
 				__(
 					'%s did not return a list of destinations, so the current channels are unknown. Nothing was changed.',
-					'vip-workflow'
+					'vip-workflows'
 				),
 				group.addEndpoint
 			)
@@ -140,7 +140,7 @@ function unknownResult( path ) {
 		/* translators: %s: REST endpoint path. */
 		__(
 			'%s did not return what it stored, so what is now saved is unknown.',
-			'vip-workflow'
+			'vip-workflows'
 		),
 		path
 	);
@@ -204,8 +204,8 @@ export function useNotificationSettings() {
 	const groups = getChannelGroups();
 
 	const tabs = [
-		{ name: 'channels', title: __( 'Channels', 'vip-workflow' ) },
-		{ name: 'routing', title: __( 'Routing', 'vip-workflow' ) },
+		{ name: 'channels', title: __( 'Channels', 'vip-workflows' ) },
+		{ name: 'routing', title: __( 'Routing', 'vip-workflows' ) },
 	];
 
 	// A `tab` query param selects the initial tab and `handleTabChange` writes
@@ -226,16 +226,16 @@ export function useNotificationSettings() {
 				const [ list, eventList, routingRes, debugRes ] =
 					await Promise.all( [
 						apiFetch( {
-							path: '/vip-workflow/v1/notifications/channels',
+							path: '/vip-workflows/v1/notifications/channels',
 						} ),
 						apiFetch( {
-							path: '/vip-workflow/v1/notifications/events',
+							path: '/vip-workflows/v1/notifications/events',
 						} ),
 						apiFetch( {
-							path: '/vip-workflow/v1/notification-routing',
+							path: '/vip-workflows/v1/notification-routing',
 						} ),
 						apiFetch( {
-							path: '/vip-workflow/v1/notification-debug',
+							path: '/vip-workflows/v1/notification-debug',
 						} ),
 					] );
 
@@ -251,7 +251,7 @@ export function useNotificationSettings() {
 				const results = await Promise.allSettled(
 					list.map( ( channel ) =>
 						apiFetch( {
-							path: `/vip-workflow/v1/notifications/${ channel.id }/settings`,
+							path: `/vip-workflows/v1/notifications/${ channel.id }/settings`,
 						} )
 					)
 				);
@@ -274,7 +274,7 @@ export function useNotificationSettings() {
 							/* translators: %s: comma-separated list of notification channel names. */
 							__(
 								'These channels could not be loaded and are not shown: %s',
-								'vip-workflow'
+								'vip-workflows'
 							),
 							unreadable.join( ', ' )
 						)
@@ -397,7 +397,7 @@ export function useNotificationSettings() {
 	 * @param {string} channelId Channel to save.
 	 */
 	const saveChannel = async ( channelId ) => {
-		const path = `/vip-workflow/v1/notifications/${ channelId }/settings`;
+		const path = `/vip-workflows/v1/notifications/${ channelId }/settings`;
 		const response = await apiFetch( {
 			path,
 			method: 'POST',
@@ -422,7 +422,7 @@ export function useNotificationSettings() {
 	 * Persist the event→channel map, and reseat on what was stored.
 	 */
 	const saveRouting = async () => {
-		const path = '/vip-workflow/v1/notification-routing';
+		const path = '/vip-workflows/v1/notification-routing';
 		const response = await apiFetch( {
 			path,
 			method: 'POST',
@@ -445,7 +445,7 @@ export function useNotificationSettings() {
 	 * Persist the mirror-everything settings, and reseat on what was stored.
 	 */
 	const saveDebug = async () => {
-		const path = '/vip-workflow/v1/notification-debug';
+		const path = '/vip-workflows/v1/notification-debug';
 		const response = await apiFetch( {
 			path,
 			method: 'POST',
@@ -478,7 +478,7 @@ export function useNotificationSettings() {
 				await saveRouting();
 			} catch ( err ) {
 				failures.push(
-					`${ __( 'Event routing', 'vip-workflow' ) }: ${
+					`${ __( 'Event routing', 'vip-workflows' ) }: ${
 						err.message
 					}`
 				);
@@ -490,7 +490,7 @@ export function useNotificationSettings() {
 				await saveDebug();
 			} catch ( err ) {
 				failures.push(
-					`${ __( 'Debug mode', 'vip-workflow' ) }: ${ err.message }`
+					`${ __( 'Debug mode', 'vip-workflows' ) }: ${ err.message }`
 				);
 			}
 		}
@@ -503,7 +503,7 @@ export function useNotificationSettings() {
 					/* translators: %s: semicolon-separated list of what failed and why. */
 					__(
 						'Some notification settings could not be saved: %s',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					failures.join( '; ' )
 				)
@@ -511,7 +511,7 @@ export function useNotificationSettings() {
 			return;
 		}
 
-		createSuccessNotice( __( 'Notifications saved.', 'vip-workflow' ), {
+		createSuccessNotice( __( 'Notifications saved.', 'vip-workflows' ), {
 			type: 'snackbar',
 		} );
 	};
@@ -522,14 +522,14 @@ export function useNotificationSettings() {
 
 		try {
 			await apiFetch( {
-				path: `/vip-workflow/v1/notifications/${ channelId }/test`,
+				path: `/vip-workflows/v1/notifications/${ channelId }/test`,
 				method: 'POST',
 			} );
 
 			createSuccessNotice(
 				sprintf(
 					/* translators: %s: notification channel name, e.g. "Slack". */
-					__( 'Test notification sent to %s.', 'vip-workflow' ),
+					__( 'Test notification sent to %s.', 'vip-workflows' ),
 					nameOf( channelId )
 				),
 				{ type: 'snackbar' }
@@ -538,7 +538,7 @@ export function useNotificationSettings() {
 			setError(
 				sprintf(
 					/* translators: 1: notification channel name, 2: error message. */
-					__( 'Test failed for %1$s: %2$s', 'vip-workflow' ),
+					__( 'Test failed for %1$s: %2$s', 'vip-workflows' ),
 					nameOf( channelId ),
 					err.message
 				)
@@ -555,7 +555,7 @@ export function useNotificationSettings() {
 	const addChannel = async ( group ) => {
 		const addLabel = sprintf(
 			/* translators: %s: channel group name, e.g. "Slack". */
-			__( 'Add %s', 'vip-workflow' ),
+			__( 'Add %s', 'vip-workflows' ),
 			group.label
 		);
 
@@ -564,7 +564,7 @@ export function useNotificationSettings() {
 			! ( await confirm(
 				__(
 					'Adding a channel reloads this page, which discards the unsaved changes on it. Add the channel anyway?',
-					'vip-workflow'
+					'vip-workflows'
 				),
 				{ confirmLabel: addLabel }
 			) )
@@ -590,14 +590,14 @@ export function useNotificationSettings() {
 		const message = hasUnsavedChanges
 			? __(
 					'Delete this channel? The page reloads afterwards, which discards the unsaved changes on it.',
-					'vip-workflow'
+					'vip-workflows'
 			  )
-			: __( 'Delete this channel?', 'vip-workflow' );
+			: __( 'Delete this channel?', 'vip-workflows' );
 
 		if (
 			! ( await confirm( message, {
 				isDestructive: true,
-				confirmLabel: __( 'Delete', 'vip-workflow' ),
+				confirmLabel: __( 'Delete', 'vip-workflows' ),
 			} ) )
 		) {
 			return;
@@ -619,7 +619,7 @@ export function useNotificationSettings() {
 						/* translators: %s: channel id. */
 						__(
 							'“%s” is not in this group’s destinations, so there was nothing to delete. Reload the page to see the current channels.',
-							'vip-workflow'
+							'vip-workflows'
 						),
 						channelId
 					)
@@ -721,7 +721,7 @@ export function NotificationChannelsTab( { state } ) {
 	if ( loading ) {
 		return (
 			<SettingsLoading
-				label={ __( 'Loading channels…', 'vip-workflow' ) }
+				label={ __( 'Loading channels…', 'vip-workflows' ) }
 			/>
 		);
 	}
@@ -747,7 +747,7 @@ export function NotificationChannelsTab( { state } ) {
 			) }
 
 			<Tabs.Root
-				className="vip-workflow-tabs"
+				className="vip-workflows-tabs"
 				value={ activeTab }
 				onValueChange={ handleTabChange }
 			>
@@ -764,7 +764,7 @@ export function NotificationChannelsTab( { state } ) {
 						<Text variant="body-md" render={ <p /> }>
 							{ __(
 								'No notification channels are registered yet.',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						</Text>
 					) : (
@@ -869,7 +869,7 @@ function ChannelCard( {
 				     on every card that had nothing wrong with it. */ }
 				{ ! channel.configured && (
 					<Badge intent="medium">
-						{ __( 'Setup needed', 'vip-workflow' ) }
+						{ __( 'Setup needed', 'vip-workflows' ) }
 					</Badge>
 				) }
 			</Card.Header>
@@ -893,7 +893,10 @@ function ChannelCard( {
 						     tech does not reliably reach. */ }
 						{ channel.configured && isDirty && (
 							<Text variant="body-sm">
-								{ __( 'Save to send a test.', 'vip-workflow' ) }
+								{ __(
+									'Save to send a test.',
+									'vip-workflows'
+								) }
 							</Text>
 						) }
 						{ onDelete && (
@@ -902,7 +905,7 @@ function ChannelCard( {
 								isDestructive
 								onClick={ onDelete }
 							>
-								{ __( 'Delete', 'vip-workflow' ) }
+								{ __( 'Delete', 'vip-workflows' ) }
 							</Button>
 						) }
 						{ channel.configured && (
@@ -912,7 +915,7 @@ function ChannelCard( {
 								isBusy={ testing }
 								disabled={ testing || isDirty }
 							>
-								{ __( 'Send test', 'vip-workflow' ) }
+								{ __( 'Send test', 'vip-workflows' ) }
 							</Button>
 						) }
 					</ActionRow>
@@ -925,7 +928,7 @@ function ChannelCard( {
 /**
  * Channel-specific settings fields.
  * Built-in channels (slack, email) have hardcoded UI.
- * Third-party plugins can register their UI via the 'vipWorkflow.channelSettingsComponent' filter.
+ * Third-party plugins can register their UI via the 'vipWorkflows.channelSettingsComponent' filter.
  *
  * @param {Object}   props           Component props.
  * @param {Object}   props.channel   Channel descriptor, including any settings_schema.
@@ -937,7 +940,7 @@ function ChannelCard( {
 function ChannelSettings( { channel, channelId, settings, onChange } ) {
 	// Allow plugins to provide their own settings component (full React UI).
 	const PluginComponent = applyFilters(
-		'vipWorkflow.channelSettingsComponent',
+		'vipWorkflows.channelSettingsComponent',
 		null,
 		channelId,
 		{ settings, onChange }
@@ -954,58 +957,58 @@ function ChannelSettings( { channel, channelId, settings, onChange } ) {
 				<TextControl
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
-					label={ __( 'Channel name', 'vip-workflow' ) }
+					label={ __( 'Channel name', 'vip-workflows' ) }
 					value={ settings.name || '' }
 					onChange={ ( value ) => onChange( 'name', value ) }
 					placeholder={ __(
 						'e.g., Slack (#editorial)',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					help={ __(
 						'A friendly name to identify this Slack channel',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				/>
 				<TextControl
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
-					label={ __( 'Webhook URL', 'vip-workflow' ) }
+					label={ __( 'Webhook URL', 'vip-workflows' ) }
 					value={ settings.webhook_url || '' }
 					onChange={ ( value ) => onChange( 'webhook_url', value ) }
 					placeholder={ __(
 						'https://hooks.slack.com/services/…',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					type="url"
 					help={
 						<ExternalLink href="https://api.slack.com/messaging/webhooks">
 							{ __(
 								'Create a webhook at api.slack.com',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						</ExternalLink>
 					}
 				/>
 				<Stack
-					className="vip-workflow-channel-settings__control-row"
+					className="vip-workflows-channel-settings__control-row"
 					gap="lg"
 				>
 					<TextControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Bot name', 'vip-workflow' ) }
+						label={ __( 'Bot name', 'vip-workflows' ) }
 						value={ settings.bot_name || 'Workflow Bot' }
 						onChange={ ( value ) => onChange( 'bot_name', value ) }
 					/>
 					<TextControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Bot icon', 'vip-workflow' ) }
+						label={ __( 'Bot icon', 'vip-workflows' ) }
 						value={ settings.bot_icon || ':newspaper:' }
 						onChange={ ( value ) => onChange( 'bot_icon', value ) }
 						help={ __(
 							'A Slack emoji shortcode, or an https image URL',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					/>
 				</Stack>
@@ -1019,7 +1022,7 @@ function ChannelSettings( { channel, channelId, settings, onChange } ) {
 			return (
 				<Stack direction="column" gap="sm">
 					<CheckboxControl
-						label={ __( 'Notify post author', 'vip-workflow' ) }
+						label={ __( 'Notify post author', 'vip-workflows' ) }
 						checked={ settings.notify_author ?? true }
 						onChange={ ( value ) =>
 							onChange( 'notify_author', value )
@@ -1027,7 +1030,7 @@ function ChannelSettings( { channel, channelId, settings, onChange } ) {
 						__nextHasNoMarginBottom
 					/>
 					<CheckboxControl
-						label={ __( 'Notify administrators', 'vip-workflow' ) }
+						label={ __( 'Notify administrators', 'vip-workflows' ) }
 						checked={ settings.notify_admins ?? true }
 						onChange={ ( value ) =>
 							onChange( 'notify_admins', value )
@@ -1041,13 +1044,13 @@ function ChannelSettings( { channel, channelId, settings, onChange } ) {
 					     disallowed. */ }
 					<TextareaControl
 						__nextHasNoMarginBottom
-						label={ __( 'Additional recipients', 'vip-workflow' ) }
+						label={ __( 'Additional recipients', 'vip-workflows' ) }
 						value={ settings.additional_recipients || '' }
 						onChange={ ( value ) =>
 							onChange( 'additional_recipients', value )
 						}
 						placeholder={ 'email1@example.com\nemail2@example.com' }
-						help={ __( 'One email per line', 'vip-workflow' ) }
+						help={ __( 'One email per line', 'vip-workflows' ) }
 						rows={ 3 }
 					/>
 				</Stack>
@@ -1069,7 +1072,7 @@ function ChannelSettings( { channel, channelId, settings, onChange } ) {
 				<Text variant="body-md" render={ <p /> }>
 					{ __(
 						'Configure this channel using its settings.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				</Text>
 			);

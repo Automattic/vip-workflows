@@ -6,21 +6,21 @@
  * JOIN against the real database. These paths build SQL dynamically, so they
  * are verified end-to-end against a booted WordPress + MySQL rather than mocked.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\API\AuditLogController;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Database\Schema;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\API\AuditLogController;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Database\Schema;
+use VIPWorkflows\Workflow\StatusManager;
 use WP_REST_Request;
 
 /**
- * @covers \VIPWorkflow\API\AuditLogController
+ * @covers \VIPWorkflows\API\AuditLogController
  */
 class AuditLogControllerTest extends TestCase
 {
@@ -35,7 +35,7 @@ class AuditLogControllerTest extends TestCase
 		global $wpdb;
 
 		$this->controller = new AuditLogController();
-		$this->table      = Schema::get_table_name( 'workflow_events' );
+		$this->table      = Schema::get_table_name( 'workflows_events' );
 
 		// Administrators have full audit-log access by default, so the query is
 		// not scoped to the current user's own activity.
@@ -90,7 +90,7 @@ class AuditLogControllerTest extends TestCase
 			),
 			$params
 		);
-		$request = new WP_REST_Request( 'GET', '/vip-workflow/v1/audit-log' );
+		$request = new WP_REST_Request( 'GET', '/vip-workflows/v1/audit-log' );
 		foreach ( $params as $key => $value ) {
 			$request->set_param( $key, $value );
 		}

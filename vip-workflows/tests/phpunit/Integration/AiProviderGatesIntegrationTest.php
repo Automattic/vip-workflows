@@ -5,7 +5,7 @@
  * The `workflow-agent-*` stage agents generate through `StageAgent` →
  * `AiInference`, and declared no `availability_callback` at all: they presented as
  * working on an unconfigured site and failed only once a post reached their
- * stage. They were already registered through `vip_workflow_register_ability()`,
+ * stage. They were already registered through `vip_workflows_register_ability()`,
  * so the declaration is read — this file proves that end to end, against core's
  * real `WP_Ability`, which the unit suite does not have.
  *
@@ -23,19 +23,19 @@
  * follow the provider selection. Without a test that distinction is one refactor
  * away from being "tidied up" into a bug.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\AI\AiInference;
-use VIPWorkflow\AI\CredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Abilities\Ability;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Ideation\Assistants\AiImageProvider;
+use VIPWorkflows\AI\AiInference;
+use VIPWorkflows\AI\CredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Abilities\Ability;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Ideation\Assistants\AiImageProvider;
 
 class AiProviderGatesIntegrationTest extends TestCase
 {
@@ -62,7 +62,7 @@ class AiProviderGatesIntegrationTest extends TestCase
         parent::set_up();
 
         $this->assertFalse(
-            defined( 'VIP_WORKFLOW_OPENAI_KEY' ),
+            defined( 'VIP_WORKFLOWS_OPENAI_KEY' ),
             'A defined key constant outranks every backend, so it would make the unmet cases unreachable.'
         );
 
@@ -72,8 +72,8 @@ class AiProviderGatesIntegrationTest extends TestCase
     public function tear_down(): void
     {
         Credentials::get_instance()->set_backend( null );
-        delete_option( 'vip_workflow_ai_provider' );
-        delete_option( 'vip_workflow_ai_models' );
+        delete_option( 'vip_workflows_ai_provider' );
+        delete_option( 'vip_workflows_ai_models' );
 
         parent::tear_down();
     }
@@ -111,13 +111,13 @@ class AiProviderGatesIntegrationTest extends TestCase
      */
     private function select_provider( string $provider ): void
     {
-        update_option( 'vip_workflow_ai_provider', $provider );
+        update_option( 'vip_workflows_ai_provider', $provider );
     }
 
     /**
      * The registered ability for a stage agent, registering it on first use.
      *
-     * `vip_workflow_register_ability()` only functions while
+     * `vip_workflows_register_ability()` only functions while
      * `wp_abilities_api_init` is running, so the hook is fired again with other
      * listeners detached — WP_UnitTestCase restores `$wp_filter` afterwards.
      * Registration is global and outlives the test, hence the guard.
@@ -203,7 +203,7 @@ class AiProviderGatesIntegrationTest extends TestCase
 
     /**
      * The exact shape of the report: one credential, and the provider picker never
-     * opened, so `vip_workflow_ai_provider` — which only that picker writes — is
+     * opened, so `vip_workflows_ai_provider` — which only that picker writes — is
      * unset. Every agent used to answer for OpenAI here regardless of which vendor
      * the site had connected. It must now answer for the one it has.
      *
@@ -305,7 +305,7 @@ class AiProviderGatesIntegrationTest extends TestCase
      */
     public function test_every_unmet_state_resolves_no_model(): void
     {
-        $this->setExpectedIncorrectUsage( 'VIPWorkflow\AI\AiInference::model' );
+        $this->setExpectedIncorrectUsage( 'VIPWorkflows\AI\AiInference::model' );
 
         $agent = $this->agent( 'workflow-agent-copy-edit/copy-edit' );
 
@@ -317,7 +317,7 @@ class AiProviderGatesIntegrationTest extends TestCase
 
         foreach ( $fixtures as $name => $keys ) {
             $this->use_backend( $keys );
-            delete_option( 'vip_workflow_ai_models' );
+            delete_option( 'vip_workflows_ai_models' );
 
             $this->assertFalse(
                 $agent->is_available(),
@@ -440,7 +440,7 @@ class AiProviderGatesIntegrationTest extends TestCase
         $this->select_provider( 'anthropic' );
         $this->use_backend( array( 'openai' => 'sk-integration-test' ) );
 
-        delete_option( 'vip_workflow_ai_models' );
+        delete_option( 'vip_workflows_ai_models' );
 
         $this->assertTrue(
             ( new AiImageProvider() )->is_configured(),

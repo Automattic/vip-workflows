@@ -22,7 +22,7 @@
 import { Stack } from '@wordpress/ui';
 
 export function ActionRow( { children, stretch = false, className } ) {
-	const classNames = [ 'vip-workflow-action-row', className ]
+	const classNames = [ 'vip-workflows-action-row', className ]
 		.filter( Boolean )
 		.join( ' ' );
 

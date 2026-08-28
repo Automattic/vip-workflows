@@ -3,19 +3,19 @@
  * Quick Edit / Bulk Edit inline-script tests, including the
  * workflow side-effect guard).
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Admin\AdminStyles;
-use VIPWorkflow\Admin\PostsColumns;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Admin\AdminStyles;
+use VIPWorkflows\Admin\PostsColumns;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * The list-table surfaces of the workflow guard.
@@ -86,14 +86,14 @@ class PostsColumnsQuickEditScriptTest extends TestCase
 
         // The shared decision module is enqueued from the plugin's build
         // directory, so the entrypoint constants have to exist.
-        if ( ! defined( 'VIP_WORKFLOW_PLUGIN_URL' ) ) {
-            define( 'VIP_WORKFLOW_PLUGIN_URL', 'https://example.test/wp-content/plugins/vip-workflows/' );
+        if ( ! defined( 'VIP_WORKFLOWS_PLUGIN_URL' ) ) {
+            define( 'VIP_WORKFLOWS_PLUGIN_URL', 'https://example.test/wp-content/plugins/vip-workflows/' );
         }
-        if ( ! defined( 'VIP_WORKFLOW_PLUGIN_DIR' ) ) {
-            define( 'VIP_WORKFLOW_PLUGIN_DIR', self::build_fixture_dir() );
+        if ( ! defined( 'VIP_WORKFLOWS_PLUGIN_DIR' ) ) {
+            define( 'VIP_WORKFLOWS_PLUGIN_DIR', self::build_fixture_dir() );
         }
-        if ( ! defined( 'VIP_WORKFLOW_VERSION' ) ) {
-            define( 'VIP_WORKFLOW_VERSION', '0.0.1' );
+        if ( ! defined( 'VIP_WORKFLOWS_VERSION' ) ) {
+            define( 'VIP_WORKFLOWS_VERSION', '0.0.1' );
         }
 
         $this->enqueued_scripts   = array();
@@ -108,7 +108,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
         );
         Functions\when( 'wp_style_add_data' )->justReturn( true );
         Functions\when( 'wp_create_nonce' )->justReturn( 'nonce' );
-        Functions\when( 'rest_url' )->justReturn( 'http://example.test/wp-json/vip-workflow/v1' );
+        Functions\when( 'rest_url' )->justReturn( 'http://example.test/wp-json/vip-workflows/v1' );
         Functions\when( 'get_current_user_id' )->justReturn( 0 );
         Functions\when( 'wp_enqueue_script' )->alias(
             function ( ...$args ) {
@@ -184,8 +184,8 @@ class PostsColumnsQuickEditScriptTest extends TestCase
      */
     private function with_status_manager( object $status_manager, callable $callback )
     {
-        $plugin   = \VIPWorkflow\Plugin::get_instance();
-        $property = new \ReflectionProperty( \VIPWorkflow\Plugin::class, 'status_manager' );
+        $plugin   = \VIPWorkflows\Plugin::get_instance();
+        $property = new \ReflectionProperty( \VIPWorkflows\Plugin::class, 'status_manager' );
         $previous = $property->getValue( $plugin );
         $property->setValue( $plugin, $status_manager );
 
@@ -258,7 +258,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
         $this->assertStringContainsString( 'labelSpan.textContent', $script );
         // The status label/color no longer flow into an innerHTML string.
         $this->assertStringNotContainsString(
-            'currentEl.innerHTML = \'<span class="vip-workflow-quick-edit__dot"',
+            'currentEl.innerHTML = \'<span class="vip-workflows-quick-edit__dot"',
             $script
         );
     }
@@ -299,7 +299,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
             }
         }
 
-        $this->assertSame( VIP_WORKFLOW_PLUGIN_URL . 'build/classic-admin.css', $classic[1] );
+        $this->assertSame( VIP_WORKFLOWS_PLUGIN_URL . 'build/classic-admin.css', $classic[1] );
 
         // Every value in that stylesheet is a --wpds-* token, and nothing else on
         // this screen declares them.
@@ -346,7 +346,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
     {
         $markup = $this->render_column_for_stage( 'review' );
 
-        $this->assertStringContainsString( 'class="vip-workflow-data"', $markup );
+        $this->assertStringContainsString( 'class="vip-workflows-data"', $markup );
         $this->assertStringContainsString( 'data-workflow="1"', $markup );
         $this->assertStringContainsString( 'data-stage-region="pending"', $markup );
         // The veto copy names the workflow, so the row carries its name too.
@@ -362,11 +362,11 @@ class PostsColumnsQuickEditScriptTest extends TestCase
     {
         $markup = $this->render_column_for_stage( 'review' );
 
-        $this->assertStringContainsString( 'class="vip-workflow-column__dot"', $markup );
-        $this->assertStringContainsString( '--vip-workflow-stage-color: #222222', $markup );
+        $this->assertStringContainsString( 'class="vip-workflows-column__dot"', $markup );
+        $this->assertStringContainsString( '--vip-workflows-stage-color: #222222', $markup );
         // The label is addressable by class because the Quick Edit script
         // rewrites it after a transition.
-        $this->assertStringContainsString( 'class="vip-workflow-column__label"', $markup );
+        $this->assertStringContainsString( 'class="vip-workflows-column__label"', $markup );
 
         $this->assertStringNotContainsString( 'display:inline-flex', $markup );
         $this->assertStringNotContainsString( 'border-radius', $markup );
@@ -380,7 +380,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
     {
         $markup = $this->render_column_for_stage( 'published', 'publish' );
 
-        $this->assertStringContainsString( '<span class="vip-workflow-column__live">', $markup );
+        $this->assertStringContainsString( '<span class="vip-workflows-column__live">', $markup );
         $this->assertStringNotContainsString( '#00a32a', $markup );
     }
 
@@ -588,7 +588,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
     {
         $script = $this->capture_script();
 
-        $this->assertStringContainsString( 'window.vipWorkflowSideEffect', $script );
+        $this->assertStringContainsString( 'window.vipWorkflowsSideEffect', $script );
         $this->assertStringContainsString( 'api.evaluateStatusChange(', $script );
         $this->assertStringContainsString( 'api.getPublishVetoMessage(', $script );
         $this->assertStringContainsString( 'api.getStatusChangeWarning(', $script );
@@ -721,15 +721,15 @@ class PostsColumnsQuickEditScriptTest extends TestCase
 
         $side_effect = null;
         foreach ( $this->enqueued_scripts as $args ) {
-            if ( 'vip-workflow-side-effect' === $args[0] ) {
+            if ( 'vip-workflows-side-effect' === $args[0] ) {
                 $side_effect = $args;
             }
         }
 
         $this->assertNotNull( $side_effect, 'The shared decision module was never enqueued.' );
-        $this->assertSame( VIP_WORKFLOW_PLUGIN_URL . 'build/side-effect.js', $side_effect[1] );
+        $this->assertSame( VIP_WORKFLOWS_PLUGIN_URL . 'build/side-effect.js', $side_effect[1] );
         $this->assertSame( array( 'wp-i18n' ), $side_effect[2] );
         $this->assertSame( 'manifest-version', $side_effect[3] );
-        $this->assertContains( 'vip-workflow-side-effect', $this->translated_handles );
+        $this->assertContains( 'vip-workflows-side-effect', $this->translated_handles );
     }
 }

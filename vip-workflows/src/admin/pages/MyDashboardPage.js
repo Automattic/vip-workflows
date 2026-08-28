@@ -17,8 +17,8 @@ import './MyDashboardPage.css';
 
 export function MyDashboardPage() {
 	const canEditOthersPosts =
-		!! window.vipWorkflowAdmin?.currentUser?.canManage;
-	const ideationEnabled = !! window.vipWorkflowAdmin?.experiments?.ideation;
+		!! window.vipWorkflowsAdmin?.currentUser?.canManage;
+	const ideationEnabled = !! window.vipWorkflowsAdmin?.experiments?.ideation;
 	const [ counts, setCounts ] = useState( {} );
 
 	useEffect( () => {
@@ -48,15 +48,15 @@ export function MyDashboardPage() {
 			}
 		};
 
-		fetchCount( 'my-work', '/vip-workflow/v1/workflow/my-work' );
+		fetchCount( 'my-work', '/vip-workflows/v1/workflow/my-work' );
 		if ( ideationEnabled ) {
 			fetchCount(
 				'my-ideation',
-				'/vip-workflow/v1/ideation?per_page=50&author=me'
+				'/vip-workflows/v1/ideation?per_page=50&author=me'
 			);
 		}
 		if ( canEditOthersPosts ) {
-			fetchCount( 'my-queue', '/vip-workflow/v1/workflow/my-queue' );
+			fetchCount( 'my-queue', '/vip-workflows/v1/workflow/my-queue' );
 		}
 	}, [ canEditOthersPosts, ideationEnabled ] );
 
@@ -74,18 +74,18 @@ export function MyDashboardPage() {
 			{
 				name: 'my-work',
 				title: formatTitle(
-					__( 'My Work', 'vip-workflow' ),
+					__( 'My Work', 'vip-workflows' ),
 					'my-work'
 				),
 			},
 		];
 
-		// My Ideation is a vip-workflow-ideation-owned surface.
+		// My Ideation is a vip-workflows-ideation-owned surface.
 		if ( ideationEnabled ) {
 			baseTabs.push( {
 				name: 'my-ideation',
 				title: formatTitle(
-					__( 'My Ideation', 'vip-workflow' ),
+					__( 'My Ideation', 'vip-workflows' ),
 					'my-ideation'
 				),
 			} );
@@ -96,7 +96,7 @@ export function MyDashboardPage() {
 			baseTabs.push( {
 				name: 'my-queue',
 				title: formatTitle(
-					__( 'My Queue', 'vip-workflow' ),
+					__( 'My Queue', 'vip-workflows' ),
 					'my-queue'
 				),
 			} );
@@ -141,9 +141,9 @@ export function MyDashboardPage() {
 	}, [ validTabNames ] );
 
 	return (
-		<div className="vip-workflow-ideation-dashboard">
+		<div className="vip-workflows-ideation-dashboard">
 			<Tabs.Root
-				className="vip-workflow-tabs"
+				className="vip-workflows-tabs"
 				value={ activeTab }
 				onValueChange={ setActiveTab }
 			>

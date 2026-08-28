@@ -25,11 +25,11 @@ add_action( 'wp_abilities_api_init', __NAMESPACE__ . '\register' );
  * Register the Wikipedia assistant ability.
  */
 function register(): void {
-	if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+	if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
 		return;
 	}
 
-	vip_workflow_register_ability(
+	vip_workflows_register_ability(
 		'workflow-assistant-wikipedia/wikipedia',
 		array(
 			'label'               => __( 'Wikipedia', 'workflow-assistant-wikipedia' ),

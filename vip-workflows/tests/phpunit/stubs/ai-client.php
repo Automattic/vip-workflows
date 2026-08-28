@@ -6,7 +6,7 @@
  * regardless of file load order. Tests drive behavior through the public
  * static properties (e.g. AiClient::$generatedText, AiClient::$throwMessage).
  *
- * @package VIPWorkflow\Tests
+ * @package VIPWorkflows\Tests
  */
 
 declare( strict_types=1 );

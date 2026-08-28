@@ -2,16 +2,16 @@
 /**
  * Source Processing Job - Async processing of uploaded ideation sources.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Research;
+namespace VIPWorkflows\Ideation\Research;
 
-use VIPWorkflow\Integrations\Markdown;
-use VIPWorkflow\Integrations\MediaProcessor;
-use VIPWorkflow\ModuleInterface;
+use VIPWorkflows\Integrations\Markdown;
+use VIPWorkflows\Integrations\MediaProcessor;
+use VIPWorkflows\ModuleInterface;
 
 /**
  * Handles async processing of uploaded ideation sources.
@@ -32,7 +32,7 @@ class SourceProcessingJob implements ModuleInterface {
 	 * Initialize the job handler.
 	 */
 	public function init(): void {
-		add_action( 'vip_workflow_process_source', array( $this, 'process' ), 10, 2 );
+		add_action( 'vip_workflows_process_source', array( $this, 'process' ), 10, 2 );
 	}
 
 	/**
@@ -81,7 +81,7 @@ class SourceProcessingJob implements ModuleInterface {
 		$file_path     = get_attached_file( $attachment_id );
 
 		if ( ! $file_path || ! file_exists( $file_path ) ) {
-			$this->mark_error( $project_id, $source_id, __( 'File not found.', 'vip-workflow' ) );
+			$this->mark_error( $project_id, $source_id, __( 'File not found.', 'vip-workflows' ) );
 			return;
 		}
 
@@ -93,14 +93,14 @@ class SourceProcessingJob implements ModuleInterface {
 			$result = $processor->process_file( $file_path, $mime_type );
 		} catch ( \Exception $e ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging.
-			error_log( '[VIP Workflow] Source processing exception: ' . $e->getMessage() );
+			error_log( '[VIP Workflows] Source processing exception: ' . $e->getMessage() );
 			$this->mark_error( $project_id, $source_id, $e->getMessage() );
 			return;
 		}
 
 		if ( is_wp_error( $result ) ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging.
-			error_log( '[VIP Workflow] Source processing error: ' . $result->get_error_message() );
+			error_log( '[VIP Workflows] Source processing error: ' . $result->get_error_message() );
 			$this->mark_error( $project_id, $source_id, $result->get_error_message() );
 			return;
 		}
@@ -151,7 +151,7 @@ class SourceProcessingJob implements ModuleInterface {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging.
 			error_log(
 				sprintf(
-					'[VIP Workflow] Failed to update source %s for project %d: %s',
+					'[VIP Workflows] Failed to update source %s for project %d: %s',
 					$source_id,
 					$project_id,
 					$wpdb->last_error
@@ -166,7 +166,7 @@ class SourceProcessingJob implements ModuleInterface {
 		 * @param string $source_id  Source ID.
 		 * @param array  $result     Processing result.
 		 */
-		do_action( 'vip_workflow_source_processed', $project_id, $source_id, $result );
+		do_action( 'vip_workflows_source_processed', $project_id, $source_id, $result );
 	}
 
 	/**

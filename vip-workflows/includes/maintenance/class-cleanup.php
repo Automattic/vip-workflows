@@ -2,15 +2,15 @@
 /**
  * Scheduled data cleanup.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Maintenance;
+namespace VIPWorkflows\Maintenance;
 
-use VIPWorkflow\Database\Schema;
-use VIPWorkflow\ModuleInterface;
+use VIPWorkflows\Database\Schema;
+use VIPWorkflows\ModuleInterface;
 
 /**
  * Prunes the two tables that grow without bound.
@@ -34,12 +34,12 @@ class Cleanup implements ModuleInterface {
 	/**
 	 * Action Scheduler hook this runs on.
 	 */
-	public const HOOK = 'vip_workflow_cleanup';
+	public const HOOK = 'vip_workflows_cleanup';
 
 	/**
 	 * Action Scheduler group, so the plugin's actions are identifiable.
 	 */
-	private const GROUP = 'vip-workflow';
+	private const GROUP = 'vip-workflows';
 
 	/**
 	 * The event type a run records in the audit log.
@@ -72,8 +72,8 @@ class Cleanup implements ModuleInterface {
 		add_action( self::HOOK, array( $this, 'run' ) );
 
 		add_action( 'admin_init', array( $this, 'schedule' ) );
-		add_action( 'vip_workflow_activated', array( $this, 'schedule' ) );
-		add_action( 'vip_workflow_deactivated', array( $this, 'unschedule' ) );
+		add_action( 'vip_workflows_activated', array( $this, 'schedule' ) );
+		add_action( 'vip_workflows_deactivated', array( $this, 'unschedule' ) );
 	}
 
 	/**
@@ -125,7 +125,7 @@ class Cleanup implements ModuleInterface {
 		$events = $wpdb->query(
 			$wpdb->prepare(
 				'DELETE FROM %i WHERE created_at < %s',
-				Schema::get_table_name( 'workflow_events' ),
+				Schema::get_table_name( 'workflows_events' ),
 				wp_date( 'Y-m-d H:i:s', strtotime( self::EVENT_RETENTION ) )
 			)
 		);
@@ -157,7 +157,7 @@ class Cleanup implements ModuleInterface {
 		global $wpdb;
 
 		$wpdb->insert(
-			Schema::get_table_name( 'workflow_events' ),
+			Schema::get_table_name( 'workflows_events' ),
 			array(
 				'post_id'    => null,
 				'event_type' => self::EVENT_TYPE,

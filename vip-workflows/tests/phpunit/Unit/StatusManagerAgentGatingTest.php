@@ -2,20 +2,20 @@
 /**
  * StatusManager agent-gating unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\PostTypeManager;
-use VIPWorkflow\Workflow\StageAgentRunner;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\PostTypeManager;
+use VIPWorkflows\Workflow\StageAgentRunner;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Tests for StatusManager::has_pending_agent_job() and its consumers.
@@ -193,10 +193,10 @@ class StatusManagerAgentGatingTest extends TestCase
         Functions\when( 'get_post' )->justReturn( $this->create_mock_post( array( 'ID' => 42 ) ) );
         Functions\when( 'get_post_meta' )->alias(
             function ( $post_id, $key, $single = false ) use ( $job ) {
-                if ( '_vip_workflow_sequence_id' === $key ) {
+                if ( '_vip_workflows_sequence_id' === $key ) {
                     return 7;
                 }
-                if ( '_vip_workflow_current_stage_key' === $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
                     return 'ai_desk';
                 }
                 if ( StageAgentRunner::JOB_META === $key ) {

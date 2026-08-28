@@ -4,12 +4,12 @@
  *
  * Contract that all search providers must implement.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Research\SearchProviders;
+namespace VIPWorkflows\Ideation\Research\SearchProviders;
 
 /**
  * Interface for search providers.

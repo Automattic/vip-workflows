@@ -32,7 +32,7 @@ const FIELD_SELECTORS = {
  * Class carrying the animation. Defined in editor/style.css, where the
  * `prefers-reduced-motion` opt-out lives with it.
  */
-const SETTLE_CLASS = 'vip-workflow-field--settling';
+const SETTLE_CLASS = 'vip-workflows-field--settling';
 
 /**
  * Roughly the animation's duration. Slightly longer, so the class is removed

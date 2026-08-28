@@ -4,37 +4,37 @@
 
 /* Story Discovery */
 
-.vip-workflow-ideation-discovery {
+.vip-workflows-ideation-discovery {
 	margin-top: 48px; /* wpds-allow R3 -- top offset separating discovery from the seed input above; no parent Stack owns this gap */
 }
 
-.vip-workflow-ideation-discovery--loading {
+.vip-workflows-ideation-discovery--loading {
 	min-height: 60px;
 }
 
-.vip-workflow-ideation-discovery__skeleton {
+.vip-workflows-ideation-discovery__skeleton {
 	height: 48px;
 	background: linear-gradient(90deg, var(--wpds-color-background-surface-neutral-weak) 25%, var(--wpds-color-background-interactive-neutral-weak-active) 50%, var(--wpds-color-background-surface-neutral-weak) 75%);
 	background-size: 200% 100%;
-	animation: vip-workflow-ideation-shimmer 1.5s ease-in-out infinite;
+	animation: vip-workflows-ideation-shimmer 1.5s ease-in-out infinite;
 	border-radius: var(--wpds-border-radius-md);
 }
 
-.vip-workflow-ideation-discovery__browse-more {
-	font: var(--vip-workflow-text-body-md); /* wpds-allow R6 -- explicit body-md sizing for the link button */
+.vip-workflows-ideation-discovery__browse-more {
+	font: var(--vip-workflows-text-body-md); /* wpds-allow R6 -- explicit body-md sizing for the link button */
 }
 
-.vip-workflow-ideation-discovery__grid {
+.vip-workflows-ideation-discovery__grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 	gap: var(--wpds-dimension-gap-md);
 }
 
-.vip-workflow-ideation-discovery__show-more-wrap {
+.vip-workflows-ideation-discovery__show-more-wrap {
 	text-align: center;
 }
 
-.vip-workflow-ideation-discovery__card {
+.vip-workflows-ideation-discovery__card {
 	display: flex;
 	flex-direction: column;
 	gap: var(--wpds-dimension-gap-xs);
@@ -48,33 +48,33 @@
 	height: auto;
 }
 
-.vip-workflow-ideation-discovery__card:hover {
+.vip-workflows-ideation-discovery__card:hover {
 	border-color: var(--wpds-color-stroke-interactive-brand); /* wpds-allow R6 -- card hover affordance; Button has no hover-border prop */
-	box-shadow: var(--vip-workflow-elevation-sm); /* wpds-allow R6 -- card hover elevation; Button has no hover-shadow prop */
+	box-shadow: var(--vip-workflows-elevation-sm); /* wpds-allow R6 -- card hover elevation; Button has no hover-shadow prop */
 }
 
-.vip-workflow-ideation-discovery__card:disabled {
+.vip-workflows-ideation-discovery__card:disabled {
 	opacity: 0.6; /* wpds-allow R6 -- custom disabled dimming for card button */
 	cursor: default;
 }
 
-.vip-workflow-ideation-discovery__card-loading {
+.vip-workflows-ideation-discovery__card-loading {
 	position: absolute;
 	inset: 0; /* wpds-allow R2 -- zero needs no token */
 	display: flex; /* wpds-allow R4 -- absolute loading-overlay imposter; flex-centers its spinner */
 	align-items: center; /* wpds-allow R4 -- absolute loading-overlay imposter; flex-centers its spinner */
 	justify-content: center; /* wpds-allow R4 -- absolute loading-overlay imposter; flex-centers its spinner */
-	background: color-mix(in srgb, var(--vip-workflow-color-bg-frosted) 80%, transparent);
+	background: color-mix(in srgb, var(--vip-workflows-color-bg-frosted) 80%, transparent);
 	border-radius: var(--wpds-border-radius-md);
 	z-index: 1;
 }
 
-.vip-workflow-ideation-discovery__card-header {
+.vip-workflows-ideation-discovery__card-header {
 	width: 100%;
 }
 
-.vip-workflow-ideation-discovery__card-title {
-	font: var(--vip-workflow-text-heading-md);
+.vip-workflows-ideation-discovery__card-title {
+	font: var(--vip-workflows-text-heading-md);
 	color: var(--wpds-color-foreground-content-neutral);
 	display: -webkit-box;
 	-webkit-line-clamp: 3;
@@ -82,8 +82,8 @@
 	overflow: hidden;
 }
 
-.vip-workflow-ideation-discovery__card-description {
-	font: var(--vip-workflow-text-body-sm);
+.vip-workflows-ideation-discovery__card-description {
+	font: var(--vip-workflows-text-body-sm);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	display: -webkit-box;
 	-webkit-line-clamp: 2;
@@ -91,11 +91,11 @@
 	overflow: hidden;
 }
 
-.vip-workflow-ideation-discovery__card-date {
-	font: var(--vip-workflow-text-body-sm);
+.vip-workflows-ideation-discovery__card-date {
+	font: var(--vip-workflows-text-body-sm);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
-.vip-workflow-ideation-discovery__card-tags {
-	font: var(--vip-workflow-text-body-sm);
+.vip-workflows-ideation-discovery__card-tags {
+	font: var(--vip-workflows-text-body-sm);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }

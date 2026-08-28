@@ -2,15 +2,15 @@
 /**
  * PromptSettings unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\PromptSettings;
+use VIPWorkflows\AI\PromptSettings;
 
 class PromptSettingsTest extends TestCase
 {
@@ -38,13 +38,13 @@ class PromptSettingsTest extends TestCase
 
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                return 'vip_workflow_prompts' === $option ? $this->stored : $default;
+                return 'vip_workflows_prompts' === $option ? $this->stored : $default;
             }
         );
         Functions\when( 'update_option' )->alias(
             function ( string $option, $value, $autoload = null ) {
                 $this->update_calls[] = array( $option, $value, $autoload );
-                if ( 'vip_workflow_prompts' === $option && $this->update_result ) {
+                if ( 'vip_workflows_prompts' === $option && $this->update_result ) {
                     $this->stored = $value;
                 }
                 return $this->update_result;
@@ -106,7 +106,7 @@ class PromptSettingsTest extends TestCase
         // App stays usable: corruption is surfaced (hook) but resolves to an
         // empty override set rather than fataling.
         $this->assertSame( array(), PromptSettings::get_instance()->get_all() );
-        $this->assertContains( 'vip_workflow_prompts_option_corrupted', $fired );
+        $this->assertContains( 'vip_workflows_prompts_option_corrupted', $fired );
     }
 
     public function test_set_override_returns_false_when_persist_fails(): void
@@ -138,7 +138,7 @@ class PromptSettingsTest extends TestCase
 
         $this->assertNotEmpty( $this->update_calls );
         $last = end( $this->update_calls );
-        $this->assertSame( 'vip_workflow_prompts', $last[0] );
+        $this->assertSame( 'vip_workflows_prompts', $last[0] );
         $this->assertFalse( $last[2], 'Expected autoload disabled (false) on the option write.' );
     }
 }

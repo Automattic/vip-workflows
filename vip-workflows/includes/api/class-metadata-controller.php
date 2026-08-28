@@ -2,15 +2,15 @@
 /**
  * Metadata REST API controller.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -73,12 +73,12 @@ class MetadataController extends WP_REST_Controller {
 		if ( ! $post ) {
 			return new WP_Error(
 				'rest_post_not_found',
-				__( 'Post not found.', 'vip-workflow' ),
+				__( 'Post not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
 
-		$sequence_id = get_post_meta( $post_id, '_vip_workflow_sequence_id', true );
+		$sequence_id = get_post_meta( $post_id, '_vip_workflows_sequence_id', true );
 
 		if ( ! $sequence_id ) {
 			return new WP_REST_Response( array( 'fields' => array() ) );

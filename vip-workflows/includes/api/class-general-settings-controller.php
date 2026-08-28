@@ -2,16 +2,16 @@
 /**
  * General Settings REST Controller.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Admin\Settings;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\AI\AiModels;
+use VIPWorkflows\Admin\Settings;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\AI\AiModels;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -27,7 +27,7 @@ class GeneralSettingsController extends WP_REST_Controller {
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->namespace = 'vip-workflow/v1';
+		$this->namespace = 'vip-workflows/v1';
 		$this->rest_base = 'settings/general';
 	}
 
@@ -147,7 +147,7 @@ class GeneralSettingsController extends WP_REST_Controller {
 		}
 
 		// General AI provider + model live in their own options (read by
-		// Credentials::provider()/model()), not in vip_workflow_settings.
+		// Credentials::provider()/model()), not in vip_workflows_settings.
 		// Resolve the target provider from this request first so the model is
 		// validated against the provider being saved.
 		$ai_provider     = Credentials::get_instance()->provider();
@@ -156,7 +156,7 @@ class GeneralSettingsController extends WP_REST_Controller {
 
 		if ( $provider_taken ) {
 			$ai_provider = (string) $input['ai_provider'];
-			update_option( 'vip_workflow_ai_provider', $ai_provider );
+			update_option( 'vip_workflows_ai_provider', $ai_provider );
 		}
 
 		/*
@@ -172,15 +172,15 @@ class GeneralSettingsController extends WP_REST_Controller {
 		$model_targets_this_provider = ! $provider_posted || $provider_taken;
 
 		if ( $model_targets_this_provider && '' !== $ai_provider && isset( $input['ai_model'] ) && AiModels::is_valid( $ai_provider, (string) $input['ai_model'] ) ) {
-			$ai_models = get_option( 'vip_workflow_ai_models', array() );
+			$ai_models = get_option( 'vip_workflows_ai_models', array() );
 			if ( ! is_array( $ai_models ) ) {
 				$ai_models = array();
 			}
 			$ai_models[ $ai_provider ] = (string) $input['ai_model'];
-			update_option( 'vip_workflow_ai_models', $ai_models );
+			update_option( 'vip_workflows_ai_models', $ai_models );
 		}
 
-		update_option( 'vip_workflow_settings', $settings );
+		update_option( 'vip_workflows_settings', $settings );
 
 		return $this->get_settings();
 	}

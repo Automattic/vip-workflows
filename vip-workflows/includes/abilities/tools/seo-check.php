@@ -2,12 +2,12 @@
 /**
  * SEO Check ability - WordPress Abilities API compatible.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the SEO check.
@@ -41,7 +41,7 @@ function execute_seo_check( ?array $input = null ) {
 	if ( empty( $content ) ) {
 		return new \WP_Error(
 			'no_content',
-			__( 'No content to analyze.', 'vip-workflow' )
+			__( 'No content to analyze.', 'vip-workflows' )
 		);
 	}
 
@@ -56,7 +56,7 @@ function execute_seo_check( ?array $input = null ) {
 
 	$analysis['word_count'] = $word_count;
 
-	$settings = \VIPWorkflow\Abilities\AbilitySettings::get_instance()->get_options( 'vip-workflow/seo-check' );
+	$settings = \VIPWorkflows\Abilities\AbilitySettings::get_instance()->get_options( 'vip-workflows/seo-check' );
 
 	// Check 1: Content length.
 	$min_words = $settings['min_words'] ?? 300;
@@ -67,7 +67,7 @@ function execute_seo_check( ?array $input = null ) {
 			'check_key' => 'min_words',
 			'message'   => sprintf(
 			/* translators: 1: Current word count, 2: Minimum word count */
-				__( 'Content is short (%1$d words). Aim for at least %2$d words for better SEO.', 'vip-workflow' ),
+				__( 'Content is short (%1$d words). Aim for at least %2$d words for better SEO.', 'vip-workflows' ),
 				$word_count,
 				$min_words
 			),
@@ -75,7 +75,7 @@ function execute_seo_check( ?array $input = null ) {
 		);
 		$suggestions[] = array(
 			'type'    => 'add_content',
-			'message' => __( 'Expand the content with more details, examples, or related information.', 'vip-workflow' ),
+			'message' => __( 'Expand the content with more details, examples, or related information.', 'vip-workflows' ),
 		);
 	}
 
@@ -87,14 +87,14 @@ function execute_seo_check( ?array $input = null ) {
 		$score   -= 10;
 		$issues[] = array(
 			'type'     => 'title_short',
-			'message'  => __( 'Title is too short. Aim for 50-60 characters.', 'vip-workflow' ),
+			'message'  => __( 'Title is too short. Aim for 50-60 characters.', 'vip-workflows' ),
 			'severity' => 'warning',
 		);
 	} elseif ( $title_length > 60 ) {
 		$score   -= 5;
 		$issues[] = array(
 			'type'     => 'title_long',
-			'message'  => __( 'Title may be truncated in search results (over 60 characters).', 'vip-workflow' ),
+			'message'  => __( 'Title may be truncated in search results (over 60 characters).', 'vip-workflows' ),
 			'severity' => 'info',
 		);
 	}
@@ -108,12 +108,12 @@ function execute_seo_check( ?array $input = null ) {
 		$score   -= 10;
 		$issues[] = array(
 			'type'     => 'no_headings',
-			'message'  => __( 'No headings found. Use H2-H4 tags to structure content.', 'vip-workflow' ),
+			'message'  => __( 'No headings found. Use H2-H4 tags to structure content.', 'vip-workflows' ),
 			'severity' => 'warning',
 		);
 		$suggestions[] = array(
 			'type'    => 'add_headings',
-			'message' => __( 'Break up content with descriptive headings (H2, H3).', 'vip-workflow' ),
+			'message' => __( 'Break up content with descriptive headings (H2, H3).', 'vip-workflows' ),
 		);
 	}
 
@@ -137,7 +137,7 @@ function execute_seo_check( ?array $input = null ) {
 		$issues[] = array(
 			'type'      => 'no_images',
 			'check_key' => 'min_images',
-			'message'   => __( 'No images found. Adding relevant images can improve engagement.', 'vip-workflow' ),
+			'message'   => __( 'No images found. Adding relevant images can improve engagement.', 'vip-workflows' ),
 			'severity'  => 'info',
 		);
 	}
@@ -149,7 +149,7 @@ function execute_seo_check( ?array $input = null ) {
 			'check_key' => 'min_images',
 			'message'   => sprintf(
 			/* translators: %d: Number of images missing alt text */
-				__( '%d image(s) missing alt text. Alt text improves accessibility and SEO.', 'vip-workflow' ),
+				__( '%d image(s) missing alt text. Alt text improves accessibility and SEO.', 'vip-workflows' ),
 				$images_without_alt
 			),
 			'severity'  => 'warning',
@@ -177,7 +177,7 @@ function execute_seo_check( ?array $input = null ) {
 		$score        -= 5;
 		$suggestions[] = array(
 			'type'    => 'add_internal_links',
-			'message' => __( 'Add internal links to related content on your site.', 'vip-workflow' ),
+			'message' => __( 'Add internal links to related content on your site.', 'vip-workflows' ),
 		);
 	}
 
@@ -196,7 +196,7 @@ function execute_seo_check( ?array $input = null ) {
 			$issues[] = array(
 				'type'      => 'no_meta_description',
 				'check_key' => 'check_meta',
-				'message'   => __( 'No meta description set. This appears in search results.', 'vip-workflow' ),
+				'message'   => __( 'No meta description set. This appears in search results.', 'vip-workflows' ),
 				'severity'  => 'warning',
 			);
 		} elseif ( $meta_length < 120 ) {
@@ -204,7 +204,7 @@ function execute_seo_check( ?array $input = null ) {
 			$issues[] = array(
 				'type'      => 'meta_short',
 				'check_key' => 'check_meta',
-				'message'   => __( 'Meta description is short. Aim for 150-160 characters.', 'vip-workflow' ),
+				'message'   => __( 'Meta description is short. Aim for 150-160 characters.', 'vip-workflows' ),
 				'severity'  => 'info',
 			);
 		} elseif ( $meta_length > 160 ) {
@@ -212,7 +212,7 @@ function execute_seo_check( ?array $input = null ) {
 			$issues[] = array(
 				'type'      => 'meta_long',
 				'check_key' => 'check_meta',
-				'message'   => __( 'Meta description may be truncated (over 160 characters).', 'vip-workflow' ),
+				'message'   => __( 'Meta description may be truncated (over 160 characters).', 'vip-workflows' ),
 				'severity'  => 'info',
 			);
 		}
@@ -236,7 +236,7 @@ function execute_seo_check( ?array $input = null ) {
 				'type'     => 'keyword_not_in_title',
 				'message'  => sprintf(
 				/* translators: %s: Focus keyword */
-					__( 'Focus keyword "%s" not found in title.', 'vip-workflow' ),
+					__( 'Focus keyword "%s" not found in title.', 'vip-workflows' ),
 					$focus_keyword
 				),
 				'severity' => 'warning',
@@ -249,7 +249,7 @@ function execute_seo_check( ?array $input = null ) {
 				'type'     => 'keyword_not_in_content',
 				'message'  => sprintf(
 				/* translators: %s: Focus keyword */
-					__( 'Focus keyword "%s" not found in content.', 'vip-workflow' ),
+					__( 'Focus keyword "%s" not found in content.', 'vip-workflows' ),
 					$focus_keyword
 				),
 				'severity' => 'error',
@@ -258,7 +258,7 @@ function execute_seo_check( ?array $input = null ) {
 			$score   -= 5;
 			$issues[] = array(
 				'type'     => 'keyword_density_low',
-				'message'  => __( 'Keyword density is low. Consider using the keyword more naturally.', 'vip-workflow' ),
+				'message'  => __( 'Keyword density is low. Consider using the keyword more naturally.', 'vip-workflows' ),
 				'severity' => 'info',
 			);
 		}
@@ -270,15 +270,15 @@ function execute_seo_check( ?array $input = null ) {
 	// Generate summary.
 	$issue_count = count( $issues );
 	if ( $score >= 80 ) {
-		$summary = __( 'Good SEO! Minor improvements possible.', 'vip-workflow' );
+		$summary = __( 'Good SEO! Minor improvements possible.', 'vip-workflows' );
 		$status  = 'pass';
 	} elseif ( $score >= 50 ) {
 		/* translators: %d: Number of issues */
-		$summary = sprintf( __( 'SEO needs work. %d issues found.', 'vip-workflow' ), $issue_count );
+		$summary = sprintf( __( 'SEO needs work. %d issues found.', 'vip-workflows' ), $issue_count );
 		$status  = 'warning';
 	} else {
 		/* translators: %d: Number of issues */
-		$summary = sprintf( __( 'Poor SEO score. Address %d issues to improve.', 'vip-workflow' ), $issue_count );
+		$summary = sprintf( __( 'Poor SEO score. Address %d issues to improve.', 'vip-workflows' ), $issue_count );
 		$status  = 'fail';
 	}
 
@@ -310,46 +310,46 @@ function can_execute_seo_check(): bool {
  */
 function register_seo_check(): void {
 	wp_register_ability(
-		'vip-workflow/seo-check',
+		'vip-workflows/seo-check',
 		array(
-			'label'               => __( 'SEO Check', 'vip-workflow' ),
-			'description'         => __( 'Analyze content for SEO best practices including meta description, headings, keyword usage, and more.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'SEO Check', 'vip-workflows' ),
+			'description'         => __( 'Analyze content for SEO best practices including meta description, headings, keyword usage, and more.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
 				'properties'           => array(
 					'post_id'        => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID to analyze.', 'vip-workflow' ),
+						'description' => __( 'The post ID to analyze.', 'vip-workflows' ),
 					),
 					'content'        => array(
 						'type'        => 'string',
-						'description' => __( 'Raw content to analyze (alternative to post_id).', 'vip-workflow' ),
+						'description' => __( 'Raw content to analyze (alternative to post_id).', 'vip-workflows' ),
 					),
 					'title'          => array(
 						'type'        => 'string',
-						'description' => __( 'Post title (required if using content).', 'vip-workflow' ),
+						'description' => __( 'Post title (required if using content).', 'vip-workflows' ),
 					),
 					'focus_keyword'  => array(
 						'type'        => 'string',
-						'description' => __( 'Focus keyword to check for.', 'vip-workflow' ),
+						'description' => __( 'Focus keyword to check for.', 'vip-workflows' ),
 					),
 					'min_words'      => array(
 						'type'        => 'integer',
-						'description' => __( 'Minimum word count.', 'vip-workflow' ),
+						'description' => __( 'Minimum word count.', 'vip-workflows' ),
 					),
 					'min_paragraphs' => array(
 						'type'        => 'integer',
-						'description' => __( 'Minimum paragraph count.', 'vip-workflow' ),
+						'description' => __( 'Minimum paragraph count.', 'vip-workflows' ),
 					),
 					'min_images'     => array(
 						'type'        => 'integer',
-						'description' => __( 'Minimum image count.', 'vip-workflow' ),
+						'description' => __( 'Minimum image count.', 'vip-workflows' ),
 					),
 					'check_meta'     => array(
 						'type'        => 'boolean',
-						'description' => __( 'Check meta description.', 'vip-workflow' ),
+						'description' => __( 'Check meta description.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -360,28 +360,28 @@ function register_seo_check(): void {
 				'properties'           => array(
 					'score'       => array(
 						'type'        => 'number',
-						'description' => __( 'SEO score from 0-100.', 'vip-workflow' ),
+						'description' => __( 'SEO score from 0-100.', 'vip-workflows' ),
 					),
 					'status'      => array(
 						'type'        => 'string',
 						'enum'        => array( 'pass', 'warning', 'fail' ),
-						'description' => __( 'Status: pass, warning, or fail.', 'vip-workflow' ),
+						'description' => __( 'Status: pass, warning, or fail.', 'vip-workflows' ),
 					),
 					'summary'     => array(
 						'type'        => 'string',
-						'description' => __( 'Summary message.', 'vip-workflow' ),
+						'description' => __( 'Summary message.', 'vip-workflows' ),
 					),
 					'issues'      => array(
 						'type'        => 'array',
-						'description' => __( 'List of issues found.', 'vip-workflow' ),
+						'description' => __( 'List of issues found.', 'vip-workflows' ),
 					),
 					'suggestions' => array(
 						'type'        => 'array',
-						'description' => __( 'List of improvement suggestions.', 'vip-workflow' ),
+						'description' => __( 'List of improvement suggestions.', 'vip-workflows' ),
 					),
 					'analysis'    => array(
 						'type'        => 'object',
-						'description' => __( 'Detailed analysis data.', 'vip-workflow' ),
+						'description' => __( 'Detailed analysis data.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -398,7 +398,7 @@ function register_seo_check(): void {
 					'min_words'      => array(
 						'type'        => 'integer',
 						'default'     => 300,
-						'label'       => __( 'Minimum word count', 'vip-workflow' ),
+						'label'       => __( 'Minimum word count', 'vip-workflows' ),
 						'minimum'     => 50,
 						'maximum'     => 5000,
 						'enforceable' => true,
@@ -406,7 +406,7 @@ function register_seo_check(): void {
 					'min_paragraphs' => array(
 						'type'        => 'integer',
 						'default'     => 3,
-						'label'       => __( 'Minimum paragraph count', 'vip-workflow' ),
+						'label'       => __( 'Minimum paragraph count', 'vip-workflows' ),
 						'minimum'     => 1,
 						'maximum'     => 50,
 						'enforceable' => true,
@@ -414,7 +414,7 @@ function register_seo_check(): void {
 					'min_images'     => array(
 						'type'        => 'integer',
 						'default'     => 1,
-						'label'       => __( 'Minimum image count', 'vip-workflow' ),
+						'label'       => __( 'Minimum image count', 'vip-workflows' ),
 						'minimum'     => 0,
 						'maximum'     => 20,
 						'enforceable' => true,
@@ -422,7 +422,7 @@ function register_seo_check(): void {
 					'check_meta'     => array(
 						'type'        => 'boolean',
 						'default'     => true,
-						'label'       => __( 'Check meta description', 'vip-workflow' ),
+						'label'       => __( 'Check meta description', 'vip-workflows' ),
 						'enforceable' => true,
 					),
 				),

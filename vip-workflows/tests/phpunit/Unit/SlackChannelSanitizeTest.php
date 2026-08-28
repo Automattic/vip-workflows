@@ -2,15 +2,15 @@
 /**
  * SlackChannel::sanitize_settings hardening.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Notifications\Channels\SlackChannel;
+use VIPWorkflows\Notifications\Channels\SlackChannel;
 
 /**
  * Slack destination settings must be sanitized: the webhook URL is restricted

@@ -10,15 +10,15 @@
  * for a same-region move (which produces no core status transition at all, so
  * the core hook cannot carry them).
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Real-WordPress tests for transition invariants.
@@ -178,7 +178,7 @@ class TransitionInvariantsIntegrationTest extends TestCase
 		$hijack = function () use ( $post_id ) {
 			update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'review' );
 		};
-		add_action( 'vip_workflow_hijack_probe', $hijack );
+		add_action( 'vip_workflows_hijack_probe', $hijack );
 
 		// commit_post_status() runs wp_update_post, so hooking save_post gives a
 		// deterministic point inside the transition, after validation.
@@ -195,7 +195,7 @@ class TransitionInvariantsIntegrationTest extends TestCase
 		$result = ( new StatusManager() )->transition( $post_id, 'live' );
 
 		remove_action( 'save_post', $probe, 1 );
-		remove_action( 'vip_workflow_hijack_probe', $hijack );
+		remove_action( 'vip_workflows_hijack_probe', $hijack );
 
 		$this->assertInstanceOf( 'WP_Error', $result );
 		$this->assertSame( 'transition_conflict', $result->get_error_code() );
@@ -249,12 +249,12 @@ class TransitionInvariantsIntegrationTest extends TestCase
 				$emitted[] = $event_data;
 			}
 		};
-		add_action( 'vip_workflow_event_emitted', $listener, 10, 2 );
+		add_action( 'vip_workflows_event_emitted', $listener, 10, 2 );
 
 		// What wp-cron's publish_future_post does.
 		wp_publish_post( $post_id );
 
-		remove_action( 'vip_workflow_event_emitted', $listener, 10 );
+		remove_action( 'vip_workflows_event_emitted', $listener, 10 );
 
 		$this->assertSame( 'publish', get_post_status( $post_id ) );
 		$this->assertCount( 1, $emitted, 'Going live must emit post.published exactly once.' );
@@ -347,7 +347,7 @@ class TransitionInvariantsIntegrationTest extends TestCase
 		$exited  = array();
 
 		add_action(
-			'vip_workflow_entered_second_draft',
+			'vip_workflows_entered_second_draft',
 			function ( $id, $old_stage ) use ( &$entered ) {
 				$entered[] = array( $id, $old_stage );
 			},
@@ -355,7 +355,7 @@ class TransitionInvariantsIntegrationTest extends TestCase
 			2
 		);
 		add_action(
-			'vip_workflow_exited_draft',
+			'vip_workflows_exited_draft',
 			function ( $id, $new_stage ) use ( &$exited ) {
 				$exited[] = array( $id, $new_stage );
 			},

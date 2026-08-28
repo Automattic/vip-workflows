@@ -2,7 +2,7 @@
 /**
  * Minimal WP_REST_Controller base-class double for the unit suite.
  *
- * The plugin's REST controllers (VIPWorkflow\API\*) all `extends
+ * The plugin's REST controllers (VIPWorkflows\API\*) all `extends
  * WP_REST_Controller`. Their handler logic — permission checks, 404 handling,
  * response shaping — is pure and unit-testable once WordPress *functions* are
  * mocked via Brain\Monkey, but the class can't even be loaded without a base
@@ -16,7 +16,7 @@
  * WP_REST_Controller from WordPress core is used instead; the class_exists
  * guard makes this a no-op there.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );

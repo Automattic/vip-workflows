@@ -5,16 +5,16 @@
  * Provides summarization and analysis tools for ideation projects.
  * Uses "simple mode" - sends full content to LLM for small projects.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Research;
+namespace VIPWorkflows\Ideation\Research;
 
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\AiInference;
-use VIPWorkflow\Abilities\AiAvailability;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\AiInference;
+use VIPWorkflows\Abilities\AiAvailability;
 use WP_Error;
 
 /**
@@ -72,7 +72,7 @@ class IdeationAnalyzer {
 		if ( empty( $content ) ) {
 			return new WP_Error(
 				'no_content',
-				__( 'Source has no content to summarize. Try opening the source and checking if the content loaded.', 'vip-workflow' ),
+				__( 'Source has no content to summarize. Try opening the source and checking if the content loaded.', 'vip-workflows' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -93,7 +93,7 @@ class IdeationAnalyzer {
 		try {
 			$result = \WordPress\AiClient\AiClient::prompt( $prompt )
 				->usingModel( AiInference::get_instance()->model() )
-				->usingMaxTokens( \VIPWorkflow\Integrations\LlmTextGenerator::bounded_max_tokens( \VIPWorkflow\Integrations\LlmTextGenerator::THINKING_FLOOR ) )
+				->usingMaxTokens( \VIPWorkflows\Integrations\LlmTextGenerator::bounded_max_tokens( \VIPWorkflows\Integrations\LlmTextGenerator::THINKING_FLOOR ) )
 				->generateText();
 
 			return array(
@@ -123,7 +123,7 @@ class IdeationAnalyzer {
 		if ( empty( $sources ) ) {
 			return new WP_Error(
 				'no_sources',
-				__( 'Project has no sources to summarize.', 'vip-workflow' )
+				__( 'Project has no sources to summarize.', 'vip-workflows' )
 			);
 		}
 
@@ -146,7 +146,7 @@ class IdeationAnalyzer {
 		try {
 			$result = \WordPress\AiClient\AiClient::prompt( $prompt )
 				->usingModel( AiInference::get_instance()->model() )
-				->usingMaxTokens( \VIPWorkflow\Integrations\LlmTextGenerator::bounded_max_tokens( \VIPWorkflow\Integrations\LlmTextGenerator::THINKING_FLOOR + 2000 ) )
+				->usingMaxTokens( \VIPWorkflows\Integrations\LlmTextGenerator::bounded_max_tokens( \VIPWorkflows\Integrations\LlmTextGenerator::THINKING_FLOOR + 2000 ) )
 				->generateText();
 
 			$parsed = $this->parse_project_summary( $result );

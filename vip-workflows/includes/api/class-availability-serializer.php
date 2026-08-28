@@ -12,7 +12,7 @@
  * register. A caller whose audience is not the current request's user states its
  * register instead of inferring one — see `serialize_for_register()`.
  *
- * It lives in `VIPWorkflow\API` rather than `VIPWorkflow\Abilities` because the
+ * It lives in `VIPWorkflows\API` rather than `VIPWorkflows\Abilities` because the
  * capability gate is a property of the read boundary, not of the requirement:
  * the value objects deliberately know nothing about who is asking. It is a small
  * dedicated class rather than a method on `UtilityController` because that
@@ -22,17 +22,17 @@
  * stored (`to_persistable()`). Stored state has no reader, so it must not carry
  * either register's wording — see that method for why.
  *
- * @package VIPWorkflow\API
+ * @package VIPWorkflows\API
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
 
 /**
  * Serializes availability for whoever is reading the response.
@@ -185,23 +185,23 @@ final class AvailabilitySerializer {
 	 */
 	public static function get_schema(): array {
 		return array(
-			'description' => __( 'Structured availability: whether dependencies are met, and the unmet requirements if not.', 'vip-workflow' ),
+			'description' => __( 'Structured availability: whether dependencies are met, and the unmet requirements if not.', 'vip-workflows' ),
 			'type'        => 'object',
 			'context'     => array( 'view', 'edit' ),
 			'readonly'    => true,
 			'properties'  => array(
 				'available' => array(
-					'description' => __( 'Whether every dependency is satisfied.', 'vip-workflow' ),
+					'description' => __( 'Whether every dependency is satisfied.', 'vip-workflows' ),
 					'type'        => 'boolean',
 				),
 				'groups'    => array(
-					'description' => __( 'Unmet requirement groups. Empty when available.', 'vip-workflow' ),
+					'description' => __( 'Unmet requirement groups. Empty when available.', 'vip-workflows' ),
 					'type'        => 'array',
 					'items'       => array(
 						'type'       => 'object',
 						'properties' => array(
 							'satisfy'      => array(
-								'description' => __( 'Whether every requirement in the group must be satisfied, or any one of them.', 'vip-workflow' ),
+								'description' => __( 'Whether every requirement in the group must be satisfied, or any one of them.', 'vip-workflows' ),
 								'type'        => 'string',
 								'enum'        => array( RequirementGroup::SATISFY_ALL, RequirementGroup::SATISFY_ANY ),
 							),
@@ -211,11 +211,11 @@ final class AvailabilitySerializer {
 									'type'       => 'object',
 									'properties' => array(
 										'id'          => array(
-											'description' => __( 'Stable requirement identity, used to deduplicate across sources.', 'vip-workflow' ),
+											'description' => __( 'Stable requirement identity, used to deduplicate across sources.', 'vip-workflows' ),
 											'type'        => 'string',
 										),
 										'kind'        => array(
-											'description' => __( 'What class of dependency is missing.', 'vip-workflow' ),
+											'description' => __( 'What class of dependency is missing.', 'vip-workflows' ),
 											'type'        => 'string',
 											'enum'        => array(
 												Requirement::KIND_MISSING_CREDENTIAL,
@@ -224,20 +224,20 @@ final class AvailabilitySerializer {
 											),
 										),
 										'sources'     => array(
-											'description' => __( 'Labels of the capabilities that need this requirement.', 'vip-workflow' ),
+											'description' => __( 'Labels of the capabilities that need this requirement.', 'vip-workflows' ),
 											'type'        => 'array',
 											'items'       => array( 'type' => 'string' ),
 										),
 										'reason'      => array(
-											'description' => __( 'Admin register only: what is missing.', 'vip-workflow' ),
+											'description' => __( 'Admin register only: what is missing.', 'vip-workflows' ),
 											'type'        => 'string',
 										),
 										'message'     => array(
-											'description' => __( 'User register only: what is missing, phrased for a reader who cannot reach admin settings.', 'vip-workflow' ),
+											'description' => __( 'User register only: what is missing, phrased for a reader who cannot reach admin settings.', 'vip-workflows' ),
 											'type'        => 'string',
 										),
 										'destination' => array(
-											'description' => __( 'Admin register only: where the requirement can be satisfied.', 'vip-workflow' ),
+											'description' => __( 'Admin register only: where the requirement can be satisfied.', 'vip-workflows' ),
 											'type'        => 'object',
 											'properties'  => array(
 												'kind'  => array(
@@ -249,19 +249,19 @@ final class AvailabilitySerializer {
 													),
 												),
 												'url'   => array(
-													'description' => __( 'Absolute URL. Empty unless the kind is admin_url.', 'vip-workflow' ),
+													'description' => __( 'Absolute URL. Empty unless the kind is admin_url.', 'vip-workflows' ),
 													'type'        => 'string',
 												),
 												'label' => array(
-													'description' => __( 'Link label. Empty when there is no URL.', 'vip-workflow' ),
+													'description' => __( 'Link label. Empty when there is no URL.', 'vip-workflows' ),
 													'type'        => 'string',
 												),
 												'hint'  => array(
-													'description' => __( 'Instruction shown when there is nowhere to link.', 'vip-workflow' ),
+													'description' => __( 'Instruction shown when there is nowhere to link.', 'vip-workflows' ),
 													'type'        => 'string',
 												),
 												'credentials_url' => array(
-													'description' => __( 'External URL where the credentials can be obtained. Empty when the service does not name one.', 'vip-workflow' ),
+													'description' => __( 'External URL where the credentials can be obtained. Empty when the service does not name one.', 'vip-workflows' ),
 													'type'        => 'string',
 												),
 											),

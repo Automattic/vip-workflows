@@ -6,19 +6,19 @@
  * halves of it are pinned here: the request-bound inference, and the explicit
  * entry point a caller with no bound user has to reach for instead.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\API\AvailabilitySerializer;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\API\AvailabilitySerializer;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
 
 class AvailabilitySerializerTest extends TestCase
 {

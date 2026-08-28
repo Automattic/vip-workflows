@@ -15,6 +15,6 @@
  * editor as well as the admin. Imported by both entry stylesheets.
  */
 
-.vip-workflow-eyebrow {
+.vip-workflows-eyebrow {
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- eyebrow muted color on <Text>; no Text color prop */
 }

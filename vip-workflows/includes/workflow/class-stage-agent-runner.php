@@ -9,16 +9,16 @@
  *
  * Dispatch is separate from execution and routing.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Workflow;
+namespace VIPWorkflows\Workflow;
 
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\ModuleInterface;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\ModuleInterface;
 
 /**
  * Dispatches and runs stage-owned AI agents.
@@ -36,14 +36,14 @@ class StageAgentRunner implements ModuleInterface {
 	 *
 	 * @var string
 	 */
-	public const JOB_META = '_vip_workflow_agent_job';
+	public const JOB_META = '_vip_workflows_agent_job';
 
 	/**
 	 * Scheduled hook that runs the agent for a post + stage.
 	 *
 	 * @var string
 	 */
-	public const RUN_HOOK = 'vip_workflow_run_stage_agent';
+	public const RUN_HOOK = 'vip_workflows_run_stage_agent';
 
 	/**
 	 * Post meta tracking the length of the current agent→agent transition chain.
@@ -54,7 +54,7 @@ class StageAgentRunner implements ModuleInterface {
 	 *
 	 * @var string
 	 */
-	public const CHAIN_META = '_vip_workflow_agent_chain';
+	public const CHAIN_META = '_vip_workflows_agent_chain';
 
 	/**
 	 * Maximum consecutive agent-driven transitions before failing in place.
@@ -96,7 +96,7 @@ class StageAgentRunner implements ModuleInterface {
 	 *
 	 * @var string
 	 */
-	public const LAST_RUN_META = '_vip_workflow_agent_last_run';
+	public const LAST_RUN_META = '_vip_workflows_agent_last_run';
 
 	/**
 	 * Revision meta key recording the ability id that authored a revision.
@@ -107,7 +107,7 @@ class StageAgentRunner implements ModuleInterface {
 	 *
 	 * @var string
 	 */
-	public const AGENT_REVISION_META = '_vip_workflow_agent_actor';
+	public const AGENT_REVISION_META = '_vip_workflows_agent_actor';
 
 	/**
 	 * The regions a human needs `publish_posts` to move a post into.
@@ -171,7 +171,7 @@ class StageAgentRunner implements ModuleInterface {
 	 */
 	public function init(): void {
 		// Fires whenever a post enters a new workflow stage (StatusManager).
-		add_action( 'vip_workflow_status_transition', array( $this, 'maybe_dispatch' ), 10, 5 );
+		add_action( 'vip_workflows_status_transition', array( $this, 'maybe_dispatch' ), 10, 5 );
 		add_action( self::RUN_HOOK, array( $this, 'run_stage_agent' ), 10, 2 );
 
 		// Attribute agent-authored revisions: tag the revision as it is saved,
@@ -256,7 +256,7 @@ class StageAgentRunner implements ModuleInterface {
 			// and routing would re-enter transition() reentrantly.
 			$message = is_wp_error( $scheduled )
 				? $scheduled->get_error_message()
-				: __( 'The agent run could not be scheduled.', 'vip-workflow' );
+				: __( 'The agent run could not be scheduled.', 'vip-workflows' );
 			$this->fail_in_place( $post_id, $new_status, $status['agent']['ability_id'], $message, $old_status );
 		}
 	}
@@ -281,7 +281,7 @@ class StageAgentRunner implements ModuleInterface {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log(
 			sprintf(
-				'VIP Workflow: agent run for post %d at stage "%s" already queued; the existing event will serve the new pending job.',
+				'VIP Workflows: agent run for post %d at stage "%s" already queued; the existing event will serve the new pending job.',
 				$post_id,
 				$stage_key
 			)
@@ -308,7 +308,7 @@ class StageAgentRunner implements ModuleInterface {
 	 * @param string $stage_key Stage key the agent was dispatched for.
 	 */
 	public function run_stage_agent( int $post_id, string $stage_key ): void {
-		$status_manager = \VIPWorkflow\Plugin::get_instance()->get_status_manager();
+		$status_manager = \VIPWorkflows\Plugin::get_instance()->get_status_manager();
 		$sequence      = $status_manager->get_sequence_for_post( $post_id );
 		if ( ! $sequence ) {
 			$this->clear_job_for_stage( $post_id, $stage_key );
@@ -377,7 +377,7 @@ class StageAgentRunner implements ModuleInterface {
 				$post_id,
 				$stage_key,
 				$ability_id,
-				__( 'Stopped after too many consecutive agent transitions (possible workflow loop).', 'vip-workflow' ),
+				__( 'Stopped after too many consecutive agent transitions (possible workflow loop).', 'vip-workflows' ),
 				$from_stage
 			);
 			return;
@@ -403,7 +403,7 @@ class StageAgentRunner implements ModuleInterface {
 				$post_id,
 				$stage_key,
 				$ability_id,
-				__( 'This post\'s author cannot edit posts, so the AI agent was not run. Reassign the post to a user who can edit it, or move it back to the previous stage.', 'vip-workflow' ),
+				__( 'This post\'s author cannot edit posts, so the AI agent was not run. Reassign the post to a user who can edit it, or move it back to the previous stage.', 'vip-workflows' ),
 				$from_stage
 			);
 			return;
@@ -452,7 +452,7 @@ class StageAgentRunner implements ModuleInterface {
 		if ( 'error' === $outcome ) {
 			$message = ! empty( $result->error )
 				? $result->error
-				: __( 'The agent returned an unrecognized result.', 'vip-workflow' );
+				: __( 'The agent returned an unrecognized result.', 'vip-workflows' );
 			$this->resolve_error( $post_id, $stage_key, $ability_id, $message, $routing, $from_stage, $chain, $actor_user );
 			return;
 		}
@@ -469,7 +469,7 @@ class StageAgentRunner implements ModuleInterface {
 				$ability_id,
 				sprintf(
 					/* translators: %s: agent outcome key (pass or fail). */
-					__( 'This stage routes no destination for the "%s" outcome, so the post stopped here. Route it in the sequence editor, or move the post back.', 'vip-workflow' ),
+					__( 'This stage routes no destination for the "%s" outcome, so the post stopped here. Route it in the sequence editor, or move the post back.', 'vip-workflows' ),
 					$outcome
 				),
 				$from_stage
@@ -557,7 +557,7 @@ class StageAgentRunner implements ModuleInterface {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log(
 			sprintf(
-				'VIP Workflow: agent run for post %d abandoned — dispatched for stage "%s" but %s mid-execution; the run\'s outcome was discarded.',
+				'VIP Workflows: agent run for post %d abandoned — dispatched for stage "%s" but %s mid-execution; the run\'s outcome was discarded.',
 				$post_id,
 				$stage_key,
 				$superseded
@@ -645,7 +645,7 @@ class StageAgentRunner implements ModuleInterface {
 		);
 
 		/* translators: %s: agent name. */
-		$data['author'] = sprintf( __( '%s (agent)', 'vip-workflow' ), $agent_name );
+		$data['author'] = sprintf( __( '%s (agent)', 'vip-workflows' ), $agent_name );
 
 		return $data;
 	}
@@ -656,7 +656,7 @@ class StageAgentRunner implements ModuleInterface {
 	 * A failed execution, or a success whose output carries no recognized
 	 * `status`, is treated as `error` (fail loud, route to human review).
 	 *
-	 * @param \VIPWorkflow\Abilities\AbilityResult $result Ability result.
+	 * @param \VIPWorkflows\Abilities\AbilityResult $result Ability result.
 	 * @return string One of pass|fail|error.
 	 */
 	private function outcome_from_result( $result ): string {
@@ -719,13 +719,13 @@ class StageAgentRunner implements ModuleInterface {
 	 * @return string Message for the editor, or '' to proceed.
 	 */
 	private function publication_hold( int $post_id, string $from_key, string $to_key, string $outcome, string $error ): string {
-		$status_manager = \VIPWorkflow\Plugin::get_instance()->get_status_manager();
+		$status_manager = \VIPWorkflows\Plugin::get_instance()->get_status_manager();
 		$sequence       = $status_manager->get_sequence_for_post( $post_id );
 
 		if ( ! $sequence ) {
 			// The post left the workflow mid-run. transition() has nothing to move it
 			// against either; refusing here keeps the boundary owned by this method.
-			return __( 'This post is no longer in a workflow, so the agent could not complete its move.', 'vip-workflow' );
+			return __( 'This post is no longer in a workflow, so the agent could not complete its move.', 'vip-workflows' );
 		}
 
 		// Strict `true`: import_sequence() stores config verbatim, and "false" is
@@ -743,11 +743,11 @@ class StageAgentRunner implements ModuleInterface {
 			// non-publishing. Held rather than passed through: the check belongs to
 			// this method, not to whatever the transition happens to refuse next.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Agent stage "%s" on post %d routes to "%s", whose region could not be read: %s', $from_key, $post_id, $to_key, $e->getMessage() ) );
+			error_log( sprintf( '[VIP Workflows] Agent stage "%s" on post %d routes to "%s", whose region could not be read: %s', $from_key, $post_id, $to_key, $e->getMessage() ) );
 
 			return sprintf(
 				/* translators: %s: destination stage key. */
-				__( 'The agent routed this post to "%s", a stage the sequence does not define a region for, so it stopped here. Fix the stage in the sequence editor, or move the post back.', 'vip-workflow' ),
+				__( 'The agent routed this post to "%s", a stage the sequence does not define a region for, so it stopped here. Fix the stage in the sequence editor, or move the post back.', 'vip-workflows' ),
 				$to_key
 			);
 		}
@@ -770,15 +770,15 @@ class StageAgentRunner implements ModuleInterface {
 		if ( 'error' === $outcome ) {
 			return sprintf(
 				/* translators: 1: destination stage key, 2: the error the run reported. */
-				__( 'The agent run failed and this stage routes errors to "%1$s", which publishes. Publishing is not done automatically; review the post and transition it yourself. The agent reported: %2$s', 'vip-workflow' ),
+				__( 'The agent run failed and this stage routes errors to "%1$s", which publishes. Publishing is not done automatically; review the post and transition it yourself. The agent reported: %2$s', 'vip-workflows' ),
 				$to_key,
-				'' !== $error ? $error : __( 'no detail given', 'vip-workflow' )
+				'' !== $error ? $error : __( 'no detail given', 'vip-workflows' )
 			);
 		}
 
 		return sprintf(
 			/* translators: 1: agent outcome key (pass or fail), 2: destination stage key. */
-			__( 'The AI agent returned "%1$s", which routes to "%2$s" — a stage that publishes. Publishing is not done automatically on an agent verdict; review the post and transition it yourself.', 'vip-workflow' ),
+			__( 'The AI agent returned "%1$s", which routes to "%2$s" — a stage that publishes. Publishing is not done automatically on an agent verdict; review the post and transition it yourself.', 'vip-workflows' ),
 			$outcome,
 			$to_key
 		);
@@ -860,7 +860,7 @@ class StageAgentRunner implements ModuleInterface {
 			$options['comment'] = $comment;
 		}
 
-		$status_manager = \VIPWorkflow\Plugin::get_instance()->get_status_manager();
+		$status_manager = \VIPWorkflows\Plugin::get_instance()->get_status_manager();
 		$transitioned   = $status_manager->transition( $post_id, $target, $options );
 
 		// transition() answers with a warnings array rather than a WP_Error when
@@ -902,7 +902,7 @@ class StageAgentRunner implements ModuleInterface {
 			)
 		);
 
-		do_action( 'vip_workflow_agent_completed', $post_id, $ability_id, $outcome );
+		do_action( 'vip_workflows_agent_completed', $post_id, $ability_id, $outcome );
 	}
 
 	/**
@@ -927,7 +927,7 @@ class StageAgentRunner implements ModuleInterface {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log(
 				sprintf(
-					'VIP Workflow: suppressed stale warning marker for post %d at stage "%s" — stage "%s" owns the current job marker.',
+					'VIP Workflows: suppressed stale warning marker for post %d at stage "%s" — stage "%s" owns the current job marker.',
 					$post_id,
 					$stage_key,
 					(string) $existing['stage_key']
@@ -970,7 +970,7 @@ class StageAgentRunner implements ModuleInterface {
 	 */
 	private function fail_in_place( int $post_id, string $stage_key, string $ability_id, string $message, string $from_stage = '' ): void {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( sprintf( 'VIP Workflow: agent "%s" failed for post %d at stage "%s": %s', $ability_id, $post_id, $stage_key, $message ) );
+		error_log( sprintf( 'VIP Workflows: agent "%s" failed for post %d at stage "%s": %s', $ability_id, $post_id, $stage_key, $message ) );
 
 		// A stale run must not clobber a job a newer stage already owns (e.g. a
 		// checkpoint reseat or a bypass admin moved the post on and its next
@@ -982,7 +982,7 @@ class StageAgentRunner implements ModuleInterface {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log(
 				sprintf(
-					'VIP Workflow: suppressed stale failure marker for post %d at stage "%s" — stage "%s" owns the current job marker.',
+					'VIP Workflows: suppressed stale failure marker for post %d at stage "%s" — stage "%s" owns the current job marker.',
 					$post_id,
 					$stage_key,
 					(string) $existing['stage_key']
@@ -1004,7 +1004,7 @@ class StageAgentRunner implements ModuleInterface {
 			)
 		);
 
-		do_action( 'vip_workflow_agent_failed', $post_id, $ability_id, $message );
+		do_action( 'vip_workflows_agent_failed', $post_id, $ability_id, $message );
 	}
 
 	/**

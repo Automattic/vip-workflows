@@ -10,15 +10,15 @@
  * StatusManager::remove_sequence(), and the properties that matter (no
  * post_status write, the audit entry, the claim cleanup) are that method's.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StatusManager;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/helpers.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/remove-from-workflow.php';
@@ -84,7 +84,7 @@ class RemoveFromWorkflowAbilityIntegrationTest extends TestCase
 
 		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->sequence_id );
 		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'draft' );
-		update_post_meta( $post_id, '_vip_workflow_assigned_to', $this->admin_id );
+		update_post_meta( $post_id, '_vip_workflows_assigned_to', $this->admin_id );
 
 		return $post_id;
 	}
@@ -98,7 +98,7 @@ class RemoveFromWorkflowAbilityIntegrationTest extends TestCase
 	{
 		$post_id = $this->make_workflow_post();
 
-		$result = \VIPWorkflow\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
+		$result = \VIPWorkflows\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
 
 		$this->assertIsArray( $result );
 		$this->assertTrue( $result['success'] );
@@ -109,7 +109,7 @@ class RemoveFromWorkflowAbilityIntegrationTest extends TestCase
 		// The workflow identity is gone, including the claim.
 		$this->assertSame( '', get_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, true ) );
 		$this->assertSame( '', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
-		$this->assertSame( '', get_post_meta( $post_id, '_vip_workflow_assigned_to', true ) );
+		$this->assertSame( '', get_post_meta( $post_id, '_vip_workflows_assigned_to', true ) );
 
 		// Core still has the post exactly where it was.
 		$this->assertSame( 'draft', get_post_status( $post_id ) );
@@ -125,9 +125,9 @@ class RemoveFromWorkflowAbilityIntegrationTest extends TestCase
 
 		$post_id = $this->make_workflow_post();
 
-		\VIPWorkflow\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
+		\VIPWorkflows\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
 
-		$table = \VIPWorkflow\Database\Schema::get_table_name( 'workflow_events' );
+		$table = \VIPWorkflows\Database\Schema::get_table_name( 'workflows_events' );
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$logged = $wpdb->get_var(
@@ -150,7 +150,7 @@ class RemoveFromWorkflowAbilityIntegrationTest extends TestCase
 	{
 		$post_id = (int) self::factory()->post->create( array( 'post_author' => $this->admin_id ) );
 
-		$result = \VIPWorkflow\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
+		$result = \VIPWorkflows\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
 
 		$this->assertInstanceOf( 'WP_Error', $result );
 		$this->assertSame( 'no_sequence', $result->get_error_code() );
@@ -168,7 +168,7 @@ class RemoveFromWorkflowAbilityIntegrationTest extends TestCase
 
 		( new SequenceRepository() )->delete( $this->sequence_id );
 
-		$result = \VIPWorkflow\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
+		$result = \VIPWorkflows\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
 
 		$this->assertIsArray( $result );
 		$this->assertTrue( $result['success'] );
@@ -185,7 +185,7 @@ class RemoveFromWorkflowAbilityIntegrationTest extends TestCase
 
 		wp_set_current_user( (int) self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
-		$result = \VIPWorkflow\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
+		$result = \VIPWorkflows\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
 
 		$this->assertInstanceOf( 'WP_Error', $result );
 		$this->assertSame( 'forbidden', $result->get_error_code() );

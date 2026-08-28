@@ -2,12 +2,12 @@
 /**
  * AI Event Dispatcher for logging and monitoring.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\AI;
+namespace VIPWorkflows\AI;
 
 use WordPress\AiClientDependencies\Psr\EventDispatcher\EventDispatcherInterface;
 use WordPress\AiClient\Events\AfterGenerateResultEvent;
@@ -62,11 +62,11 @@ class EventDispatcher implements EventDispatcherInterface {
 		 * @param array                     $log_data Event log data.
 		 * @param BeforeGenerateResultEvent $event    Full event object.
 		 */
-		do_action( 'vip_workflow_ai_before_generate', $log_data, $event );
+		do_action( 'vip_workflows_ai_before_generate', $log_data, $event );
 
 		// Store in transient for matching with result.
 		$request_id = $this->generate_request_id( $log_data );
-		set_transient( "vip_workflow_ai_request_{$request_id}", $log_data, HOUR_IN_SECONDS );
+		set_transient( "vip_workflows_ai_request_{$request_id}", $log_data, HOUR_IN_SECONDS );
 	}
 
 	/**
@@ -100,7 +100,7 @@ class EventDispatcher implements EventDispatcherInterface {
 		 * @param array                    $log_data Event log data.
 		 * @param AfterGenerateResultEvent $event    Full event object.
 		 */
-		do_action( 'vip_workflow_ai_after_generate', $log_data, $event );
+		do_action( 'vip_workflows_ai_after_generate', $log_data, $event );
 	}
 
 	/**

@@ -31,15 +31,15 @@
  * CAN come from the design system does: sizes and weights are WPDS tokens.
  */
 
-.vip-workflow-markdown > *:first-child {
+.vip-workflows-markdown > *:first-child {
 	margin-block-start: 0; /* wpds-allow R3 -- trims the document's leading rhythm at the top of the card; no Stack owns generated block spacing (see the note above) */
 }
 
-.vip-workflow-markdown > *:last-child {
+.vip-workflows-markdown > *:last-child {
 	margin-block-end: 0; /* wpds-allow R3 -- trims the document's trailing rhythm at the bottom of the card (see above) */
 }
 
-.vip-workflow-markdown__paragraph {
+.vip-workflows-markdown__paragraph {
 	margin-block: 0 var( --wpds-dimension-gap-sm ); /* wpds-allow R3 -- paragraph rhythm in generated prose; no Stack owns it (see the note above) */
 	line-height: 1.6; /* wpds-allow R5 -- prose leading must stay unitless so nested code and lists inherit a ratio; the WPDS line-height scale is absolute px */
 }
@@ -48,14 +48,14 @@
  * The model's headings render one level down from the card's own title, so a
  * summary can have internal structure without competing with it.
  */
-.vip-workflow-markdown__heading {
+.vip-workflows-markdown__heading {
 	margin-block: var( --wpds-dimension-gap-md ) var( --wpds-dimension-gap-xs ); /* wpds-allow R3 -- asymmetric heading rhythm (more above than below) is what binds a heading to the text under it; a single Stack gap cannot express it */
 	font-size: var( --wpds-typography-font-size-md );
 	font-weight: var( --wpds-typography-font-weight-emphasis );
 	line-height: 1.4; /* wpds-allow R5 -- prose leading must stay unitless (see the paragraph rule above) */
 }
 
-.vip-workflow-markdown__list {
+.vip-workflows-markdown__list {
 	margin-block: 0 var( --wpds-dimension-gap-sm ); /* wpds-allow R3 -- list rhythm in generated prose (see the note above) */
 	/* Sit the markers inside the content box; a hanging bullet collides with the
 	   card padding at narrow widths. */
@@ -63,25 +63,25 @@
 	list-style: disc;
 }
 
-.vip-workflow-markdown__list li {
+.vip-workflows-markdown__list li {
 	margin-block-end: 2px; /* wpds-allow R3 -- spacing between generated list items; an <li> must be a direct child of its list, so no wrapper can carry it */
 	line-height: 1.6; /* wpds-allow R5 -- prose leading must stay unitless (see the paragraph rule above) */
 }
 
-.vip-workflow-markdown strong {
+.vip-workflows-markdown strong {
 	font-weight: var( --wpds-typography-font-weight-emphasis );
 }
 
-.vip-workflow-markdown__list ol,
-.vip-workflow-markdown__list ul {
+.vip-workflows-markdown__list ol,
+.vip-workflows-markdown__list ul {
 	margin-block: 2px 0; /* wpds-allow R3 -- rhythm for a nested list, generated inside its parent item (see above) */
 }
 
-.vip-workflow-markdown ol.vip-workflow-markdown__list {
+.vip-workflows-markdown ol.vip-workflows-markdown__list {
 	list-style: decimal;
 }
 
-.vip-workflow-markdown__quote {
+.vip-workflows-markdown__quote {
 	margin-block: 0 var( --wpds-dimension-gap-sm ); /* wpds-allow R3 -- quote rhythm in generated prose (see the note above) */
 	margin-inline: 0; /* wpds-allow R3 -- resets the browser's own 40px blockquote indent; a user-agent reset, not spacing between siblings */
 	padding-inline-start: var( --wpds-dimension-padding-sm );
@@ -89,7 +89,7 @@
 	color: var( --wpds-color-foreground-content-neutral-weak );
 }
 
-.vip-workflow-markdown__code {
+.vip-workflows-markdown__code {
 	/* The block padding is deliberately off-scale: the smallest padding token is
 	   4px, which pushes an inline chip out of the surrounding line box. */
 	padding-block: 1px; /* wpds-allow R2 -- inline code chip; 4px is the scale floor and breaks the line box */
@@ -101,7 +101,7 @@
 
 /* Code and tables are the two things that can be wider than the card, so each
    scrolls inside itself rather than widening the modal. */
-.vip-workflow-markdown__pre {
+.vip-workflows-markdown__pre {
 	margin-block: 0 var( --wpds-dimension-gap-sm ); /* wpds-allow R3 -- code-block rhythm in generated prose (see the note above) */
 	padding: var( --wpds-dimension-padding-sm );
 	overflow-x: auto;
@@ -111,36 +111,36 @@
 	line-height: 1.5; /* wpds-allow R5 -- prose leading must stay unitless (see the paragraph rule above) */
 }
 
-.vip-workflow-markdown__table-scroll {
+.vip-workflows-markdown__table-scroll {
 	margin-block-end: var( --wpds-dimension-gap-sm ); /* wpds-allow R3 -- table rhythm in generated prose (see the note above) */
 	overflow-x: auto;
 }
 
-.vip-workflow-markdown__table {
+.vip-workflows-markdown__table {
 	border-collapse: collapse;
 	font-size: var( --wpds-typography-font-size-sm );
 }
 
-.vip-workflow-markdown__table th,
-.vip-workflow-markdown__table td {
+.vip-workflows-markdown__table th,
+.vip-workflows-markdown__table td {
 	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
 	border: 1px solid var( --wpds-color-stroke-surface-neutral );
 	text-align: start;
 }
 
-.vip-workflow-markdown__table th {
+.vip-workflows-markdown__table th {
 	font-weight: var( --wpds-typography-font-weight-emphasis );
 	background: var( --wpds-color-background-surface-neutral-weak );
 }
 
-.vip-workflow-markdown__rule {
+.vip-workflows-markdown__rule {
 	margin-block: var( --wpds-dimension-gap-md ); /* wpds-allow R3 -- rhythm around a generated thematic break (see the note above) */
 	border: 0;
 	border-top: 1px solid var( --wpds-color-stroke-surface-neutral );
 }
 
 /* Scraped content can carry full-width hero images; keep them inside the card. */
-.vip-workflow-markdown__image {
+.vip-workflows-markdown__image {
 	max-width: 100%;
 	height: auto;
 }

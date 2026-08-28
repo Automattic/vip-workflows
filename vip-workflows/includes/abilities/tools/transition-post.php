@@ -4,12 +4,12 @@
  *
  * Moves a post to a new workflow status.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the post transition.
@@ -24,16 +24,16 @@ function execute_transition_post( ?array $input = null ) {
 	$comment   = $input['comment'] ?? '';
 
 	if ( ! $post_id ) {
-		return new \WP_Error( 'missing_post_id', __( 'The "post_id" parameter is required.', 'vip-workflow' ) );
+		return new \WP_Error( 'missing_post_id', __( 'The "post_id" parameter is required.', 'vip-workflows' ) );
 	}
 
 	if ( empty( $to_status ) ) {
-		return new \WP_Error( 'missing_status', __( 'The "to_status" parameter is required.', 'vip-workflow' ) );
+		return new \WP_Error( 'missing_status', __( 'The "to_status" parameter is required.', 'vip-workflows' ) );
 	}
 
 	$post = get_post( $post_id );
 	if ( ! $post ) {
-		return new \WP_Error( 'not_found', __( 'Post not found.', 'vip-workflow' ) );
+		return new \WP_Error( 'not_found', __( 'Post not found.', 'vip-workflows' ) );
 	}
 
 	$permission_error = require_post_edit_permission( $post_id );
@@ -41,12 +41,12 @@ function execute_transition_post( ?array $input = null ) {
 		return $permission_error;
 	}
 
-	$status_manager = new \VIPWorkflow\Workflow\StatusManager();
+	$status_manager = new \VIPWorkflows\Workflow\StatusManager();
 
 	// The origin is the workflow stage the post is leaving. post_status is now
 	// visibility-only and no longer equals the stage, so read the stage meta —
 	// symmetric with to_status, which is a stage key.
-	$from_status = (string) get_post_meta( $post_id, \VIPWorkflow\Workflow\StatusManager::STAGE_META_KEY, true );
+	$from_status = (string) get_post_meta( $post_id, \VIPWorkflows\Workflow\StatusManager::STAGE_META_KEY, true );
 
 	$options = array(
 		'acknowledge_warnings' => ! empty( $input['acknowledge_warnings'] ),
@@ -100,11 +100,11 @@ function execute_transition_post( ?array $input = null ) {
  */
 function register_transition_post(): void {
 	wp_register_ability(
-		'vip-workflow/transition-post',
+		'vip-workflows/transition-post',
 		array(
-			'label'               => __( 'Transition Post', 'vip-workflow' ),
-			'description'         => __( 'Moves a post to a new workflow status. Respects role-based transition rules.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Transition Post', 'vip-workflows' ),
+			'description'         => __( 'Moves a post to a new workflow status. Respects role-based transition rules.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -112,19 +112,19 @@ function register_transition_post(): void {
 				'properties'           => array(
 					'post_id'   => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID to transition.', 'vip-workflow' ),
+						'description' => __( 'The post ID to transition.', 'vip-workflows' ),
 					),
 					'to_status' => array(
 						'type'        => 'string',
-						'description' => __( 'The target workflow status key.', 'vip-workflow' ),
+						'description' => __( 'The target workflow status key.', 'vip-workflows' ),
 					),
 					'comment'   => array(
 						'type'        => 'string',
-						'description' => __( 'Optional transition comment for the audit trail.', 'vip-workflow' ),
+						'description' => __( 'Optional transition comment for the audit trail.', 'vip-workflows' ),
 					),
 					'acknowledge_warnings' => array(
 						'type'        => 'boolean',
-						'description' => __( 'Acknowledge soft warnings and proceed — including stopping an AI agent that is currently working on this post. Re-invoke with this set to true after a response with "warnings_pending": true.', 'vip-workflow' ),
+						'description' => __( 'Acknowledge soft warnings and proceed — including stopping an AI agent that is currently working on this post. Re-invoke with this set to true after a response with "warnings_pending": true.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -134,27 +134,27 @@ function register_transition_post(): void {
 				'properties'           => array(
 					'post_id'     => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID.', 'vip-workflow' ),
+						'description' => __( 'The post ID.', 'vip-workflows' ),
 					),
 					'from_status' => array(
 						'type'        => 'string',
-						'description' => __( 'The previous status.', 'vip-workflow' ),
+						'description' => __( 'The previous status.', 'vip-workflows' ),
 					),
 					'to_status'   => array(
 						'type'        => 'string',
-						'description' => __( 'The new status.', 'vip-workflow' ),
+						'description' => __( 'The new status.', 'vip-workflows' ),
 					),
 					'success'     => array(
 						'type'        => 'boolean',
-						'description' => __( 'Whether the transition succeeded. False when warnings_pending is true.', 'vip-workflow' ),
+						'description' => __( 'Whether the transition succeeded. False when warnings_pending is true.', 'vip-workflows' ),
 					),
 					'warnings_pending' => array(
 						'type'        => 'boolean',
-						'description' => __( 'True when unacknowledged warnings held back the transition; nothing was committed.', 'vip-workflow' ),
+						'description' => __( 'True when unacknowledged warnings held back the transition; nothing was committed.', 'vip-workflows' ),
 					),
 					'warnings'    => array(
 						'type'        => 'array',
-						'description' => __( 'The warnings requiring acknowledgement, when warnings_pending is true. Each has a `type` (e.g. agent_in_progress) and a `message`.', 'vip-workflow' ),
+						'description' => __( 'The warnings requiring acknowledgement, when warnings_pending is true. Each has a `type` (e.g. agent_in_progress) and a `message`.', 'vip-workflows' ),
 					),
 				),
 			),

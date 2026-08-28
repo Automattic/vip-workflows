@@ -1,13 +1,13 @@
 ---
-name: create-vip-workflow-agent
+name: create-vip-workflows-agent
 description: >-
-  Scaffold a VIP Workflow agent plugin. Use when the user wants to create
+  Scaffold a VIP Workflows agent plugin. Use when the user wants to create
   a research agent, a story discovery source, an AI-stage agent, or a
-  combined agent that provides multiple capabilities for VIP Workflow.
+  combined agent that provides multiple capabilities for VIP Workflows.
 ---
-# Create a VIP Workflow Agent
+# Create a VIP Workflows Agent
 
-An **agent** is a standalone WordPress plugin that extends VIP Workflow. All agents appear as cards on the unified **Integrations > Agents** tab. An agent can provide one or more of these capabilities:
+An **agent** is a standalone WordPress plugin that extends VIP Workflows. All agents appear as cards on the unified **Integrations > Agents** tab. An agent can provide one or more of these capabilities:
 
 - **Research** — runs *after* an editor has a seed, inside an ideation project. Returns cards (articles, discussions, media) that populate the project's mood board.
 - **Discovery** — runs *before* an editor has a seed, on the ideation landing page. Returns story prompts that editors can click to spawn a new project.
@@ -22,8 +22,8 @@ Before writing any code, decide which capabilities the agent offers:
 | Capability | When it runs | Returns | Registration hook | Required callbacks |
 |------------|--------------|---------|-------------------|--------------------|
 | **Research** | Inside a project (after seed) | Cards for mood board | `wp_abilities_api_init` | `execute_callback` |
-| **Discovery** | Landing page (before seed) | Story prompts | `vip_workflow_register_discovery_providers` | `seed` + one or both of `recommend` / `search` (+ `filters` if `search`) |
-| **Stage** | When a post enters an AI-owned workflow stage | `{ status: pass\|fail, summary }` | `vip_workflow_register_abilities` | `execute_callback` |
+| **Discovery** | Landing page (before seed) | Story prompts | `vip_workflows_register_discovery_providers` | `seed` + one or both of `recommend` / `search` (+ `filters` if `search`) |
+| **Stage** | When a post enters an AI-owned workflow stage | `{ status: pass\|fail, summary }` | `vip_workflows_register_abilities` | `execute_callback` |
 
 Discovery itself has two independent sub-features declared in the `features` array:
 
@@ -38,9 +38,9 @@ A **stage agent** runs automatically when a post enters a workflow stage that ha
 
 A stage agent is a normal ability plus an agent manifest. It has different requirements from research and discovery agents:
 
-1. **Input contract** — take `post_id`; read the post through `VIPWorkflow\Abilities\Agents\StageAgent::read_post()` so permissions and empty-content errors match core stage agents.
-2. **Stage metadata** — set `meta.stage_eligible => true` and include `'stage'` in `meta.supports` alongside `'workflow'`. The Sequence editor's agent picker and `/vip-workflow/v1/abilities?context=stage` only list abilities with both signals.
-3. **Agent manifest** — register on `vip_workflow_register_assistant_meta` with `capabilities => array( 'stage' )`. This marks the card as **Available in AI stage** only when the referenced ability is also stage-eligible.
+1. **Input contract** — take `post_id`; read the post through `VIPWorkflows\Abilities\Agents\StageAgent::read_post()` so permissions and empty-content errors match core stage agents.
+2. **Stage metadata** — set `meta.stage_eligible => true` and include `'stage'` in `meta.supports` alongside `'workflow'`. The Sequence editor's agent picker and `/vip-workflows/v1/abilities?context=stage` only list abilities with both signals.
+3. **Agent manifest** — register on `vip_workflows_register_assistant_meta` with `capabilities => array( 'stage' )`. This marks the card as **Available in AI stage** only when the referenced ability is also stage-eligible.
 4. **Output contract** — return `{ status, summary, ... }` where `status` is either `pass` or `fail`. Stage agents make a binary editorial judgment: return `pass` when the post is safe to continue on the success path, or `fail` (with a clear `summary`/`issues` payload) when it should not. Return a `WP_Error` on failure; the runner routes that through the stage's `error` destination.
 5. **Mutability contract** — read-only agents should declare `annotations.readonly => true`. Mutating agents must write through `StageAgent`: use `StageAgent::write_content()` to rewrite the body, or `StageAgent::write_block_notes()` to annotate blocks with native editorial notes (`comment_type => 'note'`, anchored via the block's `metadata.noteId`). Both sanitize content and attribute the change to the acting user. A note-writing agent is not read-only (`annotations.readonly => false`). Native notes render in the editor's Comments panel for post types that declare `editor => notes` support (`post`/`page` do by default; a custom type needs `add_post_type_support( $type, 'notes' )`).
 
@@ -68,7 +68,7 @@ Before starting, gather from the user:
 8. **Icon** — an icon slug (e.g. `'search'`, `'calendar'`), from the set in
    `src/admin/components/ideation/assistant-icon.js`. Not an emoji: the admin
    renders these through `@wordpress/icons`, and an unknown slug renders nothing.
-9. **Credentials?** — does it need an API key? Determines `settings_schema` and `availability_callback` / `is_configured`. Where does the key come from — the agent's own card fields (`RequirementFactory::in_card()`), a service the plugin reads through `VIPWorkflow\AI\Credentials` (`RequirementFactory::missing_credential()`), or nowhere the user can act on (`unsupported_environment()` / `dependency()`)? See [Availability](#availability)
+9. **Credentials?** — does it need an API key? Determines `settings_schema` and `availability_callback` / `is_configured`. Where does the key come from — the agent's own card fields (`RequirementFactory::in_card()`), a service the plugin reads through `VIPWorkflows\AI\Credentials` (`RequirementFactory::missing_credential()`), or nowhere the user can act on (`unsupported_environment()` / `dependency()`)? See [Availability](#availability)
 
 ## Plugin Structure
 
@@ -77,7 +77,7 @@ workflow-{name}/
   workflow-{name}.php   # Main plugin file (single file is fine for most agents)
 ```
 
-The plugin directory lives alongside `vip-workflow/` in the same parent directory (not inside it).
+The plugin directory lives alongside `vip-workflows/` in the same parent directory (not inside it).
 
 Naming conventions (not enforced, but keep things scannable):
 
@@ -113,11 +113,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 add_action( 'wp_abilities_api_init', __NAMESPACE__ . '\register' );
 
 function register(): void {
-    if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+    if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
         return;
     }
 
-    vip_workflow_register_ability(
+    vip_workflows_register_ability(
         'workflow-agent-{name}/{slug}',
         array(
             'label'               => __( '{Display Name}', 'workflow-agent-{name}' ),
@@ -291,26 +291,26 @@ declare( strict_types=1 );
 
 namespace WorkflowAgent{PascalName};
 
-use VIPWorkflow\Abilities\Agents\StageAgent;
+use VIPWorkflows\Abilities\Agents\StageAgent;
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-add_action( 'vip_workflow_register_abilities', __NAMESPACE__ . '\register' );
-add_action( 'vip_workflow_register_assistant_meta', __NAMESPACE__ . '\register_agent_meta' );
+add_action( 'vip_workflows_register_abilities', __NAMESPACE__ . '\register' );
+add_action( 'vip_workflows_register_assistant_meta', __NAMESPACE__ . '\register_agent_meta' );
 
 function register(): void {
-    if ( ! function_exists( 'vip_workflow_register_ability' ) || ! class_exists( StageAgent::class ) ) {
+    if ( ! function_exists( 'vip_workflows_register_ability' ) || ! class_exists( StageAgent::class ) ) {
         return;
     }
 
-    vip_workflow_register_ability(
+    vip_workflows_register_ability(
         'workflow-agent-{name}/{slug}',
         array(
             'label'               => __( '{Display Name}', 'workflow-agent-{name}' ),
             'description'         => __( '{One-line description.}', 'workflow-agent-{name}' ),
-            'category'            => 'vip-workflow',
+            'category'            => 'vip-workflows',
             'input_schema'        => array(
                 'type'                 => 'object',
                 'additionalProperties' => false,
@@ -414,7 +414,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
 
-add_action( 'vip_workflow_register_discovery_providers', __NAMESPACE__ . '\register' );
+add_action( 'vip_workflows_register_discovery_providers', __NAMESPACE__ . '\register' );
 
 function register( $registry ): void {
     $registry->register( '{provider-slug}', array(
@@ -584,11 +584,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 add_action( 'wp_abilities_api_init', __NAMESPACE__ . '\register_ability' );
 
 function register_ability(): void {
-    if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+    if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
         return;
     }
 
-    vip_workflow_register_ability(
+    vip_workflows_register_ability(
         'workflow-{name}/{ability-slug}',
         array(
             'label'               => __( '{Display Name}', 'workflow-{name}' ),
@@ -605,7 +605,7 @@ function register_ability(): void {
 }
 
 // Register the discovery provider.
-add_action( 'vip_workflow_register_discovery_providers', __NAMESPACE__ . '\register_provider' );
+add_action( 'vip_workflows_register_discovery_providers', __NAMESPACE__ . '\register_provider' );
 
 function register_provider( $registry ): void {
     $registry->register( '{provider-slug}', array(
@@ -622,7 +622,7 @@ function register_provider( $registry ): void {
 }
 
 // Declare the unified manifest so both appear as a single card.
-add_action( 'vip_workflow_register_assistant_meta', __NAMESPACE__ . '\register_assistant_meta' );
+add_action( 'vip_workflows_register_assistant_meta', __NAMESPACE__ . '\register_assistant_meta' );
 
 function register_assistant_meta( $registry ): void {
     $registry->register( 'workflow-{name}', array(
@@ -654,7 +654,7 @@ An agent that needs configuration declares an `availability_callback` — in `me
 | Return value | Meaning |
 |---|---|
 | `true` | Dependencies are met. Return this the moment they are — including when only one member of an `any` group is satisfied. |
-| `VIPWorkflow\Abilities\Availability::unmet( ... )` | Dependencies are not met, carrying the unmet requirements. |
+| `VIPWorkflows\Abilities\Availability::unmet( ... )` | Dependencies are not met, carrying the unmet requirements. |
 | `false` | Legacy shape. Still supported and silent, but the card can only render the generic line. |
 
 **The callback owns satisfaction.** It is the only code with credential access, so nothing downstream re-derives it: a requirement group contains *only* unmet members, and `Availability::unmet()` is never returned for a dependency that is actually satisfied.
@@ -664,16 +664,16 @@ An agent that needs configuration declares an `availability_callback` — in `me
 | Factory method | Use when |
 |---|---|
 | `in_card( $id, $admin_reason, $user_message, $hint, $sources )` | The key is entered in the agent's own card fields (`settings_schema`). This is the usual case for a third-party agent. |
-| `missing_credential( $service, $service_label, $sources )` | The key is one the plugin reads through `VIPWorkflow\AI\Credentials`. Derives everything from the service slug, and resolves to Settings → Connectors or to the `wp-config.php` constant name depending on the install. |
+| `missing_credential( $service, $service_label, $sources )` | The key is one the plugin reads through `VIPWorkflows\AI\Credentials`. Derives everything from the service slug, and resolves to Settings → Connectors or to the `wp-config.php` constant name depending on the install. |
 | `dependency( $id, $admin_reason, $user_message, $sources )` | A prerequisite other than a credential is missing (e.g. no provider is registered). |
 | `unsupported_environment( $id, $admin_reason, $user_message, $sources )` | The environment cannot support the capability, so there is nothing to configure. |
 
 Group members with `RequirementGroup::all()` when every one is needed, or `RequirementGroup::any()` when one is enough — an `any` group renders as a single "configure at least one of" block rather than N separate blockers.
 
 ```php
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Abilities\RequirementGroup;
 
 /**
  * Whether this agent's dependencies are met, and what is missing if not.
@@ -701,7 +701,7 @@ function check_availability(): bool|Availability {
 }
 
 function is_configured(): bool {
-    $settings = \VIPWorkflow\Abilities\AbilitySettings::get_instance();
+    $settings = \VIPWorkflows\Abilities\AbilitySettings::get_instance();
     $options  = $settings->get_options( 'workflow-agent-{name}/{slug}' );
 
     return ! empty( $options['api_key'] );
@@ -724,7 +724,7 @@ If the agent needs configuration, there are two paths:
 import { addFilter } from '@wordpress/hooks';
 
 addFilter(
-    'vipWorkflow.assistantSettings',
+    'vipWorkflows.assistantSettings',
     'workflow-{name}',
     ( component, assistant, { disabled, onHasChangesChange, onSaveRef } ) => {
         // Match on your ability id, not on `assistant.slug`. An entry slug is
@@ -756,9 +756,9 @@ The filter receives the full unified agent entry (`slug`, `capabilities`, `abili
 
 **You must honor `disabled`.** Everything your component renders describes how the agent behaves when it runs, so a switched-off agent offers none of it: pass `disabled` to every control, and never report `true` through `onHasChangesChange` while it is set. The card can only switch off the controls it renders itself, and your component replaces those outright — a component that ignores the flag lets a reader configure and save an agent that never runs, which is exactly the bug the flag exists to close. The Enabled toggle stays live; it is the way back.
 
-Settings persist via `POST /vip-workflow/v1/assistants/{slug}/settings` with `{ enabled?: bool, options?: object }`. The registry writes through to the underlying legacy options (`vip_workflow_ability_settings[ability_id]`, `vip_discovery_provider_settings`, `vip_discovery_provider_{slug}`), so existing consumers keep working unchanged.
+Settings persist via `POST /vip-workflows/v1/assistants/{slug}/settings` with `{ enabled?: bool, options?: object }`. The registry writes through to the underlying legacy options (`vip_workflows_ability_settings[ability_id]`, `vip_discovery_provider_settings`, `vip_discovery_provider_{slug}`), so existing consumers keep working unchanged.
 
-The legacy `vipWorkflow.assistantSettingsComponent` (research) and `vip_workflow_discovery_provider_settings` (discovery) filters are still honored for backward compatibility, but new code should always use `vipWorkflow.assistantSettings`. Both carry the same obligation: the legacy assistants filter receives the same three-member callbacks object, and the legacy discovery filter returns a component *type* that the card renders with a `disabled` prop alongside `providerSlug`.
+The legacy `vipWorkflows.assistantSettingsComponent` (research) and `vip_workflows_discovery_provider_settings` (discovery) filters are still honored for backward compatibility, but new code should always use `vipWorkflows.assistantSettings`. Both carry the same obligation: the legacy assistants filter receives the same three-member callbacks object, and the legacy discovery filter returns a component *type* that the card renders with a `disabled` prop alongside `providerSlug`.
 
 ## Caching
 
@@ -778,7 +778,7 @@ Cache external API responses server-side using WordPress transients:
 - `meta.type` must be `'research'`
 - `meta.show_in_rest` must be `true`
 - Hook into `wp_abilities_api_init` (not `init`)
-- Guard with `function_exists( 'vip_workflow_register_ability' )` so the plugin degrades gracefully
+- Guard with `function_exists( 'vip_workflows_register_ability' )` so the plugin degrades gracefully
 
 **Discovery provider:**
 - Provider slug must be unique across all plugins
@@ -786,7 +786,7 @@ Cache external API responses server-side using WordPress transients:
 - If `recommend` is declared, the `recommend` callback must be callable
 - If `search` is declared, both `search` and `filters` callbacks must be callable
 - The `seed` callback is always required
-- Hook into `vip_workflow_register_discovery_providers` (receives the registry instance)
+- Hook into `vip_workflows_register_discovery_providers` (receives the registry instance)
 - `availability_callback` is optional; if omitted the provider is always considered available. When present it should return `true` or an `Availability` — see [Availability](#availability)
 
 **Unified manifest (multi-capability plugins):**
@@ -794,23 +794,23 @@ Cache external API responses server-side using WordPress transients:
 - `ability_ids` must reference abilities the plugin actually registers
 - `provider_slugs` must reference providers the plugin actually registers
 - `capabilities` may include `'stage'` when the plugin has at least one registered stage-eligible ability; the registry ignores unsupported manifest claims
-- Hook into `vip_workflow_register_assistant_meta` (receives the registry instance)
+- Hook into `vip_workflows_register_assistant_meta` (receives the registry instance)
 
 **Stage ability:**
 - Ability name **must** be namespaced: `plugin-slug/ability-slug`
-- `category` should be `'vip-workflow'`
+- `category` should be `'vip-workflows'`
 - `meta.type` must be `'agent'`
 - `meta.supports` must include both `'workflow'` and `'stage'`
 - `meta.stage_eligible` must be `true`
 - `input_schema` must require `post_id`
 - `output_schema` must require `status` and `summary`, with `status` limited to `pass` and `fail`
-- Hook into `vip_workflow_register_abilities` so core stage helpers are already loaded
-- Register a manifest on `vip_workflow_register_assistant_meta` with `capabilities => array( 'stage' )` so the Agents card is marked available in AI stages when the ability metadata also qualifies
+- Hook into `vip_workflows_register_abilities` so core stage helpers are already loaded
+- Register a manifest on `vip_workflows_register_assistant_meta` with `capabilities => array( 'stage' )` so the Agents card is marked available in AI stages when the ability metadata also qualifies
 - Read-only agents should declare `annotations.readonly => true`; mutating agents must write through `StageAgent::write_content()` (rewrite the body) or `StageAgent::write_block_notes()` (attach native block notes), and declare `annotations.readonly => false`
 
 ## Testing
 
-1. Place the plugin directory alongside `vip-workflow/`.
+1. Place the plugin directory alongside `vip-workflows/`.
 2. Activate it in WordPress admin.
 3. Go to **Integrations > Agents** to verify it appears as a single card and can be enabled.
 4. Configure any settings, then:

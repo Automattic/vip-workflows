@@ -32,7 +32,7 @@
 	},
 	"autoload-dev": {
 		"psr-4": {
-			"VIPWorkflow\\Tests\\": "tests/phpunit/"
+			"VIPWorkflows\\Tests\\": "tests/phpunit/"
 		}
 	},
 	"scripts": {

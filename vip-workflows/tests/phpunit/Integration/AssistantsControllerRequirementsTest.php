@@ -3,7 +3,7 @@
  * Requirement serialization on the Agents REST surface.
  *
  * Lives in the integration suite because everything asserted here depends on a
- * real, registered `VIPWorkflow\Abilities\Ability`: `wp_register_ability()` only
+ * real, registered `VIPWorkflows\Abilities\Ability`: `wp_register_ability()` only
  * functions while `wp_abilities_api_init` is running and silently no-ops
  * elsewhere, so a Brain\Monkey unit test cannot produce an ability that reports
  * structured availability at all. Route dispatch through `rest_get_server()` is
@@ -13,44 +13,44 @@
  * registrations on a clean test database with no credentials configured — the
  * fresh-install state the feature exists to explain.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\AI\ConnectorsCredentialBackend;
-use VIPWorkflow\AI\CredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
-use VIPWorkflow\API\AssistantsController;
-use VIPWorkflow\Assistants\AssistantRegistry;
-use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
-use VIPWorkflow\Ideation\Assistants\MediaScout;
-use VIPWorkflow\Ideation\Assistants\WebResearcher;
+use VIPWorkflows\AI\ConnectorsCredentialBackend;
+use VIPWorkflows\AI\CredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
+use VIPWorkflows\API\AssistantsController;
+use VIPWorkflows\Assistants\AssistantRegistry;
+use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Ideation\Assistants\MediaScout;
+use VIPWorkflows\Ideation\Assistants\WebResearcher;
 use WP_REST_Request;
 use WP_REST_Response;
 
 /**
- * @covers \VIPWorkflow\API\AssistantsController
- * @covers \VIPWorkflow\API\AvailabilitySerializer
+ * @covers \VIPWorkflows\API\AssistantsController
+ * @covers \VIPWorkflows\API\AvailabilitySerializer
  */
 class AssistantsControllerRequirementsTest extends TestCase
 {
     /**
      * Auto-generated entry slugs carry the whole ability id, so each research
      * agent is addressable on its own. While the slug was the vendor prefix
-     * alone, both of these were `vip-workflow` and the second agent could not be
+     * alone, both of these were `vip-workflows` and the second agent could not be
      * reached at all.
      */
-    private const WEB_RESEARCHER_SLUG = 'vip-workflow-web-researcher';
+    private const WEB_RESEARCHER_SLUG = 'vip-workflows-web-researcher';
 
-    private const MEDIA_SCOUT_SLUG = 'vip-workflow-media-scout';
+    private const MEDIA_SCOUT_SLUG = 'vip-workflows-media-scout';
 
-    private const WEB_RESEARCHER_ABILITY = 'vip-workflow/web-researcher';
+    private const WEB_RESEARCHER_ABILITY = 'vip-workflows/web-researcher';
 
     /**
      * Register the two research agents and pin the credential backend.
@@ -87,7 +87,7 @@ class AssistantsControllerRequirementsTest extends TestCase
                 if ( ! in_array( self::WEB_RESEARCHER_ABILITY, $registered, true ) ) {
                     WebResearcher::register_ability();
                 }
-                if ( ! in_array( 'vip-workflow/media-scout', $registered, true ) ) {
+                if ( ! in_array( 'vip-workflows/media-scout', $registered, true ) ) {
                     MediaScout::register_ability();
                 }
             }
@@ -133,7 +133,7 @@ class AssistantsControllerRequirementsTest extends TestCase
      */
     private function list_entries(): array
     {
-        $response = $this->dispatch( 'GET', '/vip-workflow/v1/assistants' );
+        $response = $this->dispatch( 'GET', '/vip-workflows/v1/assistants' );
         $this->assertSame( 200, $response->get_status() );
 
         return $response->get_data();
@@ -214,7 +214,7 @@ class AssistantsControllerRequirementsTest extends TestCase
 
     public function test_single_item_read_matches_the_list_element(): void
     {
-        $response = $this->dispatch( 'GET', '/vip-workflow/v1/assistants/' . self::WEB_RESEARCHER_SLUG );
+        $response = $this->dispatch( 'GET', '/vip-workflows/v1/assistants/' . self::WEB_RESEARCHER_SLUG );
 
         $this->assertSame( 200, $response->get_status() );
         $this->assertSame( $this->list_entry( self::WEB_RESEARCHER_SLUG ), $response->get_data() );
@@ -222,25 +222,25 @@ class AssistantsControllerRequirementsTest extends TestCase
 
     /**
      * The re-check affordance is per-agent, so each agent must be reachable by
-     * its own slug. Both research agents previously derived `vip-workflow` from
+     * its own slug. Both research agents previously derived `vip-workflows` from
      * their shared vendor prefix, so this route could only ever return the first
      * of them and Media Scout — half the reason this feature exists — was
      * unaddressable.
      */
     public function test_each_research_agent_is_addressable_by_its_own_slug(): void
     {
-        $web_researcher = $this->dispatch( 'GET', '/vip-workflow/v1/assistants/' . self::WEB_RESEARCHER_SLUG );
-        $media_scout    = $this->dispatch( 'GET', '/vip-workflow/v1/assistants/' . self::MEDIA_SCOUT_SLUG );
+        $web_researcher = $this->dispatch( 'GET', '/vip-workflows/v1/assistants/' . self::WEB_RESEARCHER_SLUG );
+        $media_scout    = $this->dispatch( 'GET', '/vip-workflows/v1/assistants/' . self::MEDIA_SCOUT_SLUG );
 
         $this->assertSame( 200, $web_researcher->get_status() );
         $this->assertSame( 200, $media_scout->get_status() );
 
         $this->assertSame(
-            array( 'vip-workflow/web-researcher' ),
+            array( 'vip-workflows/web-researcher' ),
             $web_researcher->get_data()['ability_ids']
         );
         $this->assertSame(
-            array( 'vip-workflow/media-scout' ),
+            array( 'vip-workflows/media-scout' ),
             $media_scout->get_data()['ability_ids'],
             'Media Scout must resolve to its own ability, not to a sibling sharing the vendor prefix.'
         );
@@ -254,7 +254,7 @@ class AssistantsControllerRequirementsTest extends TestCase
         // Stand in for the user completing the Connectors round trip.
         Credentials::get_instance()->set_backend( $this->backend_with_key( 'tavily' ) );
 
-        $after = $this->dispatch( 'GET', '/vip-workflow/v1/assistants/' . self::WEB_RESEARCHER_SLUG )->get_data();
+        $after = $this->dispatch( 'GET', '/vip-workflows/v1/assistants/' . self::WEB_RESEARCHER_SLUG )->get_data();
 
         $this->assertTrue( $after['available'] );
         $this->assertTrue( $after['availability']['available'] );
@@ -285,7 +285,7 @@ class AssistantsControllerRequirementsTest extends TestCase
          * Both registries are singletons that outlive the test, and a manifest
          * cannot be unregistered — so the entry is built on a throwaway provider
          * and both singletons are discarded afterwards. `maybe_init()` re-fires
-         * `vip_workflow_register_assistant_meta` on the next read, so the plugin's
+         * `vip_workflows_register_assistant_meta` on the next read, so the plugin's
          * own manifests come back intact.
          */
         DiscoveryProviderRegistry::get_instance()->register(
@@ -312,7 +312,7 @@ class AssistantsControllerRequirementsTest extends TestCase
         );
 
         try {
-            $response = $this->dispatch( 'GET', '/vip-workflow/v1/assistants/' . $slug );
+            $response = $this->dispatch( 'GET', '/vip-workflows/v1/assistants/' . $slug );
 
             $this->assertSame( 200, $response->get_status() );
             $this->assertSame( $slug, $response->get_data()['slug'] );
@@ -335,7 +335,7 @@ class AssistantsControllerRequirementsTest extends TestCase
 
     public function test_single_item_read_for_an_unknown_slug_is_404(): void
     {
-        $response = $this->dispatch( 'GET', '/vip-workflow/v1/assistants/no-such-agent' );
+        $response = $this->dispatch( 'GET', '/vip-workflows/v1/assistants/no-such-agent' );
 
         $this->assertSame( 404, $response->get_status() );
         $this->assertSame( 'unknown_assistant', $response->get_data()['code'] );
@@ -362,9 +362,9 @@ class AssistantsControllerRequirementsTest extends TestCase
     public function provide_assistants_routes(): array
     {
         return array(
-            'list'        => array( 'GET', '/vip-workflow/v1/assistants' ),
-            'single read' => array( 'GET', '/vip-workflow/v1/assistants/' . self::WEB_RESEARCHER_SLUG ),
-            'settings'    => array( 'POST', '/vip-workflow/v1/assistants/' . self::WEB_RESEARCHER_SLUG . '/settings' ),
+            'list'        => array( 'GET', '/vip-workflows/v1/assistants' ),
+            'single read' => array( 'GET', '/vip-workflows/v1/assistants/' . self::WEB_RESEARCHER_SLUG ),
+            'settings'    => array( 'POST', '/vip-workflows/v1/assistants/' . self::WEB_RESEARCHER_SLUG . '/settings' ),
         );
     }
 
@@ -398,7 +398,7 @@ class AssistantsControllerRequirementsTest extends TestCase
     public function test_single_item_read_validates_against_the_registered_item_schema(): void
     {
         $schema = ( new AssistantsController() )->get_public_item_schema();
-        $data   = $this->dispatch( 'GET', '/vip-workflow/v1/assistants/' . self::WEB_RESEARCHER_SLUG )->get_data();
+        $data   = $this->dispatch( 'GET', '/vip-workflows/v1/assistants/' . self::WEB_RESEARCHER_SLUG )->get_data();
 
         $valid = rest_validate_value_from_schema( $data, $schema, 'assistant' );
 
@@ -409,7 +409,7 @@ class AssistantsControllerRequirementsTest extends TestCase
     {
         $response = $this->dispatch(
             'POST',
-            '/vip-workflow/v1/assistants/' . self::WEB_RESEARCHER_SLUG . '/settings',
+            '/vip-workflows/v1/assistants/' . self::WEB_RESEARCHER_SLUG . '/settings',
             array( 'enabled' => false )
         );
 

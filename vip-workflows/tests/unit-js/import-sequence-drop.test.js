@@ -73,10 +73,10 @@ beforeEach( () => {
 		if ( path === '/wp/v2/types' ) {
 			return Promise.resolve( { post: {} } );
 		}
-		if ( path === '/vip-workflow/v1/sequences' ) {
+		if ( path === '/vip-workflows/v1/sequences' ) {
 			return Promise.resolve( STORED );
 		}
-		if ( path === '/vip-workflow/v1/sequences/import' ) {
+		if ( path === '/vip-workflows/v1/sequences/import' ) {
 			imports.push( { method, data } );
 			return Promise.resolve( { id: 2 } );
 		}
@@ -106,7 +106,7 @@ async function openImportModal() {
 	// the copy points at rather than whichever element carries the class.
 	return screen
 		.getByText( DROP_HINT )
-		.closest( '.vip-workflow-import-modal__drop-target' );
+		.closest( '.vip-workflows-import-modal__drop-target' );
 }
 
 /**
@@ -181,7 +181,9 @@ describe( 'A sequence file dropped on the import modal', () => {
 			expect( nameField() ).toHaveValue( 'Editorial 2' )
 		);
 		expect(
-			document.querySelector( '.vip-workflow-import-modal__type-preview' )
+			document.querySelector(
+				'.vip-workflows-import-modal__type-preview'
+			)
 		).toHaveTextContent( 'workflow' );
 
 		fireEvent.click(

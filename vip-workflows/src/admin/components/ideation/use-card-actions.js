@@ -58,7 +58,7 @@ export function useCardActions( projectId, state, onStateChange ) {
 			} );
 
 			const freshState = await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ projectId }/pin`,
+				path: `/vip-workflows/v1/ideation/${ projectId }/pin`,
 				method: 'POST',
 				data: { source_id: cardId },
 			} );
@@ -75,7 +75,7 @@ export function useCardActions( projectId, state, onStateChange ) {
 			} );
 
 			await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ projectId }/dismiss`,
+				path: `/vip-workflows/v1/ideation/${ projectId }/dismiss`,
 				method: 'POST',
 				data: { source_id: cardId },
 			} );
@@ -88,7 +88,7 @@ export function useCardActions( projectId, state, onStateChange ) {
 			updateCardStatus( cardId, 'default', { removeFromPinned: true } );
 
 			await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ projectId }/unpin`,
+				path: `/vip-workflows/v1/ideation/${ projectId }/unpin`,
 				method: 'POST',
 				data: { source_id: cardId },
 			} );
@@ -103,7 +103,7 @@ export function useCardActions( projectId, state, onStateChange ) {
 			} );
 
 			await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ projectId }/restore`,
+				path: `/vip-workflows/v1/ideation/${ projectId }/restore`,
 				method: 'POST',
 				data: { source_id: cardId },
 			} );

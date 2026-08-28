@@ -15,18 +15,18 @@
  * `WP_Ability`. The ability-level wiring for the stage agents is covered in
  * tests/phpunit/Integration/AiProviderGatesIntegrationTest.php.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\ConnectorsCredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Ideation\Research\IdeationAnalyzer;
-use VIPWorkflow\Integrations\MediaProcessor;
+use VIPWorkflows\AI\ConnectorsCredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Ideation\Research\IdeationAnalyzer;
+use VIPWorkflows\Integrations\MediaProcessor;
 use WordPress\AiClient\AiClient;
 
 class AiProviderGatesTest extends TestCase
@@ -92,7 +92,7 @@ class AiProviderGatesTest extends TestCase
      */
     private function select_provider( string $provider ): void
     {
-        $this->options['vip_workflow_ai_provider'] = $provider;
+        $this->options['vip_workflows_ai_provider'] = $provider;
     }
 
     /**
@@ -112,10 +112,10 @@ class AiProviderGatesTest extends TestCase
      */
     private function set_model( string $provider ): void
     {
-        $map              = $this->options['vip_workflow_ai_models'] ?? array();
+        $map              = $this->options['vip_workflows_ai_models'] ?? array();
         $map[ $provider ] = 'model-' . $provider;
 
-        $this->options['vip_workflow_ai_models'] = $map;
+        $this->options['vip_workflows_ai_models'] = $map;
     }
 
     /**

@@ -186,7 +186,7 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 									/* translators: %s: comma-separated agent outcome names, e.g. "On pass, On fail". */
 									__(
 										'%s share one transition',
-										'vip-workflow'
+										'vip-workflows'
 									),
 									agentOutcomeNames( shared )
 								) }
@@ -212,7 +212,7 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 								]
 									.filter( Boolean )
 									.join( ' ' ) }
-								title={ __( 'Insert stage', 'vip-workflow' ) }
+								title={ __( 'Insert stage', 'vip-workflows' ) }
 								onClick={ onInsertClick }
 							>
 								<Icon icon={ plus } size={ 16 } />

@@ -2,22 +2,22 @@
 /**
  * Tests for the IdeationExperiment declaration and its ExperimentRegistry gating.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Admin\IdeationAdmin;
-use VIPWorkflow\Discovery\DiscoveryModule;
-use VIPWorkflow\Experiments\ExperimentRegistry;
-use VIPWorkflow\Experiments\IdeationExperiment;
-use VIPWorkflow\Ideation\Research\IdeationPostTypes;
-use VIPWorkflow\Ideation\Research\SourceProcessingJob;
-use VIPWorkflow\Plugin;
+use VIPWorkflows\Admin\IdeationAdmin;
+use VIPWorkflows\Discovery\DiscoveryModule;
+use VIPWorkflows\Experiments\ExperimentRegistry;
+use VIPWorkflows\Experiments\IdeationExperiment;
+use VIPWorkflows\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\Ideation\Research\SourceProcessingJob;
+use VIPWorkflows\Plugin;
 
 /**
  * Tests for IdeationExperiment.
@@ -136,7 +136,7 @@ class IdeationExperimentTest extends TestCase
         // which an empty-args + group filter would not match.
         Functions\expect( 'as_unschedule_all_actions' )
             ->once()
-            ->with( 'vip_workflow_process_source' );
+            ->with( 'vip_workflows_process_source' );
         Functions\expect( 'flush_rewrite_rules' )->once();
 
         $this->experiment->deactivate();

@@ -5,17 +5,17 @@
  * counts_by_stage() runs a raw aggregation and apply_to_admin_query() mutates a
  * real WP_Query, so both need a booted WordPress.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StageQuery;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StageQuery;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Real-WordPress tests for StageQuery.

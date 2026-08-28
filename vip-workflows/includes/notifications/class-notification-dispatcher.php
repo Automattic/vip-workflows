@@ -4,14 +4,14 @@
  *
  * Central hub for routing workflow events to notification channels.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Notifications;
+namespace VIPWorkflows\Notifications;
 
-use VIPWorkflow\ModuleInterface;
+use VIPWorkflows\ModuleInterface;
 
 /**
  * Routes events to configured notification channels.
@@ -25,12 +25,12 @@ class NotificationDispatcher implements ModuleInterface {
 	 * Read by should_notify_channel() and written by NotificationsController,
 	 * so the name lives here with the semantics rather than in the controller.
 	 */
-	public const ROUTING_OPTION = 'vip_workflow_notification_routing';
+	public const ROUTING_OPTION = 'vip_workflows_notification_routing';
 
 	/**
 	 * Option name for debug/mirror mode.
 	 */
-	public const DEBUG_OPTION = 'vip_workflow_notification_debug';
+	public const DEBUG_OPTION = 'vip_workflows_notification_debug';
 
 	/**
 	 * Get the identifier.
@@ -95,7 +95,7 @@ class NotificationDispatcher implements ModuleInterface {
 		$this->register_channel( new Channels\EmailChannel() );
 
 		// Allow plugins to register additional channels.
-		do_action( 'vip_workflow_register_notification_channels', $this );
+		do_action( 'vip_workflows_register_notification_channels', $this );
 
 		// Register WordPress options for all channels.
 		foreach ( $this->channels as $channel ) {
@@ -114,10 +114,10 @@ class NotificationDispatcher implements ModuleInterface {
 		}
 
 		// Async delivery handler.
-		add_action( 'vip_workflow_send_notification', array( $this, 'handle_async_send' ), 10, 3 );
+		add_action( 'vip_workflows_send_notification', array( $this, 'handle_async_send' ), 10, 3 );
 
 		// Listen for workflow events.
-		add_action( 'vip_workflow_status_transition', array( $this, 'handle_status_transition' ), 10, 5 );
+		add_action( 'vip_workflows_status_transition', array( $this, 'handle_status_transition' ), 10, 5 );
 
 		// Go-live notifies via two complementary paths, exactly-once by
 		// construction: workflow-driven publishes notify from the workflow stage
@@ -142,7 +142,7 @@ class NotificationDispatcher implements ModuleInterface {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging.
 			error_log(
 				sprintf(
-					'VIP Workflow: Channel "%s" already registered. Skipping duplicate from %s.',
+					'VIP Workflows: Channel "%s" already registered. Skipping duplicate from %s.',
 					$id,
 					get_class( $channel )
 				)
@@ -202,13 +202,13 @@ class NotificationDispatcher implements ModuleInterface {
 
 			if ( function_exists( 'as_enqueue_async_action' ) ) {
 				as_enqueue_async_action(
-					'vip_workflow_send_notification',
+					'vip_workflows_send_notification',
 					array(
 						'channel_id' => $channel->get_id(),
 						'event_type' => $event_type,
 						'data'       => $data,
 					),
-					'vip-workflow-notifications'
+					'vip-workflows-notifications'
 				);
 			} else {
 				$this->send_to_channel( $channel, $event_type, $data );
@@ -292,18 +292,18 @@ class NotificationDispatcher implements ModuleInterface {
 		$templates = array(
 			'published' => array(
 				'severity' => 'success',
-				'title'    => __( 'Published', 'vip-workflow' ),
+				'title'    => __( 'Published', 'vip-workflows' ),
 				/* translators: %1$s: post title, %2$s: author name. */
-				'message'  => __( '"%1$s" published by %2$s', 'vip-workflow' ),
+				'message'  => __( '"%1$s" published by %2$s', 'vip-workflows' ),
 				'args'     => array( 'post_title', 'author_name' ),
 				'color'    => '#00a32a',
 				'icon'     => '✅',
 			),
 			'transition' => array(
 				'severity' => 'info',
-				'title'    => __( 'Stage Changed', 'vip-workflow' ),
+				'title'    => __( 'Stage Changed', 'vip-workflows' ),
 				/* translators: %1$s: post title, %2$s: previous workflow status label, %3$s: new workflow status label. */
-				'message'  => __( '"%1$s" moved from %2$s to %3$s', 'vip-workflow' ),
+				'message'  => __( '"%1$s" moved from %2$s to %3$s', 'vip-workflows' ),
 				'args'     => array( 'post_title', 'from_label', 'to_label' ),
 				'color'    => '#2271b1',
 				'icon'     => '📝',
@@ -360,7 +360,7 @@ class NotificationDispatcher implements ModuleInterface {
 		// A 1s window is effectively no rate limit — a repeated trigger could
 		// flood a channel — so default to a real interval (60s), filterable for
 		// tuning.
-		$ttl = (int) apply_filters( 'vip_workflow_notification_rate_limit_ttl', 60 );
+		$ttl = (int) apply_filters( 'vip_workflows_notification_rate_limit_ttl', 60 );
 		set_transient( $key, time(), max( 1, $ttl ) );
 	}
 
@@ -386,15 +386,15 @@ class NotificationDispatcher implements ModuleInterface {
 	 * gate publish) is not a go-live; cron's future→publish notifies later via
 	 * the core path.
 	 *
-	 * @param int                             $post_id    Post ID.
-	 * @param string                          $new_status New stage key (unprefixed).
-	 * @param string                          $old_status Old stage key (unprefixed).
-	 * @param \VIPWorkflow\Sequences\Sequence $sequence  Sequence.
-	 * @param array                           $context    Transition context: 'cause'
-	 *                                                    (workflow|core),
-	 *                                                    'committed_status', and
-	 *                                                    'previous_status'. Additive —
-	 *                                                    legacy 4-arg emitters omit it.
+	 * @param int                              $post_id    Post ID.
+	 * @param string                           $new_status New stage key (unprefixed).
+	 * @param string                           $old_status Old stage key (unprefixed).
+	 * @param \VIPWorkflows\Sequences\Sequence $sequence  Sequence.
+	 * @param array                            $context    Transition context: 'cause'
+	 *                                                     (workflow|core),
+	 *                                                     'committed_status', and
+	 *                                                     'previous_status'. Additive —
+	 *                                                     legacy 4-arg emitters omit it.
 	 */
 	public function handle_status_transition( int $post_id, string $new_status, string $old_status, $sequence, array $context = array() ): void {
 		$post = get_post( $post_id );
@@ -415,7 +415,7 @@ class NotificationDispatcher implements ModuleInterface {
 			&& 'publish' !== $previous_status;
 
 		$author      = get_userdata( $post->post_author );
-		$author_name = $author ? $author->display_name : __( 'Unknown', 'vip-workflow' );
+		$author_name = $author ? $author->display_name : __( 'Unknown', 'vip-workflows' );
 
 		// Workflow-driven go-live routes through the global event matrix before
 		// any per-transition config check: assignment seats and transitions
@@ -496,12 +496,12 @@ class NotificationDispatcher implements ModuleInterface {
 		// A workflow transition is mid-commit: its stage meta is not written yet
 		// and the workflow path notifies at the correct moment with the correct
 		// stage. Suppress this fire so go-live stays exactly-once.
-		if ( \VIPWorkflow\Workflow\StatusManager::is_transition_in_progress( $post->ID ) ) {
+		if ( \VIPWorkflows\Workflow\StatusManager::is_transition_in_progress( $post->ID ) ) {
 			return;
 		}
 
 		// Only workflow-managed posts notify here.
-		if ( ! get_post_meta( $post->ID, \VIPWorkflow\Workflow\StatusManager::SEQUENCE_META_KEY, true ) ) {
+		if ( ! get_post_meta( $post->ID, \VIPWorkflows\Workflow\StatusManager::SEQUENCE_META_KEY, true ) ) {
 			return;
 		}
 
@@ -512,11 +512,11 @@ class NotificationDispatcher implements ModuleInterface {
 			array(
 				'post_id'          => $post->ID,
 				'post_title'       => $post->post_title,
-				'author_name'      => $author ? $author->display_name : __( 'Unknown', 'vip-workflow' ),
+				'author_name'      => $author ? $author->display_name : __( 'Unknown', 'vip-workflows' ),
 				// The checkpoint reseat (StatusManager, core-service init order)
 				// has already run by the time this fires, so the stage meta read
 				// here is the post's correct, current stage.
-				'stage'            => (string) get_post_meta( $post->ID, \VIPWorkflow\Workflow\StatusManager::STAGE_META_KEY, true ),
+				'stage'            => (string) get_post_meta( $post->ID, \VIPWorkflows\Workflow\StatusManager::STAGE_META_KEY, true ),
 				'previous_status'  => $old_status,
 				'committed_status' => 'publish',
 				'cause'            => 'core',
@@ -580,9 +580,9 @@ class NotificationDispatcher implements ModuleInterface {
 		$events = array(
 			// Go-live is a system event (core transition_post_status), not a
 			// per-transition one, so it routes through the global matrix.
-			'published'    => __( 'Published', 'vip-workflow' ),
+			'published'    => __( 'Published', 'vip-workflows' ),
 		);
 
-		return apply_filters( 'vip_workflow_notification_events', $events );
+		return apply_filters( 'vip_workflows_notification_events', $events );
 	}
 }

@@ -2,15 +2,15 @@
 /**
  * SsrfGuard unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Integrations\SsrfGuard;
+use VIPWorkflows\Integrations\SsrfGuard;
 use WP_Error;
 
 /**
@@ -31,7 +31,7 @@ class SsrfGuardTest extends TestCase
                 'wp_parse_url'                            => function ( $url, $component = -1 ) {
                     return -1 === $component ? parse_url( $url ) : parse_url( $url, $component );
                 },
-                'VIPWorkflow\Integrations\dns_get_record' => function ( $host, $type ) {
+                'VIPWorkflows\Integrations\dns_get_record' => function ( $host, $type ) {
                     unset( $host );
 
                     if ( DNS_A === $type ) {
@@ -40,7 +40,7 @@ class SsrfGuardTest extends TestCase
 
                     return array();
                 },
-                'VIPWorkflow\Integrations\gethostbynamel' => fn() => array( '8.8.8.8' ),
+                'VIPWorkflows\Integrations\gethostbynamel' => fn() => array( '8.8.8.8' ),
             )
         );
     }

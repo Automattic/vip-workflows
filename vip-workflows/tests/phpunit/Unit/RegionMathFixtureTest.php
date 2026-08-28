@@ -7,19 +7,19 @@
  * across two languages and had already drifted twice; a comment saying "MUST
  * change together" is not a test.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\PostTypeManager;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\PostTypeManager;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Golden-fixture conformance for the region map and the publish boundary.

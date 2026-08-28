@@ -29,7 +29,7 @@ export default function RegionInspector( {
 
 	return (
 		<InspectorShell
-			eyebrow={ __( 'Post status', 'vip-workflow' ) }
+			eyebrow={ __( 'Post status', 'vip-workflows' ) }
 			title={ label }
 		>
 			<Stack direction="column" gap="lg" align="stretch">
@@ -39,7 +39,7 @@ export default function RegionInspector( {
 							/* translators: %s: post status label (e.g. Draft, Published) */
 							__(
 								'Posts hold the “%s” status while they sit in any stage in this section of the canvas. Moving between stages inside it leaves the status alone; a transition that crosses its boundary is what changes it.',
-								'vip-workflow'
+								'vip-workflows'
 							),
 							label
 						) +
@@ -49,7 +49,7 @@ export default function RegionInspector( {
 				/>
 
 				<InspectorSection
-					title={ __( 'Entry checkpoint', 'vip-workflow' ) }
+					title={ __( 'Entry checkpoint', 'vip-workflows' ) }
 				>
 					{ /* Not the section's `help` prop: this stands in for the
 					     picker rather than introducing it, so it has to render
@@ -63,22 +63,22 @@ export default function RegionInspector( {
 						>
 							{ __(
 								'This status has no stages yet. Drag a stage into its section of the canvas, or drop a new connection there.',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						</Text>
 					) : (
 						<SelectControl
 							__next40pxDefaultSize
 							__nextHasNoMarginBottom
-							label={ __( 'Stage', 'vip-workflow' ) }
+							label={ __( 'Stage', 'vip-workflows' ) }
 							help={ __(
 								'Where a post lands when something outside the workflow sets this status — publishing from the editor, a scheduled post going live, a REST write — and where a sequence assigned to a post already in this status seats it. Transitions are not funnelled through it: an edge may cross into any stage. The stage holding it sits astride the boundary line; dragging a stage onto that line sets this, and dragging it off clears it.',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 							value={ entryKey || '' }
 							options={ [
 								{
-									label: __( '— Not set —', 'vip-workflow' ),
+									label: __( '— Not set —', 'vip-workflows' ),
 									value: '',
 								},
 								...stages.map( ( stage ) => ( {
@@ -92,7 +92,7 @@ export default function RegionInspector( {
 				</InspectorSection>
 
 				<InspectorDangerZone
-					label={ __( 'Remove this status', 'vip-workflow' ) }
+					label={ __( 'Remove this status', 'vip-workflows' ) }
 					onClick={ onRemove }
 					disabled={ ! canRemove }
 					description={
@@ -100,7 +100,7 @@ export default function RegionInspector( {
 							? undefined
 							: __(
 									'Only a status with no stages can be removed, and Draft always stays — it’s where new content is created.',
-									'vip-workflow'
+									'vip-workflows'
 							  )
 					}
 				/>

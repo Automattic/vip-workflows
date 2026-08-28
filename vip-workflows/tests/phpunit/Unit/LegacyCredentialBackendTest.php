@@ -2,15 +2,15 @@
 /**
  * LegacyCredentialBackend tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\LegacyCredentialBackend;
+use VIPWorkflows\AI\LegacyCredentialBackend;
 
 class LegacyCredentialBackendTest extends TestCase
 {
@@ -38,7 +38,7 @@ class LegacyCredentialBackendTest extends TestCase
 
     public function test_round_trips_a_stored_key(): void
     {
-        $this->options['vip_workflow_api_keys'] = array(
+        $this->options['vip_workflows_api_keys'] = array(
             'openai_key' => $this->encrypt( 'sk-secret-123' ),
         );
 
@@ -54,13 +54,13 @@ class LegacyCredentialBackendTest extends TestCase
     {
         $this->assertSame( '', ( new LegacyCredentialBackend() )->get_api_key( 'openai' ) );
 
-        $this->options['vip_workflow_api_keys'] = 'corrupt-not-an-array';
+        $this->options['vip_workflows_api_keys'] = 'corrupt-not-an-array';
         $this->assertSame( '', ( new LegacyCredentialBackend() )->get_api_key( 'openai' ) );
     }
 
     public function test_unset_slug_returns_empty(): void
     {
-        $this->options['vip_workflow_api_keys'] = array( 'openai_key' => $this->encrypt( 'sk-x' ) );
+        $this->options['vip_workflows_api_keys'] = array( 'openai_key' => $this->encrypt( 'sk-x' ) );
         $this->assertSame( '', ( new LegacyCredentialBackend() )->get_api_key( 'tavily' ) );
     }
 }

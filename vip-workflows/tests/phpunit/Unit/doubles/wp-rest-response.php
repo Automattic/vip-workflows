@@ -14,7 +14,7 @@
  * non-integration suite; under integration the real core class is used and the
  * class_exists guard makes this a no-op.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );

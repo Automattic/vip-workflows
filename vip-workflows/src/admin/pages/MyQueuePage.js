@@ -4,7 +4,7 @@
  * Posts in the workflow awaiting the current user's action, as a
  * `@wordpress/dataviews` table. The dataset is small and fully loaded, so
  * filter/sort/pagination run client-side via `filterSortAndPaginate`; the table
- * is wrapped in the shared `.vip-workflow-card-surface` panel and the status
+ * is wrapped in the shared `.vip-workflows-card-surface` panel and the status
  * renders as the shared `@wordpress/ui` Badge.
  *
  * The per-row quick-action transitions vary by item (each carries its own
@@ -73,7 +73,7 @@ export function MyQueuePage() {
 
 		try {
 			const response = await apiFetch( {
-				path: '/vip-workflow/v1/workflow/my-queue',
+				path: '/vip-workflows/v1/workflow/my-queue',
 			} );
 			setItems( response );
 		} catch ( err ) {
@@ -94,7 +94,7 @@ export function MyQueuePage() {
 
 			const transition = ( acknowledgeWarnings ) =>
 				apiFetch( {
-					path: `/vip-workflow/v1/workflow/post/${ postId }/transition`,
+					path: `/vip-workflows/v1/workflow/post/${ postId }/transition`,
 					method: 'POST',
 					data: {
 						to_status: toStatus,
@@ -117,7 +117,7 @@ export function MyQueuePage() {
 						getTransitionWarningsMessage( response.soft_warnings ),
 						{
 							title: getTransitionWarningsTitle(),
-							confirmLabel: __( 'Continue', 'vip-workflow' ),
+							confirmLabel: __( 'Continue', 'vip-workflows' ),
 						}
 					);
 
@@ -143,7 +143,7 @@ export function MyQueuePage() {
 			{
 				id: 'title',
 				type: 'text',
-				label: __( 'Title', 'vip-workflow' ),
+				label: __( 'Title', 'vip-workflows' ),
 				enableHiding: false,
 				enableGlobalSearch: true,
 				// Titles have unbounded cardinality, so this filter takes typed
@@ -160,7 +160,7 @@ export function MyQueuePage() {
 			{
 				id: 'author',
 				type: 'text',
-				label: __( 'Author', 'vip-workflow' ),
+				label: __( 'Author', 'vip-workflows' ),
 				enableGlobalSearch: true,
 				// Typed text, for the same reason as the title above.
 				filterBy: { operators: [ 'contains', 'notContains' ] },
@@ -176,7 +176,7 @@ export function MyQueuePage() {
 					item.author ? (
 						<AuthorCell actor={ item.author } />
 					) : (
-						__( 'Unknown', 'vip-workflow' )
+						__( 'Unknown', 'vip-workflows' )
 					),
 			},
 			{
@@ -186,7 +186,7 @@ export function MyQueuePage() {
 				// wrong way round. An untyped one drops out of the filter menu
 				// instead, which is honest when there is nothing to pick from.
 				id: 'sequence_name',
-				label: __( 'Workflow', 'vip-workflow' ),
+				label: __( 'Workflow', 'vip-workflows' ),
 				enableGlobalSearch: true,
 				elements: toElements( items, 'sequence_name' ),
 				filterBy: { operators: [ 'isAny' ] },
@@ -194,7 +194,7 @@ export function MyQueuePage() {
 			},
 			{
 				id: 'status_label',
-				label: __( 'Stage', 'vip-workflow' ),
+				label: __( 'Stage', 'vip-workflows' ),
 				elements: toElements( items, 'status_label' ),
 				filterBy: { operators: [ 'isAny' ], isPrimary: true },
 				enableSorting: false,
@@ -216,7 +216,7 @@ export function MyQueuePage() {
 				// unsortable was the payload, not the column.
 				id: 'waiting',
 				type: 'datetime',
-				label: __( 'Waiting', 'vip-workflow' ),
+				label: __( 'Waiting', 'vip-workflows' ),
 				filterBy: false,
 				// Declared for the same reason My Work declares it: the type's
 				// own default is core's translatable literal rather than this
@@ -228,7 +228,7 @@ export function MyQueuePage() {
 					<Timestamp
 						value={ item.modified }
 						variant="body-sm"
-						className="vip-workflow-my-queue__waiting"
+						className="vip-workflows-my-queue__waiting"
 					>
 						{ item.waiting }
 					</Timestamp>
@@ -236,7 +236,7 @@ export function MyQueuePage() {
 			},
 			{
 				id: 'queue_actions',
-				label: __( 'Actions', 'vip-workflow' ),
+				label: __( 'Actions', 'vip-workflows' ),
 				enableHiding: false,
 				enableSorting: false,
 				enableGlobalSearch: false,
@@ -291,7 +291,7 @@ export function MyQueuePage() {
 		() => [
 			{
 				id: 'view',
-				label: __( 'Edit', 'vip-workflow' ),
+				label: __( 'Edit', 'vip-workflows' ),
 				isPrimary: true,
 				icon: pencil,
 				callback: ( [ item ] ) => {
@@ -312,19 +312,19 @@ export function MyQueuePage() {
 	if ( loading ) {
 		return (
 			<Stack
-				className="vip-workflow-page-loading"
+				className="vip-workflows-page-loading"
 				align="center"
 				justify="center"
 				gap="md"
 			>
 				<Spinner />
-				<span>{ __( 'Loading your queue…', 'vip-workflow' ) }</span>
+				<span>{ __( 'Loading your queue…', 'vip-workflows' ) }</span>
 			</Stack>
 		);
 	}
 
 	return (
-		<div className="vip-workflow-my-queue">
+		<div className="vip-workflows-my-queue">
 			{ error && (
 				<Notice
 					status="error"
@@ -339,31 +339,31 @@ export function MyQueuePage() {
 				<Card.Root>
 					<Card.Content>
 						<Stack
-							className="vip-workflow-my-queue__empty"
+							className="vip-workflows-my-queue__empty"
 							direction="column"
 							gap="sm"
 						>
 							<Text variant="body-md" render={ <p /> }>
 								{ __(
 									'No posts are waiting for your action.',
-									'vip-workflow'
+									'vip-workflows'
 								) }
 							</Text>
 							<Text
 								variant="body-sm"
 								render={ <p /> }
-								className="vip-workflow-description"
+								className="vip-workflows-description"
 							>
 								{ __(
 									'Check back later or visit the full Queue page for team-wide items.',
-									'vip-workflow'
+									'vip-workflows'
 								) }
 							</Text>
 						</Stack>
 					</Card.Content>
 				</Card.Root>
 			) : (
-				<div className="vip-workflow-card-surface">
+				<div className="vip-workflows-card-surface">
 					<DataViews
 						data={ data }
 						fields={ fields }
@@ -374,7 +374,7 @@ export function MyQueuePage() {
 						defaultLayouts={ { table: {} } }
 						searchLabel={ __(
 							'Search your queue',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 						getItemId={ ( item ) => String( item.post_id ) }
 					/>

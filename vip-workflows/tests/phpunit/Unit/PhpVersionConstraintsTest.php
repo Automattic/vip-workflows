@@ -6,12 +6,12 @@
  *   1. If tests run under PHP 8.4+, the Debian Trixie patch may no longer be needed.
  *   2. After 2026-11-01, PHP 8.2 is two months from EOL — time to upgrade.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 

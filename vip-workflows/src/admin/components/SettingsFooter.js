@@ -26,7 +26,7 @@ import './SettingsFooter.css';
  */
 export function SettingsFooter( { children } ) {
 	return (
-		<ActionRow className="vip-workflow-settings-footer">
+		<ActionRow className="vip-workflows-settings-footer">
 			{ children }
 		</ActionRow>
 	);

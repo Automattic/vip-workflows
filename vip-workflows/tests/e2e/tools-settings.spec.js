@@ -15,19 +15,19 @@
 
 const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
 
-test.describe( 'VIP Workflow — tools settings', () => {
-	test( 'GET /v1/tools lists vip-workflow tools', async ( {
+test.describe( 'VIP Workflows — tools settings', () => {
+	test( 'GET /v1/tools lists vip-workflows tools', async ( {
 		requestUtils,
 	} ) => {
 		const tools = await requestUtils.rest( {
-			path: '/vip-workflow/v1/tools',
+			path: '/vip-workflows/v1/tools',
 		} );
 
 		expect( Array.isArray( tools ) ).toBe( true );
 		expect( tools.length ).toBeGreaterThan( 0 );
-		// Every entry is a configurable vip-workflow tool with the management shape.
+		// Every entry is a configurable vip-workflows tool with the management shape.
 		for ( const tool of tools ) {
-			expect( tool.category ).toBe( 'vip-workflow' );
+			expect( tool.category ).toBe( 'vip-workflows' );
 			expect( tool ).toHaveProperty( 'settings_schema' );
 			expect( tool ).toHaveProperty( 'check_modes' );
 		}
@@ -37,14 +37,14 @@ test.describe( 'VIP Workflow — tools settings', () => {
 		requestUtils,
 	} ) => {
 		const tools = await requestUtils.rest( {
-			path: '/vip-workflow/v1/tools',
+			path: '/vip-workflows/v1/tools',
 		} );
 		const tool = tools[ 0 ];
 		const original = tool.enabled;
 
 		try {
 			const updated = await requestUtils.rest( {
-				path: `/vip-workflow/v1/tools/${ tool.id }/settings`,
+				path: `/vip-workflows/v1/tools/${ tool.id }/settings`,
 				method: 'POST',
 				data: { enabled: ! original },
 			} );
@@ -55,14 +55,14 @@ test.describe( 'VIP Workflow — tools settings', () => {
 
 			// The change is persisted, visible on a fresh list fetch.
 			const after = await requestUtils.rest( {
-				path: '/vip-workflow/v1/tools',
+				path: '/vip-workflows/v1/tools',
 			} );
 			const reloaded = after.find( ( t ) => t.id === tool.id );
 			expect( reloaded.enabled ).toBe( ! original );
 		} finally {
 			// Restore the original state so reruns stay isolated.
 			await requestUtils.rest( {
-				path: `/vip-workflow/v1/tools/${ tool.id }/settings`,
+				path: `/vip-workflows/v1/tools/${ tool.id }/settings`,
 				method: 'POST',
 				data: { enabled: original },
 			} );
@@ -73,9 +73,9 @@ test.describe( 'VIP Workflow — tools settings', () => {
 		admin,
 		page,
 	} ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflow-tools' );
+		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-tools' );
 
-		const root = page.locator( '#vip-workflow-root' );
+		const root = page.locator( '#vip-workflows-root' );
 		await expect( root ).toBeAttached();
 		await expect( root ).not.toBeEmpty();
 

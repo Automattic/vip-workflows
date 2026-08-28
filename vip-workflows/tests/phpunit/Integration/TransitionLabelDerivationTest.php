@@ -8,15 +8,15 @@
  * transition pointing at it still saying the old name, on the buttons writers
  * use to move posts.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StatusManager;
 
 class TransitionLabelDerivationTest extends TestCase
 {

@@ -67,16 +67,16 @@ const tool = ( id, label, overrides = {} ) => ( {
 	name: id,
 	label,
 	description: `What ${ label } does.`,
-	category: 'vip-workflow',
+	category: 'vip-workflows',
 	enabled: true,
 	availability: { available: true, groups: [] },
 	...overrides,
 } );
 
 const TOOLS = [
-	tool( 'vip-workflow/copy-edit', 'Copy edit' ),
-	tool( 'vip-workflow/fact-check', 'Fact check' ),
-	tool( 'vip-workflow/seo', 'SEO check' ),
+	tool( 'vip-workflows/copy-edit', 'Copy edit' ),
+	tool( 'vip-workflows/fact-check', 'Fact check' ),
+	tool( 'vip-workflows/seo', 'SEO check' ),
 ];
 
 function renderInspector( {
@@ -120,8 +120,8 @@ describe( 'Required tools list', () => {
 			transition: {
 				to: 'review',
 				required_tools: [
-					'vip-workflow/seo',
-					'vip-workflow/copy-edit',
+					'vip-workflows/seo',
+					'vip-workflows/copy-edit',
 				],
 			},
 		} );
@@ -137,12 +137,12 @@ describe( 'Required tools list', () => {
 		renderInspector( {
 			transition: {
 				to: 'review',
-				required_tools: [ 'vip-workflow/seo' ],
+				required_tools: [ 'vip-workflows/seo' ],
 			},
 			tools: [],
 		} );
 
-		expect( rowLabels() ).toEqual( [ 'vip-workflow/seo' ] );
+		expect( rowLabels() ).toEqual( [ 'vip-workflows/seo' ] );
 		expect(
 			screen.getByRole( 'button', { name: 'Remove tool' } )
 		).toBeEnabled();
@@ -171,7 +171,7 @@ describe( 'Required tools list', () => {
 		renderInspector( {
 			transition: { to: 'review' },
 			tools: [
-				tool( 'vip-workflow/copy-edit', 'Copy edit', {
+				tool( 'vip-workflows/copy-edit', 'Copy edit', {
 					enabled: false,
 				} ),
 			],
@@ -192,7 +192,7 @@ describe( 'Required tools list', () => {
 			renderInspector( {
 				transition: {
 					to: 'review',
-					required_tools: [ 'vip-workflow/copy-edit' ],
+					required_tools: [ 'vip-workflows/copy-edit' ],
 				},
 			} );
 
@@ -211,7 +211,7 @@ describe( 'Required tools list', () => {
 			renderInspector( {
 				transition: {
 					to: 'review',
-					required_tools: [ 'vip-workflow/copy-edit' ],
+					required_tools: [ 'vip-workflows/copy-edit' ],
 				},
 				onChange,
 			} );
@@ -225,8 +225,8 @@ describe( 'Required tools list', () => {
 
 			expect( onChange ).toHaveBeenCalledWith( {
 				required_tools: [
-					'vip-workflow/copy-edit',
-					'vip-workflow/seo',
+					'vip-workflows/copy-edit',
+					'vip-workflows/seo',
 				],
 			} );
 		} );
@@ -236,7 +236,7 @@ describe( 'Required tools list', () => {
 				transition: { to: 'review' },
 				tools: [
 					TOOLS[ 0 ],
-					tool( 'vip-workflow/fact-check', 'Fact check', {
+					tool( 'vip-workflows/fact-check', 'Fact check', {
 						enabled: false,
 					} ),
 				],
@@ -261,7 +261,7 @@ describe( 'Required tools list', () => {
 				transition: { to: 'review' },
 				tools: [
 					TOOLS[ 0 ],
-					tool( 'vip-workflow/seo', 'SEO check', {
+					tool( 'vip-workflows/seo', 'SEO check', {
 						availability: {
 							available: false,
 							groups: [
@@ -297,7 +297,7 @@ describe( 'Required tools list', () => {
 			renderInspector( {
 				transition: {
 					to: 'review',
-					required_tools: [ 'vip-workflow/copy-edit' ],
+					required_tools: [ 'vip-workflows/copy-edit' ],
 				},
 			} );
 
@@ -315,10 +315,10 @@ describe( 'Required tools list', () => {
 			renderInspector( {
 				transition: {
 					to: 'review',
-					required_tools: [ 'vip-workflow/copy-edit' ],
+					required_tools: [ 'vip-workflows/copy-edit' ],
 				},
 				tools: [
-					tool( 'vip-workflow/copy-edit', 'Copy edit', {
+					tool( 'vip-workflows/copy-edit', 'Copy edit', {
 						enabled: false,
 					} ),
 				],
@@ -331,10 +331,10 @@ describe( 'Required tools list', () => {
 			renderInspector( {
 				transition: {
 					to: 'review',
-					required_tools: [ 'vip-workflow/seo' ],
+					required_tools: [ 'vip-workflows/seo' ],
 				},
 				tools: [
-					tool( 'vip-workflow/seo', 'SEO check', {
+					tool( 'vip-workflows/seo', 'SEO check', {
 						availability: {
 							available: false,
 							groups: [
@@ -370,10 +370,10 @@ describe( 'Required tools list', () => {
 			renderInspector( {
 				transition: {
 					to: 'review',
-					required_tools: [ 'vip-workflow/seo' ],
+					required_tools: [ 'vip-workflows/seo' ],
 				},
 				tools: [
-					tool( 'vip-workflow/seo', 'SEO check', {
+					tool( 'vip-workflows/seo', 'SEO check', {
 						availability: { available: false, groups: [] },
 					} ),
 				],
@@ -413,13 +413,13 @@ describe( 'Required tools list', () => {
 			renderInspector( {
 				transition: {
 					to: 'review',
-					required_tools: [ 'vip-workflow/copy-edit' ],
+					required_tools: [ 'vip-workflows/copy-edit' ],
 				},
 				tools: [],
 				toolsLoaded: false,
 			} );
 
-			expect( rowLabels() ).toEqual( [ 'vip-workflow/copy-edit' ] );
+			expect( rowLabels() ).toEqual( [ 'vip-workflows/copy-edit' ] );
 			expect( screen.queryByText( 'Missing' ) ).toBeNull();
 		} );
 	} );
@@ -432,9 +432,9 @@ describe( 'Required tools list', () => {
 			transition: {
 				to: 'review',
 				required_tools: [
-					'vip-workflow/copy-edit',
-					'vip-workflow/fact-check',
-					'vip-workflow/seo',
+					'vip-workflows/copy-edit',
+					'vip-workflows/fact-check',
+					'vip-workflows/seo',
 				],
 			},
 			onChange,
@@ -447,7 +447,7 @@ describe( 'Required tools list', () => {
 		} );
 
 		expect( onChange ).toHaveBeenCalledWith( {
-			required_tools: [ 'vip-workflow/copy-edit', 'vip-workflow/seo' ],
+			required_tools: [ 'vip-workflows/copy-edit', 'vip-workflows/seo' ],
 		} );
 	} );
 
@@ -457,9 +457,9 @@ describe( 'Required tools list', () => {
 			transition: {
 				to: 'review',
 				required_tools: [
-					'vip-workflow/copy-edit',
-					'vip-workflow/fact-check',
-					'vip-workflow/seo',
+					'vip-workflows/copy-edit',
+					'vip-workflows/fact-check',
+					'vip-workflows/seo',
 				],
 			},
 			onChange,
@@ -473,9 +473,9 @@ describe( 'Required tools list', () => {
 
 		expect( onChange ).toHaveBeenCalledWith( {
 			required_tools: [
-				'vip-workflow/seo',
-				'vip-workflow/copy-edit',
-				'vip-workflow/fact-check',
+				'vip-workflows/seo',
+				'vip-workflows/copy-edit',
+				'vip-workflows/fact-check',
 			],
 		} );
 	} );
@@ -485,7 +485,7 @@ describe( 'Required tools list', () => {
 		renderInspector( {
 			transition: {
 				to: 'review',
-				required_tools: [ 'vip-workflow/copy-edit' ],
+				required_tools: [ 'vip-workflows/copy-edit' ],
 			},
 			onChange,
 		} );

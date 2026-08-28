@@ -14,22 +14,22 @@
  * project" rather than erroring, and the discovery envelope is the only shape
  * the source is read from.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
 use ReflectionMethod;
-use VIPWorkflow\API\WorkflowController;
-use VIPWorkflow\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\API\WorkflowController;
+use VIPWorkflows\Ideation\Research\IdeationPostTypes;
 use WP_REST_Request;
 
 /**
- * @covers \VIPWorkflow\API\WorkflowController::get_ideation
- * @covers \VIPWorkflow\API\WorkflowController::ideation_source
- * @covers \VIPWorkflow\API\WorkflowController::ideation_excerpt
+ * @covers \VIPWorkflows\API\WorkflowController::get_ideation
+ * @covers \VIPWorkflows\API\WorkflowController::ideation_source
+ * @covers \VIPWorkflows\API\WorkflowController::ideation_excerpt
  */
 class IdeationResearchPanelTest extends TestCase {
 
@@ -129,7 +129,7 @@ class IdeationResearchPanelTest extends TestCase {
 	 * Call the endpoint the way the route does.
 	 */
 	private function get_ideation( ?int $post_id = null ): array {
-		$request = new WP_REST_Request( 'GET', '/vip-workflow/v1/workflow/post/1/ideation' );
+		$request = new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/post/1/ideation' );
 		$request->set_param( 'id', $post_id ?? $this->post_id );
 
 		return $this->controller->get_ideation( $request )->get_data();
@@ -441,14 +441,14 @@ class IdeationResearchPanelTest extends TestCase {
 
 		// `get_routes()` is keyed by pattern, not by any concrete request path.
 		$this->assertArrayHasKey(
-			'/vip-workflow/v1/workflow/post/(?P<id>[\\d]+)/ideation',
+			'/vip-workflows/v1/workflow/post/(?P<id>[\\d]+)/ideation',
 			rest_get_server()->get_routes()
 		);
 
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
 
 		$response = rest_do_request(
-			new WP_REST_Request( 'GET', '/vip-workflow/v1/workflow/post/' . $this->post_id . '/ideation' )
+			new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/post/' . $this->post_id . '/ideation' )
 		);
 
 		$this->assertSame( 403, $response->get_status() );

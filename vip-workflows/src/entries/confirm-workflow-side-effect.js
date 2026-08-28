@@ -16,7 +16,7 @@
  * The classic list-table surfaces (Quick Edit, Bulk Edit) cannot import — they
  * are an inline script printed by `class-posts-columns.php`. So this file is
  * also a webpack entry (`side-effect` → `build/side-effect.js`) and publishes
- * itself on `window.vipWorkflowSideEffect` (see the bottom of this file) for
+ * itself on `window.vipWorkflowsSideEffect` (see the bottom of this file) for
  * them to consume. Same module, same answers, same words: there is no second
  * copy of the decision table anywhere. Being a build entry is why it sits in
  * src/entries/ and not in src/common/ with the other shared modules; the React
@@ -164,12 +164,12 @@ export function getRegionLabel( region ) {
 	if ( ! REGION_ORDER.includes( region ) ) {
 		// eslint-disable-next-line no-console
 		console.error(
-			`VIP Workflow: "${ region }" is not an editorial region (expected draft, pending, private or publish).`
+			`VIP Workflows: "${ region }" is not an editorial region (expected draft, pending, private or publish).`
 		);
 		// Never interpolate the raw value: an unresolved region arrives here as
 		// null or '', and "Changing the status from null to Draft" is worse than
 		// saying plainly that the stage could not be named.
-		return __( 'an unrecognized stage', 'vip-workflow' );
+		return __( 'an unrecognized stage', 'vip-workflows' );
 	}
 
 	return regionLabel( region );
@@ -256,7 +256,7 @@ function reseatStageLabel( { stageRegion, targetStatus, entryStageLabels } ) {
  * @return {string} Translated title.
  */
 export function getStatusChangeConfirmTitle() {
-	return __( 'This changes the workflow', 'vip-workflow' );
+	return __( 'This changes the workflow', 'vip-workflows' );
 }
 
 /**
@@ -265,7 +265,7 @@ export function getStatusChangeConfirmTitle() {
  * @return {string} Translated label.
  */
 export function getStatusChangeConfirmLabel() {
-	return __( 'Continue', 'vip-workflow' );
+	return __( 'Continue', 'vip-workflows' );
 }
 
 /**
@@ -279,7 +279,7 @@ export function getStatusChangeConfirmLabel() {
 export function getAgentInterruptWarning() {
 	return __(
 		'An AI agent is working on this post — continuing will stop it.',
-		'vip-workflow'
+		'vip-workflows'
 	);
 }
 
@@ -289,7 +289,7 @@ export function getAgentInterruptWarning() {
  * @return {string} Translated title.
  */
 export function getTransitionWarningsTitle() {
-	return __( 'This transition has warnings', 'vip-workflow' );
+	return __( 'This transition has warnings', 'vip-workflows' );
 }
 
 /**
@@ -312,10 +312,10 @@ export function getTransitionWarningsMessage( warnings ) {
 		.join( ' ' );
 
 	return detail
-		? `${ detail } ${ __( 'Continue anyway?', 'vip-workflow' ) }`
+		? `${ detail } ${ __( 'Continue anyway?', 'vip-workflows' ) }`
 		: __(
 				'This transition has unresolved warnings. Continue anyway?',
-				'vip-workflow'
+				'vip-workflows'
 		  );
 }
 
@@ -325,7 +325,7 @@ export function getTransitionWarningsMessage( warnings ) {
  * @return {string} Translated title.
  */
 export function getTransitionPublishConfirmTitle() {
-	return __( 'Publish this post?', 'vip-workflow' );
+	return __( 'Publish this post?', 'vip-workflows' );
 }
 
 /**
@@ -334,7 +334,7 @@ export function getTransitionPublishConfirmTitle() {
  * @return {string} Translated label.
  */
 export function getTransitionPublishConfirmLabel() {
-	return __( 'Publish', 'vip-workflow' );
+	return __( 'Publish', 'vip-workflows' );
 }
 
 /**
@@ -363,7 +363,7 @@ export function getTransitionPublishWarning( { stageLabel, scheduled } ) {
 			/* translators: %s: destination workflow stage label, e.g. "Published". */
 			__(
 				'This post is scheduled. Moving it to “%s” publishes it now, instead of at its scheduled time.',
-				'vip-workflow'
+				'vip-workflows'
 			),
 			stageLabel
 		);
@@ -373,7 +373,7 @@ export function getTransitionPublishWarning( { stageLabel, scheduled } ) {
 		/* translators: %s: destination workflow stage label, e.g. "Published". */
 		__(
 			'Moving this post to “%s” publishes it: it becomes publicly visible right away.',
-			'vip-workflow'
+			'vip-workflows'
 		),
 		stageLabel
 	);
@@ -450,8 +450,8 @@ function describeStatusChange( {
 	// filled together or empty together; either one being empty is the signal.
 	if ( ! currentRegion || ! stageRegion ) {
 		return __(
-			'VIP Workflow cannot resolve this post’s workflow stage, so changing its status leaves the post where it is in the workflow.',
-			'vip-workflow'
+			'VIP Workflows cannot resolve this post’s workflow stage, so changing its status leaves the post where it is in the workflow.',
+			'vip-workflows'
 		);
 	}
 
@@ -475,13 +475,13 @@ function describeStatusChange( {
 					/* translators: %s: name of the workflow stage the post will be moved to, e.g. "Ready to publish". */
 					__(
 						'Scheduling this post leaves it at its current workflow stage. When it goes live, the workflow re-seats it at “%s”.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					goLiveStage
 			  )
 			: __(
 					'Scheduling this post leaves it at its current workflow stage, and it stays there when it goes live.',
-					'vip-workflow'
+					'vip-workflows'
 			  );
 	}
 
@@ -504,7 +504,7 @@ function describeStatusChange( {
 					/* translators: 1: current editorial region, e.g. "Published". 2: target editorial region, e.g. "Draft". */
 					__(
 						'Changing the status from %1$s to %2$s leaves this post at its current workflow stage, which is already a %2$s stage.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					from,
 					to
@@ -513,7 +513,7 @@ function describeStatusChange( {
 					/* translators: 1: current editorial region, e.g. "Draft". 2: target editorial region, e.g. "Published". */
 					__(
 						'Changing the status from %1$s to %2$s leaves this post at its current workflow stage: its workflow has no %2$s stage to move it to.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					from,
 					to
@@ -524,7 +524,7 @@ function describeStatusChange( {
 		/* translators: 1: current editorial region, e.g. "Draft". 2: target editorial region, e.g. "Published". 3: name of the workflow stage the post will be moved to. */
 		__(
 			'Changing the status from %1$s to %2$s moves this post out of its current workflow stage and re-seats it at “%3$s”.',
-			'vip-workflow'
+			'vip-workflows'
 		),
 		from,
 		to,
@@ -545,7 +545,7 @@ export function getPublishVetoMessage( { title, workflowName } ) {
 		/* translators: 1: post title. 2: workflow (sequence) name. */
 		__(
 			'“%1$s” is in the “%2$s” workflow. To publish it directly, remove it from the workflow (this is logged), or move it through the workflow to a published stage.',
-			'vip-workflow'
+			'vip-workflows'
 		),
 		title,
 		workflowName
@@ -574,7 +574,7 @@ export function getOrphanedWorkflowMessage( { title } ) {
 		/* translators: %s: post title. */
 		__(
 			'“%s” belongs to a workflow that no longer exists, so its status cannot be changed. Remove it from the workflow (this is logged) to edit it as an ordinary post.',
-			'vip-workflow'
+			'vip-workflows'
 		),
 		title
 	);
@@ -592,7 +592,7 @@ export function getOrphanedWorkflowMessage( { title } ) {
 export function getOrphanedWorkflowRemoveConfirmation() {
 	return __(
 		'Remove this post from its deleted workflow? The removal is recorded in the workflow log, with the stage it was removed from. It cannot be undone.',
-		'vip-workflow'
+		'vip-workflows'
 	);
 }
 
@@ -602,7 +602,7 @@ export function getOrphanedWorkflowRemoveConfirmation() {
  * @return {string} Translated label.
  */
 export function getRemoveFromWorkflowLabel() {
-	return __( 'Remove from workflow', 'vip-workflow' );
+	return __( 'Remove from workflow', 'vip-workflows' );
 }
 
 /**
@@ -623,7 +623,7 @@ export function getRemoveFromWorkflowConfirmation( { workflowName } ) {
 		/* translators: %s: workflow (sequence) name. */
 		__(
 			'Remove this post from the “%s” workflow? The removal is recorded in the workflow log, with the stage it was removed from. It cannot be undone: re-assigning the workflow later seats the post at its region’s entry stage, not at the stage it was removed from.',
-			'vip-workflow'
+			'vip-workflows'
 		),
 		workflowName
 	);
@@ -635,7 +635,7 @@ export function getRemoveFromWorkflowConfirmation( { workflowName } ) {
  * @return {string} Translated title.
  */
 export function getSwitchWorkflowConfirmTitle() {
-	return __( 'Change this post’s workflow?', 'vip-workflow' );
+	return __( 'Change this post’s workflow?', 'vip-workflows' );
 }
 
 /**
@@ -644,7 +644,7 @@ export function getSwitchWorkflowConfirmTitle() {
  * @return {string} Translated label.
  */
 export function getSwitchWorkflowConfirmLabel() {
-	return __( 'Change workflow', 'vip-workflow' );
+	return __( 'Change workflow', 'vip-workflows' );
 }
 
 /**
@@ -672,7 +672,7 @@ export function getSwitchWorkflowConfirmation( {
 		/* translators: 1: workflow (sequence) name the post is leaving. 2: workflow (sequence) name it would move to. */
 		__(
 			'Move this post from the “%1$s” workflow to “%2$s”? It gives up its place in “%1$s”: the change is recorded in the workflow log, and the post starts at the “%2$s” entry stage for its current status, not at the stage it is on now.',
-			'vip-workflow'
+			'vip-workflows'
 		),
 		fromWorkflowName,
 		toWorkflowName
@@ -681,11 +681,11 @@ export function getSwitchWorkflowConfirmation( {
 
 // Publish the module for the classic list-table surfaces. `class-posts-columns.php`
 // enqueues this file's bundle (`build/side-effect.js`) and its inline Quick Edit /
-// Bulk Edit script reads `window.vipWorkflowSideEffect`; an inline script cannot
+// Bulk Edit script reads `window.vipWorkflowsSideEffect`; an inline script cannot
 // import, and a second implementation of the region math or the copy is exactly
 // how the surfaces drift apart. The React surfaces import the named exports and
 // simply ignore this.
-window.vipWorkflowSideEffect = {
+window.vipWorkflowsSideEffect = {
 	DECISION_SILENT,
 	DECISION_WARN,
 	DECISION_VETO,

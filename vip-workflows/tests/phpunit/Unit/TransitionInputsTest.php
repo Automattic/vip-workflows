@@ -8,14 +8,14 @@
  * conversion has to happen on write, for every path that writes, or the inputs
  * an author configured stop being collected without a word.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Sequences\Sequence;
+use VIPWorkflows\Sequences\Sequence;
 
 /**
  * Tests for transition capture inputs.

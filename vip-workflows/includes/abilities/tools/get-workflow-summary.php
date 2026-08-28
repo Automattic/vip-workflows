@@ -4,12 +4,12 @@
  *
  * Returns post counts grouped by workflow status.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the workflow summary query.
@@ -21,13 +21,13 @@ function execute_get_workflow_summary( ?array $input = null ) {
 	$input        = $input ?? array();
 	$sequence_id = $input['sequence_id'] ?? null;
 
-	$repository = new \VIPWorkflow\Sequences\SequenceRepository();
+	$repository = new \VIPWorkflows\Sequences\SequenceRepository();
 
 	// If a specific sequence is requested, use it; otherwise get all active.
 	if ( $sequence_id ) {
 		$sequence = $repository->find( (int) $sequence_id );
 		if ( ! $sequence ) {
-			return new \WP_Error( 'not_found', __( 'Sequence not found.', 'vip-workflow' ) );
+			return new \WP_Error( 'not_found', __( 'Sequence not found.', 'vip-workflows' ) );
 		}
 		$sequences = array( $sequence );
 	} else {
@@ -41,7 +41,7 @@ function execute_get_workflow_summary( ?array $input = null ) {
 		$status_counts = array();
 
 		// One aggregate query per sequence (StageQuery owns the stage storage).
-		$counts = \VIPWorkflow\Workflow\StageQuery::counts_by_stage( $sequence );
+		$counts = \VIPWorkflows\Workflow\StageQuery::counts_by_stage( $sequence );
 
 		foreach ( $statuses as $status ) {
 			$status_key = $status['key'];
@@ -73,18 +73,18 @@ function execute_get_workflow_summary( ?array $input = null ) {
  */
 function register_get_workflow_summary(): void {
 	wp_register_ability(
-		'vip-workflow/get-workflow-summary',
+		'vip-workflows/get-workflow-summary',
 		array(
-			'label'               => __( 'Get Workflow Summary', 'vip-workflow' ),
-			'description'         => __( 'Returns post counts grouped by workflow status for each active sequence.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Get Workflow Summary', 'vip-workflows' ),
+			'description'         => __( 'Returns post counts grouped by workflow status for each active sequence.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
 				'properties'           => array(
 					'sequence_id' => array(
 						'type'        => 'integer',
-						'description' => __( 'Optional sequence ID to filter by. Omit for all active sequences.', 'vip-workflow' ),
+						'description' => __( 'Optional sequence ID to filter by. Omit for all active sequences.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -94,7 +94,7 @@ function register_get_workflow_summary(): void {
 				'properties'           => array(
 					'sequences' => array(
 						'type'        => 'array',
-						'description' => __( 'Array of sequences with their status counts.', 'vip-workflow' ),
+						'description' => __( 'Array of sequences with their status counts.', 'vip-workflows' ),
 					),
 				),
 			),

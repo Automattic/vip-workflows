@@ -17,17 +17,17 @@
  * integration fault on a working site: WP_UnitTestCase fails any test where an
  * undeclared `_doing_it_wrong()` fires, and `report_fault()` goes through it.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Integrations\GuidelineContextProvider;
+use VIPWorkflows\Integrations\GuidelineContextProvider;
 
 /**
- * @covers \VIPWorkflow\Integrations\GuidelineContextProvider
+ * @covers \VIPWorkflows\Integrations\GuidelineContextProvider
  */
 class GuidelineContextProviderKnowledgeTest extends TestCase {
 

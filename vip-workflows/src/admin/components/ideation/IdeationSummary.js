@@ -36,11 +36,11 @@ export default function IdeationSummary( {
 		...( keyPoints || [] ).map( ( p ) => `- ${ p }` ),
 	].join( '\n\n' );
 
-	let generateLabel = __( 'Generate summary', 'vip-workflow' );
+	let generateLabel = __( 'Generate summary', 'vip-workflows' );
 	if ( generating ) {
-		generateLabel = __( 'Generating…', 'vip-workflow' );
+		generateLabel = __( 'Generating…', 'vip-workflows' );
 	} else if ( summary ) {
-		generateLabel = __( 'Regenerate', 'vip-workflow' );
+		generateLabel = __( 'Regenerate', 'vip-workflows' );
 	}
 
 	const renderBody = () => {
@@ -49,7 +49,7 @@ export default function IdeationSummary( {
 				<Stack align="center" gap="sm">
 					<Spinner />
 					<Text variant="body-sm">
-						{ __( 'Loading…', 'vip-workflow' ) }
+						{ __( 'Loading…', 'vip-workflows' ) }
 					</Text>
 				</Stack>
 			);
@@ -58,10 +58,10 @@ export default function IdeationSummary( {
 		if ( summary ) {
 			return (
 				<Stack direction="column" gap="md">
-					<div className="vip-workflow-ideation-summary__content">
+					<div className="vip-workflows-ideation-summary__content">
 						<Stack
 							justify="flex-end"
-							className="vip-workflow-ideation-summary__actions"
+							className="vip-workflows-ideation-summary__actions"
 						>
 							<Button
 								icon={ copy }
@@ -70,23 +70,23 @@ export default function IdeationSummary( {
 								onClick={ () => handleCopy( fullText ) }
 							>
 								{ copiedText
-									? __( 'Copied!', 'vip-workflow' )
-									: __( 'Copy', 'vip-workflow' ) }
+									? __( 'Copied!', 'vip-workflows' )
+									: __( 'Copy', 'vip-workflows' ) }
 							</Button>
 						</Stack>
 						{ /* wpds-allow R7 -- rendered summary body with custom line-height; no matching Text variant */ }
 						<MarkdownText
 							text={ summary }
-							className="vip-workflow-ideation-summary__text"
+							className="vip-workflows-ideation-summary__text"
 						/>
 						{ keyPoints && keyPoints.length > 0 && (
 							// wpds-allow R7 -- section with top divider (border/padding); not a pure flex container
-							<div className="vip-workflow-ideation-summary__keypoints">
+							<div className="vip-workflows-ideation-summary__keypoints">
 								<Text
 									variant="body-sm"
-									className="vip-workflow-ideation-summary__keypoints-label"
+									className="vip-workflows-ideation-summary__keypoints-label"
 								>
-									{ __( 'Key Points', 'vip-workflow' ) }
+									{ __( 'Key Points', 'vip-workflows' ) }
 								</Text>
 								<ul>
 									{ keyPoints.map( ( point, i ) => (
@@ -103,33 +103,33 @@ export default function IdeationSummary( {
 		return (
 			<Text
 				variant="body-sm"
-				className="vip-workflow-ideation-summary__empty"
+				className="vip-workflows-ideation-summary__empty"
 			>
 				{ hasPinnedSources
 					? __(
 							'No summary yet. Click "Generate summary" to create one from your pinned sources.',
-							'vip-workflow'
+							'vip-workflows'
 					  )
 					: __(
 							'Pin some sources first, then generate a summary.',
-							'vip-workflow'
+							'vip-workflows'
 					  ) }
 			</Text>
 		);
 	};
 
 	return (
-		<Card.Root className="vip-workflow-ideation-summary">
+		<Card.Root className="vip-workflows-ideation-summary">
 			<Card.Header>
 				<Card.Title>
-					{ __( 'Project Summary', 'vip-workflow' ) }
+					{ __( 'Project Summary', 'vip-workflows' ) }
 				</Card.Title>
 				<Button
 					variant="secondary"
 					onClick={ onGenerate }
 					isBusy={ generating }
 					disabled={ generating || loading || ! hasPinnedSources }
-					className="vip-workflow-ideation-summary__generate"
+					className="vip-workflows-ideation-summary__generate"
 				>
 					{ generateLabel }
 				</Button>

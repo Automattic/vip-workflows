@@ -2,15 +2,15 @@
 /**
  * Notification rate-limit TTL hardening.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Notifications\NotificationDispatcher;
+use VIPWorkflows\Notifications\NotificationDispatcher;
 
 /**
  * The debounce transient must use a real interval, not the old 1-second window

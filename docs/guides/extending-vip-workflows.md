@@ -1,19 +1,19 @@
-# Extending VIP Workflow
+# Extending VIP Workflows
 
-VIP Workflow is designed to be extended. You don't fork it; you ship a small WordPress plugin that hooks into it. This guide is the map of every extension point and the patterns that prove them out.
+VIP Workflows is designed to be extended. You don't fork it; you ship a small WordPress plugin that hooks into it. This guide is the map of every extension point and the patterns that prove them out.
 
 ## At a glance
 
 | I want to... | Use |
 |--------------|------|
-| Add an AI-powered research/ideation agent | Register an Ability via `vip_workflow_register_ability` (see [`vip-workflows/skills/create-agent/SKILL.md`](../../vip-workflows/skills/create-agent/SKILL.md)) |
+| Add an AI-powered research/ideation agent | Register an Ability via `vip_workflows_register_ability` (see [`vip-workflows/skills/create-agent/SKILL.md`](../../vip-workflows/skills/create-agent/SKILL.md)) |
 | Add an agent that can own an AI workflow stage | Register a stage-eligible Ability plus an agent manifest with `capabilities: [ 'stage' ]`; the manifest claim is validated against the ability metadata (see [`vip-workflows/skills/create-agent/SKILL.md`](../../vip-workflows/skills/create-agent/SKILL.md)) |
 | Add a check / helper tool that runs on transitions | Same Abilities API with `meta.type` = `check`, `helper`, or `validator` ([`vip-workflows/skills/create-tool/SKILL.md`](../../vip-workflows/skills/create-tool/SKILL.md)) |
-| Deliver notifications over a new channel (Slack DM, push, SMS) | Extend `NotificationChannel`, filter `vip_workflow_notification_channels` ([`vip-workflows/skills/create-notification-channel/SKILL.md`](../../vip-workflows/skills/create-notification-channel/SKILL.md)) |
-| Surface story prompts from an external source (wire, trending, calendars) | Register a Discovery Provider on `vip_workflow_register_discovery_providers` ([`specs/shipped/story-discovery.md`](../specs/shipped/story-discovery.md)) |
-| Add a signal to story prompts another plugin fetched | Filter `vip_workflow_discovery_prompts` — cached reads only ([`reference/extension-points.md`](../reference/extension-points.md#10-discovery-prompt-enrichment)) |
-| Add an admin page under the Workflow shell | Standard `add_submenu_page` with parent slug `vip-workflow` (see [`vip-workflows/docs/PLUGIN-INTEGRATION.md`](../../vip-workflows/docs/PLUGIN-INTEGRATION.md)) |
-| Add a new internal subsystem to the core plugin | Implement `ModuleInterface`, register via `vip_workflow_register_modules` ([`specs/shipped/module-registry.md`](../specs/shipped/module-registry.md)) |
+| Deliver notifications over a new channel (Slack DM, push, SMS) | Extend `NotificationChannel`, filter `vip_workflows_notification_channels` ([`vip-workflows/skills/create-notification-channel/SKILL.md`](../../vip-workflows/skills/create-notification-channel/SKILL.md)) |
+| Surface story prompts from an external source (wire, trending, calendars) | Register a Discovery Provider on `vip_workflows_register_discovery_providers` ([`specs/shipped/story-discovery.md`](../specs/shipped/story-discovery.md)) |
+| Add a signal to story prompts another plugin fetched | Filter `vip_workflows_discovery_prompts` — cached reads only ([`reference/extension-points.md`](../reference/extension-points.md#10-discovery-prompt-enrichment)) |
+| Add an admin page under the Workflow shell | Standard `add_submenu_page` with parent slug `vip-workflows` (see [`vip-workflows/docs/PLUGIN-INTEGRATION.md`](../../vip-workflows/docs/PLUGIN-INTEGRATION.md)) |
+| Add a new internal subsystem to the core plugin | Implement `ModuleInterface`, register via `vip_workflows_register_modules` ([`specs/shipped/module-registry.md`](../specs/shipped/module-registry.md)) |
 
 ## Extension plugin anatomy
 
@@ -30,7 +30,7 @@ Every extension lives in a sibling directory at the repo root and is a standalon
 
 ### PHP file naming convention
 
-VIP Workflow follows WordPress-style `class-{kebab}.php` file naming with one addition: **acronyms are split on case transitions**. The autoloader derives file names mechanically from class names using this rule, and `AutoloaderPathsTest` enforces it in CI.
+VIP Workflows follows WordPress-style `class-{kebab}.php` file naming with one addition: **acronyms are split on case transitions**. The autoloader derives file names mechanically from class names using this rule, and `AutoloaderPathsTest` enforces it in CI.
 
 | Class name | File name |
 |---|---|
@@ -50,12 +50,12 @@ The `vip-workflows/skills/` directory contains copy-pasteable SKILL docs written
 
 ## Adding an admin page
 
-VIP Workflow's admin screens are standard WordPress admin pages under the `vip-workflow` parent menu. Register your own the normal way — it renders as an ordinary wp-admin page in the standard canvas, no special hooks required:
+VIP Workflows' admin screens are standard WordPress admin pages under the `vip-workflows` parent menu. Register your own the normal way — it renders as an ordinary wp-admin page in the standard canvas, no special hooks required:
 
 ```php
 add_action( 'admin_menu', function() {
     add_submenu_page(
-        'vip-workflow',
+        'vip-workflows',
         'My Plugin Page',
         'My Plugin',
         'edit_posts',
@@ -90,16 +90,16 @@ Product integration that contributes Parse.ly abilities, stage agents, and a dis
 
 The surfaces extensions plug into:
 
-- **Abilities API** (`wp_register_ability` / `vip_workflow_register_ability`): tools, checks, helpers, AI agents, research assistants.
-- **Execution context** (`VIPWorkflow\Abilities\AbilityExecutor::current_context()`): which surface asked for the run currently executing — `transition`, `ideation`, `agent`, or `''` for a direct, user-initiated run. It travels beside the input rather than in it, because abilities declare `additionalProperties => false` and an extra input key would fail validation. Read it when one ability serves surfaces that want different things: a transition reads only your `issues` and has a user waiting on a save, so an expensive check can answer a transition from cache and compute properly for everyone else.
-- **Events** (`vip_workflow_*` actions and filters; central `EventBus` for auditing): a pub/sub layer for automation and notifications.
-- **Module System** (`ModuleInterface`, `vip_workflow_register_modules`): register a subsystem with its own `init()` and REST controllers.
-- **Notification Channels** (`vip_workflow_notification_channels` filter + `NotificationChannel` base class): plug in delivery mechanisms.
-- **Discovery Providers** (`vip_workflow_register_discovery_providers`): feed story prompts into ideation.
+- **Abilities API** (`wp_register_ability` / `vip_workflows_register_ability`): tools, checks, helpers, AI agents, research assistants.
+- **Execution context** (`VIPWorkflows\Abilities\AbilityExecutor::current_context()`): which surface asked for the run currently executing — `transition`, `ideation`, `agent`, or `''` for a direct, user-initiated run. It travels beside the input rather than in it, because abilities declare `additionalProperties => false` and an extra input key would fail validation. Read it when one ability serves surfaces that want different things: a transition reads only your `issues` and has a user waiting on a save, so an expensive check can answer a transition from cache and compute properly for everyone else.
+- **Events** (`vip_workflows_*` actions and filters; central `EventBus` for auditing): a pub/sub layer for automation and notifications.
+- **Module System** (`ModuleInterface`, `vip_workflows_register_modules`): register a subsystem with its own `init()` and REST controllers.
+- **Notification Channels** (`vip_workflows_notification_channels` filter + `NotificationChannel` base class): plug in delivery mechanisms.
+- **Discovery Providers** (`vip_workflows_register_discovery_providers`): feed story prompts into ideation.
 - **Stage Agents** (`meta.stage_eligible` on an ability plus a `stage` manifest capability): an AI agent that runs when a post enters an AI-owned workflow stage, then routes the exit transition based on its outcome. See [`vip-workflows/skills/create-agent/SKILL.md`](../../vip-workflows/skills/create-agent/SKILL.md) (Stage Agents).
 - **Sequences**: your extension can ship JSON sequences at activation time; the editorial sequence schema lives in `vip-workflows/includes/sequences/`.
-- **Querying posts by workflow stage** (`VIPWorkflow\Workflow\StageQuery`): the workflow **stage** is decoupled from `post_status`  — `post_status` stays core-owned and core-valued, and every stage declares the `status` region (`draft`/`pending`/`private`/`publish`) it lives in; status is only written when a transition crosses a region boundary. Never query workflow posts by a `post_status` value; use `StageQuery::in_stage( $sequence, $stage_key, $args )`, `in_any_workflow( $sequence )`, `by_stage_key( $stage_key )`, or `counts_by_stage( $sequence )`. This keeps your extension correct across the underlying storage (post meta today, swappable later) and lets you find post-publish-stage posts that are legitimately `publish`.
-- **Stage-change events**: the workflow actions (`vip_workflow_status_transition`, `vip_workflow_entered_{stage}`, `vip_workflow_exited_{stage}`) pass a fifth `$context` array — `[ 'cause' => 'workflow'|'core', 'committed_status' => ... ]`. `cause` distinguishes an edge traversal (`workflow`) from a checkpoint reseat after a core-driven status change (`core`); `committed_status` is the post_status core actually committed (a scheduled post commits as `future`, not `publish`). Existing four-argument listeners keep working; new listeners should read `$context` rather than infer publish state from the stage. For a "post went live" signal, hook core's `transition_post_status` instead — it fires exactly once at real go-live, including the scheduled `future → publish` case.
+- **Querying posts by workflow stage** (`VIPWorkflows\Workflow\StageQuery`): the workflow **stage** is decoupled from `post_status`  — `post_status` stays core-owned and core-valued, and every stage declares the `status` region (`draft`/`pending`/`private`/`publish`) it lives in; status is only written when a transition crosses a region boundary. Never query workflow posts by a `post_status` value; use `StageQuery::in_stage( $sequence, $stage_key, $args )`, `in_any_workflow( $sequence )`, `by_stage_key( $stage_key )`, or `counts_by_stage( $sequence )`. This keeps your extension correct across the underlying storage (post meta today, swappable later) and lets you find post-publish-stage posts that are legitimately `publish`.
+- **Stage-change events**: the workflow actions (`vip_workflows_status_transition`, `vip_workflows_entered_{stage}`, `vip_workflows_exited_{stage}`) pass a fifth `$context` array — `[ 'cause' => 'workflow'|'core', 'committed_status' => ... ]`. `cause` distinguishes an edge traversal (`workflow`) from a checkpoint reseat after a core-driven status change (`core`); `committed_status` is the post_status core actually committed (a scheduled post commits as `future`, not `publish`). Existing four-argument listeners keep working; new listeners should read `$context` rather than infer publish state from the stage. For a "post went live" signal, hook core's `transition_post_status` instead — it fires exactly once at real go-live, including the scheduled `future → publish` case.
 
 For a deeper map of hooks, filters, and registration points, see [`docs/reference/extension-points.md`](../reference/extension-points.md).
 
@@ -129,16 +129,16 @@ node scripts/run-integration-suites.mjs --list
 
 ### Agent entry slugs now carry the whole ability ID
 
-An agent's **entry slug** — the value in `POST /vip-workflow/v1/assistants/{slug}/settings`, in `GET /assistants/{slug}`, in the `data-assistant-slug` DOM attribute, and in the `assistant.slug` field passed to the `vipWorkflow.assistantSettings` filter — is derived, and the derivation changed.
+An agent's **entry slug** — the value in `POST /vip-workflows/v1/assistants/{slug}/settings`, in `GET /assistants/{slug}`, in the `data-assistant-slug` DOM attribute, and in the `assistant.slug` field passed to the `vipWorkflows.assistantSettings` filter — is derived, and the derivation changed.
 
 | | Before | After |
 |---|---|---|
 | Registered via a **manifest** | the slug you declared | **unchanged** |
 | **Auto-generated** (no manifest claims the ability) | the ability ID's vendor prefix — `workflow-assistant-wikipedia` | the whole ability ID — `workflow-assistant-wikipedia-wikipedia` |
 
-Two core agents moved as a result: `vip-workflow-web-researcher` and `vip-workflow-media-scout`.
+Two core agents moved as a result: `vip-workflows-web-researcher` and `vip-workflows-media-scout`.
 
-**Why.** The prefix-only form collapsed every ability a plugin registered onto one slug. Both core research agents derived `vip-workflow`, and because `update_settings()` resolves through `get()` — which returns the first match — saving one card wrote to the other agent's ability, and the second agent could not be addressed at all. An entry slug is how a card addresses itself, so it has to be unique.
+**Why.** The prefix-only form collapsed every ability a plugin registered onto one slug. Both core research agents derived `vip-workflows`, and because `update_settings()` resolves through `get()` — which returns the first match — saving one card wrote to the other agent's ability, and the second agent could not be addressed at all. An entry slug is how a card addresses itself, so it has to be unique.
 
 **What to do.** Nothing, if your plugin registers a manifest — declare a slug and it is yours. If you address an agent from JavaScript, **match on your ability ID rather than on the slug**:
 
@@ -160,7 +160,7 @@ Nothing persists an entry slug — settings write through to ability IDs and pro
 
 - Every extension plugin must declare `Requires Plugins: vip-workflows`.
 - Extensions never write directly to core tables. Use the public REST endpoints and filters.
-- No fallback code. If the Abilities API or a filter is missing, bail early with a notice; do not polyfill VIP Workflow internals.
+- No fallback code. If the Abilities API or a filter is missing, bail early with a notice; do not polyfill VIP Workflows internals.
 - Prefix everything: plugin slug, option names, meta keys, hook names, ability IDs (e.g. `workflow-agent-copy-edit/copy-edit`).
 - Respect the Coding Standards in the repo root `AGENTS.md`.
 
@@ -178,7 +178,7 @@ public static function can_execute( array $input ): bool|\WP_Error {
 		return new \WP_Error( 'missing_post_id', __( 'Post ID is required.', 'your-plugin' ) );
 	}
 
-	$permission_error = \VIPWorkflow\Abilities\Tools\require_post_edit_permission( (int) $input['post_id'] );
+	$permission_error = \VIPWorkflows\Abilities\Tools\require_post_edit_permission( (int) $input['post_id'] );
 	if ( $permission_error ) {
 		return $permission_error;
 	}

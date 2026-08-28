@@ -12,16 +12,16 @@
  * waive the workflow's own configuration rules (sequence role table,
  * requires_assignment), but never core capabilities.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Workflow\StatusManager;
 
 class AgentTransitionAuthorityTest extends TestCase
 {

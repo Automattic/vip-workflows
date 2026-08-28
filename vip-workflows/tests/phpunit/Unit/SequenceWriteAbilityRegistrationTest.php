@@ -8,12 +8,12 @@
  * execute callbacks reach the real controller/repository, so their behavior is covered
  * in the integration suite — `WP_Ability` does not exist here.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 
@@ -43,7 +43,7 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
 
         $this->registered = array();
 
-        // These abilities register through vip_workflow_register_ability(), which is
+        // These abilities register through vip_workflows_register_ability(), which is
         // a real (already-loaded) function and therefore cannot be redefined by
         // Brain\Monkey. Capture at the boundary it delegates to instead — that also
         // proves the wrapper was used rather than core's registrar, because a plain
@@ -57,9 +57,9 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
             }
         );
 
-        \VIPWorkflow\Abilities\Tools\register_update_sequence();
-        \VIPWorkflow\Abilities\Tools\register_activate_sequence();
-        \VIPWorkflow\Abilities\Tools\register_validate_sequence();
+        \VIPWorkflows\Abilities\Tools\register_update_sequence();
+        \VIPWorkflows\Abilities\Tools\register_activate_sequence();
+        \VIPWorkflows\Abilities\Tools\register_validate_sequence();
     }
 
     /**
@@ -68,9 +68,9 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
     public function data_abilities(): array
     {
         return array(
-            'update'   => array( 'vip-workflow/update-sequence', 'Update Sequence' ),
-            'activate' => array( 'vip-workflow/activate-sequence', 'Activate Sequence' ),
-            'validate' => array( 'vip-workflow/validate-sequence', 'Validate Sequence' ),
+            'update'   => array( 'vip-workflows/update-sequence', 'Update Sequence' ),
+            'activate' => array( 'vip-workflows/activate-sequence', 'Activate Sequence' ),
+            'validate' => array( 'vip-workflows/validate-sequence', 'Validate Sequence' ),
         );
     }
 
@@ -88,12 +88,12 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
         $this->assertSame( $label, $args['label'] );
         $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
         $this->assertStringNotContainsStringIgnoringCase( 'blueprint', $args['description'] );
-        $this->assertSame( 'vip-workflow', $args['category'] );
+        $this->assertSame( 'vip-workflows', $args['category'] );
 
         // Registered through the VIP wrapper: Core instantiates our Ability
         // subclass, so the ability keeps is_available() and the rest of the meta
         // extensions a plain WP_Ability silently discards.
-        $this->assertSame( \VIPWorkflow\Abilities\Ability::class, $args['ability_class'] );
+        $this->assertSame( \VIPWorkflows\Abilities\Ability::class, $args['ability_class'] );
     }
 
     /**
@@ -148,15 +148,15 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
      */
     public function test_update_cannot_express_a_lifecycle_change(): void
     {
-        $schema = $this->registered['vip-workflow/update-sequence']['input_schema'];
+        $schema = $this->registered['vip-workflows/update-sequence']['input_schema'];
 
         $this->assertFalse( $schema['additionalProperties'] );
         $this->assertArrayNotHasKey( 'status', $schema['properties'] );
         $this->assertArrayNotHasKey( 'active', $schema['properties'] );
         $this->assertSame( array( 'sequence_id', 'name', 'statuses' ), $schema['required'] );
 
-        $this->assertNotContains( 'status', \VIPWorkflow\Abilities\Tools\UPDATE_SEQUENCE_FIELDS );
-        $this->assertContains( 'statuses', \VIPWorkflow\Abilities\Tools\UPDATE_SEQUENCE_FIELDS );
+        $this->assertNotContains( 'status', \VIPWorkflows\Abilities\Tools\UPDATE_SEQUENCE_FIELDS );
+        $this->assertContains( 'statuses', \VIPWorkflows\Abilities\Tools\UPDATE_SEQUENCE_FIELDS );
     }
 
     /**
@@ -165,7 +165,7 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
      */
     public function test_activate_requires_an_explicit_boolean_intent(): void
     {
-        $schema = $this->registered['vip-workflow/activate-sequence']['input_schema'];
+        $schema = $this->registered['vip-workflows/activate-sequence']['input_schema'];
 
         $this->assertSame( array( 'sequence_id', 'active' ), $schema['required'] );
         $this->assertSame( 'boolean', $schema['properties']['active']['type'] );
@@ -181,7 +181,7 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
      */
     public function test_validate_is_read_only_and_reports_both_invariants(): void
     {
-        $args = $this->registered['vip-workflow/validate-sequence'];
+        $args = $this->registered['vip-workflows/validate-sequence'];
 
         $this->assertTrue( $args['meta']['annotations']['readonly'] );
         $this->assertTrue( $args['meta']['annotations']['idempotent'] );
@@ -204,7 +204,7 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
      */
     public function test_update_is_annotated_destructive(): void
     {
-        $annotations = $this->registered['vip-workflow/update-sequence']['meta']['annotations'];
+        $annotations = $this->registered['vip-workflows/update-sequence']['meta']['annotations'];
 
         $this->assertFalse( $annotations['readonly'] );
         $this->assertTrue( $annotations['destructive'] );

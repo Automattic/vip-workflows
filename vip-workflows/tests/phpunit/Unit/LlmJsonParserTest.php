@@ -2,14 +2,14 @@
 /**
  * LlmJsonParser unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Integrations\LlmJsonParser;
+use VIPWorkflows\Integrations\LlmJsonParser;
 use WP_Error;
 
 class LlmJsonParserTest extends TestCase

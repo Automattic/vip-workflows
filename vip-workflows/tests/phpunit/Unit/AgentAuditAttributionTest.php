@@ -6,15 +6,15 @@
  * audit read surfaces share. Agent-driven transitions are credited to the acting
  * ability, not the human the runner impersonated for the write.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Workflow\Actor;
+use VIPWorkflows\Workflow\Actor;
 
 /**
  * Tests for Actor::name_for().
@@ -86,7 +86,7 @@ class AgentAuditAttributionTest extends TestCase
             array(
                 'actor_id'    => 7,
                 'actor_type'  => 'agent',
-                'agent_actor' => 'vip-workflow/fact-check',
+                'agent_actor' => 'vip-workflows/fact-check',
             )
         );
 
@@ -106,11 +106,11 @@ class AgentAuditAttributionTest extends TestCase
             array(
                 'actor_id'    => 7,
                 'actor_type'  => 'agent',
-                'agent_actor' => 'vip-workflow/fact-check',
+                'agent_actor' => 'vip-workflows/fact-check',
             )
         );
 
-        $this->assertSame( 'vip-workflow/fact-check', $name );
+        $this->assertSame( 'vip-workflows/fact-check', $name );
     }
 
     /**

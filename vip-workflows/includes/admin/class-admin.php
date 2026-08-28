@@ -2,18 +2,18 @@
 /**
  * Admin interface.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Admin;
+namespace VIPWorkflows\Admin;
 
-use VIPWorkflow\ModuleInterface;
-use VIPWorkflow\Plugin;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Database\Schema;
-use VIPWorkflow\Workflow\PostTypeManager;
+use VIPWorkflows\ModuleInterface;
+use VIPWorkflows\Plugin;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Database\Schema;
+use VIPWorkflows\Workflow\PostTypeManager;
 
 /**
  * Admin menu and pages handler.
@@ -78,7 +78,7 @@ class Admin implements ModuleInterface {
 		// Single combined param "{sequence_id}:{stage_key}" (or "{sequence_id}" for
 		// all stages) so the filter dropdown needs no cascading JS.
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$selection = isset( $_GET['vip_workflow_stage'] ) ? sanitize_text_field( wp_unslash( $_GET['vip_workflow_stage'] ) ) : '';
+		$selection = isset( $_GET['vip_workflows_stage'] ) ? sanitize_text_field( wp_unslash( $_GET['vip_workflows_stage'] ) ) : '';
 		if ( '' === $selection ) {
 			return;
 		}
@@ -101,14 +101,14 @@ class Admin implements ModuleInterface {
 		if ( $status_key ) {
 			// Filter to a specific workflow stage. StageQuery scopes by sequence +
 			// stage meta and preserves the screen's own post_type / other query vars.
-			\VIPWorkflow\Workflow\StageQuery::apply_to_admin_query( $query, $sequence, $status_key );
+			\VIPWorkflows\Workflow\StageQuery::apply_to_admin_query( $query, $sequence, $status_key );
 		} else {
 			// No specific stage — all posts in this workflow.
 			$existing = $query->get( 'meta_query' );
 			if ( ! is_array( $existing ) ) {
 				$existing = array();
 			}
-			$args = \VIPWorkflow\Workflow\StageQuery::in_any_workflow( $sequence, array( 'meta_query' => $existing ) );
+			$args = \VIPWorkflows\Workflow\StageQuery::in_any_workflow( $sequence, array( 'meta_query' => $existing ) );
 			$query->set( 'meta_query', $args['meta_query'] );
 		}
 	}
@@ -138,10 +138,10 @@ class Admin implements ModuleInterface {
 		}
 
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		$current = isset( $_GET['vip_workflow_stage'] ) ? sanitize_text_field( wp_unslash( $_GET['vip_workflow_stage'] ) ) : '';
+		$current = isset( $_GET['vip_workflows_stage'] ) ? sanitize_text_field( wp_unslash( $_GET['vip_workflows_stage'] ) ) : '';
 
-		echo '<select name="vip_workflow_stage">';
-		printf( '<option value="">%s</option>', esc_html__( 'All workflow stages', 'vip-workflow' ) );
+		echo '<select name="vip_workflows_stage">';
+		printf( '<option value="">%s</option>', esc_html__( 'All workflow stages', 'vip-workflows' ) );
 
 		foreach ( $sequences as $bp ) {
 			printf( '<optgroup label="%s">', esc_attr( $bp->name ) );
@@ -152,7 +152,7 @@ class Admin implements ModuleInterface {
 				selected( $current, (string) $bp->id, false ),
 				esc_html(
 					/* translators: %s: sequence (workflow) name. */
-					sprintf( __( 'All in %s', 'vip-workflow' ), $bp->name )
+					sprintf( __( 'All in %s', 'vip-workflows' ), $bp->name )
 				)
 			);
 
@@ -179,10 +179,10 @@ class Admin implements ModuleInterface {
 		if ( current_user_can( 'edit_others_posts' ) ) {
 			// Editors+ get My Dashboard as landing page.
 			add_menu_page(
-				__( 'Workflows', 'vip-workflow' ),
-				__( 'Workflows', 'vip-workflow' ),
+				__( 'Workflows', 'vip-workflows' ),
+				__( 'Workflows', 'vip-workflows' ),
 				'edit_posts',
-				'vip-workflow',
+				'vip-workflows',
 				array( $this, 'render_my_dashboard_page' ),
 				self::MENU_ICON,
 				30
@@ -190,97 +190,97 @@ class Admin implements ModuleInterface {
 
 			// My Dashboard - first submenu for editors.
 			add_submenu_page(
-				'vip-workflow',
-				__( 'My Dashboard', 'vip-workflow' ),
-				__( 'My Dashboard', 'vip-workflow' ),
+				'vip-workflows',
+				__( 'My Dashboard', 'vip-workflows' ),
+				__( 'My Dashboard', 'vip-workflows' ),
 				'edit_posts',
-				'vip-workflow-my-dashboard',
+				'vip-workflows-my-dashboard',
 				array( $this, 'render_my_dashboard_page' )
 			);
 
 			// Kanban board - available to all who can edit posts.
 			add_submenu_page(
-				'vip-workflow',
-				__( 'Kanban', 'vip-workflow' ),
-				__( 'Kanban', 'vip-workflow' ),
+				'vip-workflows',
+				__( 'Kanban', 'vip-workflows' ),
+				__( 'Kanban', 'vip-workflows' ),
 				'edit_posts',
-				'vip-workflow-kanban',
+				'vip-workflows-kanban',
 				array( $this, 'render_kanban_page' )
 			);
 
 			// Calendar - available to all who can edit posts.
 			add_submenu_page(
-				'vip-workflow',
-				__( 'Calendar', 'vip-workflow' ),
-				__( 'Calendar', 'vip-workflow' ),
+				'vip-workflows',
+				__( 'Calendar', 'vip-workflows' ),
+				__( 'Calendar', 'vip-workflows' ),
 				'edit_posts',
-				'vip-workflow-calendar',
+				'vip-workflows-calendar',
 				array( $this, 'render_calendar_page' )
 			);
 
 			// Ideation page - the creative workspace for story ideas.
 			if ( Plugin::experiment_enabled( 'ideation' ) ) {
 				add_submenu_page(
-					'vip-workflow',
-					__( 'Ideation', 'vip-workflow' ),
-					__( 'Ideation', 'vip-workflow' ),
+					'vip-workflows',
+					__( 'Ideation', 'vip-workflows' ),
+					__( 'Ideation', 'vip-workflows' ),
 					'edit_posts',
-					'vip-workflow-ideation',
+					'vip-workflows-ideation',
 					array( $this, 'render_ideation_page' )
 				);
 			}
 
 			add_submenu_page(
-				'vip-workflow',
-				__( 'Sequences', 'vip-workflow' ),
-				__( 'Sequences', 'vip-workflow' ),
+				'vip-workflows',
+				__( 'Sequences', 'vip-workflows' ),
+				__( 'Sequences', 'vip-workflows' ),
 				'manage_options',
-				'vip-workflow-sequences',
+				'vip-workflows-sequences',
 				array( $this, 'render_sequences_page' )
 			);
 
 			add_submenu_page(
-				'vip-workflow',
-				__( 'Audit Log', 'vip-workflow' ),
-				__( 'Audit Log', 'vip-workflow' ),
+				'vip-workflows',
+				__( 'Audit Log', 'vip-workflows' ),
+				__( 'Audit Log', 'vip-workflows' ),
 				Settings::can_user_view_audit_log() ? 'edit_others_posts' : 'manage_options',
-				'vip-workflow-audit-log',
+				'vip-workflows-audit-log',
 				array( $this, 'render_audit_log_page' )
 			);
 
 			add_submenu_page(
-				'vip-workflow',
-				__( 'Notifications', 'vip-workflow' ),
-				__( 'Notifications', 'vip-workflow' ),
+				'vip-workflows',
+				__( 'Notifications', 'vip-workflows' ),
+				__( 'Notifications', 'vip-workflows' ),
 				'manage_options',
-				'vip-workflow-notifications',
+				'vip-workflows-notifications',
 				array( $this, 'render_notifications_page' )
 			);
 
 			add_submenu_page(
-				'vip-workflow',
-				__( 'Agents', 'vip-workflow' ),
-				__( 'Agents', 'vip-workflow' ),
+				'vip-workflows',
+				__( 'Agents', 'vip-workflows' ),
+				__( 'Agents', 'vip-workflows' ),
 				'manage_options',
-				'vip-workflow-agents',
+				'vip-workflows-agents',
 				array( $this, 'render_agents_page' )
 			);
 
 			add_submenu_page(
-				'vip-workflow',
-				__( 'Tools', 'vip-workflow' ),
-				__( 'Tools', 'vip-workflow' ),
+				'vip-workflows',
+				__( 'Tools', 'vip-workflows' ),
+				__( 'Tools', 'vip-workflows' ),
 				'manage_options',
-				'vip-workflow-tools',
+				'vip-workflows-tools',
 				array( $this, 'render_tools_page' )
 			);
 		} elseif ( current_user_can( 'edit_posts' ) ) {
 			// Authors get My Dashboard as landing page.
 			add_menu_page(
-				__( 'Workflows', 'vip-workflow' ),
-				__( 'Workflows', 'vip-workflow' ),
+				__( 'Workflows', 'vip-workflows' ),
+				__( 'Workflows', 'vip-workflows' ),
 				'edit_posts',
-				'vip-workflow',
+				'vip-workflows',
 				array( $this, 'render_my_dashboard_page' ),
 				self::MENU_ICON,
 				30
@@ -288,22 +288,22 @@ class Admin implements ModuleInterface {
 
 			// My Dashboard submenu for authors.
 			add_submenu_page(
-				'vip-workflow',
-				__( 'My Dashboard', 'vip-workflow' ),
-				__( 'My Dashboard', 'vip-workflow' ),
+				'vip-workflows',
+				__( 'My Dashboard', 'vip-workflows' ),
+				__( 'My Dashboard', 'vip-workflows' ),
 				'edit_posts',
-				'vip-workflow-my-dashboard',
+				'vip-workflows-my-dashboard',
 				array( $this, 'render_my_dashboard_page' )
 			);
 
 			// Ideation for authors.
 			if ( Plugin::experiment_enabled( 'ideation' ) ) {
 				add_submenu_page(
-					'vip-workflow',
-					__( 'Ideation', 'vip-workflow' ),
-					__( 'Ideation', 'vip-workflow' ),
+					'vip-workflows',
+					__( 'Ideation', 'vip-workflows' ),
+					__( 'Ideation', 'vip-workflows' ),
 					'edit_posts',
-					'vip-workflow-ideation',
+					'vip-workflows-ideation',
 					array( $this, 'render_ideation_page' )
 				);
 			}
@@ -324,14 +324,14 @@ class Admin implements ModuleInterface {
 	 * notice is a block sibling *above* this `.wrap`. `wp-admin/js/common.js`
 	 * then moves them with `insertAfter( $( '.wp-header-end' ) )`, falling back
 	 * to the first `h1`/`h2` inside `.wrap`. Without an anchor neither match:
-	 * this screen's `h1` is rendered by React into `#vip-workflow-root`, which
+	 * this screen's `h1` is rendered by React into `#vip-workflows-root`, which
 	 * is still empty when that ready handler runs, so notices are left stranded
 	 * above the app. The `<hr>` is core's own marker for exactly this, is
 	 * layout-neutral (`visibility: hidden; margin: -2px 0 0` in common.css), and
 	 * adds no second heading to compete with the one React renders.
 	 */
 	public static function render_app_root(): void {
-		echo '<div class="wrap"><hr class="wp-header-end"><div id="vip-workflow-root" class="vip-workflow-admin-wrap"></div></div>';
+		echo '<div class="wrap"><hr class="wp-header-end"><div id="vip-workflows-root" class="vip-workflows-admin-wrap"></div></div>';
 	}
 
 	/**
@@ -374,9 +374,9 @@ class Admin implements ModuleInterface {
 		global $submenu;
 
 		// Remove the auto-added "Workflows" submenu (has same slug as parent).
-		remove_submenu_page( 'vip-workflow', 'vip-workflow' );
+		remove_submenu_page( 'vip-workflows', 'vip-workflows' );
 
-		if ( ! isset( $submenu['vip-workflow'] ) ) {
+		if ( ! isset( $submenu['vip-workflows'] ) ) {
 			return;
 		}
 
@@ -384,17 +384,17 @@ class Admin implements ModuleInterface {
 		// unlisted (third-party) page falls into the trailing Integrations group.
 		$order = array(
 			// Main.
-			'vip-workflow-my-dashboard'  => 10,
-			'vip-workflow-kanban'        => 11,
-			'vip-workflow-calendar'      => 12,
-			'vip-workflow-ideation'      => 13,
+			'vip-workflows-my-dashboard'  => 10,
+			'vip-workflows-kanban'        => 11,
+			'vip-workflows-calendar'      => 12,
+			'vip-workflows-ideation'      => 13,
 			// System.
-			'vip-workflow-sequences'    => 30,
-			'vip-workflow-notifications' => 31,
-			'vip-workflow-agents'        => 32,
-			'vip-workflow-tools'         => 33,
-			'vip-workflow-audit-log'     => 34,
-			'vip-workflow-settings'      => 36,
+			'vip-workflows-sequences'    => 30,
+			'vip-workflows-notifications' => 31,
+			'vip-workflows-agents'        => 32,
+			'vip-workflows-tools'         => 33,
+			'vip-workflows-audit-log'     => 34,
+			'vip-workflows-settings'      => 36,
 		);
 
 		$weight_for = static function ( array $item ) use ( $order ): int {
@@ -412,7 +412,7 @@ class Admin implements ModuleInterface {
 		// 0..n-1, so the result is already a clean sequential list (no
 		// array_values() needed).
 		usort(
-			$submenu['vip-workflow'],
+			$submenu['vip-workflows'],
 			static function ( array $a, array $b ) use ( $weight_for ): int {
 				return $weight_for( $a ) <=> $weight_for( $b );
 			}
@@ -421,21 +421,21 @@ class Admin implements ModuleInterface {
 
 	/**
 	 * Enqueue admin scripts and styles.
-	 * Loads on all VIP Workflow pages, including plugin-registered submenus.
+	 * Loads on all VIP Workflows pages, including plugin-registered submenus.
 	 *
 	 * @param string $hook_suffix Current page hook.
 	 */
 	public function enqueue_scripts( string $hook_suffix ): void {
-		// Only load on core VIP Workflow pages. Every core page hook contains
-		// "vip-workflow" (the parent is `toplevel_page_vip-workflow`, submenus
-		// are `workflows_page_vip-workflow-*`). Third-party plugin pages render
+		// Only load on core VIP Workflows pages. Every core page hook contains
+		// "vip-workflows" (the parent is `toplevel_page_vip-workflows`, submenus
+		// are `workflows_page_vip-workflows-*`). Third-party plugin pages render
 		// their own content natively and do not load our bundle.
-		if ( ! str_contains( $hook_suffix, 'vip-workflow' ) ) {
+		if ( ! str_contains( $hook_suffix, 'vip-workflows' ) ) {
 			return;
 		}
 
 		$localize_data = array(
-			'apiUrl'      => rest_url( 'vip-workflow/v1' ),
+			'apiUrl'      => rest_url( 'vip-workflows/v1' ),
 			'nonce'       => wp_create_nonce( 'wp_rest' ),
 			'currentUser' => array(
 				'id'        => get_current_user_id(),
@@ -446,13 +446,13 @@ class Admin implements ModuleInterface {
 		);
 
 		if (
-			str_contains( $hook_suffix, 'vip-workflow-tools' )
-			|| str_contains( $hook_suffix, 'vip-workflow-agents' )
+			str_contains( $hook_suffix, 'vip-workflows-tools' )
+			|| str_contains( $hook_suffix, 'vip-workflows-agents' )
 		) {
 			$localize_data['skills'] = $this->load_skill_files();
 		}
 
-		$asset_file = VIP_WORKFLOW_PLUGIN_DIR . 'build/admin.asset.php';
+		$asset_file = VIP_WORKFLOWS_PLUGIN_DIR . 'build/admin.asset.php';
 		if ( ! file_exists( $asset_file ) ) {
 			$this->render_build_required_notice();
 			return;
@@ -467,36 +467,36 @@ class Admin implements ModuleInterface {
 		// DataViews styles, copied from the pinned @wordpress/dataviews package at
 		// build time (they cannot be bundled — see webpack.config.js).
 		wp_enqueue_style(
-			'vip-workflow-dataviews',
-			VIP_WORKFLOW_PLUGIN_URL . 'build/dataviews.css',
+			'vip-workflows-dataviews',
+			VIP_WORKFLOWS_PLUGIN_URL . 'build/dataviews.css',
 			array( 'wp-components' ),
 			$asset['version']
 		);
-		wp_style_add_data( 'vip-workflow-dataviews', 'rtl', 'replace' );
+		wp_style_add_data( 'vip-workflows-dataviews', 'rtl', 'replace' );
 
 		wp_enqueue_style(
-			'vip-workflow-admin',
-			VIP_WORKFLOW_PLUGIN_URL . 'build/admin.css',
-			array( 'wp-components', AdminStyles::TOKENS_HANDLE, 'vip-workflow-dataviews' ),
+			'vip-workflows-admin',
+			VIP_WORKFLOWS_PLUGIN_URL . 'build/admin.css',
+			array( 'wp-components', AdminStyles::TOKENS_HANDLE, 'vip-workflows-dataviews' ),
 			$asset['version']
 		);
 
 		wp_enqueue_style(
-			'vip-workflow-admin-components',
-			VIP_WORKFLOW_PLUGIN_URL . 'build/style-admin.css',
-			array( 'vip-workflow-admin' ),
+			'vip-workflows-admin-components',
+			VIP_WORKFLOWS_PLUGIN_URL . 'build/style-admin.css',
+			array( 'vip-workflows-admin' ),
 			$asset['version']
 		);
 
 		wp_enqueue_script(
-			'vip-workflow-admin',
-			VIP_WORKFLOW_PLUGIN_URL . 'build/admin.js',
+			'vip-workflows-admin',
+			VIP_WORKFLOWS_PLUGIN_URL . 'build/admin.js',
 			$asset['dependencies'],
 			$asset['version'],
 			true
 		);
 
-		wp_localize_script( 'vip-workflow-admin', 'vipWorkflowAdmin', $localize_data );
+		wp_localize_script( 'vip-workflows-admin', 'vipWorkflowsAdmin', $localize_data );
 	}
 
 	/**
@@ -509,8 +509,8 @@ class Admin implements ModuleInterface {
 				?>
 			<div class="notice notice-error">
 				<p>
-					<strong><?php esc_html_e( 'VIP Workflow:', 'vip-workflow' ); ?></strong>
-				<?php esc_html_e( 'Assets not built. Run: cd wp-content/plugins/vip-workflow && npm install && npm run build', 'vip-workflow' ); ?>
+					<strong><?php esc_html_e( 'VIP Workflows:', 'vip-workflows' ); ?></strong>
+				<?php esc_html_e( 'Assets not built. Run: cd wp-content/plugins/vip-workflows && npm install && npm run build', 'vip-workflows' ); ?>
 				</p>
 			</div>
 				<?php
@@ -521,7 +521,7 @@ class Admin implements ModuleInterface {
 	/**
 	 * Query arg carrying the region-review notice dismissal.
 	 */
-	private const REGION_REVIEW_DISMISS_ARG = 'vip_workflow_dismiss_region_review';
+	private const REGION_REVIEW_DISMISS_ARG = 'vip_workflows_dismiss_region_review';
 
 	/**
 	 * The Sequence editor URL for one recorded sequence.
@@ -532,7 +532,7 @@ class Admin implements ModuleInterface {
 	private static function region_review_edit_url( array $sequence ): string {
 		return add_query_arg(
 			array(
-				'page' => 'vip-workflow-sequences',
+				'page' => 'vip-workflows-sequences',
 				'id'   => (int) ( $sequence['id'] ?? 0 ),
 			),
 			admin_url( 'admin.php' )
@@ -589,8 +589,8 @@ class Admin implements ModuleInterface {
 			?>
 		<div class="notice notice-error">
 			<p>
-				<strong><?php esc_html_e( 'VIP Workflow:', 'vip-workflow' ); ?></strong>
-				<?php esc_html_e( 'These sequences could not be upgraded and are not usable until someone fixes them in the Sequence editor. Their stages still have no status region, so any post that reaches one will fail.', 'vip-workflow' ); ?>
+				<strong><?php esc_html_e( 'VIP Workflows:', 'vip-workflows' ); ?></strong>
+				<?php esc_html_e( 'These sequences could not be upgraded and are not usable until someone fixes them in the Sequence editor. Their stages still have no status region, so any post that reaches one will fail.', 'vip-workflows' ); ?>
 			</p>
 			<ul style="list-style: disc; margin-left: 2em;">
 				<?php foreach ( $failed as $sequence ) : ?>
@@ -608,8 +608,8 @@ class Admin implements ModuleInterface {
 			?>
 		<div class="notice notice-warning">
 			<p>
-				<strong><?php esc_html_e( 'VIP Workflow:', 'vip-workflow' ); ?></strong>
-					<?php esc_html_e( 'This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These sequences had to be changed to fit. The changes are safe, but they change how the sequences behave — please confirm them in the Sequence editor.', 'vip-workflow' ); ?>
+				<strong><?php esc_html_e( 'VIP Workflows:', 'vip-workflows' ); ?></strong>
+					<?php esc_html_e( 'This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These sequences had to be changed to fit. The changes are safe, but they change how the sequences behave — please confirm them in the Sequence editor.', 'vip-workflows' ); ?>
 			</p>
 			<ul style="list-style: disc; margin-left: 2em;">
 				<?php foreach ( $changed as $sequence ) : ?>
@@ -625,7 +625,7 @@ class Admin implements ModuleInterface {
 							echo esc_html(
 								sprintf(
 									/* translators: %s: comma-separated stage keys. */
-									__( 'stages placed in Draft: %s.', 'vip-workflow' ),
+									__( 'stages placed in Draft: %s.', 'vip-workflows' ),
 									implode( ', ', $stage_keys )
 								)
 							);
@@ -637,7 +637,7 @@ class Admin implements ModuleInterface {
 							echo esc_html(
 								sprintf(
 									/* translators: %s: comma-separated transitions. */
-									__( 'Transitions removed, because the sequence was stored with a stage holding two to the same target. Their roles, required tools and notifications went with them: %s.', 'vip-workflow' ),
+									__( 'Transitions removed, because the sequence was stored with a stage holding two to the same target. Their roles, required tools and notifications went with them: %s.', 'vip-workflows' ),
 									implode( ', ', array_map( array( self::class, 'describe_dropped_transition' ), $dropped ) )
 								)
 							);
@@ -645,7 +645,7 @@ class Admin implements ModuleInterface {
 							</strong>
 						<?php endif; ?>
 						<?php if ( empty( $sequence['reaches_publish'] ) ) : ?>
-							<strong><?php esc_html_e( 'This sequence has no stage in the Publish region, so it cannot publish posts until you set one.', 'vip-workflow' ); ?></strong>
+							<strong><?php esc_html_e( 'This sequence has no stage in the Publish region, so it cannot publish posts until you set one.', 'vip-workflows' ); ?></strong>
 						<?php endif; ?>
 					</li>
 				<?php endforeach; ?>
@@ -656,7 +656,7 @@ class Admin implements ModuleInterface {
 		?>
 		<div class="notice notice-info">
 			<p>
-				<a href="<?php echo esc_url( $dismiss_url ); ?>"><?php esc_html_e( 'Dismiss these VIP Workflow upgrade notices', 'vip-workflow' ); ?></a>
+				<a href="<?php echo esc_url( $dismiss_url ); ?>"><?php esc_html_e( 'Dismiss these VIP Workflows upgrade notices', 'vip-workflows' ); ?></a>
 			</p>
 		</div>
 		<?php
@@ -675,7 +675,7 @@ class Admin implements ModuleInterface {
 	private static function describe_dropped_transition( array $dropped ): string {
 		return sprintf(
 			/* translators: 1: source stage key, 2: target stage key. */
-			__( '%1$s → %2$s', 'vip-workflow' ),
+			__( '%1$s → %2$s', 'vip-workflows' ),
 			(string) ( $dropped['from'] ?? '' ),
 			(string) ( $dropped['to'] ?? '' )
 		);
@@ -717,7 +717,7 @@ class Admin implements ModuleInterface {
 	public function render_audit_log_page(): void {
 		// Check access.
 		if ( ! Settings::can_user_view_audit_log() ) {
-			wp_die( esc_html__( 'You do not have permission to view the audit log.', 'vip-workflow' ) );
+			wp_die( esc_html__( 'You do not have permission to view the audit log.', 'vip-workflows' ) );
 		}
 
 		self::render_app_root();
@@ -737,7 +737,7 @@ class Admin implements ModuleInterface {
 		);
 
 		foreach ( $map as $type => $relative_path ) {
-			$path = VIP_WORKFLOW_PLUGIN_DIR . $relative_path;
+			$path = VIP_WORKFLOWS_PLUGIN_DIR . $relative_path;
 			if ( file_exists( $path ) ) {
 				$skills[ $type ] = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 			}

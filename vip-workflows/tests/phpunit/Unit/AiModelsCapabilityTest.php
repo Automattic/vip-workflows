@@ -6,14 +6,14 @@
  * handle the AI Client's enum-like CapabilityEnum (a magic `->name` for which
  * property_exists()/isset() return false), native PHP enums, and plain strings.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\AI\AiModels;
+use VIPWorkflows\AI\AiModels;
 
 /**
  * A native backed enum whose case name is the lowercase capability id, mirroring

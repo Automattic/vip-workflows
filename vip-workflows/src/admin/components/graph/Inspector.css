@@ -23,7 +23,7 @@
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow: hidden;
-	box-shadow: var( --vip-workflow-elevation-md );
+	box-shadow: var( --vip-workflows-elevation-md );
 	/* The wrapper turns pointer events off so the empty space it spans below a
 	   collapsed panel doesn't swallow canvas clicks; the card takes them back. */
 	pointer-events: auto;
@@ -128,7 +128,7 @@
 }
 
 /* The unlayered admin-page heading reset (admin-page.css:
-   `.wrap:has(.vip-workflow-admin-page) :where(p,h1..h6)…`, specificity (0,2,0))
+   `.wrap:has(.vip-workflows-admin-page) :where(p,h1..h6)…`, specificity (0,2,0))
    zeroes the margin on every heading inside the admin page, and the title is an
    <h3>, so the gap between a section title and its controls collapses. This is
    the only place that gap is declared — a single-class rule cannot assert it,
@@ -141,7 +141,7 @@
    and centre the title's *margin box* instead of its text — pushing the label
    up and out of line with the chevron. That row's own layout owns its
    spacing (`gap: xs`), so this rule has nothing to add there. */
-.vip-workflow-admin-page
+.vip-workflows-admin-page
 	.wf-inspector-section:not( .wf-inspector-section--collapsible )
 	.wf-inspector-section__title {
 	/* wpds-allow R3 -- not sibling spacing: this restores the margin WPDS's heading reset zeroes on the <h3> inside <Text>, which no Stack gap replaces */
@@ -179,7 +179,7 @@
    the source order, and the one place both rules match is exactly the one this
    is for — a NON-collapsible section with `actions` (the Tools list). A
    collapsible section's title never had the margin to cancel. */
-.vip-workflow-admin-page
+.vip-workflows-admin-page
 	.wf-inspector-section:not( .wf-inspector-section--collapsible )
 	.wf-inspector-section__header
 	.wf-inspector-section__title {
@@ -536,7 +536,7 @@
 	flex: 0 0 auto;
 	width: 9px;
 	height: 9px;
-	border-radius: var( --vip-workflow-border-radius-full );
+	border-radius: var( --vip-workflows-border-radius-full );
 	background: var( --wf-outcome-tone );
 }
 

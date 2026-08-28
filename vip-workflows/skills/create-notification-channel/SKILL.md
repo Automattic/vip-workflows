@@ -1,11 +1,11 @@
 ---
-name: create-vip-workflow-notification-channel
+name: create-vip-workflows-notification-channel
 description: >-
-  Scaffold a VIP Workflow notification channel plugin. Use when the user wants
+  Scaffold a VIP Workflows notification channel plugin. Use when the user wants
   to add a custom notification destination like Slack, Teams, Discord, SMS,
-  or any webhook-based service to VIP Workflow.
+  or any webhook-based service to VIP Workflows.
 ---
-# Create a VIP Workflow Notification Channel
+# Create a VIP Workflows Notification Channel
 
 Notification channels deliver workflow event notifications (status changes, SLA breaches, publishing alerts) to external services. Each channel is a standalone WordPress plugin that extends the `NotificationChannel` base class.
 
@@ -26,7 +26,7 @@ workflow-channel-{name}/
     class-{name}-channel.php        # Channel class extending NotificationChannel
 ```
 
-The plugin directory lives alongside `vip-workflow/` in the same parent directory.
+The plugin directory lives alongside `vip-workflows/` in the same parent directory.
 
 ## Boilerplate
 
@@ -36,7 +36,7 @@ The plugin directory lives alongside `vip-workflow/` in the same parent director
 <?php
 /**
  * Plugin Name: Workflow {Display Name} Channel
- * Description: Sends VIP Workflow notifications to {service}.
+ * Description: Sends VIP Workflows notifications to {service}.
  * Version: 1.0.0
  * Requires Plugins: vip-workflows
  * Text Domain: workflow-channel-{name}
@@ -54,7 +54,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'WORKFLOW_CHANNEL_{UPPER_NAME}_DIR', plugin_dir_path( __FILE__ ) );
 
-add_action( 'vip_workflow_register_notification_channels', function( $dispatcher ) {
+add_action( 'vip_workflows_register_notification_channels', function( $dispatcher ) {
     require_once WORKFLOW_CHANNEL_{UPPER_NAME}_DIR . 'includes/class-{name}-channel.php';
     $dispatcher->register_channel( new {PascalName}Channel() );
 } );
@@ -68,8 +68,8 @@ declare( strict_types=1 );
 
 namespace WorkflowChannel{PascalName};
 
-use VIPWorkflow\Notifications\NotificationChannel;
-use VIPWorkflow\Notifications\Notification;
+use VIPWorkflows\Notifications\NotificationChannel;
+use VIPWorkflows\Notifications\Notification;
 use WP_Error;
 
 class {PascalName}Channel extends NotificationChannel {
@@ -171,7 +171,7 @@ class {PascalName}Channel extends NotificationChannel {
         }
 
         $payload = array(
-            'text' => 'Test notification from VIP Workflow.',
+            'text' => 'Test notification from VIP Workflows.',
         );
 
         $response = wp_remote_post( $webhook_url, array(
@@ -234,11 +234,11 @@ These are provided by `NotificationChannel` and should not be overridden:
 
 ## Registration
 
-Channels register via the `vip_workflow_register_notification_channels` action, which receives a `$dispatcher` object. Call `$dispatcher->register_channel( new YourChannel() )`.
+Channels register via the `vip_workflows_register_notification_channels` action, which receives a `$dispatcher` object. Call `$dispatcher->register_channel( new YourChannel() )`.
 
 ## Testing
 
-1. Place the plugin directory alongside `vip-workflow/`
+1. Place the plugin directory alongside `vip-workflows/`
 2. Activate it in WordPress admin
 3. Go to Integrations > Notification Channels to see the channel
 4. Configure the webhook URL and use "Test Connection" to verify

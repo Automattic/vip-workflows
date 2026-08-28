@@ -6,12 +6,12 @@
  * keyed by prompt id. Mirrors AbilitySettings, but stores only override text —
  * defaults live in the PromptRegistry, never here.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\AI;
+namespace VIPWorkflows\AI;
 
 /**
  * Stores per-prompt override text.
@@ -21,7 +21,7 @@ class PromptSettings {
 	/**
 	 * Option name for storing prompt overrides.
 	 */
-	private const OPTION_NAME = 'vip_workflow_prompts';
+	private const OPTION_NAME = 'vip_workflows_prompts';
 
 	/**
 	 * Singleton instance.
@@ -69,19 +69,19 @@ class PromptSettings {
 
 			if ( ! is_array( $stored ) ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging of a data-integrity problem.
-				error_log( '[VIP Workflow] ' . self::OPTION_NAME . ' option is corrupted (expected array, got ' . gettype( $stored ) . '); ignoring stored prompt overrides.' );
+				error_log( '[VIP Workflows] ' . self::OPTION_NAME . ' option is corrupted (expected array, got ' . gettype( $stored ) . '); ignoring stored prompt overrides.' );
 
 				/**
 				 * Fires when the prompt-overrides option is found corrupted.
 				 *
-				 * Lets a site observe or repair a malformed `vip_workflow_prompts`
+				 * Lets a site observe or repair a malformed `vip_workflows_prompts`
 				 * option instead of having the corruption silently masked.
 				 *
 				 * @since 0.0.1
 				 *
 				 * @param mixed $stored The malformed stored value.
 				 */
-				do_action( 'vip_workflow_prompts_option_corrupted', $stored );
+				do_action( 'vip_workflows_prompts_option_corrupted', $stored );
 
 				$stored = array();
 			}

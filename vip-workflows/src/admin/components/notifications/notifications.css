@@ -14,29 +14,29 @@
 /* The matrix grows a column per channel, so past a few channels it is wider than
    the page's constrained content column. It scrolls inside this wrapper rather
    than painting outside it. */
-.vip-workflow-notifications__scroll {
+.vip-workflows-notifications__scroll {
 	overflow-x: auto;
 }
 
-.vip-workflow-notifications__table {
+.vip-workflows-notifications__table {
 	width: 100%;
 	border-collapse: collapse;
 }
 
-.vip-workflow-notifications__table th,
-.vip-workflow-notifications__table td {
+.vip-workflows-notifications__table th,
+.vip-workflows-notifications__table td {
 	padding: var(--wpds-dimension-padding-md);
 	text-align: left;
 	border-bottom: var(--wpds-border-width-xs) solid
 		var(--wpds-color-stroke-surface-neutral-weak);
 }
 
-.vip-workflow-notifications__table th {
-	font: var(--vip-workflow-text-heading-md);
+.vip-workflows-notifications__table th {
+	font: var(--vip-workflows-text-heading-md);
 	background: var(--wpds-color-background-surface-neutral-weak);
 }
 
-th.vip-workflow-notifications__channel-header {
+th.vip-workflows-notifications__channel-header {
 	text-align: center;
 	white-space: nowrap;
 }
@@ -50,7 +50,7 @@ th.vip-workflow-notifications__channel-header {
    density. Deliberately not a --wpds-dimension-surface-width-* step: that
    ladder sizes surfaces — panels, modals, card grids — and this is a <td> in a
    table whose remaining columns are one checkbox wide. */
-.vip-workflow-notifications__event-cell {
+.vip-workflows-notifications__event-cell {
 	min-width: 32ch;
 }
 
@@ -59,13 +59,13 @@ th.vip-workflow-notifications__channel-header {
    has no variant to take — nothing in the scale pairs 11px with a monospace
    family, and a <code> would drag in wp-admin's unlayered background and
    padding — so it keeps its type here, on tokens. */
-.vip-workflow-notifications__event-id {
+.vip-workflows-notifications__event-id {
 	font-size: var(--wpds-typography-font-size-xs);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	font-family: var(--wpds-typography-font-family-mono);
 }
 
-.vip-workflow-notifications__actions-cell {
+.vip-workflows-notifications__actions-cell {
 	white-space: nowrap;
 }
 
@@ -74,6 +74,6 @@ th.vip-workflow-notifications__channel-header {
    column widths and row-height distribution) while the Stack owns centring and
    gap — so neither needs a rule here. */
 
-.vip-workflow-notifications__table tbody tr:hover {
+.vip-workflows-notifications__table tbody tr:hover {
 	background: var(--wpds-color-background-surface-neutral);
 }

@@ -5,14 +5,14 @@
  * Provides generic utility endpoints that can be used across features:
  * - URL metadata extraction
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Integrations\UrlMetaExtractor;
+use VIPWorkflows\Integrations\UrlMetaExtractor;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_REST_Response;
@@ -29,7 +29,7 @@ class UtilityController extends WP_REST_Controller {
 	 *
 	 * @var string
 	 */
-	protected $namespace = 'vip-workflow/v1';
+	protected $namespace = 'vip-workflows/v1';
 
 	/**
 	 * Constructor.
@@ -53,7 +53,7 @@ class UtilityController extends WP_REST_Controller {
 					'permission_callback' => array( $this, 'permissions_check' ),
 					'args'                => array(
 						'url' => array(
-							'description'       => __( 'URL to fetch metadata from.', 'vip-workflow' ),
+							'description'       => __( 'URL to fetch metadata from.', 'vip-workflows' ),
 							'type'              => 'string',
 							'required'          => true,
 							'validate_callback' => function ( $value ) {
@@ -75,7 +75,7 @@ class UtilityController extends WP_REST_Controller {
 		if ( ! current_user_can( 'edit_posts' ) ) {
 			return new WP_Error(
 				'rest_forbidden',
-				__( 'You do not have permission to access this endpoint.', 'vip-workflow' ),
+				__( 'You do not have permission to access this endpoint.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -96,7 +96,7 @@ class UtilityController extends WP_REST_Controller {
 			// Strip SSRF guard error messages before returning to the client.
 			// They contain the resolved IP address which leaks internal topology.
 			$client_message = str_starts_with( $result->get_error_code(), 'ssrf_' )
-				? __( 'URL could not be fetched.', 'vip-workflow' )
+				? __( 'URL could not be fetched.', 'vip-workflows' )
 				: $result->get_error_message();
 
 			return new WP_REST_Response(

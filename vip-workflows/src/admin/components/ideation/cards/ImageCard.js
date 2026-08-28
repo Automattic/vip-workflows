@@ -111,10 +111,10 @@ export default function ImageCard( {
 			<Stack
 				align="center"
 				justify="center"
-				className="vip-workflow-ideation-media-modal__fallback"
+				className="vip-workflows-ideation-media-modal__fallback"
 			>
 				<Text variant="body-sm">
-					{ __( 'Preview unavailable.', 'vip-workflow' ) }
+					{ __( 'Preview unavailable.', 'vip-workflows' ) }
 				</Text>
 			</Stack>
 		);
@@ -123,7 +123,7 @@ export default function ImageCard( {
 			<iframe
 				src={ embedUrl }
 				title={ card.title || '' }
-				className="vip-workflow-ideation-media-modal__player"
+				className="vip-workflows-ideation-media-modal__player"
 				allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 				allowFullScreen
 			/>
@@ -133,7 +133,7 @@ export default function ImageCard( {
 			<video
 				src={ sourceUrl || imageUrl }
 				controls
-				className="vip-workflow-ideation-media-modal__player"
+				className="vip-workflows-ideation-media-modal__player"
 				onError={ () => setMediaError( true ) }
 			/>
 		);
@@ -142,7 +142,7 @@ export default function ImageCard( {
 			<img
 				src={ imageUrl }
 				alt={ card.title || '' }
-				className="vip-workflow-ideation-media-modal__image"
+				className="vip-workflows-ideation-media-modal__image"
 				onError={ () => setMediaError( true ) }
 			/>
 		);
@@ -156,13 +156,13 @@ export default function ImageCard( {
 		setAnalysisError( null );
 		try {
 			const result = await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ card.project_id }/sources/${ card.source_id }/summarize`,
+				path: `/vip-workflows/v1/ideation/${ card.project_id }/sources/${ card.source_id }/summarize`,
 				method: 'POST',
 			} );
 			setAnalysisText( result.summary );
 		} catch ( err ) {
 			setAnalysisError(
-				err.message || __( 'Analysis failed.', 'vip-workflow' )
+				err.message || __( 'Analysis failed.', 'vip-workflows' )
 			);
 		} finally {
 			setAnalyzing( false );
@@ -172,7 +172,7 @@ export default function ImageCard( {
 	let media = null;
 	if ( isVideoCard ) {
 		media = (
-			<div className="vip-workflow-ideation-card--image__video-thumb">
+			<div className="vip-workflows-ideation-card--image__video-thumb">
 				{ ! thumbUnavailable ? (
 					<img
 						src={ imageUrl }
@@ -184,7 +184,7 @@ export default function ImageCard( {
 					<Stack
 						align="center"
 						justify="center"
-						className="vip-workflow-ideation-card--image__video-placeholder"
+						className="vip-workflows-ideation-card--image__video-placeholder"
 					>
 						<svg
 							width="32"
@@ -200,14 +200,14 @@ export default function ImageCard( {
 					render={ <span /> }
 					align="center"
 					justify="center"
-					className="vip-workflow-ideation-card--image__play-badge"
+					className="vip-workflows-ideation-card--image__play-badge"
 				>
 					<svg
 						width="12"
 						height="12"
 						viewBox="0 0 24 24"
 						fill="currentColor"
-						className="vip-workflow-ideation-card--image__on-media-glyph"
+						className="vip-workflows-ideation-card--image__on-media-glyph"
 					>
 						<polygon points="5 3 19 12 5 21 5 3" />
 					</svg>
@@ -229,7 +229,7 @@ export default function ImageCard( {
 		// No <Card.Content>: this card's body is the media itself, which runs
 		// edge to edge, so the surface is all <Card.Root> contributes here.
 		<Card.Root
-			className={ `vip-workflow-ideation-card vip-workflow-ideation-card--image ${
+			className={ `vip-workflows-ideation-card vip-workflows-ideation-card--image ${
 				isPinned ? 'is-pinned' : ''
 			}` }
 			data-source-id={ card.source_id }
@@ -250,7 +250,7 @@ export default function ImageCard( {
 					align="center"
 					justify="center"
 					gap="sm"
-					className="vip-workflow-ideation-card--image__placeholder"
+					className="vip-workflows-ideation-card--image__placeholder"
 				>
 					<svg
 						width="32"
@@ -278,27 +278,27 @@ export default function ImageCard( {
 				direction="column"
 				justify="flex-end"
 				gap="xs"
-				className="vip-workflow-ideation-card--image__overlay"
+				className="vip-workflows-ideation-card--image__overlay"
 			>
 				{ card.domain && (
 					// wpds-allow R7 -- inline source-domain label with text-shadow; no <Text> variant
-					<span className="vip-workflow-ideation-card--image__source">
+					<span className="vip-workflows-ideation-card--image__source">
 						{ card.domain }
 					</span>
 				) }
 				{ hasSummary && (
 					<Stack
 						render={ <span /> }
-						className="vip-workflow-ideation-card--image__has-ai"
+						className="vip-workflows-ideation-card--image__has-ai"
 						align="center"
-						title={ __( 'AI analyzed', 'vip-workflow' ) }
+						title={ __( 'AI analyzed', 'vip-workflows' ) }
 					>
 						{ AI_ICON }
 					</Stack>
 				) }
 				{ notes && (
 					// wpds-allow R7 -- notes-flag icon wrapper; margin-auto aligns it, no Stack prop
-					<span className="vip-workflow-ideation-card--image__has-notes">
+					<span className="vip-workflows-ideation-card--image__has-notes">
 						<svg
 							width="10"
 							height="10"
@@ -306,14 +306,14 @@ export default function ImageCard( {
 							fill="none"
 							stroke="currentColor"
 							strokeWidth="2.5"
-							className="vip-workflow-ideation-card--image__on-media-glyph"
+							className="vip-workflows-ideation-card--image__on-media-glyph"
 						>
 							<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
 						</svg>
 					</span>
 				) }
 				<Stack
-					className="vip-workflow-ideation-card--image__actions"
+					className="vip-workflows-ideation-card--image__actions"
 					gap="xs"
 				>
 					<CardActions
@@ -334,20 +334,20 @@ export default function ImageCard( {
 					title={
 						card.title ||
 						( isVideoCard
-							? __( 'Video', 'vip-workflow' )
-							: __( 'Image', 'vip-workflow' ) )
+							? __( 'Video', 'vip-workflows' )
+							: __( 'Image', 'vip-workflows' ) )
 					}
 					onClose={ () => setModalOpen( false ) }
-					className="vip-workflow-ideation-media-modal"
-					summaryTitle={ __( 'AI Analysis', 'vip-workflow' ) }
+					className="vip-workflows-ideation-media-modal"
+					summaryTitle={ __( 'AI Analysis', 'vip-workflows' ) }
 					media={
-						<div className="vip-workflow-ideation-media-modal__preview">
+						<div className="vip-workflows-ideation-media-modal__preview">
 							{ mediaPreview }
 						</div>
 					}
 					meta={
 						<Stack
-							className="vip-workflow-ideation-detail-modal__meta"
+							className="vip-workflows-ideation-detail-modal__meta"
 							align="center"
 							gap="sm"
 						>
@@ -371,7 +371,7 @@ export default function ImageCard( {
 								<Text render={ <p /> }>
 									{ __(
 										'No AI analysis yet.',
-										'vip-workflow'
+										'vip-workflows'
 									) }
 								</Text>
 							) }
@@ -391,7 +391,7 @@ export default function ImageCard( {
 									href={ sourceUrl }
 									target="_blank"
 								>
-									{ __( 'Open source', 'vip-workflow' ) }
+									{ __( 'Open source', 'vip-workflows' ) }
 								</Button>
 							) }
 							{ imageUrl && ! isVideoCard && (
@@ -401,7 +401,7 @@ export default function ImageCard( {
 									href={ imageUrl }
 									target="_blank"
 								>
-									{ __( 'Open full image', 'vip-workflow' ) }
+									{ __( 'Open full image', 'vip-workflows' ) }
 								</Button>
 							) }
 							<Button
@@ -412,8 +412,8 @@ export default function ImageCard( {
 								disabled={ analyzing }
 							>
 								{ hasSummary
-									? __( 'Regenerate', 'vip-workflow' )
-									: __( 'Analyze with AI', 'vip-workflow' ) }
+									? __( 'Regenerate', 'vip-workflows' )
+									: __( 'Analyze with AI', 'vip-workflows' ) }
 							</Button>
 						</>
 					}
@@ -423,7 +423,7 @@ export default function ImageCard( {
 					handleSaveNotes={ handleSaveNotes }
 					notesPlaceholder={ __(
 						'Add your notes about this asset…',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				/>
 			) }

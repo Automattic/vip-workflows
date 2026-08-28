@@ -7,19 +7,19 @@
  * would_reseat() — plus remove_sequence(), the audited escape hatch that takes a
  * post out of its workflow without touching post_status.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\PostTypeManager;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\PostTypeManager;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Tests for StatusManager's region map, boundary predicates, and removal.

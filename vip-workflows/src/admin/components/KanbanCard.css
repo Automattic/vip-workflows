@@ -4,7 +4,7 @@
  */
 
 /* Card */
-.vip-workflow-kanban-card {
+.vip-workflows-kanban-card {
 	/* Background and radius come from <Card.Root>; these are the kanban-specific
 	   deviations: no border, an elevation shadow instead, and drag affordances.
 	   `overflow: hidden` is not the card surface, it's the clip the full-bleed
@@ -17,7 +17,7 @@
 	   overflows, since padding and gaps don't shrink with them). The card must
 	   never absorb the column's negative free space; the body scrolls instead. */
 	border: none;
-	box-shadow: var(--vip-workflow-elevation-sm);
+	box-shadow: var(--vip-workflows-elevation-sm);
 	overflow: hidden;
 	flex-shrink: 0;
 	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
@@ -30,39 +30,39 @@
 	position: relative;
 }
 
-.vip-workflow-kanban-card:hover {
-	box-shadow: var(--vip-workflow-elevation-md);
+.vip-workflows-kanban-card:hover {
+	box-shadow: var(--vip-workflows-elevation-md);
 }
 
-.vip-workflow-kanban-card:active {
+.vip-workflows-kanban-card:active {
 	cursor: grabbing;
 }
 
-.vip-workflow-kanban-card--dragging {
-	box-shadow: var(--vip-workflow-elevation-lg);
+.vip-workflows-kanban-card--dragging {
+	box-shadow: var(--vip-workflows-elevation-lg);
 	transform: rotate(3deg);
 	opacity: 0.95;
 }
 
-.vip-workflow-kanban-card--placeholder {
+.vip-workflows-kanban-card--placeholder {
 	opacity: 0.4;
 	border: 2px dashed var(--wpds-color-stroke-surface-neutral);
 	background: var(--wpds-color-background-surface-neutral-weak);
 }
 
-.vip-workflow-kanban-card--transitioning {
+.vip-workflows-kanban-card--transitioning {
 	opacity: 0.6;
 	pointer-events: none;
 }
 
-.vip-workflow-kanban-card--overdue {
+.vip-workflows-kanban-card--overdue {
 	border-left: 3px solid var(--wpds-color-stroke-surface-error-strong);
 }
 
 /* Card urgency indicator. The banner renders as <Text variant="heading-sm">,
    which already supplies the uppercase micro-type; only the full-bleed
    positioning and the on-color tone are left to set here. */
-.vip-workflow-kanban-card__urgency {
+.vip-workflows-kanban-card__urgency {
 	position: absolute;
 	top: 0; /* wpds-allow R2 -- zero needs no token */
 	left: 0; /* wpds-allow R2 -- zero needs no token */
@@ -70,38 +70,38 @@
 	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
 	letter-spacing: 0.5px; /* wpds-allow R5 -- the pinned WPDS set ships no letter-spacing scale; uppercase micro-type needs the tracking to stay readable */
 	/* <Text> exposes no color prop, so the on-color tone over the urgency fill is set here. */
-	color: var(--vip-workflow-color-fg-on-color);
+	color: var(--vip-workflows-color-fg-on-color);
 }
 
 /* Urgency modifier colors. "breaking" maps to the WPDS error-strong token;
    "urgent" maps to the supplemental dark-caution token (WPDS has no dark
    caution background — see styles/tokens.css). */
-.vip-workflow-kanban-card__urgency--breaking {
+.vip-workflows-kanban-card__urgency--breaking {
 	background: var(--wpds-color-background-interactive-error-strong);
 }
 
-.vip-workflow-kanban-card__urgency--urgent {
-	background: var(--vip-workflow-color-bg-caution-strong);
+.vip-workflows-kanban-card__urgency--urgent {
+	background: var(--vip-workflows-color-bg-caution-strong);
 }
 
-.vip-workflow-kanban-card:has(.vip-workflow-kanban-card__urgency) {
+.vip-workflows-kanban-card:has(.vip-workflows-kanban-card__urgency) {
 	padding-top: var(--wpds-dimension-padding-3xl);
 }
 
 /* Card title. Type comes from the <Text variant="heading-md"> that renders the
    <Link>; `display: block` is what lets the anchor wrap and fill the row. */
-.vip-workflow-kanban-card__title {
+.vip-workflows-kanban-card__title {
 	display: block;
 	word-break: break-word;
 }
 
 /* Card meta. The row's two halves carry their own <Text variant="body-sm">;
    only the shared muted tone is inherited from here. */
-.vip-workflow-kanban-card__meta {
+.vip-workflows-kanban-card__meta {
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- <Stack> exposes no color prop, so the tone both meta children inherit is set here */
 }
 
-.vip-workflow-kanban-card__person {
+.vip-workflows-kanban-card__person {
 	min-width: 0;
 }
 
@@ -110,45 +110,45 @@
    deliberately does not truncate — in a table cell and in the audit log's meta
    row the full name reads — so the rule is the card's, applied to the name span
    the cell exposes for exactly this. */
-.vip-workflow-kanban-card__person .vip-workflow-dataview-author__name {
+.vip-workflows-kanban-card__person .vip-workflows-dataview-author__name {
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
 /* Colour is inherited from .__meta — the row this sits in. */
-.vip-workflow-kanban-card__waiting {
+.vip-workflows-kanban-card__waiting {
 	flex-shrink: 0;
 }
 
 /* Due date */
-.vip-workflow-kanban-card__due {
-	font: var(--vip-workflow-text-body-sm);
+.vip-workflows-kanban-card__due {
+	font: var(--vip-workflows-text-body-sm);
 	padding-top: var(--wpds-dimension-gap-sm);
 	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-.vip-workflow-kanban-card__due--overdue {
+.vip-workflows-kanban-card__due--overdue {
 	color: var(--wpds-color-foreground-content-error-weak);
 	font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
 /* Transitioning overlay — a <Stack> that centres the spinner; only the scrim
    itself is left here. */
-.vip-workflow-kanban-card__transitioning-overlay {
+.vip-workflows-kanban-card__transitioning-overlay {
 	position: absolute;
 	inset: 0; /* wpds-allow R2 -- zero needs no token */
 	/* wpds-allow R6 -- <Stack> exposes no background prop */
-	background: color-mix(in srgb, var(--vip-workflow-color-bg-frosted) 80%, transparent);
+	background: color-mix(in srgb, var(--vip-workflows-color-bg-frosted) 80%, transparent);
 }
 
-.vip-workflow-kanban-card__transitioning-overlay .spinner {
+.vip-workflows-kanban-card__transitioning-overlay .spinner {
 	margin: 0; /* wpds-allow R3 -- resets the wp-admin .spinner margin so the centring <Stack> can actually centre it */
 }
 
 /* Drag overlay styling */
-[data-dnd-kit-drag-overlay] .vip-workflow-kanban-card {
-	box-shadow: var(--vip-workflow-elevation-lg);
+[data-dnd-kit-drag-overlay] .vip-workflows-kanban-card {
+	box-shadow: var(--vip-workflows-elevation-lg);
 	transform: rotate(4deg) scale(1.02);
 }

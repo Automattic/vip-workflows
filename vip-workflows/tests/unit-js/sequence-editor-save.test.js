@@ -119,12 +119,12 @@ beforeEach( () => {
 	writes = [];
 	window.location.hash = '';
 	apiFetch.mockImplementation( ( { path, method, data } ) => {
-		if ( path === '/vip-workflow/v1/sequences/options' ) {
+		if ( path === '/vip-workflows/v1/sequences/options' ) {
 			return Promise.resolve( OPTIONS );
 		}
 		if (
-			path.startsWith( '/vip-workflow/v1/abilities' ) ||
-			path === '/vip-workflow/v1/notifications/channels'
+			path.startsWith( '/vip-workflows/v1/abilities' ) ||
+			path === '/vip-workflows/v1/notifications/channels'
 		) {
 			return Promise.resolve( [] );
 		}
@@ -253,7 +253,7 @@ describe( 'Saving a sequence stays on the editor', () => {
 
 		await waitFor( () => expect( writes ).toHaveLength( 1 ) );
 		expect( writes[ 0 ].method ).toBe( 'PUT' );
-		expect( writes[ 0 ].path ).toBe( '/vip-workflow/v1/sequences/7' );
+		expect( writes[ 0 ].path ).toBe( '/vip-workflows/v1/sequences/7' );
 		// The canvas is still there, and nothing asked the page to leave.
 		expect( screen.getByTestId( 'canvas' ) ).toBeInTheDocument();
 		expect( onCancel ).not.toHaveBeenCalled();
@@ -296,7 +296,7 @@ describe( 'Saving a sequence stays on the editor', () => {
 		fireEvent.click( saveButton() );
 		await waitFor( () => expect( writes ).toHaveLength( 1 ) );
 		expect( writes[ 0 ].method ).toBe( 'POST' );
-		expect( writes[ 0 ].path ).toBe( '/vip-workflow/v1/sequences' );
+		expect( writes[ 0 ].path ).toBe( '/vip-workflows/v1/sequences' );
 
 		// The row that now exists is reported to the page, which is what moves
 		// the address to it — this editor does not touch the address, because
@@ -313,7 +313,7 @@ describe( 'Saving a sequence stays on the editor', () => {
 		fireEvent.click( saveButton() );
 		await waitFor( () => expect( writes ).toHaveLength( 2 ) );
 		expect( writes[ 1 ].method ).toBe( 'PUT' );
-		expect( writes[ 1 ].path ).toBe( '/vip-workflow/v1/sequences/7' );
+		expect( writes[ 1 ].path ).toBe( '/vip-workflows/v1/sequences/7' );
 	} );
 } );
 
@@ -484,12 +484,12 @@ describe( 'Leaving the sequence editor by the browser', () => {
 	// both exit guards stood down, and leaving would discard it in silence.
 	it( 'keeps an unsaved rename dirty across a region repair', async () => {
 		apiFetch.mockImplementation( ( { path, method } ) => {
-			if ( path === '/vip-workflow/v1/sequences/options' ) {
+			if ( path === '/vip-workflows/v1/sequences/options' ) {
 				return Promise.resolve( OPTIONS );
 			}
 			if (
-				path.startsWith( '/vip-workflow/v1/abilities' ) ||
-				path === '/vip-workflow/v1/notifications/channels'
+				path.startsWith( '/vip-workflows/v1/abilities' ) ||
+				path === '/vip-workflows/v1/notifications/channels'
 			) {
 				return Promise.resolve( [] );
 			}
@@ -701,12 +701,12 @@ describe( 'What the write gate changed on the way in', () => {
 
 	beforeEach( () => {
 		apiFetch.mockImplementation( ( { path, method, data } ) => {
-			if ( path === '/vip-workflow/v1/sequences/options' ) {
+			if ( path === '/vip-workflows/v1/sequences/options' ) {
 				return Promise.resolve( OPTIONS );
 			}
 			if (
-				path.startsWith( '/vip-workflow/v1/abilities' ) ||
-				path === '/vip-workflow/v1/notifications/channels'
+				path.startsWith( '/vip-workflows/v1/abilities' ) ||
+				path === '/vip-workflows/v1/notifications/channels'
 			) {
 				return Promise.resolve( [] );
 			}
@@ -939,12 +939,12 @@ describe( 'A half-filled metadata field', () => {
 
 	const renderWithFields = async ( metadataFields ) => {
 		apiFetch.mockImplementation( ( { path, method, data } ) => {
-			if ( path === '/vip-workflow/v1/sequences/options' ) {
+			if ( path === '/vip-workflows/v1/sequences/options' ) {
 				return Promise.resolve( OPTIONS );
 			}
 			if (
-				path.startsWith( '/vip-workflow/v1/abilities' ) ||
-				path === '/vip-workflow/v1/notifications/channels'
+				path.startsWith( '/vip-workflows/v1/abilities' ) ||
+				path === '/vip-workflows/v1/notifications/channels'
 			) {
 				return Promise.resolve( [] );
 			}
@@ -1010,12 +1010,12 @@ describe( 'A half-filled metadata field', () => {
 describe( 'A sequence the editor could not read', () => {
 	beforeEach( () => {
 		apiFetch.mockImplementation( ( { path } ) => {
-			if ( path === '/vip-workflow/v1/sequences/options' ) {
+			if ( path === '/vip-workflows/v1/sequences/options' ) {
 				return Promise.resolve( OPTIONS );
 			}
 			if (
-				path.startsWith( '/vip-workflow/v1/abilities' ) ||
-				path === '/vip-workflow/v1/notifications/channels'
+				path.startsWith( '/vip-workflows/v1/abilities' ) ||
+				path === '/vip-workflows/v1/notifications/channels'
 			) {
 				return Promise.resolve( [] );
 			}
@@ -1086,7 +1086,7 @@ describe( 'A new sequence whose options read fails under the author', () => {
 	it( 'does not hold them with a question the blocked editor cannot ask', async () => {
 		let failOptions;
 		apiFetch.mockImplementation( ( { path } ) => {
-			if ( path === '/vip-workflow/v1/sequences/options' ) {
+			if ( path === '/vip-workflows/v1/sequences/options' ) {
 				// Held open, so the author gets to type before it fails.
 				return new Promise( ( resolve, reject ) => {
 					failOptions = () =>
@@ -1094,8 +1094,8 @@ describe( 'A new sequence whose options read fails under the author', () => {
 				} );
 			}
 			if (
-				path.startsWith( '/vip-workflow/v1/abilities' ) ||
-				path === '/vip-workflow/v1/notifications/channels'
+				path.startsWith( '/vip-workflows/v1/abilities' ) ||
+				path === '/vip-workflows/v1/notifications/channels'
 			) {
 				return Promise.resolve( [] );
 			}
@@ -1160,7 +1160,7 @@ describe( 'A sequence the author has only named', () => {
 
 		await waitFor( () => expect( writes ).toHaveLength( 1 ) );
 		expect( writes[ 0 ].method ).toBe( 'POST' );
-		expect( writes[ 0 ].path ).toBe( '/vip-workflow/v1/sequences' );
+		expect( writes[ 0 ].path ).toBe( '/vip-workflows/v1/sequences' );
 	} );
 
 	it( 'sends the pair wired the way the write gate requires', async () => {

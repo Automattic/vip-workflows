@@ -223,7 +223,7 @@ describe( 'AssistantCard shape', () => {
 		} );
 
 		expect( apiFetch ).toHaveBeenCalledWith( {
-			path: '/vip-workflow/v1/assistants/workflow-agent-fact-check/settings',
+			path: '/vip-workflows/v1/assistants/workflow-agent-fact-check/settings',
 			method: 'POST',
 			data: { enabled: false, options: {} },
 		} );
@@ -331,7 +331,7 @@ describe( 'AssistantCard availability requirements', () => {
 								kind: 'none',
 								url: '',
 								label: '',
-								hint: 'Define VIP_WORKFLOW_TAVILY_API_KEY in wp-config.php.',
+								hint: 'Define VIP_WORKFLOWS_TAVILY_API_KEY in wp-config.php.',
 							},
 						},
 					],
@@ -341,7 +341,7 @@ describe( 'AssistantCard availability requirements', () => {
 
 		expect(
 			screen.getByText(
-				'Define VIP_WORKFLOW_TAVILY_API_KEY in wp-config.php.'
+				'Define VIP_WORKFLOWS_TAVILY_API_KEY in wp-config.php.'
 			)
 		).toBeInTheDocument();
 		expect( screen.queryByRole( 'link' ) ).not.toBeInTheDocument();
@@ -432,7 +432,7 @@ describe( 'AssistantCard availability requirements', () => {
 			container.querySelector( '.components-notice.is-warning' )
 		).toBeInTheDocument();
 		expect(
-			container.querySelector( '.vip-workflow-assistant-card__hint' )
+			container.querySelector( '.vip-workflows-assistant-card__hint' )
 		).not.toBeInTheDocument();
 
 		// The toggle is a preference, never a readiness signal: it stays usable.
@@ -460,7 +460,7 @@ describe( 'AssistantCard availability requirements', () => {
 			container.querySelector( '.components-notice' )
 		).not.toBeInTheDocument();
 		expect(
-			container.querySelector( '.vip-workflow-assistant-card__hint' )
+			container.querySelector( '.vip-workflows-assistant-card__hint' )
 		).toBeInTheDocument();
 		expect(
 			screen.getByText( tavilyRequirement.reason )
@@ -623,7 +623,7 @@ describe( 'AssistantCard re-check control', () => {
 		);
 
 		expect( apiFetch ).toHaveBeenCalledWith( {
-			path: '/vip-workflow/v1/assistants/workflow-agent-fact-check',
+			path: '/vip-workflows/v1/assistants/workflow-agent-fact-check',
 		} );
 		// List state stays the single source of truth.
 		expect( onUpdate ).toHaveBeenCalledWith( satisfied );
@@ -830,7 +830,7 @@ describe( 'AssistantCard origin label', () => {
 	} );
 
 	const originText = ( container ) =>
-		container.querySelector( '.vip-workflow-assistant-card__origin' )
+		container.querySelector( '.vip-workflows-assistant-card__origin' )
 			?.textContent;
 
 	it( 'uses the ability vendor prefix, not the doubled entry slug', () => {
@@ -874,12 +874,12 @@ describe( 'AssistantCard origin label', () => {
 		const { container } = renderCard( {
 			...baseAssistant,
 			origin: 'built-in',
-			slug: 'vip-workflow-web-researcher',
-			ability_ids: [ 'vip-workflow/web-researcher' ],
+			slug: 'vip-workflows-web-researcher',
+			ability_ids: [ 'vip-workflows/web-researcher' ],
 		} );
 
 		expect( originText( container ) ).toBe( 'Built-in' );
-		expect( screen.queryByText( 'vip-workflow' ) ).not.toBeInTheDocument();
+		expect( screen.queryByText( 'vip-workflows' ) ).not.toBeInTheDocument();
 	} );
 } );
 
@@ -1094,8 +1094,8 @@ describe( 'AssistantCard settings filter contract', () => {
 		apiFetch.mockReset();
 		seen.length = 0;
 		addFilter(
-			'vipWorkflow.assistantSettings',
-			'vip-workflow-test/assistant-disabled',
+			'vipWorkflows.assistantSettings',
+			'vip-workflows-test/assistant-disabled',
 			( content, entry, callbacks ) => {
 				seen.push( callbacks.disabled );
 				return content;
@@ -1105,8 +1105,8 @@ describe( 'AssistantCard settings filter contract', () => {
 
 	afterEach( () => {
 		removeFilter(
-			'vipWorkflow.assistantSettings',
-			'vip-workflow-test/assistant-disabled'
+			'vipWorkflows.assistantSettings',
+			'vip-workflows-test/assistant-disabled'
 		);
 	} );
 
@@ -1136,8 +1136,8 @@ describe( 'AssistantCard legacy assistants filter contract', () => {
 		apiFetch.mockReset();
 		seen.length = 0;
 		addFilter(
-			'vipWorkflow.assistantSettingsComponent',
-			'vip-workflow-test/legacy-assistant-disabled',
+			'vipWorkflows.assistantSettingsComponent',
+			'vip-workflows-test/legacy-assistant-disabled',
 			( content, entry, callbacks ) => {
 				seen.push( callbacks.disabled );
 				return content;
@@ -1147,8 +1147,8 @@ describe( 'AssistantCard legacy assistants filter contract', () => {
 
 	afterEach( () => {
 		removeFilter(
-			'vipWorkflow.assistantSettingsComponent',
-			'vip-workflow-test/legacy-assistant-disabled'
+			'vipWorkflows.assistantSettingsComponent',
+			'vip-workflows-test/legacy-assistant-disabled'
 		);
 	} );
 
@@ -1188,8 +1188,8 @@ describe( 'AssistantCard legacy discovery filter contract', () => {
 		apiFetch.mockReset();
 		seen.length = 0;
 		addFilter(
-			'vip_workflow_discovery_provider_settings',
-			'vip-workflow-test/legacy-discovery-disabled',
+			'vip_workflows_discovery_provider_settings',
+			'vip-workflows-test/legacy-discovery-disabled',
 			() =>
 				function ProviderSettings( { disabled } ) {
 					seen.push( disabled );
@@ -1200,8 +1200,8 @@ describe( 'AssistantCard legacy discovery filter contract', () => {
 
 	afterEach( () => {
 		removeFilter(
-			'vip_workflow_discovery_provider_settings',
-			'vip-workflow-test/legacy-discovery-disabled'
+			'vip_workflows_discovery_provider_settings',
+			'vip-workflows-test/legacy-discovery-disabled'
 		);
 	} );
 
@@ -1231,8 +1231,8 @@ describe( 'AssistantCard with a plugin-supplied settings component', () => {
 	beforeEach( () => {
 		apiFetch.mockReset();
 		addFilter(
-			'vipWorkflow.assistantSettings',
-			'vip-workflow-test/assistant-settings',
+			'vipWorkflows.assistantSettings',
+			'vip-workflows-test/assistant-settings',
 			( content, entry ) =>
 				entry.slug === baseAssistant.slug ? (
 					<p>Plugin settings UI</p>
@@ -1244,8 +1244,8 @@ describe( 'AssistantCard with a plugin-supplied settings component', () => {
 
 	afterEach( () => {
 		removeFilter(
-			'vipWorkflow.assistantSettings',
-			'vip-workflow-test/assistant-settings'
+			'vipWorkflows.assistantSettings',
+			'vip-workflows-test/assistant-settings'
 		);
 	} );
 

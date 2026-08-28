@@ -3,18 +3,18 @@
  * Ideation Experiment — declares the research/ideation + discovery modules
  * for the experiment system.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Experiments;
+namespace VIPWorkflows\Experiments;
 
-use VIPWorkflow\Admin\IdeationAdmin;
-use VIPWorkflow\Database\Seeder;
-use VIPWorkflow\Discovery\DiscoveryModule;
-use VIPWorkflow\Ideation\Research\IdeationPostTypes;
-use VIPWorkflow\Ideation\Research\SourceProcessingJob;
+use VIPWorkflows\Admin\IdeationAdmin;
+use VIPWorkflows\Database\Seeder;
+use VIPWorkflows\Discovery\DiscoveryModule;
+use VIPWorkflows\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\Ideation\Research\SourceProcessingJob;
 
 /**
  * Experiment declaration for the Ideation system.
@@ -40,7 +40,7 @@ class IdeationExperiment extends Experiment {
 	 * @inheritDoc
 	 */
 	public function get_name(): string {
-		return __( 'Ideation', 'vip-workflow' );
+		return __( 'Ideation', 'vip-workflows' );
 	}
 
 	/**
@@ -49,7 +49,7 @@ class IdeationExperiment extends Experiment {
 	 * @inheritDoc
 	 */
 	public function get_description(): string {
-		return __( 'Research, discovery, and source management for ideation projects.', 'vip-workflow' );
+		return __( 'Research, discovery, and source management for ideation projects.', 'vip-workflows' );
 	}
 
 	/**
@@ -113,7 +113,7 @@ class IdeationExperiment extends Experiment {
 	 */
 	public function deactivate(): void {
 		if ( function_exists( 'as_unschedule_all_actions' ) ) {
-			as_unschedule_all_actions( 'vip_workflow_process_source' );
+			as_unschedule_all_actions( 'vip_workflows_process_source' );
 		}
 
 		// phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.flush_rewrite_rules_flush_rewrite_rules -- Experiment toggle changes rewrite-visible CPTs.

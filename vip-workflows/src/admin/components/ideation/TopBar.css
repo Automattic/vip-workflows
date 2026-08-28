@@ -4,7 +4,7 @@
 
 /* Top Bar */
 
-.vip-workflow-ideation-topbar {
+.vip-workflows-ideation-topbar {
 	background: var(--wpds-color-background-surface-neutral-strong);
 	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
 	flex-shrink: 0;
@@ -15,30 +15,30 @@
 
 /* Rows are <Stack> (gap/direction/align are props); only the container padding,
    which Stack has no prop for, stays in CSS. */
-.vip-workflow-ideation-topbar__row {
+.vip-workflows-ideation-topbar__row {
 	padding: 0 var(--wpds-dimension-padding-lg);
 }
 
-.vip-workflow-ideation-topbar__row--primary {
+.vip-workflows-ideation-topbar__row--primary {
 	min-height: 48px;
 }
 
-.vip-workflow-ideation-topbar__row--agents {
+.vip-workflows-ideation-topbar__row--agents {
 	padding-bottom: var(--wpds-dimension-padding-sm);
 	padding-left: 52px; /* wpds-allow R2 -- intentional large indent past token scale */
 }
 
-.vip-workflow-ideation-topbar__back {
+.vip-workflows-ideation-topbar__back {
 	flex-shrink: 0;
 }
 
 /* Seed is <Stack direction="row" align="baseline">; only flex-child sizing stays. */
-.vip-workflow-ideation-topbar__seed {
+.vip-workflows-ideation-topbar__seed {
 	flex: 1;
 	min-width: 0;
 }
 
-.vip-workflow-ideation-topbar__seed-label {
+.vip-workflows-ideation-topbar__seed-label {
 	flex-shrink: 0;
 }
 
@@ -48,16 +48,16 @@
    heading-lg, not heading-md: md is the same 13px as the body text around it, and
    with the chips and tags no longer competing for this row the project's own name
    can finally be the largest thing in it. */
-.vip-workflow-ideation-topbar__seed-text {
-	font: var(--vip-workflow-text-heading-lg);
+.vip-workflows-ideation-topbar__seed-text {
+	font: var(--vip-workflows-text-heading-lg);
 	color: var(--wpds-color-foreground-content-neutral);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
-.vip-workflow-ideation-topbar__pin-count {
-	font: var(--vip-workflow-text-body-sm);
+.vip-workflows-ideation-topbar__pin-count {
+	font: var(--vip-workflows-text-body-sm);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	margin-left: auto; /* wpds-allow R3 -- margin-auto pushes the count to the row end; no Stack prop */
 	flex-shrink: 0;
@@ -66,56 +66,56 @@
 
 /* Assistants is <Stack direction="row" wrap="wrap" align="center">; only the
    shrink-to-fit constraint stays. */
-.vip-workflow-ideation-topbar__assistants {
+.vip-workflows-ideation-topbar__assistants {
 	min-width: 0;
 }
 
 /* No background, border or radius: an agent's progress is read-only, and a row of
    filled pills each holding a coloured badge read as a set of status toggles. The
    tone lives in the dot. */
-.vip-workflow-ideation-topbar__assistant {
+.vip-workflows-ideation-topbar__assistant {
 	color: var(--wpds-color-foreground-content-neutral);
 }
 
-.vip-workflow-ideation-topbar__assistant-dot {
+.vip-workflows-ideation-topbar__assistant-dot {
 	width: var(--wpds-dimension-padding-sm);
 	height: var(--wpds-dimension-padding-sm);
 	border-radius: 50%; /* wpds-allow R2 -- a circle is a ratio, not a token dimension */
 	flex-shrink: 0;
 }
 
-.vip-workflow-ideation-topbar__assistant-dot.is-tone-pending {
+.vip-workflows-ideation-topbar__assistant-dot.is-tone-pending {
 	background: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-.vip-workflow-ideation-topbar__assistant-dot.is-tone-running {
+.vip-workflows-ideation-topbar__assistant-dot.is-tone-running {
 	background: var(--wpds-color-foreground-content-warning);
-	animation: vip-workflow-ideation-pulse 1.5s ease-in-out infinite;
+	animation: vip-workflows-ideation-pulse 1.5s ease-in-out infinite;
 }
 
-.vip-workflow-ideation-topbar__assistant-dot.is-tone-completed {
+.vip-workflows-ideation-topbar__assistant-dot.is-tone-completed {
 	background: var(--wpds-color-foreground-content-success);
 }
 
-.vip-workflow-ideation-topbar__assistant-dot.is-tone-failed {
+.vip-workflows-ideation-topbar__assistant-dot.is-tone-failed {
 	background: var(--wpds-color-foreground-content-error);
 }
 
-.vip-workflow-ideation-topbar__assistant.is-pending {
+.vip-workflows-ideation-topbar__assistant.is-pending {
 	opacity: 0.5;
 }
 
-.vip-workflow-ideation-topbar__assistant.is-pending .vip-workflow-ideation-topbar__assistant-status {
+.vip-workflows-ideation-topbar__assistant.is-pending .vip-workflows-ideation-topbar__assistant-status {
 	font-style: italic; /* wpds-allow R6 -- pending-state emphasis on <Badge>; intent shows status, italic adds the "waiting" nuance */
 }
 
 /* An agent that cannot run states the requirement inline, so its line runs wider
    than the status row and is allowed to wrap rather than truncate. */
-.vip-workflow-ideation-topbar__assistant-unmet {
+.vip-workflows-ideation-topbar__assistant-unmet {
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted tone for the whole line, inherited by the requirement text; Text exposes no color prop in @wordpress/ui 0.9 */
 	min-width: 0;
 }
 
-.vip-workflow-ideation-topbar__actions {
+.vip-workflows-ideation-topbar__actions {
 	flex-shrink: 0;
 }

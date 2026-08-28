@@ -4,7 +4,7 @@
  * The sibling of admin-page.css's canvas reset, for the surface that one
  * cannot reach. A `@wordpress/components` <Modal> portals to document.body, so
  * it has no `.wrap` ancestor and the canvas reset's
- * `.wrap:has( .vip-workflow-admin-page )` scope never matches inside it. wp-admin
+ * `.wrap:has( .vip-workflows-admin-page )` scope never matches inside it. wp-admin
  * still styles the bare flow tags there with UNLAYERED rules, and an unlayered
  * normal declaration beats any layered one regardless of specificity — so a
  * `<Text variant="body-md" render={ <p /> }>` in a modal was measurably losing
@@ -23,7 +23,7 @@
  * `.description` is excluded for the same reason as the canvas reset: it is a
  * wp-admin-classed helper, not a DS element (see class-email-channel.php), and
  * `revert-layer` would strip its intended styling. Never put that class on a
- * `<Text>` — use `.vip-workflow-description`.
+ * `<Text>` — use `.vip-workflows-description`.
  *
  * @imported by both src/admin/style.css and src/editor/style.css so the reset
  * reaches modals opened from either bundle. Guarded by the "modal (portal)"

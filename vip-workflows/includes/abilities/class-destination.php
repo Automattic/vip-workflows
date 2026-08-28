@@ -8,12 +8,12 @@
  * constant, or a third-party provider that never registered a destination).
  * Handing callers a bare URL guarantees at least one dead or misleading link.
  *
- * @package VIPWorkflow\Abilities
+ * @package VIPWorkflows\Abilities
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
 /**
  * A tagged destination for an unmet requirement.

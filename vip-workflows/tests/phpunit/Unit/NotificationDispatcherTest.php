@@ -2,18 +2,18 @@
 /**
  * NotificationDispatcher unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Notifications\Notification;
-use VIPWorkflow\Notifications\NotificationChannel;
-use VIPWorkflow\Notifications\NotificationDispatcher;
+use VIPWorkflows\Notifications\Notification;
+use VIPWorkflows\Notifications\NotificationChannel;
+use VIPWorkflows\Notifications\NotificationDispatcher;
 
 /**
  * Smoke tests for NotificationDispatcher.
@@ -109,7 +109,7 @@ class NotificationDispatcherTest extends TestCase
     {
         Functions\when( 'get_option' )->alias(
             function ( $option, $default = [] ) {
-                if ( 'vip_workflow_notification_routing' === $option ) {
+                if ( 'vip_workflows_notification_routing' === $option ) {
                     return [ 'transition' => [ 'slack' ] ]; // only transition → slack
                 }
                 return $default;

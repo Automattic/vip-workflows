@@ -5,15 +5,15 @@
  * Covers the tolerant sentinel matcher, the issue-line parser, the rewrite
  * shrink guard, and write_content()'s sanitization + concurrent-edit guard.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Abilities\Agents\StageAgent;
+use VIPWorkflows\Abilities\Agents\StageAgent;
 use WordPress\AiClient\AiClient;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/agents/class-stage-agent.php';

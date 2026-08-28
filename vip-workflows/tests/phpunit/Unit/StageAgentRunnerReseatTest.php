@@ -7,20 +7,20 @@
  * discarded, no spurious failure recorded, never finished against the new
  * stage — and a stale failure must never clobber a newer stage's job marker.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Abilities\AbilityResult;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Workflow\StageAgentRunner;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilityResult;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Workflow\StageAgentRunner;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Tests for the post-execution stage re-check and the fail_in_place guard.
@@ -44,7 +44,7 @@ class StageAgentRunnerReseatTest extends TestCase
     protected function tearDown(): void
     {
         // Clear the seeded Plugin singleton.
-        $reflection    = new \ReflectionClass( \VIPWorkflow\Plugin::class );
+        $reflection    = new \ReflectionClass( \VIPWorkflows\Plugin::class );
         $instance_prop = $reflection->getProperty( 'instance' );
         $instance_prop->setValue( null, null );
 
@@ -58,7 +58,7 @@ class StageAgentRunnerReseatTest extends TestCase
      */
     private function seed_status_manager( object $status_manager ): void
     {
-        $reflection = new \ReflectionClass( \VIPWorkflow\Plugin::class );
+        $reflection = new \ReflectionClass( \VIPWorkflows\Plugin::class );
         $instance   = $reflection->newInstanceWithoutConstructor();
 
         $prop = $reflection->getProperty( 'status_manager' );
@@ -132,7 +132,7 @@ class StageAgentRunnerReseatTest extends TestCase
         );
         Functions\when( 'get_post_meta' )->alias(
             function ( $post_id, $key, $single = false ) use ( &$stage, $own_marker ) {
-                if ( '_vip_workflow_current_stage_key' === $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
                     return $stage;
                 }
                 if ( StageAgentRunner::JOB_META === $key ) {
@@ -193,8 +193,8 @@ class StageAgentRunnerReseatTest extends TestCase
         // Compare-and-delete: the delete carries the exact marker that was
         // read, so a marker swapped in by another process would match nothing.
         $this->assertContains( array( StageAgentRunner::JOB_META, $own_marker ), $deleted, 'The abandoned run clears its own job marker by exact value.' );
-        $this->assertNotContains( 'vip_workflow_agent_completed', $fired );
-        $this->assertNotContains( 'vip_workflow_agent_failed', $fired );
+        $this->assertNotContains( 'vip_workflows_agent_completed', $fired );
+        $this->assertNotContains( 'vip_workflows_agent_failed', $fired );
         // The chain is written once, in finish(), immediately before the exit
         // transition. An abandoned run never reaches it, so it writes NOTHING —
         // rather than incrementing and then blind-restoring a value read before
@@ -211,7 +211,7 @@ class StageAgentRunnerReseatTest extends TestCase
         $stage = 'ai_desk';
         Functions\when( 'get_post_meta' )->alias(
             function ( $post_id, $key, $single = false ) use ( &$stage ) {
-                if ( '_vip_workflow_current_stage_key' === $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
                     return $stage;
                 }
                 if ( StageAgentRunner::CHAIN_META === $key ) {
@@ -257,7 +257,7 @@ class StageAgentRunnerReseatTest extends TestCase
         ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
 
         $this->assertSame( array(), $job_writes, 'A thrown run for a departed stage must not record a failure.' );
-        $this->assertNotContains( 'vip_workflow_agent_failed', $fired, 'No agent_failed broadcast for a stage the post left.' );
+        $this->assertNotContains( 'vip_workflows_agent_failed', $fired, 'No agent_failed broadcast for a stage the post left.' );
         $this->assertSame( array(), $chain_writes, 'An abandoned thrown run must not write to the agent chain at all.' );
     }
 
@@ -270,7 +270,7 @@ class StageAgentRunnerReseatTest extends TestCase
         $stage = 'ai_desk';
         Functions\when( 'get_post_meta' )->alias(
             function ( $post_id, $key, $single = false ) use ( &$stage ) {
-                if ( '_vip_workflow_current_stage_key' === $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
                     return $stage;
                 }
                 if ( StageAgentRunner::JOB_META === $key ) {
@@ -346,6 +346,6 @@ class StageAgentRunnerReseatTest extends TestCase
             'stale failure'
         );
 
-        $this->assertNotContains( 'vip_workflow_agent_failed', $fired );
+        $this->assertNotContains( 'vip_workflows_agent_failed', $fired );
     }
 }

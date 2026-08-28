@@ -15,25 +15,25 @@
  * moves the server would happily perform, which is the same class of bug in the
  * opposite direction.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\PostTypeManager;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\PostTypeManager;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
- * @covers \VIPWorkflow\Sequences\Sequence::get_missing_required_metadata
- * @covers \VIPWorkflow\Sequences\Sequence::get_role_permitted_transitions
- * @covers \VIPWorkflow\Sequences\Sequence::crosses_into_publish
- * @covers \VIPWorkflow\Workflow\StatusManager::get_available_transitions
+ * @covers \VIPWorkflows\Sequences\Sequence::get_missing_required_metadata
+ * @covers \VIPWorkflows\Sequences\Sequence::get_role_permitted_transitions
+ * @covers \VIPWorkflows\Sequences\Sequence::crosses_into_publish
+ * @covers \VIPWorkflows\Workflow\StatusManager::get_available_transitions
  */
 class RequiredMetadataLockProjectionTest extends TestCase
 {
@@ -408,10 +408,10 @@ class RequiredMetadataLockProjectionTest extends TestCase
         Functions\when( 'get_post' )->justReturn( $this->create_mock_post( array( 'ID' => self::POST_ID ) ) );
         Functions\when( 'get_post_meta' )->alias(
             function ( $post_id, $key = '', $single = false ) {
-                if ( '_vip_workflow_sequence_id' === $key ) {
+                if ( '_vip_workflows_sequence_id' === $key ) {
                     return 1;
                 }
-                if ( '_vip_workflow_current_stage_key' === $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
                     return 'review';
                 }
                 // Including 'wf_meta_1_section': the field is empty, which is

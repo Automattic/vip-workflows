@@ -2,21 +2,21 @@
 /**
  * Workflow REST API controller.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Plugin;
-use VIPWorkflow\Database\Schema;
-use VIPWorkflow\Story\Story;
-use VIPWorkflow\Ideation\Assistants\IdeationOrchestrator;
-use VIPWorkflow\Ideation\Research\IdeationPostTypes;
-use VIPWorkflow\Workflow\Actor;
-use VIPWorkflow\Workflow\StagePalette;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Plugin;
+use VIPWorkflows\Database\Schema;
+use VIPWorkflows\Story\Story;
+use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\Workflow\Actor;
+use VIPWorkflows\Workflow\StagePalette;
+use VIPWorkflows\Workflow\StatusManager;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_REST_Request;
@@ -366,7 +366,7 @@ class WorkflowController extends WP_REST_Controller {
 		if ( ! $post ) {
 			return new WP_Error(
 				'rest_post_not_found',
-				__( 'Post not found.', 'vip-workflow' ),
+				__( 'Post not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -417,7 +417,7 @@ class WorkflowController extends WP_REST_Controller {
 			if ( $orphaned ) {
 				$payload['guard'] = array(
 					'current_region' => null,
-					'can_bypass'     => \VIPWorkflow\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
+					'can_bypass'     => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
 					'agent_pending'  => false,
 				);
 			}
@@ -432,14 +432,14 @@ class WorkflowController extends WP_REST_Controller {
 		// shape every other route serves, so the panel can draw a claimer the
 		// way a list draws an author; `is_current` rides alongside it because
 		// "is this me" is about the reader, not about the person.
-		$claimed_by_id = get_post_meta( $post_id, '_vip_workflow_assigned_to', true );
+		$claimed_by_id = get_post_meta( $post_id, '_vip_workflows_assigned_to', true );
 		$claimed_by    = Actor::from_user( $claimed_by_id );
 		if ( $claimed_by ) {
 			$claimed_by['is_current'] = get_current_user_id() === $claimed_by['id'];
 		}
 
 		// Get sequence-based assignments (via transitions).
-		$assignment_manager = new \VIPWorkflow\Workflow\AssignmentManager();
+		$assignment_manager = new \VIPWorkflows\Workflow\AssignmentManager();
 		$assignments        = $assignment_manager->get_all( $post_id );
 		$assigned_to        = null;
 		// Find the first pending user assignment to show as primary assignee.
@@ -507,7 +507,7 @@ class WorkflowController extends WP_REST_Controller {
 			// VETO on any publish crossing for a non-bypass user and WARN
 			// otherwise — closed, but escapable.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Cannot resolve the stage region for post %d; the workflow guard payload reports an unresolved region: %s', $post_id, $e->getMessage() ) );
+			error_log( sprintf( '[VIP Workflows] Cannot resolve the stage region for post %d; the workflow guard payload reports an unresolved region: %s', $post_id, $e->getMessage() ) );
 
 			$current_region = null;
 		}
@@ -531,7 +531,7 @@ class WorkflowController extends WP_REST_Controller {
 				'agent_last_run'  => $this->get_agent_last_run( $post_id ),
 				'guard'           => array(
 					'current_region' => $current_region,
-					'can_bypass'     => \VIPWorkflow\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
+					'can_bypass'     => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
 					'agent_pending'  => $agent_pending,
 				),
 				'all_statuses'    => $sequence->get_statuses(),
@@ -584,7 +584,7 @@ class WorkflowController extends WP_REST_Controller {
 		// endpoint. Capture the exact marker before transition() moves the post so
 		// a successful acknowledgement can resolve the run without mistaking an
 		// unrelated human transition or a stale marker for the agent's decision.
-		$agent_job     = get_post_meta( $post_id, \VIPWorkflow\Workflow\StageAgentRunner::JOB_META, true );
+		$agent_job     = get_post_meta( $post_id, \VIPWorkflows\Workflow\StageAgentRunner::JOB_META, true );
 		$current_stage = get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true );
 		$held_agent_job = null;
 		if (
@@ -611,7 +611,7 @@ class WorkflowController extends WP_REST_Controller {
 		if ( is_array( $held_agent_job ) ) {
 			update_post_meta(
 				$post_id,
-				\VIPWorkflow\Workflow\StageAgentRunner::LAST_RUN_META,
+				\VIPWorkflows\Workflow\StageAgentRunner::LAST_RUN_META,
 				array(
 					'stage_key'   => (string) $held_agent_job['stage_key'],
 					'outcome'     => (string) $held_agent_job['outcome'],
@@ -619,7 +619,7 @@ class WorkflowController extends WP_REST_Controller {
 					'finished_at' => current_time( 'mysql' ),
 				)
 			);
-			delete_post_meta( $post_id, \VIPWorkflow\Workflow\StageAgentRunner::JOB_META, $held_agent_job );
+			delete_post_meta( $post_id, \VIPWorkflows\Workflow\StageAgentRunner::JOB_META, $held_agent_job );
 		}
 
 		// Return the updated status payload.
@@ -664,7 +664,7 @@ class WorkflowController extends WP_REST_Controller {
 	 * @return array|null
 	 */
 	private function get_agent_job_state( int $post_id, string $stage ): ?array {
-		$job = get_post_meta( $post_id, \VIPWorkflow\Workflow\StageAgentRunner::JOB_META, true );
+		$job = get_post_meta( $post_id, \VIPWorkflows\Workflow\StageAgentRunner::JOB_META, true );
 		if ( ! is_array( $job ) || ( $job['stage_key'] ?? '' ) !== $stage ) {
 			return null;
 		}
@@ -717,7 +717,7 @@ class WorkflowController extends WP_REST_Controller {
 	 * @return array|null Null when no run has resolved for this post.
 	 */
 	private function get_agent_last_run( int $post_id ): ?array {
-		$run = get_post_meta( $post_id, \VIPWorkflow\Workflow\StageAgentRunner::LAST_RUN_META, true );
+		$run = get_post_meta( $post_id, \VIPWorkflows\Workflow\StageAgentRunner::LAST_RUN_META, true );
 		if ( ! is_array( $run ) || '' === (string) ( $run['stage_key'] ?? '' ) ) {
 			return null;
 		}
@@ -789,7 +789,7 @@ class WorkflowController extends WP_REST_Controller {
 		if ( ! $post ) {
 			return new WP_Error(
 				'rest_post_not_found',
-				__( 'Post not found.', 'vip-workflow' ),
+				__( 'Post not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -836,7 +836,7 @@ class WorkflowController extends WP_REST_Controller {
 		if ( ! $post ) {
 			return new WP_Error(
 				'rest_post_not_found',
-				__( 'Post not found.', 'vip-workflow' ),
+				__( 'Post not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -863,7 +863,7 @@ class WorkflowController extends WP_REST_Controller {
 				'rest_sequence_invalid_config',
 				sprintf(
 					/* translators: %s: data-integrity error from the sequence read path. */
-					__( 'This sequence cannot be applied because its configuration is invalid: %s', 'vip-workflow' ),
+					__( 'This sequence cannot be applied because its configuration is invalid: %s', 'vip-workflows' ),
 					$e->getMessage()
 				),
 				array( 'status' => 500 )
@@ -882,7 +882,7 @@ class WorkflowController extends WP_REST_Controller {
 		if ( false === $result ) {
 			return new WP_Error(
 				'rest_sequence_assign_failed',
-				__( 'Failed to assign sequence.', 'vip-workflow' ),
+				__( 'Failed to assign sequence.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -930,13 +930,13 @@ class WorkflowController extends WP_REST_Controller {
 		if ( ! $post ) {
 			return new WP_Error(
 				'rest_post_not_found',
-				__( 'Post not found.', 'vip-workflow' ),
+				__( 'Post not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
 
 		// Check if already claimed by someone else.
-		$current_assignee = get_post_meta( $post_id, '_vip_workflow_assigned_to', true );
+		$current_assignee = get_post_meta( $post_id, '_vip_workflows_assigned_to', true );
 		$current_user_id  = get_current_user_id();
 
 		if ( $current_assignee && (int) $current_assignee !== $current_user_id ) {
@@ -945,15 +945,15 @@ class WorkflowController extends WP_REST_Controller {
 				'post_already_claimed',
 				sprintf(
 					/* translators: %s: display name of the user who already claimed the post. */
-					__( 'This post is already claimed by %s.', 'vip-workflow' ),
-					$assignee ? $assignee->display_name : __( 'another user', 'vip-workflow' )
+					__( 'This post is already claimed by %s.', 'vip-workflows' ),
+					$assignee ? $assignee->display_name : __( 'another user', 'vip-workflows' )
 				),
 				array( 'status' => 409 )
 			);
 		}
 
 		// Claim the post.
-		update_post_meta( $post_id, '_vip_workflow_assigned_to', $current_user_id );
+		update_post_meta( $post_id, '_vip_workflows_assigned_to', $current_user_id );
 
 		// Log the event.
 		$this->log_event(
@@ -969,7 +969,7 @@ class WorkflowController extends WP_REST_Controller {
 				'success'     => true,
 				'post_id'     => $post_id,
 				'assigned_to' => $current_user_id,
-				'message'     => __( 'Post claimed successfully.', 'vip-workflow' ),
+				'message'     => __( 'Post claimed successfully.', 'vip-workflows' ),
 			)
 		);
 	}
@@ -987,25 +987,25 @@ class WorkflowController extends WP_REST_Controller {
 		if ( ! $post ) {
 			return new WP_Error(
 				'rest_post_not_found',
-				__( 'Post not found.', 'vip-workflow' ),
+				__( 'Post not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
 
 		// Check if claimed by current user or if user is admin.
-		$current_assignee = get_post_meta( $post_id, '_vip_workflow_assigned_to', true );
+		$current_assignee = get_post_meta( $post_id, '_vip_workflows_assigned_to', true );
 		$current_user_id  = get_current_user_id();
 
 		if ( $current_assignee && (int) $current_assignee !== $current_user_id && ! current_user_can( 'manage_options' ) ) {
 			return new WP_Error(
 				'cannot_unclaim',
-				__( 'You can only release posts you have claimed.', 'vip-workflow' ),
+				__( 'You can only release posts you have claimed.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
 
 		// Release the post.
-		delete_post_meta( $post_id, '_vip_workflow_assigned_to' );
+		delete_post_meta( $post_id, '_vip_workflows_assigned_to' );
 
 		// Log the event.
 		$this->log_event(
@@ -1021,7 +1021,7 @@ class WorkflowController extends WP_REST_Controller {
 			array(
 				'success' => true,
 				'post_id' => $post_id,
-				'message' => __( 'Post released successfully.', 'vip-workflow' ),
+				'message' => __( 'Post released successfully.', 'vip-workflows' ),
 			)
 		);
 	}
@@ -1133,7 +1133,7 @@ class WorkflowController extends WP_REST_Controller {
 				'project_id' => $project_id,
 				'title'      => (string) $project->post_title,
 				'url'        => $can_open
-					? admin_url( 'admin.php?page=vip-workflow-ideation#workspace?project=' . $project_id )
+					? admin_url( 'admin.php?page=vip-workflows-ideation#workspace?project=' . $project_id )
 					: '',
 				'source'     => self::ideation_source( $project_id ),
 				'items'      => $items,
@@ -1274,7 +1274,7 @@ class WorkflowController extends WP_REST_Controller {
 		global $wpdb;
 
 		$wpdb->insert(
-			Schema::get_table_name( 'workflow_events' ),
+			Schema::get_table_name( 'workflows_events' ),
 			array(
 				'post_id'    => $post_id,
 				'event_type' => $event_type,
@@ -1326,7 +1326,7 @@ class WorkflowController extends WP_REST_Controller {
 			return new WP_REST_Response( array() );
 		}
 
-		$repository = new \VIPWorkflow\Sequences\SequenceRepository();
+		$repository = new \VIPWorkflows\Sequences\SequenceRepository();
 		$sequences = $repository->get_workflow_sequences();
 		$items      = array();
 
@@ -1358,7 +1358,7 @@ class WorkflowController extends WP_REST_Controller {
 
 				// Get posts in this stage.
 				$query = new \WP_Query(
-					\VIPWorkflow\Workflow\StageQuery::in_stage(
+					\VIPWorkflows\Workflow\StageQuery::in_stage(
 						$sequence,
 						$status['key'],
 						array( 'posts_per_page' => 50 )
@@ -1378,11 +1378,11 @@ class WorkflowController extends WP_REST_Controller {
 					   $current_user_id = get_current_user_id();
 
 					   // Skip posts authored by current user (unless self-review is allowed).
-					if ( (int) $post->post_author === $current_user_id && ! \VIPWorkflow\Admin\Settings::is_self_review_allowed() ) {
+					if ( (int) $post->post_author === $current_user_id && ! \VIPWorkflows\Admin\Settings::is_self_review_allowed() ) {
 						continue;
 					}
 
-					   $assigned_id = get_post_meta( $post->ID, '_vip_workflow_assigned_to', true );
+					   $assigned_id = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
 
 					   // Skip posts assigned to someone else.
 					if ( $assigned_id && (int) $assigned_id !== $current_user_id ) {
@@ -1436,7 +1436,7 @@ class WorkflowController extends WP_REST_Controller {
 
 					$items[] = array(
 						'post_id'        => $post->ID,
-						'title'          => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflow' ),
+						'title'          => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflows' ),
 						'edit_url'       => get_edit_post_link( $post->ID, 'raw' ),
 						'author'         => Actor::from_user( $post->post_author ),
 						'sequence_name' => $sequence->name,
@@ -1490,8 +1490,8 @@ class WorkflowController extends WP_REST_Controller {
 			return new WP_REST_Response( array() );
 		}
 
-		$repository         = new \VIPWorkflow\Sequences\SequenceRepository();
-		$assignment_manager = new \VIPWorkflow\Workflow\AssignmentManager();
+		$repository         = new \VIPWorkflows\Sequences\SequenceRepository();
+		$assignment_manager = new \VIPWorkflows\Workflow\AssignmentManager();
 		$items              = array();
 
 		// Get all sequences.
@@ -1507,7 +1507,7 @@ class WorkflowController extends WP_REST_Controller {
 
 				// Query posts in this stage.
 				$query = new \WP_Query(
-					\VIPWorkflow\Workflow\StageQuery::in_stage(
+					\VIPWorkflows\Workflow\StageQuery::in_stage(
 						$sequence,
 						$status['key'],
 						array(
@@ -1520,7 +1520,7 @@ class WorkflowController extends WP_REST_Controller {
 
 				foreach ( $query->posts as $post ) {
 					   // Check if user is involved with this post.
-					   $claimed_by_id = get_post_meta( $post->ID, '_vip_workflow_assigned_to', true );
+					   $claimed_by_id = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
 					   $assignments   = $assignment_manager->get_all( $post->ID );
 
 					   $is_claimed  = $claimed_by_id && (int) $claimed_by_id === $current_user_id;
@@ -1544,7 +1544,7 @@ class WorkflowController extends WP_REST_Controller {
 
 					$items[] = array(
 						'post_id'           => $post->ID,
-						'title'             => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflow' ),
+						'title'             => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflows' ),
 						'edit_url'          => get_edit_post_link( $post->ID, 'raw' ),
 						'workflow_name'     => $sequence->name,
 						'status_label'      => $status['label'],
@@ -1565,7 +1565,7 @@ class WorkflowController extends WP_REST_Controller {
 		// because the loop above skips terminal stages — can never leak in here
 		// as a plain non-workflow draft.
 		$query = new \WP_Query(
-			\VIPWorkflow\Workflow\StageQuery::not_in_any_workflow(
+			\VIPWorkflows\Workflow\StageQuery::not_in_any_workflow(
 				array(
 					'post_type'      => 'post',
 					'post_status'    => array( 'draft', 'pending', 'future' ),
@@ -1578,7 +1578,7 @@ class WorkflowController extends WP_REST_Controller {
 		foreach ( $query->posts as $post ) {
 			$items[] = array(
 				'post_id'           => $post->ID,
-				'title'             => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflow' ),
+				'title'             => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflows' ),
 				'edit_url'          => get_edit_post_link( $post->ID, 'raw' ),
 				'workflow_name'     => null,
 				// A post in no workflow is at no stage, so it has no stage label and
@@ -1640,7 +1640,7 @@ class WorkflowController extends WP_REST_Controller {
 
 		if ( ! $status_object ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Post %d carries the unregistered post status "%s"; My Work reports it with no status label.', $post->ID, $post->post_status ) );
+			error_log( sprintf( '[VIP Workflows] Post %d carries the unregistered post status "%s"; My Work reports it with no status label.', $post->ID, $post->post_status ) );
 
 			return null;
 		}
@@ -1671,8 +1671,8 @@ class WorkflowController extends WP_REST_Controller {
 		$filter_sequence_id = $request->get_param( 'sequence_id' );
 		$include_hidden      = (bool) $request->get_param( 'include_hidden' );
 
-		$repository         = new \VIPWorkflow\Sequences\SequenceRepository();
-		$assignment_manager = new \VIPWorkflow\Workflow\AssignmentManager();
+		$repository         = new \VIPWorkflows\Sequences\SequenceRepository();
+		$assignment_manager = new \VIPWorkflows\Workflow\AssignmentManager();
 
 		// Always get ALL workflow sequences for the dropdown.
 		$all_sequences = $repository->get_workflow_sequences();
@@ -1732,7 +1732,7 @@ class WorkflowController extends WP_REST_Controller {
 
 				// Query posts in this stage.
 				$query = new \WP_Query(
-					\VIPWorkflow\Workflow\StageQuery::in_stage(
+					\VIPWorkflows\Workflow\StageQuery::in_stage(
 						$sequence,
 						$status['key'],
 						array(
@@ -1751,7 +1751,7 @@ class WorkflowController extends WP_REST_Controller {
 						continue;
 					}
 
-					$claimed_by_id = get_post_meta( $post->ID, '_vip_workflow_assigned_to', true );
+					$claimed_by_id = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
 
 					// Get assignment info.
 					$assignments = $assignment_manager->get_all( $post->ID );
@@ -1764,7 +1764,7 @@ class WorkflowController extends WP_REST_Controller {
 					}
 
 					// Get due date if set.
-					$due_date = get_post_meta( $post->ID, '_vip_workflow_due_date', true );
+					$due_date = get_post_meta( $post->ID, '_vip_workflows_due_date', true );
 
 					$urgency = 'normal';
 
@@ -1774,7 +1774,7 @@ class WorkflowController extends WP_REST_Controller {
 
 					$cards[] = array(
 						'id'           => $post->ID,
-						'title'        => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflow' ),
+						'title'        => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflows' ),
 						'edit_url'     => get_edit_post_link( $post->ID, 'raw' ),
 						'author'       => Actor::from_user( $post->post_author ),
 						// A pending assignment names the person the card is
@@ -1822,22 +1822,22 @@ class WorkflowController extends WP_REST_Controller {
 			$wp_statuses = array(
 				array(
 					'key' => 'draft',
-					'label' => __( 'Draft', 'vip-workflow' ),
+					'label' => __( 'Draft', 'vip-workflows' ),
 					'color' => StagePalette::for_post_status( 'draft' ),
 				),
 				array(
 					'key' => 'pending',
-					'label' => __( 'Pending Review', 'vip-workflow' ),
+					'label' => __( 'Pending Review', 'vip-workflows' ),
 					'color' => StagePalette::for_post_status( 'pending' ),
 				),
 				array(
 					'key' => 'future',
-					'label' => __( 'Scheduled', 'vip-workflow' ),
+					'label' => __( 'Scheduled', 'vip-workflows' ),
 					'color' => StagePalette::for_post_status( 'future' ),
 				),
 				array(
 					'key' => 'publish',
-					'label' => __( 'Published', 'vip-workflow' ),
+					'label' => __( 'Published', 'vip-workflows' ),
 					'color' => StagePalette::for_post_status( 'publish' ),
 				),
 			);
@@ -1848,7 +1848,7 @@ class WorkflowController extends WP_REST_Controller {
 				// per-row afterwards would let workflow rows fill the window and starve
 				// plain drafts, emptying the column on an active site.
 				$query = new \WP_Query(
-					\VIPWorkflow\Workflow\StageQuery::not_in_any_workflow(
+					\VIPWorkflows\Workflow\StageQuery::not_in_any_workflow(
 						array(
 							'post_type'      => $all_post_types,
 							'post_status'    => $status_def['key'],
@@ -1870,7 +1870,7 @@ class WorkflowController extends WP_REST_Controller {
 
 					$cards[] = array(
 						'id'           => $post->ID,
-						'title'        => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflow' ),
+						'title'        => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflows' ),
 						'edit_url'     => get_edit_post_link( $post->ID, 'raw' ),
 						'author'       => Actor::from_user( $post->post_author ),
 						'assigned_to'  => null,
@@ -1925,7 +1925,7 @@ class WorkflowController extends WP_REST_Controller {
 		if ( ! $start || ! $end ) {
 			return new WP_Error(
 				'invalid_dates',
-				__( 'Invalid date format. Use Y-m-d.', 'vip-workflow' ),
+				__( 'Invalid date format. Use Y-m-d.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -1938,7 +1938,7 @@ class WorkflowController extends WP_REST_Controller {
 
 		// Get all post types that can have workflows.
 		$post_types = array( 'post', 'page' );
-		$repository = new \VIPWorkflow\Sequences\SequenceRepository();
+		$repository = new \VIPWorkflows\Sequences\SequenceRepository();
 		$sequences = $repository->get_workflow_sequences();
 
 		foreach ( $sequences as $sequence ) {
@@ -1972,7 +1972,7 @@ class WorkflowController extends WP_REST_Controller {
 		// Preload all sequence IDs referenced by these posts to avoid N+1.
 		$sequence_ids = array();
 		foreach ( $query->posts as $post ) {
-			$bid = get_post_meta( $post->ID, '_vip_workflow_sequence_id', true );
+			$bid = get_post_meta( $post->ID, '_vip_workflows_sequence_id', true );
 			if ( $bid ) {
 				$sequence_ids[] = (int) $bid;
 			}
@@ -1984,8 +1984,8 @@ class WorkflowController extends WP_REST_Controller {
 				continue;
 			}
 
-			$sequence_id = get_post_meta( $post->ID, '_vip_workflow_sequence_id', true );
-			$stage_key    = get_post_meta( $post->ID, '_vip_workflow_current_stage_key', true );
+			$sequence_id = get_post_meta( $post->ID, '_vip_workflows_sequence_id', true );
+			$stage_key    = get_post_meta( $post->ID, '_vip_workflows_current_stage_key', true );
 
 			$workflow_info = null;
 			if ( $sequence_id ) {
@@ -2015,7 +2015,7 @@ class WorkflowController extends WP_REST_Controller {
 
 			$events[] = array(
 				'id'           => $post->ID,
-				'title'        => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflow' ),
+				'title'        => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflows' ),
 				'start'        => $post->post_date,
 				'end'          => $post->post_date,
 				'post_type'    => $post->post_type,

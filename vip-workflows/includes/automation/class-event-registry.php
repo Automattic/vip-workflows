@@ -2,12 +2,12 @@
 /**
  * Event registry.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Automation;
+namespace VIPWorkflows\Automation;
 
 /**
  * Registry of valid event types.

@@ -2,12 +2,12 @@
 /**
  * Transition Post ability tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use WP_Error;
@@ -33,7 +33,7 @@ class TransitionPostToolTest extends TestCase
             fn( $capability, $post_id = null ) => ! ( 'edit_post' === $capability && 123 === $post_id )
         );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_transition_post(
+        $result = \VIPWorkflows\Abilities\Tools\execute_transition_post(
             array(
                 'post_id'   => 123,
                 'to_status' => 'review',

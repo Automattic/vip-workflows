@@ -39,27 +39,27 @@ export default function SequenceIdentityFields( {
 			<TextControl
 				__next40pxDefaultSize
 				__nextHasNoMarginBottom
-				label={ __( 'Name', 'vip-workflow' ) }
+				label={ __( 'Name', 'vip-workflows' ) }
 				value={ name }
 				onChange={ onNameChange }
 				placeholder={ namePlaceholder }
 			/>
 			<TextareaControl
 				__nextHasNoMarginBottom
-				label={ __( 'Description', 'vip-workflow' ) }
+				label={ __( 'Description', 'vip-workflows' ) }
 				value={ description }
 				onChange={ onDescriptionChange }
 				placeholder={ __(
 					'What is this workflow for?',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			/>
 			<ToggleControl
 				__nextHasNoMarginBottom
-				label={ __( 'Active', 'vip-workflow' ) }
+				label={ __( 'Active', 'vip-workflows' ) }
 				help={ __(
 					'Inactive sequences are saved as drafts and not applied to content.',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 				checked={ isActive }
 				onChange={ onActiveChange }

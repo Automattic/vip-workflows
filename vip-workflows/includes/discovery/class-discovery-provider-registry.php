@@ -3,16 +3,16 @@
  * Discovery Provider Registry.
  *
  * Singleton registry for story discovery providers. Providers register
- * via the `vip_workflow_register_discovery_providers` action.
+ * via the `vip_workflows_register_discovery_providers` action.
  *
- * @package VIPWorkflow\Discovery
+ * @package VIPWorkflows\Discovery
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Discovery;
+namespace VIPWorkflows\Discovery;
 
-use VIPWorkflow\Abilities\Availability;
+use VIPWorkflows\Abilities\Availability;
 
 /**
  * Discovery Provider Registry.
@@ -73,7 +73,7 @@ class DiscoveryProviderRegistry {
 		 *
 		 * @param DiscoveryProviderRegistry $registry The registry instance.
 		 */
-		do_action( 'vip_workflow_register_discovery_providers', $this );
+		do_action( 'vip_workflows_register_discovery_providers', $this );
 	}
 
 	/**
@@ -94,7 +94,7 @@ class DiscoveryProviderRegistry {
 	 *         @type callable $seed               Composes a seed string from a prompt.
 	 *     }
 	 *     @type callable  $availability_callback Returns bool for whether provider is configured, or a
-	 *                                            `VIPWorkflow\Abilities\Availability` naming the unmet
+	 *                                            `VIPWorkflows\Abilities\Availability` naming the unmet
 	 *                                            requirements so the Agents card can say what is missing.
 	 * }
 	 * @return bool True if registered, false if slug already taken.

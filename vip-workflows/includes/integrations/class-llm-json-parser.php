@@ -7,12 +7,12 @@
  * artifacts. Used by any assistant that expects structured JSON
  * from an LLM.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
 use WP_Error;
 
@@ -85,7 +85,7 @@ class LlmJsonParser {
 				'incomplete_response',
 				sprintf(
 					/* translators: 1: what was being parsed, e.g. "mentor response". 2: response length in characters. 3: JSON decoder error message. */
-					__( 'Incomplete %1$s: the response opens a JSON structure but never closes it, ending after %2$d characters (%3$s).', 'vip-workflow' ),
+					__( 'Incomplete %1$s: the response opens a JSON structure but never closes it, ending after %2$d characters (%3$s).', 'vip-workflows' ),
 					$context,
 					$length,
 					$json_error
@@ -101,7 +101,7 @@ class LlmJsonParser {
 			'parse_error',
 			sprintf(
 				/* translators: 1: what was being parsed, e.g. "mentor response". 2: response length in characters. 3: JSON decoder error message. 4: the first characters of the response. */
-				__( 'Failed to parse %1$s: %2$d characters could not be decoded as JSON (%3$s). Response began: %4$s', 'vip-workflow' ),
+				__( 'Failed to parse %1$s: %2$d characters could not be decoded as JSON (%3$s). Response began: %4$s', 'vip-workflows' ),
 				$context,
 				$length,
 				$json_error,

@@ -18,12 +18,12 @@
  * parsed payload — and there is exactly one implementation of it rather than one
  * per output shape.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
 use WP_Error;
 

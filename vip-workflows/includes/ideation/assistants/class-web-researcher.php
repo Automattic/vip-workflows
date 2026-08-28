@@ -5,17 +5,17 @@
  * Searches the open web via the configured search provider (Tavily)
  * for external context, background, and competing coverage.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Abilities\RequirementGroup;
-use VIPWorkflow\Ideation\Research\SearchProviders\SearchProviderRegistry;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Abilities\RequirementGroup;
+use VIPWorkflows\Ideation\Research\SearchProviders\SearchProviderRegistry;
 
 /**
  * Web Researcher.
@@ -26,11 +26,11 @@ class WebResearcher {
 	 * Register as an ability.
 	 */
 	public static function register_ability(): void {
-		vip_workflow_register_ability(
-			'vip-workflow/web-researcher',
+		vip_workflows_register_ability(
+			'vip-workflows/web-researcher',
 			array(
-				'label'               => __( 'Web Researcher', 'vip-workflow' ),
-				'description'         => __( 'Searches the open web for external context, background, and competing coverage.', 'vip-workflow' ),
+				'label'               => __( 'Web Researcher', 'vip-workflows' ),
+				'description'         => __( 'Searches the open web for external context, background, and competing coverage.', 'vip-workflows' ),
 				'category'            => 'research',
 				'input_schema'        => array(
 					'type'       => 'object',
@@ -60,8 +60,8 @@ class WebResearcher {
 					'show_in_commands'      => false,
 					'transition_eligible'   => false,
 					'icon'                  => 'search',
-					'thinking_message'      => __( 'Searching the web...', 'vip-workflow' ),
-					'success_message'       => __( 'Web research complete.', 'vip-workflow' ),
+					'thinking_message'      => __( 'Searching the web...', 'vip-workflows' ),
+					'success_message'       => __( 'Web research complete.', 'vip-workflows' ),
 					'availability_callback' => array( self::class, 'check_availability' ),
 				),
 			)
@@ -82,7 +82,7 @@ class WebResearcher {
 	 * @return bool|Availability True when a provider is configured, otherwise the unmet requirements.
 	 */
 	public static function check_availability(): bool|Availability {
-		$source   = array( __( 'Web Researcher', 'vip-workflow' ) );
+		$source   = array( __( 'Web Researcher', 'vip-workflows' ) );
 		$provider = SearchProviderRegistry::get_instance()->get_selected();
 
 		if ( null === $provider ) {
@@ -90,8 +90,8 @@ class WebResearcher {
 				RequirementGroup::all(
 					RequirementFactory::dependency(
 						'dependency:search-provider',
-						__( 'No web search provider is registered, so there is nothing to search with.', 'vip-workflow' ),
-						__( 'Web search is not available on this site.', 'vip-workflow' ),
+						__( 'No web search provider is registered, so there is nothing to search with.', 'vip-workflows' ),
+						__( 'Web search is not available on this site.', 'vip-workflows' ),
 						$source
 					)
 				)
@@ -153,7 +153,7 @@ class WebResearcher {
 		if ( empty( $all_results ) ) {
 			return array(
 				'cards'   => array(),
-				'summary' => __( 'No relevant web results found.', 'vip-workflow' ),
+				'summary' => __( 'No relevant web results found.', 'vip-workflows' ),
 			);
 		}
 
@@ -178,7 +178,7 @@ class WebResearcher {
 
 		$summary = sprintf(
 			/* translators: %d: article count */
-			__( 'Found %d articles from the web.', 'vip-workflow' ),
+			__( 'Found %d articles from the web.', 'vip-workflows' ),
 			count( $cards )
 		);
 

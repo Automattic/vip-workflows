@@ -105,7 +105,7 @@ import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
 
-const STATUS_PATH = '/vip-workflow/v1/workflow/post/42/status';
+const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
 const STATUS_RESPONSE = {
 	has_workflow: true,
@@ -222,7 +222,7 @@ async function renderWithRefusal( error ) {
 		if ( path === STATUS_PATH && method !== 'POST' ) {
 			return Promise.resolve( STATUS_RESPONSE );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 			return Promise.resolve( [] );
 		}
 		if ( 'POST' === method ) {
@@ -255,7 +255,7 @@ async function renderAndTransition( status ) {
 		if ( path === STATUS_PATH && method !== 'POST' ) {
 			return Promise.resolve( status );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 			return Promise.resolve( [] );
 		}
 		if ( 'POST' === method ) {
@@ -288,7 +288,7 @@ async function renderStatus( status ) {
 		if ( path === STATUS_PATH && method !== 'POST' ) {
 			return Promise.resolve( status );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 			return Promise.resolve( [] );
 		}
 		return Promise.resolve( {} );
@@ -344,7 +344,10 @@ describe( 'WorkflowPanel required-field refusal', () => {
 			data: {
 				status: 422,
 				hard_failures: [
-					{ tool: 'vip-workflow/seo', message: 'Title is too long.' },
+					{
+						tool: 'vip-workflows/seo',
+						message: 'Title is too long.',
+					},
 				],
 				soft_warnings: [],
 			},

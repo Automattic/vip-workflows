@@ -8,16 +8,16 @@
  * value derived from the stage key. A derived value ("Status_3") is written once
  * and then renders as the stage's name forever, which is the bug.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use ReflectionMethod;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Tests for StatusManager::snapshot_stage_label().

@@ -7,12 +7,12 @@
  * be in the allowlist, AND every IP it resolves to must be a public unicast
  * address.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
 use WP_Error;
 
@@ -169,7 +169,7 @@ class SsrfGuard {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- SSRF rejection audit logging.
 			error_log(
 				sprintf(
-					'[vip-workflow]%s URL rejected by SSRF guard: %s (%s)',
+					'[vip-workflows]%s URL rejected by SSRF guard: %s (%s)',
 					'' === $log_context ? '' : ' ' . $log_context,
 					$validation->get_error_code(),
 					$validation->get_error_message()
@@ -255,7 +255,7 @@ class SsrfGuard {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- SSRF rejection audit logging.
 			error_log(
 				sprintf(
-					'[vip-workflow]%s URL rejected by SSRF guard: %s (%s)',
+					'[vip-workflows]%s URL rejected by SSRF guard: %s (%s)',
 					'' === $log_context ? '' : ' ' . $log_context,
 					$validation->get_error_code(),
 					$validation->get_error_message()
@@ -337,7 +337,7 @@ class SsrfGuard {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- SSRF rejection audit logging.
 			error_log(
 				sprintf(
-					'[vip-workflow]%s URL rejected by SSRF guard: %s (%s)',
+					'[vip-workflows]%s URL rejected by SSRF guard: %s (%s)',
 					'' === $log_context ? '' : ' ' . $log_context,
 					$validation->get_error_code(),
 					$validation->get_error_message()

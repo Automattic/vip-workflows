@@ -71,7 +71,7 @@ describe( 'MetadataUserControl', () => {
 
 		expect( apiFetch ).toHaveBeenCalledTimes( 1 );
 		const { path } = apiFetch.mock.calls[ 0 ][ 0 ];
-		expect( path ).toContain( '/vip-workflow/v1/assignable-users' );
+		expect( path ).toContain( '/vip-workflows/v1/assignable-users' );
 		expect( path ).toContain( 'per_page=50' );
 		expect( path ).not.toContain( 'search=' );
 		// No `context`: that parameter belongs to core's wp/v2/users, whose

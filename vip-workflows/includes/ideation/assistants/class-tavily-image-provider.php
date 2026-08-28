@@ -5,16 +5,16 @@
  * Runs image-focused queries through Tavily's search API to find
  * relevant photographs and visuals for ideation.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementFactory;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementFactory;
 use WP_Error;
 
 /**
@@ -39,7 +39,7 @@ class TavilyImageProvider implements MediaProviderInterface, MediaProviderRequir
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'Web Images (Tavily)', 'vip-workflow' );
+		return __( 'Web Images (Tavily)', 'vip-workflows' );
 	}
 
 	/**

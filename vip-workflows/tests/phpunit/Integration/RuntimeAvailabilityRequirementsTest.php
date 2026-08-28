@@ -3,7 +3,7 @@
  * Runtime availability gates: what they store, and how it reads back.
  *
  * Lives in the integration suite because both gates only reach the structured
- * channel through a `VIPWorkflow\Abilities\Ability` resolved out of the registry,
+ * channel through a `VIPWorkflows\Abilities\Ability` resolved out of the registry,
  * and abilities can only be registered while `wp_abilities_api_init` is running —
  * `wp_register_ability()` silently no-ops anywhere else. The unit counterpart
  * (tests/phpunit/Unit/IdeationOrchestratorTest.php) pins the persisted shape;
@@ -14,34 +14,34 @@
  * register genuinely carries a `/wp-admin/` URL. Without that pin the "no admin
  * URL reaches an editor" assertion could pass vacuously.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\AI\ConnectorsCredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Abilities\AbilityResultRepository;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Abilities\RequirementGroup;
-use VIPWorkflow\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\AI\ConnectorsCredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilityResultRepository;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Abilities\RequirementGroup;
+use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 
 /**
- * @covers \VIPWorkflow\Abilities\AbilityExecutor::execute
- * @covers \VIPWorkflow\Ideation\Assistants\IdeationOrchestrator
- * @covers \VIPWorkflow\API\AvailabilitySerializer
+ * @covers \VIPWorkflows\Abilities\AbilityExecutor::execute
+ * @covers \VIPWorkflows\Ideation\Assistants\IdeationOrchestrator
+ * @covers \VIPWorkflows\API\AvailabilitySerializer
  */
 class RuntimeAvailabilityRequirementsTest extends TestCase
 {
-    private const STRUCTURED_ABILITY = 'vip-workflow/runtime-structured-fixture';
+    private const STRUCTURED_ABILITY = 'vip-workflows/runtime-structured-fixture';
 
-    private const BARE_BOOL_ABILITY = 'vip-workflow/runtime-bare-bool-fixture';
+    private const BARE_BOOL_ABILITY = 'vip-workflows/runtime-bare-bool-fixture';
 
     /**
      * Register two fixture agents: one structured, one legacy bool.
@@ -69,7 +69,7 @@ class RuntimeAvailabilityRequirementsTest extends TestCase
             'wp_abilities_api_init',
             static function () use ( $registered ): void {
                 if ( ! in_array( self::STRUCTURED_ABILITY, $registered, true ) ) {
-                    vip_workflow_register_ability(
+                    vip_workflows_register_ability(
                         self::STRUCTURED_ABILITY,
                         self::ability_args(
                             'Structured Fixture',
@@ -85,7 +85,7 @@ class RuntimeAvailabilityRequirementsTest extends TestCase
                 }
 
                 if ( ! in_array( self::BARE_BOOL_ABILITY, $registered, true ) ) {
-                    vip_workflow_register_ability(
+                    vip_workflows_register_ability(
                         self::BARE_BOOL_ABILITY,
                         self::ability_args(
                             'Bare Bool Fixture',

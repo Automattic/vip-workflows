@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * quality.mjs — monorepo-wide lint + fast-test runner for VIP Workflow.
+ * quality.mjs — monorepo-wide lint + fast-test runner for VIP Workflows.
  *
  * Harness-agnostic: it knows how to lint and unit-test every plugin in the
  * monorepo and is callable from anything — `npm run lint`, a Claude Code hook,

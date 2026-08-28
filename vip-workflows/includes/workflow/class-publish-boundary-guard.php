@@ -2,14 +2,14 @@
 /**
  * Publish Boundary Guard - the save-layer veto behind the workflow side-effect guard.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Workflow;
+namespace VIPWorkflows\Workflow;
 
-use VIPWorkflow\Admin\Settings;
+use VIPWorkflows\Admin\Settings;
 
 /**
  * Vetoes a non-bypass user's post_status change across the publish boundary on
@@ -42,7 +42,7 @@ class PublishBoundaryGuard {
 	 * Scoped by user AND post: the notice belongs to the person whose save was
 	 * refused, on the screen they land on afterwards.
 	 */
-	private const NOTICE_TRANSIENT_PREFIX = 'vip_workflow_publish_veto_';
+	private const NOTICE_TRANSIENT_PREFIX = 'vip_workflows_publish_veto_';
 
 	/**
 	 * Lifetime (seconds) of a queued veto notice.
@@ -126,7 +126,7 @@ class PublishBoundaryGuard {
 		}
 
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( sprintf( '[VIP Workflow] Vetoed a publish-boundary status change on post %d by user %d: "%s" -> "%s"; the post is in a workflow and the user cannot bypass it.', $post_id, get_current_user_id(), $veto['current_status'], $veto['target_status'] ) );
+		error_log( sprintf( '[VIP Workflows] Vetoed a publish-boundary status change on post %d by user %d: "%s" -> "%s"; the post is in a workflow and the user cannot bypass it.', $post_id, get_current_user_id(), $veto['current_status'], $veto['target_status'] ) );
 
 		$this->queue_veto_notice( $post_id, $veto['message'] );
 
@@ -167,10 +167,10 @@ class PublishBoundaryGuard {
 		}
 
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( sprintf( '[VIP Workflow] Vetoed a publish-boundary status change on post %d by user %d via REST: "%s" -> "%s".', $post_id, get_current_user_id(), $veto['current_status'], $veto['target_status'] ) );
+		error_log( sprintf( '[VIP Workflows] Vetoed a publish-boundary status change on post %d by user %d via REST: "%s" -> "%s".', $post_id, get_current_user_id(), $veto['current_status'], $veto['target_status'] ) );
 
 		return new \WP_Error(
-			'vip_workflow_publish_boundary',
+			'vip_workflows_publish_boundary',
 			$veto['message'],
 			array(
 				'status'  => 409,
@@ -393,18 +393,18 @@ class PublishBoundaryGuard {
 			// hatch — which is exactly the cure for a dangling reference — is still
 			// offered, but the workflow cannot be named.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Post %d is workflow-managed but its sequence could not be resolved while building the publish-veto message.', $post_id ) );
+			error_log( sprintf( '[VIP Workflows] Post %d is workflow-managed but its sequence could not be resolved while building the publish-veto message.', $post_id ) );
 
 			return sprintf(
 				/* translators: %s: post title. */
-				__( "'%s' is in a workflow. To publish it directly, remove it from the workflow (this is logged), or move it through the workflow to a published stage.", 'vip-workflow' ),
+				__( "'%s' is in a workflow. To publish it directly, remove it from the workflow (this is logged), or move it through the workflow to a published stage.", 'vip-workflows' ),
 				$post_title
 			);
 		}
 
 		return sprintf(
 			/* translators: 1: post title, 2: workflow (sequence) name. */
-			__( "'%1\$s' is in the '%2\$s' workflow. To publish it directly, remove it from the workflow (this is logged), or move it through the workflow to a published stage.", 'vip-workflow' ),
+			__( "'%1\$s' is in the '%2\$s' workflow. To publish it directly, remove it from the workflow (this is logged), or move it through the workflow to a published stage.", 'vip-workflows' ),
 			$post_title,
 			$sequence->name
 		);

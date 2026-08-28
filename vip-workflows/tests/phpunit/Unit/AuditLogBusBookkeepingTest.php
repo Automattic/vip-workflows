@@ -14,20 +14,20 @@
  * end-to-end proof against real MySQL lives in the integration suite
  * (Integration/AuditLogControllerTest).
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\API\AuditLogController;
+use VIPWorkflows\API\AuditLogController;
 use WP_REST_Request;
 
 /**
- * @covers \VIPWorkflow\API\AuditLogController
+ * @covers \VIPWorkflows\API\AuditLogController
  */
 class AuditLogBusBookkeepingTest extends TestCase
 {
@@ -120,7 +120,7 @@ class AuditLogBusBookkeepingTest extends TestCase
         $this->wpdb->shouldReceive( 'get_var' )->once()->andReturn( 0 );
         $this->wpdb->shouldReceive( 'get_results' )->once()->andReturn( array() );
 
-        $request = new WP_REST_Request( 'GET', '/vip-workflow/v1/audit-log' );
+        $request = new WP_REST_Request( 'GET', '/vip-workflows/v1/audit-log' );
         foreach ( array( 'page' => 1, 'per_page' => 25, 'orderby' => 'created_at', 'order' => 'desc' ) as $key => $value ) {
             $request->set_param( $key, $value );
         }
@@ -172,7 +172,7 @@ class AuditLogBusBookkeepingTest extends TestCase
 
         $this->wpdb->shouldReceive( 'get_results' )->once()->andReturn( array() );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_get_recent_activity(
+        $result = \VIPWorkflows\Abilities\Tools\execute_get_recent_activity(
             array(
                 'days'  => 7,
                 'limit' => 20,

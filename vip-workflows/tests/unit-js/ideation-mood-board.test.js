@@ -7,7 +7,7 @@
  * agent that found them. It has to read the abilities response's `label` — the
  * human name — and not its `name`, which is the ability *identifier*
  * (`WP_Ability::get_name()`). The old `a.name || a.label || a.id` precedence let
- * `name` win every time, which put `VIP-WORKFLOW/WEB-RESEARCHER` above a section on
+ * `name` win every time, which put `VIP-WORKFLOWS/WEB-RESEARCHER` above a section on
  * the most prominent surface in the workspace.
  *
  * And a section exists for every agent, not only the ones that can still be run.
@@ -29,9 +29,9 @@ import MoodBoard from '../../src/admin/components/ideation/MoodBoard';
 
 import { disabledVipAbility, vipAbility } from './helpers/abilities-fixture';
 
-const ABILITY = 'vip-workflow/web-researcher';
+const ABILITY = 'vip-workflows/web-researcher';
 const OFF_ABILITY = 'workflow-discovery-foresight/foresight-research';
-const MEDIA_ABILITY = 'vip-workflow/media-scout';
+const MEDIA_ABILITY = 'vip-workflows/media-scout';
 
 /*
  * The abilities response comes from the shared builder in
@@ -39,7 +39,7 @@ const MEDIA_ABILITY = 'vip-workflow/media-scout';
  * tests/fixtures/abilities-response-contract.json and guarded in both directions by
  * ./abilities-response-contract.test.js. Hand-built fixtures that put the human name
  * in `name`, or left `enabled` or `icon` out, are exactly what let three bugs ship —
- * `/vip-workflow/v1/abilities` returns every one of those keys for every ability,
+ * `/vip-workflows/v1/abilities` returns every one of those keys for every ability,
  * turned-off ones included.
  */
 const ENABLED_ABILITY = vipAbility( {
@@ -104,7 +104,7 @@ function renderBoard( extraProps = {} ) {
  */
 function sectionTitles( container ) {
 	return Array.from(
-		container.querySelectorAll( '.vip-workflow-ideation-section__title' )
+		container.querySelectorAll( '.vip-workflows-ideation-section__title' )
 	).map( ( node ) => node.textContent );
 }
 
@@ -117,10 +117,12 @@ function sectionTitles( container ) {
  */
 function sectionByTitle( container, title ) {
 	const heading = Array.from(
-		container.querySelectorAll( '.vip-workflow-ideation-section__title' )
+		container.querySelectorAll( '.vip-workflows-ideation-section__title' )
 	).find( ( node ) => node.textContent === title );
 
-	return heading ? heading.closest( '.vip-workflow-ideation-section' ) : null;
+	return heading
+		? heading.closest( '.vip-workflows-ideation-section' )
+		: null;
 }
 
 describe( 'ideation board — section headings name the agent', () => {
@@ -143,7 +145,7 @@ describe( 'ideation board — section headings name the agent', () => {
 		const { container } = renderBoard();
 
 		expect( container.textContent ).not.toMatch(
-			/vip-workflow\/web-researcher/
+			/vip-workflows\/web-researcher/
 		);
 	} );
 
@@ -194,7 +196,7 @@ describe( 'ideation board — an agent an administrator turned off', () => {
 
 		expect(
 			sectionByTitle( container, 'Foresight News' ).querySelector(
-				'.vip-workflow-ideation-section__count'
+				'.vip-workflows-ideation-section__count'
 			)
 		).toHaveTextContent( '1' );
 	} );
@@ -312,8 +314,8 @@ describe( 'ideation board — an agent an administrator turned off', () => {
 		const iconSlot = ( container, label = 'Web Researcher' ) => {
 			const heading = within( container ).getByText( label );
 			return heading
-				.closest( '.vip-workflow-ideation-section__header' )
-				?.querySelector( '.vip-workflow-ideation-section__icon' );
+				.closest( '.vip-workflows-ideation-section__header' )
+				?.querySelector( '.vip-workflows-ideation-section__icon' );
 		};
 
 		/*

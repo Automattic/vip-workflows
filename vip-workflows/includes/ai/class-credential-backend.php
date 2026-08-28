@@ -6,12 +6,12 @@
  * facade selects one backend by capability and layers the constant/env bridge
  * on top, so backends only need to answer "what key is stored for this service".
  *
- * @package VIPWorkflow\AI
+ * @package VIPWorkflows\AI
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\AI;
+namespace VIPWorkflows\AI;
 
 /**
  * Resolves stored API keys for a credential backend.

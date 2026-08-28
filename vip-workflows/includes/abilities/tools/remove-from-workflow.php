@@ -11,12 +11,12 @@
  * reachable from an ability, so an agent asked to "remove this from its workflow
  * and publish it" could not do the thing the veto itself told it to do.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the workflow removal.
@@ -29,12 +29,12 @@ function execute_remove_from_workflow( ?array $input = null ) {
 	$post_id = (int) ( $input['post_id'] ?? 0 );
 
 	if ( ! $post_id ) {
-		return new \WP_Error( 'missing_post_id', __( 'The "post_id" parameter is required.', 'vip-workflow' ) );
+		return new \WP_Error( 'missing_post_id', __( 'The "post_id" parameter is required.', 'vip-workflows' ) );
 	}
 
 	$post = get_post( $post_id );
 	if ( ! $post ) {
-		return new \WP_Error( 'not_found', __( 'Post not found.', 'vip-workflow' ) );
+		return new \WP_Error( 'not_found', __( 'Post not found.', 'vip-workflows' ) );
 	}
 
 	$permission_error = require_post_edit_permission( $post_id );
@@ -42,14 +42,14 @@ function execute_remove_from_workflow( ?array $input = null ) {
 		return $permission_error;
 	}
 
-	$status_manager = new \VIPWorkflow\Workflow\StatusManager();
+	$status_manager = new \VIPWorkflows\Workflow\StatusManager();
 
 	// Read the identity BEFORE removing it: remove_sequence() deletes the meta
 	// it is derived from, and the caller needs to know what it just took the post
 	// out of. A dangling sequence id (the row was deleted) still resolves to a
 	// name of null here, which is exactly the case removal exists to clean up.
 	$sequence      = $status_manager->get_sequence_for_post( $post_id );
-	$removed_stage  = (string) get_post_meta( $post_id, \VIPWorkflow\Workflow\StatusManager::STAGE_META_KEY, true );
+	$removed_stage  = (string) get_post_meta( $post_id, \VIPWorkflows\Workflow\StatusManager::STAGE_META_KEY, true );
 
 	// StatusManager::remove_sequence() is the sole authority: it deletes the
 	// sequence + stage + claim meta, writes NO post_status (the post stays
@@ -80,11 +80,11 @@ function execute_remove_from_workflow( ?array $input = null ) {
  */
 function register_remove_from_workflow(): void {
 	wp_register_ability(
-		'vip-workflow/remove-from-workflow',
+		'vip-workflows/remove-from-workflow',
 		array(
-			'label'               => __( 'Remove From Workflow', 'vip-workflow' ),
-			'description'         => __( 'Takes a post out of its workflow, leaving its published status exactly as it is. The removal is recorded in the workflow log and cannot be undone: re-assigning a workflow later starts the post at the first stage of its region. This is the audited escape from the publish guard — prefer moving the post through the workflow to a published stage where that is possible.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Remove From Workflow', 'vip-workflows' ),
+			'description'         => __( 'Takes a post out of its workflow, leaving its published status exactly as it is. The removal is recorded in the workflow log and cannot be undone: re-assigning a workflow later starts the post at the first stage of its region. This is the audited escape from the publish guard — prefer moving the post through the workflow to a published stage where that is possible.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -92,7 +92,7 @@ function register_remove_from_workflow(): void {
 				'properties'           => array(
 					'post_id' => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID to remove from its workflow.', 'vip-workflow' ),
+						'description' => __( 'The post ID to remove from its workflow.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -102,27 +102,27 @@ function register_remove_from_workflow(): void {
 				'properties'           => array(
 					'post_id'       => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID.', 'vip-workflow' ),
+						'description' => __( 'The post ID.', 'vip-workflows' ),
 					),
 					'post_title'    => array(
 						'type'        => 'string',
-						'description' => __( 'The post title.', 'vip-workflow' ),
+						'description' => __( 'The post title.', 'vip-workflows' ),
 					),
 					'workflow_name' => array(
 						'type'        => 'string',
-						'description' => __( 'The workflow the post was removed from. Empty when its sequence no longer exists.', 'vip-workflow' ),
+						'description' => __( 'The workflow the post was removed from. Empty when its sequence no longer exists.', 'vip-workflows' ),
 					),
 					'removed_stage' => array(
 						'type'        => 'string',
-						'description' => __( 'The stage key the post was sitting at when it was removed.', 'vip-workflow' ),
+						'description' => __( 'The stage key the post was sitting at when it was removed.', 'vip-workflows' ),
 					),
 					'post_status'   => array(
 						'type'        => 'string',
-						'description' => __( 'The post status after removal — unchanged, because removal writes none.', 'vip-workflow' ),
+						'description' => __( 'The post status after removal — unchanged, because removal writes none.', 'vip-workflows' ),
 					),
 					'success'       => array(
 						'type'        => 'boolean',
-						'description' => __( 'Whether the removal succeeded.', 'vip-workflow' ),
+						'description' => __( 'Whether the removal succeeded.', 'vip-workflows' ),
 					),
 				),
 			),

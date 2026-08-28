@@ -141,7 +141,7 @@ describe( 'the fields DataViews renders itself', () => {
 
 		expect( container.textContent ).toContain( 'Fact Check Agent' );
 		expect(
-			container.querySelector( '.vip-workflow-dataview-author' )
+			container.querySelector( '.vip-workflows-dataview-author' )
 		).not.toBeNull();
 	} );
 } );

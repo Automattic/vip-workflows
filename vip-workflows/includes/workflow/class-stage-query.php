@@ -10,14 +10,14 @@
  * not the ~13 query consumers. The return values are opaque WP_Query contributions:
  * callers merge them, they do not inspect them.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Workflow;
+namespace VIPWorkflows\Workflow;
 
-use VIPWorkflow\Sequences\Sequence;
+use VIPWorkflows\Sequences\Sequence;
 
 /**
  * Builds WP_Query arguments that select posts by their workflow stage.
@@ -210,7 +210,7 @@ class StageQuery {
 		// the failure is at least recorded here.
 		if ( null === $rows ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Stage counts for sequence %d could not be read: %s', $sequence->id, $wpdb->last_error ) );
+			error_log( sprintf( '[VIP Workflows] Stage counts for sequence %d could not be read: %s', $sequence->id, $wpdb->last_error ) );
 			return $counts;
 		}
 

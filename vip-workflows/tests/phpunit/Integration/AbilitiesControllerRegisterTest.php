@@ -13,32 +13,32 @@
  * "no admin URL reaches an editor" assertion could pass vacuously on an install
  * where no such URL exists to leak.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\AI\ConnectorsCredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Abilities\RequirementGroup;
-use VIPWorkflow\API\DiscoveryController;
-use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
-use VIPWorkflow\Ideation\Assistants\WebResearcher;
+use VIPWorkflows\AI\ConnectorsCredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Abilities\RequirementGroup;
+use VIPWorkflows\API\DiscoveryController;
+use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Ideation\Assistants\WebResearcher;
 use WP_REST_Request;
 
 /**
- * @covers \VIPWorkflow\API\AvailabilitySerializer
- * @covers \VIPWorkflow\API\AbilitiesController
- * @covers \VIPWorkflow\API\DiscoveryController
+ * @covers \VIPWorkflows\API\AvailabilitySerializer
+ * @covers \VIPWorkflows\API\AbilitiesController
+ * @covers \VIPWorkflows\API\DiscoveryController
  */
 class AbilitiesControllerRegisterTest extends TestCase
 {
-    private const WEB_RESEARCHER_ABILITY = 'vip-workflow/web-researcher';
+    private const WEB_RESEARCHER_ABILITY = 'vip-workflows/web-researcher';
 
     private const PROVIDER_SLUG = 'register-test-provider';
 
@@ -163,7 +163,7 @@ class AbilitiesControllerRegisterTest extends TestCase
      */
     private function research_abilities(): array
     {
-        return $this->get( '/vip-workflow/v1/abilities', array( 'category' => 'research' ) );
+        return $this->get( '/vip-workflows/v1/abilities', array( 'category' => 'research' ) );
     }
 
     /**
@@ -258,7 +258,7 @@ class AbilitiesControllerRegisterTest extends TestCase
     {
         $this->become_administrator();
 
-        $provider     = $this->row( $this->get( '/vip-workflow/v1/discovery/providers' ), 'slug', self::PROVIDER_SLUG );
+        $provider     = $this->row( $this->get( '/vip-workflows/v1/discovery/providers' ), 'slug', self::PROVIDER_SLUG );
         $requirements = $this->requirements( $provider['availability'] );
 
         $this->assertFalse( $provider['available'] );
@@ -271,7 +271,7 @@ class AbilitiesControllerRegisterTest extends TestCase
     {
         $this->become_editor_only();
 
-        $payload      = $this->get( '/vip-workflow/v1/discovery/providers' );
+        $payload      = $this->get( '/vip-workflows/v1/discovery/providers' );
         $provider     = $this->row( $payload, 'slug', self::PROVIDER_SLUG );
         $requirements = $this->requirements( $provider['availability'] );
 
@@ -286,9 +286,9 @@ class AbilitiesControllerRegisterTest extends TestCase
     {
         $this->become_administrator();
 
-        // The `vip-workflow` category is where the plugin's plain tool abilities
+        // The `vip-workflows` category is where the plugin's plain tool abilities
         // live; whichever rows are present, none may omit the key.
-        $rows = $this->get( '/vip-workflow/v1/abilities' );
+        $rows = $this->get( '/vip-workflows/v1/abilities' );
 
         $this->assertNotEmpty( $rows );
 

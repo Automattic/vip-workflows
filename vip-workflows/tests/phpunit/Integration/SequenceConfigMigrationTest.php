@@ -17,16 +17,16 @@
  * sequence on author request, so it is covered here too, against the same rows —
  * the two must not disagree about what a stored config can be repaired into.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Database\Schema;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Database\Schema;
 
 /**
  * Real-WordPress tests for the stored-config replay migration.

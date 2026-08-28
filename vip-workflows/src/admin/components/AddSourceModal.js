@@ -76,7 +76,7 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 
 			try {
 				const meta = await apiFetch( {
-					path: `/vip-workflow/v1/url-meta?url=${ encodeURIComponent(
+					path: `/vip-workflows/v1/url-meta?url=${ encodeURIComponent(
 						urlToFetch
 					) }`,
 				} );
@@ -126,7 +126,7 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 
 	const handleAdd = async () => {
 		if ( ! url.trim() || ! title.trim() ) {
-			setError( __( 'URL and title are required.', 'vip-workflow' ) );
+			setError( __( 'URL and title are required.', 'vip-workflows' ) );
 			return;
 		}
 
@@ -134,7 +134,7 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 		try {
 			new URL( url );
 		} catch {
-			setError( __( 'Please enter a valid URL.', 'vip-workflow' ) );
+			setError( __( 'Please enter a valid URL.', 'vip-workflows' ) );
 			return;
 		}
 
@@ -157,9 +157,9 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 
 	return (
 		<Modal
-			title={ __( 'Add Source URL', 'vip-workflow' ) }
+			title={ __( 'Add Source URL', 'vip-workflows' ) }
 			onRequestClose={ onClose }
-			className="vip-workflow-research-add-source-modal"
+			className="vip-workflows-research-add-source-modal"
 			size="medium"
 		>
 			{ error && (
@@ -174,7 +174,7 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 
 			<Stack direction="column" gap="md">
 				<TextControl
-					label={ __( 'URL', 'vip-workflow' ) }
+					label={ __( 'URL', 'vip-workflows' ) }
 					type="url"
 					value={ url }
 					onChange={ setUrl }
@@ -185,32 +185,32 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 					__next40pxDefaultSize
 				/>
 
-				<div className="vip-workflow-add-source__title-wrapper">
+				<div className="vip-workflows-add-source__title-wrapper">
 					<TextControl
-						label={ __( 'Title', 'vip-workflow' ) }
+						label={ __( 'Title', 'vip-workflows' ) }
 						value={ title }
 						onChange={ setTitle }
 						placeholder={
 							fetchingMeta
-								? __( 'Fetching title…', 'vip-workflow' )
+								? __( 'Fetching title…', 'vip-workflows' )
 								: __(
 										'Article title or description',
-										'vip-workflow'
+										'vip-workflows'
 								  )
 						}
 						__nextHasNoMarginBottom
 						__next40pxDefaultSize
 					/>
 					{ fetchingMeta && (
-						<Spinner className="vip-workflow-add-source__meta-spinner" />
+						<Spinner className="vip-workflows-add-source__meta-spinner" />
 					) }
 				</div>
 
 				<TextareaControl
-					label={ __( 'Notes (optional)', 'vip-workflow' ) }
+					label={ __( 'Notes (optional)', 'vip-workflows' ) }
 					help={ __(
 						'Add notes about why this source is relevant.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					value={ excerpt }
 					onChange={ setExcerpt }
@@ -226,7 +226,7 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 					onClick={ onClose }
 					disabled={ saving }
 				>
-					{ __( 'Cancel', 'vip-workflow' ) }
+					{ __( 'Cancel', 'vip-workflows' ) }
 				</Button>
 				<Button
 					variant="primary"
@@ -234,7 +234,7 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 					isBusy={ saving }
 					disabled={ saving || ! url.trim() || ! title.trim() }
 				>
-					{ __( 'Add source', 'vip-workflow' ) }
+					{ __( 'Add source', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 		</Modal>

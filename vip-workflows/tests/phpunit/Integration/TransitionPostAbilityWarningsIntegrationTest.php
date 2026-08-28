@@ -12,16 +12,16 @@
  * Driven end to end (real sequence, real post, real StatusManager) because the
  * ability constructs its own StatusManager and there is nothing to inject.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StageAgentRunner;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StageAgentRunner;
+use VIPWorkflows\Workflow\StatusManager;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/helpers.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/transition-post.php';
@@ -131,7 +131,7 @@ class TransitionPostAbilityWarningsIntegrationTest extends TestCase
 	{
 		$post_id = $this->make_post_with_running_agent();
 
-		$result = \VIPWorkflow\Abilities\Tools\execute_transition_post(
+		$result = \VIPWorkflows\Abilities\Tools\execute_transition_post(
 			array(
 				'post_id'   => $post_id,
 				'to_status' => 'review',
@@ -163,7 +163,7 @@ class TransitionPostAbilityWarningsIntegrationTest extends TestCase
 	{
 		$post_id = $this->make_post_with_running_agent();
 
-		$result = \VIPWorkflow\Abilities\Tools\execute_transition_post(
+		$result = \VIPWorkflows\Abilities\Tools\execute_transition_post(
 			array(
 				'post_id'              => $post_id,
 				'to_status'            => 'review',
@@ -188,7 +188,7 @@ class TransitionPostAbilityWarningsIntegrationTest extends TestCase
 		$post_id = $this->make_post_with_running_agent();
 		delete_post_meta( $post_id, StageAgentRunner::JOB_META );
 
-		$result = \VIPWorkflow\Abilities\Tools\execute_transition_post(
+		$result = \VIPWorkflows\Abilities\Tools\execute_transition_post(
 			array(
 				'post_id'   => $post_id,
 				'to_status' => 'review',

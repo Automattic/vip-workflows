@@ -7,21 +7,21 @@
  * from WP Core's Abilities Registry) run with its output as context.
  * Results are stored as project meta + ideation_sources.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
-use VIPWorkflow\Abilities\Ability;
-use VIPWorkflow\Abilities\AbilityResult;
-use VIPWorkflow\Abilities\AbilityResultRepository;
-use VIPWorkflow\Abilities\AbilitySettings;
-use VIPWorkflow\API\AvailabilitySerializer;
-use VIPWorkflow\Ideation\Research\IdeationPostTypes;
-use VIPWorkflow\Integrations\GuidelineContextProvider;
-use VIPWorkflow\Story\Story;
+use VIPWorkflows\Abilities\Ability;
+use VIPWorkflows\Abilities\AbilityResult;
+use VIPWorkflows\Abilities\AbilityResultRepository;
+use VIPWorkflows\Abilities\AbilitySettings;
+use VIPWorkflows\API\AvailabilitySerializer;
+use VIPWorkflows\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\Integrations\GuidelineContextProvider;
+use VIPWorkflows\Story\Story;
 
 /**
  * Ideation Orchestrator.
@@ -54,7 +54,7 @@ class IdeationOrchestrator {
 	 * Get research abilities from Core's registry, sorted by display_order.
 	 *
 	 * Only returns Ability instances (our subclass) since research agents
-	 * are registered via vip_workflow_register_ability().
+	 * are registered via vip_workflows_register_ability().
 	 *
 	 * @return Ability[]
 	 */
@@ -157,7 +157,7 @@ class IdeationOrchestrator {
 			// problem and not a state to work around.
 			return new \WP_Error(
 				'missing_seed',
-				__( 'This project has no seed text to analyze.', 'vip-workflow' ),
+				__( 'This project has no seed text to analyze.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -362,7 +362,7 @@ class IdeationOrchestrator {
 		if ( ! $ability ) {
 			return array(
 				'status' => 'failed',
-				'error' => __( 'Unknown research agent.', 'vip-workflow' ),
+				'error' => __( 'Unknown research agent.', 'vip-workflows' ),
 			);
 		}
 
@@ -381,7 +381,7 @@ class IdeationOrchestrator {
 				 */
 				$result = array(
 					'status'       => 'unavailable',
-					'error'        => __( 'Research agent is not configured.', 'vip-workflow' ),
+					'error'        => __( 'Research agent is not configured.', 'vip-workflows' ),
 					'requirements' => AvailabilitySerializer::to_persistable( $availability ),
 				);
 				$this->set_assistant_status( $project_id, $assistant_id, 'unavailable' );
@@ -521,17 +521,17 @@ class IdeationOrchestrator {
 		if ( empty( $cards ) ) {
 			return new \WP_Error(
 				'generation_failed',
-				__( 'Image generation failed.', 'vip-workflow' ),
+				__( 'Image generation failed.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
 
-		$this->store_cards_as_sources( $project_id, $cards, get_current_user_id(), 'vip-workflow/media-scout' );
+		$this->store_cards_as_sources( $project_id, $cards, get_current_user_id(), 'vip-workflows/media-scout' );
 
 		$all_cards = $this->get_all_cards( $project_id );
 		$last      = end( $all_cards );
 
-		return $last ? $last : new \WP_Error( 'store_failed', __( 'Failed to store generated image.', 'vip-workflow' ) );
+		return $last ? $last : new \WP_Error( 'store_failed', __( 'Failed to store generated image.', 'vip-workflows' ) );
 	}
 
 	// ─── Card Management ─────────────────────────────────────────
@@ -1116,7 +1116,7 @@ class IdeationOrchestrator {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- data-integrity failure worth surfacing.
 				error_log(
 					sprintf(
-						'[VIP Workflow] Could not check for an existing ideation source (project %d, source %s): %s',
+						'[VIP Workflows] Could not check for an existing ideation source (project %d, source %s): %s',
 						$project_id,
 						$source_id,
 						$wpdb->last_error
@@ -1198,7 +1198,7 @@ class IdeationOrchestrator {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- data-integrity failure worth surfacing.
 				error_log(
 					sprintf(
-						'[VIP Workflow] Could not store ideation source (project %d, source %s): %s',
+						'[VIP Workflows] Could not store ideation source (project %d, source %s): %s',
 						$project_id,
 						$source_id,
 						$wpdb->last_error
@@ -1266,7 +1266,7 @@ class IdeationOrchestrator {
 
 		return array(
 			array(
-				'title'   => __( 'Content Guidelines', 'vip-workflow' ),
+				'title'   => __( 'Content Guidelines', 'vip-workflows' ),
 				'content' => trim( wp_strip_all_tags( $guidelines ) ),
 			),
 		);

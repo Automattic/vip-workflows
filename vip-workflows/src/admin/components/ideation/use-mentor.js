@@ -19,13 +19,13 @@ export function useMentor( projectId, state, assistantsSettled ) {
 	const [ mentorResult, setMentorResult ] = useState( null );
 	const [ mentorLoading, setMentorLoading ] = useState( false );
 	const [ autoRefresh, setAutoRefresh ] = useState( () => {
-		const stored = localStorage.getItem( 'vip_workflow_mentor_auto' );
+		const stored = localStorage.getItem( 'vip_workflows_mentor_auto' );
 		return stored === null ? true : stored === '1';
 	} );
 
 	const handleSetAutoRefresh = useCallback( ( value ) => {
 		setAutoRefresh( value );
-		localStorage.setItem( 'vip_workflow_mentor_auto', value ? '1' : '0' );
+		localStorage.setItem( 'vip_workflows_mentor_auto', value ? '1' : '0' );
 	}, [] );
 	const loadingRef = useRef( false );
 	const pendingRerunRef = useRef( false );
@@ -49,7 +49,7 @@ export function useMentor( projectId, state, assistantsSettled ) {
 		setMentorLoading( true );
 		try {
 			const result = await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ projectId }/mentor`,
+				path: `/vip-workflows/v1/ideation/${ projectId }/mentor`,
 				method: 'POST',
 			} );
 			setMentorResult( result );

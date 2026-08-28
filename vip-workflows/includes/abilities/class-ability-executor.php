@@ -2,21 +2,21 @@
 /**
  * Ability executor.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
-use VIPWorkflow\API\AvailabilitySerializer;
-use VIPWorkflow\Automation\EventBus;
+use VIPWorkflows\API\AvailabilitySerializer;
+use VIPWorkflows\Automation\EventBus;
 
 /**
  * Executes abilities and stores results.
  *
  * Resolves abilities from WP Core's registry via wp_get_ability(). Abilities
- * registered through vip_workflow_register_ability() are Ability instances
+ * registered through vip_workflows_register_ability() are Ability instances
  * (our WP_Ability subclass) and support is_available(). Plain WP_Ability
  * instances from wp_register_ability() are always treated as available.
  */
@@ -56,7 +56,7 @@ class AbilityExecutor {
 		?EventBus $event_bus = null
 	) {
 		$this->repository = $repository ?? new AbilityResultRepository();
-		$this->event_bus  = $event_bus ?? \VIPWorkflow\Plugin::get_instance()->get_event_bus();
+		$this->event_bus  = $event_bus ?? \VIPWorkflows\Plugin::get_instance()->get_event_bus();
 	}
 
 	/**
@@ -96,7 +96,7 @@ class AbilityExecutor {
 		if ( ! $ability ) {
 			throw new \InvalidArgumentException(
 				/* translators: %s: ability name. */
-				sprintf( esc_html__( 'Ability "%s" not found.', 'vip-workflow' ), esc_html( $ability_name ) )
+				sprintf( esc_html__( 'Ability "%s" not found.', 'vip-workflows' ), esc_html( $ability_name ) )
 			);
 		}
 
@@ -104,7 +104,7 @@ class AbilityExecutor {
 		if ( ! $settings->is_enabled( $ability_name ) ) {
 			throw new \RuntimeException(
 				/* translators: %s: ability name. */
-				sprintf( esc_html__( 'Ability "%s" is disabled.', 'vip-workflow' ), esc_html( $ability_name ) )
+				sprintf( esc_html__( 'Ability "%s" is disabled.', 'vip-workflows' ), esc_html( $ability_name ) )
 			);
 		}
 
@@ -123,7 +123,7 @@ class AbilityExecutor {
 				 * whose callback returned a bare `false` has no requirements, and
 				 * the generic line is all there is to say about it.
 				 */
-				$result                     = AbilityResult::failure( $ability_name, __( 'Ability is not configured.', 'vip-workflow' ) );
+				$result                     = AbilityResult::failure( $ability_name, __( 'Ability is not configured.', 'vip-workflows' ) );
 				$result->unmet_requirements = AvailabilitySerializer::to_persistable( $availability );
 				$result->post_id            = $this->resolve_post_id( $input );
 				$this->repository->save( $result );

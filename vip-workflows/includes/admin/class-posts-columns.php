@@ -2,17 +2,17 @@
 /**
  * Posts list columns integration.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Admin;
+namespace VIPWorkflows\Admin;
 
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Plugin;
-use VIPWorkflow\Workflow\StagePalette;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Plugin;
+use VIPWorkflows\Workflow\StagePalette;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Adds workflow status column to posts list.
@@ -47,7 +47,7 @@ class PostsColumns {
 	 * @return array
 	 */
 	public function filter_row_actions( array $actions, \WP_Post $post ): array {
-		$sequence_id = get_post_meta( $post->ID, '_vip_workflow_sequence_id', true );
+		$sequence_id = get_post_meta( $post->ID, '_vip_workflows_sequence_id', true );
 		if ( ! $sequence_id ) {
 			return $actions;
 		}
@@ -76,7 +76,7 @@ class PostsColumns {
 		// Workflow sequences only: a phase sequence carries no `post_types`,
 		// so get_post_types() falls back to `post` and would register the
 		// workflow column and Quick Edit picker on every post screen.
-		$repository = new \VIPWorkflow\Sequences\SequenceRepository();
+		$repository = new \VIPWorkflows\Sequences\SequenceRepository();
 		$sequences = $repository->get_workflow_sequences( array( 'status' => 'active' ) );
 		foreach ( $sequences as $sequence ) {
 			foreach ( $sequence->get_post_types() as $pt ) {
@@ -104,14 +104,14 @@ class PostsColumns {
 		$new_columns = array();
 		foreach ( $columns as $key => $label ) {
 			if ( 'date' === $key ) {
-				$new_columns['workflow_status'] = __( 'Workflow', 'vip-workflow' );
+				$new_columns['workflow_status'] = __( 'Workflow', 'vip-workflows' );
 			}
 			$new_columns[ $key ] = $label;
 		}
 
 		// If date wasn't found, append at end.
 		if ( ! isset( $new_columns['workflow_status'] ) ) {
-			$new_columns['workflow_status'] = __( 'Workflow', 'vip-workflow' );
+			$new_columns['workflow_status'] = __( 'Workflow', 'vip-workflows' );
 		}
 
 		return $new_columns;
@@ -130,13 +130,13 @@ class PostsColumns {
 
 		$status_manager = Plugin::get_instance()->get_status_manager();
 		if ( ! $status_manager ) {
-			echo '<span class="vip-workflow-column vip-workflow-column--none">—</span>';
+			echo '<span class="vip-workflows-column vip-workflows-column--none">—</span>';
 			return;
 		}
 
 		$sequence = $status_manager->get_sequence_for_post( $post_id );
 		if ( ! $sequence ) {
-			echo '<span class="vip-workflow-column vip-workflow-column--none">—</span>';
+			echo '<span class="vip-workflows-column vip-workflows-column--none">—</span>';
 
 			// A post whose sequence row was deleted still carries the meta the
 			// save-layer predicate reads, so it is still refused every status
@@ -168,8 +168,8 @@ class PostsColumns {
 		$post_status = get_post_status( $post_id );
 		if ( ! $post_status ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Post %d has no core status; cannot render its workflow column.', $post_id ) );
-			echo '<span class="vip-workflow-column vip-workflow-column--none">—</span>';
+			error_log( sprintf( '[VIP Workflows] Post %d has no core status; cannot render its workflow column.', $post_id ) );
+			echo '<span class="vip-workflows-column vip-workflows-column--none">—</span>';
 			return;
 		}
 
@@ -179,8 +179,8 @@ class PostsColumns {
 			// meta, or a stage key the sequence no longer defines) is a
 			// data-integrity condition — log it, don't just render the em dash.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( 'VIP Workflow: post %d is assigned sequence "%s" but its workflow stage does not resolve.', $post_id, $sequence->slug ) );
-			echo '<span class="vip-workflow-column vip-workflow-column--none">—</span>';
+			error_log( sprintf( 'VIP Workflows: post %d is assigned sequence "%s" but its workflow stage does not resolve.', $post_id, $sequence->slug ) );
+			echo '<span class="vip-workflows-column vip-workflows-column--none">—</span>';
 
 			// The row is still workflow-managed, so it must still say so. The
 			// server predicate reads the sequence meta, not the stage
@@ -205,7 +205,7 @@ class PostsColumns {
 		// region, and a publish-region stage core holds as `future` (scheduled)
 		// is not live yet.
 		$live_pill = 'publish' === $post_status
-			? ' <span class="vip-workflow-column__live">' . esc_html__( 'Live', 'vip-workflow' ) . '</span>'
+			? ' <span class="vip-workflows-column__live">' . esc_html__( 'Live', 'vip-workflows' ) . '</span>'
 			: '';
 
 		// The swatch is the one part of this the stylesheet cannot own: its color
@@ -217,9 +217,9 @@ class PostsColumns {
 		// a live post ends the row with the "Live" pill, so `span:last-child`
 		// found that instead of the label.
 		printf(
-			'<span class="vip-workflow-column">
-				<span class="vip-workflow-column__dot" style="--vip-workflow-stage-color: %s"></span>
-				<span class="vip-workflow-column__label">%s [%s]</span>%s
+			'<span class="vip-workflows-column">
+				<span class="vip-workflows-column__dot" style="--vip-workflows-stage-color: %s"></span>
+				<span class="vip-workflows-column__label">%s [%s]</span>%s
 			</span>',
 			esc_attr( $color ),
 			esc_html( $sequence->name ),
@@ -251,7 +251,7 @@ class PostsColumns {
 			// emit an empty region: the client fails CLOSED on one (it refuses
 			// the change) for the same reason crosses_publish_boundary() does.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Cannot resolve the region of post %d\'s workflow stage: %s', $post_id, $e->getMessage() ) );
+			error_log( sprintf( '[VIP Workflows] Cannot resolve the region of post %d\'s workflow stage: %s', $post_id, $e->getMessage() ) );
 			$seated_region = '';
 			$stage_region  = '';
 		}
@@ -291,7 +291,7 @@ class PostsColumns {
 				// reseat path logs and leaves the stage alone; so does this, by
 				// leaving the region out of the map.
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflow] Cannot name the entry stage of region "%s" in sequence "%s": %s', $region, $sequence->slug, $e->getMessage() ) );
+				error_log( sprintf( '[VIP Workflows] Cannot name the entry stage of region "%s" in sequence "%s": %s', $region, $sequence->slug, $e->getMessage() ) );
 				continue;
 			}
 
@@ -332,7 +332,7 @@ class PostsColumns {
 	 */
 	private function render_row_data( int $sequence_id, string $sequence_name, string $post_status, string $stage_region, string $seated_region, array $entry_stages, ?array $current_status, string $color, bool $orphaned = false ): void {
 		printf(
-			'<input type="hidden" class="vip-workflow-data" data-workflow="1" data-orphaned="%s" data-sequence-id="%d" data-sequence-name="%s" data-status-key="%s" data-status-label="%s" data-status-color="%s" data-stage-region="%s" data-seated-region="%s" data-entry-stages="%s" data-post-status="%s" />',
+			'<input type="hidden" class="vip-workflows-data" data-workflow="1" data-orphaned="%s" data-sequence-id="%d" data-sequence-name="%s" data-status-key="%s" data-status-label="%s" data-status-color="%s" data-stage-region="%s" data-seated-region="%s" data-entry-stages="%s" data-post-status="%s" />',
 			esc_attr( $orphaned ? '1' : '' ),
 			esc_attr( (string) $sequence_id ),
 			esc_attr( $sequence_name ),
@@ -363,13 +363,13 @@ class PostsColumns {
 		// the inline value (`style.display = ''`), which a stylesheet rule would
 		// survive — the box would never appear.
 		?>
-		<fieldset class="inline-edit-col-right vip-workflow-quick-edit" style="display:none;">
+		<fieldset class="inline-edit-col-right vip-workflows-quick-edit" style="display:none;">
 			<div class="inline-edit-col">
 				<label class="inline-edit-group">
-					<span class="title"><?php esc_html_e( 'Workflow', 'vip-workflow' ); ?></span>
-					<span class="vip-workflow-quick-edit__content">
-						<span class="vip-workflow-quick-edit__current"></span>
-						<span class="vip-workflow-quick-edit__transitions"></span>
+					<span class="title"><?php esc_html_e( 'Workflow', 'vip-workflows' ); ?></span>
+					<span class="vip-workflows-quick-edit__content">
+						<span class="vip-workflows-quick-edit__current"></span>
+						<span class="vip-workflows-quick-edit__transitions"></span>
 					</span>
 				</label>
 			</div>
@@ -393,7 +393,7 @@ class PostsColumns {
 		// The shared warn/veto decision table and its copy
 		// (src/entries/confirm-workflow-side-effect.js), built as its own
 		// webpack entry. It is framework-free precisely so that this classic
-		// inline script can consume it — through the `vipWorkflowSideEffect`
+		// inline script can consume it — through the `vipWorkflowsSideEffect`
 		// global — exactly as the React surfaces import it. Quick Edit, Bulk Edit
 		// and the block editor must never reach different answers, or use
 		// different words, about the same change.
@@ -401,13 +401,13 @@ class PostsColumns {
 		// Dependencies and version come from the generated manifest, never a
 		// hardcoded list: a dependency added to the module later must not
 		// silently fail to load.
-		$asset_file = VIP_WORKFLOW_PLUGIN_DIR . 'build/side-effect.asset.php';
+		$asset_file = VIP_WORKFLOWS_PLUGIN_DIR . 'build/side-effect.asset.php';
 		if ( file_exists( $asset_file ) ) {
 			$asset = include $asset_file;
 
 			wp_enqueue_script(
-				'vip-workflow-side-effect',
-				VIP_WORKFLOW_PLUGIN_URL . 'build/side-effect.js',
+				'vip-workflows-side-effect',
+				VIP_WORKFLOWS_PLUGIN_URL . 'build/side-effect.js',
 				$asset['dependencies'],
 				$asset['version'],
 				true
@@ -416,19 +416,19 @@ class PostsColumns {
 			// The module owns the single-post confirm and veto copy; the
 			// aggregate Bulk Edit copy below is translated PHP-side. One dialog
 			// flow must not speak two languages.
-			wp_set_script_translations( 'vip-workflow-side-effect', 'vip-workflow' );
+			wp_set_script_translations( 'vip-workflows-side-effect', 'vip-workflows' );
 		} else {
 			// A missing bundle is a build error, not a runtime condition. Say so
 			// once, loudly. The inline script below then refuses the status
 			// changes it cannot evaluate rather than guessing at them — every
 			// other Quick Edit still works.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( '[VIP Workflow] build/side-effect.asset.php is missing — run `npm run build`. Quick Edit and Bulk Edit cannot evaluate workflow status changes without it.' );
+			error_log( '[VIP Workflows] build/side-effect.asset.php is missing — run `npm run build`. Quick Edit and Bulk Edit cannot evaluate workflow status changes without it.' );
 		}
 
 		// Inline script.
 		$nonce = wp_create_nonce( 'wp_rest' );
-		$api_url = rest_url( 'vip-workflow/v1' );
+		$api_url = rest_url( 'vip-workflows/v1' );
 
 		// The same default swatch the server renders with, handed to the script
 		// rather than repeated in it: a stage color the REST response omits must
@@ -446,9 +446,9 @@ class PostsColumns {
 					// direction-aware: a user un-publishing was never trying to
 					// publish, and telling them they can't would be a non-sequitur.
 					/* translators: %1$s: number of affected posts, %2$s: number of selected posts, %3$s: comma-separated post titles. */
-					'bulkVetoPublish'    => __( '%1$s of the %2$s selected posts are in workflows and can\'t be published directly: %3$s. Deselect them, or remove them from their workflows first.', 'vip-workflow' ),
+					'bulkVetoPublish'    => __( '%1$s of the %2$s selected posts are in workflows and can\'t be published directly: %3$s. Deselect them, or remove them from their workflows first.', 'vip-workflows' ),
 					/* translators: %1$s: number of affected posts, %2$s: number of selected posts, %3$s: comma-separated post titles. */
-					'bulkVetoUnpublish'  => __( '%1$s of the %2$s selected posts are published and in workflows, so their published status can\'t be changed directly: %3$s. Deselect them, or remove them from their workflows first.', 'vip-workflow' ),
+					'bulkVetoUnpublish'  => __( '%1$s of the %2$s selected posts are published and in workflows, so their published status can\'t be changed directly: %3$s. Deselect them, or remove them from their workflows first.', 'vip-workflows' ),
 					// DECISION: Bulk Edit stays region-level and names no stage,
 					// unlike the single-post surfaces. One apply spans N posts
 					// across up to N sequences, each with its own stage names
@@ -461,12 +461,12 @@ class PostsColumns {
 					// new stage, which is false for any post already seated in
 					// the target region or whose workflow models no stage there.
 					/* translators: %1$s: number of affected posts, %2$s: number of selected posts, %3$s: comma-separated post titles. */
-					'bulkWarn'           => __( '%1$s of the %2$s selected posts are in workflows: %3$s. Changing their status moves each one to its workflow\'s entry stage for the new status, or leaves it where it is if its workflow has no stage there, and stops any AI agent working on them. Continue?', 'vip-workflow' ),
-					'guardUnavailable'   => __( 'VIP Workflow could not check what this status change would do to the workflow, so the change was not applied. Reload the page and try again.', 'vip-workflow' ),
+					'bulkWarn'           => __( '%1$s of the %2$s selected posts are in workflows: %3$s. Changing their status moves each one to its workflow\'s entry stage for the new status, or leaves it where it is if its workflow has no stage there, and stops any AI agent working on them. Continue?', 'vip-workflows' ),
+					'guardUnavailable'   => __( 'VIP Workflows could not check what this status change would do to the workflow, so the change was not applied. Reload the page and try again.', 'vip-workflows' ),
 					// A stage with no region is a broken sequence, not a
 					// transient failure — reloading re-renders the same broken
 					// config, so the copy names the real cause instead.
-					'stageMisconfigured' => __( 'This post\'s workflow stage is misconfigured, so VIP Workflow cannot tell what a status change would do to it. The change was not applied — ask an administrator to fix the workflow\'s configuration.', 'vip-workflow' ),
+					'stageMisconfigured' => __( 'This post\'s workflow stage is misconfigured, so VIP Workflows cannot tell what a status change would do to it. The change was not applied — ask an administrator to fix the workflow\'s configuration.', 'vip-workflows' ),
 				),
 			)
 		);
@@ -482,7 +482,7 @@ class PostsColumns {
 	// the classic list-table surfaces. Never reimplemented here — a second copy
 	// of the region math, or of the words, is exactly how the surfaces drift.
 	function guardApi() {
-		var api = window.vipWorkflowSideEffect;
+		var api = window.vipWorkflowsSideEffect;
 		if (
 			!api ||
 			typeof api.evaluateStatusChange !== 'function' ||
@@ -492,7 +492,7 @@ class PostsColumns {
 			typeof api.getTransitionWarningsMessage !== 'function' ||
 			typeof api.getStatusChangeWarning !== 'function'
 		) {
-			console.error('[VIP Workflow] The shared workflow side-effect module did not load; refusing to evaluate a status change.');
+			console.error('[VIP Workflows] The shared workflow side-effect module did not load; refusing to evaluate a status change.');
 			return null;
 		}
 		return api;
@@ -507,7 +507,7 @@ class PostsColumns {
 	}
 
 	function workflowDataFor(row) {
-		return row ? row.querySelector('.vip-workflow-data') : null;
+		return row ? row.querySelector('.vip-workflows-data') : null;
 	}
 
 	function isWorkflowRow(data) {
@@ -524,14 +524,14 @@ class PostsColumns {
 	function entryStagesFor(data) {
 		var raw = data.dataset.entryStages;
 		if (!raw) {
-			console.error('[VIP Workflow] A workflow row carries no entry-stage map.');
+			console.error('[VIP Workflows] A workflow row carries no entry-stage map.');
 			return null;
 		}
 
 		try {
 			return JSON.parse(raw);
 		} catch (e) {
-			console.error('[VIP Workflow] A workflow row carries an unreadable entry-stage map: ' + e.message);
+			console.error('[VIP Workflows] A workflow row carries an unreadable entry-stage map: ' + e.message);
 			return null;
 		}
 	}
@@ -539,7 +539,7 @@ class PostsColumns {
 	function titleFor(row, postId) {
 		var titleEl = row.querySelector('.row-title');
 		if (!titleEl) {
-			console.error('[VIP Workflow] Row for post ' + postId + ' has no .row-title to name it with.');
+			console.error('[VIP Workflows] Row for post ' + postId + ' has no .row-title to name it with.');
 			return '#' + postId;
 		}
 		return titleEl.textContent.trim();
@@ -556,7 +556,7 @@ class PostsColumns {
 		// one broken row would cancel the apply for every healthy one. They fall
 		// through to the shared table, which warns on an unresolved region.
 		if (!region && !guard.canBypass) {
-			console.error('[VIP Workflow] A workflow row carries no stage region; refusing the status change.');
+			console.error('[VIP Workflows] A workflow row carries no stage region; refusing the status change.');
 			return null;
 		}
 		return api.evaluateStatusChange({
@@ -583,7 +583,7 @@ class PostsColumns {
 			// The server always renders this. Its absence is a data-integrity
 			// condition, so err towards evaluating the change rather than waving
 			// it through unexamined.
-			console.error('[VIP Workflow] A workflow row carries no committed post status.');
+			console.error('[VIP Workflows] A workflow row carries no committed post status.');
 			return true;
 		}
 
@@ -638,13 +638,13 @@ class PostsColumns {
 
 		var editRow = document.getElementById('edit-' + postId);
 		if (!editRow) {
-			console.error('[VIP Workflow] No Quick Edit row for post ' + postId + '; cannot read the status being saved.');
+			console.error('[VIP Workflows] No Quick Edit row for post ' + postId + '; cannot read the status being saved.');
 			return blockUnavailable();
 		}
 
 		var targetStatus = quickEditTargetStatus(editRow);
 		if (targetStatus === null) {
-			console.error('[VIP Workflow] Quick Edit row for post ' + postId + ' has no status control.');
+			console.error('[VIP Workflows] Quick Edit row for post ' + postId + ' has no status control.');
 			return blockUnavailable();
 		}
 
@@ -707,7 +707,7 @@ class PostsColumns {
 
 		var select = bulkRow.querySelector('select[name="_status"]');
 		if (!select) {
-			console.error('[VIP Workflow] The Bulk Edit row has no status control.');
+			console.error('[VIP Workflows] The Bulk Edit row has no status control.');
 			return blockUnavailable();
 		}
 
@@ -783,8 +783,8 @@ class PostsColumns {
 		var editRow = document.getElementById('edit-' + postId);
 		if (!row || !editRow) return;
 
-		var workflowData = row.querySelector('.vip-workflow-data');
-		var workflowSection = editRow.querySelector('.vip-workflow-quick-edit');
+		var workflowData = row.querySelector('.vip-workflows-data');
+		var workflowSection = editRow.querySelector('.vip-workflows-quick-edit');
 
 		// The native Status control stays visible for workflow posts: the
 		// workflow warns about a status change, it does not take the control
@@ -828,24 +828,24 @@ class PostsColumns {
 	function renderCurrentStatus(el, color, label) {
 		el.textContent = '';
 		var dot = document.createElement('span');
-		dot.className = 'vip-workflow-quick-edit__dot';
-		dot.style.setProperty('--vip-workflow-stage-color', color || '{$default_color}');
+		dot.className = 'vip-workflows-quick-edit__dot';
+		dot.style.setProperty('--vip-workflows-stage-color', color || '{$default_color}');
 		var labelSpan = document.createElement('span');
-		labelSpan.className = 'vip-workflow-quick-edit__label';
+		labelSpan.className = 'vip-workflows-quick-edit__label';
 		labelSpan.textContent = label || '';
 		el.appendChild(dot);
 		el.appendChild(labelSpan);
 	}
 
 	function loadWorkflowTransitions(postId, section, data) {
-		var currentEl = section.querySelector('.vip-workflow-quick-edit__current');
-		var transitionsEl = section.querySelector('.vip-workflow-quick-edit__transitions');
+		var currentEl = section.querySelector('.vip-workflows-quick-edit__current');
+		var transitionsEl = section.querySelector('.vip-workflows-quick-edit__transitions');
 
 		// Show current status.
 		renderCurrentStatus(currentEl, data.dataset.statusColor, data.dataset.statusLabel);
 
 		// Fetch transitions.
-		transitionsEl.innerHTML = '<span class="spinner is-active vip-workflow-quick-edit__spinner"></span>';
+		transitionsEl.innerHTML = '<span class="spinner is-active vip-workflows-quick-edit__spinner"></span>';
 
 		fetch(apiUrl + '/workflow/post/' + postId + '/status', {
 			headers: { 'X-WP-Nonce': nonce }
@@ -853,7 +853,7 @@ class PostsColumns {
 		.then(function(r) { return r.json(); })
 		.then(function(resp) {
 			if (!resp.transitions || resp.transitions.length === 0) {
-				transitionsEl.innerHTML = '<span class="vip-workflow-quick-edit__message">No transitions available</span>';
+				transitionsEl.innerHTML = '<span class="vip-workflows-quick-edit__message">No transitions available</span>';
 				return;
 			}
 
@@ -861,7 +861,7 @@ class PostsColumns {
 			resp.transitions.forEach(function(t) {
 				var btn = document.createElement('button');
 				btn.type = 'button';
-				btn.className = 'button button-small vip-workflow-quick-edit__btn';
+				btn.className = 'button button-small vip-workflows-quick-edit__btn';
 				btn.textContent = t.label;
 				btn.onclick = function(e) {
 					e.preventDefault();
@@ -871,7 +871,7 @@ class PostsColumns {
 			});
 		})
 		.catch(function() {
-			transitionsEl.innerHTML = '<span class="vip-workflow-quick-edit__message">Error loading transitions</span>';
+			transitionsEl.innerHTML = '<span class="vip-workflows-quick-edit__message">Error loading transitions</span>';
 		});
 	}
 
@@ -949,20 +949,20 @@ class PostsColumns {
 			}
 
 			// Success - update the display.
-			var currentEl = section.querySelector('.vip-workflow-quick-edit__current');
+			var currentEl = section.querySelector('.vip-workflows-quick-edit__current');
 			if (resp.current) {
 				renderCurrentStatus(currentEl, resp.current.color, resp.current.label || resp.current.key);
 			}
 
 			// Refresh transitions.
 			if (!resp.transitions || resp.transitions.length === 0) {
-				transitionsEl.innerHTML = '<span class="vip-workflow-quick-edit__message">Workflow complete</span>';
+				transitionsEl.innerHTML = '<span class="vip-workflows-quick-edit__message">Workflow complete</span>';
 			} else {
 				transitionsEl.innerHTML = '';
 				resp.transitions.forEach(function(t) {
 					var newBtn = document.createElement('button');
 					newBtn.type = 'button';
-					newBtn.className = 'button button-small vip-workflow-quick-edit__btn';
+					newBtn.className = 'button button-small vip-workflows-quick-edit__btn';
 					newBtn.textContent = t.label;
 					newBtn.onclick = function(e) {
 						e.preventDefault();
@@ -975,17 +975,17 @@ class PostsColumns {
 			// Update the row in the table.
 			var row = document.getElementById('post-' + postId);
 			if (row) {
-				var colSpan = row.querySelector('.vip-workflow-column');
+				var colSpan = row.querySelector('.vip-workflows-column');
 				if (colSpan && resp.current) {
 					// Both are found by class, never by position: a live row ends
 					// with the "Live" pill, which `span:last-child` used to pick up
 					// instead of the label.
-					var dotSpan = colSpan.querySelector('.vip-workflow-column__dot');
-					var labelSpan = colSpan.querySelector('.vip-workflow-column__label');
-					if (dotSpan) dotSpan.style.setProperty('--vip-workflow-stage-color', resp.current.color || '{$default_color}');
+					var dotSpan = colSpan.querySelector('.vip-workflows-column__dot');
+					var labelSpan = colSpan.querySelector('.vip-workflows-column__label');
+					if (dotSpan) dotSpan.style.setProperty('--vip-workflows-stage-color', resp.current.color || '{$default_color}');
 					if (labelSpan) labelSpan.textContent = resp.current.label || resp.current.key;
 				}
-				var dataInput = row.querySelector('.vip-workflow-data');
+				var dataInput = row.querySelector('.vip-workflows-data');
 				if (dataInput && resp.current) {
 					dataInput.dataset.statusKey = resp.current.key;
 					dataInput.dataset.statusLabel = resp.current.label || resp.current.key;
@@ -1010,7 +1010,7 @@ class PostsColumns {
 						dataInput.dataset.postStatus = resp.current.wp_status;
 						syncInlineStatus(postId, resp.current.wp_status);
 					} else {
-						console.error('[VIP Workflow] The transition response for post ' + postId + ' carried no committed post status.');
+						console.error('[VIP Workflows] The transition response for post ' + postId + ' carried no committed post status.');
 					}
 				}
 			}

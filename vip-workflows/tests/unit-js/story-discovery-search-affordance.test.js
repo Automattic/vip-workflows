@@ -52,7 +52,7 @@ function group( { slug, label, features, promptCount = 2 } ) {
  */
 async function renderWith( groups ) {
 	apiFetch.mockImplementation( ( { path } ) => {
-		if ( path === '/vip-workflow/v1/discovery/recommend' ) {
+		if ( path === '/vip-workflows/v1/discovery/recommend' ) {
 			return Promise.resolve( groups );
 		}
 		return Promise.resolve( {} );

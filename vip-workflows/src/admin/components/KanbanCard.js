@@ -42,8 +42,8 @@ export const KanbanCard = memo( function KanbanCard( {
 	} );
 
 	const urgencyLabels = {
-		breaking: __( 'Breaking', 'vip-workflow' ),
-		urgent: __( 'Urgent', 'vip-workflow' ),
+		breaking: __( 'Breaking', 'vip-workflows' ),
+		urgent: __( 'Urgent', 'vip-workflows' ),
 	};
 
 	// Determine who to show (assigned takes priority over author).
@@ -62,18 +62,18 @@ export const KanbanCard = memo( function KanbanCard( {
 			return null;
 		}
 		if ( daysLeft < 0 ) {
-			return __( 'Overdue', 'vip-workflow' );
+			return __( 'Overdue', 'vip-workflows' );
 		}
 		if ( daysLeft === 0 ) {
-			return __( 'Due today', 'vip-workflow' );
+			return __( 'Due today', 'vip-workflows' );
 		}
 		if ( daysLeft === 1 ) {
-			return __( 'Due tomorrow', 'vip-workflow' );
+			return __( 'Due tomorrow', 'vip-workflows' );
 		}
 		if ( daysLeft <= 7 ) {
 			return sprintf(
 				/* translators: %d: number of days until the deadline. */
-				_n( '%d day', '%d days', daysLeft, 'vip-workflow' ),
+				_n( '%d day', '%d days', daysLeft, 'vip-workflows' ),
 				daysLeft
 			);
 		}
@@ -81,11 +81,11 @@ export const KanbanCard = memo( function KanbanCard( {
 	};
 
 	const cardClasses = [
-		'vip-workflow-kanban-card',
-		isDragging ? 'vip-workflow-kanban-card--dragging' : '',
-		isBeingDragged ? 'vip-workflow-kanban-card--placeholder' : '',
-		isTransitioning ? 'vip-workflow-kanban-card--transitioning' : '',
-		isOverdue ? 'vip-workflow-kanban-card--overdue' : '',
+		'vip-workflows-kanban-card',
+		isDragging ? 'vip-workflows-kanban-card--dragging' : '',
+		isBeingDragged ? 'vip-workflows-kanban-card--placeholder' : '',
+		isTransitioning ? 'vip-workflows-kanban-card--transitioning' : '',
+		isOverdue ? 'vip-workflows-kanban-card--overdue' : '',
 	]
 		.filter( Boolean )
 		.join( ' ' );
@@ -102,7 +102,7 @@ export const KanbanCard = memo( function KanbanCard( {
 			{ card.urgency && card.urgency !== 'normal' && (
 				<Text
 					variant="heading-sm"
-					className={ `vip-workflow-kanban-card__urgency vip-workflow-kanban-card__urgency--${ card.urgency }` }
+					className={ `vip-workflows-kanban-card__urgency vip-workflows-kanban-card__urgency--${ card.urgency }` }
 				>
 					{ urgencyLabels[ card.urgency ] }
 				</Text>
@@ -118,7 +118,7 @@ export const KanbanCard = memo( function KanbanCard( {
 					render={
 						<Link
 							href={ card.edit_url }
-							className="vip-workflow-kanban-card__title"
+							className="vip-workflows-kanban-card__title"
 							onClick={ ( e ) => e.stopPropagation() }
 						/>
 					}
@@ -128,7 +128,7 @@ export const KanbanCard = memo( function KanbanCard( {
 
 				{ /* Meta row */ }
 				<Stack
-					className="vip-workflow-kanban-card__meta"
+					className="vip-workflows-kanban-card__meta"
 					align="center"
 					justify="space-between"
 					gap="sm"
@@ -138,11 +138,11 @@ export const KanbanCard = memo( function KanbanCard( {
 						actor={ displayPerson }
 						size="sm"
 						variant="body-sm"
-						className="vip-workflow-kanban-card__person"
+						className="vip-workflows-kanban-card__person"
 					>
 						{ card.assigned_to && (
 							<Badge intent="informational">
-								{ __( 'assigned', 'vip-workflow' ) }
+								{ __( 'assigned', 'vip-workflows' ) }
 							</Badge>
 						) }
 					</AuthorCell>
@@ -152,7 +152,7 @@ export const KanbanCard = memo( function KanbanCard( {
 					     so the phrase is anchored to a moment something can
 					     read rather than being prose about nothing. */ }
 					<Stack
-						className="vip-workflow-kanban-card__waiting"
+						className="vip-workflows-kanban-card__waiting"
 						align="center"
 						gap="xs"
 					>
@@ -177,9 +177,9 @@ export const KanbanCard = memo( function KanbanCard( {
 				     entry would get a deadline of 00:00. */ }
 				{ card.due_date && (
 					<Stack
-						className={ `vip-workflow-kanban-card__due ${
+						className={ `vip-workflows-kanban-card__due ${
 							isOverdue
-								? 'vip-workflow-kanban-card__due--overdue'
+								? 'vip-workflows-kanban-card__due--overdue'
 								: ''
 						}` }
 						align="center"
@@ -196,7 +196,7 @@ export const KanbanCard = memo( function KanbanCard( {
 			{ /* Transitioning overlay */ }
 			{ isTransitioning && (
 				<Stack
-					className="vip-workflow-kanban-card__transitioning-overlay"
+					className="vip-workflows-kanban-card__transitioning-overlay"
 					align="center"
 					justify="center"
 				>

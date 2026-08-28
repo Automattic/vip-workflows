@@ -22,13 +22,13 @@ import { check } from '@wordpress/icons';
  */
 export function getSaveButtonLabel( isSaving, saveStatus, idleLabel ) {
 	if ( isSaving ) {
-		return __( 'Saving…', 'vip-workflow' );
+		return __( 'Saving…', 'vip-workflows' );
 	}
 	if ( saveStatus === 'success' ) {
 		return (
 			<>
 				<Icon icon={ check } size={ 16 } />{ ' ' }
-				{ __( 'Saved!', 'vip-workflow' ) }
+				{ __( 'Saved!', 'vip-workflows' ) }
 			</>
 		);
 	}

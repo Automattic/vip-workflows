@@ -2,15 +2,15 @@
 /**
  * Schema migration runner unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Database\Schema;
+use VIPWorkflows\Database\Schema;
 
 class SchemaTest extends TestCase
 {
@@ -431,7 +431,7 @@ class SchemaTest extends TestCase
 
             public function get_results( string $query ): array
             {
-                if ( str_contains( $query, 'vip_workflow_events' ) ) {
+                if ( str_contains( $query, 'vip_workflows_events' ) ) {
                     return array(
                         (object) array(
                             'id'         => 19,
@@ -461,7 +461,7 @@ class SchemaTest extends TestCase
         $event_updates = array_values(
             array_filter(
                 $wpdb->updates,
-                static fn( array $update ): bool => 'wp_vip_workflow_events' === $update['table']
+                static fn( array $update ): bool => 'wp_vip_workflows_events' === $update['table']
             )
         );
 
@@ -746,7 +746,7 @@ class SchemaTest extends TestCase
         $this->assertSame( [ 'b' ], $result['defaulted'] );
 
         // And the gate does default it, so the two stay in agreement end to end.
-        $normalized = \VIPWorkflow\Sequences\Sequence::prepare_config_for_write( $result['config'] );
+        $normalized = \VIPWorkflows\Sequences\Sequence::prepare_config_for_write( $result['config'] );
         $this->assertSame( 'publish', $normalized['statuses'][0]['status'] );
         $this->assertSame( 'draft', $normalized['statuses'][1]['status'] );
     }

@@ -1,7 +1,7 @@
 {
 	"name": "workflow-tool-checklist",
 	"version": "1.0.0",
-	"description": "Checklist tool for VIP Workflow",
+	"description": "Checklist tool for VIP Workflows",
 	"scripts": {
 		"lint:css": "wp-scripts lint-style",
 		"lint:js": "wp-scripts lint-js",

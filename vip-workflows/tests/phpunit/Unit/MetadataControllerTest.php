@@ -2,18 +2,18 @@
 /**
  * MetadataController unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\API\MetadataController;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\API\MetadataController;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
 
 /**
  * Tests for MetadataController::get_metadata().
@@ -124,7 +124,7 @@ class MetadataControllerTest extends TestCase
 		Functions\when( 'get_post' )->justReturn( (object) array( 'ID' => 5 ) );
 		Functions\when( 'get_post_meta' )->alias(
 			function ( $post_id, $key, $single ) {
-				if ( '_vip_workflow_sequence_id' === $key ) {
+				if ( '_vip_workflows_sequence_id' === $key ) {
 					return '42';
 				}
 				if ( 'wf_meta_42_content_pillar' === $key ) {
@@ -168,7 +168,7 @@ class MetadataControllerTest extends TestCase
 		Functions\when( 'get_post' )->justReturn( (object) array( 'ID' => 10 ) );
 		Functions\when( 'get_post_meta' )->alias(
 			function ( $post_id, $key, $single ) {
-				if ( '_vip_workflow_sequence_id' === $key ) {
+				if ( '_vip_workflows_sequence_id' === $key ) {
 					return '7';
 				}
 				return 'News';
@@ -203,7 +203,7 @@ class MetadataControllerTest extends TestCase
 		Functions\when( 'get_post' )->justReturn( (object) array( 'ID' => 3 ) );
 		Functions\when( 'get_post_meta' )->alias(
 			function ( $post_id, $key, $single ) {
-				if ( '_vip_workflow_sequence_id' === $key ) {
+				if ( '_vip_workflows_sequence_id' === $key ) {
 					return '1';
 				}
 				return ''; // No value stored.
@@ -241,7 +241,7 @@ class MetadataControllerTest extends TestCase
 		Functions\when( 'get_post' )->justReturn( (object) array( 'ID' => 8 ) );
 		Functions\when( 'get_post_meta' )->alias(
 			function ( $post_id, $key, $single ) {
-				if ( '_vip_workflow_sequence_id' === $key ) {
+				if ( '_vip_workflows_sequence_id' === $key ) {
 					return '5';
 				}
 				return 'Opinion';
@@ -275,7 +275,7 @@ class MetadataControllerTest extends TestCase
 		Functions\when( 'get_post' )->justReturn( (object) array( 'ID' => 2 ) );
 		Functions\when( 'get_post_meta' )->alias(
 			function ( $post_id, $key, $single ) {
-				return '_vip_workflow_sequence_id' === $key ? '3' : '';
+				return '_vip_workflows_sequence_id' === $key ? '3' : '';
 			}
 		);
 
@@ -309,7 +309,7 @@ class MetadataControllerTest extends TestCase
 		Functions\when( 'get_post' )->justReturn( (object) array( 'ID' => 4 ) );
 		Functions\when( 'get_post_meta' )->alias(
 			function ( $post_id, $key, $single ) {
-				if ( '_vip_workflow_sequence_id' === $key ) {
+				if ( '_vip_workflows_sequence_id' === $key ) {
 					return '11';
 				}
 				// What the database gives back for a field cleared to 0.
@@ -343,7 +343,7 @@ class MetadataControllerTest extends TestCase
 		Functions\when( 'get_post' )->justReturn( (object) array( 'ID' => 6 ) );
 		Functions\when( 'get_post_meta' )->alias(
 			function ( $post_id, $key, $single ) {
-				return '_vip_workflow_sequence_id' === $key ? '12' : '7';
+				return '_vip_workflows_sequence_id' === $key ? '12' : '7';
 			}
 		);
 
@@ -373,7 +373,7 @@ class MetadataControllerTest extends TestCase
 		Functions\when( 'get_post' )->justReturn( (object) array( 'ID' => 9 ) );
 		Functions\when( 'get_post_meta' )->alias(
 			function ( $post_id, $key, $single ) {
-				return '_vip_workflow_sequence_id' === $key ? '13' : '0';
+				return '_vip_workflows_sequence_id' === $key ? '13' : '0';
 			}
 		);
 

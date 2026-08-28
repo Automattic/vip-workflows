@@ -2,12 +2,12 @@
 /**
  * Shared admin stylesheet enqueues.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Admin;
+namespace VIPWorkflows\Admin;
 
 /**
  * One owner for the stylesheet handles more than one admin surface needs.
@@ -26,12 +26,12 @@ final class AdminStyles {
 	/**
 	 * Handle for the WPDS design-token definitions.
 	 */
-	public const TOKENS_HANDLE = 'vip-workflow-wpds-tokens';
+	public const TOKENS_HANDLE = 'vip-workflows-wpds-tokens';
 
 	/**
 	 * Handle for the classic-screen stylesheet.
 	 */
-	public const CLASSIC_HANDLE = 'vip-workflow-classic-admin';
+	public const CLASSIC_HANDLE = 'vip-workflows-classic-admin';
 
 	/**
 	 * Enqueue the WPDS design tokens.
@@ -48,7 +48,7 @@ final class AdminStyles {
 	public static function enqueue_design_tokens( string $version ): void {
 		wp_enqueue_style(
 			self::TOKENS_HANDLE,
-			VIP_WORKFLOW_PLUGIN_URL . 'build/wpds-design-tokens.css',
+			VIP_WORKFLOWS_PLUGIN_URL . 'build/wpds-design-tokens.css',
 			array(),
 			$version
 		);
@@ -68,13 +68,13 @@ final class AdminStyles {
 	 * its own screen condition.
 	 */
 	public static function enqueue_classic(): void {
-		self::enqueue_design_tokens( VIP_WORKFLOW_VERSION );
+		self::enqueue_design_tokens( VIP_WORKFLOWS_VERSION );
 
 		wp_enqueue_style(
 			self::CLASSIC_HANDLE,
-			VIP_WORKFLOW_PLUGIN_URL . 'build/classic-admin.css',
+			VIP_WORKFLOWS_PLUGIN_URL . 'build/classic-admin.css',
 			array( self::TOKENS_HANDLE ),
-			VIP_WORKFLOW_VERSION
+			VIP_WORKFLOWS_VERSION
 		);
 		// The build emits classic-admin-rtl.css beside it; this is how every
 		// other built stylesheet here picks its RTL variant up.

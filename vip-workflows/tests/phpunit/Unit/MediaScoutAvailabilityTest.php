@@ -13,34 +13,34 @@
  * whether a destination exists at all is a property of which backend is active,
  * so swapping in the genuine classes is what exercises the branch.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\ConnectorsCredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\AI\LegacyCredentialBackend;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
-use VIPWorkflow\Ideation\Assistants\AiImageProvider;
-use VIPWorkflow\Ideation\Assistants\MediaProviderInterface;
-use VIPWorkflow\Ideation\Assistants\MediaProviderRequirements;
-use VIPWorkflow\Ideation\Assistants\MediaScout;
-use VIPWorkflow\Ideation\Assistants\TavilyImageProvider;
-use VIPWorkflow\Ideation\Assistants\TavilyVideoProvider;
-use VIPWorkflow\Ideation\Assistants\YouTubeVideoProvider;
+use VIPWorkflows\AI\ConnectorsCredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\AI\LegacyCredentialBackend;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
+use VIPWorkflows\Ideation\Assistants\AiImageProvider;
+use VIPWorkflows\Ideation\Assistants\MediaProviderInterface;
+use VIPWorkflows\Ideation\Assistants\MediaProviderRequirements;
+use VIPWorkflows\Ideation\Assistants\MediaScout;
+use VIPWorkflows\Ideation\Assistants\TavilyImageProvider;
+use VIPWorkflows\Ideation\Assistants\TavilyVideoProvider;
+use VIPWorkflows\Ideation\Assistants\YouTubeVideoProvider;
 
 /**
  * A third-party provider written against the original interface only.
  *
  * Deliberately does NOT implement MediaProviderRequirements — it is the
- * regression guard for the public `vip_workflow_media_providers` filter.
+ * regression guard for the public `vip_workflows_media_providers` filter.
  */
 class LegacyOnlyMediaProvider implements MediaProviderInterface
 {
@@ -174,7 +174,7 @@ class MediaScoutAvailabilityTest extends TestCase
     {
         Functions\when( 'apply_filters' )->alias(
             static function ( string $tag, $value ) use ( $providers ) {
-                return 'vip_workflow_media_providers' === $tag ? $providers : $value;
+                return 'vip_workflows_media_providers' === $tag ? $providers : $value;
             }
         );
     }
@@ -349,7 +349,7 @@ class MediaScoutAvailabilityTest extends TestCase
 
         $this->assertSame( Destination::KIND_NONE, $requirements[0]->get_destination()->get_kind() );
         $this->assertStringContainsString(
-            'VIP_WORKFLOW_TAVILY_KEY',
+            'VIP_WORKFLOWS_TAVILY_KEY',
             $requirements[0]->get_destination()->get_hint()
         );
 

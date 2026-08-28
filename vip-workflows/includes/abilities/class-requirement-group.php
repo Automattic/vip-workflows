@@ -10,12 +10,12 @@
  * availability callback — the only layer with credential access — which returns
  * a bare `true` when its dependencies are met, so no consumer ever re-derives it.
  *
- * @package VIPWorkflow\Abilities
+ * @package VIPWorkflows\Abilities
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
 /**
  * A group of unmet requirements plus how it can be satisfied.

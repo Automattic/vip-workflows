@@ -8,21 +8,21 @@
  * end via reflection so the variable wiring is covered, not just the registered
  * default text.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use ReflectionMethod;
-use VIPWorkflow\AI\CorePrompts;
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\PromptSettings;
-use VIPWorkflow\Ideation\Assistants\EditorialMentor;
-use VIPWorkflow\Ideation\Assistants\LLMAssistedWPSearch;
-use VIPWorkflow\Ideation\Assistants\SeedAnalyst;
+use VIPWorkflows\AI\CorePrompts;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\PromptSettings;
+use VIPWorkflows\Ideation\Assistants\EditorialMentor;
+use VIPWorkflows\Ideation\Assistants\LLMAssistedWPSearch;
+use VIPWorkflows\Ideation\Assistants\SeedAnalyst;
 use WordPress\AiClient\AiClient;
 
 class IdeationAssistantPromptsTest extends TestCase
@@ -42,10 +42,10 @@ class IdeationAssistantPromptsTest extends TestCase
 
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                if ( 'vip_workflow_ai_model' === $option ) {
+                if ( 'vip_workflows_ai_model' === $option ) {
                     return 'gpt-4o-mini';
                 }
-                if ( 'vip_workflow_prompts' === $option ) {
+                if ( 'vip_workflows_prompts' === $option ) {
                     return $this->prompt_overrides;
                 }
                 return $default;
@@ -53,7 +53,7 @@ class IdeationAssistantPromptsTest extends TestCase
         );
         Functions\when( 'update_option' )->alias(
             function ( string $option, $value ) {
-                if ( 'vip_workflow_prompts' === $option ) {
+                if ( 'vip_workflows_prompts' === $option ) {
                     $this->prompt_overrides = $value;
                 }
                 return true;

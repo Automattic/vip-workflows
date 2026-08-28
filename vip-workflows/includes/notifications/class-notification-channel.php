@@ -4,14 +4,14 @@
  *
  * Extend this class to create custom notification channels.
  * Third-party plugins can register channels via the
- * 'vip_workflow_register_notification_channels' action.
+ * 'vip_workflows_register_notification_channels' action.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Notifications;
+namespace VIPWorkflows\Notifications;
 
 /**
  * Abstract base class for notification channel adapters.
@@ -23,7 +23,7 @@ namespace VIPWorkflow\Notifications;
  *     // ... implement other required methods
  * }
  *
- * add_action('vip_workflow_register_notification_channels', function($dispatcher) {
+ * add_action('vip_workflows_register_notification_channels', function($dispatcher) {
  *     $dispatcher->register_channel(new MyChannel());
  * });
  */
@@ -33,7 +33,7 @@ abstract class NotificationChannel {
 	/**
 	 * Option name prefix for channel settings.
 	 */
-	private const OPTION_PREFIX = 'vip_workflow_channel_';
+	private const OPTION_PREFIX = 'vip_workflows_channel_';
 
 	/**
 	 * Get the channel ID.
@@ -114,7 +114,7 @@ abstract class NotificationChannel {
 	/**
 	 * Get the WordPress option name for this channel.
 	 *
-	 * @return string Option name (e.g., 'vip_workflow_channel_slack').
+	 * @return string Option name (e.g., 'vip_workflows_channel_slack').
 	 */
 	public function get_option_name(): string {
 		return self::OPTION_PREFIX . $this->get_id();
@@ -145,7 +145,7 @@ abstract class NotificationChannel {
 	 */
 	public function register_option(): void {
 		register_setting(
-			'vip_workflow_integrations',
+			'vip_workflows_integrations',
 			$this->get_option_name(),
 			array(
 				'type'              => 'array',

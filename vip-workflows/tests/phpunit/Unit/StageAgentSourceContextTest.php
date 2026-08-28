@@ -6,14 +6,14 @@
  * research or a web search). The gather_source_context() side (DB / provider
  * reads) is exercised in the integration suite; here we pin the pure formatting.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Abilities\Agents\StageAgent;
+use VIPWorkflows\Abilities\Agents\StageAgent;
 
 /**
  * Tests for StageAgent::format_source_context().

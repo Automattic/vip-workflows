@@ -10,12 +10,12 @@
  * nested output keys in the sibling tools are covered by the residual-term
  * audit + code review.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 
@@ -52,11 +52,11 @@ class SequenceAbilityRegistrationTest extends TestCase
 
     public function test_get_sequences_keeps_slug_and_uses_sequence_terminology(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_get_sequences();
+        \VIPWorkflows\Abilities\Tools\register_get_sequences();
 
         // Slug is unchanged (keep-slugs decision).
-        $this->assertArrayHasKey( 'vip-workflow/get-sequences', $this->registered );
-        $args = $this->registered['vip-workflow/get-sequences'];
+        $this->assertArrayHasKey( 'vip-workflows/get-sequences', $this->registered );
+        $args = $this->registered['vip-workflows/get-sequences'];
 
         // Agent-facing label/description say "sequence", not "sequence".
         $this->assertSame( 'Get Sequences', $args['label'] );
@@ -71,10 +71,10 @@ class SequenceAbilityRegistrationTest extends TestCase
 
     public function test_get_workflow_summary_renames_input_and_output_keys(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_get_workflow_summary();
+        \VIPWorkflows\Abilities\Tools\register_get_workflow_summary();
 
-        $this->assertArrayHasKey( 'vip-workflow/get-workflow-summary', $this->registered );
-        $args = $this->registered['vip-workflow/get-workflow-summary'];
+        $this->assertArrayHasKey( 'vip-workflows/get-workflow-summary', $this->registered );
+        $args = $this->registered['vip-workflows/get-workflow-summary'];
 
         // Input param renamed sequence_id -> sequence_id.
         $input_props = $args['input_schema']['properties'];
@@ -89,12 +89,12 @@ class SequenceAbilityRegistrationTest extends TestCase
 
     public function test_sibling_tools_register_under_unchanged_slugs(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_get_my_assignments();
-        \VIPWorkflow\Abilities\Tools\register_get_posts_by_status();
+        \VIPWorkflows\Abilities\Tools\register_get_my_assignments();
+        \VIPWorkflows\Abilities\Tools\register_get_posts_by_status();
 
         // The keep-slugs decision applies to every tool, not just the renamed
         // pair — these guard against an accidental slug rename.
-        $this->assertArrayHasKey( 'vip-workflow/get-my-assignments', $this->registered );
-        $this->assertArrayHasKey( 'vip-workflow/get-posts-by-status', $this->registered );
+        $this->assertArrayHasKey( 'vip-workflows/get-my-assignments', $this->registered );
+        $this->assertArrayHasKey( 'vip-workflows/get-posts-by-status', $this->registered );
     }
 }

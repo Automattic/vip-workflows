@@ -10,14 +10,14 @@
  * The failure directions are stripping too little — markup reaches a media
  * library record — and stripping too much, which quietly edits editorial copy.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Integrations\Markdown;
+use VIPWorkflows\Integrations\Markdown;
 
 require_once __DIR__ . '/../../../includes/integrations/class-markdown.php';
 

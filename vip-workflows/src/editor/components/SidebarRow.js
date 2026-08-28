@@ -35,7 +35,7 @@ import './SidebarRow.css';
 function SidebarRowHeader( { title, onClose } ) {
 	return (
 		<Stack
-			className="vip-workflow-sidebar-row__header"
+			className="vip-workflows-sidebar-row__header"
 			direction="row"
 			align="center"
 			justify="space-between"
@@ -45,7 +45,7 @@ function SidebarRowHeader( { title, onClose } ) {
 			<Button
 				size="small"
 				icon={ closeSmall }
-				label={ __( 'Close', 'vip-workflow' ) }
+				label={ __( 'Close', 'vip-workflows' ) }
 				showTooltip
 				onClick={ onClose }
 			/>
@@ -131,20 +131,20 @@ export function SidebarRow( {
 			ref={ setPopoverAnchor }
 			className={
 				invalid
-					? 'vip-workflow-sidebar-row vip-workflow-sidebar-row--invalid'
-					: 'vip-workflow-sidebar-row'
+					? 'vip-workflows-sidebar-row vip-workflows-sidebar-row--invalid'
+					: 'vip-workflows-sidebar-row'
 			}
 			direction="row"
 			align="flex-start"
 		>
-			<Text className="vip-workflow-sidebar-row__label">{ label }</Text>
+			<Text className="vip-workflows-sidebar-row__label">{ label }</Text>
 			{ /* A column so the error can sit under the value it belongs to
 			     rather than beside it, the way a form control's message does.
 			     `flex-start` keeps the trigger content-width, which is what
 			     `align="center"` gave it while this was a single-child row;
 			     the trigger's own 32px minimum still fills the cell. */ }
 			<Stack
-				className="vip-workflow-sidebar-row__control"
+				className="vip-workflows-sidebar-row__control"
 				direction="column"
 				align="flex-start"
 				gap="xs"
@@ -159,7 +159,7 @@ export function SidebarRow( {
 					// keyboard user on a div instead of the control.
 					focusOnMount="firstElement"
 					onClose={ onPopoverClose }
-					contentClassName="vip-workflow-sidebar-row__dialog"
+					contentClassName="vip-workflows-sidebar-row__dialog"
 					// Closing goes through `onClose`, not `onToggle`: only
 					// `onClose` runs Dropdown's `close()`, which is what fires
 					// `onPopoverClose`. Toggling shut would skip it, and that
@@ -184,7 +184,7 @@ export function SidebarRow( {
 					) }
 					renderContent={ ( { onClose } ) => (
 						<Stack
-							className="vip-workflow-sidebar-row__content"
+							className="vip-workflows-sidebar-row__content"
 							direction="column"
 							gap="sm"
 						>
@@ -201,7 +201,7 @@ export function SidebarRow( {
 						id={ errorId }
 						variant="body-sm"
 						render={ <p /> }
-						className="vip-workflow-sidebar-row__error"
+						className="vip-workflows-sidebar-row__error"
 					>
 						{ errorMessage }
 					</Text>

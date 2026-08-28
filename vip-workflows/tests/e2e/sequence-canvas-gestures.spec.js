@@ -25,7 +25,7 @@ const { deleteSequence } = require( './helpers/workflow' );
  */
 async function createTwoStageSequence( requestUtils ) {
 	return requestUtils.rest( {
-		path: '/vip-workflow/v1/sequences',
+		path: '/vip-workflows/v1/sequences',
 		method: 'POST',
 		data: {
 			name: `E2E Canvas Gestures ${ Date.now() }`,
@@ -58,7 +58,7 @@ async function createTwoStageSequence( requestUtils ) {
  */
 async function createThreeStageSequence( requestUtils ) {
 	return requestUtils.rest( {
-		path: '/vip-workflow/v1/sequences',
+		path: '/vip-workflows/v1/sequences',
 		method: 'POST',
 		data: {
 			name: `E2E Canvas Rewire ${ Date.now() }`,
@@ -137,16 +137,16 @@ async function dragAnchor( page, end, to ) {
  * @param {string}                                               name  Sequence name.
  */
 async function openEditor( admin, page, name ) {
-	await admin.visitAdminPage( 'admin.php', 'page=vip-workflow-sequences' );
+	await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-sequences' );
 	await page
-		.locator( '.vip-workflow-summary-card' )
+		.locator( '.vip-workflows-summary-card' )
 		.filter( { hasText: name } )
 		.getByRole( 'button', { name: 'Edit' } )
 		.click();
 	await expect( page.getByRole( 'button', { name: 'Save' } ) ).toBeVisible();
 }
 
-test.describe( 'VIP Workflow — sequence canvas gestures', () => {
+test.describe( 'VIP Workflows — sequence canvas gestures', () => {
 	let sequenceId;
 
 	test.afterEach( async ( { requestUtils } ) => {
@@ -231,7 +231,7 @@ test.describe( 'VIP Workflow — sequence canvas gestures', () => {
 		).toBeVisible();
 
 		const saved = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		const draft = saved.config.statuses.find( ( s ) => s.key === 'draft' );
 		const added = saved.config.statuses.find(
@@ -287,7 +287,7 @@ test.describe( 'VIP Workflow — sequence canvas gestures', () => {
 		).toBeVisible();
 
 		const saved = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		const review = saved.config.statuses.find(
 			( s ) => s.key === 'review'
@@ -408,7 +408,7 @@ test.describe( 'VIP Workflow — sequence canvas gestures', () => {
 		).toBeVisible();
 
 		const saved = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		const draft = saved.config.statuses.find( ( s ) => s.key === 'draft' );
 		expect( draft.transitions.map( ( t ) => t.to ) ).toEqual( [ 'done' ] );
@@ -456,7 +456,7 @@ test.describe( 'VIP Workflow — sequence canvas gestures', () => {
 		).toBeVisible();
 
 		const saved = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		const draft = saved.config.statuses.find( ( s ) => s.key === 'draft' );
 		const added = saved.config.statuses.find(
@@ -517,7 +517,7 @@ test.describe( 'VIP Workflow — sequence canvas gestures', () => {
 		).toHaveCount( 1 );
 
 		const saved = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		expect( saved.config.statuses[ 0 ].key ).toBe( 'draft' );
 		const draft = saved.config.statuses.find( ( s ) => s.key === 'draft' );

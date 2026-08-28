@@ -2,12 +2,12 @@
 /**
  * Ability result repository.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
 /**
  * Database operations for ability results.

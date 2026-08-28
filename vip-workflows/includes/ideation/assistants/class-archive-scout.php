@@ -5,12 +5,12 @@
  * Searches the newsroom's own published articles for related past coverage.
  * Uses a swappable ArchiveSearchInterface (default: LLM-assisted WP_Query).
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
 /**
  * Archive Scout.
@@ -21,11 +21,11 @@ class ArchiveScout {
 	 * Register as an ability.
 	 */
 	public static function register_ability(): void {
-		vip_workflow_register_ability(
-			'vip-workflow/archive-scout',
+		vip_workflows_register_ability(
+			'vip-workflows/archive-scout',
 			array(
-				'label'               => __( 'Archive Scout', 'vip-workflow' ),
-				'description'         => __( 'Searches your published archive for related past coverage.', 'vip-workflow' ),
+				'label'               => __( 'Archive Scout', 'vip-workflows' ),
+				'description'         => __( 'Searches your published archive for related past coverage.', 'vip-workflows' ),
 				'category'            => 'research',
 				'input_schema'        => array(
 					'type'       => 'object',
@@ -55,8 +55,8 @@ class ArchiveScout {
 					'show_in_commands'      => false,
 					'transition_eligible'   => false,
 					'icon'                  => 'archive',
-					'thinking_message'      => __( 'Searching your archive...', 'vip-workflow' ),
-					'success_message'       => __( 'Archive search complete.', 'vip-workflow' ),
+					'thinking_message'      => __( 'Searching your archive...', 'vip-workflows' ),
+					'success_message'       => __( 'Archive search complete.', 'vip-workflows' ),
 				),
 			)
 		);
@@ -87,7 +87,7 @@ class ArchiveScout {
 		if ( empty( $results ) ) {
 			return array(
 				'cards'   => array(),
-				'summary' => __( 'No related articles found in your archive.', 'vip-workflow' ),
+				'summary' => __( 'No related articles found in your archive.', 'vip-workflows' ),
 			);
 		}
 
@@ -115,7 +115,7 @@ class ArchiveScout {
 				'Found %d related article in your archive.',
 				'Found %d related articles in your archive.',
 				$count,
-				'vip-workflow'
+				'vip-workflows'
 			),
 			$count
 		);

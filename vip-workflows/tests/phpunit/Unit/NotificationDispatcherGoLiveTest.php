@@ -13,20 +13,20 @@
  *  - Core-driven: transition_post_status notifies for cron future→publish,
  *    quick edit, etc. — suppressed while a workflow transition is mid-commit.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Notifications\Notification;
-use VIPWorkflow\Notifications\NotificationChannel;
-use VIPWorkflow\Notifications\NotificationDispatcher;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Notifications\Notification;
+use VIPWorkflows\Notifications\NotificationChannel;
+use VIPWorkflows\Notifications\NotificationDispatcher;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Tests for the two-path go-live design in NotificationDispatcher.
@@ -352,7 +352,7 @@ class NotificationDispatcherGoLiveTest extends TestCase
     {
         Functions\when( 'get_option' )->alias(
             function ( $option, $default = [] ) use ( $routing ) {
-                if ( 'vip_workflow_notification_routing' === $option ) {
+                if ( 'vip_workflows_notification_routing' === $option ) {
                     return $routing;
                 }
                 return $default;

@@ -39,10 +39,10 @@ export default function Notifications() {
 		<>
 			{ __(
 				'Configure notification channels and event-to-channel routing.',
-				'vip-workflow'
+				'vip-workflows'
 			) }{ ' ' }
 			<Button variant="link" onClick={ () => setShowHowTo( true ) }>
-				{ __( 'How to add custom channels.', 'vip-workflow' ) }
+				{ __( 'How to add custom channels.', 'vip-workflows' ) }
 			</Button>
 		</>
 	);
@@ -51,12 +51,12 @@ export default function Notifications() {
 		<AdminPage
 			breadcrumbs={ [
 				{
-					label: __( 'Workflows', 'vip-workflow' ),
-					href: 'admin.php?page=vip-workflow',
+					label: __( 'Workflows', 'vip-workflows' ),
+					href: 'admin.php?page=vip-workflows',
 				},
-				{ label: __( 'Notifications', 'vip-workflow' ) },
+				{ label: __( 'Notifications', 'vip-workflows' ) },
 			] }
-			title={ __( 'Notifications', 'vip-workflow' ) }
+			title={ __( 'Notifications', 'vip-workflows' ) }
 			subtitle={ subtitle }
 			actions={
 				<>
@@ -73,7 +73,7 @@ export default function Notifications() {
 						>
 							{ sprintf(
 								/* translators: %s: channel group name, e.g. "Slack". */
-								__( 'Add %s', 'vip-workflow' ),
+								__( 'Add %s', 'vip-workflows' ),
 								group.label
 							) }
 						</Button>
@@ -86,7 +86,7 @@ export default function Notifications() {
 							notifications.saving || ! notifications.canSave
 						}
 					>
-						{ __( 'Save', 'vip-workflow' ) }
+						{ __( 'Save', 'vip-workflows' ) }
 					</Button>
 				</>
 			}
@@ -95,17 +95,17 @@ export default function Notifications() {
 			<NotificationChannelsTab state={ notifications } />
 			{ showHowTo && (
 				<HowToModal
-					title={ __( 'Add custom channels', 'vip-workflow' ) }
+					title={ __( 'Add custom channels', 'vip-workflows' ) }
 					skillType="notification-channel"
 					onClose={ () => setShowHowTo( false ) }
 				>
 					<Text variant="body-md" render={ <p /> }>
 						{ __(
 							'Notification channels deliver workflow events to external services. Create one as a standalone WordPress plugin that extends the NotificationChannel base class:',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
-					<pre className="vip-workflow-code">{ `add_action( 'vip_workflow_register_notification_channels',
+					<pre className="vip-workflows-code">{ `add_action( 'vip_workflows_register_notification_channels',
     function( $dispatcher ) {
         require_once __DIR__ . '/includes/class-my-channel.php';
         $dispatcher->register_channel( new MyChannel() );
@@ -113,12 +113,12 @@ export default function Notifications() {
 );` }</pre>
 
 					<Text variant="heading-md" render={ <h2 /> }>
-						{ __( 'Required methods', 'vip-workflow' ) }
+						{ __( 'Required methods', 'vip-workflows' ) }
 					</Text>
 					<Text variant="body-md" render={ <p /> }>
 						{ __(
 							'Your channel class must extend NotificationChannel and implement:',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
 					<ul>
@@ -126,46 +126,49 @@ export default function Notifications() {
 							<code>get_id()</code>{ ' ' }
 							{ __(
 								'Unique channel identifier',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						</li>
 						<li>
 							<code>get_name()</code>{ ' ' }
-							{ __( 'Display name', 'vip-workflow' ) }
+							{ __( 'Display name', 'vip-workflows' ) }
 						</li>
 						<li>
 							<code>get_description()</code>{ ' ' }
-							{ __( 'Short description', 'vip-workflow' ) }
+							{ __( 'Short description', 'vip-workflows' ) }
 						</li>
 						<li>
 							<code>get_icon()</code>{ ' ' }
-							{ __( 'Icon slug', 'vip-workflow' ) }
+							{ __( 'Icon slug', 'vip-workflows' ) }
 						</li>
 						<li>
 							<code>is_configured()</code>{ ' ' }
-							{ __( 'Check if ready to send', 'vip-workflow' ) }
+							{ __( 'Check if ready to send', 'vip-workflows' ) }
 						</li>
 						<li>
 							<code>send( Notification $notification )</code>{ ' ' }
-							{ __( 'Deliver the notification', 'vip-workflow' ) }
+							{ __(
+								'Deliver the notification',
+								'vip-workflows'
+							) }
 						</li>
 						<li>
 							<code>test_connection()</code>{ ' ' }
-							{ __( 'Verify the connection', 'vip-workflow' ) }
+							{ __( 'Verify the connection', 'vip-workflows' ) }
 						</li>
 						<li>
 							<code>sanitize_settings( array $input )</code>{ ' ' }
-							{ __( 'Sanitize form input', 'vip-workflow' ) }
+							{ __( 'Sanitize form input', 'vip-workflows' ) }
 						</li>
 					</ul>
 
 					<Text variant="heading-md" render={ <h2 /> }>
-						{ __( 'Settings', 'vip-workflow' ) }
+						{ __( 'Settings', 'vip-workflows' ) }
 					</Text>
 					<Text variant="body-md" render={ <p /> }>
 						{ __(
 							'Override get_settings_schema() to define fields that are auto-rendered in the admin UI. Use $this->get_settings() and $this->update_settings() for storage.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
 				</HowToModal>

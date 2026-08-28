@@ -2,12 +2,12 @@
 /**
  * Ability registry.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
 /**
  * Registry for internal abilities (fallback when WP Abilities API not available).
@@ -53,7 +53,7 @@ class AbilityRegistry {
 		if ( isset( $this->abilities[ $name ] ) ) {
 			throw new \InvalidArgumentException(
 				/* translators: %s: ability name. */
-				sprintf( esc_html__( 'Ability "%s" is already registered.', 'vip-workflow' ), esc_html( $name ) )
+				sprintf( esc_html__( 'Ability "%s" is already registered.', 'vip-workflows' ), esc_html( $name ) )
 			);
 		}
 

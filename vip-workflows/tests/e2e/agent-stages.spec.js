@@ -49,7 +49,7 @@ const {
 	openWorkflowPanel,
 } = require( './helpers/workflow' );
 
-test.describe( 'VIP Workflow — stage agents', () => {
+test.describe( 'VIP Workflows — stage agents', () => {
 	let sequenceId;
 	let postId;
 
@@ -128,7 +128,7 @@ test.describe( 'VIP Workflow — stage agents', () => {
 
 		// The rail's stage mark is a spinner while the agent works…
 		await expect(
-			panel.locator( '.vip-workflow-rail__spinner' )
+			panel.locator( '.vip-workflows-rail__spinner' )
 		).toBeVisible();
 
 		// …and the stage's transitions are withheld while the run is in flight:
@@ -141,7 +141,7 @@ test.describe( 'VIP Workflow — stage agents', () => {
 		// "Go back" button.
 		await expect(
 			panel.locator(
-				'.vip-workflow-rail__actions button:not([aria-disabled="true"])'
+				'.vip-workflows-rail__actions button:not([aria-disabled="true"])'
 			)
 		).toHaveCount( 0 );
 
@@ -181,23 +181,23 @@ test.describe( 'VIP Workflow — stage agents', () => {
 
 		// The failure is surfaced with its message.
 		const failedBlock = panel.locator(
-			'.vip-workflow-panel__agent-failed'
+			'.vip-workflows-panel__agent-failed'
 		);
 		await expect( failedBlock ).toBeVisible();
 		await expect(
-			panel.locator( '.vip-workflow-panel__agent-failed-error' )
+			panel.locator( '.vip-workflows-panel__agent-failed-error' )
 		).not.toBeEmpty();
 
 		// The "AI working" spinner is gone (job is no longer pending).
 		await expect(
-			panel.locator( '.vip-workflow-rail__spinner' )
+			panel.locator( '.vip-workflows-rail__spinner' )
 		).toHaveCount( 0 );
 
 		// The rail keeps drawing the routed outcomes, still disabled — no
 		// clickable transition exists anywhere in the failed state.
 		await expect(
 			panel.locator(
-				'.vip-workflow-rail__actions button:not([aria-disabled="true"])'
+				'.vip-workflows-rail__actions button:not([aria-disabled="true"])'
 			)
 		).toHaveCount( 0 );
 
@@ -373,7 +373,7 @@ test.describe( 'VIP Workflow — stage agents', () => {
 
 		const panel = await openWorkflowPanel( page );
 		await expect(
-			panel.locator( '.vip-workflow-rail__spinner' )
+			panel.locator( '.vip-workflows-rail__spinner' )
 		).toBeVisible();
 
 		// A marker any full page reload wipes.
@@ -426,7 +426,7 @@ test.describe( 'VIP Workflow — stage agents', () => {
 
 		const panel = await openWorkflowPanel( page );
 		await expect(
-			panel.locator( '.vip-workflow-rail__spinner' )
+			panel.locator( '.vip-workflows-rail__spinner' )
 		).toBeVisible();
 
 		await page.evaluate( () => {
@@ -442,7 +442,7 @@ test.describe( 'VIP Workflow — stage agents', () => {
 
 		// With unsaved edits the panel must NOT auto-reload; it surfaces a reload
 		// prompt instead.
-		const refresh = panel.locator( '.vip-workflow-panel__agent-refresh' );
+		const refresh = panel.locator( '.vip-workflows-panel__agent-refresh' );
 		await expect( refresh ).toBeVisible( { timeout: 15000 } );
 		await expect(
 			refresh.getByRole( 'button', { name: 'Reload' } )
@@ -453,7 +453,7 @@ test.describe( 'VIP Workflow — stage agents', () => {
 			true
 		);
 		await expect(
-			panel.locator( '.vip-workflow-rail__spinner' )
+			panel.locator( '.vip-workflows-rail__spinner' )
 		).toHaveCount( 0 );
 	} );
 } );

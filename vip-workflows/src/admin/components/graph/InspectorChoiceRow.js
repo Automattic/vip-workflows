@@ -133,7 +133,7 @@ export default function InspectorChoiceRow( {
 				// row anyone is reading it for.
 				selectLabel={ sprintf(
 					/* translators: 1: the setting's name. 2: what it is currently set to. */
-					__( '%1$s: %2$s', 'vip-workflow' ),
+					__( '%1$s: %2$s', 'vip-workflows' ),
 					label,
 					value
 				) }

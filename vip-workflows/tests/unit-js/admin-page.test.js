@@ -26,7 +26,10 @@ describe( 'AdminPage breadcrumbs', () => {
 		const html = renderToString(
 			<AdminPage
 				breadcrumbs={ [
-					{ label: 'Workflows', href: 'admin.php?page=vip-workflow' },
+					{
+						label: 'Workflows',
+						href: 'admin.php?page=vip-workflows',
+					},
 					{ label: 'Settings' },
 				] }
 			>
@@ -35,18 +38,21 @@ describe( 'AdminPage breadcrumbs', () => {
 		);
 
 		// Parent entry: a link with its href.
-		expect( html ).toContain( 'vip-workflow-admin-page__breadcrumb-link' );
-		expect( html ).toContain( 'href="admin.php?page=vip-workflow"' );
+		expect( html ).toContain( 'vip-workflows-admin-page__breadcrumb-link' );
+		expect( html ).toContain( 'href="admin.php?page=vip-workflows"' );
 		expect( html ).toContain( '>Workflows<' );
 
 		// Current page: the trail's final item is the page <h1>, not a link.
 		expect( html ).toContain( '<h1' );
-		expect( html ).toContain( 'vip-workflow-admin-page__title' );
+		expect( html ).toContain( 'vip-workflows-admin-page__title' );
 		expect( html ).toContain( '>Settings<' );
 
 		// One separator between the parent link and the heading.
 		expect(
-			occurrences( html, 'vip-workflow-admin-page__breadcrumb-separator' )
+			occurrences(
+				html,
+				'vip-workflows-admin-page__breadcrumb-separator'
+			)
 		).toBe( 1 );
 	} );
 
@@ -54,7 +60,10 @@ describe( 'AdminPage breadcrumbs', () => {
 		const html = renderToString(
 			<AdminPage
 				breadcrumbs={ [
-					{ label: 'Workflows', href: 'admin.php?page=vip-workflow' },
+					{
+						label: 'Workflows',
+						href: 'admin.php?page=vip-workflows',
+					},
 					{ label: 'ignored-current' },
 				] }
 				title="Explicit Title"
@@ -75,8 +84,8 @@ describe( 'AdminPage breadcrumbs', () => {
 		);
 
 		// With no parent links there is no breadcrumb nav — just the page <h1>.
-		expect( html ).not.toContain( 'vip-workflow-admin-page__breadcrumbs' );
-		expect( html ).toContain( 'vip-workflow-admin-page__title' );
+		expect( html ).not.toContain( 'vip-workflows-admin-page__breadcrumbs' );
+		expect( html ).toContain( 'vip-workflows-admin-page__title' );
 		expect( html ).toContain( '>Coming Soon<' );
 	} );
 } );
@@ -88,21 +97,27 @@ describe( 'AdminPage icon', () => {
 		const html = renderToString(
 			<AdminPage
 				breadcrumbs={ [
-					{ label: 'Workflows', href: 'admin.php?page=vip-workflow' },
+					{
+						label: 'Workflows',
+						href: 'admin.php?page=vip-workflows',
+					},
 					{ label: 'Settings' },
 				] }
 			>
 				body
 			</AdminPage>
 		);
-		expect( html ).not.toContain( 'vip-workflow-admin-page__icon' );
+		expect( html ).not.toContain( 'vip-workflows-admin-page__icon' );
 	} );
 
 	it( 'renders the icon slot when an icon is passed', () => {
 		const html = renderToString(
 			<AdminPage
 				breadcrumbs={ [
-					{ label: 'Workflows', href: 'admin.php?page=vip-workflow' },
+					{
+						label: 'Workflows',
+						href: 'admin.php?page=vip-workflows',
+					},
 					{ label: 'Settings' },
 				] }
 				icon={ <svg className="test-icon" /> }
@@ -110,7 +125,7 @@ describe( 'AdminPage icon', () => {
 				body
 			</AdminPage>
 		);
-		expect( html ).toContain( 'vip-workflow-admin-page__icon' );
+		expect( html ).toContain( 'vip-workflows-admin-page__icon' );
 		expect( html ).toContain( 'test-icon' );
 	} );
 
@@ -118,7 +133,10 @@ describe( 'AdminPage icon', () => {
 		const html = renderToString(
 			<AdminPage
 				breadcrumbs={ [
-					{ label: 'Workflows', href: 'admin.php?page=vip-workflow' },
+					{
+						label: 'Workflows',
+						href: 'admin.php?page=vip-workflows',
+					},
 					{ label: 'Settings' },
 				] }
 				icon={ null }
@@ -128,8 +146,8 @@ describe( 'AdminPage icon', () => {
 		);
 		// The breadcrumb trail still renders (a parent link is present), but
 		// with no icon.
-		expect( html ).toContain( 'vip-workflow-admin-page__breadcrumbs' );
-		expect( html ).not.toContain( 'vip-workflow-admin-page__icon' );
+		expect( html ).toContain( 'vip-workflows-admin-page__breadcrumbs' );
+		expect( html ).not.toContain( 'vip-workflows-admin-page__icon' );
 	} );
 } );
 
@@ -140,7 +158,7 @@ describe( 'AdminPage content column', () => {
 				body
 			</AdminPage>
 		);
-		expect( html ).toContain( 'vip-workflow-admin-page__content' );
+		expect( html ).toContain( 'vip-workflows-admin-page__content' );
 		expect( html ).not.toContain( 'is-constrained' );
 	} );
 
@@ -161,8 +179,8 @@ describe( 'AdminPage optional slots', () => {
 				body
 			</AdminPage>
 		);
-		expect( html ).not.toContain( 'vip-workflow-admin-page__actions' );
-		expect( html ).not.toContain( 'vip-workflow-admin-page__subtitle' );
+		expect( html ).not.toContain( 'vip-workflows-admin-page__actions' );
+		expect( html ).not.toContain( 'vip-workflows-admin-page__subtitle' );
 	} );
 
 	it( 'renders actions and subtitle when provided', () => {
@@ -175,9 +193,9 @@ describe( 'AdminPage optional slots', () => {
 				body
 			</AdminPage>
 		);
-		expect( html ).toContain( 'vip-workflow-admin-page__actions' );
+		expect( html ).toContain( 'vip-workflows-admin-page__actions' );
 		expect( html ).toContain( '>Save<' );
-		expect( html ).toContain( 'vip-workflow-admin-page__subtitle' );
+		expect( html ).toContain( 'vip-workflows-admin-page__subtitle' );
 		expect( html ).toContain( 'Configure things.' );
 	} );
 } );

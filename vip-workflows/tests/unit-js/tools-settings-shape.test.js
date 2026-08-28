@@ -42,13 +42,13 @@ register(
 );
 
 /**
- * A tool payload as `GET /vip-workflow/v1/tools` returns it.
+ * A tool payload as `GET /vip-workflows/v1/tools` returns it.
  *
  * @param {Object} overrides Field overrides.
  * @return {Object} Tool entry.
  */
 const tool = ( overrides = {} ) => ( {
-	id: 'vip-workflow/readability',
+	id: 'vip-workflows/readability',
 	name: 'Readability',
 	description: 'Analyzes reading level.',
 	category: 'check',
@@ -191,7 +191,7 @@ describe( 'Tools screen shape', () => {
 	it( 'offers exactly one Save for the whole screen', async () => {
 		await renderTools( [
 			tool(),
-			tool( { id: 'vip-workflow/seo', name: 'SEO check' } ),
+			tool( { id: 'vip-workflows/seo', name: 'SEO check' } ),
 		] );
 
 		expect(
@@ -228,7 +228,7 @@ describe( 'Tools screen shape', () => {
 		await waitFor( () =>
 			expect( apiFetch ).toHaveBeenCalledWith(
 				expect.objectContaining( {
-					path: '/vip-workflow/v1/tools/vip-workflow/readability/settings',
+					path: '/vip-workflows/v1/tools/vip-workflows/readability/settings',
 					method: 'POST',
 					data: expect.objectContaining( { enabled: false } ),
 				} )
@@ -389,8 +389,8 @@ describe( 'Tools screen — a switched-off tool', () => {
 		// the filter.
 		const seen = [];
 		addFilter(
-			'vipWorkflow.toolSettingsComponent',
-			'vip-workflow-test/tool-settings',
+			'vipWorkflows.toolSettingsComponent',
+			'vip-workflows-test/tool-settings',
 			( component, ability, callbacks ) => {
 				seen.push( callbacks.disabled );
 				return component;
@@ -404,8 +404,8 @@ describe( 'Tools screen — a switched-off tool', () => {
 			expect( seen.every( ( flag ) => flag === true ) ).toBe( true );
 		} finally {
 			removeFilter(
-				'vipWorkflow.toolSettingsComponent',
-				'vip-workflow-test/tool-settings'
+				'vipWorkflows.toolSettingsComponent',
+				'vip-workflows-test/tool-settings'
 			);
 		}
 	} );

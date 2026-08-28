@@ -26,7 +26,7 @@ const {
 	openWorkflowPanel,
 } = require( './helpers/workflow' );
 
-test.describe( 'VIP Workflow — assign a workflow (editor UI)', () => {
+test.describe( 'VIP Workflows — assign a workflow (editor UI)', () => {
 	let postId;
 	let sequenceId;
 
@@ -79,7 +79,7 @@ test.describe( 'VIP Workflow — assign a workflow (editor UI)', () => {
 
 		// The rail arrives with it: the post is seated, not merely labelled.
 		await expect(
-			panel.locator( '.vip-workflow-rail__stage' )
+			panel.locator( '.vip-workflows-rail__stage' )
 		).toBeVisible();
 
 		const status = await getWorkflowStatus( requestUtils, postId );

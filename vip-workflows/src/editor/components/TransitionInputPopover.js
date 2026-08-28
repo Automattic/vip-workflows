@@ -68,7 +68,7 @@ function TransitionInputPopover( { title, anchor, onClose, children } ) {
 			shift
 			focusOnMount="firstElement"
 			onClose={ onClose }
-			className="vip-workflow-transition-popover"
+			className="vip-workflows-transition-popover"
 			// Popover renders a role-less div, where an aria-label alone is
 			// prohibited ARIA that assistive tech ignores. The explicit dialog
 			// role restores what the Modal announced.
@@ -76,12 +76,12 @@ function TransitionInputPopover( { title, anchor, onClose, children } ) {
 			aria-label={ title }
 		>
 			<Stack
-				className="vip-workflow-transition-popover__content"
+				className="vip-workflows-transition-popover__content"
 				direction="column"
 				gap="sm"
 			>
 				<Stack
-					className="vip-workflow-transition-popover__header"
+					className="vip-workflows-transition-popover__header"
 					direction="row"
 					align="center"
 					justify="space-between"
@@ -91,7 +91,7 @@ function TransitionInputPopover( { title, anchor, onClose, children } ) {
 					<Button
 						size="small"
 						icon={ closeSmall }
-						label={ __( 'Close', 'vip-workflow' ) }
+						label={ __( 'Close', 'vip-workflows' ) }
 						showTooltip
 						onClick={ onClose }
 					/>
@@ -128,7 +128,7 @@ export function TransitionTextInputPopover( {
 
 	const handleSubmit = () => {
 		if ( required && ! value.trim() ) {
-			setError( __( 'This field is required.', 'vip-workflow' ) );
+			setError( __( 'This field is required.', 'vip-workflows' ) );
 			return;
 		}
 
@@ -163,7 +163,7 @@ export function TransitionTextInputPopover( {
 					onKeyDown={ handleKeyDown }
 					help={
 						error ||
-						__( 'Press Cmd/Ctrl+Enter to submit', 'vip-workflow' )
+						__( 'Press Cmd/Ctrl+Enter to submit', 'vip-workflows' )
 					}
 					className={ error ? 'has-error' : '' }
 				/>
@@ -186,7 +186,7 @@ export function TransitionTextInputPopover( {
 			) }
 			<ActionRow>
 				<Button variant="primary" onClick={ handleSubmit }>
-					{ __( 'Submit', 'vip-workflow' ) }
+					{ __( 'Submit', 'vip-workflows' ) }
 				</Button>
 			</ActionRow>
 		</TransitionInputPopover>
@@ -230,7 +230,7 @@ function AssignableUserSelect( { roleFilter, onSelect } ) {
 				}
 
 				const response = await apiFetch( {
-					path: `/vip-workflow/v1/assignable-users?${ params.toString() }`,
+					path: `/vip-workflows/v1/assignable-users?${ params.toString() }`,
 				} );
 
 				if ( ! cancelled ) {
@@ -259,13 +259,13 @@ function AssignableUserSelect( { roleFilter, onSelect } ) {
 	if ( loading && users.length === 0 ) {
 		return (
 			<Stack
-				className="vip-workflow-transition-popover__loading"
+				className="vip-workflows-transition-popover__loading"
 				direction="row"
 				align="center"
 				gap="sm"
 			>
 				<Spinner />
-				<Text>{ __( 'Loading users…', 'vip-workflow' ) }</Text>
+				<Text>{ __( 'Loading users…', 'vip-workflows' ) }</Text>
 			</Stack>
 		);
 	}
@@ -274,7 +274,7 @@ function AssignableUserSelect( { roleFilter, onSelect } ) {
 		<ComboboxControl
 			__next40pxDefaultSize
 			__nextHasNoMarginBottom
-			label={ __( 'Select user', 'vip-workflow' ) }
+			label={ __( 'Select user', 'vip-workflows' ) }
 			value={ null }
 			onChange={ onSelect }
 			options={ users.map( ( user ) => ( {
@@ -282,7 +282,7 @@ function AssignableUserSelect( { roleFilter, onSelect } ) {
 				label: user.name,
 			} ) ) }
 			onFilterValueChange={ setSearch }
-			placeholder={ __( 'Search users…', 'vip-workflow' ) }
+			placeholder={ __( 'Search users…', 'vip-workflows' ) }
 		/>
 	);
 }
@@ -335,7 +335,7 @@ export function TransitionAssignmentPopover( {
 			// bug, not a user error. It is shown in the popover below; say it
 			// once here too, where whoever has to fix the sequence is looking.
 			console.error(
-				`VIP Workflow: a transition declares assignee_type "${ assigneeType }", which has no picker. Nothing can be assigned.`
+				`VIP Workflows: a transition declares assignee_type "${ assigneeType }", which has no picker. Nothing can be assigned.`
 			);
 		}
 	}, [ assigneeType ] );
@@ -363,30 +363,30 @@ export function TransitionAssignmentPopover( {
 	let body;
 
 	if ( step === 'notes' ) {
-		popoverTitle = notesLabel || __( 'Add note', 'vip-workflow' );
+		popoverTitle = notesLabel || __( 'Add note', 'vip-workflows' );
 		body = (
 			<>
 				<TextareaControl
 					__nextHasNoMarginBottom
-					label={ notesLabel || __( 'Note', 'vip-workflow' ) }
+					label={ notesLabel || __( 'Note', 'vip-workflows' ) }
 					value={ notes }
 					onChange={ setNotes }
 					rows={ 5 }
-					placeholder={ __( 'Add optional notes…', 'vip-workflow' ) }
+					placeholder={ __( 'Add optional notes…', 'vip-workflows' ) }
 				/>
 				<ActionRow>
 					<Button
 						variant="tertiary"
 						onClick={ () => setStep( 'select' ) }
 					>
-						{ __( 'Back', 'vip-workflow' ) }
+						{ __( 'Back', 'vip-workflows' ) }
 					</Button>
 					<Button
 						variant="primary"
 						onClick={ handleNotesSubmit }
 						disabled={ notesRequired && ! notes.trim() }
 					>
-						{ __( 'Submit', 'vip-workflow' ) }
+						{ __( 'Submit', 'vip-workflows' ) }
 					</Button>
 				</ActionRow>
 			</>
@@ -401,14 +401,14 @@ export function TransitionAssignmentPopover( {
 	} else if ( assigneeType === 'role' ) {
 		body = (
 			<Stack
-				className="vip-workflow-transition-popover__roles"
+				className="vip-workflows-transition-popover__roles"
 				direction="column"
 				gap="sm"
 			>
 				{ ( roles || [] ).map( ( role ) => (
 					<Button
 						key={ role.slug }
-						className="vip-workflow-transition-popover__role"
+						className="vip-workflows-transition-popover__role"
 						onClick={ () => handleSelect( role.slug ) }
 					>
 						{ role.name }
@@ -430,14 +430,14 @@ export function TransitionAssignmentPopover( {
 		 * that reads as "still loading"). It names the problem and offers no
 		 * commit, so the transition can only be abandoned.
 		 */
-		popoverTitle = __( 'Transition misconfigured', 'vip-workflow' );
+		popoverTitle = __( 'Transition misconfigured', 'vip-workflows' );
 		body = (
 			<Notice status="error" isDismissible={ false }>
 				{ sprintf(
 					/* translators: %s: the assignee type stored on the transition, e.g. "agent". */
 					__(
 						'This transition asks for an assignee of type “%s”, which cannot be chosen here. Nothing has been assigned and the post has not moved — the sequence needs a user or role assignment instead.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					assigneeType
 				) }

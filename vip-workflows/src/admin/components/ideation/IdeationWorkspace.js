@@ -92,7 +92,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 	 * without a trace.
 	 */
 	useEffect( () => {
-		apiFetch( { path: '/vip-workflow/v1/abilities?category=research' } )
+		apiFetch( { path: '/vip-workflows/v1/abilities?category=research' } )
 			.then( ( data ) => {
 				const sorted = ( data || [] ).sort(
 					( a, b ) =>
@@ -112,7 +112,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 	const refreshState = useCallback( async () => {
 		try {
 			const updated = await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ state.project_id }`,
+				path: `/vip-workflows/v1/ideation/${ state.project_id }`,
 			} );
 			onStateChange( updated );
 		} catch {
@@ -242,7 +242,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 		const loadSummary = async () => {
 			try {
 				const data = await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ state.project_id }/summary`,
+					path: `/vip-workflows/v1/ideation/${ state.project_id }/summary`,
 				} );
 				setProjectSummary( data.summary || null );
 				setSummaryKeyPoints( data.key_points || [] );
@@ -259,7 +259,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 		setSummaryGenerating( true );
 		try {
 			const data = await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ state.project_id }/summarize`,
+				path: `/vip-workflows/v1/ideation/${ state.project_id }/summarize`,
 				method: 'POST',
 			} );
 			setProjectSummary( data.summary || null );
@@ -270,7 +270,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			console.error( 'Summary generation failed:', err );
 			createErrorNotice(
 				err.message ||
-					__( 'Failed to generate summary.', 'vip-workflow' ),
+					__( 'Failed to generate summary.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 			return null;
@@ -315,7 +315,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			const promises = pending.map( async ( assistantId ) => {
 				try {
 					const freshState = await apiFetch( {
-						path: `/vip-workflow/v1/ideation/${ state.project_id }/run-assistant`,
+						path: `/vip-workflows/v1/ideation/${ state.project_id }/run-assistant`,
 						method: 'POST',
 						data: { assistant: assistantId },
 					} );
@@ -338,7 +338,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 
 			try {
 				const finalState = await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ state.project_id }`,
+					path: `/vip-workflows/v1/ideation/${ state.project_id }`,
 				} );
 				onStateChange( finalState );
 			} catch ( e ) {
@@ -377,7 +377,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 
 			try {
 				const freshState = await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ state.project_id }/run-assistant`,
+					path: `/vip-workflows/v1/ideation/${ state.project_id }/run-assistant`,
 					method: 'POST',
 					data: { assistant: assistantId },
 				} );
@@ -419,7 +419,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 
 		try {
 			const freshState = await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ state.project_id }/restart-analysis`,
+				path: `/vip-workflows/v1/ideation/${ state.project_id }/restart-analysis`,
 				method: 'POST',
 			} );
 			firedInitialRef.current = false;
@@ -447,7 +447,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			setRunningQuery( { assistant: assistantId, query } );
 			try {
 				const fresh = await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ state.project_id }/query`,
+					path: `/vip-workflows/v1/ideation/${ state.project_id }/query`,
 					method: 'POST',
 					data: { assistant: assistantId, query },
 				} );
@@ -460,7 +460,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				console.error( 'Follow-up query failed:', err );
 				createErrorNotice(
 					err.message ||
-						__( 'Follow-up query failed.', 'vip-workflow' ),
+						__( 'Follow-up query failed.', 'vip-workflows' ),
 					{ type: 'snackbar' }
 				);
 			} finally {
@@ -489,7 +489,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 		async ( cardId ) => {
 			try {
 				await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ state.project_id }/sources/${ cardId }`,
+					path: `/vip-workflows/v1/ideation/${ state.project_id }/sources/${ cardId }`,
 					method: 'DELETE',
 				} );
 				await refreshState();
@@ -498,7 +498,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				console.error( 'Delete failed:', err );
 				createErrorNotice(
 					err.message ||
-						__( 'Failed to delete source.', 'vip-workflow' ),
+						__( 'Failed to delete source.', 'vip-workflows' ),
 					{ type: 'snackbar' }
 				);
 			}
@@ -509,7 +509,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 	const handleDeleteProject = useCallback( async () => {
 		try {
 			await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ state.project_id }`,
+				path: `/vip-workflows/v1/ideation/${ state.project_id }`,
 				method: 'DELETE',
 			} );
 			onBack();
@@ -518,7 +518,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			console.error( 'Delete project failed:', err );
 			createErrorNotice(
 				err.message ||
-					__( 'Failed to delete project.', 'vip-workflow' ),
+					__( 'Failed to delete project.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 		}
@@ -531,7 +531,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 	const runPreCheck = useCallback(
 		async ( toPhase, action ) => {
 			const check = await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ state.project_id }/check-phase-transition`,
+				path: `/vip-workflows/v1/ideation/${ state.project_id }/check-phase-transition`,
 				method: 'POST',
 				data: { to_phase: toPhase },
 			} );
@@ -585,7 +585,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 					await handleGenerateSummary();
 				}
 				const result = await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ state.project_id }/create-draft`,
+					path: `/vip-workflows/v1/ideation/${ state.project_id }/create-draft`,
 					method: 'POST',
 					data: {
 						word_count: 500,
@@ -599,7 +599,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				console.error( 'Create draft failed:', err );
 				createErrorNotice(
 					err.message ||
-						__( 'Failed to create draft.', 'vip-workflow' ),
+						__( 'Failed to create draft.', 'vip-workflows' ),
 					{ type: 'snackbar' }
 				);
 			}
@@ -618,7 +618,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 		async ( sourceId ) => {
 			try {
 				const result = await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ state.project_id }/sources/${ sourceId }/summarize`,
+					path: `/vip-workflows/v1/ideation/${ state.project_id }/sources/${ sourceId }/summarize`,
 					method: 'POST',
 				} );
 				await refreshState();
@@ -626,7 +626,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			} catch ( err ) {
 				const message =
 					err?.message ||
-					__( 'Summarization failed.', 'vip-workflow' );
+					__( 'Summarization failed.', 'vip-workflows' );
 				return { error: message };
 			}
 		},
@@ -640,7 +640,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			setStuckIds( ( prev ) => prev.filter( ( id ) => id !== sourceId ) );
 			try {
 				await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ state.project_id }/sources/${ sourceId }/retry`,
+					path: `/vip-workflows/v1/ideation/${ state.project_id }/sources/${ sourceId }/retry`,
 					method: 'POST',
 				} );
 				await refreshState();
@@ -648,7 +648,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				// eslint-disable-next-line no-console
 				console.error( 'Retry failed:', err );
 				createErrorNotice(
-					err.message || __( 'Retry failed.', 'vip-workflow' ),
+					err.message || __( 'Retry failed.', 'vip-workflows' ),
 					{ type: 'snackbar' }
 				);
 			}
@@ -675,7 +675,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 
 			try {
 				await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ state.project_id }/generate-image`,
+					path: `/vip-workflows/v1/ideation/${ state.project_id }/generate-image`,
 					method: 'POST',
 					data: { prompt },
 				} );
@@ -685,7 +685,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				console.error( 'Image generation failed:', err );
 				createErrorNotice(
 					err.message ||
-						__( 'Image generation failed.', 'vip-workflow' ),
+						__( 'Image generation failed.', 'vip-workflows' ),
 					{ type: 'snackbar' }
 				);
 			} finally {
@@ -714,7 +714,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 
 				try {
 					await apiFetch( {
-						path: `/vip-workflow/v1/ideation/${ state.project_id }/sources/upload`,
+						path: `/vip-workflows/v1/ideation/${ state.project_id }/sources/upload`,
 						method: 'POST',
 						body: formData,
 					} );
@@ -755,15 +755,15 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 	} );
 
 	return (
-		<Stack direction="column" className="vip-workflow-ideation-workspace">
+		<Stack direction="column" className="vip-workflows-ideation-workspace">
 			{ isDragging && (
 				// wpds-allow R7 -- fixed drop-zone scrim overlay (position/backdrop/scrim; flex only centers content)
-				<div className="vip-workflow-ideation-workspace__drop-overlay">
+				<div className="vip-workflows-ideation-workspace__drop-overlay">
 					<Stack
 						direction="column"
 						align="center"
 						gap="md"
-						className="vip-workflow-ideation-workspace__drop-content"
+						className="vip-workflows-ideation-workspace__drop-content"
 					>
 						<svg
 							width="48"
@@ -780,14 +780,14 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 						<Text variant="heading-xl" render={ <span /> }>
 							{ __(
 								'Drop files to add to your workspace',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						</Text>
 						{ /* wpds-allow R7 -- muted hint text (body-md token + fg-weak color; no Text color prop) */ }
-						<span className="vip-workflow-ideation-workspace__drop-hint">
+						<span className="vip-workflows-ideation-workspace__drop-hint">
 							{ __(
 								'Images, videos, PDFs, and documents',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						</span>
 					</Stack>
@@ -798,12 +798,12 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				<Stack
 					wrap="wrap"
 					gap="sm"
-					className="vip-workflow-ideation-workspace__upload-status"
+					className="vip-workflows-ideation-workspace__upload-status"
 				>
 					{ uploadQueue.map( ( item, idx ) => (
 						<span
 							key={ idx }
-							className={ `vip-workflow-ideation-workspace__upload-item vip-workflow-ideation-workspace__upload-item--${ item.status }` }
+							className={ `vip-workflows-ideation-workspace__upload-item vip-workflows-ideation-workspace__upload-item--${ item.status }` }
 						>
 							{ item.status === 'uploading' && <Spinner /> }
 							{ item.status === 'done' && (
@@ -821,7 +821,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			{ uploadErrors.map( ( err, idx ) => (
 				<Snackbar
 					key={ idx }
-					className="vip-workflow-ideation-workspace__upload-error"
+					className="vip-workflows-ideation-workspace__upload-error"
 					onRemove={ () =>
 						setUploadErrors( ( prev ) =>
 							prev.filter( ( _, i ) => i !== idx )
@@ -843,9 +843,9 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 
 			<Stack
 				direction="row"
-				className="vip-workflow-ideation-workspace__body"
+				className="vip-workflows-ideation-workspace__body"
 			>
-				<div className="vip-workflow-ideation-workspace__main">
+				<div className="vip-workflows-ideation-workspace__main">
 					<MoodBoard
 						cards={ visibleCards }
 						dismissedCards={ dismissedCards }
@@ -881,21 +881,21 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				</div>
 
 				<Button
-					className="vip-workflow-ideation-workspace__panel-toggle"
+					className="vip-workflows-ideation-workspace__panel-toggle"
 					size="small"
 					icon={ panelOpen ? chevronRight : chevronLeft }
 					onClick={ () => setPanelOpen( ! panelOpen ) }
 					label={
 						panelOpen
-							? __( 'Close agent panel', 'vip-workflow' )
-							: __( 'Open agent panel', 'vip-workflow' )
+							? __( 'Close agent panel', 'vip-workflows' )
+							: __( 'Open agent panel', 'vip-workflows' )
 					}
 					showTooltip
 				/>
 
 				{ panelOpen && (
 					// wpds-allow R7 -- app-shell panel scroll surface (fixed width/border/overflow, no flex)
-					<div className="vip-workflow-ideation-workspace__panel">
+					<div className="vip-workflows-ideation-workspace__panel">
 						<AssistantPanel
 							assistants={ state.assistants || {} }
 							seedAnalysis={ state.seed_analysis || {} }
@@ -919,7 +919,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 
 			{ toolFailures && (
 				<ToolFailuresModal
-					title={ __( 'Transition Blocked', 'vip-workflow' ) }
+					title={ __( 'Transition Blocked', 'vip-workflows' ) }
 					message={ toolFailures.message }
 					hardFailures={ toolFailures.hardFailures.map(
 						( failure ) => ( {
@@ -939,10 +939,10 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 
 			{ softWarningsModal && (
 				<ToolFailuresModal
-					title={ __( 'Warnings', 'vip-workflow' ) }
+					title={ __( 'Warnings', 'vip-workflows' ) }
 					message={ __(
 						'The following warnings were found. You can proceed or go back to fix them.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					softWarnings={ ( softWarningsModal.warnings || [] ).map(
 						( warning ) => ( {
@@ -957,7 +957,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 								variant="tertiary"
 								onClick={ () => setSoftWarningsModal( null ) }
 							>
-								{ __( 'Cancel', 'vip-workflow' ) }
+								{ __( 'Cancel', 'vip-workflows' ) }
 							</Button>
 							<Button
 								variant="primary"
@@ -969,7 +969,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 									}
 								} }
 							>
-								{ __( 'Continue', 'vip-workflow' ) }
+								{ __( 'Continue', 'vip-workflows' ) }
 							</Button>
 						</>
 					}

@@ -6,12 +6,12 @@
  * Annotated with requires_confirmation — the agentic loop
  * will ask the user before executing.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the post field update.
@@ -26,16 +26,16 @@ function execute_update_post_fields( ?array $input = null ) {
 	$confirmed = ! empty( $input['confirmed'] );
 
 	if ( ! $post_id ) {
-		return new \WP_Error( 'missing_post_id', __( 'The "post_id" parameter is required.', 'vip-workflow' ) );
+		return new \WP_Error( 'missing_post_id', __( 'The "post_id" parameter is required.', 'vip-workflows' ) );
 	}
 
 	if ( empty( $fields ) || ! is_array( $fields ) ) {
-		return new \WP_Error( 'missing_fields', __( 'The "fields" parameter must be a non-empty object.', 'vip-workflow' ) );
+		return new \WP_Error( 'missing_fields', __( 'The "fields" parameter must be a non-empty object.', 'vip-workflows' ) );
 	}
 
 	$post = get_post( $post_id );
 	if ( ! $post ) {
-		return new \WP_Error( 'not_found', __( 'Post not found.', 'vip-workflow' ) );
+		return new \WP_Error( 'not_found', __( 'Post not found.', 'vip-workflows' ) );
 	}
 
 	$permission_error = require_post_edit_permission( $post_id );
@@ -60,7 +60,7 @@ function execute_update_post_fields( ?array $input = null ) {
 				'invalid_field',
 				sprintf(
 					/* translators: %s field name */
-					__( 'Unknown field "%s". Allowed fields: title, excerpt, date, author.', 'vip-workflow' ),
+					__( 'Unknown field "%s". Allowed fields: title, excerpt, date, author.', 'vip-workflows' ),
 					$field_name
 				)
 			);
@@ -79,7 +79,7 @@ function execute_update_post_fields( ?array $input = null ) {
 			case 'author':
 				$author_id = absint( $value );
 				if ( ! get_userdata( $author_id ) ) {
-					return new \WP_Error( 'invalid_author', __( 'Author user ID is invalid.', 'vip-workflow' ) );
+					return new \WP_Error( 'invalid_author', __( 'Author user ID is invalid.', 'vip-workflows' ) );
 				}
 				// Reassigning authorship to a different user requires
 				// edit_others_posts — edit_post on one's own draft is not enough,
@@ -88,7 +88,7 @@ function execute_update_post_fields( ?array $input = null ) {
 				if ( $author_id !== $current_author && ! current_user_can( 'edit_others_posts' ) ) {
 					return new \WP_Error(
 						'forbidden_author_reassign',
-						__( 'You do not have permission to change the post author.', 'vip-workflow' ),
+						__( 'You do not have permission to change the post author.', 'vip-workflows' ),
 						array( 'status' => 403 )
 					);
 				}
@@ -113,7 +113,7 @@ function execute_update_post_fields( ?array $input = null ) {
 			'post_title'            => $post->post_title,
 			'preview'               => $preview,
 			'requires_confirmation' => true,
-			'message'               => __( 'These changes require confirmation. Call this tool again with confirmed=true to apply.', 'vip-workflow' ),
+			'message'               => __( 'These changes require confirmation. Call this tool again with confirmed=true to apply.', 'vip-workflows' ),
 		);
 	}
 
@@ -143,11 +143,11 @@ function execute_update_post_fields( ?array $input = null ) {
  */
 function register_update_post_fields(): void {
 	wp_register_ability(
-		'vip-workflow/update-post-fields',
+		'vip-workflows/update-post-fields',
 		array(
-			'label'               => __( 'Update Post Fields', 'vip-workflow' ),
-			'description'         => __( 'Updates a post\'s title, excerpt, date, or author. Only include the fields you want to change. Requires confirmation before executing.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Update Post Fields', 'vip-workflows' ),
+			'description'         => __( 'Updates a post\'s title, excerpt, date, or author. Only include the fields you want to change. Requires confirmation before executing.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -155,34 +155,34 @@ function register_update_post_fields(): void {
 				'properties'           => array(
 					'post_id'   => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID to update.', 'vip-workflow' ),
+						'description' => __( 'The post ID to update.', 'vip-workflows' ),
 					),
 					'fields'    => array(
 						'type'                 => 'object',
-						'description'          => __( 'Object of field name → new value. Only include fields to change. Allowed: title, excerpt, date, author.', 'vip-workflow' ),
+						'description'          => __( 'Object of field name → new value. Only include fields to change. Allowed: title, excerpt, date, author.', 'vip-workflows' ),
 						'additionalProperties' => false,
 						'properties'           => array(
 							'title'   => array(
 								'type'        => 'string',
-								'description' => __( 'New post title.', 'vip-workflow' ),
+								'description' => __( 'New post title.', 'vip-workflows' ),
 							),
 							'excerpt' => array(
 								'type'        => 'string',
-								'description' => __( 'New post excerpt.', 'vip-workflow' ),
+								'description' => __( 'New post excerpt.', 'vip-workflows' ),
 							),
 							'date'    => array(
 								'type'        => 'string',
-								'description' => __( 'New publish date (MySQL format: YYYY-MM-DD HH:MM:SS).', 'vip-workflow' ),
+								'description' => __( 'New publish date (MySQL format: YYYY-MM-DD HH:MM:SS).', 'vip-workflows' ),
 							),
 							'author'  => array(
 								'type'        => 'integer',
-								'description' => __( 'New author user ID.', 'vip-workflow' ),
+								'description' => __( 'New author user ID.', 'vip-workflows' ),
 							),
 						),
 					),
 					'confirmed' => array(
 						'type'        => 'boolean',
-						'description' => __( 'Set to true to confirm and apply the changes. First call without this to preview.', 'vip-workflow' ),
+						'description' => __( 'Set to true to confirm and apply the changes. First call without this to preview.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -192,15 +192,15 @@ function register_update_post_fields(): void {
 				'properties'           => array(
 					'post_id' => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID.', 'vip-workflow' ),
+						'description' => __( 'The post ID.', 'vip-workflows' ),
 					),
 					'updated' => array(
 						'type'        => 'object',
-						'description' => __( 'The fields that were updated with their new values.', 'vip-workflow' ),
+						'description' => __( 'The fields that were updated with their new values.', 'vip-workflows' ),
 					),
 					'success' => array(
 						'type'        => 'boolean',
-						'description' => __( 'Whether the update succeeded.', 'vip-workflow' ),
+						'description' => __( 'Whether the update succeeded.', 'vip-workflows' ),
 					),
 				),
 			),

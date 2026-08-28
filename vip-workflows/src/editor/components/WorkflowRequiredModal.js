@@ -27,7 +27,7 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 	// Fetch available sequences.
 	useEffect( () => {
 		apiFetch( {
-			path: `/vip-workflow/v1/workflow/post/${ postId }/status`,
+			path: `/vip-workflows/v1/workflow/post/${ postId }/status`,
 		} )
 			.then( ( response ) => {
 				const available = response.available_sequences || [];
@@ -53,7 +53,7 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 		setAssigning( true );
 
 		apiFetch( {
-			path: `/vip-workflow/v1/workflow/post/${ postId }/sequence`,
+			path: `/vip-workflows/v1/workflow/post/${ postId }/sequence`,
 			method: 'POST',
 			data: { sequence_id: parseInt( selectedId, 10 ) },
 		} )
@@ -63,7 +63,7 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 			.catch( ( err ) => {
 				createErrorNotice(
 					err.message ||
-						__( 'Failed to assign workflow', 'vip-workflow' ),
+						__( 'Failed to assign workflow', 'vip-workflows' ),
 					{ type: 'snackbar' }
 				);
 				setAssigning( false );
@@ -73,18 +73,18 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 	const introText = isRequired
 		? __(
 				'Your organization requires a workflow for new posts. Please select one to continue:',
-				'vip-workflow'
+				'vip-workflows'
 		  )
 		: __(
 				'Your organization recommends using a workflow for new posts. Select one below or skip to continue without a workflow:',
-				'vip-workflow'
+				'vip-workflows'
 		  );
 
 	let body;
 	if ( loading ) {
 		body = (
 			<Stack
-				className="vip-workflow-required-modal__loading"
+				className="vip-workflows-required-modal__loading"
 				direction="row"
 				justify="center"
 			>
@@ -97,11 +97,11 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 				<Text
 					variant="body-md"
 					render={ <p /> }
-					className="vip-workflow-required-modal__empty"
+					className="vip-workflows-required-modal__empty"
 				>
 					{ __(
 						'No workflows available for this post type.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				</Text>
 				{ ! isRequired && (
@@ -111,7 +111,7 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 						     modal, and declining the flow stays low-stakes
 						     with or without sequences to choose from. */ }
 						<Button variant="tertiary" onClick={ onSkip }>
-							{ __( 'Skip', 'vip-workflow' ) }
+							{ __( 'Skip', 'vip-workflows' ) }
 						</Button>
 					</ModalActions>
 				) }
@@ -123,14 +123,14 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 				<SelectControl
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
-					label={ __( 'Workflow', 'vip-workflow' ) }
+					label={ __( 'Workflow', 'vip-workflows' ) }
 					value={ selectedId }
 					options={ [
 						{
 							value: '',
 							label: __(
 								'— Select a workflow —',
-								'vip-workflow'
+								'vip-workflows'
 							),
 							disabled: true,
 						},
@@ -149,7 +149,7 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 							onClick={ onSkip }
 							disabled={ assigning }
 						>
-							{ __( 'Skip', 'vip-workflow' ) }
+							{ __( 'Skip', 'vip-workflows' ) }
 						</Button>
 					) }
 					<Button
@@ -158,7 +158,7 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 						disabled={ ! selectedId || assigning }
 						isBusy={ assigning }
 					>
-						{ __( 'Start workflow', 'vip-workflow' ) }
+						{ __( 'Start workflow', 'vip-workflows' ) }
 					</Button>
 				</ModalActions>
 			</Stack>
@@ -167,19 +167,19 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 
 	return (
 		<Modal
-			title={ __( 'Select a Workflow', 'vip-workflow' ) }
+			title={ __( 'Select a Workflow', 'vip-workflows' ) }
 			isDismissible={ ! isRequired }
 			shouldCloseOnClickOutside={ ! isRequired }
 			shouldCloseOnEsc={ ! isRequired }
 			onRequestClose={ isRequired ? undefined : onSkip }
-			className="vip-workflow-required-modal"
+			className="vip-workflows-required-modal"
 			size="small"
 		>
-			<div className="vip-workflow-required-modal__content">
+			<div className="vip-workflows-required-modal__content">
 				<Text
 					variant="body-md"
 					render={ <p /> }
-					className="vip-workflow-required-modal__intro"
+					className="vip-workflows-required-modal__intro"
 				>
 					{ introText }
 				</Text>

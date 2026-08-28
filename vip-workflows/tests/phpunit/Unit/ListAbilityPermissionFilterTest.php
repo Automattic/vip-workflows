@@ -2,7 +2,7 @@
 /**
  * List ability permission filtering tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
@@ -47,7 +47,7 @@ namespace {
 	}
 }
 
-namespace VIPWorkflow\Tests\Unit {
+namespace VIPWorkflows\Tests\Unit {
 
 	use Brain\Monkey\Functions;
 	use Mockery;
@@ -96,7 +96,7 @@ namespace VIPWorkflow\Tests\Unit {
 
 		public function test_get_my_assignments_filters_posts_without_edit_post_capability(): void
 		{
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_my_assignments();
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_my_assignments();
 
 			$this->assertSame( 1, $result['count'] );
 			$this->assertSame( 101, $result['posts'][0]['post_id'] );
@@ -107,7 +107,7 @@ namespace VIPWorkflow\Tests\Unit {
 			// Pass a status so the query builds via StageQuery::by_stage_key (no DB);
 			// the no-status "all active stages" path needs the sequence repository
 			// and is covered in the integration suite.
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_stale_posts(
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_stale_posts(
 				array(
 					'status' => 'review',
 				)
@@ -121,7 +121,7 @@ namespace VIPWorkflow\Tests\Unit {
 		{
 			$this->mock_empty_sequence_repository();
 
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_posts_by_status(
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_posts_by_status(
 				array(
 					'status' => 'draft',
 				)
@@ -160,7 +160,7 @@ namespace VIPWorkflow\Tests\Unit {
 				}
 			);
 
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_recent_activity();
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_recent_activity();
 
 			$this->assertSame( 1, $result['count'] );
 			$this->assertSame( 101, $result['events'][0]['post_id'] );

@@ -2,7 +2,7 @@
 /**
  * Autoloader path resolution.
  *
- * Single source of truth for mapping VIPWorkflow class names to file paths.
+ * Single source of truth for mapping VIPWorkflows class names to file paths.
  * Used by the autoloader in vip-workflows.php and the path-naming guard test
  * in tests/phpunit/Unit/AutoloaderPathsTest.php. No side effects — safe to
  * require multiple times.
@@ -10,12 +10,12 @@
  * Lives outside includes/ because the autoloader requires it before
  * managing that directory.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow;
+namespace VIPWorkflows;
 
 if ( ! function_exists( __NAMESPACE__ . '\\class_to_relative_path' ) ) {
 	/**
@@ -23,13 +23,13 @@ if ( ! function_exists( __NAMESPACE__ . '\\class_to_relative_path' ) ) {
 	 *
 	 * Handles acronyms (YouTubeTranscript -> you-tube-transcript) and camelCase
 	 * (MediaProcessor -> media-processor). Returns null for classes outside the
-	 * VIPWorkflow namespace.
+	 * VIPWorkflows namespace.
 	 *
 	 * @param string $class_name The fully-qualified class name.
 	 * @return string|null Path relative to includes/ (e.g. "integrations/class-foo.php"), or null.
 	 */
 	function class_to_relative_path( string $class_name ): ?string {
-		$namespace = 'VIPWorkflow\\';
+		$namespace = 'VIPWorkflows\\';
 
 		if ( strpos( $class_name, $namespace ) !== 0 ) {
 			return null;

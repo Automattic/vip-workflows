@@ -75,16 +75,16 @@ export default function EntityCard( {
 		// column, but supplies no gap of its own).
 		<Card.Root
 			render={ <Stack direction="column" gap="sm" /> }
-			className={ `vip-workflow-ideation-card vip-workflow-ideation-card--entity vip-workflow-ideation-card--entity-${ group }` }
+			className={ `vip-workflows-ideation-card vip-workflows-ideation-card--entity vip-workflows-ideation-card--entity-${ group }` }
 		>
 			<Stack
-				className="vip-workflow-ideation-card--entity__header"
+				className="vip-workflows-ideation-card--entity__header"
 				align="center"
 				gap="xs"
 			>
 				{ icon }
 				{ /* wpds-allow R7 -- uppercase eyebrow label; no <Text> variant */ }
-				<span className="vip-workflow-ideation-card--entity__label">
+				<span className="vip-workflows-ideation-card--entity__label">
 					{ card.title }
 				</span>
 			</Stack>
@@ -93,7 +93,7 @@ export default function EntityCard( {
 					// wpds-allow R7 -- inline entity-name pill; no <Text> variant
 					<span
 						key={ entity }
-						className="vip-workflow-ideation-card--entity__name"
+						className="vip-workflows-ideation-card--entity__name"
 					>
 						{ entity }
 					</span>
@@ -101,7 +101,7 @@ export default function EntityCard( {
 			</Stack>
 			<Stack
 				justify="flex-end"
-				className="vip-workflow-ideation-card__actions vip-workflow-ideation-card__actions--minimal"
+				className="vip-workflows-ideation-card__actions vip-workflows-ideation-card__actions--minimal"
 				gap="xs"
 			>
 				<CardActions

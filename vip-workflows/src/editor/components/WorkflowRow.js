@@ -28,7 +28,7 @@ import { SidebarRow } from './SidebarRow';
  *
  * @return {string} Translated label.
  */
-const workflowLabel = () => __( 'Workflow', 'vip-workflow' );
+const workflowLabel = () => __( 'Workflow', 'vip-workflows' );
 
 /**
  * @param {Object}   root0                    Component props.
@@ -69,10 +69,10 @@ export function WorkflowRow( {
 	const accessibleName = valueLabel
 		? sprintf(
 				/* translators: %s: the workflow the post is currently in. */
-				__( 'Change workflow: %s', 'vip-workflow' ),
+				__( 'Change workflow: %s', 'vip-workflows' ),
 				valueLabel
 		  )
-		: __( 'Select a workflow', 'vip-workflow' );
+		: __( 'Select a workflow', 'vip-workflows' );
 
 	return (
 		<SidebarRow
@@ -80,7 +80,7 @@ export function WorkflowRow( {
 			popoverLabel={ label }
 			accessibleName={ accessibleName }
 			valueLabel={ valueLabel }
-			emptyLabel={ __( 'Select a workflow', 'vip-workflow' ) }
+			emptyLabel={ __( 'Select a workflow', 'vip-workflows' ) }
 			disabled={ disabled }
 			renderContent={ ( { onClose } ) => (
 				<ComboboxControl
@@ -97,7 +97,7 @@ export function WorkflowRow( {
 					// own options by what is typed. The metadata user control
 					// wires that callback because its list lives on the server
 					// and every keystroke has to re-query it.
-					placeholder={ __( 'Search workflows…', 'vip-workflow' ) }
+					placeholder={ __( 'Search workflows…', 'vip-workflows' ) }
 					onChange={ ( selected ) => {
 						onClose();
 

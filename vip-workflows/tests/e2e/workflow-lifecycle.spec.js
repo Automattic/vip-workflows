@@ -16,7 +16,7 @@ const {
 	deletePost,
 } = require( './helpers/workflow' );
 
-test.describe( 'VIP Workflow — lifecycle (REST)', () => {
+test.describe( 'VIP Workflows — lifecycle (REST)', () => {
 	let postId;
 
 	test.afterEach( async ( { requestUtils } ) => {
@@ -68,7 +68,7 @@ test.describe( 'VIP Workflow — lifecycle (REST)', () => {
 		await transition( requestUtils, postId, 'draft' ); // Request Changes.
 
 		const history = await requestUtils.rest( {
-			path: `/vip-workflow/v1/workflow/post/${ postId }/history`,
+			path: `/vip-workflows/v1/workflow/post/${ postId }/history`,
 		} );
 
 		expect( Array.isArray( history ) ).toBe( true );

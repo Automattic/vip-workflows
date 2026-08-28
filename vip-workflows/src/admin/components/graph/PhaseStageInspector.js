@@ -16,7 +16,7 @@ import InspectorShell from './InspectorShell';
 export default function PhaseStageInspector( { stage } ) {
 	return (
 		<InspectorShell
-			eyebrow={ __( 'Phase', 'vip-workflow' ) }
+			eyebrow={ __( 'Phase', 'vip-workflows' ) }
 			title={ stage.label || stage.key }
 		>
 			<Text
@@ -26,7 +26,7 @@ export default function PhaseStageInspector( { stage } ) {
 			>
 				{ __(
 					'Phases are fixed. Select the connection between phases to configure how content moves from Ideation into the editorial workflow.',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			</Text>
 		</InspectorShell>

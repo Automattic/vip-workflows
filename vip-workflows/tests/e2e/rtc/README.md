@@ -37,7 +37,7 @@ bash vip-workflows/tests/e2e/rtc/setup-rtc.sh
 #    yourself instead, start it and pass RTC_WS_EXTERNAL=1:
 #    VIP_RTC_WS_AUTH_SECRET=vip_rtc_ws_auth_secret PORT=1234 npx tsx index.ts
 
-# 3. Run the spec (from vip-workflow/).
+# 3. Run the spec (from vip-workflows/).
 RTC_E2E=1 npx playwright test --config tests/e2e/rtc/playwright.rtc.config.js
 ```
 

@@ -2,17 +2,17 @@
 /**
  * EventBus unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Automation\EventBus;
-use VIPWorkflow\Automation\EventRegistry;
+use VIPWorkflows\Automation\EventBus;
+use VIPWorkflows\Automation\EventRegistry;
 
 /**
  * Tests for the EventBus class.
@@ -73,7 +73,7 @@ class EventBusTest extends TestCase
         $this->wpdb->shouldReceive( 'insert' )
             ->once()
             ->with(
-                'wp_vip_workflow_events',
+                'wp_vip_workflows_events',
                 Mockery::on(
                     function ( $data ) {
                         return 'status.transition' === $data['event_type'];
@@ -112,7 +112,7 @@ class EventBusTest extends TestCase
         $action_called = false;
         Functions\when( 'do_action' )->alias(
             function ( $tag ) use ( &$action_called ) {
-                if ( 'vip_workflow_event_emitted' === $tag ) {
+                if ( 'vip_workflows_event_emitted' === $tag ) {
                     $action_called = true;
                 }
             }
@@ -141,7 +141,7 @@ class EventBusTest extends TestCase
         $this->wpdb->shouldReceive( 'insert' )
             ->once()
             ->with(
-                'wp_vip_workflow_events',
+                'wp_vip_workflows_events',
                 Mockery::on(
                     function ( $data ) {
                         return 5 === $data['actor_id']

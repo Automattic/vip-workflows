@@ -35,9 +35,9 @@ import './MyWorkPage.css';
 
 // Editorial urgency (SLA): labels plus the Badge intent that conveys severity.
 const URGENCY_LABELS = {
-	breaking: __( 'Breaking', 'vip-workflow' ),
-	urgent: __( 'Urgent', 'vip-workflow' ),
-	normal: __( 'Normal', 'vip-workflow' ),
+	breaking: __( 'Breaking', 'vip-workflows' ),
+	urgent: __( 'Urgent', 'vip-workflows' ),
+	normal: __( 'Normal', 'vip-workflows' ),
 };
 const URGENCY_INTENT = {
 	breaking: 'high',
@@ -50,11 +50,11 @@ const URGENCY_INTENT = {
 // whose elements are scraped from the rows empties out when no row carries a
 // value, and a field with no elements is filtered by typed text instead.
 const CORE_STATUS_ELEMENTS = [
-	{ value: 'draft', label: __( 'Draft', 'vip-workflow' ) },
-	{ value: 'pending', label: __( 'Pending Review', 'vip-workflow' ) },
-	{ value: 'future', label: __( 'Scheduled', 'vip-workflow' ) },
-	{ value: 'private', label: __( 'Private', 'vip-workflow' ) },
-	{ value: 'publish', label: __( 'Published', 'vip-workflow' ) },
+	{ value: 'draft', label: __( 'Draft', 'vip-workflows' ) },
+	{ value: 'pending', label: __( 'Pending Review', 'vip-workflows' ) },
+	{ value: 'future', label: __( 'Scheduled', 'vip-workflows' ) },
+	{ value: 'private', label: __( 'Private', 'vip-workflows' ) },
+	{ value: 'publish', label: __( 'Published', 'vip-workflows' ) },
 ];
 
 const DEFAULT_VIEW = {
@@ -91,7 +91,7 @@ export function MyWorkPage() {
 
 		try {
 			const response = await apiFetch( {
-				path: '/vip-workflow/v1/workflow/my-work',
+				path: '/vip-workflows/v1/workflow/my-work',
 			} );
 			setItems( response );
 		} catch ( err ) {
@@ -110,7 +110,7 @@ export function MyWorkPage() {
 			{
 				id: 'title',
 				type: 'text',
-				label: __( 'Title', 'vip-workflow' ),
+				label: __( 'Title', 'vip-workflows' ),
 				enableHiding: false,
 				enableGlobalSearch: true,
 				// Titles have unbounded cardinality, so this filter takes typed
@@ -132,7 +132,7 @@ export function MyWorkPage() {
 				// an untyped one drops out of the filter menu, which is honest when
 				// there is no workflow to filter by.
 				id: 'workflow_name',
-				label: __( 'Workflow', 'vip-workflow' ),
+				label: __( 'Workflow', 'vip-workflows' ),
 				enableGlobalSearch: true,
 				elements: toElements( items, 'workflow_name' ),
 				filterBy: { operators: [ 'isAny' ] },
@@ -141,7 +141,7 @@ export function MyWorkPage() {
 			},
 			{
 				id: 'status_label',
-				label: __( 'Stage', 'vip-workflow' ),
+				label: __( 'Stage', 'vip-workflows' ),
 				elements: toElements( items, 'status_label' ),
 				filterBy: { operators: [ 'isAny' ], isPrimary: true },
 				enableSorting: false,
@@ -159,7 +159,7 @@ export function MyWorkPage() {
 			},
 			{
 				id: 'post_status',
-				label: __( 'Status', 'vip-workflow' ),
+				label: __( 'Status', 'vip-workflows' ),
 				elements: CORE_STATUS_ELEMENTS,
 				filterBy: { operators: [ 'isAny' ] },
 				enableSorting: false,
@@ -168,7 +168,7 @@ export function MyWorkPage() {
 			},
 			{
 				id: 'urgency',
-				label: __( 'SLA', 'vip-workflow' ),
+				label: __( 'SLA', 'vip-workflows' ),
 				elements: Object.entries( URGENCY_LABELS ).map(
 					( [ value, label ] ) => ( { value, label } )
 				),
@@ -198,7 +198,7 @@ export function MyWorkPage() {
 			{
 				id: 'modified_date',
 				type: 'datetime',
-				label: __( 'Last Updated', 'vip-workflow' ),
+				label: __( 'Last Updated', 'vip-workflows' ),
 				filterBy: false,
 				format: { datetime: siteDateTimeFormat() },
 				sort: sortByTimestamp,
@@ -209,7 +209,7 @@ export function MyWorkPage() {
 			{
 				id: 'created_date',
 				type: 'datetime',
-				label: __( 'Created', 'vip-workflow' ),
+				label: __( 'Created', 'vip-workflows' ),
 				filterBy: false,
 				format: { datetime: siteDateTimeFormat() },
 				sort: sortByTimestamp,
@@ -228,7 +228,7 @@ export function MyWorkPage() {
 			// view of the published post.
 			{
 				id: 'view',
-				label: __( 'Edit', 'vip-workflow' ),
+				label: __( 'Edit', 'vip-workflows' ),
 				isPrimary: true,
 				icon: pencil,
 				callback: ( [ item ] ) => {
@@ -249,19 +249,19 @@ export function MyWorkPage() {
 	if ( loading ) {
 		return (
 			<Stack
-				className="vip-workflow-page-loading"
+				className="vip-workflows-page-loading"
 				align="center"
 				justify="center"
 				gap="md"
 			>
 				<Spinner />
-				<span>{ __( 'Loading your work…', 'vip-workflow' ) }</span>
+				<span>{ __( 'Loading your work…', 'vip-workflows' ) }</span>
 			</Stack>
 		);
 	}
 
 	return (
-		<div className="vip-workflow-my-work">
+		<div className="vip-workflows-my-work">
 			{ error && (
 				<Notice
 					status="error"
@@ -274,26 +274,26 @@ export function MyWorkPage() {
 
 			{ items.length === 0 ? (
 				<Stack
-					className="vip-workflow-my-work__empty"
+					className="vip-workflows-my-work__empty"
 					direction="column"
 					gap="sm"
 				>
 					<Text variant="body-md" render={ <p /> }>
-						{ __( 'No active work items.', 'vip-workflow' ) }
+						{ __( 'No active work items.', 'vip-workflows' ) }
 					</Text>
 					<Text
 						variant="body-sm"
 						render={ <p /> }
-						className="vip-workflow-description"
+						className="vip-workflows-description"
 					>
 						{ __(
 							'New work assigned to you will appear here.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
 				</Stack>
 			) : (
-				<div className="vip-workflow-card-surface">
+				<div className="vip-workflows-card-surface">
 					<DataViews
 						data={ data }
 						fields={ fields }
@@ -302,7 +302,10 @@ export function MyWorkPage() {
 						actions={ actions }
 						paginationInfo={ paginationInfo }
 						defaultLayouts={ { table: {} } }
-						searchLabel={ __( 'Search your work', 'vip-workflow' ) }
+						searchLabel={ __(
+							'Search your work',
+							'vip-workflows'
+						) }
 						getItemId={ ( item ) => String( item.post_id ) }
 					/>
 				</div>

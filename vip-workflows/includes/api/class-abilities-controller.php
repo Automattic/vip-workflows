@@ -2,16 +2,16 @@
 /**
  * Abilities REST API controller.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Abilities\Ability;
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Abilities\AbilitySettings;
+use VIPWorkflows\Abilities\Ability;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilitySettings;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_REST_Request;
@@ -70,17 +70,17 @@ class AbilitiesController extends WP_REST_Controller {
 					'permission_callback' => array( $this, 'get_items_permissions_check' ),
 					'args'                => array(
 						'category' => array(
-							'description' => __( 'Filter by category.', 'vip-workflow' ),
+							'description' => __( 'Filter by category.', 'vip-workflows' ),
 							'type'        => 'string',
-							'enum'        => array( 'vip-workflow', 'research' ),
+							'enum'        => array( 'vip-workflows', 'research' ),
 						),
 						'context'  => array(
-							'description' => __( 'Filter by usage context.', 'vip-workflow' ),
+							'description' => __( 'Filter by usage context.', 'vip-workflows' ),
 							'type'        => 'string',
 							'enum'        => array( 'workflow', 'phase', 'stage' ),
 						),
 						'post_id'  => array(
-							'description'       => __( 'Post ID. When provided, returns only tools required by available transitions and annotates each with required_for.', 'vip-workflow' ),
+							'description'       => __( 'Post ID. When provided, returns only tools required by available transitions and annotates each with required_for.', 'vip-workflows' ),
 							'type'              => 'integer',
 							'sanitize_callback' => 'absint',
 						),
@@ -107,7 +107,7 @@ class AbilitiesController extends WP_REST_Controller {
 				'permission_callback' => array( $this, 'get_items_permissions_check' ),
 				'args'                => array(
 					'id' => array(
-						'description' => __( 'Ability ID.', 'vip-workflow' ),
+						'description' => __( 'Ability ID.', 'vip-workflows' ),
 						'type'        => 'string',
 						'required'    => true,
 					),
@@ -125,28 +125,28 @@ class AbilitiesController extends WP_REST_Controller {
 				'permission_callback' => array( $this, 'run_ability_permissions_check' ),
 				'args'                => array(
 					'id'           => array(
-						'description'       => __( 'Ability ID.', 'vip-workflow' ),
+						'description'       => __( 'Ability ID.', 'vip-workflows' ),
 						'type'              => 'string',
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
 					),
 					'post_id'      => array(
-						'description'       => __( 'Post ID to analyze.', 'vip-workflow' ),
+						'description'       => __( 'Post ID to analyze.', 'vip-workflows' ),
 						'type'              => 'integer',
 						'sanitize_callback' => 'absint',
 					),
 					'content'      => array(
-						'description'       => __( 'Content to analyze (if no post_id).', 'vip-workflow' ),
+						'description'       => __( 'Content to analyze (if no post_id).', 'vip-workflows' ),
 						'type'              => 'string',
 						'sanitize_callback' => 'wp_kses_post',
 					),
 					'selection'    => array(
-						'description'       => __( 'Selected text subset.', 'vip-workflow' ),
+						'description'       => __( 'Selected text subset.', 'vip-workflows' ),
 						'type'              => 'string',
 						'sanitize_callback' => 'wp_kses_post',
 					),
 					'options'      => array(
-						'description' => __( 'Ability-specific options.', 'vip-workflow' ),
+						'description' => __( 'Ability-specific options.', 'vip-workflows' ),
 						'type'        => 'object',
 						'default'     => array(),
 					),
@@ -164,16 +164,16 @@ class AbilitiesController extends WP_REST_Controller {
 				'permission_callback' => array( $this, 'get_post_results_permissions_check' ),
 				'args'                => array(
 					'post_id'    => array(
-						'description' => __( 'Post ID.', 'vip-workflow' ),
+						'description' => __( 'Post ID.', 'vip-workflows' ),
 						'type'        => 'integer',
 						'required'    => true,
 					),
 					'ability_id' => array(
-						'description' => __( 'Filter by ability.', 'vip-workflow' ),
+						'description' => __( 'Filter by ability.', 'vip-workflows' ),
 						'type'        => 'string',
 					),
 					'limit'      => array(
-						'description' => __( 'Max results.', 'vip-workflow' ),
+						'description' => __( 'Max results.', 'vip-workflows' ),
 						'type'        => 'integer',
 						'default'     => 10,
 						'minimum'     => 1,
@@ -198,7 +198,7 @@ class AbilitiesController extends WP_REST_Controller {
 		$data = array();
 
 		// Strict category filter, except stage context must discover stage-eligible plugins across categories.
-		$collect_category = $category ? $category : ( 'stage' === $context ? null : 'vip-workflow' );
+		$collect_category = $category ? $category : ( 'stage' === $context ? null : 'vip-workflows' );
 
 		$wp_abilities = wp_get_abilities();
 		foreach ( $wp_abilities as $ability ) {
@@ -280,7 +280,7 @@ class AbilitiesController extends WP_REST_Controller {
 		// Filter by post_id: return only tools required by available transitions.
 		$post_id = $request->get_param( 'post_id' );
 		if ( $post_id ) {
-			$status_manager = new \VIPWorkflow\Workflow\StatusManager();
+			$status_manager = new \VIPWorkflows\Workflow\StatusManager();
 			$transitions    = $status_manager->get_available_transitions( $post_id );
 
 			if ( ! empty( $transitions ) ) {
@@ -333,7 +333,7 @@ class AbilitiesController extends WP_REST_Controller {
 			return new WP_Error(
 				'ability_not_found',
 				/* translators: %s: ability ID. */
-				sprintf( __( 'Ability "%s" not found.', 'vip-workflow' ), $id ),
+				sprintf( __( 'Ability "%s" not found.', 'vip-workflows' ), $id ),
 				array( 'status' => 404 )
 			);
 		}
@@ -484,7 +484,7 @@ class AbilitiesController extends WP_REST_Controller {
 					'ability_context_conflict',
 					sprintf(
 						/* translators: %s: name of the duplicated request parameter. */
-						__( 'This request gives "%s" two different values. Send it once.', 'vip-workflow' ),
+						__( 'This request gives "%s" two different values. Send it once.', 'vip-workflows' ),
 						$key
 					),
 					array( 'status' => 400 )
@@ -548,7 +548,7 @@ class AbilitiesController extends WP_REST_Controller {
 		if ( $object_id && ! current_user_can( 'edit_post', $object_id ) ) {
 			return new WP_Error(
 				'rest_forbidden',
-				__( 'You do not have permission to analyze this post.', 'vip-workflow' ),
+				__( 'You do not have permission to analyze this post.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -576,7 +576,7 @@ class AbilitiesController extends WP_REST_Controller {
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return new WP_Error(
 				'rest_forbidden',
-				__( 'You do not have permission to view results for this post.', 'vip-workflow' ),
+				__( 'You do not have permission to view results for this post.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -619,107 +619,107 @@ class AbilitiesController extends WP_REST_Controller {
 
 		$this->schema = array(
 			'$schema'    => 'http://json-schema.org/draft-04/schema#',
-			'title'      => 'vip-workflow-ability',
+			'title'      => 'vip-workflows-ability',
 			'type'       => 'object',
 			'properties' => array(
 				'id'               => array(
-					'description' => __( 'The ability identifier. Same value as name.', 'vip-workflow' ),
+					'description' => __( 'The ability identifier. Same value as name.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'name'             => array(
-					'description' => __( 'The ability identifier, not a human-readable name. Use label for display.', 'vip-workflow' ),
+					'description' => __( 'The ability identifier, not a human-readable name. Use label for display.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'label'            => array(
-					'description' => __( 'Human-readable name. The only key safe to display to a reader.', 'vip-workflow' ),
+					'description' => __( 'Human-readable name. The only key safe to display to a reader.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'description'      => array(
-					'description' => __( 'Human-readable description of what the ability does.', 'vip-workflow' ),
+					'description' => __( 'Human-readable description of what the ability does.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'category'         => array(
-					'description' => __( 'Ability category.', 'vip-workflow' ),
+					'description' => __( 'Ability category.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'schema'           => array(
-					'description' => __( 'The ability input schema.', 'vip-workflow' ),
+					'description' => __( 'The ability input schema.', 'vip-workflows' ),
 					'type'        => 'object',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'meta'             => array(
-					'description' => __( 'Ability meta, including supports, stage_eligible and transition_eligible.', 'vip-workflow' ),
+					'description' => __( 'Ability meta, including supports, stage_eligible and transition_eligible.', 'vip-workflows' ),
 					'type'        => 'object',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'enabled'          => array(
-					'description' => __( 'Whether the ability may be run. Turned-off abilities are still listed.', 'vip-workflow' ),
+					'description' => __( 'Whether the ability may be run. Turned-off abilities are still listed.', 'vip-workflows' ),
 					'type'        => 'boolean',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'show_in_commands' => array(
-					'description' => __( 'Whether the ability appears in the editor command palette.', 'vip-workflow' ),
+					'description' => __( 'Whether the ability appears in the editor command palette.', 'vip-workflows' ),
 					'type'        => 'boolean',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'availability'     => array(
-					'description' => __( 'Serialized availability. Always present: an ability with no structured channel serializes the empty unmet-nothing result rather than omitting the key.', 'vip-workflow' ),
+					'description' => __( 'Serialized availability. Always present: an ability with no structured channel serializes the empty unmet-nothing result rather than omitting the key.', 'vip-workflows' ),
 					'type'        => 'object',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'check_modes'      => array(
-					'description' => __( 'Configured check modes for the ability.', 'vip-workflow' ),
+					'description' => __( 'Configured check modes for the ability.', 'vip-workflows' ),
 					'type'        => 'array',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'icon'             => array(
-					'description' => __( 'Dashicon slug or literal glyph. Present only for a VIP Workflow ability.', 'vip-workflow' ),
+					'description' => __( 'Dashicon slug or literal glyph. Present only for a VIP Workflows ability.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'thinking_message' => array(
-					'description' => __( 'Message shown while the ability runs. Present only for a VIP Workflow ability.', 'vip-workflow' ),
+					'description' => __( 'Message shown while the ability runs. Present only for a VIP Workflows ability.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'success_message'  => array(
-					'description' => __( 'Message shown when the ability succeeds. Present only for a VIP Workflow ability.', 'vip-workflow' ),
+					'description' => __( 'Message shown when the ability succeeds. Present only for a VIP Workflows ability.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'display_order'    => array(
-					'description' => __( 'UI sort order, lower first. Present only for a VIP Workflow ability.', 'vip-workflow' ),
+					'description' => __( 'UI sort order, lower first. Present only for a VIP Workflows ability.', 'vip-workflows' ),
 					'type'        => 'integer',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'available'        => array(
-					'description' => __( 'Mirror of availability.available. Present only for a VIP Workflow ability.', 'vip-workflow' ),
+					'description' => __( 'Mirror of availability.available. Present only for a VIP Workflows ability.', 'vip-workflows' ),
 					'type'        => 'boolean',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
 				),
 				'required_for'     => array(
-					'description' => __( 'Transitions requiring this tool. Present only when post_id is passed.', 'vip-workflow' ),
+					'description' => __( 'Transitions requiring this tool. Present only when post_id is passed.', 'vip-workflows' ),
 					'type'        => 'array',
 					'context'     => array( 'view' ),
 					'readonly'    => true,

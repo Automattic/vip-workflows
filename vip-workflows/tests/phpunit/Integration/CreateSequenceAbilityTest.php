@@ -7,14 +7,14 @@
  * against a booted WordPress + database, proving a row is actually persisted and
  * that required-field guards surface the expected WP_Error.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\Sequences\SequenceRepository;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/create-sequence.php';
 
@@ -35,14 +35,14 @@ class CreateSequenceAbilityTest extends TestCase
     {
         // The experiment registry caches resolved state in-process, so disabling
         // here prevents an enabled-Ideation test from leaking into later tests.
-        \VIPWorkflow\Plugin::get_instance()->get_experiment_registry()->disable( 'ideation' );
+        \VIPWorkflows\Plugin::get_instance()->get_experiment_registry()->disable( 'ideation' );
 
         parent::tear_down();
     }
 
     public function test_creates_a_workflow_sequence_and_persists_it(): void
     {
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array(
                 'name'     => 'Newsroom Flow',
                 'statuses' => array(
@@ -81,7 +81,7 @@ class CreateSequenceAbilityTest extends TestCase
     {
         // One stage without a `status` (defaults to draft) and one publish-region
         // stage: the write gate normalizes both and marks each region's checkpoint.
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array(
                 'name'       => 'Matrix Flow',
                 'post_types' => array( 'post' ),
@@ -117,7 +117,7 @@ class CreateSequenceAbilityTest extends TestCase
 
     public function test_overlay_stage_region_is_rejected(): void
     {
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array(
                 'name'       => 'Overlay Flow',
                 'post_types' => array( 'post' ),
@@ -133,7 +133,7 @@ class CreateSequenceAbilityTest extends TestCase
 
     public function test_no_warning_when_a_valid_post_type_is_supplied(): void
     {
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array(
                 'name'       => 'Attached Flow',
                 'post_types' => array( 'post' ),
@@ -152,7 +152,7 @@ class CreateSequenceAbilityTest extends TestCase
         // A sequence names the post types it drives; it cannot bring one into
         // existence. A slug nothing has registered attaches the sequence to no
         // content, and the agent only learns that from this warning.
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array(
                 'name'       => 'Prospect Pipeline',
                 'post_types' => array( 'prospect_pipeline' ),
@@ -171,7 +171,7 @@ class CreateSequenceAbilityTest extends TestCase
     {
         // Ideation is disabled by default; a phase sequence must be rejected and
         // the controller's WP_Error surfaced through the ability.
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array(
                 'name'     => 'Lifecycle Off',
                 'type'     => 'phase',
@@ -185,9 +185,9 @@ class CreateSequenceAbilityTest extends TestCase
 
     public function test_creates_a_phase_sequence_when_ideation_enabled(): void
     {
-        \VIPWorkflow\Plugin::get_instance()->get_experiment_registry()->enable( 'ideation' );
+        \VIPWorkflows\Plugin::get_instance()->get_experiment_registry()->enable( 'ideation' );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array(
                 'name'     => 'Lifecycle',
                 'type'     => 'phase',
@@ -216,7 +216,7 @@ class CreateSequenceAbilityTest extends TestCase
 
     public function test_missing_name_returns_error(): void
     {
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array(
                 'statuses' => array( array( 'key' => 'draft', 'label' => 'Draft' ) ),
             )
@@ -228,7 +228,7 @@ class CreateSequenceAbilityTest extends TestCase
 
     public function test_missing_statuses_returns_error(): void
     {
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array( 'name' => 'No Statuses' )
         );
 
@@ -240,7 +240,7 @@ class CreateSequenceAbilityTest extends TestCase
     {
         // An empty statuses array has no workflow stages, so it is rejected at write
         // time (a controlled error, not a created-but-unusable sequence).
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array(
                 'name'       => 'No Stages',
                 'post_types' => array( 'post' ),
@@ -256,7 +256,7 @@ class CreateSequenceAbilityTest extends TestCase
     {
         // An invalid metadata field type makes SequencesController::create_item()
         // return a WP_Error before any DB write; the adapter must surface it.
-        $result = \VIPWorkflow\Abilities\Tools\execute_create_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
             array(
                 'name'            => 'Bad Metadata',
                 'post_types'      => array( 'post' ),

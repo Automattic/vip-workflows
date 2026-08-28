@@ -152,7 +152,7 @@ function renderInline( text, keyPrefix ) {
 					<img
 						src={ url }
 						alt={ body }
-						className="vip-workflow-markdown__image"
+						className="vip-workflows-markdown__image"
 						loading="lazy"
 					/>
 				) : (
@@ -185,7 +185,7 @@ function renderInline( text, keyPrefix ) {
 							key={ key }
 							src={ url }
 							alt={ body }
-							className="vip-workflow-markdown__image"
+							className="vip-workflows-markdown__image"
 							loading="lazy"
 						/>
 					) : (
@@ -228,7 +228,7 @@ function renderInline( text, keyPrefix ) {
 
 			case 'code':
 				out.push(
-					<code key={ key } className="vip-workflow-markdown__code">
+					<code key={ key } className="vip-workflows-markdown__code">
 						{ body }
 					</code>
 				);
@@ -332,7 +332,7 @@ export function renderMarkdown( text ) {
 			blocks.push(
 				<pre
 					key={ key() }
-					className="vip-workflow-markdown__pre"
+					className="vip-workflows-markdown__pre"
 					data-language={ language || undefined }
 				>
 					<code>{ body.join( '\n' ) }</code>
@@ -343,7 +343,7 @@ export function renderMarkdown( text ) {
 
 		if ( RULE.test( line ) ) {
 			blocks.push(
-				<hr key={ key() } className="vip-workflow-markdown__rule" />
+				<hr key={ key() } className="vip-workflows-markdown__rule" />
 			);
 			i++;
 			continue;
@@ -357,7 +357,7 @@ export function renderMarkdown( text ) {
 			const Tag = `h${ level }`;
 
 			blocks.push(
-				<Tag key={ key() } className="vip-workflow-markdown__heading">
+				<Tag key={ key() } className="vip-workflows-markdown__heading">
 					{ renderInline( heading[ 2 ], key() ) }
 				</Tag>
 			);
@@ -388,9 +388,9 @@ export function renderMarkdown( text ) {
 				// wpds-allow R7 -- a horizontal scroll container for a table that can be wider than the card; <Stack> lays children out and exposes no overflow prop
 				<div
 					key={ key() }
-					className="vip-workflow-markdown__table-scroll"
+					className="vip-workflows-markdown__table-scroll"
 				>
-					<table className="vip-workflow-markdown__table">
+					<table className="vip-workflows-markdown__table">
 						<thead>
 							<tr>
 								{ header.map( ( cell, c ) => (
@@ -436,7 +436,7 @@ export function renderMarkdown( text ) {
 			blocks.push(
 				<blockquote
 					key={ key() }
-					className="vip-workflow-markdown__quote"
+					className="vip-workflows-markdown__quote"
 				>
 					{ renderMarkdown( quoted.join( '\n' ) ) }
 				</blockquote>
@@ -495,7 +495,7 @@ export function renderMarkdown( text ) {
 			const Tag = ordered ? 'ol' : 'ul';
 
 			blocks.push(
-				<Tag key={ key() } className="vip-workflow-markdown__list">
+				<Tag key={ key() } className="vip-workflows-markdown__list">
 					{ items.map( ( item, n ) => (
 						<li key={ n }>
 							{ renderInline( item.text, `${ key() }-${ n }` ) }
@@ -530,7 +530,7 @@ export function renderMarkdown( text ) {
 
 		blocks.push(
 			// wpds-allow R7 -- one of ~10 generated block kinds; the siblings (<li>, <th>, <blockquote>, <pre>) have no component analog, so styling the paragraph from a component and the rest from the stylesheet would split one document across two type systems
-			<p key={ key() } className="vip-workflow-markdown__paragraph">
+			<p key={ key() } className="vip-workflows-markdown__paragraph">
 				{ renderInline( paragraph.join( ' ' ), key() ) }
 			</p>
 		);
@@ -601,7 +601,7 @@ export function MarkdownText( { text, className = '' } ) {
 	}
 
 	return (
-		<div className={ `vip-workflow-markdown ${ className }`.trim() }>
+		<div className={ `vip-workflows-markdown ${ className }`.trim() }>
 			{ nodes }
 		</div>
 	);

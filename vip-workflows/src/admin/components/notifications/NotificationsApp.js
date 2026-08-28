@@ -77,17 +77,17 @@ export function NotificationsApp( {
 	return (
 		<Stack direction="column" gap="2xl">
 			<SettingsSection
-				title={ __( 'Event routing', 'vip-workflow' ) }
+				title={ __( 'Event routing', 'vip-workflows' ) }
 				description={ __(
 					'Choose which channels receive each event. Only a configured channel can be selected — set one up on the Channels tab first.',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			>
 				{ 0 === configuredChannels.length ? (
 					<Notice status="warning" isDismissible={ false }>
 						{ __(
 							'No notification channel is configured yet, so no event can be routed anywhere.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Notice>
 				) : (
@@ -110,7 +110,7 @@ export function NotificationsApp( {
 										/* translators: %s: notification channel name, e.g. "Slack". */
 										__(
 											'Route every event to %s',
-											'vip-workflow'
+											'vip-workflows'
 										),
 										channel.name
 									) }
@@ -122,38 +122,38 @@ export function NotificationsApp( {
 						     grows a column per channel, so it has to scroll
 						     inside the page's constrained content column
 						     rather than paint outside it. */ }
-						<div className="vip-workflow-notifications__scroll">
-							<table className="vip-workflow-notifications__table">
+						<div className="vip-workflows-notifications__scroll">
+							<table className="vip-workflows-notifications__table">
 								<thead>
 									<tr>
 										<th>
-											{ __( 'Event', 'vip-workflow' ) }
+											{ __( 'Event', 'vip-workflows' ) }
 										</th>
 										{ configuredChannels.map(
 											( channel ) => (
 												<th
 													key={ channel.id }
-													className="vip-workflow-notifications__channel-header"
+													className="vip-workflows-notifications__channel-header"
 												>
 													{ channel.name }
 												</th>
 											)
 										) }
 										<th>
-											{ __( 'Actions', 'vip-workflow' ) }
+											{ __( 'Actions', 'vip-workflows' ) }
 										</th>
 									</tr>
 								</thead>
 								<tbody>
 									{ events.map( ( event ) => (
 										<tr key={ event.id }>
-											<td className="vip-workflow-notifications__event-cell">
+											<td className="vip-workflows-notifications__event-cell">
 												<Stack direction="column">
 													<Text variant="heading-md">
 														{ event.label }
 													</Text>
 													{ /* wpds-allow R7 -- no <Text> variant pairs 11px with a monospace family, and a raw code element picks up wp-admin's unlayered background and padding chrome, so the event id keeps its type in CSS */ }
-													<span className="vip-workflow-notifications__event-id">
+													<span className="vip-workflows-notifications__event-id">
 														{ event.id }
 													</span>
 												</Stack>
@@ -175,7 +175,7 @@ export function NotificationsApp( {
 																	/* translators: 1: event name, 2: notification channel name. */
 																	__(
 																		'%1$s via %2$s',
-																		'vip-workflow'
+																		'vip-workflows'
 																	),
 																	event.label,
 																	channel.name
@@ -195,7 +195,7 @@ export function NotificationsApp( {
 													</td>
 												)
 											) }
-											<td className="vip-workflow-notifications__actions-cell">
+											<td className="vip-workflows-notifications__actions-cell">
 												{ /* A row-scoped utility pair beside the checkboxes it
 												     toggles, not an action bar: a plain gapped row keeps
 												     All/None adjacent to the grid — ActionRow's flex-end
@@ -216,7 +216,7 @@ export function NotificationsApp( {
 													>
 														{ __(
 															'All',
-															'vip-workflow'
+															'vip-workflows'
 														) }
 													</Button>
 													<Button
@@ -231,7 +231,7 @@ export function NotificationsApp( {
 													>
 														{ __(
 															'None',
-															'vip-workflow'
+															'vip-workflows'
 														) }
 													</Button>
 												</Stack>
@@ -246,15 +246,15 @@ export function NotificationsApp( {
 			</SettingsSection>
 
 			<SettingsSection
-				title={ __( 'Debug mode', 'vip-workflow' ) }
+				title={ __( 'Debug mode', 'vip-workflows' ) }
 				description={ __(
 					'Mirror every event to the channels selected here, whatever the routing above says. Useful while testing a new channel.',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			>
 				<ToggleControl
 					__nextHasNoMarginBottom
-					label={ __( 'Mirror all events', 'vip-workflow' ) }
+					label={ __( 'Mirror all events', 'vip-workflows' ) }
 					checked={ Boolean( debug.enabled ) }
 					onChange={ ( enabled ) =>
 						onDebugChange( { ...debug, enabled } )
@@ -266,7 +266,7 @@ export function NotificationsApp( {
 						<Text variant="body-md" render={ <p /> }>
 							{ __(
 								'No configured channel to mirror to yet.',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						</Text>
 					) : (

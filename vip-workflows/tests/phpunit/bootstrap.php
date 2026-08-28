@@ -15,7 +15,7 @@
  *     pre-define any of those classes here, or core's richer surface (e.g.
  *     AiClient::setCache()) would be shadowed and crash bootstrap.
  *
- * @package VIPWorkflow\Tests
+ * @package VIPWorkflows\Tests
  */
 
 declare( strict_types=1 );
@@ -61,7 +61,7 @@ if ( $vipwf_is_integration ) {
         fwrite(
             STDERR,
             sprintf(
-                "\n[vip-workflow] Refusing to run the integration suite against database \"%s\".\n" .
+                "\n[vip-workflows] Refusing to run the integration suite against database \"%s\".\n" .
                 "Integration bootstrap DROPS AND RECREATES ALL TABLES. It must only run against an\n" .
                 "isolated test database whose name contains \"test\". Run it with:\n" .
                 "    npm run test:php:integration   (see docs/TESTING.md)\n\n",
@@ -108,7 +108,7 @@ if ( $vipwf_is_integration ) {
      * is idempotent and version-guarded. Default sequences are intentionally
      * NOT seeded — integration tests build their own fixtures.
      */
-    ( new VIPWorkflow\Database\Schema() )->install();
+    ( new VIPWorkflows\Database\Schema() )->install();
 } else {
     /*
      * Unit: no WordPress.
@@ -136,7 +136,7 @@ if ( $vipwf_is_integration ) {
     /*
      * OpenAI is unconditionally keyed for the whole unit suite.
      *
-     * `Credentials::api_key()` honors a `VIP_WORKFLOW_*_KEY` constant ahead of
+     * `Credentials::api_key()` honors a `VIP_WORKFLOWS_*_KEY` constant ahead of
      * any backend, and constants cannot be undefined. This one is declared here,
      * for the whole suite, instead of at the scope of whichever test file needed
      * it first — that arrangement left the constant's presence dependent on file
@@ -150,8 +150,8 @@ if ( $vipwf_is_integration ) {
      * Making this explicit here does not change what any test can express; it
      * only makes the environment identical in every execution order.
      */
-    if ( ! defined( 'VIP_WORKFLOW_OPENAI_KEY' ) ) {
-        define( 'VIP_WORKFLOW_OPENAI_KEY', 'test-openai-key-for-integration-tests' );
+    if ( ! defined( 'VIP_WORKFLOWS_OPENAI_KEY' ) ) {
+        define( 'VIP_WORKFLOWS_OPENAI_KEY', 'test-openai-key-for-integration-tests' );
     }
 
     /*

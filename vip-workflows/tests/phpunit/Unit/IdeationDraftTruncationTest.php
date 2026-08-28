@@ -9,23 +9,23 @@
  * directly, because the finish reason has to be forced and the integration suite
  * deliberately runs against the real AI Client with no stub.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use ReflectionClass;
 use ReflectionMethod;
-use VIPWorkflow\API\IdeationController;
-use VIPWorkflow\Integrations\LlmTextGenerator;
+use VIPWorkflows\API\IdeationController;
+use VIPWorkflows\Integrations\LlmTextGenerator;
 use WordPress\AiClient\AiClient;
 use WP_Error;
 
 /**
- * @covers \VIPWorkflow\API\IdeationController::create_draft
+ * @covers \VIPWorkflows\API\IdeationController::create_draft
  */
 class IdeationDraftTruncationTest extends TestCase
 {
@@ -42,7 +42,7 @@ class IdeationDraftTruncationTest extends TestCase
 
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                return 'vip_workflow_ai_model' === $option ? 'gpt-4o-mini' : $default;
+                return 'vip_workflows_ai_model' === $option ? 'gpt-4o-mini' : $default;
             }
         );
         Functions\when( '_doing_it_wrong' )->justReturn( null );

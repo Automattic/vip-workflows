@@ -138,7 +138,7 @@ function StageAgentWarning( { agent, abilityId } ) {
 	if ( ! agent ) {
 		return (
 			<Stack
-				className="vip-workflow-stage-agent-warning"
+				className="vip-workflows-stage-agent-warning"
 				direction="column"
 				gap="xs"
 			>
@@ -147,7 +147,7 @@ function StageAgentWarning( { agent, abilityId } ) {
 						/* translators: %s: ability id, e.g. "workflow-agent-copy-edit/copy-edit". */
 						__(
 							'“%s” is no longer available on this site, so posts entering this stage will error — following the on-error route if one is set, stopping here otherwise.',
-							'vip-workflow'
+							'vip-workflows'
 						),
 						abilityId
 					) }
@@ -162,7 +162,7 @@ function StageAgentWarning( { agent, abilityId } ) {
 
 	return (
 		<Stack
-			className="vip-workflow-stage-agent-warning"
+			className="vip-workflows-stage-agent-warning"
 			direction="column"
 			gap="xs"
 		>
@@ -173,7 +173,7 @@ function StageAgentWarning( { agent, abilityId } ) {
 			<Text variant="body-md">
 				{ __(
 					'Until this is set up, a post entering this stage errors — following the on-error route if one is set, stopping here otherwise.',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			</Text>
 		</Stack>
@@ -215,19 +215,19 @@ function routedOutcomeLabel( outcome, transitionName ) {
 		case 'pass':
 			return sprintf(
 				/* translators: %s: the transition's button label, e.g. "Move to Published". */
-				__( '%s · on pass', 'vip-workflow' ),
+				__( '%s · on pass', 'vip-workflows' ),
 				transitionName
 			);
 		case 'fail':
 			return sprintf(
 				/* translators: %s: the transition's button label, e.g. "Move to Published". */
-				__( '%s · on fail', 'vip-workflow' ),
+				__( '%s · on fail', 'vip-workflows' ),
 				transitionName
 			);
 		case 'error':
 			return sprintf(
 				/* translators: %s: the transition's button label, e.g. "Move to Published". */
-				__( '%s · on error', 'vip-workflow' ),
+				__( '%s · on error', 'vip-workflows' ),
 				transitionName
 			);
 		default:
@@ -308,7 +308,7 @@ export default function StageInspector( {
 				false === a.available
 					? sprintf(
 							/* translators: %s: agent name. */
-							__( '%s — setup needed', 'vip-workflow' ),
+							__( '%s — setup needed', 'vip-workflows' ),
 							a.label
 					  )
 					: a.label,
@@ -323,7 +323,7 @@ export default function StageInspector( {
 			options.push( {
 				label: sprintf(
 					/* translators: %s: ability id that is no longer registered. */
-					__( '%s (unavailable)', 'vip-workflow' ),
+					__( '%s (unavailable)', 'vip-workflows' ),
 					abilityId
 				),
 				value: abilityId,
@@ -348,7 +348,7 @@ export default function StageInspector( {
 		if ( stageExists && ! stageExists( target ) ) {
 			return sprintf(
 				/* translators: %s: stage key that no longer exists */
-				__( '%s (missing)', 'vip-workflow' ),
+				__( '%s (missing)', 'vip-workflows' ),
 				target
 			);
 		}
@@ -471,7 +471,7 @@ export default function StageInspector( {
 
 	return (
 		<InspectorShell
-			eyebrow={ __( 'Stage', 'vip-workflow' ) }
+			eyebrow={ __( 'Stage', 'vip-workflows' ) }
 			title={ stage.label || stage.key }
 		>
 			<Stack direction="column" gap="lg" align="stretch">
@@ -479,14 +479,14 @@ export default function StageInspector( {
 					<TextControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Label', 'vip-workflow' ) }
+						label={ __( 'Label', 'vip-workflows' ) }
 						value={ stage.label || '' }
 						onChange={ ( label ) => onChange( { label } ) }
 					/>
 					<SelectControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Color', 'vip-workflow' ) }
+						label={ __( 'Color', 'vip-workflows' ) }
 						value={ stage.color || '' }
 						options={ paletteOptions() }
 						onChange={ ( color ) => onChange( { color } ) }
@@ -494,14 +494,14 @@ export default function StageInspector( {
 					<ComboboxControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Agent', 'vip-workflow' ) }
+						label={ __( 'Agent', 'vip-workflows' ) }
 						help={ __(
 							'Choosing an agent makes this an AI stage: it runs when a post enters, and routes the post onward by outcome. Drag from the stage’s pass, fail and error handles on the canvas to say where each outcome leads.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 						value={ abilityId }
 						options={ agentOptions }
-						placeholder={ __( 'Search agents…', 'vip-workflow' ) }
+						placeholder={ __( 'Search agents…', 'vip-workflows' ) }
 						// No "none" entry in the list — the empty state is the
 						// empty field, and the reset button is how you get back
 						// to it. `onChange` hands back null on reset, which is
@@ -540,7 +540,7 @@ export default function StageInspector( {
 						className="wf-inspector__facts"
 					>
 						<Fact
-							label={ __( 'Post status', 'vip-workflow' ) }
+							label={ __( 'Post status', 'vip-workflows' ) }
 							value={ regionLabel( stageRegion( stage ) ) }
 							// Two things worth saying, and the split matters:
 							// what this particular status does to a post — from
@@ -555,22 +555,22 @@ export default function StageInspector( {
 								regionDescription( stageRegion( stage ) ),
 								__(
 									'Set by dragging the node: the section of the canvas it sits in is the status posts hold here.',
-									'vip-workflow'
+									'vip-workflows'
 								),
 							]
 								.filter( Boolean )
 								.join( ' ' ) }
 						/>
 						<Fact
-							label={ __( 'Entry checkpoint', 'vip-workflow' ) }
+							label={ __( 'Entry checkpoint', 'vip-workflows' ) }
 							value={
 								stage.region_entry
-									? __( 'Yes', 'vip-workflow' )
-									: __( 'No', 'vip-workflow' )
+									? __( 'Yes', 'vip-workflows' )
+									: __( 'No', 'vip-workflows' )
 							}
 							tip={ __(
 								'Where a post lands when something outside the workflow gives it this status — a status change made in the editor, a scheduled post going live, or a sequence assigned to a post that already has one. Set by dragging the node onto the section’s boundary line.',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						/>
 					</Stack>
@@ -644,7 +644,7 @@ export default function StageInspector( {
 														destination ||
 														__(
 															'Not routed',
-															'vip-workflow'
+															'vip-workflows'
 														)
 													}
 													empty={ ! destination }
@@ -660,7 +660,7 @@ export default function StageInspector( {
 														/* translators: %s: the row's label — the transition and its outcome (e.g. "Move to Published · on pass"), or the bare outcome ("On pass"). */
 														__(
 															'Select %s',
-															'vip-workflow'
+															'vip-workflows'
 														),
 														rowLabel
 													) }
@@ -744,7 +744,7 @@ export default function StageInspector( {
 															/* translators: %s: the transition's label. */
 															__(
 																'Reorder %s',
-																'vip-workflow'
+																'vip-workflows'
 															),
 															label
 														) }
@@ -755,7 +755,7 @@ export default function StageInspector( {
 															/* translators: %s: the transition's label. */
 															__(
 																'Select %s',
-																'vip-workflow'
+																'vip-workflows'
 															),
 															label
 														) }
@@ -773,7 +773,7 @@ export default function StageInspector( {
 																		/* translators: %s: destination stage label */
 																		__(
 																			'%s (disabled)',
-																			'vip-workflow'
+																			'vip-workflows'
 																		),
 																		destination
 																  )
@@ -802,7 +802,7 @@ export default function StageInspector( {
 							>
 								{ __(
 									'Nothing leaves this stage yet. Drag from one of its handles on the canvas to connect it to another stage.',
-									'vip-workflow'
+									'vip-workflows'
 								) }
 							</Text>
 						) }
@@ -810,13 +810,13 @@ export default function StageInspector( {
 				</InspectorSection>
 
 				<InspectorSection
-					title={ __( 'Advanced', 'vip-workflow' ) }
+					title={ __( 'Advanced', 'vip-workflows' ) }
 					collapsible
 				>
 					<TextControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Key', 'vip-workflow' ) }
+						label={ __( 'Key', 'vip-workflows' ) }
 						value={ keyDraft }
 						onChange={ handleKeyChange }
 						className={
@@ -828,18 +828,18 @@ export default function StageInspector( {
 							keyCollides
 								? __(
 										'This key is already used by another stage.',
-										'vip-workflow'
+										'vip-workflows'
 								  )
 								: __(
 										'Unique identifier for this stage.',
-										'vip-workflow'
+										'vip-workflows'
 								  )
 						}
 					/>
 				</InspectorSection>
 
 				<InspectorDangerZone
-					label={ __( 'Delete stage', 'vip-workflow' ) }
+					label={ __( 'Delete stage', 'vip-workflows' ) }
 					onClick={ onDelete }
 					disabled={ ! canDelete }
 					description={
@@ -847,7 +847,7 @@ export default function StageInspector( {
 							? undefined
 							: __(
 									'A sequence needs at least one stage.',
-									'vip-workflow'
+									'vip-workflows'
 							  )
 					}
 				/>

@@ -1,6 +1,6 @@
 <?php
 /**
- * `_vip_workflow_sequence_id` is workflow state, not a public field.
+ * `_vip_workflows_sequence_id` is workflow state, not a public field.
  *
  * Previously, the key was registered for every post type with
  * `show_in_rest => true` and an `auth_callback`. The callback gated writes but
@@ -13,26 +13,26 @@
  * makes `PublishBoundaryGuard::resolve_veto()` short-circuit and
  * `crosses_publish_boundary()` return false, and the post exits with no
  * `workflow.removed` audit event, no stage or claim cleanup, and an orphaned
- * `_vip_workflow_current_stage_key`. The plugin has a first-class route for
+ * `_vip_workflows_current_stage_key`. The plugin has a first-class route for
  * that same operation whose docblock calls the audit entry "the entire reason
  * this operation is acceptable". This was the unaudited door beside it.
  *
  * The key is read nowhere in src/ or build/, so removing it from REST costs
  * nothing.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
 class SequenceIdMetaNotInRestTest extends TestCase {
 
 	/**
 	 * The meta key under test.
 	 */
-	private const META_KEY = '_vip_workflow_sequence_id';
+	private const META_KEY = '_vip_workflows_sequence_id';
 
 	/**
 	 * A published post already seated in a workflow.
@@ -49,7 +49,7 @@ class SequenceIdMetaNotInRestTest extends TestCase {
 		// the file. Re-running it here is what makes these assertions about the
 		// plugin's own registration rather than about test ordering — and with
 		// executionOrder="depends,defects" that order is not even stable.
-		\VIPWorkflow\Plugin::get_instance()->register_meta();
+		\VIPWorkflows\Plugin::get_instance()->register_meta();
 
 		$this->post_id = (int) self::factory()->post->create( array( 'post_status' => 'publish' ) );
 		update_post_meta( $this->post_id, self::META_KEY, 7 );

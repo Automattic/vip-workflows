@@ -30,11 +30,11 @@ import InspectorFieldList, {
 } from './InspectorFieldList';
 
 const FIELD_TYPES = [
-	{ label: __( 'Text', 'vip-workflow' ), value: 'text' },
-	{ label: __( 'Text area', 'vip-workflow' ), value: 'textarea' },
-	{ label: __( 'Select', 'vip-workflow' ), value: 'select' },
-	{ label: __( 'Date', 'vip-workflow' ), value: 'date' },
-	{ label: __( 'User', 'vip-workflow' ), value: 'user' },
+	{ label: __( 'Text', 'vip-workflows' ), value: 'text' },
+	{ label: __( 'Text area', 'vip-workflows' ), value: 'textarea' },
+	{ label: __( 'Select', 'vip-workflows' ), value: 'select' },
+	{ label: __( 'Date', 'vip-workflows' ), value: 'date' },
+	{ label: __( 'User', 'vip-workflows' ), value: 'user' },
 ];
 
 /**
@@ -103,10 +103,10 @@ export function MetadataFieldsAdd( { fields, onChange } ) {
 	return (
 		<InspectorFieldListAdd
 			addOptions={ [
-				{ label: __( 'Field', 'vip-workflow' ), value: 'field' },
+				{ label: __( 'Field', 'vip-workflows' ), value: 'field' },
 			] }
 			onAdd={ () => onChange( [ ...fields, createField() ] ) }
-			label={ __( 'Add field', 'vip-workflow' ) }
+			label={ __( 'Add field', 'vip-workflows' ) }
 		/>
 	);
 }
@@ -123,7 +123,7 @@ export default function MetadataFieldsEditor( { fields, onChange } ) {
 			// incomplete rather than wrong.
 			isStarted={ ( field ) => Boolean( field.label ) }
 			describe={ ( field ) => ( {
-				label: field.label || __( 'Untitled', 'vip-workflow' ),
+				label: field.label || __( 'Untitled', 'vip-workflows' ),
 				value: fieldTypeLabel( field.type ),
 			} ) }
 			renderConfig={ ( { item: field, update, problem } ) => (
@@ -131,7 +131,7 @@ export default function MetadataFieldsEditor( { fields, onChange } ) {
 					<TextControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Field label', 'vip-workflow' ) }
+						label={ __( 'Field label', 'vip-workflows' ) }
 						value={ field.label }
 						onChange={ ( label ) =>
 							update( {
@@ -143,7 +143,7 @@ export default function MetadataFieldsEditor( { fields, onChange } ) {
 					<TextControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Key', 'vip-workflow' ) }
+						label={ __( 'Key', 'vip-workflows' ) }
 						value={ field.key }
 						onChange={ ( v ) =>
 							update( {
@@ -160,7 +160,7 @@ export default function MetadataFieldsEditor( { fields, onChange } ) {
 					<SelectControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Type', 'vip-workflow' ) }
+						label={ __( 'Type', 'vip-workflows' ) }
 						value={ field.type }
 						options={ FIELD_TYPES }
 						onChange={ ( type ) => update( { type } ) }
@@ -168,12 +168,15 @@ export default function MetadataFieldsEditor( { fields, onChange } ) {
 					{ field.type === 'select' && (
 						<TextareaControl
 							__nextHasNoMarginBottom
-							label={ __( 'Options', 'vip-workflow' ) }
+							label={ __( 'Options', 'vip-workflows' ) }
 							value={ ( field.options || [] ).join( '\n' ) }
 							onChange={ ( v ) =>
 								update( { options: v.split( '\n' ) } )
 							}
-							help={ __( 'One option per line', 'vip-workflow' ) }
+							help={ __(
+								'One option per line',
+								'vip-workflows'
+							) }
 							rows={ 3 }
 						/>
 					) }
@@ -185,13 +188,13 @@ export default function MetadataFieldsEditor( { fields, onChange } ) {
 					>
 						<ToggleControl
 							__nextHasNoMarginBottom
-							label={ __( 'Required', 'vip-workflow' ) }
+							label={ __( 'Required', 'vip-workflows' ) }
 							checked={ Boolean( field.required ) }
 							onChange={ ( required ) => update( { required } ) }
 						/>
 						<ToggleControl
 							__nextHasNoMarginBottom
-							label={ __( 'Searchable', 'vip-workflow' ) }
+							label={ __( 'Searchable', 'vip-workflows' ) }
 							checked={ Boolean( field.searchable ) }
 							onChange={ ( searchable ) =>
 								update( { searchable } )
@@ -200,10 +203,10 @@ export default function MetadataFieldsEditor( { fields, onChange } ) {
 					</Stack>
 				</>
 			) }
-			removeLabel={ __( 'Remove field', 'vip-workflow' ) }
+			removeLabel={ __( 'Remove field', 'vip-workflows' ) }
 			emptyLabel={ __(
 				'This sequence has no metadata fields. Add one to collect a value alongside every post that travels it.',
-				'vip-workflow'
+				'vip-workflows'
 			) }
 		/>
 	);

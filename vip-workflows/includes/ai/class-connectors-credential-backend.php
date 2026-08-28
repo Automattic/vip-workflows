@@ -10,12 +10,12 @@
  *
  * See docs/specs/ai-connectors-audit.md.
  *
- * @package VIPWorkflow\AI
+ * @package VIPWorkflows\AI
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\AI;
+namespace VIPWorkflows\AI;
 
 /**
  * Resolves keys via the WordPress Connectors API.
@@ -42,17 +42,17 @@ final class ConnectorsCredentialBackend implements CredentialBackend {
 		'tavily'  => array(
 			'name'            => 'Tavily',
 			'description'     => 'Web search and media discovery for ideation research.',
-			'setting_name'    => 'vip_workflow_tavily_api_key',
-			'constant_name'   => 'VIP_WORKFLOW_TAVILY_KEY',
-			'env_var_name'    => 'VIP_WORKFLOW_TAVILY_KEY',
+			'setting_name'    => 'vip_workflows_tavily_api_key',
+			'constant_name'   => 'VIP_WORKFLOWS_TAVILY_KEY',
+			'env_var_name'    => 'VIP_WORKFLOWS_TAVILY_KEY',
 			'credentials_url' => 'https://tavily.com/#api',
 		),
 		'youtube' => array(
 			'name'            => 'YouTube Data API',
 			'description'     => 'YouTube video lookup for ideation research.',
-			'setting_name'    => 'vip_workflow_youtube_api_key',
-			'constant_name'   => 'VIP_WORKFLOW_YOUTUBE_KEY',
-			'env_var_name'    => 'VIP_WORKFLOW_YOUTUBE_KEY',
+			'setting_name'    => 'vip_workflows_youtube_api_key',
+			'constant_name'   => 'VIP_WORKFLOWS_YOUTUBE_KEY',
+			'env_var_name'    => 'VIP_WORKFLOWS_YOUTUBE_KEY',
 			'credentials_url' => 'https://console.cloud.google.com/apis/credentials',
 		),
 	);

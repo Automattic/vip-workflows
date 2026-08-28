@@ -22,17 +22,17 @@ export function HowToModal( { title, skillType, onClose, children } ) {
 		<Modal
 			title={ title }
 			onRequestClose={ onClose }
-			className="vip-workflow-howto-modal"
+			className="vip-workflows-howto-modal"
 			size="large"
 			// The footer verb is "Close", so the header X needs its own name —
 			// two buttons announced identically is a screen-reader dead end.
-			closeButtonLabel={ __( 'Close dialog', 'vip-workflow' ) }
+			closeButtonLabel={ __( 'Close dialog', 'vip-workflows' ) }
 		>
 			<InstallSkillButton skillType={ skillType } />
 			{ children }
 			<ModalActions>
 				<Button variant="primary" onClick={ onClose }>
-					{ __( 'Close', 'vip-workflow' ) }
+					{ __( 'Close', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 		</Modal>

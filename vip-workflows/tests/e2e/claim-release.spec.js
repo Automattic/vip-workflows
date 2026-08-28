@@ -22,7 +22,7 @@ const {
 	releasePost,
 } = require( './helpers/workflow' );
 
-test.describe( 'VIP Workflow — claim / release (REST)', () => {
+test.describe( 'VIP Workflows — claim / release (REST)', () => {
 	let postId;
 	let reviewer;
 

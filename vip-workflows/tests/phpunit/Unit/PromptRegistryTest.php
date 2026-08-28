@@ -2,16 +2,16 @@
 /**
  * PromptRegistry unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\PromptSettings;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\PromptSettings;
 
 class PromptRegistryTest extends TestCase
 {
@@ -25,12 +25,12 @@ class PromptRegistryTest extends TestCase
 
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                return 'vip_workflow_prompts' === $option ? $this->stored : $default;
+                return 'vip_workflows_prompts' === $option ? $this->stored : $default;
             }
         );
         Functions\when( 'update_option' )->alias(
             function ( string $option, $value ) {
-                if ( 'vip_workflow_prompts' === $option ) {
+                if ( 'vip_workflows_prompts' === $option ) {
                     $this->stored = $value;
                 }
                 return true;
@@ -147,7 +147,7 @@ class PromptRegistryTest extends TestCase
         // registering inside the action, then resolving.
         Functions\when( 'do_action' )->alias(
             function ( string $hook, ...$args ): void {
-                if ( 'vip_workflow_register_prompts' === $hook && isset( $args[0] ) ) {
+                if ( 'vip_workflows_register_prompts' === $hook && isset( $args[0] ) ) {
                     $args[0]->register(
                         'ext/custom',
                         array( 'label' => 'Ext', 'default' => 'From extension.' )

@@ -5,12 +5,12 @@
  * Swappable provider for searching the newsroom's own published content.
  * Phase 1: LLM-assisted WP_Query. Future: Elasticsearch, vector DB.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
 interface ArchiveSearchInterface {
 

@@ -82,9 +82,9 @@ import { STORE_NAME, seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
 
-const STATUS_PATH = '/vip-workflow/v1/workflow/post/42/status';
-const SEQUENCE_PATH = '/vip-workflow/v1/workflow/post/42/sequence';
-const IDEATION_PATH = '/vip-workflow/v1/workflow/post/42/ideation';
+const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
+const SEQUENCE_PATH = '/vip-workflows/v1/workflow/post/42/sequence';
+const IDEATION_PATH = '/vip-workflows/v1/workflow/post/42/ideation';
 
 const AVAILABLE = [
 	{ id: 7, name: 'Weekend Magazine', slug: 'weekend-magazine' },
@@ -182,7 +182,7 @@ async function renderPanel( status, { onAssign = null, ideation = {} } = {} ) {
 		if ( path === IDEATION_PATH && ! method ) {
 			return Promise.resolve( ideation );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 			return Promise.resolve( [] );
 		}
 		return Promise.resolve( {} );
@@ -277,8 +277,8 @@ describe( 'WorkflowPanel workflow row', () => {
 		expect( trigger ).not.toHaveAttribute( 'aria-invalid' );
 		expect( trigger ).not.toHaveAttribute( 'aria-describedby' );
 		expect(
-			trigger.closest( '.vip-workflow-sidebar-row' )
-		).not.toHaveClass( 'vip-workflow-sidebar-row--invalid' );
+			trigger.closest( '.vip-workflows-sidebar-row' )
+		).not.toHaveClass( 'vip-workflows-sidebar-row--invalid' );
 	} );
 
 	it( 'assigns straight from the combobox, with nothing else to press', async () => {

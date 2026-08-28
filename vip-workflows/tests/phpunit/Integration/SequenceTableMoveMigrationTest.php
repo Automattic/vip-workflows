@@ -12,14 +12,14 @@
  * would assert only that we call it the way we think we do, which is exactly the
  * assumption that was wrong.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Database\Schema;
+use VIPWorkflows\Database\Schema;
 
 /**
  * Real-WordPress tests for the table and column move.
@@ -39,7 +39,7 @@ class SequenceTableMoveMigrationTest extends TestCase
 		$this->old_table = $wpdb->prefix . 'vip_blueprints';
 		$this->new_table = $wpdb->prefix . 'vip_sequences';
 		$this->flows     = $wpdb->prefix . 'vip_automation_flows';
-		$this->events    = $wpdb->prefix . 'vip_workflow_events';
+		$this->events    = $wpdb->prefix . 'vip_workflows_events';
 
 		// Start from the pre-migration shape: an old table beside an empty new one.
 		$wpdb->query( "DROP TABLE IF EXISTS `{$this->old_table}`" );

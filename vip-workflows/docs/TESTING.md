@@ -1,4 +1,4 @@
-# Testing VIP Workflow
+# Testing VIP Workflows
 
 The repository has four test layers. Run commands from the repository root unless noted.
 

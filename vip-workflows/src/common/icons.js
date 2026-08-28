@@ -23,7 +23,7 @@ import { Path, SVG } from '@wordpress/primitives';
  * same inset the library's own glyphs keep, so it sits square inside an avatar
  * rather than drifting up and to the right of one.
  *
- * Purple is this plugin's AI tone (see the `--vip-workflow-color-*-ai` tokens),
+ * Purple is this plugin's AI tone (see the `--vip-workflows-color-*-ai` tokens),
  * but the glyph states no colour of its own: an agent's avatar tints it, and a
  * caller that wants it in running text gets the text's colour.
  */

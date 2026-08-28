@@ -15,9 +15,9 @@ import JSZip from 'jszip';
 import './InstallSkillButton.css';
 
 const SKILL_NAMES = {
-	agent: 'create-vip-workflow-agent',
-	tool: 'create-vip-workflow-tool',
-	'notification-channel': 'create-vip-workflow-notification-channel',
+	agent: 'create-vip-workflows-agent',
+	tool: 'create-vip-workflows-tool',
+	'notification-channel': 'create-vip-workflows-notification-channel',
 };
 
 const SKILL_LABELS = {
@@ -29,14 +29,14 @@ const SKILL_LABELS = {
 function buildInstallScript( skillName ) {
 	return `#!/bin/bash
 #
-# Install VIP Workflow skill: ${ skillName }
+# Install VIP Workflows skill: ${ skillName }
 #
 
 SKILL_DIR="$( cd "$( dirname "$0" )" && pwd )"
 SKILL_NAME="${ skillName }"
 
 echo ""
-echo "VIP Workflow Skill Installer"
+echo "VIP Workflows Skill Installer"
 echo "============================"
 echo ""
 echo "Select your AI agent:"
@@ -85,7 +85,7 @@ export default function InstallSkillButton( { skillType } ) {
 
 	const skillName = SKILL_NAMES[ skillType ] || skillType;
 	const skillLabel = SKILL_LABELS[ skillType ] || skillType;
-	const skillContent = window.vipWorkflowAdmin?.skills?.[ skillType ] || '';
+	const skillContent = window.vipWorkflowsAdmin?.skills?.[ skillType ] || '';
 
 	const handleDownload = useCallback( async () => {
 		if ( ! skillContent || downloading ) {
@@ -126,7 +126,7 @@ export default function InstallSkillButton( { skillType } ) {
 
 	return (
 		// wpds-allow R7 -- surface wrapper (background/padding/radius), not a layout row
-		<div className="vip-workflow-install-skill">
+		<div className="vip-workflows-install-skill">
 			<Stack direction="column" gap="xs">
 				<Button
 					variant="secondary"
@@ -134,18 +134,18 @@ export default function InstallSkillButton( { skillType } ) {
 					onClick={ handleDownload }
 					isBusy={ downloading }
 					disabled={ downloading }
-					className="vip-workflow-install-skill__btn"
+					className="vip-workflows-install-skill__btn"
 				>
 					{ sprintf(
 						/* translators: %s: the skill's display name, e.g. "Create Agent". */
-						__( 'Download %s skill', 'vip-workflow' ),
+						__( 'Download %s skill', 'vip-workflows' ),
 						skillLabel
 					) }
 				</Button>
 				<Text variant="body-sm">
 					{ __(
 						'Unzip and run install.sh to add this skill to Claude Code or Cursor.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				</Text>
 			</Stack>

@@ -8,7 +8,7 @@
  * when one is set, and stopping there when it is not.
  */
 
-.vip-workflow-stage-agent-warning {
+.vip-workflows-stage-agent-warning {
 	padding: var(--wpds-dimension-padding-sm);
 	border-left: 2px solid var(--wpds-color-stroke-surface-warning-strong); /* wpds-allow R6 -- warning accent for the inline block; Stack has no border prop */
 	background: var(--wpds-color-background-surface-warning-weak); /* wpds-allow R6 -- warning tint; Stack has no background prop */

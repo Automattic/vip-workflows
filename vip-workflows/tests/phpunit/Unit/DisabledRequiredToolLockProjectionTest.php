@@ -2,18 +2,18 @@
 /**
  * Disabled required tools must be projected before a move is attempted.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Sequences\Sequence;
+use VIPWorkflows\Sequences\Sequence;
 
 /**
- * @covers \VIPWorkflow\Sequences\Sequence::get_role_permitted_transitions
+ * @covers \VIPWorkflows\Sequences\Sequence::get_role_permitted_transitions
  */
 class DisabledRequiredToolLockProjectionTest extends TestCase
 {
@@ -81,13 +81,13 @@ class DisabledRequiredToolLockProjectionTest extends TestCase
         );
         Functions\when( 'get_option' )->alias(
             static function ( string $option, $default = false ) use ( $enabled, $tool_bypass_roles ) {
-                if ( 'vip_workflow_ability_settings' === $option ) {
+                if ( 'vip_workflows_ability_settings' === $option ) {
                     return array(
                         'test/required-check' => array( 'enabled' => $enabled ),
                     );
                 }
 
-                if ( 'vip_workflow_settings' === $option ) {
+                if ( 'vip_workflows_settings' === $option ) {
                     return array(
                         'bypass_workflow_roles'   => array( 'administrator' ),
                         'bypass_tool_check_roles' => $tool_bypass_roles,

@@ -63,7 +63,7 @@ export default function ArticleCard( {
 
 	return (
 		<Card.Root
-			className={ `vip-workflow-ideation-card vip-workflow-ideation-card--article vip-workflow-ideation-card--${ variant } ${
+			className={ `vip-workflows-ideation-card vip-workflows-ideation-card--article vip-workflows-ideation-card--${ variant } ${
 				isPinned ? 'is-pinned' : ''
 			}` }
 			data-source-id={ card.source_id }
@@ -77,35 +77,35 @@ export default function ArticleCard( {
 			tabIndex={ 0 }
 			onKeyDown={ handleCardKeyDown }
 		>
-			<Card.Content className="vip-workflow-ideation-card__row">
+			<Card.Content className="vip-workflows-ideation-card__row">
 				<Stack gap="sm">
 					{ card.image && (
-						<div className="vip-workflow-ideation-card__thumb">
+						<div className="vip-workflows-ideation-card__thumb">
 							<CardThumb src={ card.image } />
 						</div>
 					) }
 					<Stack
 						direction="column"
 						gap="xs"
-						className="vip-workflow-ideation-card__content"
+						className="vip-workflows-ideation-card__content"
 					>
 						<Stack align="center" gap="sm">
 							<Badge
 								intent="none"
-								className={ `vip-workflow-ideation-card__badge vip-workflow-ideation-card__badge--${ variant }` }
+								className={ `vip-workflows-ideation-card__badge vip-workflows-ideation-card__badge--${ variant }` }
 							>
 								{ isArchive
-									? __( 'Archive', 'vip-workflow' )
+									? __( 'Archive', 'vip-workflows' )
 									: card.domain ||
-									  __( 'Web', 'vip-workflow' ) }
+									  __( 'Web', 'vip-workflows' ) }
 							</Badge>
 							{ hasSummary && (
 								<Stack
 									render={ <span /> }
-									className="vip-workflow-ideation-card__summarized"
+									className="vip-workflows-ideation-card__summarized"
 									title={ __(
 										'AI Summarized',
-										'vip-workflow'
+										'vip-workflows'
 									) }
 								>
 									{ AI_ICON }
@@ -114,8 +114,8 @@ export default function ArticleCard( {
 							{ notes && (
 								<Stack
 									render={ <span /> }
-									className="vip-workflow-ideation-card__has-notes"
-									title={ __( 'Has notes', 'vip-workflow' ) }
+									className="vip-workflows-ideation-card__has-notes"
+									title={ __( 'Has notes', 'vip-workflows' ) }
 								>
 									{ NOTES_ICON }
 								</Stack>
@@ -125,7 +125,7 @@ export default function ArticleCard( {
 							<Text
 								variant="heading-md"
 								render={ <h4 /> }
-								className="vip-workflow-ideation-card__title"
+								className="vip-workflows-ideation-card__title"
 							>
 								{ card.title }
 							</Text>
@@ -134,7 +134,7 @@ export default function ArticleCard( {
 							<Text
 								variant="body-sm"
 								render={ <p /> }
-								className="vip-workflow-ideation-card__excerpt"
+								className="vip-workflows-ideation-card__excerpt"
 							>
 								{ preview }
 							</Text>
@@ -143,7 +143,7 @@ export default function ArticleCard( {
 				</Stack>
 			</Card.Content>
 
-			<Stack className="vip-workflow-ideation-card__actions" gap="xs">
+			<Stack className="vip-workflows-ideation-card__actions" gap="xs">
 				<CardActions
 					isDismissed={ isDismissed }
 					isPinned={ isPinned }
@@ -160,18 +160,18 @@ export default function ArticleCard( {
 			{ modalOpen && (
 				<CardDetailModal
 					title={
-						card.title || __( 'Source Detail', 'vip-workflow' )
+						card.title || __( 'Source Detail', 'vip-workflows' )
 					}
 					onClose={ () => setModalOpen( false ) }
 					media={
 						<CardThumb
 							src={ card.image }
-							className="vip-workflow-ideation-detail-modal__image"
+							className="vip-workflows-ideation-detail-modal__image"
 						/>
 					}
 					meta={
 						<Stack
-							className="vip-workflow-ideation-detail-modal__meta"
+							className="vip-workflows-ideation-detail-modal__meta"
 							align="center"
 							gap="sm"
 						>
@@ -186,14 +186,14 @@ export default function ArticleCard( {
 							{ card.url && ! isArchive ? (
 								<Link href={ card.url } openInNewTab>
 									{ card.domain ||
-										__( 'Open source', 'vip-workflow' ) }
+										__( 'Open source', 'vip-workflows' ) }
 								</Link>
 							) : (
 								<Badge intent="none">
 									{ isArchive
-										? __( 'Archive', 'vip-workflow' )
+										? __( 'Archive', 'vip-workflows' )
 										: card.domain ||
-										  __( 'Web', 'vip-workflow' ) }
+										  __( 'Web', 'vip-workflows' ) }
 								</Badge>
 							) }
 							{ card.author && (
@@ -214,14 +214,14 @@ export default function ArticleCard( {
 									<Stack
 										direction="column"
 										gap="sm"
-										className="vip-workflow-ideation-detail-modal__excerpt"
+										className="vip-workflows-ideation-detail-modal__excerpt"
 									>
 										<Text
 											variant="heading-sm"
 											render={ <h4 /> }
-											className="vip-workflow-eyebrow"
+											className="vip-workflows-eyebrow"
 										>
-											{ __( 'Excerpt', 'vip-workflow' ) }
+											{ __( 'Excerpt', 'vip-workflows' ) }
 										</Text>
 										<MarkdownText text={ card.excerpt } />
 									</Stack>
@@ -231,14 +231,14 @@ export default function ArticleCard( {
 								<Stack
 									direction="column"
 									gap="sm"
-									className="vip-workflow-ideation-detail-modal__content"
+									className="vip-workflows-ideation-detail-modal__content"
 								>
 									<Text
 										variant="heading-sm"
 										render={ <h4 /> }
-										className="vip-workflow-eyebrow"
+										className="vip-workflows-eyebrow"
 									>
-										{ __( 'Content', 'vip-workflow' ) }
+										{ __( 'Content', 'vip-workflows' ) }
 									</Text>
 									<MarkdownText text={ card.content } />
 								</Stack>
@@ -253,7 +253,7 @@ export default function ArticleCard( {
 								<Text render={ <p /> }>
 									{ __(
 										'No AI summary yet.',
-										'vip-workflow'
+										'vip-workflows'
 									) }
 								</Text>
 							) }
@@ -273,7 +273,7 @@ export default function ArticleCard( {
 									href={ card.url }
 									target="_blank"
 								>
-									{ __( 'Open source', 'vip-workflow' ) }
+									{ __( 'Open source', 'vip-workflows' ) }
 								</Button>
 							) }
 							{ card.source_id && onSummarize && (
@@ -285,10 +285,10 @@ export default function ArticleCard( {
 									disabled={ summarizing }
 								>
 									{ displaySummary
-										? __( 'Regenerate', 'vip-workflow' )
+										? __( 'Regenerate', 'vip-workflows' )
 										: __(
 												'Generate AI summary',
-												'vip-workflow'
+												'vip-workflows'
 										  ) }
 								</Button>
 							) }
@@ -300,7 +300,7 @@ export default function ArticleCard( {
 					handleSaveNotes={ handleSaveNotes }
 					notesPlaceholder={ __(
 						'Add your notes about this source…',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				/>
 			) }

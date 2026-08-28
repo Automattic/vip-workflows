@@ -6,12 +6,12 @@
  * using the Innertube player API (no OAuth required). The transcript
  * is returned as plain text for LLM summarization.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
 use WP_Error;
 

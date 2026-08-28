@@ -97,7 +97,7 @@ async function renderList() {
 function cardFor( sequence ) {
 	return screen
 		.getByText( sequence.name )
-		.closest( '.vip-workflow-summary-card' );
+		.closest( '.vip-workflows-summary-card' );
 }
 
 afterEach( () => {

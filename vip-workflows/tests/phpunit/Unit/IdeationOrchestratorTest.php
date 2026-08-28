@@ -2,21 +2,21 @@
 /**
  * Tests for the ideation orchestrator.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use ReflectionMethod;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
-use VIPWorkflow\API\AvailabilitySerializer;
-use VIPWorkflow\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
+use VIPWorkflows\API\AvailabilitySerializer;
+use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 
 require_once __DIR__ . '/../../../includes/integrations/class-guideline-context-provider.php';
 require_once __DIR__ . '/../../../includes/ideation/assistants/class-ideation-orchestrator.php';
@@ -24,14 +24,14 @@ require_once __DIR__ . '/../../../includes/ideation/assistants/class-ideation-or
 /**
  * The runtime availability gate keeps its shape assertions here, and the
  * register-selection assertions in the integration suite: both gates run against
- * a `VIPWorkflow\Abilities\Ability`, which extends core's `WP_Ability` and so
+ * a `VIPWorkflows\Abilities\Ability`, which extends core's `WP_Ability` and so
  * cannot be instantiated without a booted WordPress. What *is* provable here is
  * the persisted shape — the contract that no rendered sentence is stored — and
  * that reading meta written before the structured contract neither fatals nor
  * invents an availability payload.
  *
- * @covers \VIPWorkflow\Ideation\Assistants\IdeationOrchestrator
- * @covers \VIPWorkflow\API\AvailabilitySerializer::to_persistable
+ * @covers \VIPWorkflows\Ideation\Assistants\IdeationOrchestrator
+ * @covers \VIPWorkflows\API\AvailabilitySerializer::to_persistable
  */
 class IdeationOrchestratorTest extends TestCase {
 
@@ -207,7 +207,7 @@ class IdeationOrchestratorTest extends TestCase {
 
 		$this->stub_assistant_meta_rows(
 			array(
-				'vip-workflow/web-researcher' => array(
+				'vip-workflows/web-researcher' => array(
 					'status' => 'unavailable',
 					'error'  => 'Research agent is not configured.',
 				),
@@ -216,10 +216,10 @@ class IdeationOrchestratorTest extends TestCase {
 
 		$assistants = $this->read_assistant_meta();
 
-		$this->assertSame( 'unavailable', $assistants['vip-workflow/web-researcher']['status'] );
+		$this->assertSame( 'unavailable', $assistants['vip-workflows/web-researcher']['status'] );
 		$this->assertSame(
 			'Research agent is not configured.',
-			$assistants['vip-workflow/web-researcher']['error']
+			$assistants['vip-workflows/web-researcher']['error']
 		);
 	}
 
@@ -250,12 +250,12 @@ class IdeationOrchestratorTest extends TestCase {
 		Functions\when( 'wp_get_abilities' )->justReturn( array() );
 
 		$this->stub_assistant_meta_rows(
-			array( 'vip-workflow/seed-analyst' => array( 'status' => 'completed' ) )
+			array( 'vip-workflows/seed-analyst' => array( 'status' => 'completed' ) )
 		);
 
 		$assistants = $this->read_assistant_meta();
 
-		$this->assertSame( 'Seed Analyst', $assistants['vip-workflow/seed-analyst']['label'] );
+		$this->assertSame( 'Seed Analyst', $assistants['vip-workflows/seed-analyst']['label'] );
 	}
 
 	public function test_every_stored_assistant_carries_a_label(): void {
@@ -263,8 +263,8 @@ class IdeationOrchestratorTest extends TestCase {
 
 		$this->stub_assistant_meta_rows(
 			array(
-				'vip-workflow/seed-analyst'    => array( 'status' => 'completed' ),
-				'vip-workflow/media_scout'     => array( 'status' => 'completed' ),
+				'vip-workflows/seed-analyst'    => array( 'status' => 'completed' ),
+				'vip-workflows/media_scout'     => array( 'status' => 'completed' ),
 				'workflow-assistant-hackernews/hackernews' => array( 'status' => 'failed' ),
 			)
 		);
@@ -296,17 +296,17 @@ class IdeationOrchestratorTest extends TestCase {
 			),
 		);
 
-		$this->stub_assistant_meta_rows( array( 'vip-workflow/web-researcher' => $stored ) );
+		$this->stub_assistant_meta_rows( array( 'vip-workflows/web-researcher' => $stored ) );
 
 		$assistants = $this->read_assistant_meta();
 
 		// The stored identity stands as the record of what failed; with the agent
 		// gone there is no live source to phrase either register from. The label is
 		// resolved regardless, because the row still has to be named.
-		$actual = $assistants['vip-workflow/web-researcher'];
+		$actual = $assistants['vip-workflows/web-researcher'];
 		unset( $actual['label'] );
 
 		$this->assertSame( $stored, $actual );
-		$this->assertArrayNotHasKey( 'availability', $assistants['vip-workflow/web-researcher'] );
+		$this->assertArrayNotHasKey( 'availability', $assistants['vip-workflows/web-researcher'] );
 	}
 }

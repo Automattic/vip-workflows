@@ -7,14 +7,14 @@
  * scope here — they require integration-level fakes for the AiClient
  * static facade.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Integrations\MediaProcessor;
+use VIPWorkflows\Integrations\MediaProcessor;
 use WP_Error;
 
 /**

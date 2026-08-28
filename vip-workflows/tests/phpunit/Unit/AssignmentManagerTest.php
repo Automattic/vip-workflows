@@ -2,15 +2,15 @@
 /**
  * AssignmentManager unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Workflow\AssignmentManager;
+use VIPWorkflows\Workflow\AssignmentManager;
 
 class AssignmentManagerTest extends TestCase
 {

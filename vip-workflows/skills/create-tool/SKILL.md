@@ -1,10 +1,10 @@
 ---
-name: create-vip-workflow-tool
+name: create-vip-workflows-tool
 description: >-
-  Scaffold a VIP Workflow editorial tool plugin. Use when the user wants to
-  create a custom content analysis tool, validator, or checker for VIP Workflow.
+  Scaffold a VIP Workflows editorial tool plugin. Use when the user wants to
+  create a custom content analysis tool, validator, or checker for VIP Workflows.
 ---
-# Create a VIP Workflow Editorial Tool
+# Create a VIP Workflows Editorial Tool
 
 Editorial tools run against post content during workflow transitions or on demand from the editor sidebar. Each tool is a standalone WordPress plugin that registers an ability with the Abilities API.
 
@@ -26,7 +26,7 @@ workflow-tool-{name}/
     class-{name}-checker.php        # Tool logic (register + execute)
 ```
 
-The plugin directory lives alongside `vip-workflow/` in the same parent directory.
+The plugin directory lives alongside `vip-workflows/` in the same parent directory.
 
 ## Boilerplate
 
@@ -68,16 +68,16 @@ namespace WorkflowTool{PascalName};
 class {PascalName}Checker {
 
     public static function register(): void {
-        if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+        if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
             return;
         }
 
-        vip_workflow_register_ability(
+        vip_workflows_register_ability(
             'workflow-tool-{name}/{slug}',
             array(
                 'label'               => __( '{Display Name}', 'workflow-tool-{name}' ),
                 'description'         => __( '{One-line description.}', 'workflow-tool-{name}' ),
-                'category'            => 'vip-workflow',
+                'category'            => 'vip-workflows',
                 'input_schema'        => self::get_input_schema(),
                 'output_schema'       => self::get_output_schema(),
                 'execute_callback'    => array( self::class, 'execute' ),
@@ -162,7 +162,7 @@ class {PascalName}Checker {
         }
 
         // Read saved settings from AbilitySettings (not from $input).
-        $settings  = \VIPWorkflow\Abilities\AbilitySettings::get_instance()
+        $settings  = \VIPWorkflows\Abilities\AbilitySettings::get_instance()
             ->get_options( 'workflow-tool-{name}/{slug}' );
         $threshold = $settings['threshold'] ?? 80;
 
@@ -211,9 +211,9 @@ A tool that needs configuration -- an API key, an external service, a plugin tha
 Write it against the structured shape from the start. Returning a bare `false` still works and is still silent, but it discards the reason: the surface can then only say that *something* is unconfigured, naming nothing and linking nowhere.
 
 ```php
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Abilities\RequirementGroup;
 
 /**
  * Whether this tool's dependencies are met, and what is missing if not.
@@ -221,7 +221,7 @@ use VIPWorkflow\Abilities\RequirementGroup;
  * @return bool|Availability True when configured, otherwise the unmet requirements.
  */
 public static function check_availability(): bool|Availability {
-    $settings = \VIPWorkflow\Abilities\AbilitySettings::get_instance();
+    $settings = \VIPWorkflows\Abilities\AbilitySettings::get_instance();
     $options  = $settings->get_options( 'workflow-tool-{name}/{slug}' );
 
     if ( ! empty( $options['api_key'] ) ) {
@@ -245,9 +245,9 @@ public static function check_availability(): bool|Availability {
 Rules:
 
 - **The callback owns satisfaction.** Return `true` as soon as the dependencies are met; an `Availability::unmet()` carries *only* unmet requirements, and nothing downstream re-evaluates them.
-- **A tool that generates text with AI does not write its own check.** Generate through `VIPWorkflow\AI\AiInference::get_instance()->model()`, never by naming a provider class, and gate with `VIPWorkflow\Abilities\AiAvailability::for_selected_provider( $sources )`. That pair is the whole contract: the check resolves exactly the three conditions the resolver needs — the selected provider registered with the WordPress AI Client, its credential, and a chosen model — so the gate and the generation call cannot disagree. Naming a provider yourself is how a Claude-configured site ends up being told to go get an OpenAI key. `for_provider( $provider, $sources )` exists for the rare tool that genuinely requires one specific vendor. Do not call `AiClient::isConfigured()` in an availability callback — it makes a live request, and availability is read on every Tools-page load.
+- **A tool that generates text with AI does not write its own check.** Generate through `VIPWorkflows\AI\AiInference::get_instance()->model()`, never by naming a provider class, and gate with `VIPWorkflows\Abilities\AiAvailability::for_selected_provider( $sources )`. That pair is the whole contract: the check resolves exactly the three conditions the resolver needs — the selected provider registered with the WordPress AI Client, its credential, and a chosen model — so the gate and the generation call cannot disagree. Naming a provider yourself is how a Claude-configured site ends up being told to go get an OpenAI key. `for_provider( $provider, $sources )` exists for the rare tool that genuinely requires one specific vendor. Do not call `AiClient::isConfigured()` in an availability callback — it makes a live request, and availability is read on every Tools-page load.
 - **`AiInference::model()` returns null when the selection is unresolvable.** There is no fallback to another vendor. Bail with a `WP_Error` rather than passing null to `usingModel()`.
-- **Build requirements with `RequirementFactory`,** not by hand. Use `in_card()` when the value is entered in the tool's own `settings_schema` fields; `missing_credential( $service, $service_label, $sources )` when the key is one the plugin reads through `VIPWorkflow\AI\Credentials`, which resolves the destination against the install instead of hardcoding a screen; `dependency()` when a prerequisite other than a credential is missing (e.g. a required plugin is not installed); `unsupported_environment()` when nothing can be configured to fix it.
+- **Build requirements with `RequirementFactory`,** not by hand. Use `in_card()` when the value is entered in the tool's own `settings_schema` fields; `missing_credential( $service, $service_label, $sources )` when the key is one the plugin reads through `VIPWorkflows\AI\Credentials`, which resolves the destination against the install instead of hardcoding a screen; `dependency()` when a prerequisite other than a credential is missing (e.g. a required plugin is not installed); `unsupported_environment()` when nothing can be configured to fix it.
 - **Supply both message registers.** The admin reason may name a screen; the user message must not, because tools execute under `edit_posts` while admin settings require `manage_options`. The register is chosen where the requirement is read, not where it is authored.
 - Group with `RequirementGroup::all()`, or `RequirementGroup::any()` when satisfying one member is enough -- an `any` group renders as one "configure at least one of" block.
 - Returning `false` remains valid for a tool with nothing useful to say. It produces the generic line, with no diagnostic.
@@ -255,12 +255,12 @@ Rules:
 ## Registration Rules
 
 - The ability name **must** be namespaced with a slash: `plugin-slug/ability-slug`. Never use `sanitize_key()` on ability IDs (it strips slashes).
-- `category` must be `'vip-workflow'`
+- `category` must be `'vip-workflows'`
 - **`meta.type` is required** for the tool to appear in Integrations > Tools. Use `'check'` for validation tools, `'helper'` for content generators, `'validator'` for analysis tools, `'agent'` for AI Agent.
 - `meta.transition_eligible = true` if the tool should run during workflow or phase transitions
 - `meta.show_in_commands = true` to expose the "Show in Command Palette (⌘K)" toggle in Integrations > Tools; admins control the actual value per-site. Omit or set `false` for tools that should never appear in the palette.
 - Hook into `wp_abilities_api_init`
-- Guard with `function_exists( 'vip_workflow_register_ability' )`
+- Guard with `function_exists( 'vip_workflows_register_ability' )`
 - For **phase transition tools** (ideation to pitch/editorial): the input receives `project_id` (not `post_id`). Do not use `current_user_can( 'edit_post', ... )` in `permission_callback` because ideation CPTs use custom capabilities. Validate input and return `true`.
 
 ## Output Contract
@@ -316,7 +316,7 @@ post title, because the modal treated the summary as content to apply.
 
 ## Testing
 
-1. Place the plugin directory alongside `vip-workflow/`
+1. Place the plugin directory alongside `vip-workflows/`
 2. Activate it in WordPress admin
 3. Go to Integrations > Tools to verify it appears
 4. Open a post in the editor; the tool should appear in the sidebar

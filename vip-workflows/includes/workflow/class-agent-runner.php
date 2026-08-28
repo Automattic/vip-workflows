@@ -2,14 +2,14 @@
 /**
  * Agent Runner - handles async agent task execution.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Workflow;
+namespace VIPWorkflows\Workflow;
 
-use VIPWorkflow\ModuleInterface;
+use VIPWorkflows\ModuleInterface;
 
 /**
  * Manages agent task execution for automated workflow assignments.
@@ -30,8 +30,8 @@ class AgentRunner implements ModuleInterface {
 	 * Initialize hooks.
 	 */
 	public function init(): void {
-		add_action( 'vip_workflow_agent_assigned', array( $this, 'queue_agent_task' ), 10, 3 );
-		add_action( 'vip_workflow_run_agent', array( $this, 'run_agent' ) );
+		add_action( 'vip_workflows_agent_assigned', array( $this, 'queue_agent_task' ), 10, 3 );
+		add_action( 'vip_workflows_run_agent', array( $this, 'run_agent' ) );
 	}
 
 	/**
@@ -46,7 +46,7 @@ class AgentRunner implements ModuleInterface {
 
 		if ( ! isset( $agents[ $agent_id ] ) ) {
          // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( "VIP Workflow: Unknown agent '{$agent_id}'" );
+			error_log( "VIP Workflows: Unknown agent '{$agent_id}'" );
 			return;
 		}
 
@@ -58,7 +58,7 @@ class AgentRunner implements ModuleInterface {
 		);
 
 		// Schedule task to run async.
-		wp_schedule_single_event( time(), 'vip_workflow_run_agent', array( $task_data ) );
+		wp_schedule_single_event( time(), 'vip_workflows_run_agent', array( $task_data ) );
 	}
 
 	/**
@@ -104,7 +104,7 @@ class AgentRunner implements ModuleInterface {
 			 * @param string $agent_id Agent ID.
 			 * @param mixed  $result   Agent result.
 			 */
-			do_action( 'vip_workflow_agent_completed', $post_id, $agent_id, $result );
+			do_action( 'vip_workflows_agent_completed', $post_id, $agent_id, $result );
 
 		} catch ( \Exception $e ) {
 			// Mark assignment expired on failure.
@@ -117,7 +117,7 @@ class AgentRunner implements ModuleInterface {
 			 * @param string $agent_id Agent ID.
 			 * @param string $error    Error message.
 			 */
-			do_action( 'vip_workflow_agent_failed', $post_id, $agent_id, $e->getMessage() );
+			do_action( 'vip_workflows_agent_failed', $post_id, $agent_id, $e->getMessage() );
 		}
 	}
 
@@ -132,7 +132,7 @@ class AgentRunner implements ModuleInterface {
 		 *
 		 * Example registration:
 		 * ```php
-		 * add_filter( 'vip_workflow_agents', function( $agents ) {
+		 * add_filter( 'vip_workflows_agents', function( $agents ) {
 		 *     $agents['seo-checker'] = [
 		 *         'label'       => 'SEO Checker',
 		 *         'description' => 'Validates SEO requirements',
@@ -144,7 +144,7 @@ class AgentRunner implements ModuleInterface {
 		 *
 		 * @param array $agents Registered agents.
 		 */
-		return apply_filters( 'vip_workflow_agents', array() );
+		return apply_filters( 'vip_workflows_agents', array() );
 	}
 
 	/**

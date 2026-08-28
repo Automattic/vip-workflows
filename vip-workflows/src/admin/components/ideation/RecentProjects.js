@@ -38,9 +38,9 @@ const IDEAS_PER_PAGE = 6;
 
 // An idea's own post status, and the badge tone it reads in.
 const RECENT_STATUSES = {
-	publish: { label: __( 'Active', 'vip-workflow' ), intent: 'stable' },
-	draft: { label: __( 'Draft', 'vip-workflow' ), intent: 'none' },
-	archive: { label: __( 'Archived', 'vip-workflow' ), intent: 'none' },
+	publish: { label: __( 'Active', 'vip-workflows' ), intent: 'stable' },
+	draft: { label: __( 'Draft', 'vip-workflows' ), intent: 'none' },
+	archive: { label: __( 'Archived', 'vip-workflows' ), intent: 'none' },
 };
 
 const RECENT_STATUS_ELEMENTS = Object.entries( RECENT_STATUSES ).map(
@@ -74,7 +74,7 @@ const DEFAULT_VIEW = {
  * @return {JSX.Element} Recent projects list.
  */
 export default function RecentProjects( { onSelect } ) {
-	const canManage = window.vipWorkflowAdmin?.currentUser?.canManage;
+	const canManage = window.vipWorkflowsAdmin?.currentUser?.canManage;
 	const [ projects, setProjects ] = useState( [] );
 	const [ loading, setLoading ] = useState( true );
 	const [ showAll, setShowAll ] = useState( false );
@@ -85,7 +85,7 @@ export default function RecentProjects( { onSelect } ) {
 			try {
 				const authorParam = showAll ? 'all' : 'me';
 				const items = await apiFetch( {
-					path: `/vip-workflow/v1/ideation?per_page=50&author=${ authorParam }`,
+					path: `/vip-workflows/v1/ideation?per_page=50&author=${ authorParam }`,
 				} );
 				setProjects( items );
 			} catch {
@@ -114,14 +114,14 @@ export default function RecentProjects( { onSelect } ) {
 			{
 				id: 'title',
 				type: 'text',
-				label: __( 'Title', 'vip-workflow' ),
+				label: __( 'Title', 'vip-workflows' ),
 				enableHiding: false,
 				enableGlobalSearch: true,
 			},
 			{
 				id: 'tags',
 				type: 'text',
-				label: __( 'Tags', 'vip-workflow' ),
+				label: __( 'Tags', 'vip-workflows' ),
 				filterBy: false,
 				enableSorting: false,
 				getValue: ( { item } ) => item.tags?.join( ', ' ) || '',
@@ -132,7 +132,7 @@ export default function RecentProjects( { onSelect } ) {
 			},
 			{
 				id: 'status',
-				label: __( 'Status', 'vip-workflow' ),
+				label: __( 'Status', 'vip-workflows' ),
 				elements: RECENT_STATUS_ELEMENTS,
 				filterBy: { operators: [ 'isAny' ], isPrimary: true },
 				enableSorting: false,
@@ -142,7 +142,7 @@ export default function RecentProjects( { onSelect } ) {
 					return (
 						<Badge
 							intent={ status?.intent || 'none' }
-							className="vip-workflow-ideation-recent__badge"
+							className="vip-workflows-ideation-recent__badge"
 						>
 							{ status?.label || item.status }
 						</Badge>
@@ -152,7 +152,7 @@ export default function RecentProjects( { onSelect } ) {
 			{
 				id: 'source_count',
 				type: 'integer',
-				label: __( 'Sources', 'vip-workflow' ),
+				label: __( 'Sources', 'vip-workflows' ),
 				filterBy: false,
 				getValue: ( { item } ) => item.source_count || 0,
 				// An idea with no sources yet drops the row entirely: the grid
@@ -162,7 +162,7 @@ export default function RecentProjects( { onSelect } ) {
 			{
 				id: 'updated_at',
 				type: 'datetime',
-				label: __( 'Updated', 'vip-workflow' ),
+				label: __( 'Updated', 'vip-workflows' ),
 				filterBy: false,
 				// These are recent items in a card's meta row, so the time of
 				// day earns no space — the date alone, in the format the site
@@ -175,7 +175,7 @@ export default function RecentProjects( { onSelect } ) {
 			{
 				id: 'author',
 				type: 'text',
-				label: __( 'Author', 'vip-workflow' ),
+				label: __( 'Author', 'vip-workflows' ),
 				filterBy: false,
 				enableSorting: false,
 				getValue: ( { item } ) => item.author?.display_name || '',
@@ -214,21 +214,21 @@ export default function RecentProjects( { onSelect } ) {
 		<Stack
 			direction="column"
 			gap="2xl"
-			className="vip-workflow-ideation-recent"
+			className="vip-workflows-ideation-recent"
 		>
 			{ activeIdeas.length > 0 && (
 				<Stack direction="column" gap="lg">
 					<Stack
 						align="center"
 						justify="space-between"
-						className="vip-workflow-ideation-recent__header"
+						className="vip-workflows-ideation-recent__header"
 					>
 						<Text
 							variant="heading-sm"
 							render={ <h3 /> }
-							className="vip-workflow-ideation-recent__title vip-workflow-eyebrow"
+							className="vip-workflows-ideation-recent__title vip-workflows-eyebrow"
 						>
-							{ __( 'Recent ideas', 'vip-workflow' ) }
+							{ __( 'Recent ideas', 'vip-workflows' ) }
 						</Text>
 						{ canManage && (
 							<Stack gap="xs">
@@ -237,14 +237,14 @@ export default function RecentProjects( { onSelect } ) {
 									onClick={ () => setScope( false ) }
 									size="small"
 								>
-									{ __( 'Mine', 'vip-workflow' ) }
+									{ __( 'Mine', 'vip-workflows' ) }
 								</Button>
 								<Button
 									variant={ showAll ? 'primary' : 'tertiary' }
 									onClick={ () => setScope( true ) }
 									size="small"
 								>
-									{ __( 'All', 'vip-workflow' ) }
+									{ __( 'All', 'vip-workflows' ) }
 								</Button>
 							</Stack>
 						) }
@@ -256,7 +256,7 @@ export default function RecentProjects( { onSelect } ) {
 						onChangeView={ setView }
 						paginationInfo={ paginationInfo }
 						defaultLayouts={ { grid: {} } }
-						searchLabel={ __( 'Search ideas', 'vip-workflow' ) }
+						searchLabel={ __( 'Search ideas', 'vip-workflows' ) }
 						getItemId={ ( item ) => String( item.id ) }
 						onClickItem={ ( item ) => onSelect( item.id ) }
 						// Only ever seen when a search or filter excludes
@@ -264,7 +264,7 @@ export default function RecentProjects( { onSelect } ) {
 						// there are no active ideas to begin with.
 						empty={
 							<Text variant="body-md" render={ <p /> }>
-								{ __( 'No ideas found.', 'vip-workflow' ) }
+								{ __( 'No ideas found.', 'vip-workflows' ) }
 							</Text>
 						}
 					/>
@@ -272,45 +272,45 @@ export default function RecentProjects( { onSelect } ) {
 			) }
 
 			{ pipelineProjects.length > 0 && (
-				<Collapsible.Root className="vip-workflow-ideation-pipeline">
-					<Collapsible.Trigger className="vip-workflow-ideation-pipeline__summary">
+				<Collapsible.Root className="vip-workflows-ideation-pipeline">
+					<Collapsible.Trigger className="vip-workflows-ideation-pipeline__summary">
 						{ /* wpds-allow R7 -- disclosure chevron glyph; a decorative marker, not text */ }
 						<span
-							className="vip-workflow-ideation-pipeline__chevron"
+							className="vip-workflows-ideation-pipeline__chevron"
 							aria-hidden="true"
 						>
 							&#9654;
 						</span>
-						{ __( 'In Pipeline', 'vip-workflow' ) }
+						{ __( 'In Pipeline', 'vip-workflows' ) }
 						{ /* wpds-allow R7 -- styled count pill (inline-flex badge); not a Stack/Text */ }
-						<span className="vip-workflow-ideation-pipeline__count">
+						<span className="vip-workflows-ideation-pipeline__count">
 							{ pipelineProjects.length }
 						</span>
 					</Collapsible.Trigger>
 					<Collapsible.Panel>
-						<table className="vip-workflow-ideation-pipeline__table">
+						<table className="vip-workflows-ideation-pipeline__table">
 							<thead>
 								<tr>
 									<Text
 										variant="heading-sm"
 										render={ <th /> }
-										className="vip-workflow-eyebrow"
+										className="vip-workflows-eyebrow"
 									>
-										{ __( 'Title', 'vip-workflow' ) }
+										{ __( 'Title', 'vip-workflows' ) }
 									</Text>
 									<Text
 										variant="heading-sm"
 										render={ <th /> }
-										className="vip-workflow-eyebrow"
+										className="vip-workflows-eyebrow"
 									>
-										{ __( 'Status', 'vip-workflow' ) }
+										{ __( 'Status', 'vip-workflows' ) }
 									</Text>
 									<Text
 										variant="heading-sm"
 										render={ <th /> }
-										className="vip-workflow-eyebrow"
+										className="vip-workflows-eyebrow"
 									>
-										{ __( 'Date', 'vip-workflow' ) }
+										{ __( 'Date', 'vip-workflows' ) }
 									</Text>
 								</tr>
 							</thead>
@@ -323,10 +323,10 @@ export default function RecentProjects( { onSelect } ) {
 									// screen reader could announce truthfully.
 									<tr
 										key={ project.id }
-										className="vip-workflow-ideation-pipeline__row"
+										className="vip-workflows-ideation-pipeline__row"
 										onClick={ () => onSelect( project.id ) }
 									>
-										<td className="vip-workflow-ideation-pipeline__cell-title">
+										<td className="vip-workflows-ideation-pipeline__cell-title">
 											<Button
 												variant="link"
 												onClick={ ( e ) => {
@@ -344,7 +344,7 @@ export default function RecentProjects( { onSelect } ) {
 														project.pipeline_status
 													).intent
 												}
-												className="vip-workflow-ideation-pipeline__badge"
+												className="vip-workflows-ideation-pipeline__badge"
 											>
 												{
 													pipelineStatus(
@@ -353,7 +353,7 @@ export default function RecentProjects( { onSelect } ) {
 												}
 											</Badge>
 										</td>
-										<td className="vip-workflow-ideation-pipeline__cell-date">
+										<td className="vip-workflows-ideation-pipeline__cell-date">
 											{ formatDate( project.updated_at ) }
 										</td>
 									</tr>

@@ -7,7 +7,7 @@
  * guard. deactivate() is targeted because it isolates the flush call; activate()
  * additionally runs schema + seeder work that would need a full DB stand-up.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
@@ -29,7 +29,7 @@ class RewriteFlushGuardTest extends TestCase
         define( 'WPCOM_IS_VIP_ENV', true );
         $this->boot_plugin_with_flush_spy();
 
-        \VIPWorkflow\deactivate();
+        \VIPWorkflows\deactivate();
 
         $this->assertSame( 0, $GLOBALS['__vw_flush_calls'], 'flush_rewrite_rules() must not run on VIP.' );
     }
@@ -45,7 +45,7 @@ class RewriteFlushGuardTest extends TestCase
         // WPCOM_IS_VIP_ENV intentionally left undefined to model a non-VIP host.
         $this->boot_plugin_with_flush_spy();
 
-        \VIPWorkflow\deactivate();
+        \VIPWorkflows\deactivate();
 
         $this->assertSame( 1, $GLOBALS['__vw_flush_calls'], 'flush_rewrite_rules() must run when not on VIP.' );
     }
@@ -61,7 +61,7 @@ class RewriteFlushGuardTest extends TestCase
         define( 'WPCOM_IS_VIP_ENV', false );
         $this->boot_plugin_with_flush_spy();
 
-        \VIPWorkflow\deactivate();
+        \VIPWorkflows\deactivate();
 
         $this->assertSame( 1, $GLOBALS['__vw_flush_calls'], 'A falsy WPCOM_IS_VIP_ENV must not suppress the flush.' );
     }

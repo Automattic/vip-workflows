@@ -7,16 +7,16 @@
 @import '../styles/eyebrow.css';
 
 /**
- * VIP Workflow Editor Styles
+ * VIP Workflows Editor Styles
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 /* Loading state. The spinner/label row is a `<Stack align="center" gap="sm">`
    inside a sidebar section, and the section rules below own the inset — so
    this rule owns only the muted tone. (The admin bundle keeps its own copy of
    this class, with its own inset, in src/admin/style.css.) */
-.vip-workflow-loading {
+.vip-workflows-loading {
 	/* wpds-allow R6 -- <Stack> exposes no color prop; the muted tone must be set here. */
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
@@ -32,11 +32,11 @@
    section — the workflow panel — and the runs inside it (the metadata fields,
    the panel's foot) each carry their own hairline, because they are the
    panel's children rather than the sidebar's. */
-.vip-workflow-sidebar > * {
+.vip-workflows-sidebar > * {
 	padding: var(--wpds-dimension-padding-lg);
 }
 
-.vip-workflow-panel__empty {
+.vip-workflows-panel__empty {
 	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
@@ -46,22 +46,22 @@
    picking a sequence IS starting it and there is no second control to size. */
 
 /* Workflow Required Modal */
-.vip-workflow-required-modal__intro {
+.vip-workflows-required-modal__intro {
 	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
 	color: var(--wpds-color-foreground-content-neutral);
 	/* wpds-allow R3 -- separates the intro from the modal body; the gap scale steps 16→24, so no token holds 20px. */
 	margin: 0 0 20px 0;
 }
 
-.vip-workflow-required-modal__loading {
+.vip-workflows-required-modal__loading {
 	padding: var(--wpds-dimension-padding-xl);
 }
 
-.vip-workflow-metadata-user-control__loading {
+.vip-workflows-metadata-user-control__loading {
 	padding: var(--wpds-dimension-padding-sm) 0;
 }
 
-.vip-workflow-required-modal__empty {
+.vip-workflows-required-modal__empty {
 	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	font-style: italic;
@@ -100,8 +100,8 @@
    growing to its content, which is what made the first attempt at this look
    like it had done nothing. */
 /* wpds-allow R6 -- <Modal> exposes no prop for how its body handles overflow, and the height chain has to reach the DataViews inside it */
-.vip-workflow-history-modal .components-modal__content,
-.vip-workflow-history-modal .components-modal__children-container {
+.vip-workflows-history-modal .components-modal__content,
+.vip-workflows-history-modal .components-modal__children-container {
 	display: flex;
 	flex-direction: column;
 	overflow: hidden;
@@ -110,14 +110,14 @@
 /* The dialog's floor. A <Modal> is sized by its content, so without this it
    collapses around an empty stream while the first page is still loading and
    then jumps to full height when the entries land. */
-.vip-workflow-history-modal .components-modal__content {
+.vip-workflows-history-modal .components-modal__content {
 	min-height: 24rem;
 }
 
 /* `min-height: 0` only on the flex children: it is what lets them shrink below
    their content height so the scrolling happens inside DataViews. Putting it on
    the content above would cancel the floor. */
-.vip-workflow-history-modal .components-modal__children-container {
+.vip-workflows-history-modal .components-modal__children-container {
 	flex: 1;
 	min-height: 0;
 }
@@ -127,14 +127,14 @@
    height. As a flex child it takes the space actually left; `min-height: 0`
    is what lets it shrink below that content height so its own layout container
    scrolls. */
-.vip-workflow-history-modal .dataviews-wrapper {
+.vip-workflows-history-modal .dataviews-wrapper {
 	flex: 1; /* wpds-allow R6 -- sizing override on vendored dataviews.css; no component prop for the wrapper's box */
 	min-height: 0; /* wpds-allow R6 -- lets the flex child shrink so DataViews scrolls internally */
 }
 
 /* The button row must hold its place at the foot rather than be squeezed by the
    stream above it. */
-.vip-workflow-history-modal .vip-workflow-modal-actions {
+.vip-workflows-history-modal .vip-workflows-modal-actions {
 	flex-shrink: 0;
 }
 
@@ -153,7 +153,7 @@
    carries its own, matching the foot below it, and no inset of its own,
    because the panel around it already holds the sidebar's. Set on the section,
    so a sequence with no fields renders nothing and leaves no rule behind. */
-.vip-workflow-metadata-panel {
+.vip-workflows-metadata-panel {
 	padding-top: var(--wpds-dimension-padding-md);
 	/* wpds-allow R6 -- rule above the metadata fields; @wordpress/ui 0.9 ships no Divider and <Stack> exposes no border prop. */
 	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
@@ -163,21 +163,21 @@
    from the transition buttons above it — those move the post through the
    sequence, these act on the sequence itself — and set full width like them so
    the column reads as one set of controls rather than two shapes. */
-.vip-workflow-panel__footer-actions {
+.vip-workflows-panel__footer-actions {
 	padding-top: var(--wpds-dimension-padding-md);
 	/* wpds-allow R6 -- rule above the footer; @wordpress/ui 0.9 ships no Divider and <Stack> exposes no border prop. */
 	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
 /* wpds-allow R6 -- <Button> has no full-width prop; only its own class can be out-specified. */
-.vip-workflow-panel__footer-actions .components-button {
+.vip-workflows-panel__footer-actions .components-button {
 	width: 100%;
 	justify-content: center;
 }
 
 /* Assignment info. The 6px gap stays here because the gap scale steps 4→8 and
    neither reads right between the label, the name and the Release button. */
-.vip-workflow-panel__assigned {
+.vip-workflows-panel__assigned {
 	gap: 6px;
 	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
 	/* wpds-allow R6 -- <Stack> draws nothing; the tinted surface must be set here. */
@@ -185,44 +185,44 @@
 	/* wpds-allow R6 -- <Stack> exposes no border-radius prop. */
 	border-radius: var( --wpds-border-radius-md );
 	/* wpds-allow R6 -- <Stack> exposes no type-scale prop; the label and name spans inherit this. */
-	font: var(--vip-workflow-text-body-md);
+	font: var(--vip-workflows-text-body-md);
 }
 
-.vip-workflow-panel__assigned-label {
+.vip-workflows-panel__assigned-label {
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* The shared <AuthorCell>, emphasised. The weight is inherited by the name span
    inside it rather than set on the span directly, because the cell also holds
    the avatar and the trailing "(you)" and they read as one emphasised unit. */
-.vip-workflow-panel__assigned-name {
+.vip-workflows-panel__assigned-name {
 	font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
 /* "(you)" sits inside the assignee cell, so it re-declares the body weight the
    cell around it emphasises — that comes from `<Text variant="body-md">`. */
-.vip-workflow-panel__you {
+.vip-workflows-panel__you {
 	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
 	color: var(--wpds-color-foreground-content-success-weak);
 }
 
-.vip-workflow-panel__claim {
+.vip-workflows-panel__claim {
 	/* wpds-allow R3 -- extra clearance below the Claim button, on top of the panel Stack's uniform gap. */
 	margin-bottom: 8px;
 }
 
 /* wpds-allow R6 -- <Button> has no full-width prop; only its own class can be out-specified. */
-.vip-workflow-panel__claim .components-button {
+.vip-workflows-panel__claim .components-button {
 	width: 100%;
 	justify-content: center;
 }
 
-.vip-workflow-command-palette-running-title {
+.vip-workflows-command-palette-running-title {
 	font-size: var(--wpds-typography-font-size-lg);
 	font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
-.vip-workflow-command-palette-running-detail {
+.vip-workflows-command-palette-running-detail {
 	font-size: var(--wpds-typography-font-size-md);
 }
 
@@ -236,7 +236,7 @@
 
 /* Failure notice. A plain surface, not a Stack: its title, error line and
    Go back button sit at three different distances. */
-.vip-workflow-panel__agent-failed {
+.vip-workflows-panel__agent-failed {
 	padding: var(--wpds-dimension-padding-md);
 	/* wpds-allow R3 -- sets this notice apart from the panel rows above and below, on top of the panel Stack's uniform gap. */
 	margin: 0.5rem 0;
@@ -245,14 +245,14 @@
 	border-radius: var(--wpds-border-radius-md);
 }
 
-.vip-workflow-panel__agent-failed-title {
+.vip-workflows-panel__agent-failed-title {
 	/* wpds-allow R3 -- distance to the error line below; the notice is a plain surface, not a Stack (see above). */
 	margin: 0 0 0.25rem;
 	/* wpds-allow R6,R8 -- <Text> exposes no weight prop, and the scale ships only regular (400) and medium (499) — neither is this 600. */
 	font-weight: 600;
 }
 
-.vip-workflow-panel__agent-failed-error {
+.vip-workflows-panel__agent-failed-error {
 	/* wpds-allow R3 -- distance to the Go back button below; the notice is a plain surface, not a Stack (see above). */
 	margin: 0 0 0.5rem;
 	/* The <Text variant="body-sm"> on this element cannot deliver its own size
@@ -275,7 +275,7 @@
  * into place, not that the field demands attention: a writer who applied a
  * headline already knows they did, and a flash would be scolding them for it.
  */
-@keyframes vip-workflow-field-settle {
+@keyframes vip-workflows-field-settle {
 	from {
 		opacity: 0.25;
 	}
@@ -285,8 +285,8 @@
 	}
 }
 
-.vip-workflow-field--settling {
-	animation: vip-workflow-field-settle 420ms ease-out;
+.vip-workflows-field--settling {
+	animation: vip-workflows-field-settle 420ms ease-out;
 }
 
 /*
@@ -294,29 +294,29 @@
  * The applied state is already conveyed in the modal, so nothing is lost.
  */
 @media ( prefers-reduced-motion: reduce ) {
-	.vip-workflow-field--settling {
+	.vip-workflows-field--settling {
 		animation: none;
 	}
 }
 
 /* From Ideation — what a post was commissioned from. */
-.vip-workflow-ideation__source {
+.vip-workflows-ideation__source {
 	margin-bottom: 12px;
 }
 
-.vip-workflow-ideation__source-excerpt {
+.vip-workflows-ideation__source-excerpt {
 	display: block;
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	line-height: 1.5;
 }
 
-.vip-workflow-ideation__meta {
+.vip-workflows-ideation__meta {
 	display: block;
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	margin-top: 2px;
 }
 
-.vip-workflow-ideation__items {
+.vip-workflows-ideation__items {
 	list-style: none;
 	margin: 0;
 	padding: 0;
@@ -325,28 +325,28 @@
 	gap: 10px;
 }
 
-.vip-workflow-ideation__item {
+.vip-workflows-ideation__item {
 	padding-left: 10px;
 	border-left: 2px solid var(--wpds-color-stroke-surface-neutral-weak);
 }
 
-.vip-workflow-ideation__item--pinned {
+.vip-workflows-ideation__item--pinned {
 	border-left-color: var(--wpds-color-stroke-surface-neutral-strong);
 }
 
-.vip-workflow-ideation__item-title {
+.vip-workflows-ideation__item-title {
 	display: block;
 	line-height: 1.4;
 }
 
-.vip-workflow-ideation__item-excerpt {
+.vip-workflows-ideation__item-excerpt {
 	display: block;
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	line-height: 1.4;
 	margin-top: 2px;
 }
 
-.vip-workflow-ideation__workspace {
+.vip-workflows-ideation__workspace {
 	display: inline-block;
 	margin-top: 12px;
 }

@@ -1,5 +1,5 @@
 /**
- * Shared e2e helpers for VIP Workflow.
+ * Shared e2e helpers for VIP Workflows.
  *
  * These wrap the plugin's REST API (called with the admin session via
  * `requestUtils`) so specs can seed preconditions — a post enrolled in a
@@ -15,7 +15,7 @@ const path = require( 'node:path' );
 const { promisify } = require( 'node:util' );
 
 const EDITORIAL_REVIEW_SLUG = 'editorial-review';
-const WF = '/vip-workflow/v1/workflow';
+const WF = '/vip-workflows/v1/workflow';
 const REPO_ROOT = path.resolve( __dirname, '..', '..', '..', '..' );
 const WP_ENV_BIN = path.join(
 	REPO_ROOT,
@@ -26,12 +26,12 @@ const WP_ENV_BIN = path.join(
 const execFileAsync = promisify( execFile );
 
 /**
- * The workflow sidebar's own root — the `<Stack className="vip-workflow-sidebar">`
+ * The workflow sidebar's own root — the `<Stack className="vip-workflows-sidebar">`
  * that `src/editor/index.js` renders inside its `PluginSidebar`. Anchoring on
  * our own markup rather than on core's complementary-area chrome, whose class
  * names and ARIA labels are core's to change.
  */
-const WORKFLOW_SIDEBAR = '.vip-workflow-sidebar';
+const WORKFLOW_SIDEBAR = '.vip-workflows-sidebar';
 
 /**
  * Open the Workflow plugin sidebar and return its root locator.
@@ -101,7 +101,7 @@ async function openWorkflowSidebar( page ) {
  */
 async function openWorkflowPanel( page ) {
 	const sidebar = await openWorkflowSidebar( page );
-	const panel = sidebar.locator( '.vip-workflow-panel' );
+	const panel = sidebar.locator( '.vip-workflows-panel' );
 	await panel.waitFor( { state: 'visible' } );
 	return panel;
 }
@@ -114,7 +114,7 @@ async function openWorkflowPanel( page ) {
  */
 async function getEditorialSequence( requestUtils ) {
 	return requestUtils.rest( {
-		path: `/vip-workflow/v1/sequences/slug/${ EDITORIAL_REVIEW_SLUG }`,
+		path: `/vip-workflows/v1/sequences/slug/${ EDITORIAL_REVIEW_SLUG }`,
 	} );
 }
 
@@ -133,7 +133,7 @@ async function createDraftPost( requestUtils, overrides = {} ) {
 		path: '/wp/v2/posts',
 		method: 'POST',
 		data: {
-			title: overrides.title || 'VIP Workflow e2e post',
+			title: overrides.title || 'VIP Workflows e2e post',
 			status: overrides.status || 'draft',
 			content: overrides.content || '',
 		},
@@ -191,7 +191,7 @@ async function createWorkflowPost( requestUtils, overrides = {} ) {
  */
 async function createRoleGatedSequence( requestUtils, label = 'role' ) {
 	return requestUtils.rest( {
-		path: '/vip-workflow/v1/sequences',
+		path: '/vip-workflows/v1/sequences',
 		method: 'POST',
 		data: {
 			name: `E2E Role Gated ${ label } ${ Date.now() }`,
@@ -251,7 +251,7 @@ async function createAiStageSequence(
 	// blocks provider egress). Pass an explicit routing with `error` to exercise
 	// the routed-error path instead.
 	return requestUtils.rest( {
-		path: '/vip-workflow/v1/sequences',
+		path: '/vip-workflows/v1/sequences',
 		method: 'POST',
 		data: {
 			name: `E2E AI Copy Desk ${ label } ${ Date.now() }`,
@@ -332,7 +332,7 @@ async function runDueCron() {
 			'cron',
 			'event',
 			'run',
-			'vip_workflow_run_stage_agent',
+			'vip_workflows_run_stage_agent',
 		],
 		{ cwd: REPO_ROOT }
 	);
@@ -396,7 +396,7 @@ async function revertAgent( requestUtils, postId ) {
 async function deleteSequence( requestUtils, sequenceId ) {
 	try {
 		await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 			method: 'DELETE',
 		} );
 	} catch ( e ) {
@@ -481,7 +481,7 @@ async function deletePost( requestUtils, postId ) {
  */
 async function createReviewerUser( requestUtils, label = 'reviewer' ) {
 	const username = `vipwf_${ label }_${ Date.now() }`;
-	const password = 'vip-workflow-e2e-pw';
+	const password = 'vip-workflows-e2e-pw';
 	const user = await requestUtils.createUser( {
 		username,
 		email: `${ username }@example.com`,

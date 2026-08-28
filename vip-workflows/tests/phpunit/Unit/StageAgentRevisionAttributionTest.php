@@ -7,15 +7,15 @@
  * the revision with the acting ability id as it is saved, then relabels its
  * author in the core revisions UI to credit the agent.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Workflow\StageAgentRunner;
+use VIPWorkflows\Workflow\StageAgentRunner;
 
 /**
  * Tests for StageAgentRunner::stamp_agent_revision() and label_agent_revision().
@@ -47,11 +47,11 @@ class StageAgentRevisionAttributionTest extends TestCase
      */
     public function test_stamps_revision_while_agent_acting(): void
     {
-        $this->set_acting_ability( 'vip-workflow/copy-edit' );
+        $this->set_acting_ability( 'vip-workflows/copy-edit' );
 
         Functions\expect( 'update_post_meta' )
             ->once()
-            ->with( 4242, StageAgentRunner::AGENT_REVISION_META, 'vip-workflow/copy-edit' );
+            ->with( 4242, StageAgentRunner::AGENT_REVISION_META, 'vip-workflows/copy-edit' );
 
         ( new StageAgentRunner() )->stamp_agent_revision( 4242 );
     }
@@ -74,7 +74,7 @@ class StageAgentRevisionAttributionTest extends TestCase
      */
     public function test_relabels_tagged_revision_author(): void
     {
-        Functions\when( 'get_post_meta' )->justReturn( 'vip-workflow/copy-edit' );
+        Functions\when( 'get_post_meta' )->justReturn( 'vip-workflows/copy-edit' );
         // No registered ability object -> Actor::name_for falls back to the id.
         Functions\when( 'wp_get_ability' )->justReturn( null );
 
@@ -83,7 +83,7 @@ class StageAgentRevisionAttributionTest extends TestCase
             (object) array( 'ID' => 4242 )
         );
 
-        $this->assertSame( 'vip-workflow/copy-edit (agent)', $data['author'] );
+        $this->assertSame( 'vip-workflows/copy-edit (agent)', $data['author'] );
     }
 
     /**

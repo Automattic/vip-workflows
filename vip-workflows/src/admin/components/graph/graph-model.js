@@ -158,11 +158,11 @@ export function isAgentOutcome( value ) {
 export function agentOutcomeLabel( outcome ) {
 	switch ( outcome ) {
 		case 'pass':
-			return __( 'On pass', 'vip-workflow' );
+			return __( 'On pass', 'vip-workflows' );
 		case 'fail':
-			return __( 'On fail', 'vip-workflow' );
+			return __( 'On fail', 'vip-workflows' );
 		case 'error':
-			return __( 'On error', 'vip-workflow' );
+			return __( 'On error', 'vip-workflows' );
 		default:
 			return outcome;
 	}
@@ -571,7 +571,7 @@ export function addStage( stages, options = {} ) {
 			key,
 			label: sprintf(
 				/* translators: %d: stage number */
-				__( 'Stage %d', 'vip-workflow' ),
+				__( 'Stage %d', 'vip-workflows' ),
 				stages.length + 1
 			),
 			color: paletteColorAt( stages.length ),
@@ -1705,7 +1705,7 @@ export function validateSequence( {
 		errors.push(
 			__(
 				'This sequence has no name. Click an empty part of the canvas and fill in Name in the Sequence panel.',
-				'vip-workflow'
+				'vip-workflows'
 			)
 		);
 	}
@@ -1714,7 +1714,7 @@ export function validateSequence( {
 		errors.push(
 			__(
 				'This sequence has no stages, so there is nothing for a post to be in. Right-click the canvas to add one.',
-				'vip-workflow'
+				'vip-workflows'
 			)
 		);
 		return { valid: errors.length === 0, errors, warnings };
@@ -1743,7 +1743,7 @@ export function validateSequence( {
 				/* translators: %s: the stage key two stages share. */
 				__(
 					'Two stages share the key “%s”, so saving would collapse them into one and drop the second stage’s transitions. Open one of them and give it a key of its own.',
-					'vip-workflow'
+					'vip-workflows'
 				),
 				key
 			)
@@ -1776,7 +1776,7 @@ export function validateSequence( {
 				/* translators: %s: required phase key */
 				__(
 					'Phase sequences must include the “%s” phase.',
-					'vip-workflow'
+					'vip-workflows'
 				),
 				key
 			)
@@ -1799,7 +1799,7 @@ export function validateSequence( {
 					/* translators: 1: source phase key, 2: target phase key */
 					__(
 						'Phase sequences must hand off from “%1$s” to “%2$s”. Drag from this phase to draw it.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					from,
 					to
@@ -1840,7 +1840,7 @@ export function validateSequence( {
 					/* translators: %s: ability id of the agent the stage references. */
 					__(
 						'Agent “%s” is not available on this site; posts entering this stage will error — following the on-error route if one is set, stopping here otherwise.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					abilityId
 				)
@@ -1855,7 +1855,7 @@ export function validateSequence( {
 					/* translators: %s: agent name, e.g. "Copy Edit". */
 					__(
 						'Agent “%s” needs setup; until it is configured, posts entering this stage will error — following the on-error route if one is set, stopping here otherwise.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					entry.label
 				)
@@ -1878,7 +1878,7 @@ export function validateSequence( {
 				'',
 				__(
 					'A stage on the canvas has neither a name nor a key. Open it and fill in both — the name is what writers see, the key is what the stage is stored under.',
-					'vip-workflow'
+					'vip-workflows'
 				)
 			);
 		} else if ( ! stage.label ) {
@@ -1888,7 +1888,7 @@ export function validateSequence( {
 					/* translators: %s: the stage's key, e.g. "in_review". */
 					__(
 						'The stage keyed “%s” has no name. Open it and fill in Name — it is what writers see on the board and on the buttons that move a post.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					stage.key
 				)
@@ -1900,7 +1900,7 @@ export function validateSequence( {
 					/* translators: %s: the stage's name, e.g. "In Review". */
 					__(
 						'Stage “%s” has no key, so there is nothing to store it under. Open it and fill in Key.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					stage.label
 				)
@@ -1921,11 +1921,11 @@ export function validateSequence( {
 				isAgentStage( stage )
 					? __(
 							'The agent has no outcome routed anywhere and the stage is not marked final — content cannot leave it. Drag from the stage’s outcome handles to route it.',
-							'vip-workflow'
+							'vip-workflows'
 					  )
 					: __(
 							'Stage has no outgoing transition and is not marked final — content cannot leave it.',
-							'vip-workflow'
+							'vip-workflows'
 					  )
 			);
 		}
@@ -1949,7 +1949,7 @@ export function validateSequence( {
 							/* translators: 1: agent outcome label, 2: missing target stage key */
 							__(
 								'The agent’s “%1$s” route points to a stage that doesn’t exist (%2$s).',
-								'vip-workflow'
+								'vip-workflows'
 							),
 							agentOutcomeLabel( outcome ),
 							target
@@ -1966,7 +1966,7 @@ export function validateSequence( {
 							/* translators: 1: agent outcome label, 2: target stage key */
 							__(
 								'The agent’s “%1$s” route has no transition to travel on (%2$s). Re-drag the handle onto that stage.',
-								'vip-workflow'
+								'vip-workflows'
 							),
 							agentOutcomeLabel( outcome ),
 							target
@@ -1987,7 +1987,7 @@ export function validateSequence( {
 						/* translators: 1: transition button label, 2: missing target stage key */
 						__(
 							'The “%1$s” transition points to a stage that doesn’t exist (%2$s). Reconnect or remove it.',
-							'vip-workflow'
+							'vip-workflows'
 						),
 						t.label || t.to,
 						t.to
@@ -2047,7 +2047,7 @@ export function validateSequence( {
 							/* translators: %s: transition button label */
 							__(
 								'The “%s” transition assigns work but names no assignment key, so there is nowhere to record the assignment. Fill in its Assignment key.',
-								'vip-workflow'
+								'vip-workflows'
 							),
 							transitionName
 						)
@@ -2062,7 +2062,7 @@ export function validateSequence( {
 							/* translators: 1: transition button label, 2: assignment key */
 							__(
 								'The “%1$s” transition assigns to “%2$s”, a key another transition already assigns — the second assignment would overwrite the first. Give this one a key of its own.',
-								'vip-workflow'
+								'vip-workflows'
 							),
 							transitionName,
 							key
@@ -2092,7 +2092,7 @@ export function validateSequence( {
 						/* translators: %s: transition button label */
 						__(
 							'The “%s” transition is restricted to an assignee but names no assignment key, so nobody could take it. Name the slot it should read, or turn the restriction off.',
-							'vip-workflow'
+							'vip-workflows'
 						),
 						transitionName
 					)
@@ -2107,7 +2107,7 @@ export function validateSequence( {
 						/* translators: 1: transition button label, 2: assignment key */
 						__(
 							'The “%1$s” transition is restricted to assignment key “%2$s”, which no transition assigns — nobody could take it. Point it at a key another transition assigns.',
-							'vip-workflow'
+							'vip-workflows'
 						),
 						transitionName,
 						key
@@ -2131,7 +2131,7 @@ export function validateSequence( {
 							'Nothing ends this sequence: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there.',
 							'Nothing ends this sequence: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the End node.',
 							deadEnds.length,
-							'vip-workflow'
+							'vip-workflows'
 						),
 						deadEnds
 							.map( ( s ) => {
@@ -2139,13 +2139,13 @@ export function validateSequence( {
 
 								return stageName
 									? `“${ stageName }”`
-									: __( 'an unnamed stage', 'vip-workflow' );
+									: __( 'an unnamed stage', 'vip-workflows' );
 							} )
 							.join( ', ' )
 				  )
 				: __(
 						'Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to the End node.',
-						'vip-workflow'
+						'vip-workflows'
 				  )
 		);
 	}
@@ -2177,7 +2177,7 @@ export function validateSequence( {
 						/* translators: %s: status region name (e.g. Draft, Published) */
 						__(
 							'The “%s” status group has no entry checkpoint. Drag one of its stages onto the group’s top edge to set where posts entering that status land.',
-							'vip-workflow'
+							'vip-workflows'
 						),
 						regionLabel( region )
 					)
@@ -2190,7 +2190,7 @@ export function validateSequence( {
 						/* translators: 1: status region name, 2: comma-separated stage labels */
 						__(
 							'The “%1$s” status group has more than one entry checkpoint: %2$s. Keep exactly one.',
-							'vip-workflow'
+							'vip-workflows'
 						),
 						regionLabel( region ),
 						entries.map( ( s ) => s.label || s.key ).join( ', ' )
@@ -2252,7 +2252,7 @@ export function validateSequence( {
 					stage.key,
 					__(
 						'No transition leads here and this is not its status group’s entry checkpoint, so no post can ever reach this stage.',
-						'vip-workflow'
+						'vip-workflows'
 					)
 				);
 			} );
@@ -2265,7 +2265,7 @@ export function validateSequence( {
 				stages[ 0 ].key,
 				__(
 					'The flow entry is outside the “draft” status region — new content starts as a draft and will land at the draft region’s entry stage instead.',
-					'vip-workflow'
+					'vip-workflows'
 				)
 			);
 		}

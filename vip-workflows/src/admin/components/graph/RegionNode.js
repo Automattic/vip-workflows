@@ -61,7 +61,7 @@ function RegionNodeComponent( { data } ) {
 					aria-hidden="true"
 				>
 					<Icon icon={ login } size={ 16 } />
-					<span>{ __( 'Entry checkpoint', 'vip-workflow' ) }</span>
+					<span>{ __( 'Entry checkpoint', 'vip-workflows' ) }</span>
 				</div>
 			) }
 		</div>

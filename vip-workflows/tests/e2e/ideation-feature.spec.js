@@ -17,22 +17,22 @@ const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
  */
 async function setIdeationExperiment( requestUtils, enabled ) {
 	await requestUtils.rest( {
-		path: '/vip-workflow/v1/settings/experiments',
+		path: '/vip-workflows/v1/settings/experiments',
 		method: 'POST',
 		data: { id: 'ideation', enabled },
 	} );
 }
 
-test.describe( 'VIP Workflow — Ideation experiment gate', () => {
+test.describe( 'VIP Workflows — Ideation experiment gate', () => {
 	test.describe( 'disabled by default', () => {
 		test( 'Workflows menu has no Ideation item', async ( {
 			admin,
 			page,
 		} ) => {
-			await admin.visitAdminPage( 'admin.php', 'page=vip-workflow' );
+			await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
 
 			const submenu = page.locator(
-				'#toplevel_page_vip-workflow .wp-submenu'
+				'#toplevel_page_vip-workflows .wp-submenu'
 			);
 			await expect(
 				submenu.getByRole( 'link', {
@@ -51,10 +51,10 @@ test.describe( 'VIP Workflow — Ideation experiment gate', () => {
 		} ) => {
 			await admin.visitAdminPage(
 				'admin.php',
-				'page=vip-workflow-ideation'
+				'page=vip-workflows-ideation'
 			);
 
-			await expect( page.locator( '#vip-workflow-root' ) ).toHaveCount(
+			await expect( page.locator( '#vip-workflows-root' ) ).toHaveCount(
 				0
 			);
 		} );
@@ -65,7 +65,7 @@ test.describe( 'VIP Workflow — Ideation experiment gate', () => {
 			let error;
 			try {
 				await requestUtils.rest( {
-					path: '/vip-workflow/v1/ideation',
+					path: '/vip-workflows/v1/ideation',
 				} );
 			} catch ( e ) {
 				error = e;
@@ -80,7 +80,7 @@ test.describe( 'VIP Workflow — Ideation experiment gate', () => {
 			requestUtils,
 		} ) => {
 			const sequences = await requestUtils.rest( {
-				path: '/vip-workflow/v1/sequences',
+				path: '/vip-workflows/v1/sequences',
 			} );
 
 			expect( Array.isArray( sequences ) ).toBe( true );
@@ -95,7 +95,7 @@ test.describe( 'VIP Workflow — Ideation experiment gate', () => {
 			let error;
 			try {
 				await requestUtils.rest( {
-					path: '/vip-workflow/v1/sequences',
+					path: '/vip-workflows/v1/sequences',
 					method: 'POST',
 					data: {
 						type: 'phase',
@@ -121,7 +121,7 @@ test.describe( 'VIP Workflow — Ideation experiment gate', () => {
 		} ) => {
 			await admin.visitAdminPage(
 				'admin.php',
-				'page=vip-workflow-sequences'
+				'page=vip-workflows-sequences'
 			);
 
 			await expect(
@@ -138,7 +138,7 @@ test.describe( 'VIP Workflow — Ideation experiment gate', () => {
 		} ) => {
 			await admin.visitAdminPage(
 				'admin.php',
-				'page=vip-workflow-settings'
+				'page=vip-workflows-settings'
 			);
 
 			await page.getByRole( 'tab', { name: 'Experiments' } ).click();
@@ -167,42 +167,42 @@ test.describe( 'VIP Workflow — Ideation experiment gate', () => {
 			await setIdeationExperiment( requestUtils, true );
 
 			// Workflows submenu item appears.
-			await admin.visitAdminPage( 'admin.php', 'page=vip-workflow' );
+			await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
 			await expect(
 				page
-					.locator( '#toplevel_page_vip-workflow .wp-submenu' )
+					.locator( '#toplevel_page_vip-workflows .wp-submenu' )
 					.getByRole( 'link', { name: 'Ideation', exact: true } )
 			).toBeVisible();
 
 			// Ideation page mounts the shell.
 			await admin.visitAdminPage(
 				'admin.php',
-				'page=vip-workflow-ideation'
+				'page=vip-workflows-ideation'
 			);
-			const root = page.locator( '#vip-workflow-root' );
+			const root = page.locator( '#vip-workflows-root' );
 			await expect( root ).toBeAttached();
 			await expect( root ).not.toBeEmpty();
 			await expect( root ).not.toContainText( 'Coming Soon' );
 
 			// IdeationAdmin's localized data must reach the admin bundle —
 			// it localizes at admin_enqueue_scripts priority 20 because the
-			// 'vip-workflow-admin' handle is registered at priority 10.
+			// 'vip-workflows-admin' handle is registered at priority 10.
 			const ideationData = await page.evaluate(
-				() => window.vipWorkflowIdeation
+				() => window.vipWorkflowsIdeation
 			);
 			expect( ideationData ).toBeTruthy();
-			expect( ideationData.restUrl ).toContain( 'vip-workflow/v1' );
+			expect( ideationData.restUrl ).toContain( 'vip-workflows/v1' );
 
 			// Ideation REST routes answer.
 			const projects = await requestUtils.rest( {
-				path: '/vip-workflow/v1/ideation',
+				path: '/vip-workflows/v1/ideation',
 			} );
 			expect( projects ).toBeDefined();
 
 			// Phase tab is back, with the activation-seeded Content Lifecycle.
 			await admin.visitAdminPage(
 				'admin.php',
-				'page=vip-workflow-sequences'
+				'page=vip-workflows-sequences'
 			);
 			const phaseTab = page.getByRole( 'tab', {
 				name: /Phase Sequences/,
@@ -221,17 +221,17 @@ test.describe( 'VIP Workflow — Ideation experiment gate', () => {
 		} ) => {
 			await setIdeationExperiment( requestUtils, false );
 
-			await admin.visitAdminPage( 'admin.php', 'page=vip-workflow' );
+			await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
 			await expect(
 				page
-					.locator( '#toplevel_page_vip-workflow .wp-submenu' )
+					.locator( '#toplevel_page_vip-workflows .wp-submenu' )
 					.getByRole( 'link', { name: 'Ideation', exact: true } )
 			).toHaveCount( 0 );
 
 			// Seeded phase sequence is hidden, not deleted: list excludes it
 			// while the route still 404s.
 			const sequences = await requestUtils.rest( {
-				path: '/vip-workflow/v1/sequences',
+				path: '/vip-workflows/v1/sequences',
 			} );
 			expect(
 				sequences.filter( ( bp ) => bp.type === 'phase' )

@@ -11,9 +11,9 @@ related:
 
 > **Moved (2026-07-09):** the AI Agent has been extracted from core into the
 > standalone **`vip-ai-agent`** plugin (a sibling repo, like `vip-bylines`). It
-> depends on VIP Workflow and registers back through the abilities, prompts, and
-> REST-controller extension points. Ability ID (`vip-workflow/ai-agent`), REST
-> namespace (`vip-workflow/v1` + `ai-agent`), settings keys, and the
+> depends on VIP Workflows and registers back through the abilities, prompts, and
+> REST-controller extension points. Ability ID (`vip-workflows/ai-agent`), REST
+> namespace (`vip-workflows/v1` + `ai-agent`), settings keys, and the
 > `vip_ai_agent_conversations` table are unchanged. This spec describes the
 > feature; the code now lives in the `vip-ai-agent` repo.
 
@@ -98,10 +98,10 @@ Registers as a Workflow ability with meta flags that give it its own sidebar pan
 ```php
 const AI_AGENT_DISPLAY_NAME = 'AI Agent';
 
-wp_register_ability('vip-workflow/ai-agent', [
+wp_register_ability('vip-workflows/ai-agent', [
     'label'               => AI_AGENT_DISPLAY_NAME,
     'description'         => 'Conversational AI assistant with post context and tool awareness.',
-    'category'            => 'vip-workflow',
+    'category'            => 'vip-workflows',
     'execute_callback'    => null,  // Not executed like normal abilities — uses its own chat endpoint
     'permission_callback' => [ __NAMESPACE__ . '\\AiAgentPermissions', 'can_use' ],
     'meta'                => [
@@ -200,7 +200,7 @@ Queries the ability registry for enabled abilities, formats them as descriptions
 
 **Model configuration:**
 
-The model is configurable in Workflow settings (stored in `vip_workflow_ability_settings` alongside other ability options). Default: `gpt-4o`.
+The model is configurable in Workflow settings (stored in `vip_workflows_ability_settings` alongside other ability options). Default: `gpt-4o`.
 
 ### 3.4 Database — `vip_ai_agent_conversations`
 
@@ -235,7 +235,7 @@ CREATE TABLE {prefix}vip_ai_agent_conversations (
 - `includes/class-plugin.php` — Include `ai-agent.php`, call `register_ai_agent()`, pass `aiAgentLabel` to `wp_localize_script`
 - `includes/api/class-rest-controller.php` — Instantiate and register `AiAgentController`
 - `includes/database/class-schema.php` — Add conversations table, bump version
-- `includes/editor/class-editor-integration.php` — Pass `aiAgentLabel` and `aiAgentEnabled` to `window.vipWorkflowEditor`
+- `includes/editor/class-editor-integration.php` — Pass `aiAgentLabel` and `aiAgentEnabled` to `window.vipWorkflowsEditor`
 
 ---
 
@@ -245,9 +245,9 @@ CREATE TABLE {prefix}vip_ai_agent_conversations (
 
 The AI Agent gets its own `PluginSidebar` (separate from the existing Workflow sidebar) in `src/editor/index.js`:
 
-- `name="vip-workflow-ai-agent"`
+- `name="vip-workflows-ai-agent"`
 - `icon="format-chat"`
-- Title from `window.vipWorkflowEditor.aiAgentLabel`
+- Title from `window.vipWorkflowsEditor.aiAgentLabel`
 - Paired `PluginSidebarMoreMenuItem` for the "More tools" menu
 
 This gives it its own icon in the top toolbar, next to the existing Workflow networking icon.
@@ -331,7 +331,7 @@ When the AI response includes a `run_ability` action, the chat renders a button.
 
 ```js
 const result = await apiFetch({
-    path: `/vip-workflow/v1/abilities/${abilityId}/run`,
+    path: `/vip-workflows/v1/abilities/${abilityId}/run`,
     method: 'POST',
     data: { post_id: postId },
 });
@@ -348,11 +348,11 @@ Register an "Open AI Agent" command in `CommandPalette.js`:
 
 ```js
 dispatch('core/commands').registerCommand({
-    name: 'vip-workflow/open-ai-agent',
-    label: window.vipWorkflowEditor.aiAgentLabel,
+    name: 'vip-workflows/open-ai-agent',
+    label: window.vipWorkflowsEditor.aiAgentLabel,
     icon: formatChat,
     callback: () => {
-        dispatch('core/edit-post').openGeneralSidebar('vip-workflow/vip-workflow-ai-agent');
+        dispatch('core/edit-post').openGeneralSidebar('vip-workflows/vip-workflows-ai-agent');
     },
 });
 ```

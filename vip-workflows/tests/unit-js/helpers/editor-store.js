@@ -1,7 +1,7 @@
 /**
  * Test harness for the editor data store.
  *
- * The sidebar panel reads a post's workflow state from `vip-workflow/editor`
+ * The sidebar panel reads a post's workflow state from `vip-workflows/editor`
  * rather than holding a copy of it, and the store is what performs the one read
  * of the status endpoint. So these tests drive the real store: a stand-in
  * registered per test file would prove only that the stand-in works, and the

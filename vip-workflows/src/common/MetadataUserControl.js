@@ -65,7 +65,7 @@ export function MetadataUserControl( {
 
 				// Plugin-owned route rather than core's wp/v2/users.
 				const fetchedUsers = await apiFetch( {
-					path: `/vip-workflow/v1/assignable-users?${ params.toString() }`,
+					path: `/vip-workflows/v1/assignable-users?${ params.toString() }`,
 					signal: controller.signal,
 				} );
 
@@ -81,7 +81,8 @@ export function MetadataUserControl( {
 					return;
 				}
 				setSearchError(
-					err.message || __( 'Unable to load users.', 'vip-workflow' )
+					err.message ||
+						__( 'Unable to load users.', 'vip-workflows' )
 				);
 			} finally {
 				if ( ! cancelled ) {
@@ -122,7 +123,7 @@ export function MetadataUserControl( {
 		const fetchSelectedUser = async () => {
 			try {
 				const result = await apiFetch( {
-					path: `/vip-workflow/v1/assignable-users?include=${ encodeURIComponent(
+					path: `/vip-workflows/v1/assignable-users?include=${ encodeURIComponent(
 						selectedUserId
 					) }&per_page=1`,
 					signal: controller.signal,
@@ -156,7 +157,7 @@ export function MetadataUserControl( {
 					err.message ||
 						__(
 							'Unable to load the selected user.',
-							'vip-workflow'
+							'vip-workflows'
 						)
 				);
 			}
@@ -190,19 +191,19 @@ export function MetadataUserControl( {
 	if ( ( isLoading && users.length === 0 ) || resolvingSelected ) {
 		return (
 			<Stack
-				className="vip-workflow-metadata-user-control__loading"
+				className="vip-workflows-metadata-user-control__loading"
 				direction="row"
 				align="center"
 				gap="sm"
 			>
 				<Spinner />
-				<span>{ __( 'Loading users…', 'vip-workflow' ) }</span>
+				<span>{ __( 'Loading users…', 'vip-workflows' ) }</span>
 			</Stack>
 		);
 	}
 
 	const options = [
-		{ value: '', label: __( '— Select —', 'vip-workflow' ) },
+		{ value: '', label: __( '— Select —', 'vip-workflows' ) },
 		...users.map( ( user ) => ( {
 			value: String( user.id ),
 			label: user.name,
@@ -224,7 +225,7 @@ export function MetadataUserControl( {
 				value: selectedUserId,
 				label: sprintf(
 					/* translators: %s: numeric user ID. */
-					__( 'User #%s (unavailable)', 'vip-workflow' ),
+					__( 'User #%s (unavailable)', 'vip-workflows' ),
 					selectedUserId
 				),
 			} );
@@ -235,7 +236,7 @@ export function MetadataUserControl( {
 				value: selectedUserId,
 				label: sprintf(
 					/* translators: %s: numeric user ID. */
-					__( 'User #%s', 'vip-workflow' ),
+					__( 'User #%s', 'vip-workflows' ),
 					selectedUserId
 				),
 			} );
@@ -262,7 +263,7 @@ export function MetadataUserControl( {
 			onChange={ handleChange }
 			options={ options }
 			onFilterValueChange={ setSearch }
-			placeholder={ __( 'Search users…', 'vip-workflow' ) }
+			placeholder={ __( 'Search users…', 'vip-workflows' ) }
 			help={ selectedError || searchError }
 		/>
 	);

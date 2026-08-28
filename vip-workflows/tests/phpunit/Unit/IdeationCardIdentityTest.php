@@ -11,14 +11,14 @@
  * duplicating, too tight and two genuinely different sources collapse into one
  * card, silently losing the second.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 
 require_once __DIR__ . '/../../../includes/integrations/class-guideline-context-provider.php';
 require_once __DIR__ . '/../../../includes/ideation/assistants/class-ideation-orchestrator.php';

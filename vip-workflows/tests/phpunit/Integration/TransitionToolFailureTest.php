@@ -14,50 +14,50 @@
  * Integration, not unit: the gate resolves tools out of Core's ability registry,
  * which only accepts registrations during `wp_abilities_api_init`.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Abilities\AbilitySettings;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Abilities\AbilitySettings;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
- * @covers \VIPWorkflow\Workflow\StatusManager::run_transition_tools
+ * @covers \VIPWorkflows\Workflow\StatusManager::run_transition_tools
  */
 class TransitionToolFailureTest extends TestCase {
 
 	/**
 	 * Returns a WP_Error carrying a reason.
 	 */
-	private const FAILING_TOOL = 'vip-workflow/transition-failure-fixture';
+	private const FAILING_TOOL = 'vip-workflows/transition-failure-fixture';
 
 	/**
 	 * Returns a WP_Error carrying no reason at all.
 	 */
-	private const SILENT_FAILURE_TOOL = 'vip-workflow/transition-silent-failure-fixture';
+	private const SILENT_FAILURE_TOOL = 'vip-workflows/transition-silent-failure-fixture';
 
 	/**
 	 * Runs, and finds nothing to report.
 	 */
-	private const PASSING_TOOL = 'vip-workflow/transition-passing-fixture';
+	private const PASSING_TOOL = 'vip-workflows/transition-passing-fixture';
 
 	/**
 	 * Runs, and reports one non-blocking issue.
 	 */
-	private const WARNING_TOOL = 'vip-workflow/transition-warning-fixture';
+	private const WARNING_TOOL = 'vip-workflows/transition-warning-fixture';
 
 	/**
 	 * Throws out of its execute callback.
 	 */
-	private const THROWING_TOOL = 'vip-workflow/transition-throwing-fixture';
+	private const THROWING_TOOL = 'vip-workflows/transition-throwing-fixture';
 
 	/**
 	 * Never registered, so resolving it throws before any callback runs.
 	 */
-	private const UNREGISTERED_TOOL = 'vip-workflow/transition-unregistered-fixture';
+	private const UNREGISTERED_TOOL = 'vip-workflows/transition-unregistered-fixture';
 
 	/**
 	 * The reason the failing fixture hands back.
@@ -146,7 +146,7 @@ class TransitionToolFailureTest extends TestCase {
 	}
 
 	public function tear_down(): void {
-		delete_option( 'vip_workflow_ability_settings' );
+		delete_option( 'vip_workflows_ability_settings' );
 		AbilitySettings::get_instance()->clear_cache();
 
 		parent::tear_down();

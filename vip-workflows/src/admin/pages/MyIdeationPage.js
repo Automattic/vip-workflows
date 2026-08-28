@@ -51,7 +51,7 @@ export function MyIdeationPage() {
 
 		try {
 			const items = await apiFetch( {
-				path: '/vip-workflow/v1/ideation?per_page=50&author=me',
+				path: '/vip-workflows/v1/ideation?per_page=50&author=me',
 			} );
 			setProjects( items );
 		} catch ( err ) {
@@ -70,7 +70,7 @@ export function MyIdeationPage() {
 			{
 				id: 'title',
 				type: 'text',
-				label: __( 'Title', 'vip-workflow' ),
+				label: __( 'Title', 'vip-workflows' ),
 				enableHiding: false,
 				enableGlobalSearch: true,
 				// Titles have unbounded cardinality, so this filter takes typed
@@ -83,14 +83,14 @@ export function MyIdeationPage() {
 				render: ( { item } ) => (
 					<span>
 						<TitleLink
-							href={ `admin.php?page=vip-workflow-ideation#workspace?project=${ item.id }` }
+							href={ `admin.php?page=vip-workflows-ideation#workspace?project=${ item.id }` }
 						>
 							{ item.title }
 						</TitleLink>
 						{ item.tags?.length > 0 && (
 							<Text
 								variant="body-sm"
-								className="vip-workflow-my-ideation__tags"
+								className="vip-workflows-my-ideation__tags"
 							>
 								{ item.tags.slice( 0, 3 ).join( ', ' ) }
 							</Text>
@@ -100,7 +100,7 @@ export function MyIdeationPage() {
 			},
 			{
 				id: 'pipeline_status',
-				label: __( 'Status', 'vip-workflow' ),
+				label: __( 'Status', 'vip-workflows' ),
 				elements: pipelineStatusElements(),
 				filterBy: { operators: [ 'isAny' ], isPrimary: true },
 				enableSorting: false,
@@ -115,14 +115,14 @@ export function MyIdeationPage() {
 			{
 				id: 'source_count',
 				type: 'integer',
-				label: __( 'Sources', 'vip-workflow' ),
+				label: __( 'Sources', 'vip-workflows' ),
 				filterBy: false,
 				getValue: ( { item } ) => item.source_count || 0,
 			},
 			{
 				id: 'updated_at',
 				type: 'datetime',
-				label: __( 'Updated', 'vip-workflow' ),
+				label: __( 'Updated', 'vip-workflows' ),
 				filterBy: false,
 				format: { datetime: siteDateTimeFormat() },
 			},
@@ -134,12 +134,12 @@ export function MyIdeationPage() {
 		() => [
 			{
 				id: 'open',
-				label: __( 'Open', 'vip-workflow' ),
+				label: __( 'Open', 'vip-workflows' ),
 				isPrimary: true,
 				icon: external,
 				callback: ( [ item ] ) => {
 					window.location.assign(
-						`admin.php?page=vip-workflow-ideation#workspace?project=${ item.id }`
+						`admin.php?page=vip-workflows-ideation#workspace?project=${ item.id }`
 					);
 				},
 			},
@@ -155,21 +155,21 @@ export function MyIdeationPage() {
 	if ( loading ) {
 		return (
 			<Stack
-				className="vip-workflow-page-loading"
+				className="vip-workflows-page-loading"
 				align="center"
 				justify="center"
 				gap="md"
 			>
 				<Spinner />
 				<span>
-					{ __( 'Loading your ideation projects…', 'vip-workflow' ) }
+					{ __( 'Loading your ideation projects…', 'vip-workflows' ) }
 				</span>
 			</Stack>
 		);
 	}
 
 	return (
-		<div className="vip-workflow-my-ideation">
+		<div className="vip-workflows-my-ideation">
 			{ error && (
 				<Notice
 					status="error"
@@ -181,22 +181,22 @@ export function MyIdeationPage() {
 			) }
 
 			{ projects.length === 0 ? (
-				<div className="vip-workflow-my-ideation__empty">
+				<div className="vip-workflows-my-ideation__empty">
 					<Text variant="body-md" render={ <p /> }>
 						{ __(
 							"You haven't started any ideation projects yet.",
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
 					<Button
 						variant="primary"
-						href="admin.php?page=vip-workflow-ideation"
+						href="admin.php?page=vip-workflows-ideation"
 					>
-						{ __( 'Go to Ideation', 'vip-workflow' ) }
+						{ __( 'Go to Ideation', 'vip-workflows' ) }
 					</Button>
 				</div>
 			) : (
-				<div className="vip-workflow-card-surface">
+				<div className="vip-workflows-card-surface">
 					<DataViews
 						data={ data }
 						fields={ fields }
@@ -207,7 +207,7 @@ export function MyIdeationPage() {
 						defaultLayouts={ { table: {} } }
 						searchLabel={ __(
 							'Search your projects',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 						getItemId={ ( item ) => String( item.id ) }
 					/>

@@ -13,23 +13,23 @@
  * entry point runs the assistants, which needs live AI credentials; the storage
  * step is a separable unit and this keeps the test about storage.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
 use ReflectionMethod;
-use VIPWorkflow\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 
 /**
- * @covers \VIPWorkflow\Ideation\Assistants\IdeationOrchestrator::store_cards_as_sources
- * @covers \VIPWorkflow\Ideation\Assistants\IdeationOrchestrator::card_identity
+ * @covers \VIPWorkflows\Ideation\Assistants\IdeationOrchestrator::store_cards_as_sources
+ * @covers \VIPWorkflows\Ideation\Assistants\IdeationOrchestrator::card_identity
  */
 class IdeationSourceDedupeTest extends TestCase
 {
-    private const ABILITY = 'vip-workflow/web-researcher';
+    private const ABILITY = 'vip-workflows/web-researcher';
 
     private int $project_id;
 
@@ -153,7 +153,7 @@ class IdeationSourceDedupeTest extends TestCase
                 array( 'type' => 'article', 'url' => '', 'title' => 'Dawn', 'content' => "Light cracks the horizon,\nthen holds." ),
                 array( 'type' => 'article', 'url' => '', 'title' => 'Dawn', 'content' => 'A different poem entirely.' ),
             ),
-            'vip-workflow/poems'
+            'vip-workflows/poems'
         );
 
         $this->assertSame( 2, $this->row_count() );
@@ -167,8 +167,8 @@ class IdeationSourceDedupeTest extends TestCase
     {
         $cards = array( $this->article( 'https://example.test/a' ) );
 
-        $this->store( $cards, 'vip-workflow/web-researcher' );
-        $this->store( $cards, 'vip-workflow/archive-scout' );
+        $this->store( $cards, 'vip-workflows/web-researcher' );
+        $this->store( $cards, 'vip-workflows/archive-scout' );
 
         $this->assertSame( 2, $this->row_count() );
     }

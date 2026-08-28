@@ -2,12 +2,12 @@
 /**
  * Assignment Manager - handles workflow assignments.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Workflow;
+namespace VIPWorkflows\Workflow;
 
 /**
  * Manages assignment storage, validation, and lifecycle.
@@ -32,20 +32,20 @@ class AssignmentManager {
 	public function get_assignee_types(): array {
 		$types = array(
 			'user'  => array(
-				'label'       => __( 'User', 'vip-workflow' ),
-				'description' => __( 'Assign to a specific user', 'vip-workflow' ),
+				'label'       => __( 'User', 'vip-workflows' ),
+				'description' => __( 'Assign to a specific user', 'vip-workflows' ),
 				'storage'     => 'user_id',
 				'validate'    => array( $this, 'validate_user_assignment' ),
 			),
 			'role'  => array(
-				'label'       => __( 'Role', 'vip-workflow' ),
-				'description' => __( 'Assign to anyone with a specific role', 'vip-workflow' ),
+				'label'       => __( 'Role', 'vip-workflows' ),
+				'description' => __( 'Assign to anyone with a specific role', 'vip-workflows' ),
 				'storage'     => 'role_slug',
 				'validate'    => array( $this, 'validate_role_assignment' ),
 			),
 			'agent' => array(
-				'label'       => __( 'Agent', 'vip-workflow' ),
-				'description' => __( 'Assign to an automated agent/bot', 'vip-workflow' ),
+				'label'       => __( 'Agent', 'vip-workflows' ),
+				'description' => __( 'Assign to an automated agent/bot', 'vip-workflows' ),
 				'storage'     => 'agent_id',
 				'validate'    => array( $this, 'validate_agent_assignment' ),
 			),
@@ -56,7 +56,7 @@ class AssignmentManager {
 		 *
 		 * @param array $types Registered assignee types.
 		 */
-		return apply_filters( 'vip_workflow_assignee_types', $types );
+		return apply_filters( 'vip_workflows_assignee_types', $types );
 	}
 
 	/**
@@ -106,7 +106,7 @@ class AssignmentManager {
 		 * @param array  $assignment Assignment data.
 		 * @param array  $config     Sequence input config.
 		 */
-		do_action( 'vip_workflow_assignment_created', $post_id, $meta_key, $assignment, $config );
+		do_action( 'vip_workflows_assignment_created', $post_id, $meta_key, $assignment, $config );
 	}
 
 	/**
@@ -132,7 +132,7 @@ class AssignmentManager {
 	public function get_all( int $post_id ): array {
 		global $wpdb;
 
-		$prefix  = '_vip_workflow_assignment_';
+		$prefix  = '_vip_workflows_assignment_';
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
@@ -184,7 +184,7 @@ class AssignmentManager {
 		 * @param string $meta_key   Assignment slot key.
 		 * @param array  $assignment Updated assignment data.
 		 */
-		do_action( 'vip_workflow_assignment_completed', $post_id, $meta_key, $assignment );
+		do_action( 'vip_workflows_assignment_completed', $post_id, $meta_key, $assignment );
 	}
 
 	/**
@@ -214,7 +214,7 @@ class AssignmentManager {
 		 * @param string $meta_key   Assignment slot key.
 		 * @param array  $assignment Updated assignment data.
 		 */
-		do_action( 'vip_workflow_assignment_expired', $post_id, $meta_key, $assignment );
+		do_action( 'vip_workflows_assignment_expired', $post_id, $meta_key, $assignment );
 	}
 
 	// =========================================================================
@@ -336,19 +336,19 @@ class AssignmentManager {
 		$assignment = $this->get( $post_id, $requirement['meta_key'] );
 
 		if ( ! $assignment ) {
-			return __( 'This transition requires an assignment that has not been made.', 'vip-workflow' );
+			return __( 'This transition requires an assignment that has not been made.', 'vip-workflows' );
 		}
 
 		if ( self::STATUS_COMPLETED === ( $assignment['status'] ?? '' ) ) {
-			return __( 'This assignment has already been completed.', 'vip-workflow' );
+			return __( 'This assignment has already been completed.', 'vip-workflows' );
 		}
 
 		if ( 'user' === $assignment['type'] ) {
 			$user = get_userdata( $assignment['value'] );
-			$name = $user ? $user->display_name : __( 'Unknown user', 'vip-workflow' );
+			$name = $user ? $user->display_name : __( 'Unknown user', 'vip-workflows' );
 			return sprintf(
 			/* translators: %s: user name */
-				__( 'This transition can only be performed by %s.', 'vip-workflow' ),
+				__( 'This transition can only be performed by %s.', 'vip-workflows' ),
 				$name
 			);
 		}
@@ -356,16 +356,16 @@ class AssignmentManager {
 		if ( 'role' === $assignment['type'] ) {
 			return sprintf(
 			/* translators: %s: role name */
-				__( 'This transition requires the %s role.', 'vip-workflow' ),
+				__( 'This transition requires the %s role.', 'vip-workflows' ),
 				$assignment['value']
 			);
 		}
 
 		if ( 'agent' === $assignment['type'] ) {
-			return __( 'This transition is waiting for an automated check to complete.', 'vip-workflow' );
+			return __( 'This transition is waiting for an automated check to complete.', 'vip-workflows' );
 		}
 
-		return __( 'You do not have permission to perform this transition.', 'vip-workflow' );
+		return __( 'You do not have permission to perform this transition.', 'vip-workflows' );
 	}
 
 	/**
@@ -423,14 +423,14 @@ class AssignmentManager {
 		$assignment = $this->get( $post_id, $requirement['meta_key'] );
 
 		if ( ! $assignment ) {
-			return __( 'No assignee', 'vip-workflow' );
+			return __( 'No assignee', 'vip-workflows' );
 		}
 
 		if ( 'user' === $assignment['type'] ) {
 			$user = get_userdata( $assignment['value'] );
 			return sprintf(
 			/* translators: %s: user name */
-				__( 'Assigned to %s', 'vip-workflow' ),
+				__( 'Assigned to %s', 'vip-workflows' ),
 				$user ? $user->display_name : '?'
 			);
 		}
@@ -438,22 +438,22 @@ class AssignmentManager {
 		if ( 'agent' === $assignment['type'] ) {
 			$status = $assignment['status'] ?? 'pending';
 			if ( self::STATUS_PENDING === $status ) {
-				return __( 'Waiting for automated check', 'vip-workflow' );
+				return __( 'Waiting for automated check', 'vip-workflows' );
 			}
 			if ( self::STATUS_EXPIRED === $status ) {
-				return __( 'Automated check timed out', 'vip-workflow' );
+				return __( 'Automated check timed out', 'vip-workflows' );
 			}
 		}
 
 		if ( 'role' === $assignment['type'] ) {
 			return sprintf(
 			/* translators: %s: role name */
-				__( 'Requires %s role', 'vip-workflow' ),
+				__( 'Requires %s role', 'vip-workflows' ),
 				$assignment['value']
 			);
 		}
 
-		return __( 'Assignment required', 'vip-workflow' );
+		return __( 'Assignment required', 'vip-workflows' );
 	}
 
 	// =========================================================================
@@ -467,7 +467,7 @@ class AssignmentManager {
 	 * @return string Full meta key for storage.
 	 */
 	private function get_storage_key( string $meta_key ): string {
-		return '_vip_workflow_assignment_' . sanitize_key( $meta_key );
+		return '_vip_workflows_assignment_' . sanitize_key( $meta_key );
 	}
 
 	/**
@@ -491,7 +491,7 @@ class AssignmentManager {
 			 * @param array  $assignment  Assignment data.
 			 * @param array  $notify_config Notification config.
 			 */
-			do_action( 'vip_workflow_assignment_notify', $post_id, $meta_key, $assignment, $on_assign['notify'] );
+			do_action( 'vip_workflows_assignment_notify', $post_id, $meta_key, $assignment, $on_assign['notify'] );
 		}
 
 		// Agent trigger.
@@ -503,7 +503,7 @@ class AssignmentManager {
 			 * @param string $agent_id Agent ID.
 			 * @param array  $config   Sequence input config.
 			 */
-			do_action( 'vip_workflow_agent_assigned', $post_id, $assignment['value'], $config );
+			do_action( 'vip_workflows_agent_assigned', $post_id, $assignment['value'], $config );
 		}
 
 		// Custom type on_assign callback.

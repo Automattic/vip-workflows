@@ -92,8 +92,8 @@ import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
 
-const STATUS_PATH = '/vip-workflow/v1/workflow/post/42/status';
-const TRANSITION_PATH = '/vip-workflow/v1/workflow/post/42/transition';
+const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
+const TRANSITION_PATH = '/vip-workflows/v1/workflow/post/42/transition';
 
 const USERS = [
 	{ id: 1, name: 'Admin' },
@@ -177,10 +177,10 @@ async function renderWith(
 				...statusOverrides,
 			} );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 			return Promise.resolve( [] );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/assignable-users' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/assignable-users' ) ) {
 			return Promise.resolve( USERS );
 		}
 		if ( path === TRANSITION_PATH && method === 'POST' ) {
@@ -244,7 +244,7 @@ async function openPopoverFor( label ) {
  * @return {?HTMLElement} The popover.
  */
 function popover() {
-	return document.querySelector( '.vip-workflow-transition-popover' );
+	return document.querySelector( '.vip-workflows-transition-popover' );
 }
 
 /*

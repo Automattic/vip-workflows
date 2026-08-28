@@ -2,17 +2,17 @@
 /**
  * SequenceRepository unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
 
 /**
  * Tests for the SequenceRepository class.
@@ -757,7 +757,7 @@ class SequenceRepositoryTest extends TestCase
         Functions\when( 'wp_cache_flush_group' )->justReturn( false );
         $this->count_incr_calls( false );
         $next_generation = 1700000001;
-        Functions\when( 'VIPWorkflow\Sequences\random_int' )->alias(
+        Functions\when( 'VIPWorkflows\Sequences\random_int' )->alias(
             function () use ( &$next_generation ) {
                 return $next_generation++;
             }

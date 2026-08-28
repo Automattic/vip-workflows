@@ -1,7 +1,7 @@
 /**
  * Ideation feature-root styles (landing, loading, shared/generic).
  *
- * Large dead block removed in WPDS audit: .vip-workflow-ideation-empty,
+ * Large dead block removed in WPDS audit: .vip-workflows-ideation-empty,
  * -status-badge, -pitch-card, -pitch-editor, -claim-board, -claim-card,
  * -assets, -asset-card, -asset-modal — zero JS consumers confirmed.
  *
@@ -12,16 +12,16 @@
 
 /* Centring is owned by the <Stack align="center" justify="center" gap="md">
    that carries this class; only the box-model floor stays here. */
-.vip-workflow-ideation-loading {
+.vip-workflows-ideation-loading {
 	padding: 48px; /* wpds-allow R2 -- intentional large section padding beyond token scale */
 	min-height: 400px;
 }
 
 /* Deliberately a block-flow column, not a <Stack>: the sections below the seed
-   input (.vip-workflow-ideation-discovery, .vip-workflow-ideation-recent) each
+   input (.vip-workflows-ideation-discovery, .vip-workflows-ideation-recent) each
    carry their own `margin-top: 48px`, and flex items neither collapse those
    margins nor let a child's margin collapse through them. */
-.vip-workflow-ideation-landing {
+.vip-workflows-ideation-landing {
 	max-width: var(--wpds-dimension-surface-width-xl);
 	margin: 80px auto 40px; /* wpds-allow R3 -- `auto` centres the page column under its max-width; the top/bottom offset has no parent Stack */
 	padding: 0 var(--wpds-dimension-padding-2xl);

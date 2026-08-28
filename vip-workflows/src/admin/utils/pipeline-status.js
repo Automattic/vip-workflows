@@ -31,7 +31,7 @@ import { __ } from '@wordpress/i18n';
  * Each pipeline status, in lifecycle order: what it is called, and its tone.
  *
  * **This list is the PHP one.** `pipeline_status` is served straight from
- * `Story::get_status()`, so the vocabulary belongs to `VIPWorkflow\Story\Story`
+ * `Story::get_status()`, so the vocabulary belongs to `VIPWorkflows\Story\Story`
  * — which owns all six and registers a post status for each. A JS copy that
  * knew only four rendered a raw slug for the other two and left them out of the
  * filter, and it called `editorial` "In Editorial" where PHP calls it
@@ -47,17 +47,17 @@ import { __ } from '@wordpress/i18n';
  * counterpart, so the parity guard checks slugs and labels and leaves them be.
  */
 export const PIPELINE_STATUSES = {
-	ideation: { label: __( 'Ideation', 'vip-workflow' ), intent: 'draft' },
+	ideation: { label: __( 'Ideation', 'vip-workflows' ), intent: 'draft' },
 	editorial: {
-		label: __( 'Editorial', 'vip-workflow' ),
+		label: __( 'Editorial', 'vip-workflows' ),
 		intent: 'informational',
 	},
-	published: { label: __( 'Published', 'vip-workflow' ), intent: 'stable' },
-	monitoring: { label: __( 'Monitoring', 'vip-workflow' ), intent: 'none' },
+	published: { label: __( 'Published', 'vip-workflows' ), intent: 'stable' },
+	monitoring: { label: __( 'Monitoring', 'vip-workflows' ), intent: 'none' },
 	// Live work: a published story flagged for updating reads as needing
 	// attention, where an archived one is finished and reads quietest of all.
-	refresh: { label: __( 'Refresh', 'vip-workflow' ), intent: 'medium' },
-	archived: { label: __( 'Archived', 'vip-workflow' ), intent: 'low' },
+	refresh: { label: __( 'Refresh', 'vip-workflows' ), intent: 'medium' },
+	archived: { label: __( 'Archived', 'vip-workflows' ), intent: 'low' },
 };
 
 /**

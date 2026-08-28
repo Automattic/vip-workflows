@@ -10,22 +10,22 @@
  * `Ability` extends core's `WP_Ability`, which only exists on a booted
  * WordPress. See tests/phpunit/Integration/AbilityAvailabilityTest.php.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\ConnectorsCredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\AI\LegacyCredentialBackend;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\AI\ConnectorsCredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\AI\LegacyCredentialBackend;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Abilities\RequirementGroup;
 
 class AvailabilityTest extends TestCase
 {
@@ -70,7 +70,7 @@ class AvailabilityTest extends TestCase
             Requirement::KIND_MISSING_CREDENTIAL,
             'Tavily is not connected.',
             'Web research is unavailable.',
-            Destination::none( 'Set VIP_WORKFLOW_TAVILY_KEY.' ),
+            Destination::none( 'Set VIP_WORKFLOWS_TAVILY_KEY.' ),
             $sources
         );
     }
@@ -399,11 +399,11 @@ class AvailabilityTest extends TestCase
 
     public function test_none_destination_exposes_no_url(): void
     {
-        $destination = Destination::none( 'Set VIP_WORKFLOW_TAVILY_KEY in wp-config.php.' );
+        $destination = Destination::none( 'Set VIP_WORKFLOWS_TAVILY_KEY in wp-config.php.' );
 
         $this->assertSame( Destination::KIND_NONE, $destination->get_kind() );
         $this->assertSame( '', $destination->get_url() );
-        $this->assertSame( 'Set VIP_WORKFLOW_TAVILY_KEY in wp-config.php.', $destination->get_hint() );
+        $this->assertSame( 'Set VIP_WORKFLOWS_TAVILY_KEY in wp-config.php.', $destination->get_hint() );
     }
 
     public function test_in_card_destination_exposes_no_url(): void
@@ -537,12 +537,12 @@ class AvailabilityTest extends TestCase
         Functions\when( 'esc_url_raw' )->alias( array( $this, 'protocol_filter' ) );
 
         $destination = Destination::admin_url(
-            'https://example.test/wp-admin/admin.php?page=vip-workflow&tab=connectors',
+            'https://example.test/wp-admin/admin.php?page=vip-workflows&tab=connectors',
             'Settings → Connectors'
         );
 
         $this->assertSame(
-            'https://example.test/wp-admin/admin.php?page=vip-workflow&tab=connectors',
+            'https://example.test/wp-admin/admin.php?page=vip-workflows&tab=connectors',
             $destination->get_url()
         );
     }
@@ -621,7 +621,7 @@ class AvailabilityTest extends TestCase
         $this->assertSame( Destination::KIND_NONE, $requirement->get_destination()->get_kind() );
         $this->assertSame( '', $requirement->get_destination()->get_url() );
         $this->assertStringContainsString(
-            'VIP_WORKFLOW_TAVILY_KEY',
+            'VIP_WORKFLOWS_TAVILY_KEY',
             $requirement->get_destination()->get_hint(),
             'The legacy path has no admin UI, so it must name the constant instead.'
         );

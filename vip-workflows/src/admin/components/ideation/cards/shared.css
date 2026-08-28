@@ -6,7 +6,7 @@
  * prop for (hover, pinned, grouped) plus the cards' own layout.
  */
 
-.vip-workflow-ideation-card {
+.vip-workflows-ideation-card {
 	transition: border-color 0.15s, box-shadow 0.15s;
 	position: relative;
 }
@@ -15,7 +15,7 @@
    the standard focus ring on keyboard focus only — :focus-visible keeps it from
    showing on mouse click. */
 
-.vip-workflow-ideation-card:focus-visible {
+.vip-workflows-ideation-card:focus-visible {
 	outline: 2px solid var(--wpds-color-stroke-focus);
 	outline-offset: 2px;
 }
@@ -23,12 +23,12 @@
 /* Hover and pinned restate the border and shadow <Card.Root> paints at rest;
    Card exposes no state props, so they stay in CSS. */
 
-.vip-workflow-ideation-card:hover {
+.vip-workflows-ideation-card:hover {
 	border-color: var(--wpds-color-stroke-surface-neutral); /* wpds-allow R6 -- Card.Root exposes no state props, so the hover edge restates the border it paints at rest */
-	box-shadow: var(--vip-workflow-elevation-sm); /* wpds-allow R6 -- the hover half of that same state chrome; Card.Root has no elevation prop */
+	box-shadow: var(--vip-workflows-elevation-sm); /* wpds-allow R6 -- the hover half of that same state chrome; Card.Root has no elevation prop */
 }
 
-.vip-workflow-ideation-card.is-pinned {
+.vip-workflows-ideation-card.is-pinned {
 	border-color: var(--wpds-color-stroke-interactive-brand); /* wpds-allow R6 -- Card.Root exposes no state props, so the pinned edge is set here */
 	box-shadow: 0 0 0 1px var(--wpds-color-stroke-interactive-brand); /* wpds-allow R6 -- doubles the pinned edge's weight without moving the card; Card.Root has no elevation prop */
 }
@@ -36,28 +36,28 @@
 /* Compound card groups (e.g., article + discussion from same source): the group
    is the surface, so its members give theirs up and become rows of it. */
 
-.vip-workflow-ideation-card-group .vip-workflow-ideation-card {
+.vip-workflows-ideation-card-group .vip-workflows-ideation-card {
 	border: none; /* wpds-allow R6 -- card chrome border on the group's layout Stack; no border prop */
 	border-radius: 0; /* wpds-allow R2,R6 -- zero needs no token */
 	box-shadow: none; /* wpds-allow R6 -- card elevation on the group's layout Stack; no prop */
 }
 
-.vip-workflow-ideation-card-group .vip-workflow-ideation-card + .vip-workflow-ideation-card {
+.vip-workflows-ideation-card-group .vip-workflows-ideation-card + .vip-workflows-ideation-card {
 	border-top: 1px dashed var(--wpds-color-stroke-surface-neutral); /* wpds-allow R6 -- grouped-card divider on the group's layout Stack; no prop */
 }
 
-.vip-workflow-ideation-card-group:hover {
+.vip-workflows-ideation-card-group:hover {
 	border-color: var(--wpds-color-stroke-surface-neutral); /* wpds-allow R6 -- card chrome border color on the group's layout Stack; no prop */
-	box-shadow: var(--vip-workflow-elevation-sm); /* wpds-allow R6 -- card elevation on the group's layout Stack; no prop */
+	box-shadow: var(--vip-workflows-elevation-sm); /* wpds-allow R6 -- card elevation on the group's layout Stack; no prop */
 }
 
-.vip-workflow-ideation-card__actions {
+.vip-workflows-ideation-card__actions {
 	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-xs);
 	opacity: 0; /* wpds-allow R6 -- hover-reveal opacity on layout Stack; no prop */
 	transition: opacity 0.15s;
 }
 
-.vip-workflow-ideation-card__actions--minimal {
+.vip-workflows-ideation-card__actions--minimal {
 	/* justify lives on the <Stack justify="flex-end"> that carries this class. */
 	padding: 0 var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-xs);
 }
@@ -66,20 +66,20 @@
    tabbing lands on an invisible (opacity:0) button: you get its tooltip but no
    visible focus. */
 
-.vip-workflow-ideation-card:hover .vip-workflow-ideation-card__actions,
-.vip-workflow-ideation-card:focus-within .vip-workflow-ideation-card__actions,
-.vip-workflow-ideation-card.is-pinned .vip-workflow-ideation-card__actions {
+.vip-workflows-ideation-card:hover .vip-workflows-ideation-card__actions,
+.vip-workflows-ideation-card:focus-within .vip-workflows-ideation-card__actions,
+.vip-workflows-ideation-card.is-pinned .vip-workflows-ideation-card__actions {
 	opacity: 1; /* wpds-allow R6 -- hover-reveal opacity on layout Stack; no prop */
 }
 
 /* Clear keyboard focus ring on the revealed action buttons. */
 
-.vip-workflow-ideation-card__action:focus-visible {
+.vip-workflows-ideation-card__action:focus-visible {
 	outline: 2px solid var(--wpds-color-stroke-focus);
 	outline-offset: -1px;
 }
 
-.vip-workflow-ideation-card__action.is-active {
+.vip-workflows-ideation-card__action.is-active {
 	color: var(--wpds-color-foreground-interactive-brand); /* wpds-allow R6 -- state/media-chrome color on icon Button; no prop */
 }
 
@@ -87,8 +87,8 @@
 /* Insight cards (news angles, tag clouds) are flexible grid items that share
    the same flex sizing. */
 
-.vip-workflow-ideation-card--angle,
-.vip-workflow-ideation-card--tags {
+.vip-workflows-ideation-card--angle,
+.vip-workflows-ideation-card--tags {
 	flex: 1 1 200px;
 	max-width: var(--wpds-dimension-surface-width-md);
 }
@@ -96,11 +96,11 @@
 /* The card body — a <Card.Content>. It keeps its own inset rather than taking
    Card's default one: these are compact board cards stacked several to a
    column, and the density is what lets a mood board be scanned. */
-.vip-workflow-ideation-card__row {
+.vip-workflows-ideation-card__row {
 	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-xs);
 }
 
-.vip-workflow-ideation-card__thumb {
+.vip-workflows-ideation-card__thumb {
 	flex-shrink: 0;
 	width: 72px;
 	height: 54px;
@@ -108,7 +108,7 @@
 	overflow: hidden;
 }
 
-.vip-workflow-ideation-card__thumb img {
+.vip-workflows-ideation-card__thumb img {
 	width: 100%;
 	height: 100%;
 	object-fit: cover;
@@ -119,7 +119,7 @@
    replaces, so the caller's sizing already applies; this only supplies the fill
    and the glyph. Keeping the footprint stops the row reflowing, and it reads as
    "nothing here" rather than "broken". */
-.vip-workflow-ideation-card__image-unavailable {
+.vip-workflows-ideation-card__image-unavailable {
 	display: block;
 	min-height: 54px;
 	background-color: var(--wpds-color-background-surface-neutral-weak);
@@ -130,7 +130,7 @@
 	background-position: center;
 }
 
-.vip-workflow-ideation-card__content {
+.vip-workflows-ideation-card__content {
 	flex: 1;
 	min-width: 0;
 }
@@ -138,33 +138,33 @@
 /* Uppercase "eyebrow" label typography shared by card badges and the entity /
    tag-cloud section labels. Each consumer keeps its own font-size and color. */
 
-.vip-workflow-ideation-card__badge,
-.vip-workflow-ideation-card--entity__label,
-.vip-workflow-ideation-card--tags__header {
+.vip-workflows-ideation-card__badge,
+.vip-workflows-ideation-card--entity__label,
+.vip-workflows-ideation-card--tags__header {
 	font-weight: var(--wpds-typography-font-weight-emphasis); /* wpds-allow R6 -- eyebrow weight on Badge shell; no prop */
 	text-transform: uppercase; /* wpds-allow R6 -- uppercase eyebrow on Badge shell; no prop */
 	letter-spacing: 0.5px; /* wpds-allow R5,R6 -- eyebrow tracking on Badge shell; no prop, and WPDS ships no letter-spacing token */
 }
 
-.vip-workflow-ideation-card__badge {
-	font: var(--vip-workflow-text-heading-sm); /* wpds-allow R6 -- eyebrow type on Badge shell; no prop */
+.vip-workflows-ideation-card__badge {
+	font: var(--vip-workflows-text-heading-sm); /* wpds-allow R6 -- eyebrow type on Badge shell; no prop */
 	display: inline-block;
 	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
 	border-radius: var( --wpds-border-radius-md ); /* wpds-allow R6 -- custom pill radius on Badge shell; no prop */
 	background: var(--wpds-color-background-surface-neutral-weak); /* wpds-allow R6 -- categorical badge fill on Badge shell; no intent match */
 }
 
-.vip-workflow-ideation-card__badge--archive {
+.vip-workflows-ideation-card__badge--archive {
 	background: var(--wpds-color-background-surface-info-weak);
 	color: var(--wpds-color-foreground-content-info-weak);
 }
 
-.vip-workflow-ideation-card__badge--web {
+.vip-workflows-ideation-card__badge--web {
 	background: var(--wpds-color-background-surface-caution-weak);
 	color: var(--wpds-color-foreground-content-warning-weak);
 }
 
-.vip-workflow-ideation-card__title {
+.vip-workflows-ideation-card__title {
 	/* Font comes from the <Text variant="heading-md"> that carries this class. */
 	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- muted/accent content color on Text; no variant match */
 	margin: 0; /* wpds-allow R3 -- reset UA <h4> margin; parent Stack gap owns spacing */
@@ -174,7 +174,7 @@
 	overflow: hidden;
 }
 
-.vip-workflow-ideation-card__excerpt {
+.vip-workflows-ideation-card__excerpt {
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted/accent content color on Text; no variant match */
 	/* Content that is inherently line-broken — a poem, a list, a snippet — loses
 	   its meaning if the breaks collapse. pre-line keeps them while still
@@ -186,11 +186,11 @@
 	overflow: hidden;
 }
 
-.vip-workflow-ideation-card__summarized {
-	color: var(--vip-workflow-color-fg-ai-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
+.vip-workflows-ideation-card__summarized {
+	color: var(--vip-workflows-color-fg-ai-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
 }
 
-.vip-workflow-ideation-card__has-notes {
+.vip-workflows-ideation-card__has-notes {
 	color: var(--wpds-color-foreground-content-info-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
 }
 
@@ -199,15 +199,15 @@
 /* Body layout is owned by <ModalBody>; these rules style only the individual
    content blocks (source preview, separator, AI-summary card). */
 
-.vip-workflow-ideation-detail-modal__image {
+.vip-workflows-ideation-detail-modal__image {
 	width: 100%;
 	max-height: 180px;
 	object-fit: cover;
 	border-radius: var( --wpds-border-radius-lg );
 }
 
-.vip-workflow-ideation-detail-modal__meta {
-	font: var(--vip-workflow-text-body-sm); /* wpds-allow R6 -- eyebrow type on layout Stack; no font prop */
+.vip-workflows-ideation-detail-modal__meta {
+	font: var(--vip-workflows-text-body-sm); /* wpds-allow R6 -- eyebrow type on layout Stack; no font prop */
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
 }
 
@@ -216,9 +216,9 @@
 /* The excerpt/content blocks are <Stack direction="column" gap="sm">; only the
    paragraph typography below stays in CSS. */
 
-.vip-workflow-ideation-detail-modal__excerpt p,
-.vip-workflow-ideation-detail-modal__content p {
-	font: var(--vip-workflow-text-body-md); /* wpds-allow R6 -- eyebrow type on layout Stack; no font prop */
+.vip-workflows-ideation-detail-modal__excerpt p,
+.vip-workflows-ideation-detail-modal__content p {
+	font: var(--vip-workflows-text-body-md); /* wpds-allow R6 -- eyebrow type on layout Stack; no font prop */
 	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
 	margin: 0; /* wpds-allow R3 -- reset UA <p> margin; parent Stack gap owns spacing */
 	white-space: pre-line;
@@ -226,7 +226,7 @@
 
 /* Separator between the source preview and the AI-summary / notes section. */
 
-.vip-workflow-ideation-detail-modal__separator {
+.vip-workflows-ideation-detail-modal__separator {
 	width: 100%;
 	height: 0;
 	margin: 0; /* wpds-allow R3 -- separator rule reset; parent flow owns spacing */
@@ -236,11 +236,11 @@
 
 /* AI-summary collapsible card carries the purple AI accent. */
 
-.vip-workflow-ideation-detail-modal__summary-card {
-	border-left: 3px solid var(--vip-workflow-color-stroke-ai); /* wpds-allow R6 -- CollapsibleCard.Root exposes no accent or tone prop, so the purple AI edge is drawn over its border here */
+.vip-workflows-ideation-detail-modal__summary-card {
+	border-left: 3px solid var(--vip-workflows-color-stroke-ai); /* wpds-allow R6 -- CollapsibleCard.Root exposes no accent or tone prop, so the purple AI edge is drawn over its border here */
 }
 
-/* Title truncation is shared via the `vip-workflow-modal--truncate-title`
+/* Title truncation is shared via the `vip-workflows-modal--truncate-title`
    class (src/styles/modal-header.css), applied on the card detail modals. */
 
 /* Media detail modal */
@@ -248,7 +248,7 @@
 /* __preview is a direct child of the flex-column `__body` (gap owns the spacing
    to the following meta block) — no own margin. */
 
-.vip-workflow-ideation-media-modal__image {
+.vip-workflows-ideation-media-modal__image {
 	width: 100%;
 	max-height: 400px;
 	object-fit: contain;
@@ -257,19 +257,19 @@
 	display: block;
 }
 
-.vip-workflow-ideation-media-modal__player {
+.vip-workflows-ideation-media-modal__player {
 	width: 100%;
 	aspect-ratio: 16 / 9;
 	border: none;
 	border-radius: var( --wpds-border-radius-lg );
-	background: var(--vip-workflow-color-bg-scrim);
+	background: var(--vip-workflows-color-bg-scrim);
 	display: block;
 }
 
 /* Shown in place of the image/video when the media fails to load. */
 /* Centering lives on the <Stack align="center" justify="center"> that carries
    this class. */
-.vip-workflow-ideation-media-modal__fallback {
+.vip-workflows-ideation-media-modal__fallback {
 	width: 100%;
 	aspect-ratio: 16 / 9;
 	border-radius: var(--wpds-border-radius-lg); /* wpds-allow R6 -- corner radius on layout Stack; no prop */
@@ -277,7 +277,7 @@
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
 }
 
-.vip-workflow-ideation-card__badge--document {
+.vip-workflows-ideation-card__badge--document {
 	background: var(--wpds-color-background-surface-info-weak); /* wpds-allow R6 -- categorical badge fill on Badge shell; no intent match */
 	color: var(--wpds-color-foreground-content-info-weak); /* wpds-allow R6 -- categorical badge text color on Badge shell; no intent match */
 }
@@ -285,35 +285,35 @@
 /* File-type glyphs (document/PDF/audio icons). currentColor is driven by these
    categorical token hues rather than per-attribute hex on the inline SVG. */
 
-.vip-workflow-ideation-card--document__icon-svg--pdf {
-	color: var(--vip-workflow-color-fg-filetype-pdf);
+.vip-workflows-ideation-card--document__icon-svg--pdf {
+	color: var(--vip-workflows-color-fg-filetype-pdf);
 }
 
-.vip-workflow-ideation-card--document__icon-svg--document {
-	color: var(--vip-workflow-color-fg-filetype-document);
+.vip-workflows-ideation-card--document__icon-svg--document {
+	color: var(--vip-workflows-color-fg-filetype-document);
 }
 
-.vip-workflow-ideation-card--document__icon-svg--audio {
-	color: var(--vip-workflow-color-fg-filetype-audio);
+.vip-workflows-ideation-card--document__icon-svg--audio {
+	color: var(--vip-workflows-color-fg-filetype-audio);
 }
 
 /* Glyphs rendered on dark media chrome (play badge, notes flag): always white. */
 
-.vip-workflow-ideation-card--image__on-media-glyph {
-	color: var(--vip-workflow-color-fg-on-color);
+.vip-workflows-ideation-card--image__on-media-glyph {
+	color: var(--vip-workflows-color-fg-on-color);
 }
 
-.vip-workflow-ideation-card__action--delete {
+.vip-workflows-ideation-card__action--delete {
 	color: var(--wpds-color-foreground-content-error-weak) !important; /* wpds-allow R6 -- state/media-chrome color on icon Button; no prop */
 }
 
-.vip-workflow-ideation-card__action--delete:hover {
+.vip-workflows-ideation-card__action--delete:hover {
 	background: var(--wpds-color-background-surface-error-weak) !important; /* wpds-allow R6 -- state hover fill on icon Button; no prop */
 }
 
 /* Card entrance animation */
 
-@keyframes vip-workflow-ideation-card-enter {
+@keyframes vip-workflows-ideation-card-enter {
 	from {
 		opacity: 0;
 		transform: translateY(8px);
@@ -324,6 +324,6 @@
 	}
 }
 
-.vip-workflow-ideation-card {
-	animation: vip-workflow-ideation-card-enter 0.3s ease-out;
+.vip-workflows-ideation-card {
+	animation: vip-workflows-ideation-card-enter 0.3s ease-out;
 }

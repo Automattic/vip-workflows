@@ -20,12 +20,12 @@
  * roles, no registration data, nothing core's `view` context would not already
  * expose about a post author.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
 use WP_REST_Controller;
 use WP_REST_Server;

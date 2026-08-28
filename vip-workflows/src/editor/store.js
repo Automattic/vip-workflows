@@ -1,9 +1,9 @@
 /**
- * VIP Workflow Editor Data Store
+ * VIP Workflows Editor Data Store
  *
  * Central reactive state for workflow data in the block editor.
  * Hydrated from wp_localize_script data on init, updated via dispatched actions.
- * Extensions and core components consume via useSelect( 'vip-workflow/editor' ).
+ * Extensions and core components consume via useSelect( 'vip-workflows/editor' ).
  *
  * The post status endpoint's answer lives here, whole, because more than one
  * surface changes it: the sidebar panel assigns, removes and transitions, and
@@ -24,7 +24,7 @@ import apiFetch from '@wordpress/api-fetch';
 
 import { refreshPostEntity } from './refresh-post-entity';
 
-const STORE_NAME = 'vip-workflow/editor';
+const STORE_NAME = 'vip-workflows/editor';
 
 /**
  * The status endpoint: the whole of a post's workflow state in one read — the
@@ -35,7 +35,7 @@ const STORE_NAME = 'vip-workflow/editor';
  * @return {string} REST path.
  */
 const statusPath = ( postId ) =>
-	`/vip-workflow/v1/workflow/post/${ postId }/status`;
+	`/vip-workflows/v1/workflow/post/${ postId }/status`;
 
 /**
  * The route that assigns (POST) and removes (DELETE) a post's workflow.
@@ -44,7 +44,7 @@ const statusPath = ( postId ) =>
  * @return {string} REST path.
  */
 const sequencePath = ( postId ) =>
-	`/vip-workflow/v1/workflow/post/${ postId }/sequence`;
+	`/vip-workflows/v1/workflow/post/${ postId }/sequence`;
 
 const DEFAULT_STATE = {
 	postId: null,

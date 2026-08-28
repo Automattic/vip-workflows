@@ -2,12 +2,12 @@
 /**
  * Registration-contract test for get-available-transitions.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 
@@ -40,9 +40,9 @@ class GetAvailableTransitionsRegistrationTest extends TestCase
 
     public function test_input_schema_does_not_accept_user_id(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_get_available_transitions();
+        \VIPWorkflows\Abilities\Tools\register_get_available_transitions();
 
-        $args   = $this->registered['vip-workflow/get-available-transitions'];
+        $args   = $this->registered['vip-workflows/get-available-transitions'];
         $schema = $args['input_schema'];
 
         $this->assertArrayNotHasKey( 'user_id', $schema['properties'] );

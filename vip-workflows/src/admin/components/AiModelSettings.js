@@ -104,7 +104,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 	const [ error, setError ] = useState( null );
 
 	useEffect( () => {
-		apiFetch( { path: '/vip-workflow/v1/settings/general' } )
+		apiFetch( { path: '/vip-workflows/v1/settings/general' } )
 			.then( ( data ) => {
 				const p = data.ai_provider || '';
 				const m = data.ai_model || '';
@@ -160,7 +160,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 
 	const save = useCallback( async () => {
 		const data = await apiFetch( {
-			path: '/vip-workflow/v1/settings/general',
+			path: '/vip-workflows/v1/settings/general',
 			method: 'POST',
 			data: { ai_provider: provider, ai_model: model },
 		} );
@@ -186,18 +186,18 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 		providers,
 		provider,
 		providerLabel,
-		__( '— Select a provider —', 'vip-workflow' ),
+		__( '— Select a provider —', 'vip-workflows' ),
 		/* translators: %s: AI provider display name, e.g. "OpenAI". */
-		__( '%s (not connected)', 'vip-workflow' )
+		__( '%s (not connected)', 'vip-workflows' )
 	);
 
 	const modelSelectOptions = optionsIncluding(
 		modelOptions,
 		model,
 		( m ) => m,
-		__( '— Select a model —', 'vip-workflow' ),
+		__( '— Select a model —', 'vip-workflows' ),
 		/* translators: %s: AI model identifier, e.g. "gpt-4o". */
-		__( '%s (not available)', 'vip-workflow' )
+		__( '%s (not available)', 'vip-workflows' )
 	);
 
 	const onProviderChange = ( value ) => {
@@ -211,7 +211,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 	if ( loading ) {
 		return (
 			<SettingsLoading
-				label={ __( 'Loading AI settings…', 'vip-workflow' ) }
+				label={ __( 'Loading AI settings…', 'vip-workflows' ) }
 			/>
 		);
 	}
@@ -221,7 +221,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 			<Notice status="error" isDismissible={ false }>
 				{ sprintf(
 					/* translators: %s: error message from the settings request. */
-					__( 'Failed to load AI settings: %s', 'vip-workflow' ),
+					__( 'Failed to load AI settings: %s', 'vip-workflows' ),
 					error
 				) }
 			</Notice>
@@ -245,27 +245,27 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 		return provider === 'openai'
 			? __(
 					'No models were discovered for this provider; the default will be used.',
-					'vip-workflow'
+					'vip-workflows'
 			  )
 			: __(
 					'No models could be discovered for this provider, so AI features cannot generate through it. Check its connection in Settings → Connectors, or choose a provider whose models are reachable.',
-					'vip-workflow'
+					'vip-workflows'
 			  );
 	} )();
 
 	return (
 		<SettingsSection
-			title={ __( 'AI model', 'vip-workflow' ) }
+			title={ __( 'AI model', 'vip-workflows' ) }
 			description={ __(
 				'The provider and model the plugin uses for AI features such as media analysis, ideation and research.',
-				'vip-workflow'
+				'vip-workflows'
 			) }
 		>
 			{ providers.length === 0 ? (
 				<Notice status="warning" isDismissible={ false }>
 					{ __(
 						'No AI provider is connected. Add an API key in Settings → Connectors to enable AI features.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				</Notice>
 			) : (
@@ -274,7 +274,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 						<Notice status="info" isDismissible={ false }>
 							{ __(
 								'No provider has been chosen, so the only connected one is being used. Save to make that explicit — otherwise connecting a second provider will leave this site with no selection.',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						</Notice>
 					) }
@@ -282,7 +282,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 						<Notice status="warning" isDismissible={ false }>
 							{ __(
 								'More than one provider is connected and none is chosen. Choose the one AI features should generate through.',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						</Notice>
 					) }
@@ -292,7 +292,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 								/* translators: %s: AI provider display name, e.g. "OpenAI". */
 								__(
 									'%s is selected but no longer connected, so AI features cannot generate. Choose one of the connected providers.',
-									'vip-workflow'
+									'vip-workflows'
 								),
 								providerLabel( provider )
 							) }
@@ -301,7 +301,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 					<SelectControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Provider', 'vip-workflow' ) }
+						label={ __( 'Provider', 'vip-workflows' ) }
 						value={ provider }
 						options={ providerOptions }
 						onChange={ onProviderChange }
@@ -309,7 +309,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 							<>
 								{ __(
 									'Only providers with a configured API key appear here.',
-									'vip-workflow'
+									'vip-workflows'
 								) }{ ' ' }
 								<Link
 									href="/wp-admin/options-connectors.php"
@@ -317,7 +317,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 								>
 									{ __(
 										'Manage API keys in Settings → Connectors',
-										'vip-workflow'
+										'vip-workflows'
 									) }
 								</Link>
 							</>
@@ -326,7 +326,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 					<SelectControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Model', 'vip-workflow' ) }
+						label={ __( 'Model', 'vip-workflows' ) }
 						value={ model }
 						options={ modelSelectOptions }
 						onChange={ ( value ) => setModel( value ) }

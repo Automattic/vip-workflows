@@ -7,19 +7,19 @@
  * supports. Call sites resolve a prompt via get(), which returns the admin
  * override when present (else the registered default) with {variables}
  * substituted. Extensions register prompts via the
- * `vip_workflow_register_prompts` action.
+ * `vip_workflows_register_prompts` action.
  *
  * Resolution intentionally stops at override-or-default + variable substitution.
  * Call sites that wrap a legacy `apply_filters()` prompt hook (e.g. the
  * MediaProcessor image/PDF/summary filters) apply that filter around the value
  * returned here, so existing filter names and signatures stay intact.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\AI;
+namespace VIPWorkflows\AI;
 
 /**
  * Registry of configurable system prompts.
@@ -113,7 +113,7 @@ class PromptRegistry {
 		 *
 		 * @param PromptRegistry $registry The registry instance.
 		 */
-		do_action( 'vip_workflow_register_prompts', $this );
+		do_action( 'vip_workflows_register_prompts', $this );
 	}
 
 	/**

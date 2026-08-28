@@ -2,17 +2,17 @@
 /**
  * Ideation source-upload permission tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\API\IdeationSourcesController;
-use VIPWorkflow\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\API\IdeationSourcesController;
+use VIPWorkflows\Ideation\Research\IdeationPostTypes;
 
 /**
  * The source-upload route must require the standard upload_files capability, not

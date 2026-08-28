@@ -23,12 +23,12 @@ import { ModalActions } from '../../../common/ModalActions';
 import './AddSourceModal.css';
 
 const SOURCE_TYPES = [
-	{ label: __( 'Article', 'vip-workflow' ), value: 'article' },
-	{ label: __( 'Image', 'vip-workflow' ), value: 'image' },
-	{ label: __( 'Video', 'vip-workflow' ), value: 'video' },
-	{ label: __( 'Document', 'vip-workflow' ), value: 'document' },
-	{ label: __( 'Audio', 'vip-workflow' ), value: 'audio' },
-	{ label: __( 'Social', 'vip-workflow' ), value: 'social' },
+	{ label: __( 'Article', 'vip-workflows' ), value: 'article' },
+	{ label: __( 'Image', 'vip-workflows' ), value: 'image' },
+	{ label: __( 'Video', 'vip-workflows' ), value: 'video' },
+	{ label: __( 'Document', 'vip-workflows' ), value: 'document' },
+	{ label: __( 'Audio', 'vip-workflows' ), value: 'audio' },
+	{ label: __( 'Social', 'vip-workflows' ), value: 'social' },
 ];
 
 /**
@@ -56,7 +56,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 
 		try {
 			await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ projectId }/sources`,
+				path: `/vip-workflows/v1/ideation/${ projectId }/sources`,
 				method: 'POST',
 				data: {
 					url: url.trim(),
@@ -69,7 +69,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 			onClose();
 		} catch ( err ) {
 			setError(
-				err.message || __( 'Failed to add source.', 'vip-workflow' )
+				err.message || __( 'Failed to add source.', 'vip-workflows' )
 			);
 		} finally {
 			setUploading( false );
@@ -91,7 +91,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 
 			try {
 				await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ projectId }/sources/upload`,
+					path: `/vip-workflows/v1/ideation/${ projectId }/sources/upload`,
 					method: 'POST',
 					body: formData,
 				} );
@@ -100,7 +100,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 			} catch ( err ) {
 				setError(
 					err.message ||
-						__( 'Failed to upload file.', 'vip-workflow' )
+						__( 'Failed to upload file.', 'vip-workflows' )
 				);
 			} finally {
 				setUploading( false );
@@ -111,9 +111,9 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 
 	return (
 		<Modal
-			title={ __( 'Add source', 'vip-workflow' ) }
+			title={ __( 'Add source', 'vip-workflows' ) }
 			onRequestClose={ onClose }
-			className="vip-workflow-ideation-add-source-modal"
+			className="vip-workflows-ideation-add-source-modal"
 			size="medium"
 		>
 			{ error && (
@@ -133,21 +133,21 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 						onClick={ () => setMode( 'url' ) }
 						size="small"
 					>
-						{ __( 'Add URL', 'vip-workflow' ) }
+						{ __( 'Add URL', 'vip-workflows' ) }
 					</Button>
 					<Button
 						variant={ mode === 'upload' ? 'primary' : 'secondary' }
 						onClick={ () => setMode( 'upload' ) }
 						size="small"
 					>
-						{ __( 'Upload file', 'vip-workflow' ) }
+						{ __( 'Upload file', 'vip-workflows' ) }
 					</Button>
 				</Stack>
 
 				{ mode === 'url' ? (
 					<Stack direction="column" gap="md">
 						<TextControl
-							label={ __( 'URL', 'vip-workflow' ) }
+							label={ __( 'URL', 'vip-workflows' ) }
 							value={ url }
 							onChange={ setUrl }
 							placeholder="https://..."
@@ -155,17 +155,17 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 							__next40pxDefaultSize
 						/>
 						<TextControl
-							label={ __( 'Title (optional)', 'vip-workflow' ) }
+							label={ __( 'Title (optional)', 'vip-workflows' ) }
 							value={ title }
 							onChange={ setTitle }
 							placeholder={ __(
 								'Auto-detected from URL',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 							__next40pxDefaultSize
 						/>
 						<SelectControl
-							label={ __( 'Type', 'vip-workflow' ) }
+							label={ __( 'Type', 'vip-workflows' ) }
 							value={ sourceType }
 							options={ SOURCE_TYPES }
 							onChange={ setSourceType }
@@ -177,7 +177,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 					<Text variant="body-sm" render={ <p /> }>
 						{ __(
 							'Upload images, PDFs, or documents to add to your workspace.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
 				) }
@@ -189,7 +189,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 					onClick={ onClose }
 					disabled={ uploading }
 				>
-					{ __( 'Cancel', 'vip-workflow' ) }
+					{ __( 'Cancel', 'vip-workflows' ) }
 				</Button>
 				{ mode === 'url' ? (
 					<Button
@@ -198,7 +198,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 						isBusy={ uploading }
 						disabled={ uploading || ! url.trim() }
 					>
-						{ __( 'Add source', 'vip-workflow' ) }
+						{ __( 'Add source', 'vip-workflows' ) }
 					</Button>
 				) : (
 					<FormFileUpload
@@ -209,7 +209,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 						disabled={ uploading }
 						__next40pxDefaultSize
 					>
-						{ __( 'Choose file', 'vip-workflow' ) }
+						{ __( 'Choose file', 'vip-workflows' ) }
 					</FormFileUpload>
 				) }
 			</ModalActions>

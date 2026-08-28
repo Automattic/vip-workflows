@@ -2,15 +2,15 @@
 /**
  * Email Notification Channel.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Notifications\Channels;
+namespace VIPWorkflows\Notifications\Channels;
 
-use VIPWorkflow\Notifications\NotificationChannel;
-use VIPWorkflow\Notifications\Notification;
+use VIPWorkflows\Notifications\NotificationChannel;
+use VIPWorkflows\Notifications\Notification;
 use WP_Error;
 
 /**
@@ -30,14 +30,14 @@ class EmailChannel extends NotificationChannel {
 	 * {@inheritdoc}
 	 */
 	public function get_name(): string {
-		return __( 'Email', 'vip-workflow' );
+		return __( 'Email', 'vip-workflows' );
 	}
 
 	/**
 	 * {@inheritdoc}
 	 */
 	public function get_description(): string {
-		return __( 'Send email notifications to users and administrators.', 'vip-workflow' );
+		return __( 'Send email notifications to users and administrators.', 'vip-workflows' );
 	}
 
 	/**
@@ -101,16 +101,16 @@ class EmailChannel extends NotificationChannel {
 	public function test_connection() {
 		$admin_email = get_option( 'admin_email' );
 		if ( empty( $admin_email ) ) {
-			return new WP_Error( 'no_email', __( 'No admin email configured.', 'vip-workflow' ) );
+			return new WP_Error( 'no_email', __( 'No admin email configured.', 'vip-workflows' ) );
 		}
 
-		$subject = sprintf( '[%s] %s', get_bloginfo( 'name' ), __( 'Test Email', 'vip-workflow' ) );
-		$body    = '<p>' . esc_html__( 'VIP Workflow email notifications are working!', 'vip-workflow' ) . '</p>';
+		$subject = sprintf( '[%s] %s', get_bloginfo( 'name' ), __( 'Test Email', 'vip-workflows' ) );
+		$body    = '<p>' . esc_html__( 'VIP Workflows email notifications are working!', 'vip-workflows' ) . '</p>';
 		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
 
 		$success = wp_mail( $admin_email, $subject, $body, $headers );
 
-		return $success ? true : new WP_Error( 'send_failed', __( 'Failed to send test email.', 'vip-workflow' ) );
+		return $success ? true : new WP_Error( 'send_failed', __( 'Failed to send test email.', 'vip-workflows' ) );
 	}
 
 	/**
@@ -229,7 +229,7 @@ class EmailChannel extends NotificationChannel {
 		<?php
 		printf(
 		 /* translators: %s: site name */
-			esc_html__( 'Sent by VIP Workflow on %s', 'vip-workflow' ),
+			esc_html__( 'Sent by VIP Workflows on %s', 'vip-workflows' ),
 			esc_html( get_bloginfo( 'name' ) )
 		);
 		?>

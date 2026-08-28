@@ -10,21 +10,21 @@
  * editor used to be shown. The finish reason is the only signal that names the
  * real condition, so it is read before the text is ever fetched.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Integrations\LlmTextGenerator;
+use VIPWorkflows\Integrations\LlmTextGenerator;
 use WordPress\AiClient\AiClient;
 use WP_Error;
 
 require_once __DIR__ . '/../../../includes/integrations/class-llm-text-generator.php';
 
 /**
- * @covers \VIPWorkflow\Integrations\LlmTextGenerator
+ * @covers \VIPWorkflows\Integrations\LlmTextGenerator
  */
 class LlmTextGeneratorTest extends TestCase
 {

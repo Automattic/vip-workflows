@@ -3,21 +3,21 @@
  * Stage palette parity guard.
  *
  * The qualitative stage palette is declared twice — once in PHP
- * (VIPWorkflow\Workflow\StagePalette, for the seeder and the REST responses)
+ * (VIPWorkflows\Workflow\StagePalette, for the seeder and the REST responses)
  * and once in JS (src/admin/utils/stage-palette.js, for the sequence editor's
  * color picker). Neither language can read the other's copy without a build
  * step, so this test reads the JS file and asserts the two agree slot for slot.
  * Change one side and the unit suite fails until the other side matches.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
-use VIPWorkflow\Workflow\StagePalette;
+use VIPWorkflows\Workflow\StagePalette;
 
 class StagePaletteTest extends TestCase
 {

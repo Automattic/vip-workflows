@@ -92,10 +92,10 @@ function keyProblems( items, keyOf, isStarted ) {
 		if ( ! key ) {
 			return isStarted( item )
 				? {
-						short: __( 'Needs a key', 'vip-workflow' ),
+						short: __( 'Needs a key', 'vip-workflows' ),
 						full: __(
 							'This field needs a key. Saving is refused until it has one.',
-							'vip-workflow'
+							'vip-workflows'
 						),
 				  }
 				: undefined;
@@ -103,10 +103,10 @@ function keyProblems( items, keyOf, isStarted ) {
 
 		if ( seen.has( key ) ) {
 			return {
-				short: __( 'Duplicate key', 'vip-workflow' ),
+				short: __( 'Duplicate key', 'vip-workflows' ),
 				full: __(
 					'Another field already uses this key. Saving is refused until it is unique.',
-					'vip-workflow'
+					'vip-workflows'
 				),
 			};
 		}
@@ -179,7 +179,7 @@ function FieldRow( {
 			id={ id }
 			dragLabel={ sprintf(
 				/* translators: %s: the item's name. */
-				__( 'Reorder %s', 'vip-workflow' ),
+				__( 'Reorder %s', 'vip-workflows' ),
 				summary.label
 			) }
 			// Either channel can put a row in the wrong: a key the save would
@@ -199,7 +199,7 @@ function FieldRow( {
 				configurable
 					? sprintf(
 							/* translators: %s: the item's name. */
-							__( 'Configure %s', 'vip-workflow' ),
+							__( 'Configure %s', 'vip-workflows' ),
 							summary.label
 					  )
 					: undefined

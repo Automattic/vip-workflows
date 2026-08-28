@@ -8,13 +8,13 @@
  * and the multiline-value treatment `Button` exposes no prop for.
  */
 
-.vip-workflow-sidebar-row {
+.vip-workflows-sidebar-row {
 	width: 100%;
 	/* wpds-allow R2 -- core's .editor-post-panel__row min-height, $grid-unit-40 (32px); no wpds dimension token holds it. */
 	min-height: 32px;
 }
 
-.vip-workflow-sidebar-row__label {
+.vip-workflows-sidebar-row__label {
 	/* wpds-allow R2 -- core's .editor-post-panel__row-label column is 38% of the row; the split is the pattern, not a token. */
 	width: 38%;
 	flex-shrink: 0;
@@ -29,7 +29,7 @@
 	word-break: break-word;
 }
 
-.vip-workflow-sidebar-row__control {
+.vip-workflows-sidebar-row__control {
 	flex-grow: 1;
 	/* wpds-allow R2 -- core's .editor-post-panel__row-control min-height, $grid-unit-40 (32px). */
 	min-height: 32px;
@@ -38,14 +38,14 @@
 /* Core's pairing: without it a long unbroken value widens the dropdown and
    overflows the sidebar column. */
 /* wpds-allow R6 -- mirrors core's .editor-post-panel__row-control .components-dropdown rule; Dropdown exposes no width prop. */
-.vip-workflow-sidebar-row__control .components-dropdown {
+.vip-workflows-sidebar-row__control .components-dropdown {
 	max-width: 100%;
 }
 
 /* The value trigger holds arbitrary editorial text, so it wraps like core's
    row-control buttons instead of clipping on one line. */
 /* wpds-allow R6 -- mirrors core's .editor-post-panel__row-control button treatment; Button exposes no multiline/left-aligned value props. */
-.vip-workflow-sidebar-row__control .components-button {
+.vip-workflows-sidebar-row__control .components-button {
 	max-width: 100%;
 	text-align: left;
 	white-space: normal;
@@ -61,7 +61,7 @@
    (author) to 320px (schedule). 260px keeps a text input comfortable beside
    the 280px sidebar without forcing every popover to calendar width — the
    calendar still grows its own popover past the minimum. */
-.vip-workflow-sidebar-row__dialog .components-popover__content {
+.vip-workflows-sidebar-row__dialog .components-popover__content {
 	/* wpds-allow R6 -- Popover exposes no width/padding props; its content box must be sized here. */
 	/* wpds-allow R2 -- 260px sits between core's 248px and 320px meta dialogs; no token holds a popover width. */
 	min-width: 260px;
@@ -75,15 +75,15 @@
    row is not a native control — it is a label beside a trigger — so the
    treatment is put on the parts that stand in for one. `aria-invalid` on the
    trigger is what carries the same state to a screen reader; see SidebarRow.js. */
-.vip-workflow-sidebar-row--invalid .vip-workflow-sidebar-row__label {
+.vip-workflows-sidebar-row--invalid .vip-workflows-sidebar-row__label {
 	color: var( --wpds-color-foreground-content-error ); /* wpds-allow R6 -- semantic error tone on the row label <Text>, which exposes no colour prop. */
 }
 
-.vip-workflow-sidebar-row--invalid .vip-workflow-sidebar-row__control .components-button {
+.vip-workflows-sidebar-row--invalid .vip-workflows-sidebar-row__control .components-button {
 	/* wpds-allow R6 -- the invalid boundary on the row's value trigger; Button exposes no validity prop. An inset shadow rather than a border, so turning invalid neither resizes the control nor overrides the radius WPDS already gives it — the shadow follows it. */
 	box-shadow: inset 0 0 0 var( --wpds-border-width-sm ) var( --wpds-color-stroke-surface-error-strong );
 }
 
-.vip-workflow-sidebar-row__error {
+.vip-workflows-sidebar-row__error {
 	color: var( --wpds-color-foreground-content-error ); /* wpds-allow R6 -- semantic error tone on the message <Text>, which exposes no colour prop. */
 }

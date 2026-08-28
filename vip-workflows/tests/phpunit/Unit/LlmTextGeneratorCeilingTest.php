@@ -25,19 +25,19 @@
  * These are assertions about source text, so they hold for every plugin in the
  * repo — the extension plugins that reach into core's Integrations included.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use RecursiveCallbackFilterIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
-use VIPWorkflow\Integrations\LlmTextGenerator;
+use VIPWorkflows\Integrations\LlmTextGenerator;
 
 class LlmTextGeneratorCeilingTest extends TestCase
 {

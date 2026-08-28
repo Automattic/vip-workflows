@@ -6,14 +6,14 @@
  * Wraps research abilities and discovery providers into single assistant
  * entries so that plugins spanning multiple capabilities appear as one card.
  *
- * @package VIPWorkflow\API
+ * @package VIPWorkflows\API
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Assistants\AssistantRegistry;
+use VIPWorkflows\Assistants\AssistantRegistry;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -76,7 +76,7 @@ class AssistantsController extends WP_REST_Controller {
 						 * route but 404 here.
 						 */
 						'slug' => array(
-							'description' => __( 'Agent slug.', 'vip-workflow' ),
+							'description' => __( 'Agent slug.', 'vip-workflows' ),
 							'type'        => 'string',
 							'required'    => true,
 						),
@@ -143,7 +143,7 @@ class AssistantsController extends WP_REST_Controller {
 		if ( null === $entry ) {
 			return new WP_Error(
 				'unknown_assistant',
-				__( 'Unknown agent.', 'vip-workflow' ),
+				__( 'Unknown agent.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -165,7 +165,7 @@ class AssistantsController extends WP_REST_Controller {
 		if ( ! is_array( $updates ) ) {
 			return new WP_Error(
 				'invalid_payload',
-				__( 'Invalid settings payload.', 'vip-workflow' ),
+				__( 'Invalid settings payload.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -174,7 +174,7 @@ class AssistantsController extends WP_REST_Controller {
 		if ( ! $registry->get( $slug ) ) {
 			return new WP_Error(
 				'unknown_assistant',
-				__( 'Unknown agent.', 'vip-workflow' ),
+				__( 'Unknown agent.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -183,7 +183,7 @@ class AssistantsController extends WP_REST_Controller {
 		if ( ! $saved ) {
 			return new WP_Error(
 				'save_failed',
-				__( 'Failed to save agent settings.', 'vip-workflow' ),
+				__( 'Failed to save agent settings.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -247,25 +247,25 @@ class AssistantsController extends WP_REST_Controller {
 			'type'       => 'object',
 			'properties' => array(
 				'slug'                  => array(
-					'description' => __( 'Unique agent slug.', 'vip-workflow' ),
+					'description' => __( 'Unique agent slug.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
 				),
 				'label'                 => array(
-					'description' => __( 'Human-readable agent name.', 'vip-workflow' ),
+					'description' => __( 'Human-readable agent name.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
 				),
 				'description'           => array(
-					'description' => __( 'What the agent does.', 'vip-workflow' ),
+					'description' => __( 'What the agent does.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
 				),
 				'icon'                  => array(
-					'description' => __( 'Dashicon name or emoji shown on the card.', 'vip-workflow' ),
+					'description' => __( 'Dashicon name or emoji shown on the card.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
@@ -273,13 +273,13 @@ class AssistantsController extends WP_REST_Controller {
 				'capabilities'          => array_merge(
 					$string_list,
 					array(
-						'description' => __( 'Contexts the agent can be used in.', 'vip-workflow' ),
+						'description' => __( 'Contexts the agent can be used in.', 'vip-workflows' ),
 						'context'     => array( 'view', 'edit' ),
 						'readonly'    => true,
 					)
 				),
 				'available_in_ai_stage' => array(
-					'description' => __( 'Whether the agent can own an AI workflow stage.', 'vip-workflow' ),
+					'description' => __( 'Whether the agent can own an AI workflow stage.', 'vip-workflows' ),
 					'type'        => 'boolean',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
@@ -287,7 +287,7 @@ class AssistantsController extends WP_REST_Controller {
 				'ability_ids'           => array_merge(
 					$string_list,
 					array(
-						'description' => __( 'Abilities aggregated onto this card.', 'vip-workflow' ),
+						'description' => __( 'Abilities aggregated onto this card.', 'vip-workflows' ),
 						'context'     => array( 'view', 'edit' ),
 						'readonly'    => true,
 					)
@@ -295,25 +295,25 @@ class AssistantsController extends WP_REST_Controller {
 				'provider_slugs'        => array_merge(
 					$string_list,
 					array(
-						'description' => __( 'Discovery providers aggregated onto this card.', 'vip-workflow' ),
+						'description' => __( 'Discovery providers aggregated onto this card.', 'vip-workflows' ),
 						'context'     => array( 'view', 'edit' ),
 						'readonly'    => true,
 					)
 				),
 				'enabled'               => array(
-					'description' => __( 'Administrator preference. Independent of availability.', 'vip-workflow' ),
+					'description' => __( 'Administrator preference. Independent of availability.', 'vip-workflows' ),
 					'type'        => 'boolean',
 					'context'     => array( 'view', 'edit' ),
 				),
 				'available'             => array(
-					'description' => __( 'Whether every dependency of every capability on this card is satisfied.', 'vip-workflow' ),
+					'description' => __( 'Whether every dependency of every capability on this card is satisfied.', 'vip-workflows' ),
 					'type'        => 'boolean',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
 				),
 				'availability'          => AvailabilitySerializer::get_schema(),
 				'availability_sources'  => array(
-					'description' => __( 'Per-capability availability attribution.', 'vip-workflow' ),
+					'description' => __( 'Per-capability availability attribution.', 'vip-workflows' ),
 					'type'        => 'array',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
@@ -321,27 +321,27 @@ class AssistantsController extends WP_REST_Controller {
 						'type'       => 'object',
 						'properties' => array(
 							'type'      => array(
-								'description' => __( 'Whether this source is an ability or a discovery provider.', 'vip-workflow' ),
+								'description' => __( 'Whether this source is an ability or a discovery provider.', 'vip-workflows' ),
 								'type'        => 'string',
 								'enum'        => array( 'ability', 'provider' ),
 							),
 							'id'        => array(
-								'description' => __( 'Ability id or provider slug.', 'vip-workflow' ),
+								'description' => __( 'Ability id or provider slug.', 'vip-workflows' ),
 								'type'        => 'string',
 							),
 							'label'     => array(
-								'description' => __( 'Human-readable capability name.', 'vip-workflow' ),
+								'description' => __( 'Human-readable capability name.', 'vip-workflows' ),
 								'type'        => 'string',
 							),
 							'available' => array(
-								'description' => __( 'Whether this single source is satisfied.', 'vip-workflow' ),
+								'description' => __( 'Whether this single source is satisfied.', 'vip-workflows' ),
 								'type'        => 'boolean',
 							),
 						),
 					),
 				),
 				'availability_state'    => array(
-					'description' => __( 'Derived classification across every source on the card.', 'vip-workflow' ),
+					'description' => __( 'Derived classification across every source on the card.', 'vip-workflows' ),
 					'type'        => 'string',
 					'enum'        => array(
 						AssistantRegistry::AVAILABILITY_AVAILABLE,
@@ -352,26 +352,26 @@ class AssistantsController extends WP_REST_Controller {
 					'readonly'    => true,
 				),
 				'options'               => array(
-					'description'          => __( 'Saved option values, keyed by option name.', 'vip-workflow' ),
+					'description'          => __( 'Saved option values, keyed by option name.', 'vip-workflows' ),
 					'type'                 => 'object',
 					'context'              => array( 'view', 'edit' ),
 					'additionalProperties' => true,
 				),
 				'settings_schema'        => array(
-					'description'          => __( 'Field definitions the card renders, keyed by field name.', 'vip-workflow' ),
+					'description'          => __( 'Field definitions the card renders, keyed by field name.', 'vip-workflows' ),
 					'type'                 => 'object',
 					'context'              => array( 'view', 'edit' ),
 					'readonly'             => true,
 					'additionalProperties' => array( 'type' => 'object' ),
 				),
 				'display_order'         => array(
-					'description' => __( 'Sort weight on the Agents screen.', 'vip-workflow' ),
+					'description' => __( 'Sort weight on the Agents screen.', 'vip-workflows' ),
 					'type'        => 'integer',
 					'context'     => array( 'view', 'edit' ),
 					'readonly'    => true,
 				),
 				'origin'                => array(
-					'description' => __( 'Whether the agent ships with the plugin or comes from an extension.', 'vip-workflow' ),
+					'description' => __( 'Whether the agent ships with the plugin or comes from an extension.', 'vip-workflows' ),
 					'type'        => 'string',
 					'enum'        => array( 'built-in', 'plugin' ),
 					'context'     => array( 'view', 'edit' ),

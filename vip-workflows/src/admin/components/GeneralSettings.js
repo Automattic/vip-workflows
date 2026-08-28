@@ -68,20 +68,20 @@ function RoleCheckboxGroup( {
 	};
 
 	return (
-		<Fieldset.Root className="vip-workflow-settings-field">
-			<Fieldset.Legend className="vip-workflow-settings-field__legend">
+		<Fieldset.Root className="vip-workflows-settings-field">
+			<Fieldset.Legend className="vip-workflows-settings-field__legend">
 				<Text variant="heading-sm" render={ <h3 /> }>
 					{ label }
 				</Text>
 			</Fieldset.Legend>
 			<Fieldset.Description
-				className="vip-workflow-settings-field__description"
+				className="vip-workflows-settings-field__description"
 				render={ <Text variant="body-md" render={ <p /> } /> }
 			>
 				{ description }
 			</Fieldset.Description>
 			{ /* wpds-allow R7 -- CSS Grid (auto-fill role columns); no Stack equivalent */ }
-			<div className="vip-workflow-settings-field__roles">
+			<div className="vip-workflows-settings-field__roles">
 				{ roles.map( ( role ) => (
 					<CheckboxControl
 						key={ role.key }
@@ -115,8 +115,8 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 
 	useEffect( () => {
 		Promise.all( [
-			apiFetch( { path: '/vip-workflow/v1/settings/general' } ),
-			apiFetch( { path: '/vip-workflow/v1/settings/general/roles' } ),
+			apiFetch( { path: '/vip-workflows/v1/settings/general' } ),
+			apiFetch( { path: '/vip-workflows/v1/settings/general/roles' } ),
 		] )
 			.then( ( [ settingsData, rolesData ] ) => {
 				setSettings( settingsData );
@@ -142,7 +142,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 		// provider and model through the same route, so posting the whole
 		// payload back would overwrite whatever it saved a moment earlier.
 		const updated = await apiFetch( {
-			path: '/vip-workflow/v1/settings/general',
+			path: '/vip-workflows/v1/settings/general',
 			method: 'POST',
 			data: {
 				workflow_enforcement: settings.workflow_enforcement,
@@ -166,7 +166,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 	if ( loading ) {
 		return (
 			<SettingsLoading
-				label={ __( 'Loading settings…', 'vip-workflow' ) }
+				label={ __( 'Loading settings…', 'vip-workflows' ) }
 			/>
 		);
 	}
@@ -176,7 +176,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 			<Notice status="error" isDismissible={ false }>
 				{ sprintf(
 					/* translators: %s: error message from the settings request. */
-					__( 'Failed to load settings: %s', 'vip-workflow' ),
+					__( 'Failed to load settings: %s', 'vip-workflows' ),
 					error
 				) }
 			</Notice>
@@ -186,17 +186,17 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 	return (
 		<Stack direction="column" gap="2xl">
 			<SettingsSection
-				title={ __( 'Workflow behavior', 'vip-workflow' ) }
+				title={ __( 'Workflow behavior', 'vip-workflows' ) }
 			>
 				<ToggleControl
 					__nextHasNoMarginBottom
 					label={ __(
 						'Prompt workflow selection for new posts',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					help={ __(
 						'A modal prompts users to select a workflow when they create a post.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					checked={ settings.workflow_enforcement }
 					onChange={ ( val ) =>
@@ -209,20 +209,20 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 
 				{ settings.workflow_enforcement && (
 					<RadioControl
-						label={ __( 'Enforcement mode', 'vip-workflow' ) }
+						label={ __( 'Enforcement mode', 'vip-workflows' ) }
 						selected={ settings.workflow_enforcement_mode }
 						options={ [
 							{
 								label: __(
 									'Require — users must select a workflow to continue',
-									'vip-workflow'
+									'vip-workflows'
 								),
 								value: 'require',
 							},
 							{
 								label: __(
 									'Recommend — users can skip and continue without a workflow',
-									'vip-workflow'
+									'vip-workflows'
 								),
 								value: 'recommend',
 							},
@@ -240,11 +240,11 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 					__nextHasNoMarginBottom
 					label={ __(
 						'Allow users to review their own posts',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					help={ __(
 						'Authors can see their own posts in the Review Queue.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					checked={ settings.allow_self_review }
 					onChange={ ( val ) =>
@@ -257,13 +257,13 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 			</SettingsSection>
 
 			<SettingsSection
-				title={ __( 'Bypass permissions', 'vip-workflow' ) }
+				title={ __( 'Bypass permissions', 'vip-workflows' ) }
 			>
 				<RoleCheckboxGroup
-					label={ __( 'Workflow override', 'vip-workflow' ) }
+					label={ __( 'Workflow override', 'vip-workflows' ) }
 					description={ __(
 						'Selected roles can change post status directly, bypassing workflow restrictions.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					roles={ roles }
 					selectedRoles={ settings.bypass_workflow_roles }
@@ -276,10 +276,10 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				/>
 
 				<RoleCheckboxGroup
-					label={ __( 'Tool check bypass', 'vip-workflow' ) }
+					label={ __( 'Tool check bypass', 'vip-workflows' ) }
 					description={ __(
 						'Selected roles can proceed with transitions even when required tool checks fail.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					roles={ roles }
 					selectedRoles={ settings.bypass_tool_check_roles }
@@ -292,12 +292,14 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				/>
 			</SettingsSection>
 
-			<SettingsSection title={ __( 'Audit log access', 'vip-workflow' ) }>
+			<SettingsSection
+				title={ __( 'Audit log access', 'vip-workflows' ) }
+			>
 				<RoleCheckboxGroup
-					label={ __( 'Own activity', 'vip-workflow' ) }
+					label={ __( 'Own activity', 'vip-workflows' ) }
 					description={ __(
 						'Selected roles can open the audit log and see their own activity in it.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					roles={ roles }
 					selectedRoles={ settings.audit_log_roles }
@@ -310,10 +312,10 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				/>
 
 				<RoleCheckboxGroup
-					label={ __( 'All activity', 'vip-workflow' ) }
+					label={ __( 'All activity', 'vip-workflows' ) }
 					description={ __(
 						"Selected roles can see every user's activity in the audit log.",
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					roles={ roles }
 					selectedRoles={ settings.audit_log_full_access_roles }

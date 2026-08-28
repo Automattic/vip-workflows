@@ -4,12 +4,12 @@
  *
  * Query posts filtered by workflow status.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the posts-by-status query.
@@ -24,12 +24,12 @@ function execute_get_posts_by_status( ?array $input = null ) {
 	$limit     = min( (int) ( $input['limit'] ?? 20 ), 50 );
 
 	if ( empty( $status ) ) {
-		return new \WP_Error( 'missing_status', __( 'The "status" parameter is required.', 'vip-workflow' ) );
+		return new \WP_Error( 'missing_status', __( 'The "status" parameter is required.', 'vip-workflows' ) );
 	}
 
 	// Select posts at this workflow stage (any post_status — the stage is decoupled
 	// from visibility). StageQuery owns the storage shape.
-	$query_args = \VIPWorkflow\Workflow\StageQuery::by_stage_key(
+	$query_args = \VIPWorkflows\Workflow\StageQuery::by_stage_key(
 		$status,
 		array(
 			'post_type'      => $post_type,
@@ -50,14 +50,14 @@ function execute_get_posts_by_status( ?array $input = null ) {
 		}
 
 		$author       = get_userdata( (int) $post->post_author );
-		$sequence_id = get_post_meta( $post->ID, '_vip_workflow_sequence_id', true );
+		$sequence_id = get_post_meta( $post->ID, '_vip_workflows_sequence_id', true );
 
 		$posts[] = array(
 			'post_id'      => $post->ID,
 			'title'        => $post->post_title,
 			'post_type'    => $post->post_type,
 			'status'       => $post->post_status,
-			'author'       => $author ? $author->display_name : __( 'Unknown', 'vip-workflow' ),
+			'author'       => $author ? $author->display_name : __( 'Unknown', 'vip-workflows' ),
 			'modified'     => $post->post_modified,
 			'sequence_id'  => $sequence_id ? (int) $sequence_id : null,
 			'edit_url'     => get_edit_post_link( $post->ID, 'raw' ) ? get_edit_post_link( $post->ID, 'raw' ) : '',
@@ -79,11 +79,11 @@ function execute_get_posts_by_status( ?array $input = null ) {
  */
 function register_get_posts_by_status(): void {
 	wp_register_ability(
-		'vip-workflow/get-posts-by-status',
+		'vip-workflows/get-posts-by-status',
 		array(
-			'label'               => __( 'Get Posts By Status', 'vip-workflow' ),
-			'description'         => __( 'Query posts filtered by a specific workflow status.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Get Posts By Status', 'vip-workflows' ),
+			'description'         => __( 'Query posts filtered by a specific workflow status.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -91,16 +91,16 @@ function register_get_posts_by_status(): void {
 				'properties'           => array(
 					'status'    => array(
 						'type'        => 'string',
-						'description' => __( 'The workflow status to filter by (e.g., "draft", "pending-review").', 'vip-workflow' ),
+						'description' => __( 'The workflow status to filter by (e.g., "draft", "pending-review").', 'vip-workflows' ),
 					),
 					'post_type' => array(
 						'type'        => 'string',
-						'description' => __( 'Post type to query. Defaults to "post".', 'vip-workflow' ),
+						'description' => __( 'Post type to query. Defaults to "post".', 'vip-workflows' ),
 						'default'     => 'post',
 					),
 					'limit'     => array(
 						'type'        => 'integer',
-						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflow' ),
+						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflows' ),
 						'default'     => 20,
 					),
 				),
@@ -111,19 +111,19 @@ function register_get_posts_by_status(): void {
 				'properties'           => array(
 					'status'      => array(
 						'type'        => 'string',
-						'description' => __( 'The queried status.', 'vip-workflow' ),
+						'description' => __( 'The queried status.', 'vip-workflows' ),
 					),
 					'total_found' => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of matching posts the current user can edit.', 'vip-workflow' ),
+						'description' => __( 'Number of matching posts the current user can edit.', 'vip-workflows' ),
 					),
 					'count'       => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of posts returned.', 'vip-workflow' ),
+						'description' => __( 'Number of posts returned.', 'vip-workflows' ),
 					),
 					'posts'       => array(
 						'type'        => 'array',
-						'description' => __( 'Array of posts.', 'vip-workflow' ),
+						'description' => __( 'Array of posts.', 'vip-workflows' ),
 					),
 				),
 			),

@@ -2,14 +2,14 @@
 /**
  * Post Type Manager - maps post types to the sequences that drive them.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Workflow;
+namespace VIPWorkflows\Workflow;
 
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\Sequences\SequenceRepository;
 
 /**
  * Maps existing post types to the sequences that drive them.
@@ -79,7 +79,7 @@ class PostTypeManager {
 	 * Get the sequence IDs eligible for a specific post.
 	 *
 	 * Starts from the post type mapping, then lets integrations narrow the list
-	 * per post via the `vip_workflow_sequences_for_post` filter — for example,
+	 * per post via the `vip_workflows_sequences_for_post` filter — for example,
 	 * restricting a sequence to a particular section, category, or set of terms.
 	 *
 	 * @param  \WP_Post $post Post object.
@@ -99,7 +99,7 @@ class PostTypeManager {
 		 * @param int[]    $sequence_ids Sequence IDs eligible for the post.
 		 * @param \WP_Post $post          The post being evaluated.
 		 */
-		$sequence_ids = apply_filters( 'vip_workflow_sequences_for_post', $sequence_ids, $post );
+		$sequence_ids = apply_filters( 'vip_workflows_sequences_for_post', $sequence_ids, $post );
 
 		return array_values( array_map( 'intval', $sequence_ids ) );
 	}
@@ -129,7 +129,7 @@ class PostTypeManager {
 	/**
 	 * Assign workflow sequence from URL parameter (when creating from dashboard).
 	 *
-	 * Only assigns a workflow if ?vip_workflow_sequence=ID is in the URL.
+	 * Only assigns a workflow if ?vip_workflows_sequence=ID is in the URL.
 	 * This allows users to create posts without workflows when using Posts → Add New.
 	 *
 	 * @param int      $post_id Post ID.
@@ -148,7 +148,7 @@ class PostTypeManager {
 		}
 
 		// Check if already assigned.
-		$existing = get_post_meta( $post_id, '_vip_workflow_sequence_id', true );
+		$existing = get_post_meta( $post_id, '_vip_workflows_sequence_id', true );
 		if ( $existing ) {
 			return;
 		}
@@ -179,7 +179,7 @@ class PostTypeManager {
 		$initial_status = $sequence->get_initial_status();
 
 		// Assign sequence and stage.
-		update_post_meta( $post_id, '_vip_workflow_sequence_id', $sequence_id );
+		update_post_meta( $post_id, '_vip_workflows_sequence_id', $sequence_id );
 		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, $initial_status );
 	}
 
@@ -191,8 +191,8 @@ class PostTypeManager {
 	private function get_sequence_id_from_request(): ?int {
 		// Check direct URL param.
      // phpcs:ignore WordPress.Security.NonceVerification.Recommended
-		if ( ! empty( $_GET['vip_workflow_sequence'] ) ) {
-			return absint( $_GET['vip_workflow_sequence'] );
+		if ( ! empty( $_GET['vip_workflows_sequence'] ) ) {
+			return absint( $_GET['vip_workflows_sequence'] );
 		}
 
 		// Check referrer (for when WP redirects after post creation).
@@ -201,8 +201,8 @@ class PostTypeManager {
 			$query = wp_parse_url( $referrer, PHP_URL_QUERY );
 			if ( $query ) {
 				parse_str( $query, $params );
-				if ( ! empty( $params['vip_workflow_sequence'] ) ) {
-					return absint( $params['vip_workflow_sequence'] );
+				if ( ! empty( $params['vip_workflows_sequence'] ) ) {
+					return absint( $params['vip_workflows_sequence'] );
 				}
 			}
 		}

@@ -42,12 +42,12 @@ import './KanbanBoard.css';
 
 const BREADCRUMBS = [
 	{
-		label: __( 'Workflows', 'vip-workflow' ),
-		href: 'admin.php?page=vip-workflow',
+		label: __( 'Workflows', 'vip-workflows' ),
+		href: 'admin.php?page=vip-workflows',
 	},
-	{ label: __( 'Kanban Board', 'vip-workflow' ) },
+	{ label: __( 'Kanban Board', 'vip-workflows' ) },
 ];
-const TITLE = __( 'Kanban Board', 'vip-workflow' );
+const TITLE = __( 'Kanban Board', 'vip-workflows' );
 
 /**
  * The legal drop targets for a dragged card, read off the transition payload
@@ -136,7 +136,7 @@ export function KanbanBoard() {
 				// Plugin-owned route: the old `context=edit` call against
 				// wp/v2/users required `list_users`.
 				const users = await apiFetch( {
-					path: `/vip-workflow/v1/assignable-users?search=${ encodeURIComponent(
+					path: `/vip-workflows/v1/assignable-users?search=${ encodeURIComponent(
 						input
 					) }&per_page=10`,
 				} );
@@ -158,7 +158,7 @@ export function KanbanBoard() {
 			// First, get the list of sequences if we don't have one selected.
 			if ( ! selectedSequence ) {
 				const allData = await apiFetch( {
-					path: '/vip-workflow/v1/workflow/kanban',
+					path: '/vip-workflows/v1/workflow/kanban',
 				} );
 
 				// Default to first sequence.
@@ -174,14 +174,14 @@ export function KanbanBoard() {
 			}
 
 			const response = await apiFetch( {
-				path: `/vip-workflow/v1/workflow/kanban?sequence_id=${ selectedSequence }`,
+				path: `/vip-workflows/v1/workflow/kanban?sequence_id=${ selectedSequence }`,
 			} );
 
 			setData( response );
 			setError( null );
 		} catch ( err ) {
 			setError(
-				err.message || __( 'Failed to load board', 'vip-workflow' )
+				err.message || __( 'Failed to load board', 'vip-workflows' )
 			);
 		} finally {
 			setLoading( false );
@@ -226,7 +226,7 @@ export function KanbanBoard() {
 		dragTokenRef.current += 1;
 		const dragToken = dragTokenRef.current;
 		apiFetch( {
-			path: `/vip-workflow/v1/workflow/post/${ active.id }/status`,
+			path: `/vip-workflows/v1/workflow/post/${ active.id }/status`,
 		} )
 			.then( ( status ) => {
 				if ( dragTokenRef.current !== dragToken ) {
@@ -274,7 +274,7 @@ export function KanbanBoard() {
 			// The droppable ids ARE the column keys, so this is a
 			// data-integrity bug, not a user mistake — but the card still
 			// snapped back, so say so rather than fail in silence.
-			createErrorNotice( __( 'Failed to move card', 'vip-workflow' ), {
+			createErrorNotice( __( 'Failed to move card', 'vip-workflows' ), {
 				type: 'snackbar',
 			} );
 			return;
@@ -285,7 +285,7 @@ export function KanbanBoard() {
 		if ( ! card ) {
 			// Same contract as above: the draggable ids are card ids, so a
 			// drag whose card cannot be found is a bug worth reporting.
-			createErrorNotice( __( 'Failed to move card', 'vip-workflow' ), {
+			createErrorNotice( __( 'Failed to move card', 'vip-workflows' ), {
 				type: 'snackbar',
 			} );
 			return;
@@ -322,7 +322,7 @@ export function KanbanBoard() {
 		try {
 			const transition = ( acknowledgeWarnings ) =>
 				apiFetch( {
-					path: `/vip-workflow/v1/workflow/post/${ active.id }/transition`,
+					path: `/vip-workflows/v1/workflow/post/${ active.id }/transition`,
 					method: 'POST',
 					data: {
 						to_status: destColumn.status_key,
@@ -343,7 +343,7 @@ export function KanbanBoard() {
 					getTransitionWarningsMessage( response.soft_warnings ),
 					{
 						title: getTransitionWarningsTitle(),
-						confirmLabel: __( 'Continue', 'vip-workflow' ),
+						confirmLabel: __( 'Continue', 'vip-workflows' ),
 					}
 				);
 
@@ -356,7 +356,7 @@ export function KanbanBoard() {
 			}
 
 			createSuccessNotice(
-				__( 'Card moved successfully', 'vip-workflow' ),
+				__( 'Card moved successfully', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 
@@ -367,7 +367,7 @@ export function KanbanBoard() {
 			setData( originalData );
 
 			// Extract error message from WP REST API error format.
-			let errorMessage = __( 'Failed to move card', 'vip-workflow' );
+			let errorMessage = __( 'Failed to move card', 'vip-workflows' );
 			if ( err.message ) {
 				errorMessage = err.message;
 			} else if ( err.data?.message ) {
@@ -466,14 +466,14 @@ export function KanbanBoard() {
 		return (
 			<AdminPage fullBleed breadcrumbs={ BREADCRUMBS } title={ TITLE }>
 				<Stack
-					className="vip-workflow-kanban-loading"
+					className="vip-workflows-kanban-loading"
 					align="center"
 					justify="center"
 					gap="md"
 				>
 					<Spinner />
 					<Text variant="body-lg">
-						{ __( 'Loading board…', 'vip-workflow' ) }
+						{ __( 'Loading board…', 'vip-workflows' ) }
 					</Text>
 				</Stack>
 			</AdminPage>
@@ -496,7 +496,7 @@ export function KanbanBoard() {
 			value: String( bp.id ),
 		} ) ),
 		{
-			label: __( 'No Workflow', 'vip-workflow' ),
+			label: __( 'No Workflow', 'vip-workflows' ),
 			value: 'none',
 		},
 	];
@@ -505,7 +505,7 @@ export function KanbanBoard() {
 		<>
 			{ data?.sequences?.length > 0 && (
 				<SelectControl
-					className="vip-workflow-kanban-sequence-select"
+					className="vip-workflows-kanban-sequence-select"
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
 					value={ selectedSequence }
@@ -513,36 +513,36 @@ export function KanbanBoard() {
 					onChange={ setSelectedSequence }
 				/>
 			) }
-			<div className="vip-workflow-kanban-header__author-filter">
+			<div className="vip-workflows-kanban-header__author-filter">
 				<ComboboxControl
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
-					label={ __( 'Author', 'vip-workflow' ) }
+					label={ __( 'Author', 'vip-workflows' ) }
 					hideLabelFromVision
 					value={ authorFilter }
 					options={ authorOptions }
 					onChange={ setAuthorFilter }
 					onFilterValueChange={ searchAuthors }
-					placeholder={ __( 'Filter by author…', 'vip-workflow' ) }
+					placeholder={ __( 'Filter by author…', 'vip-workflows' ) }
 				/>
 			</div>
 			{ hiddenColumnInfo.length > 0 && (
 				<Stack align="center" gap="sm">
 					<Text
 						variant="body-md"
-						className="vip-workflow-kanban-hidden-columns__label"
+						className="vip-workflows-kanban-hidden-columns__label"
 					>
-						{ __( 'Hidden:', 'vip-workflow' ) }
+						{ __( 'Hidden:', 'vip-workflows' ) }
 					</Text>
 					{ hiddenColumnInfo.map( ( col ) => (
 						<Button
 							key={ col.key }
-							className="vip-workflow-kanban-hidden-column-badge"
+							className="vip-workflows-kanban-hidden-column-badge"
 							onClick={ () => toggleColumnVisibility( col.key ) }
 							style={ { borderColor: col.color } }
 						>
 							<span
-								className="vip-workflow-kanban-hidden-column-badge__dot"
+								className="vip-workflows-kanban-hidden-column-badge__dot"
 								style={ { backgroundColor: col.color } }
 							/>
 							{ col.label }
@@ -560,7 +560,7 @@ export function KanbanBoard() {
 			title={ TITLE }
 			actions={ actions }
 		>
-			<Stack className="vip-workflow-kanban-wrapper" direction="column">
+			<Stack className="vip-workflows-kanban-wrapper" direction="column">
 				<DndContext
 					sensors={ sensors }
 					collisionDetection={ rectIntersection }
@@ -569,7 +569,7 @@ export function KanbanBoard() {
 					onDragCancel={ handleDragCancel }
 				>
 					<Stack
-						className="vip-workflow-kanban-board"
+						className="vip-workflows-kanban-board"
 						direction="row"
 						align="flex-start"
 						gap="md"
@@ -598,20 +598,20 @@ export function KanbanBoard() {
 
 				{ visibleColumns.length === 0 && (
 					<Stack
-						className="vip-workflow-kanban-empty"
+						className="vip-workflows-kanban-empty"
 						direction="column"
 						align="center"
 						justify="center"
 						gap="sm"
 					>
 						<Text variant="body-md">
-							{ __( 'No columns to display.', 'vip-workflow' ) }
+							{ __( 'No columns to display.', 'vip-workflows' ) }
 						</Text>
 						{ hiddenColumnInfo.length > 0 && (
 							<Text variant="body-md">
 								{ __(
 									'Click a hidden column badge above to show it.',
-									'vip-workflow'
+									'vip-workflows'
 								) }
 							</Text>
 						) }

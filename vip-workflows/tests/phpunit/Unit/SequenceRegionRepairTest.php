@@ -7,14 +7,14 @@
  * the editor needs a way to SEE the condition without tripping it, and an explicit
  * action to fix it. These tests pin both halves.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Sequences\Sequence;
+use VIPWorkflows\Sequences\Sequence;
 
 /**
  * Tests for Sequence::get_stages_missing_region() and the write gate's default.

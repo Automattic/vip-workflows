@@ -2,18 +2,18 @@
 /**
  * PromptsController unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\API\PromptsController;
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\PromptSettings;
+use VIPWorkflows\API\PromptsController;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\PromptSettings;
 
 class PromptsControllerTest extends TestCase
 {
@@ -27,12 +27,12 @@ class PromptsControllerTest extends TestCase
         $this->stored = array();
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                return 'vip_workflow_prompts' === $option ? $this->stored : $default;
+                return 'vip_workflows_prompts' === $option ? $this->stored : $default;
             }
         );
         Functions\when( 'update_option' )->alias(
             function ( string $option, $value ) {
-                if ( 'vip_workflow_prompts' === $option ) {
+                if ( 'vip_workflows_prompts' === $option ) {
                     $this->stored = $value;
                 }
                 return true;

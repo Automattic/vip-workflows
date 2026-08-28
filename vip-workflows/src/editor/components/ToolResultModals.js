@@ -86,12 +86,12 @@ export function CheckResultsModal( {
 	 * bugs in the helper modal.
 	 */
 	const statusLabels = {
-		pass: __( 'Pass', 'vip-workflow' ),
-		warning: __( 'Warning', 'vip-workflow' ),
-		fail: __( 'Fail', 'vip-workflow' ),
+		pass: __( 'Pass', 'vip-workflows' ),
+		warning: __( 'Warning', 'vip-workflows' ),
+		fail: __( 'Fail', 'vip-workflows' ),
 	};
 	const statusLabel =
-		statusLabels[ status ] || __( 'No verdict', 'vip-workflow' );
+		statusLabels[ status ] || __( 'No verdict', 'vip-workflows' );
 
 	// Map the overall status to a Badge intent.
 	let statusIntent = 'neutral';
@@ -106,18 +106,18 @@ export function CheckResultsModal( {
 	// Map the score color to a tone modifier class.
 	let scoreToneClass = '';
 	if ( status === 'pass' ) {
-		scoreToneClass = 'vip-workflow-results-modal__score--pass';
+		scoreToneClass = 'vip-workflows-results-modal__score--pass';
 	} else if ( status === 'warning' ) {
-		scoreToneClass = 'vip-workflow-results-modal__score--warning';
+		scoreToneClass = 'vip-workflows-results-modal__score--warning';
 	} else if ( status === 'fail' ) {
-		scoreToneClass = 'vip-workflow-results-modal__score--fail';
+		scoreToneClass = 'vip-workflows-results-modal__score--fail';
 	}
 
 	return (
 		<Modal
 			title={ toolLabel }
 			onRequestClose={ onClose }
-			className="vip-workflow-results-modal vip-workflow-modal--truncate-title"
+			className="vip-workflows-results-modal vip-workflows-modal--truncate-title"
 			size="large"
 		>
 			{ error ? (
@@ -131,12 +131,12 @@ export function CheckResultsModal( {
 					<Stack direction="row" align="center" gap="lg">
 						{ typeof score === 'number' && (
 							<div
-								className={ `vip-workflow-results-modal__score ${ scoreToneClass }` }
+								className={ `vip-workflows-results-modal__score ${ scoreToneClass }` }
 							>
 								{ score }
 								<Text
 									variant="body-md"
-									className="vip-workflow-results-modal__score-total"
+									className="vip-workflows-results-modal__score-total"
 								>
 									/100
 								</Text>
@@ -146,7 +146,7 @@ export function CheckResultsModal( {
 					</Stack>
 
 					{ summary && (
-						<Text className="vip-workflow-results-modal__summary">
+						<Text className="vip-workflows-results-modal__summary">
 							{ summary }
 						</Text>
 					) }
@@ -154,7 +154,7 @@ export function CheckResultsModal( {
 					{ issues.length > 0 && (
 						<Stack direction="column" gap="sm">
 							<Text variant="heading-sm" render={ <h4 /> }>
-								{ __( 'Results', 'vip-workflow' ) }
+								{ __( 'Results', 'vip-workflows' ) }
 							</Text>
 							<Stack direction="column" gap="md">
 								{ issues.map( ( issue, i ) => {
@@ -187,16 +187,16 @@ export function CheckResultsModal( {
 										let issueToneClass = '';
 										if ( isPass ) {
 											issueToneClass =
-												'vip-workflow-results-modal__issue--pass';
+												'vip-workflows-results-modal__issue--pass';
 										} else if ( isFail ) {
 											issueToneClass =
-												'vip-workflow-results-modal__issue--fail';
+												'vip-workflows-results-modal__issue--fail';
 										}
 
 										return (
 											<Stack
 												key={ i }
-												className={ `vip-workflow-results-modal__issue ${ issueToneClass }` }
+												className={ `vip-workflows-results-modal__issue ${ issueToneClass }` }
 												direction="column"
 												gap="sm"
 											>
@@ -214,7 +214,7 @@ export function CheckResultsModal( {
 														size={ 20 }
 													/>
 													{ /* wpds-allow R7 -- 11px heading type without the uppercase that <Text variant="heading-sm"> forces; a rule id is quoted verbatim. */ }
-													<span className="vip-workflow-results-modal__issue-rule">
+													<span className="vip-workflows-results-modal__issue-rule">
 														{ issue.rule }
 													</span>
 													<Badge
@@ -227,18 +227,18 @@ export function CheckResultsModal( {
 														{ isPass
 															? __(
 																	'Passed',
-																	'vip-workflow'
+																	'vip-workflows'
 															  )
 															: __(
 																	'Failed',
-																	'vip-workflow'
+																	'vip-workflows'
 															  ) }
 													</Badge>
 												</Stack>
 												{ explanation && (
 													<Text
 														variant="body-sm"
-														className="vip-workflow-results-modal__issue-explanation"
+														className="vip-workflows-results-modal__issue-explanation"
 													>
 														{ explanation }
 													</Text>
@@ -252,7 +252,7 @@ export function CheckResultsModal( {
 										// wpds-allow R7 -- unstructured issue text on a tinted surface; <Text> exposes neither background nor radius.
 										<div
 											key={ i }
-											className="vip-workflow-results-modal__issue-text"
+											className="vip-workflows-results-modal__issue-text"
 										>
 											{ issue.message || issue }
 										</div>
@@ -265,10 +265,10 @@ export function CheckResultsModal( {
 					{ suggestions.length > 0 && (
 						<Stack direction="column" gap="sm">
 							<Text variant="heading-sm" render={ <h4 /> }>
-								{ __( 'Suggestions', 'vip-workflow' ) }
+								{ __( 'Suggestions', 'vip-workflows' ) }
 							</Text>
 							<Stack
-								className="vip-workflow-results-modal__suggestions"
+								className="vip-workflows-results-modal__suggestions"
 								direction="column"
 								gap="sm"
 								render={ <ul /> }
@@ -290,7 +290,7 @@ export function CheckResultsModal( {
 
 			<ModalActions>
 				<Button variant="primary" onClick={ onClose }>
-					{ __( 'Close', 'vip-workflow' ) }
+					{ __( 'Close', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 		</Modal>
@@ -354,12 +354,12 @@ export function HelperResultModal( {
 		body = (
 			<Stack direction="column" gap="md">
 				{ summary && (
-					<Text className="vip-workflow-results-modal__summary">
+					<Text className="vip-workflows-results-modal__summary">
 						{ result.summary }
 					</Text>
 				) }
 				<Stack
-					className="vip-workflow-results-modal__suggestions"
+					className="vip-workflows-results-modal__suggestions"
 					direction="column"
 					gap="sm"
 					render={ <ul /> }
@@ -374,7 +374,7 @@ export function HelperResultModal( {
 						return (
 							<Stack
 								key={ i }
-								className="vip-workflow-results-modal__suggestion"
+								className="vip-workflows-results-modal__suggestion"
 								direction="row"
 								align="flex-start"
 								justify="space-between"
@@ -382,19 +382,19 @@ export function HelperResultModal( {
 								render={ <li /> }
 							>
 								<Stack
-									className="vip-workflow-results-modal__suggestion-body"
+									className="vip-workflows-results-modal__suggestion-body"
 									direction="column"
 									gap="xs"
 								>
 									<Text
 										variant="body-md"
-										className="vip-workflow-results-modal__suggestion-label"
+										className="vip-workflows-results-modal__suggestion-label"
 									>
 										{ label }
 									</Text>
 									{ meta && (
 										// wpds-allow R7 -- truncating secondary line (ellipsis + nowrap); <Text> exposes no truncation prop, so the same CSS would remain.
-										<span className="vip-workflow-results-modal__suggestion-meta">
+										<span className="vip-workflows-results-modal__suggestion-meta">
 											{ href ? (
 												<Link
 													href={ href }
@@ -413,14 +413,14 @@ export function HelperResultModal( {
 									<Button
 										variant="link"
 										size="small"
-										className="vip-workflow-results-modal__suggestion-apply"
+										className="vip-workflows-results-modal__suggestion-apply"
 										// The row's value, not the row. Rows are
 										// objects now, and applying one would
 										// write `[object Object]` into a field.
 										onClick={ () => onApply( label ) }
 										disabled={ applying }
 									>
-										{ __( 'Use this', 'vip-workflow' ) }
+										{ __( 'Use this', 'vip-workflows' ) }
 									</Button>
 								) }
 							</Stack>
@@ -432,7 +432,7 @@ export function HelperResultModal( {
 	} else {
 		body = (
 			// wpds-allow R7 -- generated-content panel: a tinted surface with a brand accent bar; <Stack> draws neither and <Text> has no surface props.
-			<div className="vip-workflow-results-modal__generated">
+			<div className="vip-workflows-results-modal__generated">
 				{ resolved.value }
 			</div>
 		);
@@ -442,14 +442,14 @@ export function HelperResultModal( {
 		<Modal
 			title={ toolLabel }
 			onRequestClose={ onClose }
-			className="vip-workflow-results-modal vip-workflow-modal--truncate-title"
+			className="vip-workflows-results-modal vip-workflows-modal--truncate-title"
 			size="large"
 		>
 			{ body }
 
 			<ModalActions>
 				<Button variant="tertiary" onClick={ onClose }>
-					{ __( 'Cancel', 'vip-workflow' ) }
+					{ __( 'Cancel', 'vip-workflows' ) }
 				</Button>
 				<Button
 					variant="secondary"
@@ -457,7 +457,7 @@ export function HelperResultModal( {
 					isBusy={ regenerating }
 					disabled={ regenerating || applying }
 				>
-					{ __( 'Regenerate', 'vip-workflow' ) }
+					{ __( 'Regenerate', 'vip-workflows' ) }
 				</Button>
 				{ applicableValue && ! error && onApply && (
 					<Button
@@ -466,7 +466,7 @@ export function HelperResultModal( {
 						isBusy={ applying }
 						disabled={ applying || regenerating }
 					>
-						{ __( 'Use this', 'vip-workflow' ) }
+						{ __( 'Use this', 'vip-workflows' ) }
 					</Button>
 				) }
 			</ModalActions>

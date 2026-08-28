@@ -2,17 +2,17 @@
 /**
  * Core prompt registration tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\CorePrompts;
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\PromptSettings;
+use VIPWorkflows\AI\CorePrompts;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\PromptSettings;
 
 class PromptRegistrationTest extends TestCase
 {

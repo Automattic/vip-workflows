@@ -59,7 +59,7 @@ import { STORE_NAME } from '../store';
  *
  * @type {string}
  */
-const GUARD_HOOK_NAMESPACE = 'vip-workflow/workflow-save-guard';
+const GUARD_HOOK_NAMESPACE = 'vip-workflows/workflow-save-guard';
 
 /**
  * Notice id for the publish veto, so a second refusal replaces the first
@@ -67,7 +67,7 @@ const GUARD_HOOK_NAMESPACE = 'vip-workflow/workflow-save-guard';
  *
  * @type {string}
  */
-const VETO_NOTICE_ID = 'vip-workflow/publish-veto';
+const VETO_NOTICE_ID = 'vip-workflows/publish-veto';
 
 export function WorkflowSaveGuard() {
 	const postId = useSelect(
@@ -124,7 +124,7 @@ export function WorkflowSaveGuard() {
 					err.message ||
 						__(
 							'Failed to remove this post from its workflow',
-							'vip-workflow'
+							'vip-workflows'
 						),
 					{ type: 'snackbar' }
 				);
@@ -177,7 +177,7 @@ export function WorkflowSaveGuard() {
 			let workflow;
 			try {
 				workflow = await apiFetch( {
-					path: `/vip-workflow/v1/workflow/post/${ postIdRef.current }/status`,
+					path: `/vip-workflows/v1/workflow/post/${ postIdRef.current }/status`,
 				} );
 			} catch {
 				// The guard could not answer. Fail CLOSED for a workflow post,
@@ -186,7 +186,7 @@ export function WorkflowSaveGuard() {
 				// which is the authority either way.
 				// eslint-disable-next-line no-console
 				console.error(
-					'VIP Workflow: could not read the workflow status before saving; the server-side guard remains in force.'
+					'VIP Workflows: could not read the workflow status before saving; the server-side guard remains in force.'
 				);
 				return edits;
 			}
@@ -209,7 +209,7 @@ export function WorkflowSaveGuard() {
 				// the same answer the server predicate gives on corrupt data.
 				// eslint-disable-next-line no-console
 				console.error(
-					'VIP Workflow: the post status endpoint returned no guard payload for a workflow-managed post.'
+					'VIP Workflows: the post status endpoint returned no guard payload for a workflow-managed post.'
 				);
 			}
 

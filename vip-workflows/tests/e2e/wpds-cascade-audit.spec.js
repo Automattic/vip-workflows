@@ -32,12 +32,12 @@ const STRICT = !! process.env.WPDS_AUDIT_STRICT;
 // shared AdminPage scaffold (covered by admin-page.css's reset); Board/Kanban
 // are full-bleed app canvases. Add new DS screens here as they ship.
 const SCREENS = [
-	{ name: 'Board (main)', query: 'page=vip-workflow' },
-	{ name: 'Kanban', query: 'page=vip-workflow-kanban' },
-	{ name: 'Settings', query: 'page=vip-workflow-settings' },
-	{ name: 'Notifications', query: 'page=vip-workflow-notifications' },
-	{ name: 'Agents', query: 'page=vip-workflow-agents' },
-	{ name: 'Tools', query: 'page=vip-workflow-tools' },
+	{ name: 'Board (main)', query: 'page=vip-workflows' },
+	{ name: 'Kanban', query: 'page=vip-workflows-kanban' },
+	{ name: 'Settings', query: 'page=vip-workflows-settings' },
+	{ name: 'Notifications', query: 'page=vip-workflows-notifications' },
+	{ name: 'Agents', query: 'page=vip-workflows-agents' },
+	{ name: 'Tools', query: 'page=vip-workflows-tools' },
 ];
 
 // Aggregated across the (single-worker) file run, written out in afterAll.
@@ -75,10 +75,10 @@ test.describe( 'WPDS ↔ wp-admin cascade audit', () => {
 		} );
 	}
 
-	// The AI Agent slideout portals OUTSIDE .vip-workflow-admin-page, so the
+	// The AI Agent slideout portals OUTSIDE .vip-workflows-admin-page, so the
 	// canvas reset does not reach it — the surface most likely to surface a gap.
 	test( 'AI Agent slideout (portal)', async ( { admin, page } ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflow' );
+		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
 		const fab = page.getByRole( 'button', { name: 'Open AI Agent' } );
 		if ( ( await fab.count() ) === 0 ) {
 			test.skip( true, 'AI Agent FAB not present on this build.' );
@@ -124,15 +124,15 @@ test.describe( 'WPDS ↔ wp-admin cascade audit', () => {
 	const MODALS = [
 		{
 			name: 'Tools how-to modal (portal)',
-			query: 'page=vip-workflow-tools',
+			query: 'page=vip-workflows-tools',
 			open: /Add custom tools/i,
-			root: '.vip-workflow-howto-modal',
+			root: '.vip-workflows-howto-modal',
 		},
 		{
 			name: 'Agents how-to modal (portal)',
-			query: 'page=vip-workflow-agents',
+			query: 'page=vip-workflows-agents',
 			open: /Add custom agents/i,
-			root: '.vip-workflow-howto-modal',
+			root: '.vip-workflows-howto-modal',
 		},
 	];
 

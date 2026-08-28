@@ -2,12 +2,12 @@
 /**
  * Post-scoped ability permission tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use WP_Error;
@@ -28,7 +28,7 @@ class PostScopedAbilityPermissionTest extends TestCase
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
         $this->mock_existing_post_without_edit_permission( 123 );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_get_available_transitions(
+        $result = \VIPWorkflows\Abilities\Tools\execute_get_available_transitions(
             array(
                 'post_id' => 123,
             )
@@ -41,7 +41,7 @@ class PostScopedAbilityPermissionTest extends TestCase
     {
         $this->mock_existing_post_without_edit_permission( 456 );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_get_transition_history(
+        $result = \VIPWorkflows\Abilities\Tools\execute_get_transition_history(
             array(
                 'post_id' => 456,
             )
@@ -54,7 +54,7 @@ class PostScopedAbilityPermissionTest extends TestCase
     {
         $this->mock_existing_post_without_edit_permission( 789 );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_keyword_check(
+        $result = \VIPWorkflows\Abilities\Tools\execute_keyword_check(
             array(
                 'post_id' => 789,
             )
@@ -67,7 +67,7 @@ class PostScopedAbilityPermissionTest extends TestCase
     {
         $this->mock_existing_post_without_edit_permission( 790 );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_readability(
+        $result = \VIPWorkflows\Abilities\Tools\execute_readability(
             array(
                 'post_id' => 790,
             )
@@ -80,7 +80,7 @@ class PostScopedAbilityPermissionTest extends TestCase
     {
         $this->mock_existing_post_without_edit_permission( 791 );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_seo_check(
+        $result = \VIPWorkflows\Abilities\Tools\execute_seo_check(
             array(
                 'post_id' => 791,
             )

@@ -74,7 +74,7 @@ async function renderPhaseEditor(
 	required = transitions
 ) {
 	apiFetch.mockImplementation( ( { path, method, data } ) => {
-		if ( path === '/vip-workflow/v1/sequences/options' ) {
+		if ( path === '/vip-workflows/v1/sequences/options' ) {
 			return Promise.resolve( {
 				post_types: [ { value: 'post', label: 'Posts' } ],
 				phase_transitions: transitions,
@@ -82,8 +82,8 @@ async function renderPhaseEditor(
 			} );
 		}
 		if (
-			path.startsWith( '/vip-workflow/v1/abilities' ) ||
-			path === '/vip-workflow/v1/notifications/channels'
+			path.startsWith( '/vip-workflows/v1/abilities' ) ||
+			path === '/vip-workflows/v1/notifications/channels'
 		) {
 			return Promise.resolve( [] );
 		}
@@ -207,7 +207,7 @@ describe( 'What a phase sequence may connect', () => {
 		const calls = [];
 		apiFetch.mockImplementation( ( { path } ) => {
 			calls.push( path );
-			if ( path === '/vip-workflow/v1/sequences/options' ) {
+			if ( path === '/vip-workflows/v1/sequences/options' ) {
 				return Promise.resolve( {
 					post_types: [ { value: 'post', label: 'Posts' } ],
 					phase_transitions: IDEATION_TO_EDITORIAL,
@@ -215,8 +215,8 @@ describe( 'What a phase sequence may connect', () => {
 				} );
 			}
 			if (
-				path.startsWith( '/vip-workflow/v1/abilities' ) ||
-				path === '/vip-workflow/v1/notifications/channels'
+				path.startsWith( '/vip-workflows/v1/abilities' ) ||
+				path === '/vip-workflows/v1/notifications/channels'
 			) {
 				return Promise.resolve( [] );
 			}
@@ -239,7 +239,7 @@ describe( 'What a phase sequence may connect', () => {
 		} );
 
 		expect(
-			calls.filter( ( path ) => path === '/vip-workflow/v1/sequences/3' )
+			calls.filter( ( path ) => path === '/vip-workflows/v1/sequences/3' )
 		).toHaveLength( 1 );
 	} );
 } );

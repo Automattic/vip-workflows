@@ -26,9 +26,9 @@
 
 const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
 
-const CARD = '.vip-workflow-assistant-card';
-const REQUIREMENTS = '.vip-workflow-assistant-card__requirements';
-const HEADER_ACTIONS = '.vip-workflow-admin-page__actions';
+const CARD = '.vip-workflows-assistant-card';
+const REQUIREMENTS = '.vip-workflows-assistant-card__requirements';
+const HEADER_ACTIONS = '.vip-workflows-admin-page__actions';
 
 /**
  * Fetch the agent list from the unified endpoint.
@@ -37,7 +37,7 @@ const HEADER_ACTIONS = '.vip-workflow-admin-page__actions';
  * @return {Promise<Array>} Agent entries.
  */
 async function fetchAgents( requestUtils ) {
-	return requestUtils.rest( { path: '/vip-workflow/v1/assistants' } );
+	return requestUtils.rest( { path: '/vip-workflows/v1/assistants' } );
 }
 
 /**
@@ -54,7 +54,7 @@ async function fetchAgents( requestUtils ) {
 async function visitAgents( admin, origin = 'built-in' ) {
 	await admin.visitAdminPage(
 		'admin.php',
-		`page=vip-workflow-agents&tab=${ origin }`
+		`page=vip-workflows-agents&tab=${ origin }`
 	);
 }
 
@@ -70,7 +70,7 @@ function headerSave( page ) {
 		.getByRole( 'button', { name: 'Save' } );
 }
 
-test.describe( 'VIP Workflow — agent availability requirements', () => {
+test.describe( 'VIP Workflows — agent availability requirements', () => {
 	test( 'the list endpoint carries the structured availability shape', async ( {
 		requestUtils,
 	} ) => {
@@ -104,7 +104,7 @@ test.describe( 'VIP Workflow — agent availability requirements', () => {
 		const target = agents.find( ( a ) => ! a.available ) || agents[ 0 ];
 
 		const single = await requestUtils.rest( {
-			path: `/vip-workflow/v1/assistants/${ target.slug }`,
+			path: `/vip-workflows/v1/assistants/${ target.slug }`,
 		} );
 
 		expect( single.slug ).toBe( target.slug );
@@ -329,7 +329,7 @@ test.describe( 'VIP Workflow — agent availability requirements', () => {
 	 * the selection — Connectors holds keys, not the choice between them, so
 	 * sending an administrator there would be a dead end.
 	 */
-	test( 'an unresolved provider selection links to VIP Workflow settings', async ( {
+	test( 'an unresolved provider selection links to VIP Workflows settings', async ( {
 		admin,
 		page,
 		requestUtils,
@@ -360,7 +360,7 @@ test.describe( 'VIP Workflow — agent availability requirements', () => {
 		await expect( link ).toBeVisible();
 		await expect( link ).toHaveAttribute(
 			'href',
-			/page=vip-workflow-settings/
+			/page=vip-workflows-settings/
 		);
 	} );
 

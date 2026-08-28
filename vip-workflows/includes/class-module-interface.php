@@ -2,12 +2,12 @@
 /**
  * Module interface.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow;
+namespace VIPWorkflows;
 
 /**
  * Contract for plugin subsystems that self-register via hooks.

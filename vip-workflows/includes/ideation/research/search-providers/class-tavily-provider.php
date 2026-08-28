@@ -2,18 +2,18 @@
 /**
  * Tavily Search Provider.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Research\SearchProviders;
+namespace VIPWorkflows\Ideation\Research\SearchProviders;
 
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\API\AvailabilitySerializer;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Integrations\Markdown;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\API\AvailabilitySerializer;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Integrations\Markdown;
 use WP_Error;
 
 /**
@@ -42,7 +42,7 @@ class TavilyProvider implements SearchProviderInterface {
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'Tavily', 'vip-workflow' );
+		return __( 'Tavily', 'vip-workflows' );
 	}
 
 	/**
@@ -51,7 +51,7 @@ class TavilyProvider implements SearchProviderInterface {
 	 * @return string
 	 */
 	public function get_description(): string {
-		return __( 'AI-powered search API optimized for LLMs and RAG applications. Includes content extraction.', 'vip-workflow' );
+		return __( 'AI-powered search API optimized for LLMs and RAG applications. Includes content extraction.', 'vip-workflows' );
 	}
 
 	/**
@@ -137,7 +137,7 @@ class TavilyProvider implements SearchProviderInterface {
 			return new WP_Error(
 				'search_failed',
 				/* translators: %s: search provider error message. */
-				sprintf( __( 'Search failed: %s', 'vip-workflow' ), $response->get_error_message() ),
+				sprintf( __( 'Search failed: %s', 'vip-workflows' ), $response->get_error_message() ),
 				array( 'status' => 500 )
 			);
 		}
@@ -147,11 +147,11 @@ class TavilyProvider implements SearchProviderInterface {
 		$data        = json_decode( $body, true );
 
 		if ( 200 !== $status_code ) {
-			$error_msg = $data['detail'] ?? $data['error'] ?? __( 'Unknown error', 'vip-workflow' );
+			$error_msg = $data['detail'] ?? $data['error'] ?? __( 'Unknown error', 'vip-workflows' );
 			return new WP_Error(
 				'search_failed',
 				/* translators: %s: search provider error message. */
-				sprintf( __( 'Search failed: %s', 'vip-workflow' ), $error_msg ),
+				sprintf( __( 'Search failed: %s', 'vip-workflows' ), $error_msg ),
 				array( 'status' => $status_code )
 			);
 		}

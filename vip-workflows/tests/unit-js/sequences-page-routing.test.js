@@ -110,12 +110,12 @@ beforeEach( () => {
 	window.location.hash = '';
 	apiFetch.mockImplementation( ( { path, method, data } ) => {
 		calls.push( { path, method } );
-		if ( path === '/vip-workflow/v1/sequences/options' ) {
+		if ( path === '/vip-workflows/v1/sequences/options' ) {
 			return Promise.resolve( OPTIONS );
 		}
 		if (
-			path.startsWith( '/vip-workflow/v1/abilities' ) ||
-			path === '/vip-workflow/v1/notifications/channels'
+			path.startsWith( '/vip-workflows/v1/abilities' ) ||
+			path === '/vip-workflows/v1/notifications/channels'
 		) {
 			return Promise.resolve( [] );
 		}
@@ -239,7 +239,7 @@ describe( 'The sequence a new editor just created', () => {
 		expect(
 			calls.filter(
 				( call ) =>
-					call.path === '/vip-workflow/v1/sequences/7' &&
+					call.path === '/vip-workflows/v1/sequences/7' &&
 					! call.method
 			)
 		).toHaveLength( 0 );
@@ -267,7 +267,7 @@ describe( 'The sequence a new editor just created', () => {
 
 		await waitFor( () => expect( writes ).toHaveLength( 2 ) );
 		expect( writes[ 1 ].method ).toBe( 'PUT' );
-		expect( writes[ 1 ].path ).toBe( '/vip-workflow/v1/sequences/7' );
+		expect( writes[ 1 ].path ).toBe( '/vip-workflows/v1/sequences/7' );
 	} );
 
 	it( 'gives a later navigation to another sequence its own editor', async () => {

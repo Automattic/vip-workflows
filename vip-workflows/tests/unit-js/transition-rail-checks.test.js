@@ -113,7 +113,7 @@ function stubRoutes( abilities, results = {}, runResult = null ) {
 				? Promise.resolve( runResult )
 				: Promise.reject( new Error( 'no run stub' ) );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/abilities?' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/abilities?' ) ) {
 			return Promise.resolve( abilities );
 		}
 		const match = path.match( /ability_id=([^&]+)/ );
@@ -161,7 +161,7 @@ describe( 'TransitionRail check rows', () => {
 		// Nothing has run: two not-run marks, drawn as icon glyphs (the
 		// neutral dash), not painted dots.
 		expect(
-			document.querySelectorAll( 'svg.vip-workflow-rail__outcome--none' )
+			document.querySelectorAll( 'svg.vip-workflows-rail__outcome--none' )
 		).toHaveLength( 2 );
 
 		// Run it under ONE transition…
@@ -173,7 +173,7 @@ describe( 'TransitionRail check rows', () => {
 		await waitFor( () =>
 			expect(
 				document.querySelectorAll(
-					'svg.vip-workflow-rail__outcome--pass'
+					'svg.vip-workflows-rail__outcome--pass'
 				)
 			).toHaveLength( 2 )
 		);
@@ -248,18 +248,18 @@ describe( 'TransitionRail check rows', () => {
 
 		await waitFor( () =>
 			expect(
-				document.querySelector( '.vip-workflow-rail__outcome--stale' )
+				document.querySelector( '.vip-workflows-rail__outcome--stale' )
 			).toBeInTheDocument()
 		);
 		// The stale mark still names its outcome — the pass glyph, at full
 		// tone — so which verdict aged is not erased.
 		expect(
-			document.querySelector( '.vip-workflow-rail__outcome--stale' )
-		).toHaveClass( 'vip-workflow-rail__outcome--pass' );
+			document.querySelector( '.vip-workflows-rail__outcome--stale' )
+		).toHaveClass( 'vip-workflows-rail__outcome--pass' );
 		// The glyphs are aria-hidden, so the indicator's title is the whole
 		// assistive-tech surface: it must name the verdict and the age.
 		expect(
-			document.querySelector( '.vip-workflow-rail__dep-indicator' )
+			document.querySelector( '.vip-workflows-rail__dep-indicator' )
 		).toHaveAttribute( 'title', 'Passed — before the latest edit' );
 		// The visible note carries the same pair — the title is hover-only,
 		// so this line is where both facts are actually readable.
@@ -286,16 +286,16 @@ describe( 'TransitionRail check rows', () => {
 
 		await waitFor( () =>
 			expect(
-				document.querySelector( '.vip-workflow-rail__outcome--pass' )
+				document.querySelector( '.vip-workflows-rail__outcome--pass' )
 			).toBeInTheDocument()
 		);
 		expect(
-			document.querySelector( '.vip-workflow-rail__outcome--stale' )
+			document.querySelector( '.vip-workflows-rail__outcome--stale' )
 		).not.toBeInTheDocument();
 		// A current pass gets the bare verdict, no age: the tooltip says only
 		// "Passed" and the verdict-and-age note does not render.
 		expect(
-			document.querySelector( '.vip-workflow-rail__dep-indicator' )
+			document.querySelector( '.vip-workflows-rail__dep-indicator' )
 		).toHaveAttribute( 'title', 'Passed' );
 		expect(
 			screen.queryByText( 'Passed — before the latest edit' )

@@ -1,9 +1,9 @@
 <?php
 /**
- * What `GET /vip-workflow/v1/abilities` really returns, pinned to the shared contract.
+ * What `GET /vip-workflows/v1/abilities` really returns, pinned to the shared contract.
  *
  * The unit half (tests/phpunit/Unit/AbilitiesResponseContractTest.php) can only
- * reach the plain-`WP_Ability` branch, because `VIPWorkflow\Abilities\Ability`
+ * reach the plain-`WP_Ability` branch, because `VIPWorkflows\Abilities\Ability`
  * extends a class the unit suite does not load. That leaves the branch every VIP
  * agent actually takes untested there — and it is the branch `icon` comes from, one
  * of the three keys whose absence from a JS fixture let a bug ship. So the subclass
@@ -17,26 +17,26 @@
  * the contract fails here, and a key the contract promises that the endpoint stopped
  * sending fails here too.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Abilities\Ability;
-use VIPWorkflow\Ideation\Assistants\WebResearcher;
+use VIPWorkflows\Abilities\Ability;
+use VIPWorkflows\Ideation\Assistants\WebResearcher;
 use WP_REST_Request;
 
 /**
- * @covers \VIPWorkflow\API\AbilitiesController
+ * @covers \VIPWorkflows\API\AbilitiesController
  */
 class AbilitiesResponseShapeTest extends TestCase
 {
-    private const WEB_RESEARCHER_ABILITY = 'vip-workflow/web-researcher';
+    private const WEB_RESEARCHER_ABILITY = 'vip-workflows/web-researcher';
 
     /**
-     * Register the Web Researcher, a real `VIPWorkflow\Abilities\Ability`.
+     * Register the Web Researcher, a real `VIPWorkflows\Abilities\Ability`.
      *
      * Abilities can only be registered while `wp_abilities_api_init` is running, so
      * the hook is fired again with every other listener detached — WP_UnitTestCase
@@ -114,7 +114,7 @@ class AbilitiesResponseShapeTest extends TestCase
      */
     private function abilities( array $params = array() ): array
     {
-        $request = new WP_REST_Request( 'GET', '/vip-workflow/v1/abilities' );
+        $request = new WP_REST_Request( 'GET', '/vip-workflows/v1/abilities' );
         foreach ( $params as $key => $value ) {
             $request->set_param( $key, $value );
         }
@@ -176,7 +176,7 @@ class AbilitiesResponseShapeTest extends TestCase
         $this->assertSame(
             $expected,
             $emitted,
-            'The keys a VIPWorkflow\Abilities\Ability row carries no longer match the contract\'s '
+            'The keys a VIPWorkflows\Abilities\Ability row carries no longer match the contract\'s '
                 . '"always" + "ability_subclass" sets. Update AbilitiesController::get_item_schema(), '
                 . 'tests/fixtures/abilities-response-contract.json, and the JS fixture builder together.'
         );
@@ -275,7 +275,7 @@ class AbilitiesResponseShapeTest extends TestCase
      */
     public function test_the_route_advertises_the_item_schema(): void
     {
-        $route  = '/vip-workflow/v1/abilities';
+        $route  = '/vip-workflows/v1/abilities';
         $routes = rest_get_server()->get_routes();
 
         $this->assertArrayHasKey( $route, $routes );

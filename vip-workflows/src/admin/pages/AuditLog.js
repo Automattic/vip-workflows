@@ -20,15 +20,15 @@ export default function AuditLog() {
 		<AdminPage
 			breadcrumbs={ [
 				{
-					label: __( 'Workflows', 'vip-workflow' ),
-					href: 'admin.php?page=vip-workflow',
+					label: __( 'Workflows', 'vip-workflows' ),
+					href: 'admin.php?page=vip-workflows',
 				},
-				{ label: __( 'Audit Log', 'vip-workflow' ) },
+				{ label: __( 'Audit Log', 'vip-workflows' ) },
 			] }
-			title={ __( 'Audit Log', 'vip-workflow' ) }
+			title={ __( 'Audit Log', 'vip-workflows' ) }
 			subtitle={ __(
 				'View all workflow activity and changes.',
-				'vip-workflow'
+				'vip-workflows'
 			) }
 		>
 			<AuditLogComponent />

@@ -21,7 +21,7 @@ import { ActionRow } from './ActionRow';
 import './ModalActions.css';
 
 export function ModalActions( { children, className } ) {
-	const classNames = [ 'vip-workflow-modal-actions', className ]
+	const classNames = [ 'vip-workflows-modal-actions', className ]
 		.filter( Boolean )
 		.join( ' ' );
 

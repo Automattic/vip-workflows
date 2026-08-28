@@ -34,25 +34,25 @@ export function EventNotesModal( { notes, title, onClose } ) {
 		<Modal
 			title={ title }
 			onRequestClose={ onClose }
-			className="vip-workflow-event-notes-modal vip-workflow-modal--truncate-title"
+			className="vip-workflows-event-notes-modal vip-workflows-modal--truncate-title"
 			size="medium"
 		>
 			<Stack
 				direction="column"
 				gap="lg"
-				className="vip-workflow-event-notes-content"
+				className="vip-workflows-event-notes-content"
 			>
 				{ notes.map( ( note, index ) => (
 					<Stack
 						key={ index }
 						direction="column"
 						gap="sm"
-						className="vip-workflow-event-note-item"
+						className="vip-workflows-event-note-item"
 					>
 						<Text
 							variant="heading-sm"
 							render={ <div /> }
-							className="vip-workflow-event-note-item__label vip-workflow-eyebrow"
+							className="vip-workflows-event-note-item__label vip-workflows-eyebrow"
 						>
 							{ note.label }
 						</Text>
@@ -61,7 +61,7 @@ export function EventNotesModal( { notes, title, onClose } ) {
 						     separate elements: no WPDS component draws that
 						     surface, and <Text> styles type rather than a
 						     container. */ }
-						<div className="vip-workflow-event-note-item__value">
+						<div className="vip-workflows-event-note-item__value">
 							<Text variant="body-lg">{ note.value }</Text>
 						</div>
 					</Stack>
@@ -69,7 +69,7 @@ export function EventNotesModal( { notes, title, onClose } ) {
 			</Stack>
 			<ModalActions>
 				<Button variant="primary" onClick={ onClose }>
-					{ __( 'Close', 'vip-workflow' ) }
+					{ __( 'Close', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 		</Modal>

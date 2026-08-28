@@ -2,12 +2,12 @@
 /**
  * Shared helper functions for workflow ability tools.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Require edit access for a post-scoped ability.
@@ -26,7 +26,7 @@ function require_post_edit_permission( int $post_id ): ?\WP_Error {
 	// to be reported as successful ability results to direct executor callers.
 	return new \WP_Error(
 		'forbidden',
-		__( 'You do not have permission to edit this post.', 'vip-workflow' )
+		__( 'You do not have permission to edit this post.', 'vip-workflows' )
 	);
 }
 
@@ -54,7 +54,7 @@ function require_post_edit_permission( int $post_id ): ?\WP_Error {
  * @return void
  */
 function log_configuration_event( string $event_type, string $ability_id, array $event_data ): void {
-	\VIPWorkflow\Plugin::get_instance()->get_event_bus()->emit(
+	\VIPWorkflows\Plugin::get_instance()->get_event_bus()->emit(
 		$event_type,
 		array_merge( $event_data, array( 'agent_actor' => $ability_id ) ),
 		array(

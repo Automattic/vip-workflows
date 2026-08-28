@@ -7,20 +7,20 @@
  * mocked test can answer — that is asserted against real Gutenberg in
  * tests/phpunit/Integration/GuidelineContextProviderKnowledgeTest.php.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Integrations\GuidelineContextProvider;
+use VIPWorkflows\Integrations\GuidelineContextProvider;
 
 require_once __DIR__ . '/../../../includes/integrations/class-guideline-context-provider.php';
 
 /**
- * @covers \VIPWorkflow\Integrations\GuidelineContextProvider
+ * @covers \VIPWorkflows\Integrations\GuidelineContextProvider
  */
 class GuidelineContextProviderTest extends TestCase {
 
@@ -273,7 +273,7 @@ class GuidelineContextProviderTest extends TestCase {
 		);
 		Functions\when( 'apply_filters' )->alias(
 			function ( string $tag, $value ) {
-				return 'vip_workflow_guideline_context' === $tag ? $value . "\nAppended by filter." : $value;
+				return 'vip_workflows_guideline_context' === $tag ? $value . "\nAppended by filter." : $value;
 			}
 		);
 
@@ -284,7 +284,7 @@ class GuidelineContextProviderTest extends TestCase {
 		$this->given_guideline_rows( array() );
 		Functions\when( 'apply_filters' )->alias(
 			function ( string $tag, $value ) {
-				if ( 'vip_workflow_editorial_alignment_rules' === $tag ) {
+				if ( 'vip_workflows_editorial_alignment_rules' === $tag ) {
 					$value[] = array( 'name' => 'Locale', 'rule' => 'UK English spelling.' );
 				}
 				return $value;

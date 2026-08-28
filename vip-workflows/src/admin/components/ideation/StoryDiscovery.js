@@ -38,7 +38,7 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 		const fetchRecommendations = async () => {
 			try {
 				const data = await apiFetch( {
-					path: '/vip-workflow/v1/discovery/recommend',
+					path: '/vip-workflows/v1/discovery/recommend',
 				} );
 				setGroups( data );
 			} catch {
@@ -58,7 +58,7 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 
 			try {
 				const state = await apiFetch( {
-					path: '/vip-workflow/v1/discovery/select',
+					path: '/vip-workflows/v1/discovery/select',
 					method: 'POST',
 					data: {
 						provider: provider.slug,
@@ -96,9 +96,9 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 			<Stack
 				direction="column"
 				gap="2xl"
-				className="vip-workflow-ideation-discovery vip-workflow-ideation-discovery--loading"
+				className="vip-workflows-ideation-discovery vip-workflows-ideation-discovery--loading"
 			>
-				<div className="vip-workflow-ideation-discovery__skeleton" />
+				<div className="vip-workflows-ideation-discovery__skeleton" />
 			</Stack>
 		);
 	}
@@ -112,7 +112,7 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 			<Stack
 				direction="column"
 				gap="2xl"
-				className="vip-workflow-ideation-discovery"
+				className="vip-workflows-ideation-discovery"
 			>
 				{ groups.map( ( group ) => (
 					<Stack
@@ -125,13 +125,13 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 						key={ group.provider.key ?? group.provider.slug }
 						direction="column"
 						gap="md"
-						className="vip-workflow-ideation-discovery__group"
+						className="vip-workflows-ideation-discovery__group"
 					>
 						<Stack align="center" justify="space-between">
 							<Text
 								variant="heading-sm"
 								render={ <h3 /> }
-								className="vip-workflow-ideation-discovery__group-title vip-workflow-eyebrow"
+								className="vip-workflows-ideation-discovery__group-title vip-workflows-eyebrow"
 							>
 								{ group.provider.label }
 							</Text>
@@ -147,12 +147,12 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 							{ group.provider.features?.includes( 'search' ) && (
 								<Button
 									variant="link"
-									className="vip-workflow-ideation-discovery__browse-more"
+									className="vip-workflows-ideation-discovery__browse-more"
 									onClick={ () =>
 										handleBrowseMore( group.provider.slug )
 									}
 								>
-									{ __( 'Browse more…', 'vip-workflow' ) }
+									{ __( 'Browse more…', 'vip-workflows' ) }
 								</Button>
 							) }
 						</Stack>
@@ -166,12 +166,12 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 							return (
 								<>
 									{ /* wpds-allow R7 -- responsive CSS grid (auto-fill minmax columns); Stack is flex-only */ }
-									<div className="vip-workflow-ideation-discovery__grid">
+									<div className="vip-workflows-ideation-discovery__grid">
 										{ visible.map( ( prompt ) => {
 											return (
 												<Button
 													key={ prompt.id }
-													className="vip-workflow-ideation-discovery__card vip-workflow-card-surface"
+													className="vip-workflows-ideation-discovery__card vip-workflows-card-surface"
 													onClick={ () => {
 														setPreviewPrompt(
 															prompt
@@ -186,10 +186,10 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 														align="flex-start"
 														justify="space-between"
 														gap="sm"
-														className="vip-workflow-ideation-discovery__card-header"
+														className="vip-workflows-ideation-discovery__card-header"
 													>
 														{ /* wpds-allow R7 -- clamped card title (line-clamp truncation + heading font) */ }
-														<span className="vip-workflow-ideation-discovery__card-title">
+														<span className="vip-workflows-ideation-discovery__card-title">
 															{ prompt.title }
 														</span>
 														{ prompt.importance &&
@@ -207,18 +207,18 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 																	'key_event'
 																		? __(
 																				'Key Event',
-																				'vip-workflow'
+																				'vip-workflows'
 																		  )
 																		: __(
 																				'Top Story',
-																				'vip-workflow'
+																				'vip-workflows'
 																		  ) }
 																</Badge>
 															) }
 													</Stack>
 													{ prompt.date && (
 														// wpds-allow R7 -- muted date label (body-sm token + fg-weak color; no Text color prop)
-														<span className="vip-workflow-ideation-discovery__card-date">
+														<span className="vip-workflows-ideation-discovery__card-date">
 															{ formatPromptDate(
 																prompt
 															) }
@@ -227,7 +227,7 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 													{ prompt.tags?.length >
 														0 && (
 														// wpds-allow R7 -- muted tags label (body-sm token + fg-weak color; no Text color prop)
-														<span className="vip-workflow-ideation-discovery__card-tags">
+														<span className="vip-workflows-ideation-discovery__card-tags">
 															{ prompt.tags
 																.slice( 0, 3 )
 																.join( ', ' ) }
@@ -238,17 +238,17 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 										} ) }
 									</div>
 									{ hasMore && (
-										<div className="vip-workflow-ideation-discovery__show-more-wrap">
+										<div className="vip-workflows-ideation-discovery__show-more-wrap">
 											<Button
 												variant="link"
-												className="vip-workflow-ideation-discovery__show-more"
+												className="vip-workflows-ideation-discovery__show-more"
 												onClick={ () =>
 													handleShowMore( slug )
 												}
 											>
 												{ __(
 													'Show more',
-													'vip-workflow'
+													'vip-workflows'
 												) }
 											</Button>
 										</div>

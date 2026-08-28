@@ -15,16 +15,16 @@
  * registered abilities) because the write paths are private and reachable only
  * through transition() / assign_sequence() / remove_sequence().
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Database\Schema;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Database\Schema;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Exposes the label-repair migration step for direct testing.
@@ -47,9 +47,9 @@ class StageLabelRepairProbe extends Schema
  */
 class StageLabelSnapshotIntegrationTest extends TestCase
 {
-	private const HARD_CHECK = 'vip-workflow/test-stage-label-hard-check';
+	private const HARD_CHECK = 'vip-workflows/test-stage-label-hard-check';
 
-	private const SOFT_CHECK = 'vip-workflow/test-stage-label-soft-check';
+	private const SOFT_CHECK = 'vip-workflows/test-stage-label-soft-check';
 
 	/**
 	 * Sequence name — also the sequence identity the migration resolves by.
@@ -183,7 +183,7 @@ class StageLabelSnapshotIntegrationTest extends TestCase
 						array(
 							'label'               => 'Stage Label Check Fixture',
 							'description'         => 'Test fixture that always reports one issue.',
-							'category'            => 'vip-workflow',
+							'category'            => 'vip-workflows',
 							'input_schema'        => array(
 								'type'       => 'object',
 								'properties' => array(
@@ -249,7 +249,7 @@ class StageLabelSnapshotIntegrationTest extends TestCase
 	{
 		global $wpdb;
 
-		$table = Schema::get_table_name( 'workflow_events' );
+		$table = Schema::get_table_name( 'workflows_events' );
 
 		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$json = $wpdb->get_var(
@@ -403,12 +403,12 @@ class StageLabelSnapshotIntegrationTest extends TestCase
 			$ids[] = $sequence_id;
 			return $ids;
 		};
-		add_filter( 'vip_workflow_sequences_for_post', $make_eligible );
+		add_filter( 'vip_workflows_sequences_for_post', $make_eligible );
 
 		try {
 			$result = ( new StatusManager() )->assign_sequence( $post_id, $this->sequence_id, 'status_1' );
 		} finally {
-			remove_filter( 'vip_workflow_sequences_for_post', $make_eligible );
+			remove_filter( 'vip_workflows_sequences_for_post', $make_eligible );
 		}
 
 		$this->assertTrue( $result );
@@ -483,7 +483,7 @@ class StageLabelSnapshotIntegrationTest extends TestCase
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->insert(
-			Schema::get_table_name( 'workflow_events' ),
+			Schema::get_table_name( 'workflows_events' ),
 			array(
 				'post_id'    => $post_id,
 				'event_type' => 'status_transition',

@@ -98,8 +98,8 @@ export default function InspectorShell( { eyebrow, title, children } ) {
 						onClick={ collapse.toggle }
 						label={
 							collapsed
-								? __( 'Expand panel', 'vip-workflow' )
-								: __( 'Collapse panel', 'vip-workflow' )
+								? __( 'Expand panel', 'vip-workflows' )
+								: __( 'Collapse panel', 'vip-workflows' )
 						}
 						showTooltip
 						aria-expanded={ ! collapsed }

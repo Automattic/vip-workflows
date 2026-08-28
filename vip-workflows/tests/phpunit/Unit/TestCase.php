@@ -1,6 +1,6 @@
 <?php
 /**
- * Base test case for VIP Workflow unit tests.
+ * Base test case for VIP Workflows unit tests.
  *
  * Unit tests run without WordPress. WordPress functions are mocked via
  * Brain\Monkey; this base builds on Yoast's BrainMonkey YoastTestCase, which
@@ -8,12 +8,12 @@
  * stubs for many common WP functions (sanitize_text_field, wp_kses_post,
  * wp_parse_args, wp_strip_all_tags, get_bloginfo, …).
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Yoast\WPTestUtils\BrainMonkey\YoastTestCase;
@@ -70,16 +70,16 @@ abstract class TestCase extends YoastTestCase
          */
         foreach (
             array(
-                \VIPWorkflow\Abilities\AbilityRegistry::class,
-                \VIPWorkflow\Abilities\AbilitySettings::class,
-                \VIPWorkflow\AI\AiInference::class,
-                \VIPWorkflow\AI\Credentials::class,
-                \VIPWorkflow\AI\PromptRegistry::class,
-                \VIPWorkflow\AI\PromptSettings::class,
-                \VIPWorkflow\Assistants\AssistantRegistry::class,
-                \VIPWorkflow\Discovery\DiscoveryProviderRegistry::class,
-                \VIPWorkflow\Ideation\Research\SearchProviders\SearchProviderRegistry::class,
-                \VIPWorkflow\Plugin::class,
+                \VIPWorkflows\Abilities\AbilityRegistry::class,
+                \VIPWorkflows\Abilities\AbilitySettings::class,
+                \VIPWorkflows\AI\AiInference::class,
+                \VIPWorkflows\AI\Credentials::class,
+                \VIPWorkflows\AI\PromptRegistry::class,
+                \VIPWorkflows\AI\PromptSettings::class,
+                \VIPWorkflows\Assistants\AssistantRegistry::class,
+                \VIPWorkflows\Discovery\DiscoveryProviderRegistry::class,
+                \VIPWorkflows\Ideation\Research\SearchProviders\SearchProviderRegistry::class,
+                \VIPWorkflows\Plugin::class,
             ) as $class
         ) {
             ( new \ReflectionProperty( $class, 'instance' ) )->setValue( null, null );
@@ -108,8 +108,8 @@ abstract class TestCase extends YoastTestCase
          * explicit and immune to what an earlier test happened to define. Tests
          * needing the Connectors backend install it themselves.
          */
-        \VIPWorkflow\AI\Credentials::get_instance()->set_backend(
-            new \VIPWorkflow\AI\LegacyCredentialBackend()
+        \VIPWorkflows\AI\Credentials::get_instance()->set_backend(
+            new \VIPWorkflows\AI\LegacyCredentialBackend()
         );
 
         /*
@@ -119,20 +119,20 @@ abstract class TestCase extends YoastTestCase
 
         // Once-per-request diagnostic de-duplication; a leftover entry silences
         // the notice a later test is asserting on.
-        ( new \ReflectionProperty( \VIPWorkflow\AI\AiInference::class, 'reported' ) )->setValue( null, array() );
-        ( new \ReflectionProperty( \VIPWorkflow\Integrations\LlmTextGenerator::class, 'reported' ) )
+        ( new \ReflectionProperty( \VIPWorkflows\AI\AiInference::class, 'reported' ) )->setValue( null, array() );
+        ( new \ReflectionProperty( \VIPWorkflows\Integrations\LlmTextGenerator::class, 'reported' ) )
             ->setValue( null, array() );
-        ( new \ReflectionProperty( \VIPWorkflow\Integrations\GuidelineContextProvider::class, 'reported' ) )
+        ( new \ReflectionProperty( \VIPWorkflows\Integrations\GuidelineContextProvider::class, 'reported' ) )
             ->setValue( null, array() );
 
         // Ability id whose agent run is currently attributed; a leftover value
         // mis-attributes revisions in a later test.
-        ( new \ReflectionProperty( \VIPWorkflow\Workflow\StageAgentRunner::class, 'acting_ability_id' ) )
+        ( new \ReflectionProperty( \VIPWorkflows\Workflow\StageAgentRunner::class, 'acting_ability_id' ) )
             ->setValue( null, '' );
 
         // Re-entrancy guard keyed by post id; a leftover key makes a later
         // transition look already in progress and silently no-op.
-        ( new \ReflectionProperty( \VIPWorkflow\Workflow\StatusManager::class, 'transition_in_progress' ) )
+        ( new \ReflectionProperty( \VIPWorkflows\Workflow\StatusManager::class, 'transition_in_progress' ) )
             ->setValue( null, array() );
 
         self::reset_test_doubles();

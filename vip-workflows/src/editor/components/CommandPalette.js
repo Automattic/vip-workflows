@@ -44,7 +44,7 @@ export function CommandPalette() {
 	const runTool = useCallback(
 		async ( tool ) => {
 			if ( ! postId ) {
-				createErrorNotice( __( 'No post selected.', 'vip-workflow' ), {
+				createErrorNotice( __( 'No post selected.', 'vip-workflows' ), {
 					type: 'snackbar',
 				} );
 				return null;
@@ -52,7 +52,7 @@ export function CommandPalette() {
 
 			try {
 				const result = await apiFetch( {
-					path: `/vip-workflow/v1/abilities/${ tool.id }/run`,
+					path: `/vip-workflows/v1/abilities/${ tool.id }/run`,
 					method: 'POST',
 					data: { post_id: postId },
 				} );
@@ -61,7 +61,7 @@ export function CommandPalette() {
 				return {
 					error:
 						error.message ||
-						__( 'Error running tool.', 'vip-workflow' ),
+						__( 'Error running tool.', 'vip-workflows' ),
 				};
 			}
 		},
@@ -90,7 +90,7 @@ export function CommandPalette() {
 					// translators: %s: the post field name that was applied (e.g. Excerpt, Title).
 					__(
 						'%s applied! Save the post to keep it.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					field.charAt( 0 ).toUpperCase() + field.slice( 1 )
 				),
@@ -100,7 +100,7 @@ export function CommandPalette() {
 			setModalTool( null );
 		} catch ( error ) {
 			createErrorNotice(
-				error.message || __( 'Failed to apply.', 'vip-workflow' ),
+				error.message || __( 'Failed to apply.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 		} finally {
@@ -114,7 +114,7 @@ export function CommandPalette() {
 		}
 
 		setRegenerating( true );
-		createSuccessNotice( __( 'Regenerating…', 'vip-workflow' ), {
+		createSuccessNotice( __( 'Regenerating…', 'vip-workflows' ), {
 			type: 'snackbar',
 		} );
 
@@ -138,7 +138,7 @@ export function CommandPalette() {
 
 		const registeredCommands = [];
 
-		apiFetch( { path: '/vip-workflow/v1/abilities' } )
+		apiFetch( { path: '/vip-workflows/v1/abilities' } )
 			.then( ( abilities ) => {
 				const commandAbilities = abilities.filter(
 					( a ) =>
@@ -148,7 +148,7 @@ export function CommandPalette() {
 				);
 
 				commandAbilities.forEach( ( tool ) => {
-					const cmdName = `vip-workflow-cmd-${ tool.id.replace(
+					const cmdName = `vip-workflows-cmd-${ tool.id.replace(
 						'/',
 						'-'
 					) }`;
@@ -158,7 +158,7 @@ export function CommandPalette() {
 						name: cmdName,
 						label: sprintf(
 							// translators: %s: the tool name.
-							__( 'Run %s', 'vip-workflow' ),
+							__( 'Run %s', 'vip-workflows' ),
 							tool.label
 						),
 						callback: async ( { close } ) => {
@@ -171,7 +171,7 @@ export function CommandPalette() {
 							createSuccessNotice(
 								sprintf(
 									// translators: %s: the tool name.
-									__( 'Running %s…', 'vip-workflow' ),
+									__( 'Running %s…', 'vip-workflows' ),
 									tool.label
 								),
 								{ type: 'snackbar', isDismissible: true }
@@ -259,26 +259,26 @@ export function CommandPalette() {
 								style={ { margin: 0 } }
 							/>
 							<div
-								className="vip-workflow-command-palette-running-title"
+								className="vip-workflows-command-palette-running-title"
 								style={ {
 									color: '#1e1e1e',
 								} }
 							>
 								{ sprintf(
 									// translators: %s: the tool name.
-									__( 'Running %s…', 'vip-workflow' ),
+									__( 'Running %s…', 'vip-workflows' ),
 									runningToolLabel
 								) }
 							</div>
 							<div
-								className="vip-workflow-command-palette-running-detail"
+								className="vip-workflows-command-palette-running-detail"
 								style={ {
 									color: '#757575',
 								} }
 							>
 								{ __(
 									'Please wait, this may take a moment.',
-									'vip-workflow'
+									'vip-workflows'
 								) }
 							</div>
 						</div>

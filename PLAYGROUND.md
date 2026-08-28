@@ -1,4 +1,4 @@
-# Running VIP Workflow in WordPress Playground
+# Running VIP Workflows in WordPress Playground
 
 `blueprint.json` boots WordPress trunk (the nightly build) with the core `vip-workflows` plugin for a local, disposable smoke test. The plugin is mounted from this checkout because generated assets and Composer dependencies are not committed.
 

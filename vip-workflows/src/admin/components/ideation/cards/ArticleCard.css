@@ -4,7 +4,7 @@
 
 /* Clickable cards */
 
-.vip-workflow-ideation-card--article,
-.vip-workflow-ideation-card--image {
+.vip-workflows-ideation-card--article,
+.vip-workflows-ideation-card--image {
 	cursor: pointer;
 }

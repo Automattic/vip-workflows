@@ -12,18 +12,18 @@
  * Integration because the thing under test is the registered sanitize_callback,
  * which only runs against a real WordPress.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Plugin;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Plugin;
 
 /**
- * @covers \VIPWorkflow\Plugin::register_metadata_fields
+ * @covers \VIPWorkflows\Plugin::register_metadata_fields
  */
 class MetadataFieldSanitizationTest extends TestCase
 {

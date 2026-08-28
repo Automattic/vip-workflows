@@ -7,16 +7,16 @@
  * tests/phpunit/Unit/doubles/). No WordPress is booted: wp_get_abilities() and
  * the option store are mocked per-test. Mirrors AbilitiesControllerTest.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\API\ToolsController;
-use VIPWorkflow\Abilities\AbilitySettings;
+use VIPWorkflows\API\ToolsController;
+use VIPWorkflows\Abilities\AbilitySettings;
 use WP_Error;
 use WP_REST_Response;
 
@@ -32,7 +32,7 @@ class ToolsControllerTest extends TestCase
 
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                return 'vip_workflow_ability_settings' === $option
+                return 'vip_workflows_ability_settings' === $option
                     ? $this->stored_settings
                     : $default;
             }
@@ -40,7 +40,7 @@ class ToolsControllerTest extends TestCase
 
         Functions\when( 'update_option' )->alias(
             function ( string $option, $value ) {
-                if ( 'vip_workflow_ability_settings' === $option ) {
+                if ( 'vip_workflows_ability_settings' === $option ) {
                     $this->stored_settings = $value;
                 }
 
@@ -66,12 +66,12 @@ class ToolsControllerTest extends TestCase
         $this->assertFalse( $controller->admin_permissions_check() );
     }
 
-    public function test_get_items_returns_only_vip_workflow_tools(): void
+    public function test_get_items_returns_only_vip_workflows_tools(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
             array(
-                $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' ),
-                $this->create_ability_stub( 'vip-workflow/web-researcher', 'research' ),
+                $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' ),
+                $this->create_ability_stub( 'vip-workflows/web-researcher', 'research' ),
             )
         );
 
@@ -81,16 +81,16 @@ class ToolsControllerTest extends TestCase
         $this->assertInstanceOf( WP_REST_Response::class, $response );
         $data = $response->get_data();
         $this->assertCount( 1, $data );
-        $this->assertSame( 'vip-workflow/readability', $data[0]['id'] );
-        $this->assertSame( 'vip-workflow', $data[0]['category'] );
+        $this->assertSame( 'vip-workflows/readability', $data[0]['id'] );
+        $this->assertSame( 'vip-workflows', $data[0]['category'] );
     }
 
     public function test_get_items_skips_abilities_without_meta_type(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
             array(
-                $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' ),
-                $this->create_ability_stub( 'vip-workflow/no-type', 'vip-workflow', array( 'type' => '' ) ),
+                $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' ),
+                $this->create_ability_stub( 'vip-workflows/no-type', 'vip-workflows', array( 'type' => '' ) ),
             )
         );
 
@@ -98,13 +98,13 @@ class ToolsControllerTest extends TestCase
         $data       = $controller->get_items( $this->create_request_stub() )->get_data();
 
         $this->assertCount( 1, $data );
-        $this->assertSame( 'vip-workflow/readability', $data[0]['id'] );
+        $this->assertSame( 'vip-workflows/readability', $data[0]['id'] );
     }
 
     public function test_get_items_includes_management_fields(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
-            array( $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' ) )
+            array( $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' ) )
         );
 
         $controller = $this->create_controller();
@@ -122,12 +122,12 @@ class ToolsControllerTest extends TestCase
     public function test_update_settings_persists_and_returns_single_tool(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
-            array( $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' ) )
+            array( $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' ) )
         );
 
         $controller = $this->create_controller();
         $request    = $this->create_request_stub(
-            array( 'id' => 'vip-workflow/readability' ),
+            array( 'id' => 'vip-workflows/readability' ),
             array(
                 'enabled'             => false,
                 'show_in_commands'    => false,
@@ -141,7 +141,7 @@ class ToolsControllerTest extends TestCase
 
         $this->assertInstanceOf( WP_REST_Response::class, $response );
         $data = $response->get_data();
-        $this->assertSame( 'vip-workflow/readability', $data['id'] );
+        $this->assertSame( 'vip-workflows/readability', $data['id'] );
         $this->assertFalse( $data['enabled'] );
         $this->assertFalse( $data['show_in_commands'] );
         $this->assertFalse( $data['transition_eligible'] );
@@ -149,7 +149,7 @@ class ToolsControllerTest extends TestCase
         $this->assertSame( 'hard', $data['check_modes']['threshold'] );
 
         // Persisted through to the option store.
-        $persisted = $this->stored_settings['vip-workflow/readability'];
+        $persisted = $this->stored_settings['vip-workflows/readability'];
         $this->assertFalse( $persisted['enabled'] );
         $this->assertSame( 80, $persisted['options']['threshold'] );
     }
@@ -157,12 +157,12 @@ class ToolsControllerTest extends TestCase
     public function test_update_settings_returns_404_for_unknown_tool(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
-            array( $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' ) )
+            array( $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' ) )
         );
 
         $controller = $this->create_controller();
         $result     = $controller->update_settings(
-            $this->create_request_stub( array( 'id' => 'vip-workflow/does-not-exist' ), array( 'enabled' => true ) )
+            $this->create_request_stub( array( 'id' => 'vip-workflows/does-not-exist' ), array( 'enabled' => true ) )
         );
 
         $this->assertInstanceOf( WP_Error::class, $result );
@@ -173,12 +173,12 @@ class ToolsControllerTest extends TestCase
     public function test_update_settings_returns_404_for_wrong_category_tool(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
-            array( $this->create_ability_stub( 'vip-workflow/web-researcher', 'research' ) )
+            array( $this->create_ability_stub( 'vip-workflows/web-researcher', 'research' ) )
         );
 
         $controller = $this->create_controller();
         $result     = $controller->update_settings(
-            $this->create_request_stub( array( 'id' => 'vip-workflow/web-researcher' ), array( 'enabled' => true ) )
+            $this->create_request_stub( array( 'id' => 'vip-workflows/web-researcher' ), array( 'enabled' => true ) )
         );
 
         $this->assertInstanceOf( WP_Error::class, $result );
@@ -188,12 +188,12 @@ class ToolsControllerTest extends TestCase
     public function test_update_settings_returns_400_for_non_array_body(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
-            array( $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' ) )
+            array( $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' ) )
         );
 
         $controller = $this->create_controller();
         $result     = $controller->update_settings(
-            $this->create_request_stub( array( 'id' => 'vip-workflow/readability' ), null )
+            $this->create_request_stub( array( 'id' => 'vip-workflows/readability' ), null )
         );
 
         $this->assertInstanceOf( WP_Error::class, $result );

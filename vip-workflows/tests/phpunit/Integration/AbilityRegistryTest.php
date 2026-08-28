@@ -10,16 +10,16 @@
  * the unit suite and loaded a vendored `wordpress/abilities-api` RC, which
  * could silently drift from core and hide — or invent — failures.)
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
 use ReflectionClass;
-use VIPWorkflow\Abilities\Ability;
-use VIPWorkflow\Abilities\AbilityRegistry;
+use VIPWorkflows\Abilities\Ability;
+use VIPWorkflows\Abilities\AbilityRegistry;
 
 class AbilityRegistryTest extends TestCase
 {
@@ -80,14 +80,14 @@ class AbilityRegistryTest extends TestCase
             'WP_Ability must be loaded from the booted WordPress core install.'
         );
 
-        $this->assertInstanceOf( '\WP_Ability', $this->make_ability( 'vip-workflow/sample' ) );
+        $this->assertInstanceOf( '\WP_Ability', $this->make_ability( 'vip-workflows/sample' ) );
     }
 
     public function test_real_wp_ability_exposes_constructor_properties(): void
     {
-        $ability = $this->make_ability( 'vip-workflow/summarize', 'research' );
+        $ability = $this->make_ability( 'vip-workflows/summarize', 'research' );
 
-        $this->assertSame( 'vip-workflow/summarize', $ability->get_name() );
+        $this->assertSame( 'vip-workflows/summarize', $ability->get_name() );
         $this->assertSame( 'Test Ability', $ability->get_label() );
         $this->assertSame( 'An ability used in tests.', $ability->get_description() );
         $this->assertSame( 'research', $ability->get_category() );
@@ -107,7 +107,7 @@ class AbilityRegistryTest extends TestCase
         // Omit the required label. Core's prepare_properties() validates label/
         // description/category for every ability (no subclass carve-out), so this
         // is a property that genuinely exercises validation on our subclass.
-        $this->make_ability( 'vip-workflow/broken', 'research', array( 'label' => null ) );
+        $this->make_ability( 'vip-workflows/broken', 'research', array( 'label' => null ) );
     }
 
     public function test_subclass_is_exempt_from_execute_callback_validation(): void
@@ -119,7 +119,7 @@ class AbilityRegistryTest extends TestCase
         // execute_callback must NOT throw. This pins core's real contract — the
         // previous unit test asserted the opposite against a vendored RC, which
         // is exactly the drift this suite now guards against.
-        $ability = $this->make_ability( 'vip-workflow/no-exec', 'research', array( 'execute_callback' => null ) );
+        $ability = $this->make_ability( 'vip-workflows/no-exec', 'research', array( 'execute_callback' => null ) );
 
         $this->assertInstanceOf( Ability::class, $ability );
     }
@@ -127,51 +127,51 @@ class AbilityRegistryTest extends TestCase
     public function test_register_and_retrieve_ability(): void
     {
         $registry = AbilityRegistry::get_instance();
-        $ability  = $this->make_ability( 'vip-workflow/alpha' );
+        $ability  = $this->make_ability( 'vip-workflows/alpha' );
 
         $registry->register_ability( $ability );
 
-        $this->assertTrue( $registry->has( 'vip-workflow/alpha' ) );
-        $this->assertSame( $ability, $registry->get( 'vip-workflow/alpha' ) );
-        $this->assertNull( $registry->get( 'vip-workflow/missing' ) );
+        $this->assertTrue( $registry->has( 'vip-workflows/alpha' ) );
+        $this->assertSame( $ability, $registry->get( 'vip-workflows/alpha' ) );
+        $this->assertNull( $registry->get( 'vip-workflows/missing' ) );
         $this->assertCount( 1, $registry->get_all() );
     }
 
     public function test_duplicate_registration_throws(): void
     {
         $registry = AbilityRegistry::get_instance();
-        $registry->register_ability( $this->make_ability( 'vip-workflow/dup' ) );
+        $registry->register_ability( $this->make_ability( 'vip-workflows/dup' ) );
 
         $this->expectException( \InvalidArgumentException::class );
-        $registry->register_ability( $this->make_ability( 'vip-workflow/dup' ) );
+        $registry->register_ability( $this->make_ability( 'vip-workflows/dup' ) );
     }
 
     public function test_get_by_category_filters_on_real_ability_category(): void
     {
         $registry = AbilityRegistry::get_instance();
-        $registry->register_ability( $this->make_ability( 'vip-workflow/research-1', 'research' ) );
-        $registry->register_ability( $this->make_ability( 'vip-workflow/research-2', 'research' ) );
-        $registry->register_ability( $this->make_ability( 'vip-workflow/editing-1', 'editing' ) );
+        $registry->register_ability( $this->make_ability( 'vip-workflows/research-1', 'research' ) );
+        $registry->register_ability( $this->make_ability( 'vip-workflows/research-2', 'research' ) );
+        $registry->register_ability( $this->make_ability( 'vip-workflows/editing-1', 'editing' ) );
 
         $research = $registry->get_by_category( 'research' );
         $editing  = $registry->get_by_category( 'editing' );
 
         $this->assertCount( 2, $research );
         $this->assertCount( 1, $editing );
-        $this->assertArrayHasKey( 'vip-workflow/research-1', $research );
-        $this->assertArrayNotHasKey( 'vip-workflow/editing-1', $research );
+        $this->assertArrayHasKey( 'vip-workflows/research-1', $research );
+        $this->assertArrayNotHasKey( 'vip-workflows/editing-1', $research );
     }
 
     public function test_unregister_and_clear(): void
     {
         $registry = AbilityRegistry::get_instance();
-        $registry->register_ability( $this->make_ability( 'vip-workflow/temp' ) );
+        $registry->register_ability( $this->make_ability( 'vip-workflows/temp' ) );
 
-        $this->assertTrue( $registry->unregister( 'vip-workflow/temp' ) );
-        $this->assertFalse( $registry->unregister( 'vip-workflow/temp' ) );
-        $this->assertFalse( $registry->has( 'vip-workflow/temp' ) );
+        $this->assertTrue( $registry->unregister( 'vip-workflows/temp' ) );
+        $this->assertFalse( $registry->unregister( 'vip-workflows/temp' ) );
+        $this->assertFalse( $registry->has( 'vip-workflows/temp' ) );
 
-        $registry->register_ability( $this->make_ability( 'vip-workflow/again' ) );
+        $registry->register_ability( $this->make_ability( 'vip-workflows/again' ) );
         $registry->clear();
         $this->assertCount( 0, $registry->get_all() );
     }

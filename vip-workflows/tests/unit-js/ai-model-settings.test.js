@@ -1,7 +1,7 @@
 /**
  * Unit tests for the AI services settings panel.
  *
- * The panel is the only place that writes `vip_workflow_ai_provider`, which makes
+ * The panel is the only place that writes `vip_workflows_ai_provider`, which makes
  * it the only way out of an unresolved provider — so the thing worth pinning is
  * that every state it can land in is both honest and escapable.
  *

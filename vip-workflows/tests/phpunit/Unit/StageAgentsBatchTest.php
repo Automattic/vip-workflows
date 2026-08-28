@@ -10,12 +10,12 @@
  * generic left here to preserve coverage of; the fact-check-specific tests and
  * their supporting stubs were removed rather than adapted.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use WordPress\AiClient\AiClient;

@@ -71,7 +71,7 @@ import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
 
-const STATUS_PATH = '/vip-workflow/v1/workflow/post/42/status';
+const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
 /**
  * One transition as the REST route delivers it.
@@ -110,7 +110,7 @@ async function renderWith( transitions ) {
 				can_remove: false,
 			} );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 			return Promise.resolve( [] );
 		}
 		return Promise.resolve( {} );
@@ -132,7 +132,7 @@ async function renderWith( transitions ) {
  */
 function renderedOrder() {
 	return Array.from(
-		document.querySelectorAll( '.vip-workflow-rail__transition' )
+		document.querySelectorAll( '.vip-workflows-rail__transition' )
 	).map( ( el ) => el.textContent.trim() );
 }
 

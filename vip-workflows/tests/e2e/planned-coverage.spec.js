@@ -11,7 +11,7 @@
 
 const { test } = require( '@wordpress/e2e-test-utils-playwright' );
 
-test.describe( 'VIP Workflow — planned coverage', () => {
+test.describe( 'VIP Workflows — planned coverage', () => {
 	// Assigning from the Workflow sidebar is covered for real now, in
 	// workflow-assign.spec.js: `openWorkflowSidebar` solved the open problem
 	// this entry recorded (driving an unpinned plugin sidebar), and the flow
@@ -33,12 +33,12 @@ test.describe( 'VIP Workflow — planned coverage', () => {
 
 	// Claim/release behaviour is now covered at REST level (an editor reviewer,
 	// not the author) in claim-release.spec.js. Remaining UI-only gap: the
-	// editor's `.vip-workflow-panel__claim` button + the My Queue /
+	// editor's `.vip-workflows-panel__claim` button + the My Queue /
 	// claim-board admin page, which need the full can_claim fixture
 	// (a show_in_queue stage AND the post added to the claim queue).
 	test.fixme( 'claim / release via the My Queue UI', async () => {} );
 
-	// Needs: stable HTML5 drag-and-drop across `.vip-workflow-kanban-column`s. Outcome is
+	// Needs: stable HTML5 drag-and-drop across `.vip-workflows-kanban-column`s. Outcome is
 	// already asserted via the REST transition path in
 	// workflow-lifecycle.spec.js; this would cover the drag interaction itself.
 	test.fixme(

@@ -14,7 +14,7 @@
  * unconditionally from `src/editor/index.js`, outside the sidebar's sections.
  * See WorkflowSaveGuard.
  *
- * The state itself is not the panel's. It lives in the `vip-workflow/editor`
+ * The state itself is not the panel's. It lives in the `vip-workflows/editor`
  * store, which performs the one read of the status endpoint and answers every
  * consumer from it — this panel, the Metadata section below it, and the save
  * guard's veto notice, which removes a post from its workflow while standing
@@ -365,7 +365,8 @@ export function WorkflowPanel( { children } ) {
 			await assignSequence( sequenceId );
 		} catch ( err ) {
 			setActionError(
-				err.message || __( 'Failed to assign workflow', 'vip-workflow' )
+				err.message ||
+					__( 'Failed to assign workflow', 'vip-workflows' )
 			);
 		} finally {
 			setTransitioning( false );
@@ -402,7 +403,8 @@ export function WorkflowPanel( { children } ) {
 			await removeWorkflow();
 		} catch ( err ) {
 			setActionError(
-				err.message || __( 'Failed to remove workflow', 'vip-workflow' )
+				err.message ||
+					__( 'Failed to remove workflow', 'vip-workflows' )
 			);
 		} finally {
 			// The panel stays mounted through a removal now, so the busy state
@@ -479,17 +481,17 @@ export function WorkflowPanel( { children } ) {
 						message: targetIsAiStage
 							? __(
 									'Could not save the post before starting the AI stage. Please try again.',
-									'vip-workflow'
+									'vip-workflows'
 							  )
 							: __(
 									'Could not save the post before the transition. Please try again.',
-									'vip-workflow'
+									'vip-workflows'
 							  ),
 					};
 				}
 
 				return apiFetch( {
-					path: `/vip-workflow/v1/workflow/post/${ postId }/transition`,
+					path: `/vip-workflows/v1/workflow/post/${ postId }/transition`,
 					method: 'POST',
 					data: requestData,
 				} );
@@ -565,7 +567,8 @@ export function WorkflowPanel( { children } ) {
 					}
 				} else {
 					setActionError(
-						err.message || __( 'Transition failed', 'vip-workflow' )
+						err.message ||
+							__( 'Transition failed', 'vip-workflows' )
 					);
 				}
 			} );
@@ -669,7 +672,7 @@ export function WorkflowPanel( { children } ) {
 		if ( notes ) {
 			const notesKey = `${ metaKey }_notes`;
 			inputData[ notesKey ] = notes;
-			inputData[ `${ notesKey }__name` ] = __( 'Notes', 'vip-workflow' );
+			inputData[ `${ notesKey }__name` ] = __( 'Notes', 'vip-workflows' );
 		}
 
 		advanceInputQueue( inputData );
@@ -766,7 +769,7 @@ export function WorkflowPanel( { children } ) {
 		setTransitioning( true );
 		setActionError( null );
 		apiFetch( {
-			path: `/vip-workflow/v1/workflow/post/${ postId }/agent-revert`,
+			path: `/vip-workflows/v1/workflow/post/${ postId }/agent-revert`,
 			method: 'POST',
 		} )
 			.then( ( response ) => {
@@ -778,7 +781,7 @@ export function WorkflowPanel( { children } ) {
 			.catch( ( err ) => {
 				setActionError(
 					err.message ||
-						__( 'Failed to move the post back', 'vip-workflow' )
+						__( 'Failed to move the post back', 'vip-workflows' )
 				);
 				setTransitioning( false );
 			} );
@@ -788,7 +791,7 @@ export function WorkflowPanel( { children } ) {
 		setTransitioning( true );
 		setActionError( null );
 		apiFetch( {
-			path: `/vip-workflow/v1/workflow/post/${ postId }/claim`,
+			path: `/vip-workflows/v1/workflow/post/${ postId }/claim`,
 			method: 'POST',
 		} )
 			.then( () => {
@@ -797,7 +800,7 @@ export function WorkflowPanel( { children } ) {
 			} )
 			.catch( ( err ) => {
 				setActionError(
-					err.message || __( 'Failed to claim post', 'vip-workflow' )
+					err.message || __( 'Failed to claim post', 'vip-workflows' )
 				);
 				setTransitioning( false );
 			} );
@@ -807,7 +810,7 @@ export function WorkflowPanel( { children } ) {
 		setTransitioning( true );
 		setActionError( null );
 		apiFetch( {
-			path: `/vip-workflow/v1/workflow/post/${ postId }/unclaim`,
+			path: `/vip-workflows/v1/workflow/post/${ postId }/unclaim`,
 			method: 'DELETE',
 		} )
 			.then( () => {
@@ -817,7 +820,7 @@ export function WorkflowPanel( { children } ) {
 			.catch( ( err ) => {
 				setActionError(
 					err.message ||
-						__( 'Failed to release post', 'vip-workflow' )
+						__( 'Failed to release post', 'vip-workflows' )
 				);
 				setTransitioning( false );
 			} );
@@ -834,15 +837,15 @@ export function WorkflowPanel( { children } ) {
 
 	if ( loading ) {
 		return (
-			<Stack className="vip-workflow-panel" direction="column" gap="lg">
+			<Stack className="vip-workflows-panel" direction="column" gap="lg">
 				<Stack
-					className="vip-workflow-loading"
+					className="vip-workflows-loading"
 					direction="row"
 					align="center"
 					gap="sm"
 				>
 					<Spinner />
-					{ __( 'Loading workflow…', 'vip-workflow' ) }
+					{ __( 'Loading workflow…', 'vip-workflows' ) }
 				</Stack>
 				{ /* The metadata fields are hydrated by the server bootstrap,
 				     not by the read this spinner waits on, so they are already
@@ -863,9 +866,9 @@ export function WorkflowPanel( { children } ) {
 	// only thing offered.
 	if ( workflow?.orphaned ) {
 		return (
-			<Stack className="vip-workflow-panel" direction="column" gap="lg">
+			<Stack className="vip-workflows-panel" direction="column" gap="lg">
 				<Stack
-					className="vip-workflow-panel__empty"
+					className="vip-workflows-panel__empty"
 					direction="column"
 					align="center"
 					gap="md"
@@ -873,7 +876,7 @@ export function WorkflowPanel( { children } ) {
 					<Text variant="body-md">
 						{ __(
 							'This post belongs to a workflow that no longer exists, so its status cannot be changed.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
 					<Button
@@ -895,7 +898,7 @@ export function WorkflowPanel( { children } ) {
 						status="error"
 						isDismissible
 						onRemove={ () => setActionError( null ) }
-						className="vip-workflow-panel__action-error"
+						className="vip-workflows-panel__action-error"
 					>
 						{ actionError }
 					</DismissibleNotice>
@@ -917,17 +920,17 @@ export function WorkflowPanel( { children } ) {
 		if ( availableSequences.length === 0 ) {
 			return (
 				<Stack
-					className="vip-workflow-panel"
+					className="vip-workflows-panel"
 					direction="column"
 					gap="lg"
 				>
 					<Text
 						variant="body-md"
-						className="vip-workflow-panel__empty"
+						className="vip-workflows-panel__empty"
 					>
 						{ __(
 							'No workflow available for this post type.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
 					{ ideationSlot }
@@ -943,7 +946,7 @@ export function WorkflowPanel( { children } ) {
 		// branch (there is no place to give up), which is why the dialog node
 		// is not rendered here.
 		return (
-			<Stack className="vip-workflow-panel" direction="column" gap="md">
+			<Stack className="vip-workflows-panel" direction="column" gap="md">
 				<WorkflowRow
 					sequence={ null }
 					availableSequences={ availableSequences }
@@ -958,7 +961,7 @@ export function WorkflowPanel( { children } ) {
 						status="error"
 						isDismissible
 						onRemove={ () => setActionError( null ) }
-						className="vip-workflow-panel__action-error"
+						className="vip-workflows-panel__action-error"
 					>
 						{ actionError }
 					</DismissibleNotice>
@@ -986,7 +989,7 @@ export function WorkflowPanel( { children } ) {
 	const agentFailed = agentJob?.status === 'failed';
 
 	return (
-		<Stack className="vip-workflow-panel" direction="column" gap="lg">
+		<Stack className="vip-workflows-panel" direction="column" gap="lg">
 			{ /* Which sequence this post belongs to, as the document sidebar
 			     writes any other property of a post: the label beside a
 			     value you can press. It used to be the sequence's name alone,
@@ -1005,13 +1008,13 @@ export function WorkflowPanel( { children } ) {
 			{ /* Assignment info */ }
 			{ assignedTo && (
 				<Stack
-					className="vip-workflow-panel__assigned"
+					className="vip-workflows-panel__assigned"
 					direction="row"
 					align="center"
 					wrap="wrap"
 				>
-					<span className="vip-workflow-panel__assigned-label">
-						{ __( 'Assigned to:', 'vip-workflow' ) }
+					<span className="vip-workflows-panel__assigned-label">
+						{ __( 'Assigned to:', 'vip-workflows' ) }
 					</span>
 					{ /* The same cell the lists draw an author with, so the
 					     person waiting on this post looks like the same person
@@ -1020,14 +1023,14 @@ export function WorkflowPanel( { children } ) {
 					     the assignee, not part of their name. */ }
 					<AuthorCell
 						actor={ assignedTo }
-						className="vip-workflow-panel__assigned-name"
+						className="vip-workflows-panel__assigned-name"
 					>
 						{ assignedTo.is_current && (
 							<Text
 								variant="body-md"
-								className="vip-workflow-panel__you"
+								className="vip-workflows-panel__you"
 							>
-								{ '(' + __( 'you', 'vip-workflow' ) + ')' }
+								{ '(' + __( 'you', 'vip-workflows' ) + ')' }
 							</Text>
 						) }
 					</AuthorCell>
@@ -1039,7 +1042,7 @@ export function WorkflowPanel( { children } ) {
 							disabled={ transitioning }
 							isDestructive
 						>
-							{ __( 'Release', 'vip-workflow' ) }
+							{ __( 'Release', 'vip-workflows' ) }
 						</Button>
 					) }
 				</Stack>
@@ -1047,7 +1050,10 @@ export function WorkflowPanel( { children } ) {
 
 			{ /* Claim button - server determines eligibility based on stage + role */ }
 			{ canClaim && (
-				<Stack className="vip-workflow-panel__claim" direction="column">
+				<Stack
+					className="vip-workflows-panel__claim"
+					direction="column"
+				>
 					<Button
 						variant="secondary"
 						size="compact"
@@ -1055,7 +1061,7 @@ export function WorkflowPanel( { children } ) {
 						isBusy={ transitioning }
 						disabled={ transitioning }
 					>
-						{ __( 'Claim', 'vip-workflow' ) }
+						{ __( 'Claim', 'vip-workflows' ) }
 					</Button>
 				</Stack>
 			) }
@@ -1067,22 +1073,22 @@ export function WorkflowPanel( { children } ) {
 			     instead and the rail below carries them, so no button here. */ }
 			{ ! agentPending && agentFailed && (
 				// wpds-allow R7 -- error surface (background + border + radius) whose title, error line and button sit at three different distances; <Stack> draws none of the three and has one uniform gap.
-				<div className="vip-workflow-panel__agent-failed">
+				<div className="vip-workflows-panel__agent-failed">
 					<Text
 						variant="body-md"
 						render={ <p /> }
-						className="vip-workflow-panel__agent-failed-title"
+						className="vip-workflows-panel__agent-failed-title"
 					>
 						{ __(
 							'The AI agent could not finish.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
 					{ agentJob?.error && (
 						<Text
 							variant="body-sm"
 							render={ <p /> }
-							className="vip-workflow-panel__agent-failed-error"
+							className="vip-workflows-panel__agent-failed-error"
 						>
 							{ agentJob.error }
 						</Text>
@@ -1097,7 +1103,7 @@ export function WorkflowPanel( { children } ) {
 						>
 							{ sprintf(
 								/* translators: %s: the stage the post is returned to. */
-								__( 'Go back to %s', 'vip-workflow' ),
+								__( 'Go back to %s', 'vip-workflows' ),
 								agentJob.revert_to.label
 							) }
 						</Button>
@@ -1116,10 +1122,10 @@ export function WorkflowPanel( { children } ) {
 					status="info"
 					isDismissible
 					onRemove={ () => setShowRefreshPrompt( false ) }
-					className="vip-workflow-panel__agent-refresh"
+					className="vip-workflows-panel__agent-refresh"
 					actions={ [
 						{
-							label: __( 'Reload', 'vip-workflow' ),
+							label: __( 'Reload', 'vip-workflows' ),
 							onClick: () => window.location.reload(),
 							variant: 'primary',
 						},
@@ -1127,7 +1133,7 @@ export function WorkflowPanel( { children } ) {
 				>
 					{ __(
 						'The AI agent updated this post. Reload to see its changes — this discards your unsaved edits.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				</DismissibleNotice>
 			) }
@@ -1140,7 +1146,7 @@ export function WorkflowPanel( { children } ) {
 					status="error"
 					isDismissible
 					onRemove={ () => setActionError( null ) }
-					className="vip-workflow-panel__action-error"
+					className="vip-workflows-panel__action-error"
 				>
 					{ actionError }
 				</DismissibleNotice>
@@ -1192,7 +1198,7 @@ export function WorkflowPanel( { children } ) {
 			     Removal keeps its "require" gating: an enforced workflow offers
 			     no way out. */ }
 			<Stack
-				className="vip-workflow-panel__footer-actions"
+				className="vip-workflows-panel__footer-actions"
 				direction="column"
 				gap="sm"
 			>
@@ -1200,7 +1206,7 @@ export function WorkflowPanel( { children } ) {
 					variant="secondary"
 					onClick={ () => setHistoryOpen( true ) }
 				>
-					{ __( 'Show history', 'vip-workflow' ) }
+					{ __( 'Show history', 'vip-workflows' ) }
 				</Button>
 				{ ! isWorkflowRequired && (
 					<Button
@@ -1222,7 +1228,7 @@ export function WorkflowPanel( { children } ) {
 				<Suspense
 					fallback={
 						<Modal
-							title={ __( 'Workflow History', 'vip-workflow' ) }
+							title={ __( 'Workflow History', 'vip-workflows' ) }
 							onRequestClose={ () => setHistoryOpen( false ) }
 							size="medium"
 						>
@@ -1241,7 +1247,7 @@ export function WorkflowPanel( { children } ) {
 			     same dialog, same chrome, one component. */ }
 			{ toolFailures && (
 				<ToolFailuresModal
-					title={ __( 'Transition Blocked', 'vip-workflow' ) }
+					title={ __( 'Transition Blocked', 'vip-workflows' ) }
 					message={ toolFailures.message }
 					hardFailures={ toolFailures.hardFailures }
 					softWarnings={ toolFailures.softWarnings }
@@ -1252,7 +1258,7 @@ export function WorkflowPanel( { children } ) {
 					// like output from a tool that does not exist.
 					hardTitle={
 						toolFailures.code === REQUIRED_METADATA_LOCK
-							? __( 'Required fields are empty', 'vip-workflow' )
+							? __( 'Required fields are empty', 'vip-workflows' )
 							: undefined
 					}
 					onClose={ () => setToolFailures( null ) }
@@ -1262,16 +1268,16 @@ export function WorkflowPanel( { children } ) {
 			{ /* Warnings Confirmation Modal */ }
 			{ warningsModal && (
 				<ToolFailuresModal
-					title={ __( 'Warnings Detected', 'vip-workflow' ) }
+					title={ __( 'Warnings Detected', 'vip-workflows' ) }
 					message={ __(
 						'The following warnings were detected:',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					softWarnings={ warningsModal.warnings }
 					// The shared default reads "(not blocking)", which is wrong
 					// here: this dialog stands between the author and the
 					// transition until they choose to continue past it.
-					softTitle={ __( 'Warnings', 'vip-workflow' ) }
+					softTitle={ __( 'Warnings', 'vip-workflows' ) }
 					onClose={ () => setWarningsModal( null ) }
 					actions={
 						/* Weight follows consequence: retreating is the
@@ -1287,7 +1293,7 @@ export function WorkflowPanel( { children } ) {
 								variant="tertiary"
 								onClick={ () => setWarningsModal( null ) }
 							>
-								{ __( 'Cancel', 'vip-workflow' ) }
+								{ __( 'Cancel', 'vip-workflows' ) }
 							</Button>
 							<Button
 								variant="primary"
@@ -1295,7 +1301,7 @@ export function WorkflowPanel( { children } ) {
 								isBusy={ transitioning }
 								disabled={ transitioning }
 							>
-								{ __( 'Continue', 'vip-workflow' ) }
+								{ __( 'Continue', 'vip-workflows' ) }
 							</Button>
 						</>
 					}
@@ -1312,12 +1318,12 @@ export function WorkflowPanel( { children } ) {
 					title={
 						currentInput.label ||
 						inputQueue.transitionLabel ||
-						__( 'Select assignee', 'vip-workflow' )
+						__( 'Select assignee', 'vip-workflows' )
 					}
 					anchor={ inputQueue.anchor }
 					assigneeType={ currentInput.assignee_type || 'user' }
 					roleFilter={ currentInput.filter?.roles || [] }
-					notesLabel={ __( 'Notes (optional)', 'vip-workflow' ) }
+					notesLabel={ __( 'Notes (optional)', 'vip-workflows' ) }
 					notesRequired={ false }
 					onSubmit={ handleAssignmentSelect }
 					onClose={ () => setInputQueue( null ) }
@@ -1338,7 +1344,7 @@ export function WorkflowPanel( { children } ) {
 						anchor={ inputQueue.anchor }
 						label={
 							currentInput.note_name ||
-							__( 'Note', 'vip-workflow' )
+							__( 'Note', 'vip-workflows' )
 						}
 						inputType="textarea"
 						required={ currentInput.required || false }

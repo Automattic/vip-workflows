@@ -19,18 +19,18 @@
  * happens to ask in another, so a config breaking two of them can be named by a
  * different one of the two depending on which path is asked.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
-use VIPWorkflow\API\SequencesController;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\API\SequencesController;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
 
-const VALIDATE_SEQUENCE_ABILITY_ID = 'vip-workflow/validate-sequence';
+const VALIDATE_SEQUENCE_ABILITY_ID = 'vip-workflows/validate-sequence';
 
 /**
  * Execute the sequence validation dry run.
@@ -50,14 +50,14 @@ function execute_validate_sequence( ?array $input = null ) {
 	if ( $sequence_id > 0 && null !== $config ) {
 		return new \WP_Error(
 			'ambiguous_input',
-			__( 'Pass either "sequence_id" or "config", not both.', 'vip-workflow' )
+			__( 'Pass either "sequence_id" or "config", not both.', 'vip-workflows' )
 		);
 	}
 
 	if ( 0 === $sequence_id && null === $config ) {
 		return new \WP_Error(
 			'missing_input',
-			__( 'One of "sequence_id" or "config" is required.', 'vip-workflow' )
+			__( 'One of "sequence_id" or "config" is required.', 'vip-workflows' )
 		);
 	}
 
@@ -67,7 +67,7 @@ function execute_validate_sequence( ?array $input = null ) {
 		if ( ! $sequence ) {
 			return new \WP_Error(
 				'sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflow' )
+				__( 'Sequence not found.', 'vip-workflows' )
 			);
 		}
 
@@ -78,7 +78,7 @@ function execute_validate_sequence( ?array $input = null ) {
 		if ( ! is_array( $config ) ) {
 			return new \WP_Error(
 				'invalid_config',
-				__( 'The "config" parameter must be an object.', 'vip-workflow' )
+				__( 'The "config" parameter must be an object.', 'vip-workflows' )
 			);
 		}
 
@@ -150,7 +150,7 @@ function execute_validate_sequence( ?array $input = null ) {
 			'regions_missing_entry' => array(),
 			'normalized_config'     => $config,
 			'notes'                 => array(
-				__( 'Phase sequences are exempt from the stage graph rules; the write gate normalizes nothing for them.', 'vip-workflow' ),
+				__( 'Phase sequences are exempt from the stage graph rules; the write gate normalizes nothing for them.', 'vip-workflows' ),
 			),
 		);
 	}
@@ -218,7 +218,7 @@ function describe_sequence_normalization( array $before, array $after ): array {
 		if ( '' !== $original_key && $original_key !== $key ) {
 			$changes[] = sprintf(
 				/* translators: 1: stage key as supplied, 2: normalized stage key. */
-				__( 'Stage key "%1$s" is normalized to "%2$s".', 'vip-workflow' ),
+				__( 'Stage key "%1$s" is normalized to "%2$s".', 'vip-workflows' ),
 				$original_key,
 				$key
 			);
@@ -228,7 +228,7 @@ function describe_sequence_normalization( array $before, array $after ): array {
 		if ( null === $original_region || '' === $original_region ) {
 			$changes[] = sprintf(
 				/* translators: 1: stage key, 2: status region the stage is assigned to. */
-				__( 'Stage "%1$s" has no status region and is assigned to "%2$s".', 'vip-workflow' ),
+				__( 'Stage "%1$s" has no status region and is assigned to "%2$s".', 'vip-workflows' ),
 				$key,
 				(string) ( $stage['status'] ?? '' )
 			);
@@ -237,7 +237,7 @@ function describe_sequence_normalization( array $before, array $after ): array {
 		if ( ! empty( $stage['region_entry'] ) && empty( $original['region_entry'] ) ) {
 			$changes[] = sprintf(
 				/* translators: 1: status region, 2: stage key made the region entry checkpoint. */
-				__( 'Region "%1$s" designates no entry checkpoint, so stage "%2$s" becomes its entry.', 'vip-workflow' ),
+				__( 'Region "%1$s" designates no entry checkpoint, so stage "%2$s" becomes its entry.', 'vip-workflows' ),
 				(string) ( $stage['status'] ?? '' ),
 				$key
 			);
@@ -255,27 +255,27 @@ function describe_sequence_normalization( array $before, array $after ): array {
  * @return void
  */
 function register_validate_sequence(): void {
-	vip_workflow_register_ability(
+	vip_workflows_register_ability(
 		VALIDATE_SEQUENCE_ABILITY_ID,
 		array(
-			'label'               => __( 'Validate Sequence', 'vip-workflow' ),
-			'description'         => __( 'Dry-runs a sequence configuration through the write gate without saving it. Reports whether it is valid, what normalization would change, and which stage/region invariants it breaks. Pass "sequence_id" to inspect a stored sequence, or "config" to check a proposed one.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Validate Sequence', 'vip-workflows' ),
+			'description'         => __( 'Dry-runs a sequence configuration through the write gate without saving it. Reports whether it is valid, what normalization would change, and which stage/region invariants it breaks. Pass "sequence_id" to inspect a stored sequence, or "config" to check a proposed one.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
 				'properties'           => array(
 					'sequence_id' => array(
 						'type'        => 'integer',
-						'description' => __( 'Validate the stored configuration of this sequence. Mutually exclusive with "config".', 'vip-workflow' ),
+						'description' => __( 'Validate the stored configuration of this sequence. Mutually exclusive with "config".', 'vip-workflows' ),
 					),
 					'config'      => array(
 						'type'        => 'object',
-						'description' => __( 'Validate a proposed sequence configuration (a "statuses" array, plus any other config keys). Mutually exclusive with "sequence_id".', 'vip-workflow' ),
+						'description' => __( 'Validate a proposed sequence configuration (a "statuses" array, plus any other config keys). Mutually exclusive with "sequence_id".', 'vip-workflows' ),
 					),
 					'type'        => array(
 						'type'        => 'string',
-						'description' => __( 'Sequence type the proposed config is for. Only meaningful with "config"; a stored sequence uses its own type. Defaults to "workflow".', 'vip-workflow' ),
+						'description' => __( 'Sequence type the proposed config is for. Only meaningful with "config"; a stored sequence uses its own type. Defaults to "workflow".', 'vip-workflows' ),
 						'enum'        => array( Sequence::TYPE_WORKFLOW, Sequence::TYPE_PHASE ),
 						'default'     => Sequence::TYPE_WORKFLOW,
 					),
@@ -287,43 +287,43 @@ function register_validate_sequence(): void {
 				'properties'           => array(
 					'sequence_id'           => array(
 						'type'        => array( 'integer', 'null' ),
-						'description' => __( 'The validated sequence ID, or null when a proposed config was validated.', 'vip-workflow' ),
+						'description' => __( 'The validated sequence ID, or null when a proposed config was validated.', 'vip-workflows' ),
 					),
 					'type'                  => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence type the config was validated as.', 'vip-workflow' ),
+						'description' => __( 'The sequence type the config was validated as.', 'vip-workflows' ),
 					),
 					'valid'                 => array(
 						'type'        => 'boolean',
-						'description' => __( 'Whether the write gate would accept this configuration.', 'vip-workflow' ),
+						'description' => __( 'Whether the write gate would accept this configuration.', 'vip-workflows' ),
 					),
 					'errors'                => array(
 						'type'        => 'array',
-						'description' => __( 'Why the configuration was rejected. The gate reports the first rule broken, so fixing one error may reveal another.', 'vip-workflow' ),
+						'description' => __( 'Why the configuration was rejected. The gate reports the first rule broken, so fixing one error may reveal another.', 'vip-workflows' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 					'normalization'         => array(
 						'type'        => 'array',
-						'description' => __( 'What the write gate would silently change (defaulted status regions, auto-assigned region entry checkpoints, normalized keys).', 'vip-workflow' ),
+						'description' => __( 'What the write gate would silently change (defaulted status regions, auto-assigned region entry checkpoints, normalized keys).', 'vip-workflows' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 					'stages_missing_region' => array(
 						'type'        => 'array',
-						'description' => __( 'Stage keys carrying no status region. Every read of such a stage throws until it is repaired.', 'vip-workflow' ),
+						'description' => __( 'Stage keys carrying no status region. Every read of such a stage throws until it is repaired.', 'vip-workflows' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 					'regions_missing_entry' => array(
 						'type'        => 'array',
-						'description' => __( 'Status regions that hold stages but designate no entry checkpoint. Every core-driven reseat into such a region throws until it is repaired.', 'vip-workflow' ),
+						'description' => __( 'Status regions that hold stages but designate no entry checkpoint. Every core-driven reseat into such a region throws until it is repaired.', 'vip-workflows' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 					'normalized_config'     => array(
 						'type'        => array( 'object', 'null' ),
-						'description' => __( 'The configuration as it would be persisted, or null when it was rejected.', 'vip-workflow' ),
+						'description' => __( 'The configuration as it would be persisted, or null when it was rejected.', 'vip-workflows' ),
 					),
 					'notes'                 => array(
 						'type'        => 'array',
-						'description' => __( 'Advisories about the scope of the check itself.', 'vip-workflow' ),
+						'description' => __( 'Advisories about the scope of the check itself.', 'vip-workflows' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 				),

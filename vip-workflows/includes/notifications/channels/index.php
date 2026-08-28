@@ -2,5 +2,5 @@
 /**
  * Silence is golden.
  *
- * @package VIPWorkflow\Notifications\Channels
+ * @package VIPWorkflows\Notifications\Channels
  */

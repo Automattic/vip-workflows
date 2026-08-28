@@ -18,7 +18,7 @@
 import { Stack } from '@wordpress/ui';
 
 export function ModalBody( { children, gap = 'md', className } ) {
-	const classNames = [ 'vip-workflow-modal-body', className ]
+	const classNames = [ 'vip-workflows-modal-body', className ]
 		.filter( Boolean )
 		.join( ' ' );
 

@@ -52,18 +52,18 @@ import '../admin-page.css';
 function Breadcrumbs( { items } ) {
 	return (
 		<nav
-			className="vip-workflow-admin-page__breadcrumbs"
-			aria-label={ __( 'Breadcrumbs', 'vip-workflow' ) }
+			className="vip-workflows-admin-page__breadcrumbs"
+			aria-label={ __( 'Breadcrumbs', 'vip-workflows' ) }
 		>
-			<ul className="vip-workflow-admin-page__breadcrumb-list">
+			<ul className="vip-workflows-admin-page__breadcrumb-list">
 				{ items.map( ( item, index ) => (
 					<li
 						key={ index }
-						className="vip-workflow-admin-page__breadcrumb-item"
+						className="vip-workflows-admin-page__breadcrumb-item"
 					>
 						{ index > 0 && (
 							<span
-								className="vip-workflow-admin-page__breadcrumb-separator"
+								className="vip-workflows-admin-page__breadcrumb-separator"
 								aria-hidden="true"
 							>
 								/
@@ -71,7 +71,7 @@ function Breadcrumbs( { items } ) {
 						) }
 						{ item.type === 'link' ? (
 							<a
-								className="vip-workflow-admin-page__breadcrumb-link"
+								className="vip-workflows-admin-page__breadcrumb-link"
 								href={ item.href }
 							>
 								{ item.label }
@@ -80,7 +80,7 @@ function Breadcrumbs( { items } ) {
 							<Text
 								variant="heading-lg"
 								render={ <h1 /> }
-								className="vip-workflow-admin-page__title"
+								className="vip-workflows-admin-page__title"
 							>
 								{ item.label }
 							</Text>
@@ -141,17 +141,17 @@ export default function AdminPage( {
 	const regionLabel = typeof headingText === 'string' ? headingText : '';
 
 	const headerInnerClass = constrained
-		? 'vip-workflow-admin-page__header-inner is-constrained'
-		: 'vip-workflow-admin-page__header-inner';
+		? 'vip-workflows-admin-page__header-inner is-constrained'
+		: 'vip-workflows-admin-page__header-inner';
 	const contentInnerClass = constrained
-		? 'vip-workflow-admin-page__content-inner is-constrained'
-		: 'vip-workflow-admin-page__content-inner';
+		? 'vip-workflows-admin-page__content-inner is-constrained'
+		: 'vip-workflows-admin-page__content-inner';
 
 	// Full-bleed pins the page to the viewport; the content fills the remaining
 	// height below the header and scrolls internally rather than the page.
 	const pageClass = fullBleed
-		? 'vip-workflow-admin-page vip-workflow-admin-page--full-bleed'
-		: 'vip-workflow-admin-page';
+		? 'vip-workflows-admin-page vip-workflows-admin-page--full-bleed'
+		: 'vip-workflows-admin-page';
 
 	return (
 		<div
@@ -161,13 +161,13 @@ export default function AdminPage( {
 			tabIndex="-1"
 		>
 			{ hasHeader && (
-				<header className="vip-workflow-admin-page__header">
+				<header className="vip-workflows-admin-page__header">
 					<div className={ headerInnerClass }>
-						<div className="vip-workflow-admin-page__header-row">
-							<div className="vip-workflow-admin-page__header-main">
+						<div className="vip-workflows-admin-page__header-row">
+							<div className="vip-workflows-admin-page__header-main">
 								{ visual && (
 									<span
-										className="vip-workflow-admin-page__icon"
+										className="vip-workflows-admin-page__icon"
 										aria-hidden="true"
 									>
 										{ visual }
@@ -180,7 +180,7 @@ export default function AdminPage( {
 										<Text
 											variant="heading-lg"
 											render={ <h1 /> }
-											className="vip-workflow-admin-page__title"
+											className="vip-workflows-admin-page__title"
 										>
 											{ headingText }
 										</Text>
@@ -188,7 +188,7 @@ export default function AdminPage( {
 								) }
 							</div>
 							{ actions && (
-								<div className="vip-workflow-admin-page__actions">
+								<div className="vip-workflows-admin-page__actions">
 									{ actions }
 								</div>
 							) }
@@ -197,7 +197,7 @@ export default function AdminPage( {
 							<Text
 								variant="body-sm"
 								render={ <p /> }
-								className="vip-workflow-admin-page__subtitle"
+								className="vip-workflows-admin-page__subtitle"
 							>
 								{ subtitle }
 							</Text>
@@ -205,7 +205,7 @@ export default function AdminPage( {
 					</div>
 				</header>
 			) }
-			<div className="vip-workflow-admin-page__content">
+			<div className="vip-workflows-admin-page__content">
 				<div className={ contentInnerClass }>{ children }</div>
 			</div>
 		</div>

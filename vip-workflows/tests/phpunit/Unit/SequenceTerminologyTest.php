@@ -10,12 +10,12 @@
  * Shipping code has one legitimate mention: the migration that converts the old
  * table and meta key has to name what it is converting from.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use PHPUnit\Framework\TestCase as PHPUnitTestCase;
 use RecursiveDirectoryIterator;
@@ -144,7 +144,7 @@ class SequenceTerminologyTest extends PHPUnitTestCase
      * @var string[]
      */
     private const REMOVED_SYMBOLS = array(
-        'VIPWorkflow\\Blueprints',
+        'VIPWorkflows\\Blueprints',
         'BlueprintRepository',
         'BlueprintsController',
         'BlueprintCptRestController',
@@ -161,7 +161,7 @@ class SequenceTerminologyTest extends PHPUnitTestCase
      * assertion spells, and which fail only when the file is executed.
      *
      * This is not hypothetical. MetadataFieldSanitizationTest arrived on main
-     * during this rename holding `VIPWorkflow\Blueprints\BlueprintRepository`,
+     * during this rename holding `VIPWorkflows\Blueprints\BlueprintRepository`,
      * passed the word guard because tests are not scanned, and took the
      * integration suite down with "Class not found" three tests at a time.
      */

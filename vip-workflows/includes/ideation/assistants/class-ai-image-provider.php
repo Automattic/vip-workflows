@@ -5,17 +5,17 @@
  * Generates images via OpenAI's DALL-E / gpt-image models using the
  * WordPress AI Client. Generated images are saved to the WP Media Library.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Integrations\SsrfGuard;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Integrations\SsrfGuard;
 use WP_Error;
 
 /**
@@ -38,7 +38,7 @@ class AiImageProvider implements MediaProviderInterface, MediaProviderRequiremen
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'AI Generated (OpenAI)', 'vip-workflow' );
+		return __( 'AI Generated (OpenAI)', 'vip-workflows' );
 	}
 
 	/**
@@ -97,8 +97,8 @@ class AiImageProvider implements MediaProviderInterface, MediaProviderRequiremen
 		if ( ! $this->has_ai_client() ) {
 			return RequirementFactory::unsupported_environment(
 				'dependency:ai-client',
-				__( 'The WordPress AI client is not available on this site, so images cannot be generated.', 'vip-workflow' ),
-				__( 'AI image generation is not available on this site.', 'vip-workflow' ),
+				__( 'The WordPress AI client is not available on this site, so images cannot be generated.', 'vip-workflows' ),
+				__( 'AI image generation is not available on this site.', 'vip-workflows' ),
 				array( $this->get_name() )
 			);
 		}
@@ -140,14 +140,14 @@ class AiImageProvider implements MediaProviderInterface, MediaProviderRequiremen
 					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- SSRF rejection audit logging.
 					error_log(
 						sprintf(
-							'[vip-workflow] AI image URL rejected by SSRF guard: %s (%s)',
+							'[vip-workflows] AI image URL rejected by SSRF guard: %s (%s)',
 							$validation->get_error_code(),
 							$validation->get_error_message()
 						)
 					);
 					return new WP_Error(
 						'ssrf_rejected',
-						__( 'AI provider returned a URL outside the approved egress allowlist.', 'vip-workflow' )
+						__( 'AI provider returned a URL outside the approved egress allowlist.', 'vip-workflows' )
 					);
 				}
 

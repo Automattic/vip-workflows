@@ -3,14 +3,14 @@
  * Get Sequences ability.
  *
  * Lists active workflow sequences with their statuses. The registered slug
- * (vip-workflow/get-sequences) is kept stable for MCP/back-compat.
+ * (vip-workflows/get-sequences) is kept stable for MCP/back-compat.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the sequences query.
@@ -22,7 +22,7 @@ function execute_get_sequences( ?array $input = null ) {
 	$input = $input ?? array();
 	$type  = $input['type'] ?? null;
 
-	$repository = new \VIPWorkflow\Sequences\SequenceRepository();
+	$repository = new \VIPWorkflows\Sequences\SequenceRepository();
 
 	if ( 'workflow' === $type ) {
 		$sequences = $repository->get_workflow_sequences( array( 'active' => true ) );
@@ -74,18 +74,18 @@ function execute_get_sequences( ?array $input = null ) {
  */
 function register_get_sequences(): void {
 	wp_register_ability(
-		'vip-workflow/get-sequences',
+		'vip-workflows/get-sequences',
 		array(
-			'label'               => __( 'Get Sequences', 'vip-workflow' ),
-			'description'         => __( 'Lists active workflow sequences with their statuses and configuration.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Get Sequences', 'vip-workflows' ),
+			'description'         => __( 'Lists active workflow sequences with their statuses and configuration.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
 				'properties'           => array(
 					'type' => array(
 						'type'        => 'string',
-						'description' => __( 'Optional filter: "workflow". Omit for all.', 'vip-workflow' ),
+						'description' => __( 'Optional filter: "workflow". Omit for all.', 'vip-workflows' ),
 						'enum'        => array( 'workflow' ),
 					),
 				),
@@ -96,11 +96,11 @@ function register_get_sequences(): void {
 				'properties'           => array(
 					'count'     => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of sequences returned.', 'vip-workflow' ),
+						'description' => __( 'Number of sequences returned.', 'vip-workflows' ),
 					),
 					'sequences' => array(
 						'type'        => 'array',
-						'description' => __( 'Array of sequence objects with status details.', 'vip-workflow' ),
+						'description' => __( 'Array of sequence objects with status details.', 'vip-workflows' ),
 					),
 				),
 			),

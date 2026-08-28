@@ -35,7 +35,7 @@ const PANEL_ID = 'prompts';
  */
 function groupByGroup( prompts ) {
 	return prompts.reduce( ( acc, prompt ) => {
-		const key = prompt.group || __( 'General', 'vip-workflow' );
+		const key = prompt.group || __( 'General', 'vip-workflows' );
 		( acc[ key ] = acc[ key ] || [] ).push( prompt );
 		return acc;
 	}, {} );
@@ -55,7 +55,7 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 	const [ error, setError ] = useState( null );
 
 	useEffect( () => {
-		apiFetch( { path: '/vip-workflow/v1/prompts' } )
+		apiFetch( { path: '/vip-workflows/v1/prompts' } )
 			.then( ( data ) => {
 				setPrompts( data );
 				setDrafts(
@@ -86,7 +86,7 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 				continue;
 			}
 			const updated = await apiFetch( {
-				path: `/vip-workflow/v1/prompts/${ prompt.id }`,
+				path: `/vip-workflows/v1/prompts/${ prompt.id }`,
 				method: 'POST',
 				data: { prompt: drafts[ prompt.id ] },
 			} );
@@ -113,7 +113,7 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 			<Notice status="error" isDismissible={ false }>
 				{ sprintf(
 					/* translators: %s: error message from the prompts request. */
-					__( 'Failed to load prompts: %s', 'vip-workflow' ),
+					__( 'Failed to load prompts: %s', 'vip-workflows' ),
 					error
 				) }
 			</Notice>
@@ -123,7 +123,7 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 	if ( null === prompts ) {
 		return (
 			<SettingsLoading
-				label={ __( 'Loading prompts…', 'vip-workflow' ) }
+				label={ __( 'Loading prompts…', 'vip-workflows' ) }
 			/>
 		);
 	}
@@ -133,7 +133,7 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 			<Text variant="body-md" render={ <p /> }>
 				{ __(
 					'No configurable prompts are registered.',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			</Text>
 		);
@@ -159,7 +159,7 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 									prompt.description ||
 									__(
 										'Leave empty to use the default.',
-										'vip-workflow'
+										'vip-workflows'
 									)
 								}
 								value={ drafts[ prompt.id ] }
@@ -182,7 +182,7 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 									>
 										{ __(
 											'Reset to default',
-											'vip-workflow'
+											'vip-workflows'
 										) }
 									</Button>
 								</Stack>

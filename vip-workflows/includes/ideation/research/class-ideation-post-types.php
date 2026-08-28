@@ -4,14 +4,14 @@
  *
  * Registers the Ideation Project custom post type and its statuses.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Research;
+namespace VIPWorkflows\Ideation\Research;
 
-use VIPWorkflow\ModuleInterface;
+use VIPWorkflows\ModuleInterface;
 
 /**
  * Registers and manages ideation-related post types.
@@ -61,22 +61,22 @@ class IdeationPostTypes implements ModuleInterface {
 	 */
 	public function register_post_type(): void {
 		$labels = array(
-			'name'                  => _x( 'Ideation Projects', 'Post type general name', 'vip-workflow' ),
-			'singular_name'         => _x( 'Ideation Project', 'Post type singular name', 'vip-workflow' ),
-			'menu_name'             => _x( 'Ideation', 'Admin Menu text', 'vip-workflow' ),
-			'add_new'               => __( 'Add New', 'vip-workflow' ),
-			'add_new_item'          => __( 'Add New Ideation Project', 'vip-workflow' ),
-			'edit_item'             => __( 'Edit Ideation Project', 'vip-workflow' ),
-			'new_item'              => __( 'New Ideation Project', 'vip-workflow' ),
-			'view_item'             => __( 'View Ideation Project', 'vip-workflow' ),
-			'search_items'          => __( 'Search Ideation Projects', 'vip-workflow' ),
-			'not_found'             => __( 'No ideation projects found', 'vip-workflow' ),
-			'not_found_in_trash'    => __( 'No ideation projects found in Trash', 'vip-workflow' ),
-			'all_items'             => __( 'All Ideation Projects', 'vip-workflow' ),
-			'archives'              => __( 'Ideation Archives', 'vip-workflow' ),
-			'filter_items_list'     => __( 'Filter ideation list', 'vip-workflow' ),
-			'items_list_navigation' => __( 'Ideation list navigation', 'vip-workflow' ),
-			'items_list'            => __( 'Ideation list', 'vip-workflow' ),
+			'name'                  => _x( 'Ideation Projects', 'Post type general name', 'vip-workflows' ),
+			'singular_name'         => _x( 'Ideation Project', 'Post type singular name', 'vip-workflows' ),
+			'menu_name'             => _x( 'Ideation', 'Admin Menu text', 'vip-workflows' ),
+			'add_new'               => __( 'Add New', 'vip-workflows' ),
+			'add_new_item'          => __( 'Add New Ideation Project', 'vip-workflows' ),
+			'edit_item'             => __( 'Edit Ideation Project', 'vip-workflows' ),
+			'new_item'              => __( 'New Ideation Project', 'vip-workflows' ),
+			'view_item'             => __( 'View Ideation Project', 'vip-workflows' ),
+			'search_items'          => __( 'Search Ideation Projects', 'vip-workflows' ),
+			'not_found'             => __( 'No ideation projects found', 'vip-workflows' ),
+			'not_found_in_trash'    => __( 'No ideation projects found in Trash', 'vip-workflows' ),
+			'all_items'             => __( 'All Ideation Projects', 'vip-workflows' ),
+			'archives'              => __( 'Ideation Archives', 'vip-workflows' ),
+			'filter_items_list'     => __( 'Filter ideation list', 'vip-workflows' ),
+			'items_list_navigation' => __( 'Ideation list navigation', 'vip-workflows' ),
+			'items_list'            => __( 'Ideation list', 'vip-workflows' ),
 		);
 
 		$args = array(
@@ -95,7 +95,7 @@ class IdeationPostTypes implements ModuleInterface {
 			'supports'            => array( 'title', 'editor', 'author' ),
 			'show_in_rest'        => true,
 			'rest_base'           => 'vip-ideation',
-			'rest_namespace'      => 'vip-workflow/v1',
+			'rest_namespace'      => 'vip-workflows/v1',
 		);
 
 		register_post_type( self::POST_TYPE, $args );
@@ -108,9 +108,9 @@ class IdeationPostTypes implements ModuleInterface {
 		register_post_status(
 			self::STATUS_ACTIVE,
 			array(
-				'label'                     => _x( 'Active', 'Ideation status', 'vip-workflow' ),
+				'label'                     => _x( 'Active', 'Ideation status', 'vip-workflows' ),
 				/* translators: %s: number of active ideation posts. */
-				'label_count'               => _n_noop( 'Active <span class="count">(%s)</span>', 'Active <span class="count">(%s)</span>', 'vip-workflow' ),
+				'label_count'               => _n_noop( 'Active <span class="count">(%s)</span>', 'Active <span class="count">(%s)</span>', 'vip-workflows' ),
 				'public'                    => false,
 				'exclude_from_search'       => true,
 				'show_in_admin_all_list'    => true,
@@ -121,9 +121,9 @@ class IdeationPostTypes implements ModuleInterface {
 		register_post_status(
 			self::STATUS_ARCHIVE,
 			array(
-				'label'                     => _x( 'Archived', 'Ideation status', 'vip-workflow' ),
+				'label'                     => _x( 'Archived', 'Ideation status', 'vip-workflows' ),
 				/* translators: %s: number of archived ideation posts. */
-				'label_count'               => _n_noop( 'Archived <span class="count">(%s)</span>', 'Archived <span class="count">(%s)</span>', 'vip-workflow' ),
+				'label_count'               => _n_noop( 'Archived <span class="count">(%s)</span>', 'Archived <span class="count">(%s)</span>', 'vip-workflows' ),
 				'public'                    => false,
 				'exclude_from_search'       => true,
 				'show_in_admin_all_list'    => false,
@@ -208,17 +208,17 @@ class IdeationPostTypes implements ModuleInterface {
 		return array(
 			self::STATUS_DRAFT   => array(
 				'key'   => self::STATUS_DRAFT,
-				'label' => __( 'Draft', 'vip-workflow' ),
+				'label' => __( 'Draft', 'vip-workflows' ),
 				'color' => '#666666',
 			),
 			self::STATUS_ACTIVE  => array(
 				'key'   => self::STATUS_ACTIVE,
-				'label' => __( 'Active', 'vip-workflow' ),
+				'label' => __( 'Active', 'vip-workflows' ),
 				'color' => '#00a32a',
 			),
 			self::STATUS_ARCHIVE => array(
 				'key'   => self::STATUS_ARCHIVE,
-				'label' => __( 'Archived', 'vip-workflow' ),
+				'label' => __( 'Archived', 'vip-workflows' ),
 				'color' => '#999999',
 			),
 		);

@@ -15,7 +15,7 @@ const {
 	openWorkflowPanel,
 } = require( './helpers/workflow' );
 
-test.describe( 'VIP Workflow — transition (editor UI)', () => {
+test.describe( 'VIP Workflows — transition (editor UI)', () => {
 	let postId;
 
 	test.afterEach( async ( { requestUtils } ) => {
@@ -40,12 +40,12 @@ test.describe( 'VIP Workflow — transition (editor UI)', () => {
 
 		// The stage the post is on is named by the transition rail's header;
 		// the whole-workflow Progress list is gone — the rail replaced it.
-		const currentStage = panel.locator( '.vip-workflow-rail__stage' );
+		const currentStage = panel.locator( '.vip-workflows-rail__stage' );
 		await expect( currentStage ).toHaveText( 'Draft' );
 
 		// Perform the transition.
 		await panel
-			.locator( '.vip-workflow-rail__actions' )
+			.locator( '.vip-workflows-rail__actions' )
 			.getByRole( 'button', { name: 'Submit for Review' } )
 			.click();
 

@@ -207,7 +207,7 @@ const STATUS_ALPHA = {
  */
 function mockRoutes( { status, transition } = {} ) {
 	apiFetch.mockImplementation( ( { path, method } ) => {
-		if ( path.startsWith( '/vip-workflow/v1/workflow/kanban' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/workflow/kanban' ) ) {
 			// A fresh clone per fetch: the board mutates its copy optimistically.
 			return Promise.resolve( JSON.parse( JSON.stringify( KANBAN ) ) );
 		}
@@ -270,7 +270,7 @@ async function drop( cardId, columnKey ) {
  * @return {HTMLElement} Column element.
  */
 function column( label ) {
-	return screen.getByText( label ).closest( '.vip-workflow-kanban-column' );
+	return screen.getByText( label ).closest( '.vip-workflows-kanban-column' );
 }
 
 describe( 'KanbanBoard drop legality', () => {
@@ -290,16 +290,16 @@ describe( 'KanbanBoard drop legality', () => {
 		// both illegal. `review` is the one performable move, and the card's
 		// own column stays enabled because dropping back home is a no-op.
 		expect( column( 'Published' ) ).toHaveClass(
-			'vip-workflow-kanban-column--drop-disabled'
+			'vip-workflows-kanban-column--drop-disabled'
 		);
 		expect( column( 'Legal check' ) ).toHaveClass(
-			'vip-workflow-kanban-column--drop-disabled'
+			'vip-workflows-kanban-column--drop-disabled'
 		);
 		expect( column( 'In review' ) ).not.toHaveClass(
-			'vip-workflow-kanban-column--drop-disabled'
+			'vip-workflows-kanban-column--drop-disabled'
 		);
 		expect( column( 'Drafting' ) ).not.toHaveClass(
-			'vip-workflow-kanban-column--drop-disabled'
+			'vip-workflows-kanban-column--drop-disabled'
 		);
 
 		// Dimming alone would only discourage the drop; the droppable itself
@@ -331,7 +331,7 @@ describe( 'KanbanBoard drop legality', () => {
 		// transition endpoint remains the judge of an attempted drop.
 		expect(
 			document.querySelectorAll(
-				'.vip-workflow-kanban-column--drop-disabled'
+				'.vip-workflows-kanban-column--drop-disabled'
 			)
 		).toHaveLength( 0 );
 	} );
@@ -353,7 +353,7 @@ describe( 'KanbanBoard drop legality', () => {
 
 		expect(
 			document.querySelectorAll(
-				'.vip-workflow-kanban-column--drop-disabled'
+				'.vip-workflows-kanban-column--drop-disabled'
 			)
 		).toHaveLength( 0 );
 	} );
@@ -377,7 +377,7 @@ describe( 'KanbanBoard drop legality', () => {
 
 		expect(
 			document.querySelectorAll(
-				'.vip-workflow-kanban-column--drop-disabled'
+				'.vip-workflows-kanban-column--drop-disabled'
 			)
 		).toHaveLength( 0 );
 	} );
@@ -403,7 +403,7 @@ describe( 'KanbanBoard drop legality', () => {
 		} );
 		expect(
 			document.querySelectorAll(
-				'.vip-workflow-kanban-column--drop-disabled'
+				'.vip-workflows-kanban-column--drop-disabled'
 			)
 		).toHaveLength( 0 );
 
@@ -412,7 +412,7 @@ describe( 'KanbanBoard drop legality', () => {
 			answers[ 1 ]( STATUS_ALPHA );
 		} );
 		expect( column( 'Published' ) ).toHaveClass(
-			'vip-workflow-kanban-column--drop-disabled'
+			'vip-workflows-kanban-column--drop-disabled'
 		);
 	} );
 
@@ -421,7 +421,7 @@ describe( 'KanbanBoard drop legality', () => {
 		await renderBoard();
 		await startDrag();
 		expect( column( 'Published' ) ).toHaveClass(
-			'vip-workflow-kanban-column--drop-disabled'
+			'vip-workflows-kanban-column--drop-disabled'
 		);
 
 		// Let go over nowhere (or over a disabled column, which reports no
@@ -429,7 +429,7 @@ describe( 'KanbanBoard drop legality', () => {
 		await drop( 11, null );
 		expect(
 			document.querySelectorAll(
-				'.vip-workflow-kanban-column--drop-disabled'
+				'.vip-workflows-kanban-column--drop-disabled'
 			)
 		).toHaveLength( 0 );
 	} );
@@ -503,7 +503,7 @@ describe( 'KanbanBoard drop failure reporting', () => {
 		await drop( 11, 'newsroom__review' );
 
 		expect( apiFetch ).toHaveBeenCalledWith( {
-			path: '/vip-workflow/v1/workflow/post/11/transition',
+			path: '/vip-workflows/v1/workflow/post/11/transition',
 			method: 'POST',
 			data: { to_status: 'review' },
 		} );

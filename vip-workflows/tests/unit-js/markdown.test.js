@@ -30,7 +30,7 @@ describe( 'MarkdownText', () => {
 		const { container } = render( <MarkdownText text={ summary } /> );
 
 		expect(
-			container.querySelector( '.vip-workflow-markdown__heading' )
+			container.querySelector( '.vip-workflows-markdown__heading' )
 				.textContent
 		).toBe( 'Summary: History of the National Park Service' );
 
@@ -371,13 +371,13 @@ describe( 'MarkdownText', () => {
 			render(
 				<MarkdownText
 					text="Body."
-					className="vip-workflow-ideation-summary__text"
+					className="vip-workflows-ideation-summary__text"
 				/>
 			);
 
 			expect(
-				screen.getByText( 'Body.' ).closest( '.vip-workflow-markdown' )
-			).toHaveClass( 'vip-workflow-ideation-summary__text' );
+				screen.getByText( 'Body.' ).closest( '.vip-workflows-markdown' )
+			).toHaveClass( 'vip-workflows-ideation-summary__text' );
 		} );
 	} );
 } );

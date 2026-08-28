@@ -6,13 +6,13 @@
  */
 
 /* Install Skill Button */
-.vip-workflow-install-skill {
+.vip-workflows-install-skill {
 	background: var(--wpds-color-background-surface-neutral-weak);
 	border-radius: var( --wpds-border-radius-lg );
 	padding: var(--wpds-dimension-padding-md);
 	margin-bottom: var(--wpds-dimension-gap-lg); /* wpds-allow R3 -- spacing below the skill panel; the How-To modal body is not a Stack */
 }
 
-.vip-workflow-install-skill__btn {
+.vip-workflows-install-skill__btn {
 	white-space: nowrap;
 }

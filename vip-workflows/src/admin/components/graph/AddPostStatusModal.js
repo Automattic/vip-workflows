@@ -30,7 +30,7 @@ export default function AddPostStatusModal( { available, onAdd, onClose } ) {
 
 	return (
 		<Modal
-			title={ __( 'Add post status', 'vip-workflow' ) }
+			title={ __( 'Add post status', 'vip-workflows' ) }
 			onRequestClose={ onClose }
 			size="small"
 		>
@@ -38,7 +38,7 @@ export default function AddPostStatusModal( { available, onAdd, onClose } ) {
 				<SelectControl
 					__next40pxDefaultSize
 					__nextHasNoMarginBottom
-					label={ __( 'Post status', 'vip-workflow' ) }
+					label={ __( 'Post status', 'vip-workflows' ) }
 					help={ regionDescription( selected ) }
 					value={ selected }
 					options={ options }
@@ -47,12 +47,12 @@ export default function AddPostStatusModal( { available, onAdd, onClose } ) {
 				<Text variant="body-sm" render={ <p /> }>
 					{ __(
 						'Adds an empty group for this status. Drag stages into it to put them in that status; a transition that crosses the group’s edge is what changes the post’s status.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				</Text>
 				<ModalActions>
 					<Button variant="tertiary" onClick={ onClose }>
-						{ __( 'Cancel', 'vip-workflow' ) }
+						{ __( 'Cancel', 'vip-workflows' ) }
 					</Button>
 					<Button
 						variant="primary"
@@ -61,7 +61,7 @@ export default function AddPostStatusModal( { available, onAdd, onClose } ) {
 							onClose();
 						} }
 					>
-						{ __( 'Add status', 'vip-workflow' ) }
+						{ __( 'Add status', 'vip-workflows' ) }
 					</Button>
 				</ModalActions>
 			</Stack>

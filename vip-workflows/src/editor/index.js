@@ -1,5 +1,5 @@
 /**
- * VIP Workflow Editor Sidebar
+ * VIP Workflows Editor Sidebar
  *
  * @package
  */
@@ -23,7 +23,7 @@ import { MetadataPanel } from './components/MetadataPanel';
 import './style.css';
 
 // Hydrate the store from the server-rendered localized data.
-wp.data.dispatch( STORE_NAME ).hydrate( window.vipWorkflowEditor || {} );
+wp.data.dispatch( STORE_NAME ).hydrate( window.vipWorkflowsEditor || {} );
 
 /**
  * Main Workflow Plugin Component
@@ -87,22 +87,22 @@ function WorkflowPlugin() {
 
 			{ /* Same icon the plugin uses for its top-level wp-admin menu. */ }
 			<PluginSidebarMoreMenuItem
-				target="vip-workflow-sidebar"
+				target="vip-workflows-sidebar"
 				icon={ workflowIcon }
 			>
-				{ __( 'Workflow', 'vip-workflow' ) }
+				{ __( 'Workflow', 'vip-workflows' ) }
 			</PluginSidebarMoreMenuItem>
 			<PluginSidebar
-				name="vip-workflow-sidebar"
+				name="vip-workflows-sidebar"
 				icon={ workflowIcon }
-				title={ __( 'Workflow', 'vip-workflow' ) }
+				title={ __( 'Workflow', 'vip-workflows' ) }
 			>
 				{ /* `PluginSidebar` hands its children an edge-to-edge scroll
 				     region that draws nothing of its own. What sits inside it
 				     is flat — the pattern core's document sidebar uses
 				     (`PostPanelSection`): no card, no border of its own, just
 				     the standard panel inset, which lives on
-				     `.vip-workflow-sidebar` in style.css keyed to the direct
+				     `.vip-workflows-sidebar` in style.css keyed to the direct
 				     child. The runs within the panel rule themselves apart.
 
 				     Nothing here carries a heading of its own. The sidebar's
@@ -110,7 +110,7 @@ function WorkflowPlugin() {
 				     with the document sidebar's label-beside-value rows — the
 				     sequence the post is in, then the fields that sequence
 				     declares — which name themselves. */ }
-				<Stack className="vip-workflow-sidebar" direction="column">
+				<Stack className="vip-workflows-sidebar" direction="column">
 					{ /* Editorial metadata is nested, not a sibling section.
 					     The panel's foot — Show history, and the way out of
 					     the workflow — lives inside WorkflowPanel, and those
@@ -132,6 +132,6 @@ function WorkflowPlugin() {
 /**
  * Register the plugin sidebar
  */
-registerPlugin( 'vip-workflow', {
+registerPlugin( 'vip-workflows', {
 	render: WorkflowPlugin,
 } );

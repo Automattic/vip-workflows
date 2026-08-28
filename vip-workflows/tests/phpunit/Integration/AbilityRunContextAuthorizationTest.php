@@ -9,15 +9,15 @@
  * `current_user_can()` and so cannot prove either that the route is wired to
  * the check or that `map_meta_cap` resolves the way the check assumes.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Abilities\AbilityResultRepository;
-use VIPWorkflow\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\Abilities\AbilityResultRepository;
+use VIPWorkflows\Ideation\Research\IdeationPostTypes;
 use WP_REST_Request;
 use WP_REST_Response;
 
@@ -26,8 +26,8 @@ use WP_REST_Response;
  */
 class AbilityRunContextAuthorizationTest extends TestCase
 {
-    private const ABILITY = 'vip-workflow-test/echo';
-    private const ROUTE   = '/vip-workflow/v1/abilities/' . self::ABILITY . '/run';
+    private const ABILITY = 'vip-workflows-test/echo';
+    private const ROUTE   = '/vip-workflows/v1/abilities/' . self::ABILITY . '/run';
 
     /**
      * Whether the stand-in ability has been registered in this process.
@@ -247,7 +247,7 @@ class AbilityRunContextAuthorizationTest extends TestCase
                     array(
                         'label'               => 'Echo',
                         'description'         => 'Returns a fixed payload.',
-                        'category'            => 'vip-workflow',
+                        'category'            => 'vip-workflows',
                         'input_schema'        => array(
                             'type'                 => 'object',
                             'additionalProperties' => true,

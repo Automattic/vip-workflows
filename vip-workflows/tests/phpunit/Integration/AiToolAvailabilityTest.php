@@ -9,7 +9,7 @@
  * registered through core's `wp_register_ability()`, which produces a plain
  * `WP_Ability` with no availability channel at all, so declaring a callback
  * would not have helped either. This file pins both halves of the fix — that
- * an AI-backed tool registers as a `VIPWorkflow\Abilities\Ability`, and that the
+ * an AI-backed tool registers as a `VIPWorkflows\Abilities\Ability`, and that the
  * ability itself reports the missing credential — which is only provable where
  * core's real `WP_Ability` exists, i.e. here and not in the unit suite.
  *
@@ -23,20 +23,20 @@
  * callback, so this now exercises that same core method through a minimal
  * fixture ability defined right here, built to the same shape.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Fixtures\AiToolSource {
+namespace VIPWorkflows\Tests\Fixtures\AiToolSource {
 
-	use VIPWorkflow\Abilities\AiAvailability;
-	use VIPWorkflow\Abilities\Availability;
+	use VIPWorkflows\Abilities\AiAvailability;
+	use VIPWorkflows\Abilities\Availability;
 
 	/**
 	 * Ability id the fixture registers, mirroring a real AI-backed tool.
 	 */
-	const ABILITY_ID = 'vip-workflow-tests/ai-tool-fixture';
+	const ABILITY_ID = 'vip-workflows-tests/ai-tool-fixture';
 
 	/**
 	 * The entire gate, exactly as the real tools implemented it: delegate to the
@@ -51,16 +51,16 @@ namespace VIPWorkflow\Tests\Fixtures\AiToolSource {
 	 * real AI-backed tool registers.
 	 */
 	function register_ability(): void {
-		if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+		if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
 			return;
 		}
 
-		vip_workflow_register_ability(
+		vip_workflows_register_ability(
 			ABILITY_ID,
 			array(
 				'label'               => 'AI Tool Fixture',
 				'description'         => 'Test fixture for the AiAvailability::for_selected_provider() contract.',
-				'category'            => 'vip-workflow',
+				'category'            => 'vip-workflows',
 				'input_schema'        => array(
 					'type'       => 'object',
 					'properties' => array(
@@ -89,16 +89,16 @@ namespace VIPWorkflow\Tests\Fixtures\AiToolSource {
 	}
 }
 
-namespace VIPWorkflow\Tests\Integration {
+namespace VIPWorkflows\Tests\Integration {
 
-	use VIPWorkflow\AI\CredentialBackend;
-	use VIPWorkflow\AI\Credentials;
-	use VIPWorkflow\Abilities\Ability;
-	use VIPWorkflow\Abilities\Availability;
-	use VIPWorkflow\Abilities\Requirement;
-	use VIPWorkflow\Abilities\RequirementGroup;
+	use VIPWorkflows\AI\CredentialBackend;
+	use VIPWorkflows\AI\Credentials;
+	use VIPWorkflows\Abilities\Ability;
+	use VIPWorkflows\Abilities\Availability;
+	use VIPWorkflows\Abilities\Requirement;
+	use VIPWorkflows\Abilities\RequirementGroup;
 
-	use const VIPWorkflow\Tests\Fixtures\AiToolSource\ABILITY_ID;
+	use const VIPWorkflows\Tests\Fixtures\AiToolSource\ABILITY_ID;
 
 class AiToolAvailabilityTest extends TestCase
 {
@@ -122,8 +122,8 @@ class AiToolAvailabilityTest extends TestCase
     public function tear_down(): void
     {
         Credentials::get_instance()->set_backend( null );
-        delete_option( 'vip_workflow_ai_provider' );
-        delete_option( 'vip_workflow_ai_models' );
+        delete_option( 'vip_workflows_ai_provider' );
+        delete_option( 'vip_workflows_ai_models' );
 
         parent::tear_down();
     }
@@ -164,7 +164,7 @@ class AiToolAvailabilityTest extends TestCase
     private function use_backend_without_keys(): void
     {
         $this->assertFalse(
-            defined( 'VIP_WORKFLOW_OPENAI_KEY' ),
+            defined( 'VIP_WORKFLOWS_OPENAI_KEY' ),
             'A defined key constant outranks every backend, so it would make the unmet cases unreachable.'
         );
 
@@ -178,13 +178,13 @@ class AiToolAvailabilityTest extends TestCase
      */
     private function select_provider( string $provider ): void
     {
-        update_option( 'vip_workflow_ai_provider', $provider );
+        update_option( 'vip_workflows_ai_provider', $provider );
     }
 
     /**
      * The registered fixture ability, registering it on first use.
      *
-     * `vip_workflow_register_ability()` only functions while
+     * `vip_workflows_register_ability()` only functions while
      * `wp_abilities_api_init` is running, so the hook is fired again with other
      * listeners detached — WP_UnitTestCase restores `$wp_filter` afterwards.
      * Registration is global and outlives the test, hence the guard.
@@ -196,7 +196,7 @@ class AiToolAvailabilityTest extends TestCase
     {
         if ( ! wp_has_ability( $ability_id ) ) {
             remove_all_actions( 'wp_abilities_api_init' );
-            add_action( 'wp_abilities_api_init', 'VIPWorkflow\Tests\Fixtures\AiToolSource\register_ability' );
+            add_action( 'wp_abilities_api_init', 'VIPWorkflows\Tests\Fixtures\AiToolSource\register_ability' );
             do_action( 'wp_abilities_api_init' );
         }
 
@@ -504,8 +504,8 @@ class AiToolAvailabilityTest extends TestCase
     public static function provide_assistants(): array
     {
         return array(
-            'seed analyst'    => array( '\\VIPWorkflow\\Ideation\\Assistants\\SeedAnalyst', 'Seed Analyst' ),
-            'editorial mentor' => array( '\\VIPWorkflow\\Ideation\\Assistants\\EditorialMentor', 'Editorial Mentor' ),
+            'seed analyst'    => array( '\\VIPWorkflows\\Ideation\\Assistants\\SeedAnalyst', 'Seed Analyst' ),
+            'editorial mentor' => array( '\\VIPWorkflows\\Ideation\\Assistants\\EditorialMentor', 'Editorial Mentor' ),
         );
     }
 }

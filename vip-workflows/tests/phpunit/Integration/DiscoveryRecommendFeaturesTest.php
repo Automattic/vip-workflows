@@ -11,15 +11,15 @@
  * got back a 500 carrying the name of the missing callback. The screen now gates
  * the button on `features`, which only works while the payload keeps sending it.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\API\DiscoveryController;
-use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\API\DiscoveryController;
+use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 use WP_REST_Request;
 
 class DiscoveryRecommendFeaturesTest extends TestCase
@@ -150,7 +150,7 @@ class DiscoveryRecommendFeaturesTest extends TestCase
         $this->register_discovery_routes();
 
         $response = rest_get_server()->dispatch(
-            new WP_REST_Request( 'GET', '/vip-workflow/v1/discovery/recommend' )
+            new WP_REST_Request( 'GET', '/vip-workflows/v1/discovery/recommend' )
         );
 
         $this->assertSame( 200, $response->get_status() );
@@ -192,7 +192,7 @@ class DiscoveryRecommendFeaturesTest extends TestCase
      */
     public function test_searching_a_recommend_only_provider_is_an_error(): void
     {
-        $request = new WP_REST_Request( 'GET', '/vip-workflow/v1/discovery/search' );
+        $request = new WP_REST_Request( 'GET', '/vip-workflows/v1/discovery/search' );
         $request->set_param( 'provider', self::RECOMMEND_ONLY );
         $request->set_param( 'text', 'anything' );
 

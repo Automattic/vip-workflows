@@ -42,9 +42,9 @@ export const KanbanColumn = memo( function KanbanColumn( {
 	} );
 
 	const columnClasses = [
-		'vip-workflow-kanban-column',
-		isOver ? 'vip-workflow-kanban-column--over' : '',
-		isDropDisabled ? 'vip-workflow-kanban-column--drop-disabled' : '',
+		'vip-workflows-kanban-column',
+		isOver ? 'vip-workflows-kanban-column--over' : '',
+		isDropDisabled ? 'vip-workflows-kanban-column--drop-disabled' : '',
 	]
 		.filter( Boolean )
 		.join( ' ' );
@@ -52,54 +52,54 @@ export const KanbanColumn = memo( function KanbanColumn( {
 	return (
 		<div ref={ setNodeRef } className={ columnClasses }>
 			<Stack
-				className="vip-workflow-kanban-column__header"
+				className="vip-workflows-kanban-column__header"
 				justify="space-between"
 				align="center"
 			>
 				<Stack
-					className="vip-workflow-kanban-column__header-left"
+					className="vip-workflows-kanban-column__header-left"
 					align="center"
 					gap="sm"
 				>
 					<span
-						className="vip-workflow-kanban-column__indicator"
+						className="vip-workflows-kanban-column__indicator"
 						style={ { backgroundColor: column.color } }
 					/>
 					<Text
 						variant="heading-md"
 						render={ <h3 /> }
-						className="vip-workflow-kanban-column__title"
+						className="vip-workflows-kanban-column__title"
 					>
 						{ column.label }
 					</Text>
 					{ /* wpds-allow R7 -- count pill: its surface, tone and radius have no <Text> prop behind them, and <Badge>'s intents are semantic states, not counts */ }
-					<span className="vip-workflow-kanban-column__count">
+					<span className="vip-workflows-kanban-column__count">
 						{ column.count }
 					</span>
 				</Stack>
-				<div className="vip-workflow-kanban-column__header-right">
+				<div className="vip-workflows-kanban-column__header-right">
 					<Button
 						icon={ unseen }
-						label={ __( 'Hide column', 'vip-workflow' ) }
+						label={ __( 'Hide column', 'vip-workflows' ) }
 						showTooltip
 						onClick={ onHide }
-						className="vip-workflow-kanban-column__hide-btn"
+						className="vip-workflows-kanban-column__hide-btn"
 						size="small"
 					/>
 				</div>
 			</Stack>
 
 			<Stack
-				className="vip-workflow-kanban-column__body"
+				className="vip-workflows-kanban-column__body"
 				direction="column"
 				gap="sm"
 			>
 				{ column.cards.length === 0 ? (
 					<Text
 						variant="body-md"
-						className="vip-workflow-kanban-column__empty"
+						className="vip-workflows-kanban-column__empty"
 					>
-						{ __( 'No items', 'vip-workflow' ) }
+						{ __( 'No items', 'vip-workflows' ) }
 					</Text>
 				) : (
 					column.cards.map( ( card ) => (

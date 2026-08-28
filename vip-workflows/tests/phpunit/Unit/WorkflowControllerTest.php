@@ -9,7 +9,7 @@
  * file is bracketed. The test body is otherwise ordinary and keeps its
  * original indentation.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
@@ -31,12 +31,12 @@ namespace {
     }
 }
 
-namespace VIPWorkflow\Tests\Unit {
+namespace VIPWorkflows\Tests\Unit {
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\API\WorkflowController;
-use VIPWorkflow\Sequences\Sequence;
+use VIPWorkflows\API\WorkflowController;
+use VIPWorkflows\Sequences\Sequence;
 
 /**
  * Tests for the WorkflowController REST API.
@@ -106,8 +106,8 @@ class WorkflowControllerTest extends TestCase
      */
     private function with_status_manager( object $status_manager, callable $callback )
     {
-        $plugin   = \VIPWorkflow\Plugin::get_instance();
-        $property = new \ReflectionProperty( \VIPWorkflow\Plugin::class, 'status_manager' );
+        $plugin   = \VIPWorkflows\Plugin::get_instance();
+        $property = new \ReflectionProperty( \VIPWorkflows\Plugin::class, 'status_manager' );
         $previous = $property->getValue( $plugin );
         $property->setValue( $plugin, $status_manager );
 
@@ -328,10 +328,10 @@ class WorkflowControllerTest extends TestCase
         $agent_job = $args['agent_job'] ?? null;
         Functions\when( 'get_post_meta' )->alias(
             function ( $post_id, $key ) use ( $last_run, $agent_job ) {
-                if ( \VIPWorkflow\Workflow\StageAgentRunner::LAST_RUN_META === $key ) {
+                if ( \VIPWorkflows\Workflow\StageAgentRunner::LAST_RUN_META === $key ) {
                     return $last_run ?? '';
                 }
-                if ( \VIPWorkflow\Workflow\StageAgentRunner::JOB_META === $key ) {
+                if ( \VIPWorkflows\Workflow\StageAgentRunner::JOB_META === $key ) {
                     return $agent_job ?? '';
                 }
                 return '';
@@ -357,7 +357,7 @@ class WorkflowControllerTest extends TestCase
 
         $current_status = null === $stage_key ? null : $sequence->get_status( $stage_key );
 
-        $status_manager = Mockery::mock( \VIPWorkflow\Workflow\StatusManager::class );
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
         $status_manager->shouldReceive( 'get_sequence_for_post' )->with( 42 )->andReturn( $sequence );
         $status_manager->shouldReceive( 'get_current_status' )->with( 42 )->andReturn( $current_status );
         $status_manager->shouldReceive( 'get_available_transitions' )->with( 42 )->andReturn( array() );
@@ -502,7 +502,7 @@ class WorkflowControllerTest extends TestCase
             array(
                 'agent_job' => array(
                     'stage_key'     => 'review',
-                    'ability_id'    => 'vip-workflow/check-copy',
+                    'ability_id'    => 'vip-workflows/check-copy',
                     'status'        => 'warnings_pending',
                     'to_status'     => 'live',
                     'outcome'       => 'error',
@@ -617,7 +617,7 @@ class WorkflowControllerTest extends TestCase
 
         Functions\when( 'get_post' )->justReturn( $post );
 
-        $status_manager = Mockery::mock( \VIPWorkflow\Workflow\StatusManager::class );
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
         $status_manager->shouldReceive( 'get_sequence_for_post' )->with( 42 )->andReturn( null );
         $status_manager->shouldReceive( 'has_dangling_sequence' )->with( 42 )->andReturn( false );
         $status_manager->shouldReceive( 'get_available_sequences_for_post' )->with( 42 )->andReturn( array( array( 'id' => 7, 'name' => 'News' ) ) );
@@ -656,7 +656,7 @@ class WorkflowControllerTest extends TestCase
         // Settings::can_user_bypass_workflow() reads the plugin settings option.
         Functions\when( 'get_option' )->justReturn( array( 'bypass_workflow_roles' => array( 'administrator' ) ) );
 
-        $status_manager = Mockery::mock( \VIPWorkflow\Workflow\StatusManager::class );
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
         $status_manager->shouldReceive( 'get_sequence_for_post' )->with( 42 )->andReturn( null );
         $status_manager->shouldReceive( 'has_dangling_sequence' )->with( 42 )->andReturn( true );
         // Never offered: the selector is what hid the freeze in the first place.
@@ -711,7 +711,7 @@ class WorkflowControllerTest extends TestCase
         // Post is claimed by user 2.
         Functions\expect( 'get_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflow_assigned_to', true )
+            ->with( 123, '_vip_workflows_assigned_to', true )
             ->andReturn( '2' );
 
         Functions\when( 'get_userdata' )->justReturn(
@@ -741,12 +741,12 @@ class WorkflowControllerTest extends TestCase
         // Post is not claimed.
         Functions\expect( 'get_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflow_assigned_to', true )
+            ->with( 123, '_vip_workflows_assigned_to', true )
             ->andReturn( '' );
 
         Functions\expect( 'update_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflow_assigned_to', 1 );
+            ->with( 123, '_vip_workflows_assigned_to', 1 );
 
         // Mock log event.
         $this->wpdb->shouldReceive( 'insert' )->once()->andReturn( true );
@@ -775,12 +775,12 @@ class WorkflowControllerTest extends TestCase
         // Post is already claimed by user 5 (same user).
         Functions\expect( 'get_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflow_assigned_to', true )
+            ->with( 123, '_vip_workflows_assigned_to', true )
             ->andReturn( '5' );
 
         Functions\expect( 'update_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflow_assigned_to', 5 );
+            ->with( 123, '_vip_workflows_assigned_to', 5 );
 
         $this->wpdb->shouldReceive( 'insert' )->once()->andReturn( true );
 
@@ -822,7 +822,7 @@ class WorkflowControllerTest extends TestCase
         // Post is claimed by user 2.
         Functions\expect( 'get_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflow_assigned_to', true )
+            ->with( 123, '_vip_workflows_assigned_to', true )
             ->andReturn( '2' );
 
         Functions\expect( 'current_user_can' )
@@ -850,12 +850,12 @@ class WorkflowControllerTest extends TestCase
         // Post is claimed by current user.
         Functions\expect( 'get_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflow_assigned_to', true )
+            ->with( 123, '_vip_workflows_assigned_to', true )
             ->andReturn( '5' );
 
         Functions\expect( 'delete_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflow_assigned_to' );
+            ->with( 123, '_vip_workflows_assigned_to' );
 
         $this->wpdb->shouldReceive( 'insert' )->once()->andReturn( true );
 
@@ -882,7 +882,7 @@ class WorkflowControllerTest extends TestCase
         // Post is claimed by user 2.
         Functions\expect( 'get_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflow_assigned_to', true )
+            ->with( 123, '_vip_workflows_assigned_to', true )
             ->andReturn( '2' );
 
         // User 1 is admin.
@@ -893,7 +893,7 @@ class WorkflowControllerTest extends TestCase
 
         Functions\expect( 'delete_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflow_assigned_to' );
+            ->with( 123, '_vip_workflows_assigned_to' );
 
         $this->wpdb->shouldReceive( 'insert' )->once()->andReturn( true );
 
@@ -989,7 +989,7 @@ class WorkflowControllerTest extends TestCase
     {
         Functions\when( 'is_wp_error' )->alias( fn( $thing ) => $thing instanceof \WP_Error );
 
-        $status_manager = Mockery::mock( \VIPWorkflow\Workflow\StatusManager::class );
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
         $status_manager->shouldReceive( 'remove_sequence' )
             ->once()
             ->with( 123 )
@@ -1019,7 +1019,7 @@ class WorkflowControllerTest extends TestCase
             array( 'status' => 409 )
         );
 
-        $status_manager = Mockery::mock( \VIPWorkflow\Workflow\StatusManager::class );
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
         $status_manager->shouldReceive( 'remove_sequence' )
             ->once()
             ->with( 999 )
@@ -1075,7 +1075,7 @@ class WorkflowControllerTest extends TestCase
             array( 'status' => 400 )
         );
 
-        $status_manager = Mockery::mock( \VIPWorkflow\Workflow\StatusManager::class );
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
         $status_manager->shouldReceive( 'assign_sequence' )
             ->once()
             ->with( 123, 7 )
@@ -1136,7 +1136,7 @@ class WorkflowControllerTest extends TestCase
     {
         $held_job = array(
             'stage_key'     => 'ai_desk',
-            'ability_id'    => 'vip-workflow/check-copy',
+            'ability_id'    => 'vip-workflows/check-copy',
             'status'        => 'warnings_pending',
             'to_status'     => 'review',
             'outcome'       => 'error',
@@ -1149,10 +1149,10 @@ class WorkflowControllerTest extends TestCase
 
         Functions\when( 'get_post_meta' )->alias(
             function ( $post_id, $key ) use ( $held_job ) {
-                if ( \VIPWorkflow\Workflow\StageAgentRunner::JOB_META === $key ) {
+                if ( \VIPWorkflows\Workflow\StageAgentRunner::JOB_META === $key ) {
                     return $held_job;
                 }
-                if ( \VIPWorkflow\Workflow\StatusManager::STAGE_META_KEY === $key ) {
+                if ( \VIPWorkflows\Workflow\StatusManager::STAGE_META_KEY === $key ) {
                     return 'ai_desk';
                 }
                 return '';
@@ -1173,7 +1173,7 @@ class WorkflowControllerTest extends TestCase
         Functions\when( 'current_time' )->justReturn( '2026-08-24 10:01:00' );
         Functions\when( 'get_post_status' )->justReturn( 'draft' );
 
-        $status_manager = Mockery::mock( \VIPWorkflow\Workflow\StatusManager::class );
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
         $status_manager->shouldReceive( 'transition' )
             ->once()
             ->with(
@@ -1215,10 +1215,10 @@ class WorkflowControllerTest extends TestCase
                 'to'          => 'review',
                 'finished_at' => '2026-08-24 10:01:00',
             ),
-            $updates[ \VIPWorkflow\Workflow\StageAgentRunner::LAST_RUN_META ] ?? null
+            $updates[ \VIPWorkflows\Workflow\StageAgentRunner::LAST_RUN_META ] ?? null
         );
         $this->assertSame(
-            array( array( 42, \VIPWorkflow\Workflow\StageAgentRunner::JOB_META, $held_job ) ),
+            array( array( 42, \VIPWorkflows\Workflow\StageAgentRunner::JOB_META, $held_job ) ),
             $deletes
         );
     }
@@ -1290,7 +1290,7 @@ class WorkflowControllerTest extends TestCase
             }
         );
 
-        $status_manager = Mockery::mock( 'VIPWorkflow\Workflow\StatusManager' );
+        $status_manager = Mockery::mock( 'VIPWorkflows\Workflow\StatusManager' );
         $status_manager->shouldReceive( 'agent_routed_targets' )->andReturn( null );
 
         $data = $this->with_status_manager(

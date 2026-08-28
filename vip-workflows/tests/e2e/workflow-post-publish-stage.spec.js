@@ -31,7 +31,7 @@ async function coreStatus( requestUtils, postId ) {
 	return post.status;
 }
 
-test.describe( 'VIP Workflow — post-publish stage (REST)', () => {
+test.describe( 'VIP Workflows — post-publish stage (REST)', () => {
 	let postId;
 
 	test.afterEach( async ( { requestUtils } ) => {

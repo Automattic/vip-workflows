@@ -2,17 +2,17 @@
 /**
  * StageAgentRunner dispatch unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Workflow\StageAgentRunner;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Workflow\StageAgentRunner;
 
 /**
  * Tests for StageAgentRunner::maybe_dispatch().

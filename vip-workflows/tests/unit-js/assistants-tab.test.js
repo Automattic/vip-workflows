@@ -37,7 +37,7 @@ jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 // eslint-disable-next-line import/first
 import Agents from '../../src/admin/pages/Agents';
 
-const ASSISTANTS_PATH = '/vip-workflow/v1/assistants';
+const ASSISTANTS_PATH = '/vip-workflows/v1/assistants';
 
 const successNotices = [];
 
@@ -54,13 +54,13 @@ register(
 );
 
 /**
- * An agent payload as `GET /vip-workflow/v1/assistants` returns it.
+ * An agent payload as `GET /vip-workflows/v1/assistants` returns it.
  *
  * @param {Object} overrides Field overrides.
  * @return {Object} Agent entry.
  */
 const agent = ( overrides = {} ) => ( {
-	slug: 'vip-workflow-web-researcher',
+	slug: 'vip-workflows-web-researcher',
 	label: 'Web Researcher',
 	description: 'Searches the open web.',
 	// The screen groups by origin and the built-in tab is the default, so this
@@ -71,7 +71,7 @@ const agent = ( overrides = {} ) => ( {
 	availability_state: 'available',
 	availability: { available: true, groups: [] },
 	availability_sources: [],
-	ability_ids: [ 'vip-workflow/web-researcher' ],
+	ability_ids: [ 'vip-workflows/web-researcher' ],
 	provider_slugs: [],
 	capabilities: [ 'research' ],
 	options: {},
@@ -233,7 +233,7 @@ describe( 'Agents screen shape', () => {
 
 	it( 'offers exactly one Save for the whole screen', async () => {
 		const second = agent( {
-			slug: 'vip-workflow-media-scout',
+			slug: 'vip-workflows-media-scout',
 			label: 'Media Scout',
 		} );
 		await renderAgents( [ agent(), second ] );
@@ -272,7 +272,7 @@ describe( 'Agents screen shape', () => {
 		await waitFor( () =>
 			expect( apiFetch ).toHaveBeenCalledWith(
 				expect.objectContaining( {
-					path: '/vip-workflow/v1/assistants/vip-workflow-web-researcher/settings',
+					path: '/vip-workflows/v1/assistants/vip-workflows-web-researcher/settings',
 					method: 'POST',
 					data: expect.objectContaining( { enabled: false } ),
 				} )

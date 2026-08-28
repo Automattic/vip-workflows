@@ -20,20 +20,20 @@
  * but revoked key therefore reports available and fails at execution, which is
  * the only honest split.
  *
- * Lives in `VIPWorkflow\Abilities` rather than `VIPWorkflow\AI` because what it
+ * Lives in `VIPWorkflows\Abilities` rather than `VIPWorkflows\AI` because what it
  * returns is the abilities availability contract — `Availability`,
  * `RequirementGroup`, `Requirement` — and it sits at the same level as
- * `RequirementFactory`, which already reaches into `VIPWorkflow\AI\Credentials`
+ * `RequirementFactory`, which already reaches into `VIPWorkflows\AI\Credentials`
  * for the same reason. The dependency direction is unchanged.
  *
- * @package VIPWorkflow\Abilities
+ * @package VIPWorkflows\Abilities
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
-use VIPWorkflow\AI\Credentials;
+use VIPWorkflows\AI\Credentials;
 
 /**
  * Resolves whether a generation provider can be used, and what is missing if not.
@@ -61,7 +61,7 @@ final class AiAvailability {
 	/**
 	 * Admin page holding the provider + model pickers.
 	 */
-	private const SETTINGS_PAGE = 'admin.php?page=vip-workflow-settings';
+	private const SETTINGS_PAGE = 'admin.php?page=vip-workflows-settings';
 
 	/**
 	 * Display names for the generation providers this plugin manages.
@@ -162,12 +162,12 @@ final class AiAvailability {
 			// Nothing to name, in either of the two ways that happens: no provider
 			// resolved at all, or one this plugin does not manage. The vendor-free
 			// sentence is the honest answer to both.
-			return __( 'AI text generation is not configured.', 'vip-workflow' );
+			return __( 'AI text generation is not configured.', 'vip-workflows' );
 		}
 
 		return sprintf(
 			/* translators: %s: AI provider display name, e.g. "Anthropic". */
-			__( '%s is not configured.', 'vip-workflow' ),
+			__( '%s is not configured.', 'vip-workflows' ),
 			$label
 		);
 	}
@@ -205,7 +205,7 @@ final class AiAvailability {
 			_doing_it_wrong(
 				__METHOD__,
 				sprintf(
-					'AiAvailability::for_provider() was asked about "%s", which is not one of VIP Workflow\'s generation providers (%s). Reporting the ability as unavailable with no requirement, because there is nothing to name or link to.',
+					'AiAvailability::for_provider() was asked about "%s", which is not one of VIP Workflows\'s generation providers (%s). Reporting the ability as unavailable with no requirement, because there is nothing to name or link to.',
 					esc_html( $provider ),
 					esc_html( implode( ', ', Credentials::AI_PROVIDERS ) )
 				),
@@ -222,10 +222,10 @@ final class AiAvailability {
 						self::ENVIRONMENT_ID_PREFIX . $provider,
 						sprintf(
 							/* translators: %s: AI provider display name, e.g. "OpenAI". */
-							__( 'The %s provider is not registered with this site\'s WordPress AI Client, so text generation cannot run through it.', 'vip-workflow' ),
+							__( 'The %s provider is not registered with this site\'s WordPress AI Client, so text generation cannot run through it.', 'vip-workflows' ),
 							$label
 						),
-						__( 'AI text generation is not available on this site.', 'vip-workflow' ),
+						__( 'AI text generation is not available on this site.', 'vip-workflows' ),
 						$sources
 					)
 				)
@@ -280,7 +280,7 @@ final class AiAvailability {
 			return $credentials->model();
 		}
 
-		$map = get_option( 'vip_workflow_ai_models', array() );
+		$map = get_option( 'vip_workflows_ai_models', array() );
 
 		if ( ! is_array( $map ) || ! isset( $map[ $provider ] ) || ! is_string( $map[ $provider ] ) ) {
 			return '';
@@ -308,12 +308,12 @@ final class AiAvailability {
 		return new Requirement(
 			self::PROVIDER_ID,
 			Requirement::KIND_DEPENDENCY,
-			__( 'No AI provider is selected.', 'vip-workflow' ),
-			__( 'AI text generation has no provider selected. Ask an administrator to finish setting it up.', 'vip-workflow' ),
+			__( 'No AI provider is selected.', 'vip-workflows' ),
+			__( 'AI text generation has no provider selected. Ask an administrator to finish setting it up.', 'vip-workflows' ),
 			Destination::admin_url(
 				admin_url( self::SETTINGS_PAGE ),
-				__( 'VIP Workflow → Settings', 'vip-workflow' ),
-				__( 'Choose an AI provider in VIP Workflow → Settings.', 'vip-workflow' )
+				__( 'VIP Workflows → Settings', 'vip-workflows' ),
+				__( 'Choose an AI provider in VIP Workflows → Settings.', 'vip-workflows' )
 			),
 			$sources
 		);
@@ -323,7 +323,7 @@ final class AiAvailability {
 	 * The "no model chosen" requirement, pointed at this plugin's own settings.
 	 *
 	 * Built here rather than through `RequirementFactory` because the destination
-	 * is neither a credential screen nor an agent card: it is VIP Workflow's own
+	 * is neither a credential screen nor an agent card: it is VIP Workflows' own
 	 * settings page, which this plugin always registers, so it is resolved through
 	 * `admin_url()` rather than hardcoded and cannot go dead.
 	 *
@@ -338,20 +338,20 @@ final class AiAvailability {
 			Requirement::KIND_DEPENDENCY,
 			sprintf(
 				/* translators: %s: AI provider display name, e.g. "Anthropic". */
-				__( '%s is connected, but no model is chosen for it.', 'vip-workflow' ),
+				__( '%s is connected, but no model is chosen for it.', 'vip-workflows' ),
 				$label
 			),
 			sprintf(
 				/* translators: %s: AI provider display name, e.g. "Anthropic". */
-				__( '%s has no model chosen. Ask an administrator to finish setting it up.', 'vip-workflow' ),
+				__( '%s has no model chosen. Ask an administrator to finish setting it up.', 'vip-workflows' ),
 				$label
 			),
 			Destination::admin_url(
 				admin_url( self::SETTINGS_PAGE ),
-				__( 'VIP Workflow → Settings', 'vip-workflow' ),
+				__( 'VIP Workflows → Settings', 'vip-workflows' ),
 				sprintf(
 					/* translators: %s: AI provider display name, e.g. "Anthropic". */
-					__( 'Choose a model for %s in VIP Workflow → Settings.', 'vip-workflow' ),
+					__( 'Choose a model for %s in VIP Workflows → Settings.', 'vip-workflows' ),
 					$label
 				)
 			),

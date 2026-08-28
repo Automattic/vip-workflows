@@ -2,12 +2,12 @@
 /**
  * Shared stage color palette.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Workflow;
+namespace VIPWorkflows\Workflow;
 
 /**
  * The qualitative collaboration palette every stage and status color comes from.

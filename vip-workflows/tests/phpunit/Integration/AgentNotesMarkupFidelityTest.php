@@ -13,14 +13,14 @@
  * it: save() output is compared byte for byte in the editor, so markup that
  * comes back unchanged is markup that still validates.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Abilities\Agents\StageAgent;
+use VIPWorkflows\Abilities\Agents\StageAgent;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/agents/class-stage-agent.php';
 

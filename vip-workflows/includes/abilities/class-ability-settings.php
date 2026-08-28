@@ -2,12 +2,12 @@
 /**
  * Ability settings management.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
 /**
  * Manages ability settings (enabled/disabled, options).
@@ -18,7 +18,7 @@ class AbilitySettings {
 	/**
 	 * Option name for storing settings.
 	 */
-	private const OPTION_NAME = 'vip_workflow_ability_settings';
+	private const OPTION_NAME = 'vip_workflows_ability_settings';
 
 	/**
 	 * Singleton instance.

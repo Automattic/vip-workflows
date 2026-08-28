@@ -4,16 +4,16 @@
  *
  * Supports multiple Slack webhook destinations.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Notifications\Channels;
+namespace VIPWorkflows\Notifications\Channels;
 
-use VIPWorkflow\Integrations\SsrfGuard;
-use VIPWorkflow\Notifications\NotificationChannel;
-use VIPWorkflow\Notifications\Notification;
+use VIPWorkflows\Integrations\SsrfGuard;
+use VIPWorkflows\Notifications\NotificationChannel;
+use VIPWorkflows\Notifications\Notification;
 use WP_Error;
 
 /**
@@ -27,7 +27,7 @@ class SlackChannel extends NotificationChannel {
 	/**
 	 * Option name for storing Slack destinations.
 	 */
-	public const DESTINATIONS_OPTION = 'vip_workflow_slack_destinations';
+	public const DESTINATIONS_OPTION = 'vip_workflows_slack_destinations';
 
 	/**
 	 * Allowed hosts for Slack webhook delivery.
@@ -73,7 +73,7 @@ class SlackChannel extends NotificationChannel {
 	 * {@inheritdoc}
 	 */
 	public function get_name(): string {
-		$name = $this->destination_config['name'] ?? __( 'Slack', 'vip-workflow' );
+		$name = $this->destination_config['name'] ?? __( 'Slack', 'vip-workflows' );
 		return $name;
 	}
 
@@ -81,7 +81,7 @@ class SlackChannel extends NotificationChannel {
 	 * {@inheritdoc}
 	 */
 	public function get_description(): string {
-		return __( 'Send notifications to Slack channels via webhooks.', 'vip-workflow' );
+		return __( 'Send notifications to Slack channels via webhooks.', 'vip-workflows' );
 	}
 
 	/**
@@ -124,7 +124,7 @@ class SlackChannel extends NotificationChannel {
 
 		if ( is_wp_error( $response ) ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging of Slack delivery failures.
-			error_log( 'VIP Workflow Slack error: ' . $response->get_error_message() );
+			error_log( 'VIP Workflows Slack error: ' . $response->get_error_message() );
 			return false;
 		}
 
@@ -138,16 +138,16 @@ class SlackChannel extends NotificationChannel {
 	public function test_connection() {
 		$webhook_url = $this->get_webhook_url();
 		if ( empty( $webhook_url ) ) {
-			return new WP_Error( 'not_configured', __( 'No webhook URL configured.', 'vip-workflow' ) );
+			return new WP_Error( 'not_configured', __( 'No webhook URL configured.', 'vip-workflows' ) );
 		}
 
 		$notification           = new Notification();
 		$notification->type     = 'test';
 		$notification->severity = 'success';
-		$notification->title    = __( 'Test Message', 'vip-workflow' );
+		$notification->title    = __( 'Test Message', 'vip-workflows' );
 		$notification->message  = sprintf(
 		/* translators: %s: destination name */
-			__( 'VIP Workflow → %s is working!', 'vip-workflow' ),
+			__( 'VIP Workflows → %s is working!', 'vip-workflows' ),
 			$this->get_name()
 		);
 		$notification->icon     = '✅';
@@ -155,7 +155,7 @@ class SlackChannel extends NotificationChannel {
 
 		$success = $this->send( $notification );
 
-		return $success ? true : new WP_Error( 'send_failed', __( 'Failed to send test message.', 'vip-workflow' ) );
+		return $success ? true : new WP_Error( 'send_failed', __( 'Failed to send test message.', 'vip-workflows' ) );
 	}
 
 	/**
@@ -305,8 +305,8 @@ class SlackChannel extends NotificationChannel {
 	 */
 	private function get_webhook_url(): string {
 		// Support legacy constant for default destination.
-		if ( 'default' === $this->destination_id && defined( 'VIP_WORKFLOW_SLACK_WEBHOOK' ) ) {
-			return VIP_WORKFLOW_SLACK_WEBHOOK;
+		if ( 'default' === $this->destination_id && defined( 'VIP_WORKFLOWS_SLACK_WEBHOOK' ) ) {
+			return VIP_WORKFLOWS_SLACK_WEBHOOK;
 		}
 
 		return $this->destination_config['webhook_url'] ?? '';
@@ -326,12 +326,12 @@ class SlackChannel extends NotificationChannel {
 
 		// Migration: if old single webhook exists, migrate it.
 		if ( empty( $destinations ) ) {
-			$old_settings = get_option( 'vip_workflow_channel_slack', array() );
+			$old_settings = get_option( 'vip_workflows_channel_slack', array() );
 			if ( ! empty( $old_settings['webhook_url'] ) ) {
 				$destinations = array(
 					array(
 						'id'          => 'default',
-						'name'        => __( 'Slack (Default)', 'vip-workflow' ),
+						'name'        => __( 'Slack (Default)', 'vip-workflows' ),
 						'webhook_url' => $old_settings['webhook_url'],
 						'bot_name'    => $old_settings['bot_name'] ?? 'Workflow Bot',
 						'bot_icon'    => $old_settings['bot_icon'] ?? ':newspaper:',
@@ -386,7 +386,7 @@ class SlackChannel extends NotificationChannel {
 			$channels[] = new self(
 				'default',
 				array(
-					'name'        => __( 'Slack (Default)', 'vip-workflow' ),
+					'name'        => __( 'Slack (Default)', 'vip-workflows' ),
 					'webhook_url' => '',
 					'bot_name'    => 'Workflow Bot',
 					'bot_icon'    => ':newspaper:',

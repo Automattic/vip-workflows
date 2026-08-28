@@ -7,14 +7,14 @@
  * model abandoned at the token ceiling is reported as truncation and not as the
  * malformed JSON it also happens to be.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Integrations\LlmJsonGenerator;
+use VIPWorkflows\Integrations\LlmJsonGenerator;
 use WordPress\AiClient\AiClient;
 use WP_Error;
 
@@ -22,7 +22,7 @@ require_once __DIR__ . '/../../../includes/integrations/class-llm-json-parser.ph
 require_once __DIR__ . '/../../../includes/integrations/class-llm-json-generator.php';
 
 /**
- * @covers \VIPWorkflow\Integrations\LlmJsonGenerator
+ * @covers \VIPWorkflows\Integrations\LlmJsonGenerator
  */
 class LlmJsonGeneratorTest extends TestCase
 {

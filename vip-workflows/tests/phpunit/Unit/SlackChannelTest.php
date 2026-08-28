@@ -2,16 +2,16 @@
 /**
  * SlackChannel unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Notifications\Channels\SlackChannel;
-use VIPWorkflow\Notifications\Notification;
+use VIPWorkflows\Notifications\Channels\SlackChannel;
+use VIPWorkflows\Notifications\Notification;
 use WP_Error;
 
 /**

@@ -2,15 +2,15 @@
 /**
  * Per-provider model catalog tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\AiModels;
+use VIPWorkflows\AI\AiModels;
 use WordPress\OpenAiAiProvider\Provider\OpenAiProvider;
 
 class AiModelsTest extends TestCase
@@ -77,7 +77,7 @@ class AiModelsTest extends TestCase
 
     public function test_returns_cached_catalog_without_discovery(): void
     {
-        $this->transients['vip_workflow_ai_models_openai'] = array( 'cached-model' );
+        $this->transients['vip_workflows_ai_models_openai'] = array( 'cached-model' );
         // A different live catalog would be discovered if the cache were ignored.
         OpenAiProvider::$catalog = array( array( 'gpt-4o', array( 'TEXT_GENERATION' ) ) );
 
@@ -90,7 +90,7 @@ class AiModelsTest extends TestCase
 
         AiModels::for_provider( 'openai' );
 
-        $this->assertSame( array( 'gpt-4o' ), $this->transients['vip_workflow_ai_models_openai'] );
+        $this->assertSame( array( 'gpt-4o' ), $this->transients['vip_workflows_ai_models_openai'] );
     }
 
     public function test_is_valid_checks_against_catalog(): void
@@ -111,10 +111,10 @@ class AiModelsTest extends TestCase
 
     public function test_flush_clears_cache(): void
     {
-        $this->transients['vip_workflow_ai_models_openai'] = array( 'cached-model' );
+        $this->transients['vip_workflows_ai_models_openai'] = array( 'cached-model' );
 
         AiModels::flush( 'openai' );
 
-        $this->assertArrayNotHasKey( 'vip_workflow_ai_models_openai', $this->transients );
+        $this->assertArrayNotHasKey( 'vip_workflows_ai_models_openai', $this->transients );
     }
 }

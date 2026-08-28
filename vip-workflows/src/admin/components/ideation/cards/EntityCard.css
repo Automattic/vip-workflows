@@ -6,53 +6,53 @@
  * or places one, so they are content, not chrome, and stay here.
  */
 
-.vip-workflow-ideation-card--entity {
+.vip-workflows-ideation-card--entity {
 	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-sm);
 	flex: 0 1 auto;
 }
 
-.vip-workflow-ideation-card--entity-people {
-	background: linear-gradient(135deg, var(--vip-workflow-color-bg-ai-weak) 0%, var(--vip-workflow-color-stroke-ai-weak) 100%);
-	border-color: var(--vip-workflow-color-stroke-ai-weak);
+.vip-workflows-ideation-card--entity-people {
+	background: linear-gradient(135deg, var(--vip-workflows-color-bg-ai-weak) 0%, var(--vip-workflows-color-stroke-ai-weak) 100%);
+	border-color: var(--vip-workflows-color-stroke-ai-weak);
 }
 
-.vip-workflow-ideation-card--entity-organizations {
+.vip-workflows-ideation-card--entity-organizations {
 	background: linear-gradient(135deg, var(--wpds-color-background-surface-success-weak) 0%, var(--wpds-color-background-surface-success) 100%);
 	border-color: var(--wpds-color-stroke-surface-success);
 }
 
-.vip-workflow-ideation-card--entity-places {
-	background: linear-gradient(135deg, var(--vip-workflow-color-bg-orange-weak) 0%, var(--vip-workflow-color-bg-orange) 100%);
-	border-color: var(--vip-workflow-color-stroke-orange);
+.vip-workflows-ideation-card--entity-places {
+	background: linear-gradient(135deg, var(--vip-workflows-color-bg-orange-weak) 0%, var(--vip-workflows-color-bg-orange) 100%);
+	border-color: var(--vip-workflows-color-stroke-orange);
 }
 
-.vip-workflow-ideation-card--entity__header svg {
+.vip-workflows-ideation-card--entity__header svg {
 	flex-shrink: 0;
 	opacity: 0.7; /* wpds-allow R6 -- hover-reveal opacity on layout Stack; no prop */
 }
 
-.vip-workflow-ideation-card--entity-people .vip-workflow-ideation-card--entity__header svg {
-	color: var(--vip-workflow-color-fg-ai-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
+.vip-workflows-ideation-card--entity-people .vip-workflows-ideation-card--entity__header svg {
+	color: var(--vip-workflows-color-fg-ai-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
 }
 
-.vip-workflow-ideation-card--entity-organizations .vip-workflow-ideation-card--entity__header svg {
+.vip-workflows-ideation-card--entity-organizations .vip-workflows-ideation-card--entity__header svg {
 	color: var(--wpds-color-foreground-content-success-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
 }
 
-.vip-workflow-ideation-card--entity-places .vip-workflow-ideation-card--entity__header svg {
-	color: var(--vip-workflow-color-fg-orange); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
+.vip-workflows-ideation-card--entity-places .vip-workflows-ideation-card--entity__header svg {
+	color: var(--vip-workflows-color-fg-orange); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
 }
 
 /* Uppercase eyebrow typography (font-weight/text-transform/letter-spacing) is
    shared in shared.css. */
 
-.vip-workflow-ideation-card--entity__label {
-	font: var(--vip-workflow-text-heading-sm);
+.vip-workflows-ideation-card--entity__label {
+	font: var(--vip-workflows-text-heading-sm);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-.vip-workflow-ideation-card--entity__name {
-	font: var(--vip-workflow-text-body-sm);
+.vip-workflows-ideation-card--entity__name {
+	font: var(--vip-workflows-text-body-sm);
 	display: inline-block;
 	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-md);
 	background: color-mix(in srgb, var(--wpds-color-background-surface-neutral-strong) 70%, transparent);

@@ -164,7 +164,7 @@ export function getMissingRequiredMetadata( fields, meta ) {
 function buildLockReason( missingFields ) {
 	return sprintf(
 		/* translators: %s: list of metadata field labels, joined for the locale. */
-		__( 'Required fields are empty: %s', 'vip-workflow' ),
+		__( 'Required fields are empty: %s', 'vip-workflows' ),
 		formatFieldList(
 			missingFields.map( ( field ) => String( field.label ) )
 		)

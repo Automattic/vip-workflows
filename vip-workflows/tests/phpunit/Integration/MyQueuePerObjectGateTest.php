@@ -16,15 +16,15 @@
  * kanban endpoint skips any post failing `current_user_can( 'edit_post', ... )`,
  * as do the calendar and dashboard queries. This endpoint was the omission.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StatusManager;
 use WP_REST_Request;
 
 class MyQueuePerObjectGateTest extends TestCase {
@@ -100,7 +100,7 @@ class MyQueuePerObjectGateTest extends TestCase {
 	private function queue_as( string $role ): array {
 		wp_set_current_user( (int) self::factory()->user->create( array( 'role' => $role ) ) );
 
-		$response = rest_do_request( new WP_REST_Request( 'GET', '/vip-workflow/v1/workflow/my-queue' ) );
+		$response = rest_do_request( new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/my-queue' ) );
 
 		return (array) $response->get_data();
 	}

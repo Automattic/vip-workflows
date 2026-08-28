@@ -65,7 +65,7 @@ jest.mock( '@wordpress/data', () => {
 } );
 
 jest.mock( '../../src/editor/store', () => ( {
-	STORE_NAME: 'vip-workflow',
+	STORE_NAME: 'vip-workflows',
 } ) );
 
 const FIELDS = [

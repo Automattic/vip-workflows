@@ -1,13 +1,13 @@
 <?php
 /**
- * Settings page for VIP Workflow.
+ * Settings page for VIP Workflows.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Admin;
+namespace VIPWorkflows\Admin;
 
 /**
  * Handles the workflow settings page.
@@ -18,7 +18,7 @@ class Settings {
 	/**
 	 * Option name for storing settings.
 	 */
-	private const OPTION_NAME = 'vip_workflow_settings';
+	private const OPTION_NAME = 'vip_workflows_settings';
 
 	/**
 	 * Initialize settings.
@@ -33,11 +33,11 @@ class Settings {
 	 */
 	public function add_settings_page(): void {
 		add_submenu_page(
-			'vip-workflow',
-			__( 'Settings', 'vip-workflow' ),
-			__( 'Settings', 'vip-workflow' ),
+			'vip-workflows',
+			__( 'Settings', 'vip-workflows' ),
+			__( 'Settings', 'vip-workflows' ),
 			'manage_options',
-			'vip-workflow-settings',
+			'vip-workflows-settings',
 			array( $this, 'render_settings_page' )
 		);
 	}
@@ -47,7 +47,7 @@ class Settings {
 	 */
 	public function register_settings(): void {
 		register_setting(
-			'vip_workflow_settings',
+			'vip_workflows_settings',
 			self::OPTION_NAME,
 			array(
 				'type'              => 'array',

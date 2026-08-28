@@ -68,8 +68,8 @@ import {
  * costume of a choice.
  */
 const INPUT_TYPES = [
-	{ label: __( 'Text area', 'vip-workflow' ), value: 'textarea' },
-	{ label: __( 'Assignment', 'vip-workflow' ), value: 'assignment' },
+	{ label: __( 'Text area', 'vip-workflows' ), value: 'textarea' },
+	{ label: __( 'Assignment', 'vip-workflows' ), value: 'assignment' },
 ];
 
 /**
@@ -163,27 +163,27 @@ function createInput( type ) {
 function toolProblem( tool ) {
 	if ( ! tool ) {
 		return {
-			short: __( 'Missing', 'vip-workflow' ),
+			short: __( 'Missing', 'vip-workflows' ),
 			full: __(
 				'No tool with this id is registered on this site — its plugin may be inactive. Saving this sequence drops it from the transition.',
-				'vip-workflow'
+				'vip-workflows'
 			),
 		};
 	}
 
 	if ( false === tool.enabled ) {
 		return {
-			short: __( 'Turned off', 'vip-workflow' ),
+			short: __( 'Turned off', 'vip-workflows' ),
 			full: __(
 				'This tool is turned off for the whole site under Workflows → Tools, so this transition skips it and the check never runs.',
-				'vip-workflow'
+				'vip-workflows'
 			),
 		};
 	}
 
 	if ( false === tool.availability.available ) {
 		return {
-			short: __( 'Needs setup', 'vip-workflow' ),
+			short: __( 'Needs setup', 'vip-workflows' ),
 			// An ability whose availability_callback answers a bare `false`
 			// reports no requirements to name, which is the one case the
 			// structured text has nothing to say about.
@@ -191,7 +191,7 @@ function toolProblem( tool ) {
 				requirementText( tool.availability.groups ) ||
 				__(
 					'This tool has required settings that are not yet configured.',
-					'vip-workflow'
+					'vip-workflows'
 				),
 		};
 	}
@@ -366,7 +366,7 @@ export default function TransitionInspector( {
 				? undefined
 				: __(
 						'This channel is not set up, so nothing is sent on it. Finish it under Workflows → Notifications, or untick it here.',
-						'vip-workflow'
+						'vip-workflows'
 				  ),
 		} ) );
 
@@ -378,13 +378,13 @@ export default function TransitionInspector( {
 	const captureSummary = inputs.length
 		? sprintf(
 				/* translators: %d: how many inputs the transition captures. */
-				_n( '%d input', '%d inputs', inputs.length, 'vip-workflow' ),
+				_n( '%d input', '%d inputs', inputs.length, 'vip-workflows' ),
 				inputs.length
 		  )
-		: __( 'Nothing', 'vip-workflow' );
+		: __( 'Nothing', 'vip-workflows' );
 	const assigneeSummary = transition.requires_assignment
-		? __( 'On', 'vip-workflow' )
-		: __( 'Off', 'vip-workflow' );
+		? __( 'On', 'vip-workflows' )
+		: __( 'Off', 'vip-workflows' );
 
 	return (
 		<InspectorShell
@@ -401,8 +401,8 @@ export default function TransitionInspector( {
 					return agentOutcomeLabel( outcome );
 				}
 				return disabled
-					? __( 'Disabled transition', 'vip-workflow' )
-					: __( 'Transition', 'vip-workflow' );
+					? __( 'Disabled transition', 'vip-workflows' )
+					: __( 'Transition', 'vip-workflows' );
 			} )() }
 			title={ subtitle }
 		>
@@ -415,7 +415,7 @@ export default function TransitionInspector( {
 					<Notice status="warning" isDismissible={ false }>
 						{ __(
 							'This transition is disabled. An agent runs this stage and routes content onward by outcome, so nobody can use this. It keeps its settings — routing an outcome along it, or removing the stage’s agent, makes it live again.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Notice>
 				) }
@@ -432,7 +432,7 @@ export default function TransitionInspector( {
 							/* translators: 1: comma-separated agent outcome names, e.g. "On pass, On fail"; 2: destination stage name. */
 							__(
 								'%1$s all lead to %2$s along this one transition, so everything below applies to all of them. Giving an outcome its own roles, tools, notifications or assignment means routing it to a stage of its own.',
-								'vip-workflow'
+								'vip-workflows'
 							),
 							agentOutcomeNames( sharedOutcomes ),
 							targetLabel
@@ -450,7 +450,7 @@ export default function TransitionInspector( {
 					<TextControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Button label', 'vip-workflow' ) }
+						label={ __( 'Button label', 'vip-workflows' ) }
 						value={ transition.label || '' }
 						onChange={ ( label ) => onChange( { label } ) }
 						placeholder={ derivedTransitionLabel( targetLabel ) }
@@ -466,7 +466,7 @@ export default function TransitionInspector( {
 							__nextHasNoMarginBottom
 							label={ __(
 								'Show as quick action in Queue',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 							checked={ Boolean( transition.show_in_queue ) }
 							onChange={ ( v ) =>
@@ -483,10 +483,10 @@ export default function TransitionInspector( {
 				     thing and only one of them reads correctly at a glance. */ }
 				<InspectorSection>
 					<InspectorChoiceRow
-						label={ __( 'Allowed roles', 'vip-workflow' ) }
+						label={ __( 'Allowed roles', 'vip-workflows' ) }
 						help={ __(
 							'Only these roles can use this transition. With none checked, everyone can.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 						options={ availableRoles.map( ( role ) => ( {
 							value: role.slug,
@@ -498,9 +498,9 @@ export default function TransitionInspector( {
 						}
 						unknownHelp={ __(
 							'No role with this slug exists on this site — its plugin may be inactive. Nobody matches it, so it allows nobody while it keeps the restriction on.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
-						noneLabel={ __( 'All', 'vip-workflow' ) }
+						noneLabel={ __( 'All', 'vip-workflows' ) }
 						countLabel={ ( count ) =>
 							sprintf(
 								/* translators: %d: how many roles may use the transition. */
@@ -508,7 +508,7 @@ export default function TransitionInspector( {
 									'%d role',
 									'%d roles',
 									count,
-									'vip-workflow'
+									'vip-workflows'
 								),
 								count
 							)
@@ -521,13 +521,13 @@ export default function TransitionInspector( {
 				     taking any tool the transition already required with it —
 				     stored, still running, and unreachable. */ }
 				<InspectorSection
-					title={ __( 'Tools', 'vip-workflow' ) }
+					title={ __( 'Tools', 'vip-workflows' ) }
 					actions={
 						toolOptions.length > 0 ? (
 							<InspectorFieldListAdd
 								addOptions={ toolOptions }
 								onAdd={ addTool }
-								label={ __( 'Add a tool', 'vip-workflow' ) }
+								label={ __( 'Add a tool', 'vip-workflows' ) }
 							/>
 						) : undefined
 					}
@@ -545,7 +545,7 @@ export default function TransitionInspector( {
 							} )
 						}
 						describe={ describeTool }
-						removeLabel={ __( 'Remove tool', 'vip-workflow' ) }
+						removeLabel={ __( 'Remove tool', 'vip-workflows' ) }
 						// An empty list with nothing to add to it has no "add
 						// one" to offer — the section's Add control is gone for
 						// the same reason — so it says what is true of the site
@@ -556,11 +556,11 @@ export default function TransitionInspector( {
 							toolsLoaded && 0 === toolOptions.length
 								? __(
 										'No tools are available for transitions on this site.',
-										'vip-workflow'
+										'vip-workflows'
 								  )
 								: __(
 										'This transition runs no tools. Add one to check the post before it moves on.',
-										'vip-workflow'
+										'vip-workflows'
 								  )
 						}
 					/>
@@ -571,7 +571,7 @@ export default function TransitionInspector( {
 						{ /* Both of these open into sub-forms, so they stay
 						     shut until they hold something. */ }
 						<InspectorSection
-							title={ __( 'What to capture', 'vip-workflow' ) }
+							title={ __( 'What to capture', 'vip-workflows' ) }
 							summary={ captureSummary }
 							collapsible
 							defaultOpen={ inputs.length > 0 }
@@ -581,7 +581,7 @@ export default function TransitionInspector( {
 									onAdd={ addInput }
 									label={ __(
 										'Add an input',
-										'vip-workflow'
+										'vip-workflows'
 									) }
 								/>
 							}
@@ -615,7 +615,7 @@ export default function TransitionInspector( {
 									label:
 										item.note_name ||
 										item.label ||
-										__( 'Untitled', 'vip-workflow' ),
+										__( 'Untitled', 'vip-workflows' ),
 									value: inputTypeLabel( item.type ),
 								} ) }
 								renderConfig={ ( { item, update, problem } ) =>
@@ -656,7 +656,7 @@ export default function TransitionInspector( {
 												__nextHasNoMarginBottom
 												label={ __(
 													'Note name',
-													'vip-workflow'
+													'vip-workflows'
 												) }
 												value={ item.note_name || '' }
 												onChange={ ( v ) => {
@@ -685,13 +685,13 @@ export default function TransitionInspector( {
 												} }
 												placeholder={ __(
 													'e.g. Review notes',
-													'vip-workflow'
+													'vip-workflows'
 												) }
 												help={
 													problem?.full ||
 													__(
 														'Used as the label and to generate the storage key.',
-														'vip-workflow'
+														'vip-workflows'
 													)
 												}
 											/>
@@ -699,7 +699,7 @@ export default function TransitionInspector( {
 												__nextHasNoMarginBottom
 												label={ __(
 													'Required',
-													'vip-workflow'
+													'vip-workflows'
 												) }
 												checked={ Boolean(
 													item.required
@@ -713,11 +713,11 @@ export default function TransitionInspector( {
 								}
 								removeLabel={ __(
 									'Remove input',
-									'vip-workflow'
+									'vip-workflows'
 								) }
 								emptyLabel={ __(
 									'This transition captures nothing. Add an input to ask for a note or an assignment before the post moves on.',
-									'vip-workflow'
+									'vip-workflows'
 								) }
 							/>
 						</InspectorSection>
@@ -725,7 +725,7 @@ export default function TransitionInspector( {
 						<InspectorSection
 							title={ __(
 								'Restrict to an assignee',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 							summary={ assigneeSummary }
 							collapsible
@@ -751,7 +751,7 @@ export default function TransitionInspector( {
 				{ ( channelOptions.length > 0 || notifications.length > 0 ) && (
 					<InspectorSection>
 						<InspectorChoiceRow
-							label={ __( 'Notifications', 'vip-workflow' ) }
+							label={ __( 'Notifications', 'vip-workflows' ) }
 							options={ channelOptions }
 							selected={ notifications }
 							onToggle={ ( id ) =>
@@ -759,9 +759,9 @@ export default function TransitionInspector( {
 							}
 							unknownHelp={ __(
 								'No channel with this id is registered on this site — its plugin may be inactive. It stays stored, and notifies again if the channel comes back.',
-								'vip-workflow'
+								'vip-workflows'
 							) }
-							noneLabel={ __( 'None', 'vip-workflow' ) }
+							noneLabel={ __( 'None', 'vip-workflows' ) }
 							countLabel={ ( count ) =>
 								sprintf(
 									/* translators: %d: how many channels the transition notifies. */
@@ -769,7 +769,7 @@ export default function TransitionInspector( {
 										'%d channel',
 										'%d channels',
 										count,
-										'vip-workflow'
+										'vip-workflows'
 									),
 									count
 								)
@@ -788,8 +788,8 @@ export default function TransitionInspector( {
 				<InspectorDangerZone
 					label={
 						outcome
-							? __( 'Remove this route', 'vip-workflow' )
-							: __( 'Remove transition', 'vip-workflow' )
+							? __( 'Remove this route', 'vip-workflows' )
+							: __( 'Remove transition', 'vip-workflows' )
 					}
 					onClick={ onRemove }
 				/>

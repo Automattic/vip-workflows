@@ -17,7 +17,7 @@
 
     <testsuites>
         <!-- Integration only. This plugin is a bridge: everything it does depends
-             on wp-parsely's service classes and VIP Workflow's registries being
+             on wp-parsely's service classes and VIP Workflows' registries being
              loaded, so there is no meaningful unit surface to test in isolation. -->
         <testsuite name="integration">
             <directory>tests</directory>

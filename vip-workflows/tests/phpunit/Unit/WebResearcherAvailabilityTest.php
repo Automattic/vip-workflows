@@ -9,24 +9,24 @@
  * These tests pin both, plus the removal of the stale "Settings → Integrations"
  * instruction for a screen that never existed.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\ConnectorsCredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\AI\LegacyCredentialBackend;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
-use VIPWorkflow\Ideation\Assistants\WebResearcher;
-use VIPWorkflow\Ideation\Research\SearchProviders\SearchProviderRegistry;
-use VIPWorkflow\Ideation\Research\SearchProviders\TavilyProvider;
+use VIPWorkflows\AI\ConnectorsCredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\AI\LegacyCredentialBackend;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
+use VIPWorkflows\Ideation\Assistants\WebResearcher;
+use VIPWorkflows\Ideation\Research\SearchProviders\SearchProviderRegistry;
+use VIPWorkflows\Ideation\Research\SearchProviders\TavilyProvider;
 
 class WebResearcherAvailabilityTest extends TestCase
 {
@@ -205,7 +205,7 @@ class WebResearcherAvailabilityTest extends TestCase
         $this->assertSame( Destination::KIND_NONE, $requirement->get_destination()->get_kind() );
         $this->assertSame( '', $requirement->get_destination()->get_url() );
         $this->assertStringContainsString(
-            'VIP_WORKFLOW_TAVILY_KEY',
+            'VIP_WORKFLOWS_TAVILY_KEY',
             $requirement->get_destination()->get_hint()
         );
 

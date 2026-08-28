@@ -20,16 +20,16 @@
  * and 2.20/2.21 have to carry them correctly before 2.24 deletes them. The last
  * group below covers that deletion.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Database\Schema;
+use VIPWorkflows\Database\Schema;
 
 class SchemaRoutingSeedTest extends TestCase
 {
@@ -77,7 +77,7 @@ class SchemaRoutingSeedTest extends TestCase
      */
     private function given_channel( string $channel_id, array $events ): void
     {
-        $option_name                  = 'vip_workflow_channel_' . $channel_id;
+        $option_name                  = 'vip_workflows_channel_' . $channel_id;
         $this->options[ $option_name ] = [ 'events' => $events ];
         $this->channel_option_names[]  = $option_name;
     }
@@ -116,7 +116,7 @@ class SchemaRoutingSeedTest extends TestCase
      */
     private function routing(): array
     {
-        return $this->options['vip_workflow_notification_routing'] ?? [];
+        return $this->options['vip_workflows_notification_routing'] ?? [];
     }
 
     public function test_it_carries_a_channels_events_into_routing(): void
@@ -150,7 +150,7 @@ class SchemaRoutingSeedTest extends TestCase
     {
         // Routing is the authority wherever it has an entry — including an entry
         // that deliberately routes an event nowhere.
-        $this->options['vip_workflow_notification_routing'] = [
+        $this->options['vip_workflows_notification_routing'] = [
             'sla.warning'  => [ 'slack' ],
             'goal.at_risk' => [],
         ];
@@ -179,8 +179,8 @@ class SchemaRoutingSeedTest extends TestCase
     public function test_a_channel_that_stored_no_events_contributes_nothing(): void
     {
         // Slack and ntfy never persisted `events` at all.
-        $this->options['vip_workflow_channel_slack'] = [ 'webhook_url' => 'https://example.test' ];
-        $this->channel_option_names[]                = 'vip_workflow_channel_slack';
+        $this->options['vip_workflows_channel_slack'] = [ 'webhook_url' => 'https://example.test' ];
+        $this->channel_option_names[]                = 'vip_workflows_channel_slack';
 
         $this->seed();
 
@@ -191,7 +191,7 @@ class SchemaRoutingSeedTest extends TestCase
     {
         $this->seed();
 
-        $this->assertArrayNotHasKey( 'vip_workflow_notification_routing', $this->options );
+        $this->assertArrayNotHasKey( 'vip_workflows_notification_routing', $this->options );
     }
 
     public function test_it_seeds_the_id_the_dispatcher_fires_not_the_one_stored(): void
@@ -214,7 +214,7 @@ class SchemaRoutingSeedTest extends TestCase
 
     public function test_rekey_moves_stored_rows_onto_the_dispatched_ids(): void
     {
-        $this->options['vip_workflow_notification_routing'] = [
+        $this->options['vip_workflows_notification_routing'] = [
             'sla_breach'   => [ 'email' ],
             'sla_warning'  => [ 'slack' ],
             'goal_at_risk' => [ 'email', 'slack' ],
@@ -239,7 +239,7 @@ class SchemaRoutingSeedTest extends TestCase
         // The seed writes the canonical id, so a site can hold both: the stale row
         // the old screen wrote and the one the seed added. A channel chosen under
         // either spelling is a channel the admin asked for.
-        $this->options['vip_workflow_notification_routing'] = [
+        $this->options['vip_workflows_notification_routing'] = [
             'sla.breached' => [ 'slack' ],
             'sla_breach'   => [ 'email', 'slack' ],
         ];
@@ -253,7 +253,7 @@ class SchemaRoutingSeedTest extends TestCase
     public function test_rekey_leaves_an_already_migrated_site_alone(): void
     {
         // Every migration runs on a fresh install, and a failed one re-runs.
-        $this->options['vip_workflow_notification_routing'] = [
+        $this->options['vip_workflows_notification_routing'] = [
             'sla.breached' => [ 'email' ],
             'published'    => [ 'slack' ],
         ];
@@ -276,7 +276,7 @@ class SchemaRoutingSeedTest extends TestCase
     {
         // An empty list is a decision — the event is routed at no channel — and
         // isset() tells it apart from an event routing has never heard of.
-        $this->options['vip_workflow_notification_routing'] = [ 'sla_breach' => [] ];
+        $this->options['vip_workflows_notification_routing'] = [ 'sla_breach' => [] ];
 
         $this->rekey();
 
@@ -296,7 +296,7 @@ class SchemaRoutingSeedTest extends TestCase
      */
     public function test_it_forgets_routing_for_the_retired_events(): void
     {
-        $this->options['vip_workflow_notification_routing'] = [
+        $this->options['vip_workflows_notification_routing'] = [
             'sla.warning'  => [ 'email' ],
             'sla.breached' => [ 'email', 'slack' ],
             'sla_breach'   => [ 'slack' ],
@@ -315,7 +315,7 @@ class SchemaRoutingSeedTest extends TestCase
      */
     public function test_it_leaves_an_untouched_option_alone(): void
     {
-        $this->options['vip_workflow_notification_routing'] = [ 'published' => [ 'email' ] ];
+        $this->options['vip_workflows_notification_routing'] = [ 'published' => [ 'email' ] ];
 
         $this->drop_retired();
 
@@ -328,7 +328,7 @@ class SchemaRoutingSeedTest extends TestCase
      */
     public function test_it_is_re_runnable(): void
     {
-        $this->options['vip_workflow_notification_routing'] = [
+        $this->options['vip_workflows_notification_routing'] = [
             'goal.at_risk' => [ 'email' ],
             'published'    => [ 'email' ],
         ];

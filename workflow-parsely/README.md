@@ -1,7 +1,7 @@
 # Workflow: Parse.ly
 
 Bridge plugin that wires [wp-parsely](https://github.com/Parsely/wp-parsely)'s capabilities into
-VIP Workflow's extension points. wp-parsely is consumed as an unmodified dependency.
+VIP Workflows' extension points. wp-parsely is consumed as an unmodified dependency.
 
 Shipped: smart linking as a tool and as a workflow stage, headline scoring, trending topics as a
 discovery provider, and a past-performance signal available in ideation, from the command palette,
@@ -26,7 +26,7 @@ Integrations card instead of as a failed activation.
 ## Two exceptions to "a bridge and nothing else"
 
 This plugin is otherwise only glue: it consumes wp-parsely unmodified and adds no Parse.ly logic of
-its own, and it uses VIP Workflow's published extension points rather than changing them. Two things
+its own, and it uses VIP Workflows' published extension points rather than changing them. Two things
 sit outside that, both deliberate and both recorded here so they are not mistaken for drift.
 
 **1. A `/search` endpoint class lives in this plugin.** `/search` is the only Content API endpoint of
@@ -38,8 +38,8 @@ resolves a URL Parse.ly already indexes; `/analytics/posts` ranks but cannot ans
 is a file move plus a registration line, and `ParselyClient::search()` feature-detects
 `get_search_results()` so the local copy becomes deletable the moment wp-parsely ships its own.
 
-**2. One core VIP Workflow change.** Enriching another provider's prompts has no seam — a provider
-only sees its own results — so `vip_workflow_discovery_prompts` was added to the discovery
+**2. One core VIP Workflows change.** Enriching another provider's prompts has no seam — a provider
+only sees its own results — so `vip_workflows_discovery_prompts` was added to the discovery
 controller. It is documented in `docs/reference/extension-points.md` section 11, including the
 priority contract this plugin and `workflow-discovery-stream` depend on.
 

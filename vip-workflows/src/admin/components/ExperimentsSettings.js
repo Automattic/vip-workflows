@@ -42,7 +42,7 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 	const [ error, setError ] = useState( null );
 
 	useEffect( () => {
-		apiFetch( { path: '/vip-workflow/v1/settings/experiments' } )
+		apiFetch( { path: '/vip-workflows/v1/settings/experiments' } )
 			.then( ( data ) => {
 				setExperiments( data );
 				setDrafts(
@@ -81,7 +81,7 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 				continue;
 			}
 			const latest = await apiFetch( {
-				path: '/vip-workflow/v1/settings/experiments',
+				path: '/vip-workflows/v1/settings/experiments',
 				method: 'POST',
 				data: {
 					id: experiment.id,
@@ -99,7 +99,7 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 	if ( loading ) {
 		return (
 			<SettingsLoading
-				label={ __( 'Loading experiments…', 'vip-workflow' ) }
+				label={ __( 'Loading experiments…', 'vip-workflows' ) }
 			/>
 		);
 	}
@@ -109,7 +109,7 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 			<Notice status="error" isDismissible={ false }>
 				{ sprintf(
 					/* translators: %s: error message from the experiments request. */
-					__( 'Failed to load experiments: %s', 'vip-workflow' ),
+					__( 'Failed to load experiments: %s', 'vip-workflows' ),
 					error
 				) }
 			</Notice>
@@ -119,7 +119,7 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 	if ( experiments.length === 0 ) {
 		return (
 			<Text variant="body-md" render={ <p /> }>
-				{ __( 'No experiments are available.', 'vip-workflow' ) }
+				{ __( 'No experiments are available.', 'vip-workflows' ) }
 			</Text>
 		);
 	}
@@ -136,7 +136,7 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 							? experiment.description
 							: __(
 									'Unavailable in this environment.',
-									'vip-workflow'
+									'vip-workflows'
 							  )
 					}
 					checked={ drafts[ experiment.id ] }

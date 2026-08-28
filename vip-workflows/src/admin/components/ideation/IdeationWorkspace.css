@@ -2,20 +2,20 @@
  * Ideation workspace layout styles.
  */
 
-.vip-workflow-ideation-workspace {
+.vip-workflows-ideation-workspace {
 	height: 100%;
 	min-height: 0;
 }
 
 /* Workspace Body */
 
-.vip-workflow-ideation-workspace__body {
+.vip-workflows-ideation-workspace__body {
 	flex: 1;
 	min-height: 0;
 	position: relative;
 }
 
-.vip-workflow-ideation-workspace__main {
+.vip-workflows-ideation-workspace__main {
 	flex: 1;
 	overflow-y: auto;
 	padding: var(--wpds-dimension-padding-xl);
@@ -25,7 +25,7 @@
 /* Co-scoped with .components-button so the chrome wins over WPDS's button
    defaults on specificity + source order — no !important needed. */
 
-.vip-workflow-ideation-workspace__panel-toggle.components-button { /* wpds-allow R6 -- co-scoped to .components-button to beat WPDS button defaults */
+.vip-workflows-ideation-workspace__panel-toggle.components-button { /* wpds-allow R6 -- co-scoped to .components-button to beat WPDS button defaults */
 	position: absolute;
 	right: 0; /* wpds-allow R2 -- zero needs no token */
 	top: 8px; /* wpds-allow R2 -- positioning offset; no spacing token applies */
@@ -41,11 +41,11 @@
    the real layout, and offset by the same token the panel is sized with so the
    two can never drift apart. */
 
-.vip-workflow-ideation-workspace__body:has( .vip-workflow-ideation-workspace__panel ) .vip-workflow-ideation-workspace__panel-toggle {
+.vip-workflows-ideation-workspace__body:has( .vip-workflows-ideation-workspace__panel ) .vip-workflows-ideation-workspace__panel-toggle {
 	right: var(--wpds-dimension-surface-width-sm);
 }
 
-.vip-workflow-ideation-workspace__panel {
+.vip-workflows-ideation-workspace__panel {
 	width: var(--wpds-dimension-surface-width-sm);
 	flex-shrink: 0;
 	border-left: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
@@ -55,11 +55,11 @@
 
 /* Drop Zone */
 
-.vip-workflow-ideation-workspace {
+.vip-workflows-ideation-workspace {
 	position: relative;
 }
 
-.vip-workflow-ideation-workspace__drop-overlay {
+.vip-workflows-ideation-workspace__drop-overlay {
 	position: fixed;
 	inset: 0; /* wpds-allow R2 -- zero needs no token */
 	z-index: 100000;
@@ -71,34 +71,34 @@
 	pointer-events: none;
 }
 
-.vip-workflow-ideation-workspace__drop-content {
+.vip-workflows-ideation-workspace__drop-content {
 	padding: 48px 64px; /* wpds-allow R2 -- intentional large section padding beyond token scale */
 	background: var(--wpds-color-background-surface-neutral-strong); /* wpds-allow R6 -- drop-message card surface; Stack has no surface prop */
 	border: 3px dashed var(--wpds-color-stroke-interactive-brand); /* wpds-allow R6 -- dashed drop-target border; Stack has no border prop */
 	border-radius: var( --wpds-border-radius-lg ); /* wpds-allow R6 -- drop-message card surface; Stack has no radius prop */
 	color: var(--wpds-color-foreground-interactive-brand); /* wpds-allow R6 -- brand emphasis for drop message; Stack has no color prop */
-	box-shadow: var(--vip-workflow-elevation-lg); /* wpds-allow R6 -- elevated drop-message card; Stack has no shadow prop */
+	box-shadow: var(--vip-workflows-elevation-lg); /* wpds-allow R6 -- elevated drop-message card; Stack has no shadow prop */
 }
 
-.vip-workflow-ideation-workspace__drop-content svg {
+.vip-workflows-ideation-workspace__drop-content svg {
 	opacity: 0.7; /* wpds-allow R6 -- dims decorative upload icon inside drop-content Stack */
 }
 
-.vip-workflow-ideation-workspace__drop-hint {
-	font: var(--vip-workflow-text-body-md);
+.vip-workflows-ideation-workspace__drop-hint {
+	font: var(--vip-workflows-text-body-md);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* Upload Status Bar */
 
-.vip-workflow-ideation-workspace__upload-status {
+.vip-workflows-ideation-workspace__upload-status {
 	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-lg);
 	background: var(--wpds-color-background-surface-neutral-weak); /* wpds-allow R6 -- upload status bar surface; Stack has no background prop */
 	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral); /* wpds-allow R6 -- status bar divider; Stack has no border prop */
-	font: var(--vip-workflow-text-body-sm); /* wpds-allow R6 -- base body-sm sizing for chip labels; Stack has no text prop */
+	font: var(--vip-workflows-text-body-sm); /* wpds-allow R6 -- base body-sm sizing for chip labels; Stack has no text prop */
 }
 
-.vip-workflow-ideation-workspace__upload-item {
+.vip-workflows-ideation-workspace__upload-item {
 	display: inline-flex; /* wpds-allow R4 -- inline-flex status chip (bordered surface); not a block Stack */
 	align-items: center; /* wpds-allow R4 -- inline-flex status chip (bordered surface); not a block Stack */
 	gap: var(--wpds-dimension-gap-xs); /* wpds-allow R4 -- inline-flex status chip (bordered surface); not a block Stack */
@@ -108,18 +108,18 @@
 	border: 1px solid var(--wpds-color-stroke-surface-neutral);
 }
 
-.vip-workflow-ideation-workspace__upload-item--done {
+.vip-workflows-ideation-workspace__upload-item--done {
 	background: var(--wpds-color-background-surface-success-weak);
 	border-color: var(--wpds-color-stroke-surface-success-strong);
 	color: var(--wpds-color-foreground-content-success-weak);
 }
 
-.vip-workflow-ideation-workspace__upload-item--error {
+.vip-workflows-ideation-workspace__upload-item--error {
 	background: var(--wpds-color-background-surface-error-weak);
 	border-color: var(--wpds-color-stroke-surface-error-strong);
 	color: var(--wpds-color-foreground-content-error-weak);
 }
 
-.vip-workflow-ideation-workspace__upload-error {
+.vip-workflows-ideation-workspace__upload-error {
 	margin: 0 16px; /* wpds-allow R3 -- horizontal inset for floating snackbar; no parent Stack gap equivalent */
 }

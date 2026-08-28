@@ -11,7 +11,7 @@
  * sends the reader to fix something that would not help.
  *
  * The credential-absent cases run against Anthropic rather than OpenAI: the unit
- * bootstrap defines `VIP_WORKFLOW_OPENAI_KEY` for the whole suite, and a constant
+ * bootstrap defines `VIP_WORKFLOWS_OPENAI_KEY` for the whole suite, and a constant
  * is process-global and outranks every backend, so OpenAI is unconditionally
  * keyed here and no test can model it as unkeyed. The check is
  * provider-parameterized, so the branch is the same one either way — and the
@@ -21,22 +21,22 @@
  * Unit rather than integration: `AiAvailability` returns value objects and never
  * touches `WP_Ability`.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\ConnectorsCredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\AI\LegacyCredentialBackend;
-use VIPWorkflow\Abilities\AiAvailability;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\AI\ConnectorsCredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\AI\LegacyCredentialBackend;
+use VIPWorkflows\Abilities\AiAvailability;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
 use WordPress\AiClient\AiClient;
 
 class AiAvailabilityTest extends TestCase
@@ -138,10 +138,10 @@ class AiAvailabilityTest extends TestCase
      */
     private function set_model( string $provider, string $model ): void
     {
-        $map              = $this->options['vip_workflow_ai_models'] ?? array();
+        $map              = $this->options['vip_workflows_ai_models'] ?? array();
         $map[ $provider ] = $model;
 
-        $this->options['vip_workflow_ai_models'] = $map;
+        $this->options['vip_workflows_ai_models'] = $map;
     }
 
     /**
@@ -151,7 +151,7 @@ class AiAvailabilityTest extends TestCase
      */
     private function select_provider( string $provider ): void
     {
-        $this->options['vip_workflow_ai_provider'] = $provider;
+        $this->options['vip_workflows_ai_provider'] = $provider;
     }
 
     /**
@@ -243,7 +243,7 @@ class AiAvailabilityTest extends TestCase
     public function test_a_key_supplied_by_constant_counts_as_configured(): void
     {
         $this->assertTrue(
-            defined( 'VIP_WORKFLOW_OPENAI_KEY' ),
+            defined( 'VIP_WORKFLOWS_OPENAI_KEY' ),
             'This assertion documents the suite-wide constant the OpenAI case relies on, declared in tests/phpunit/bootstrap.php.'
         );
 
@@ -304,7 +304,7 @@ class AiAvailabilityTest extends TestCase
 
         $this->assertSame( Destination::KIND_NONE, $legacy->get_kind() );
         $this->assertSame( '', $legacy->get_url() );
-        $this->assertStringContainsString( 'VIP_WORKFLOW_ANTHROPIC_KEY', $legacy->get_hint() );
+        $this->assertStringContainsString( 'VIP_WORKFLOWS_ANTHROPIC_KEY', $legacy->get_hint() );
     }
 
     /* ---------------------------------------------------------------------
@@ -399,7 +399,7 @@ class AiAvailabilityTest extends TestCase
 
         $this->assertSame( Destination::KIND_ADMIN_URL, $destination->get_kind() );
         $this->assertSame(
-            'https://example.test/wp-admin/admin.php?page=vip-workflow-settings',
+            'https://example.test/wp-admin/admin.php?page=vip-workflows-settings',
             $destination->get_url()
         );
     }
@@ -519,7 +519,7 @@ class AiAvailabilityTest extends TestCase
         $this->assertSame( Requirement::KIND_DEPENDENCY, $requirement->get_kind() );
         $this->assertSame( array( self::SOURCE ), $requirement->get_sources() );
         $this->assertStringContainsString(
-            'page=vip-workflow-settings',
+            'page=vip-workflows-settings',
             $requirement->get_destination()->get_url(),
             'The destination must be resolved through admin_url() against this plugin\'s own settings page.'
         );

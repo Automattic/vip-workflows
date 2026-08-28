@@ -6,19 +6,19 @@
  * from the freeform ideation seed. Runs first and shares output
  * with other assistants to focus their searches.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\AiInference;
-use VIPWorkflow\API\AvailabilitySerializer;
-use VIPWorkflow\Abilities\AiAvailability;
-use VIPWorkflow\Integrations\LlmJsonGenerator;
-use VIPWorkflow\Integrations\LlmTextGenerator;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\AiInference;
+use VIPWorkflows\API\AvailabilitySerializer;
+use VIPWorkflows\Abilities\AiAvailability;
+use VIPWorkflows\Integrations\LlmJsonGenerator;
+use VIPWorkflows\Integrations\LlmTextGenerator;
 use WP_Error;
 
 /**
@@ -32,7 +32,7 @@ class SeedAnalyst {
 	 * @return string
 	 */
 	public function get_id(): string {
-		return 'vip-workflow/seed-analyst';
+		return 'vip-workflows/seed-analyst';
 	}
 
 	/**
@@ -49,7 +49,7 @@ class SeedAnalyst {
 	 * @return string
 	 */
 	public function get_label(): string {
-		return __( 'Seed Analyst', 'vip-workflow' );
+		return __( 'Seed Analyst', 'vip-workflows' );
 	}
 
 	/**
@@ -118,7 +118,7 @@ class SeedAnalyst {
 			$entity_count = $this->count_entities( $analysis['entities'] ?? array() );
 			$summary      = sprintf(
 				/* translators: 1: number of topics, 2: number of entities */
-				__( 'Extracted %1$d topics and %2$d entities from your seed.', 'vip-workflow' ),
+				__( 'Extracted %1$d topics and %2$d entities from your seed.', 'vip-workflows' ),
 				$tag_count,
 				$entity_count
 			);
@@ -153,7 +153,7 @@ class SeedAnalyst {
 		if ( ! empty( $analysis['news_angle'] ) ) {
 			$cards[] = array(
 				'type'       => 'news-angle',
-				'title'      => __( 'News Angle', 'vip-workflow' ),
+				'title'      => __( 'News Angle', 'vip-workflows' ),
 				'content'    => $analysis['news_angle'],
 				'source'     => 'seed-analyst',
 			);
@@ -163,7 +163,7 @@ class SeedAnalyst {
 		if ( ! empty( $analysis['tags'] ) ) {
 			$cards[] = array(
 				'type'   => 'tag-cloud',
-				'title'  => __( 'Topics', 'vip-workflow' ),
+				'title'  => __( 'Topics', 'vip-workflows' ),
 				'tags'   => $analysis['tags'],
 				'source' => 'seed-analyst',
 			);
@@ -171,9 +171,9 @@ class SeedAnalyst {
 
 		// Entity cards (one card per entity group that has entries).
 		$entity_labels = array(
-			'people'        => __( 'People', 'vip-workflow' ),
-			'organizations' => __( 'Organizations', 'vip-workflow' ),
-			'places'        => __( 'Places', 'vip-workflow' ),
+			'people'        => __( 'People', 'vip-workflows' ),
+			'organizations' => __( 'Organizations', 'vip-workflows' ),
+			'places'        => __( 'Places', 'vip-workflows' ),
 		);
 
 		foreach ( $entity_labels as $group => $label ) {

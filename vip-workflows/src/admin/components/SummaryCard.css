@@ -10,39 +10,39 @@
 
 /* Surface (background, border, radius) and padding are the <Card>'s. Only the
    hover affordance is left here — Card exposes no elevation or hover state. */
-.vip-workflow-summary-card {
+.vip-workflows-summary-card {
 	transition: box-shadow 0.2s;
 }
 
 /* Fills the card so the actions row below can pin itself to the bottom edge:
    Card.Root is a flex column, and without this its single child sizes to its
    content and every card's footer floats at a different height. */
-.vip-workflow-summary-card__body {
+.vip-workflows-summary-card__body {
 	flex: 1; /* wpds-allow R4 -- fills the Card.Root flex column; Card exposes no grow prop */
 }
 
-.vip-workflow-summary-card:hover {
-	box-shadow: var(--vip-workflow-elevation-md); /* wpds-allow R6 -- hover elevation on the card <Stack>; Stack exposes no elevation or hover state */
+.vip-workflows-summary-card:hover {
+	box-shadow: var(--vip-workflows-elevation-md); /* wpds-allow R6 -- hover elevation on the card <Stack>; Stack exposes no elevation or hover state */
 }
 
 /* The row, its wrapping and the 8px gap come from the badges <Stack>; only the
    refusal to shrink under the card title is left here — Stack sets no
    flex-shrink on itself. */
-.vip-workflow-summary-card__badges {
+.vip-workflows-summary-card__badges {
 	flex-shrink: 0;
 }
 
-.vip-workflow-summary-card__description {
+.vip-workflows-summary-card__description {
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted description tone; <Text> exposes no color prop */
 }
 
-.vip-workflow-summary-card__meta {
+.vip-workflows-summary-card__meta {
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted meta tone; <Text> exposes no color prop */
 }
 
 /* Pin the actions to the card's bottom so footers align across a row of cards
    with varying description lengths. */
-.vip-workflow-summary-card__actions {
+.vip-workflows-summary-card__actions {
 	margin-top: auto; /* wpds-allow R3 -- `auto` consumes the card's spare height so the action row sits on the bottom edge; <Stack> has no per-child alignment prop */
 	padding-top: var(--wpds-dimension-padding-md);
 	border-top: 1px solid var(--wpds-color-stroke-surface-neutral); /* wpds-allow R6 -- separator above the actions; @wordpress/ui 0.9 ships no Divider and Stack has no border prop */

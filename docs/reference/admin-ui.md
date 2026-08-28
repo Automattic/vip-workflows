@@ -19,7 +19,7 @@ the sidebar's own readouts and split one feature across two places.
 - `WorkflowSaveGuard` — mounted unconditionally, **outside the sidebar**, and
   renders no chrome. Its `editor.preSavePost` filter has to survive the sidebar
   being closed, which is why it is not inside it.
-- One `Stack` (`.vip-workflow-sidebar`) holding `WorkflowPanel`. No card and no
+- One `Stack` (`.vip-workflows-sidebar`) holding `WorkflowPanel`. No card and no
   heading of its own: `PluginSidebar` already names the sidebar "Workflow", and
   the panel opens with the document-sidebar row that names the sequence. The
   runs within the panel rule themselves apart.
@@ -126,7 +126,7 @@ the sidebar's own readouts and split one feature across two places.
 
 **Location**: `src/admin/pages/` (React) and `includes/admin/` (PHP)
 
-> **Rendering model:** Following the app-shell removal, these screens render as standard wp-admin pages in the normal admin canvas — no fullscreen shell, no injected React sidebar, no `vipWorkflowAdmin.menuItems` global. Navigation is the native Workflows submenu (ordered Main → System → Integrations in `Admin::cleanup_menu()`). The System screens (Settings, Notifications, Agents, Tools, Jobs) use the shared `AdminPage` scaffold (`src/admin/components/AdminPage.js`), whose header + breadcrumbs match WordPress core's `@wordpress/admin-ui` `Page` pattern. Its stylesheet (`admin-page.css`) carries the **wp-admin typography reset** that stops wp-admin's unlayered `common.css` from overriding `@wordpress/ui` component styles — see [`docs/guides/wpds-usage-audit-patterns.md` → "wp-admin ↔ WPDS cascade-layer conflicts"](../guides/wpds-usage-audit-patterns.md#wp-admin--wpds-cascade-layer-conflicts-why-ds-styles-get-overridden); expect to reapply it on any new surface (modals/slideouts portal outside this canvas).
+> **Rendering model:** Following the app-shell removal, these screens render as standard wp-admin pages in the normal admin canvas — no fullscreen shell, no injected React sidebar, no `vipWorkflowsAdmin.menuItems` global. Navigation is the native Workflows submenu (ordered Main → System → Integrations in `Admin::cleanup_menu()`). The System screens (Settings, Notifications, Agents, Tools, Jobs) use the shared `AdminPage` scaffold (`src/admin/components/AdminPage.js`), whose header + breadcrumbs match WordPress core's `@wordpress/admin-ui` `Page` pattern. Its stylesheet (`admin-page.css`) carries the **wp-admin typography reset** that stops wp-admin's unlayered `common.css` from overriding `@wordpress/ui` component styles — see [`docs/guides/wpds-usage-audit-patterns.md` → "wp-admin ↔ WPDS cascade-layer conflicts"](../guides/wpds-usage-audit-patterns.md#wp-admin--wpds-cascade-layer-conflicts-why-ds-styles-get-overridden); expect to reapply it on any new surface (modals/slideouts portal outside this canvas).
 >
 > The page inventory below is partially out of date — it predates the menu restructuring. Treat `includes/admin/class-admin.php` and [`vip-workflows/docs/PLUGIN-INTEGRATION.md`](../../vip-workflows/docs/PLUGIN-INTEGRATION.md) as the source of truth. The API-key section reflects the current connector-based credential flow.
 
@@ -144,7 +144,7 @@ the sidebar's own readouts and split one feature across two places.
   - **Show in Command Palette (⌘K)** — only shown for tools that declare `'show_in_commands' => true` in their ability `meta`. When enabled, the tool registers with `wp.commands` and appears in the editor ⌘K palette.
   - **Can be used in transitions** — only shown for tools that declare `'transition_eligible' => true` in their ability `meta`. When enabled, the tool is available to attach to workflow stage transitions.
 
-  Both toggles persist via `AbilitySettings` → `wp_options` (`vip_workflow_ability_settings`).
+  Both toggles persist via `AbilitySettings` → `wp_options` (`vip_workflows_ability_settings`).
 - **Assistants** - Unified view of research abilities + discovery providers, one card per plugin (see [architecture.md § 5a](architecture.md#5a-unified-assistants-integrations-page)). An unavailable card names each unmet requirement from the ability's or provider's `availability_callback` and links to where it can be satisfied — for the built-in services that is core's Settings → Connectors, not this plugin
 
 **Settings Page** (tabbed):
@@ -152,14 +152,14 @@ the sidebar's own readouts and split one feature across two places.
 - **AI Services** - Selects the AI provider and model. This is a *preference* only; it holds no API keys.
 
 **Settings Storage**:
-- WordPress options table (`vip_workflow_settings`)
+- WordPress options table (`vip_workflows_settings`)
 - Per-user meta for preferences
 - Per-tool settings via AbilitySettings class
 
 **API Keys — not an admin surface in this plugin**:
 
-The plugin has no API-key entry UI. Keys for the built-in services (OpenAI, Anthropic, Google, Tavily, YouTube) are entered on WordPress core's **Settings → Connectors** screen (`options-connectors.php`). The plugin's former bespoke key stack — the `vip_workflow_api_key_fields` filter, the `ApiKeysController` class, its encrypted `vip_workflow_api_keys` option UI, and the `/vip-workflow/v1/settings/api-keys` routes — is no longer part of the plugin.
+The plugin has no API-key entry UI. Keys for the built-in services (OpenAI, Anthropic, Google, Tavily, YouTube) are entered on WordPress core's **Settings → Connectors** screen (`options-connectors.php`). The plugin's former bespoke key stack — the `vip_workflows_api_key_fields` filter, the `ApiKeysController` class, its encrypted `vip_workflows_api_keys` option UI, and the `/vip-workflows/v1/settings/api-keys` routes — is no longer part of the plugin.
 
-All credential reads go through the `VIPWorkflow\AI\Credentials` facade, which prefers a `VIP_WORKFLOW_*_KEY` constant and otherwise resolves through core connectors (or a legacy fallback store on installs without them). `Credentials::has_admin_credential_ui()` reports whether this install has a credential screen at all — code that points a user at one must check it rather than assuming Connectors exists.
+All credential reads go through the `VIPWorkflows\AI\Credentials` facade, which prefers a `VIP_WORKFLOWS_*_KEY` constant and otherwise resolves through core connectors (or a legacy fallback store on installs without them). `Credentials::has_admin_credential_ui()` reports whether this install has a credential screen at all — code that points a user at one must check it rather than assuming Connectors exists.
 
 See [`vip-workflows/docs/PLUGIN-INTEGRATION.md` § API Keys](../../vip-workflows/docs/PLUGIN-INTEGRATION.md#api-keys) for how a third-party plugin supplies its own key.

@@ -7,19 +7,19 @@
  * shape. These tests pin the mirrored behavior, including that `is_available()`
  * keeps its bool signature and its permissive default.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
-use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
+use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 
 class DiscoveryProviderRegistryTest extends TestCase
 {

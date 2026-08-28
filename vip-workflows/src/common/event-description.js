@@ -94,7 +94,7 @@ function toStage( eventData ) {
 function withReason( summary, reason ) {
 	return sprintf(
 		/* translators: 1: what the event did. 2: the reason behind it. */
-		__( '%1$s: %2$s', 'vip-workflow' ),
+		__( '%1$s: %2$s', 'vip-workflows' ),
 		summary,
 		reason
 	);
@@ -113,7 +113,7 @@ function withReason( summary, reason ) {
 function withComment( summary, comment ) {
 	return sprintf(
 		/* translators: 1: what the event did. 2: the comment left on it. */
-		__( '%1$s — “%2$s”', 'vip-workflow' ),
+		__( '%1$s — “%2$s”', 'vip-workflows' ),
 		summary,
 		comment
 	);
@@ -156,7 +156,7 @@ export function eventDescription( event ) {
 		case 'status_transition': {
 			const moved = sprintf(
 				/* translators: 1: stage the post left. 2: stage it moved to. */
-				__( 'Stage changed from %1$s to %2$s', 'vip-workflow' ),
+				__( 'Stage changed from %1$s to %2$s', 'vip-workflows' ),
 				fromStage( eventData ),
 				toStage( eventData )
 			);
@@ -173,14 +173,14 @@ export function eventDescription( event ) {
 		case 'stage.entered':
 			return sprintf(
 				/* translators: %s: stage the post entered. */
-				__( 'Entered the %s stage', 'vip-workflow' ),
+				__( 'Entered the %s stage', 'vip-workflows' ),
 				toStage( eventData )
 			);
 
 		case 'stage.completed':
 			return sprintf(
 				/* translators: %s: stage the post finished. */
-				__( 'Completed the %s stage', 'vip-workflow' ),
+				__( 'Completed the %s stage', 'vip-workflows' ),
 				fromStage( eventData )
 			);
 
@@ -188,7 +188,7 @@ export function eventDescription( event ) {
 		// a workflow-driven publish names the stage it came from, a core-driven
 		// one does not — so neither is read here.
 		case 'post.published':
-			return __( 'Went live', 'vip-workflow' );
+			return __( 'Went live', 'vip-workflows' );
 
 		// Which sequence the post joined is the Workflow field's to say; what is
 		// left is where in it the post starts.
@@ -198,7 +198,7 @@ export function eventDescription( event ) {
 						/* translators: %s: stage the post starts at. */
 						__(
 							'Assigned to the workflow at the %s stage',
-							'vip-workflow'
+							'vip-workflows'
 						),
 						eventData.initial_stage_label || eventData.initial_stage
 				  )
@@ -210,17 +210,17 @@ export function eventDescription( event ) {
 			return '';
 
 		case 'post.claimed':
-			return __( 'Claimed for review', 'vip-workflow' );
+			return __( 'Claimed for review', 'vip-workflows' );
 
 		case 'post.released':
-			return __( 'Released back to the queue', 'vip-workflow' );
+			return __( 'Released back to the queue', 'vip-workflows' );
 
 		case 'transition_blocked': {
 			const refused = sprintf(
 				/* translators: 1: stage the post was in. 2: stage it was refused entry to. */
 				__(
 					'Transition from %1$s to %2$s was blocked',
-					'vip-workflow'
+					'vip-workflows'
 				),
 				fromStage( eventData ),
 				toStage( eventData )
@@ -241,7 +241,7 @@ export function eventDescription( event ) {
 							'%d failed check',
 							'%d failed checks',
 							eventData.hard_failures.length,
-							'vip-workflow'
+							'vip-workflows'
 						),
 						eventData.hard_failures.length
 					)
@@ -261,7 +261,7 @@ export function eventDescription( event ) {
 							'Transition to %1$s raised %2$d warning',
 							'Transition to %1$s raised %2$d warnings',
 							count,
-							'vip-workflow'
+							'vip-workflows'
 						),
 						toStage( eventData ),
 						count
@@ -270,7 +270,7 @@ export function eventDescription( event ) {
 						/* translators: %s: stage the post moved to. */
 						__(
 							'Transition to %s raised warnings',
-							'vip-workflow'
+							'vip-workflows'
 						),
 						toStage( eventData )
 				  );
@@ -280,20 +280,20 @@ export function eventDescription( event ) {
 			return eventData.output?.score !== undefined
 				? sprintf(
 						/* translators: 1: ability id. 2: the score it returned. */
-						__( 'Ran %1$s (score: %2$s)', 'vip-workflow' ),
+						__( 'Ran %1$s (score: %2$s)', 'vip-workflows' ),
 						eventData.ability_id,
 						eventData.output.score
 				  )
 				: sprintf(
 						/* translators: %s: ability id. */
-						__( 'Ran %s', 'vip-workflow' ),
+						__( 'Ran %s', 'vip-workflows' ),
 						eventData.ability_id
 				  );
 
 		case 'ability.failed': {
 			const failed = sprintf(
 				/* translators: %s: ability id. */
-				__( '%s failed', 'vip-workflow' ),
+				__( '%s failed', 'vip-workflows' ),
 				eventData.ability_id
 			);
 
@@ -313,7 +313,7 @@ export function eventDescription( event ) {
 							'Sequence updated, now %d stage',
 							'Sequence updated, now %d stages',
 							eventData.statuses_count,
-							'vip-workflow'
+							'vip-workflows'
 						),
 						eventData.statuses_count
 				  );
@@ -324,10 +324,10 @@ export function eventDescription( event ) {
 		// header calls printing a raw key a bug). Anyone inspecting the event
 		// still finds both states on its payload.
 		case 'sequence.activated':
-			return __( 'Sequence activated', 'vip-workflow' );
+			return __( 'Sequence activated', 'vip-workflows' );
 
 		case 'sequence.deactivated':
-			return __( 'Sequence deactivated', 'vip-workflow' );
+			return __( 'Sequence deactivated', 'vip-workflows' );
 
 		// The nightly prune. Counts are the whole story when it worked; when a
 		// DELETE failed the count is null and the error is what a reader needs,
@@ -336,7 +336,7 @@ export function eventDescription( event ) {
 			if ( eventData.errors?.length ) {
 				return sprintf(
 					/* translators: %s: the database error the cleanup run reported. */
-					__( 'Cleanup failed: %s', 'vip-workflow' ),
+					__( 'Cleanup failed: %s', 'vip-workflows' ),
 					eventData.errors[ 0 ]
 				);
 			}
@@ -351,7 +351,7 @@ export function eventDescription( event ) {
 					'Cleanup removed %d expired row',
 					'Cleanup removed %d expired rows',
 					deleted,
-					'vip-workflow'
+					'vip-workflows'
 				),
 				deleted
 			);

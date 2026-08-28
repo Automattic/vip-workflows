@@ -5,15 +5,15 @@
  * Endpoints for the Story Discovery framework: provider listing,
  * recommendations, search, filters, and prompt selection.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
-use VIPWorkflow\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -30,7 +30,7 @@ class DiscoveryController extends WP_REST_Controller {
 	 *
 	 * @var mixed
 	 */
-	protected $namespace = 'vip-workflow/v1';
+	protected $namespace = 'vip-workflows/v1';
 	/**
 	 * REST route base.
 	 *
@@ -268,7 +268,7 @@ class DiscoveryController extends WP_REST_Controller {
 		 * @param array $grouped Prompts grouped by provider, each entry
 		 *                       { provider: array, prompts: array }.
 		 */
-		$grouped = (array) apply_filters( 'vip_workflow_discovery_prompts', $grouped );
+		$grouped = (array) apply_filters( 'vip_workflows_discovery_prompts', $grouped );
 
 		return new WP_REST_Response( $grouped );
 	}
@@ -282,11 +282,11 @@ class DiscoveryController extends WP_REST_Controller {
 		$slug = $request->get_param( 'provider' );
 
 		if ( ! $this->registry->get( $slug ) ) {
-			return new WP_Error( 'invalid_provider', __( 'Unknown discovery provider.', 'vip-workflow' ), array( 'status' => 400 ) );
+			return new WP_Error( 'invalid_provider', __( 'Unknown discovery provider.', 'vip-workflows' ), array( 'status' => 400 ) );
 		}
 
 		if ( ! $this->registry->is_available( $slug ) ) {
-			return new WP_Error( 'provider_unavailable', __( 'This provider is not configured.', 'vip-workflow' ), array( 'status' => 400 ) );
+			return new WP_Error( 'provider_unavailable', __( 'This provider is not configured.', 'vip-workflows' ), array( 'status' => 400 ) );
 		}
 
 		$text    = $request->get_param( 'text' ) ?? '';
@@ -327,7 +327,7 @@ class DiscoveryController extends WP_REST_Controller {
 		$slug = $request->get_param( 'provider' );
 
 		if ( ! $this->registry->get( $slug ) ) {
-			return new WP_Error( 'invalid_provider', __( 'Unknown discovery provider.', 'vip-workflow' ), array( 'status' => 400 ) );
+			return new WP_Error( 'invalid_provider', __( 'Unknown discovery provider.', 'vip-workflows' ), array( 'status' => 400 ) );
 		}
 
 		$provider = $this->registry->get( $slug );
@@ -368,11 +368,11 @@ class DiscoveryController extends WP_REST_Controller {
 		$prompt = $request->get_param( 'prompt' );
 
 		if ( ! $this->registry->get( $slug ) ) {
-			return new WP_Error( 'invalid_provider', __( 'Unknown discovery provider.', 'vip-workflow' ), array( 'status' => 400 ) );
+			return new WP_Error( 'invalid_provider', __( 'Unknown discovery provider.', 'vip-workflows' ), array( 'status' => 400 ) );
 		}
 
 		if ( ! $this->registry->is_available( $slug ) ) {
-			return new WP_Error( 'provider_unavailable', __( 'This provider is not configured.', 'vip-workflow' ), array( 'status' => 400 ) );
+			return new WP_Error( 'provider_unavailable', __( 'This provider is not configured.', 'vip-workflows' ), array( 'status' => 400 ) );
 		}
 
 		try {
@@ -382,7 +382,7 @@ class DiscoveryController extends WP_REST_Controller {
 		}
 
 		if ( ! is_string( $seed ) || empty( trim( $seed ) ) ) {
-			return new WP_Error( 'empty_seed', __( 'Provider returned an empty seed.', 'vip-workflow' ), array( 'status' => 400 ) );
+			return new WP_Error( 'empty_seed', __( 'Provider returned an empty seed.', 'vip-workflows' ), array( 'status' => 400 ) );
 		}
 
 		$user_id    = get_current_user_id();

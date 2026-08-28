@@ -37,8 +37,8 @@ import './SettingsSection.css';
  */
 export function SettingsSection( { title, description, children } ) {
 	return (
-		<Fieldset.Root className="vip-workflow-settings-section">
-			<Fieldset.Legend className="vip-workflow-settings-section__legend">
+		<Fieldset.Root className="vip-workflows-settings-section">
+			<Fieldset.Legend className="vip-workflows-settings-section__legend">
 				<Text variant="heading-md" render={ <h2 /> }>
 					{ title }
 				</Text>
@@ -51,7 +51,7 @@ export function SettingsSection( { title, description, children } ) {
 			     id — the same wiring `RoleCheckboxGroup` already uses. */ }
 			{ description && (
 				<Fieldset.Description
-					className="vip-workflow-settings-section__description"
+					className="vip-workflows-settings-section__description"
 					render={ <Text variant="body-md" render={ <p /> } /> }
 				>
 					{ description }
@@ -64,7 +64,7 @@ export function SettingsSection( { title, description, children } ) {
 			     label. Stretch is both the flex default and what the
 			     `Card.Content` this shell replaced did. */ }
 			<Stack
-				className="vip-workflow-settings-section__controls"
+				className="vip-workflows-settings-section__controls"
 				direction="column"
 				gap="xl"
 			>

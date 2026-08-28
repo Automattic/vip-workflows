@@ -5,15 +5,15 @@
  * Localizes ideation data for the admin scripts.
  * Note: Page rendering is now handled by the main admin AppShell.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Admin;
+namespace VIPWorkflows\Admin;
 
-use VIPWorkflow\ModuleInterface;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\ModuleInterface;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Handles localized data for the ideation admin scripts.
@@ -35,7 +35,7 @@ class IdeationAdmin implements ModuleInterface {
 	 */
 	public function init(): void {
 		// Priority 20: must run after Admin::enqueue_scripts (priority 10)
-		// registers the 'vip-workflow-admin' handle. wp_localize_script() is
+		// registers the 'vip-workflows-admin' handle. wp_localize_script() is
 		// a no-op on unregistered handles, and feature modules init before
 		// the core Admin module.
 		add_action( 'admin_enqueue_scripts', array( $this, 'localize_ideation_data' ), 20 );
@@ -49,17 +49,17 @@ class IdeationAdmin implements ModuleInterface {
 	 * @param string $hook_suffix Admin page hook suffix.
 	 */
 	public function localize_ideation_data( string $hook_suffix ): void {
-		// Only load on VIP Workflow pages.
-		if ( ! str_contains( $hook_suffix, 'vip-workflow' ) ) {
+		// Only load on VIP Workflows pages.
+		if ( ! str_contains( $hook_suffix, 'vip-workflows' ) ) {
 			return;
 		}
 
 		// Add ideation data to the main admin script.
 		wp_localize_script(
-			'vip-workflow-admin',
-			'vipWorkflowIdeation',
+			'vip-workflows-admin',
+			'vipWorkflowsIdeation',
 			array(
-				'restUrl'            => rest_url( 'vip-workflow/v1/' ),
+				'restUrl'            => rest_url( 'vip-workflows/v1/' ),
 				'nonce'              => wp_create_nonce( 'wp_rest' ),
 				'currentUserId'      => get_current_user_id(),
 				'currentUser'        => array(
@@ -70,9 +70,9 @@ class IdeationAdmin implements ModuleInterface {
 				'canManage'          => current_user_can( 'edit_others_posts' ),
 				'canEditOthersPosts' => current_user_can( 'edit_others_posts' ),
 				'urgencyLevels'      => array(
-					'normal'   => __( 'Normal', 'vip-workflow' ),
-					'urgent'   => __( 'Urgent', 'vip-workflow' ),
-					'breaking' => __( 'Breaking', 'vip-workflow' ),
+					'normal'   => __( 'Normal', 'vip-workflows' ),
+					'urgent'   => __( 'Urgent', 'vip-workflows' ),
+					'breaking' => __( 'Breaking', 'vip-workflows' ),
 				),
 				'users'              => $this->get_assignable_users(),
 				'roles'              => $this->get_available_roles(),
@@ -132,7 +132,7 @@ class IdeationAdmin implements ModuleInterface {
 	 * @return array
 	 */
 	private function get_sequences(): array {
-		$repository = new \VIPWorkflow\Sequences\SequenceRepository();
+		$repository = new \VIPWorkflows\Sequences\SequenceRepository();
 		$sequences = $repository->get_workflow_sequences( array( 'status' => 'active' ) );
 
 		return array_map(
@@ -154,7 +154,7 @@ class IdeationAdmin implements ModuleInterface {
 	 * @return array|null
 	 */
 	private function get_phase_config(): ?array {
-		$repository = new \VIPWorkflow\Sequences\SequenceRepository();
+		$repository = new \VIPWorkflows\Sequences\SequenceRepository();
 		$sequence  = $repository->get_active_phase_sequence();
 
 		if ( ! $sequence ) {

@@ -1,6 +1,6 @@
 <?php
 /**
- * Base test case for VIP Workflow integration tests.
+ * Base test case for VIP Workflows integration tests.
  *
  * Integration tests run against a real, booted WordPress install (provided by
  * wp-env / the WordPress test suite). This base extends Yoast's WPIntegration
@@ -19,12 +19,12 @@
  * docs/TESTING.md). The in-container `composer test:integration` invokes PHPUnit
  * directly and is not meant to run on a bare host checkout.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
 use Yoast\WPTestUtils\WPIntegration\TestCase as WPIntegrationTestCase;
 
@@ -95,27 +95,27 @@ abstract class TestCase extends WPIntegrationTestCase
     protected static function reset_cached_process_state(): void
     {
         // Option-backed caches; both re-read on next access.
-        \VIPWorkflow\Abilities\AbilitySettings::get_instance()->clear_cache();
-        \VIPWorkflow\AI\PromptSettings::get_instance()->clear_cache();
+        \VIPWorkflows\Abilities\AbilitySettings::get_instance()->clear_cache();
+        \VIPWorkflows\AI\PromptSettings::get_instance()->clear_cache();
 
-        // Re-fires `vip_workflow_register_prompts` on next access, and the real
+        // Re-fires `vip_workflows_register_prompts` on next access, and the real
         // listener registered during init is still attached.
-        \VIPWorkflow\AI\PromptRegistry::get_instance()->reset();
+        \VIPWorkflows\AI\PromptRegistry::get_instance()->reset();
 
         // Backend is lazily re-resolved by capability, so dropping the instance
         // costs nothing and clears any backend a test installed.
-        ( new \ReflectionProperty( \VIPWorkflow\AI\Credentials::class, 'instance' ) )->setValue( null, null );
+        ( new \ReflectionProperty( \VIPWorkflows\AI\Credentials::class, 'instance' ) )->setValue( null, null );
 
         // Once-per-request diagnostic de-duplication.
-        ( new \ReflectionProperty( \VIPWorkflow\AI\AiInference::class, 'reported' ) )->setValue( null, array() );
+        ( new \ReflectionProperty( \VIPWorkflows\AI\AiInference::class, 'reported' ) )->setValue( null, array() );
 
         // Re-entrancy guard keyed by post id; a leftover key makes a later
         // transition look already in progress and silently no-op.
-        ( new \ReflectionProperty( \VIPWorkflow\Workflow\StatusManager::class, 'transition_in_progress' ) )
+        ( new \ReflectionProperty( \VIPWorkflows\Workflow\StatusManager::class, 'transition_in_progress' ) )
             ->setValue( null, array() );
 
         // Ability id whose agent run is currently attributed.
-        ( new \ReflectionProperty( \VIPWorkflow\Workflow\StageAgentRunner::class, 'acting_ability_id' ) )
+        ( new \ReflectionProperty( \VIPWorkflows\Workflow\StageAgentRunner::class, 'acting_ability_id' ) )
             ->setValue( null, '' );
     }
 }

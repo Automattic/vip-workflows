@@ -55,7 +55,7 @@ async function createSequenceWithMetadata(
 	field = FIELD
 ) {
 	return requestUtils.rest( {
-		path: '/vip-workflow/v1/sequences',
+		path: '/vip-workflows/v1/sequences',
 		method: 'POST',
 		data: {
 			name: `E2E Metadata Sequence ${ label }`,
@@ -82,7 +82,7 @@ async function createSequenceWithMetadata(
 	} );
 }
 
-test.describe( 'VIP Workflow — editorial metadata (REST contract)', () => {
+test.describe( 'VIP Workflows — editorial metadata (REST contract)', () => {
 	let postId;
 	let sequenceId;
 
@@ -95,7 +95,7 @@ test.describe( 'VIP Workflow — editorial metadata (REST contract)', () => {
 			// Best-effort cleanup; ignore if the route/permission differs.
 			try {
 				await requestUtils.rest( {
-					path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+					path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 					method: 'DELETE',
 				} );
 			} catch ( e ) {
@@ -164,7 +164,7 @@ test.describe( 'VIP Workflow — editorial metadata (REST contract)', () => {
 		// Read it back through the plugin's metadata convenience endpoint
 		// (now gated on edit_post — admin satisfies it).
 		const metaResp = await requestUtils.rest( {
-			path: `/vip-workflow/v1/posts/${ postId }/metadata`,
+			path: `/vip-workflows/v1/posts/${ postId }/metadata`,
 		} );
 		const returned = ( metaResp.fields || [] ).find(
 			( f ) => f.key === FIELD.key
@@ -184,7 +184,7 @@ test.describe( 'VIP Workflow — editorial metadata (REST contract)', () => {
 
 		// Export → the JSON carries the metadata field definitions.
 		const exported = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }/export`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }/export`,
 		} );
 		const exportedField = ( exported.config?.metadata_fields || [] ).find(
 			( f ) => f.key === FIELD.key
@@ -194,7 +194,7 @@ test.describe( 'VIP Workflow — editorial metadata (REST contract)', () => {
 
 		// Import the exported JSON → the new sequence keeps the fields.
 		const imported = await requestUtils.rest( {
-			path: '/vip-workflow/v1/sequences/import',
+			path: '/vip-workflows/v1/sequences/import',
 			method: 'POST',
 			data: {
 				sequence_json: exported,
@@ -206,7 +206,7 @@ test.describe( 'VIP Workflow — editorial metadata (REST contract)', () => {
 
 		try {
 			const fetched = await requestUtils.rest( {
-				path: `/vip-workflow/v1/sequences/${ importedId }/export`,
+				path: `/vip-workflows/v1/sequences/${ importedId }/export`,
 			} );
 			const roundTripped = ( fetched.config?.metadata_fields || [] ).find(
 				( f ) => f.key === FIELD.key
@@ -216,7 +216,7 @@ test.describe( 'VIP Workflow — editorial metadata (REST contract)', () => {
 		} finally {
 			await requestUtils
 				.rest( {
-					path: `/vip-workflow/v1/sequences/${ importedId }`,
+					path: `/vip-workflows/v1/sequences/${ importedId }`,
 					method: 'DELETE',
 				} )
 				.catch( () => {} );
@@ -241,7 +241,7 @@ test.describe( 'VIP Workflow — editorial metadata (REST contract)', () => {
 		// Remove the workflow; status should report no fields (mirrors the
 		// editor clearing metadataFields on remove).
 		await requestUtils.rest( {
-			path: `/vip-workflow/v1/workflow/post/${ postId }/sequence`,
+			path: `/vip-workflows/v1/workflow/post/${ postId }/sequence`,
 			method: 'DELETE',
 		} );
 
@@ -251,7 +251,7 @@ test.describe( 'VIP Workflow — editorial metadata (REST contract)', () => {
 	} );
 } );
 
-test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
+test.describe( 'VIP Workflows — editorial metadata (UI)', () => {
 	let postId;
 	let sequenceId;
 
@@ -263,7 +263,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 		if ( sequenceId ) {
 			try {
 				await requestUtils.rest( {
-					path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+					path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 					method: 'DELETE',
 				} );
 			} catch ( e ) {
@@ -318,7 +318,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 
 	/**
 	 * Open a sequence from the Sequences list in the graph editor. The card is
-	 * `.vip-workflow-summary-card` and its "Edit" is an onClick <Button>
+	 * `.vip-workflows-summary-card` and its "Edit" is an onClick <Button>
 	 * (role button) that routes to the editor via the URL hash. The editor's
 	 * stable landmark is the primary "Save" action.
 	 *
@@ -327,7 +327,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 	 */
 	async function openSequenceForEdit( page, name ) {
 		await page
-			.locator( '.vip-workflow-summary-card' )
+			.locator( '.vip-workflows-summary-card' )
 			.filter( { hasText: name } )
 			.getByRole( 'button', { name: 'Edit' } )
 			.click();
@@ -396,7 +396,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 
 		// And it persisted server-side.
 		const metaResp = await requestUtils.rest( {
-			path: `/vip-workflow/v1/posts/${ postId }/metadata`,
+			path: `/vip-workflows/v1/posts/${ postId }/metadata`,
 		} );
 		const returned = ( metaResp.fields || [] ).find(
 			( f ) => f.key === FIELD.key
@@ -466,7 +466,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 		).toBeVisible();
 
 		const metaResp = await requestUtils.rest( {
-			path: `/vip-workflow/v1/posts/${ postId }/metadata`,
+			path: `/vip-workflows/v1/posts/${ postId }/metadata`,
 		} );
 		const returned = ( metaResp.fields || [] ).find(
 			( f ) => f.key === USER_FIELD.key
@@ -491,7 +491,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 
 		await admin.visitAdminPage(
 			'admin.php',
-			'page=vip-workflow-sequences'
+			'page=vip-workflows-sequences'
 		);
 
 		// Open this sequence in the graph-based Sequence editor.
@@ -511,7 +511,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 		await expect
 			.poll( async () => {
 				const bp = await requestUtils.rest( {
-					path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+					path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 				} );
 				return bp.description;
 			} )
@@ -519,7 +519,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 
 		// The guard: metadata_fields survived the save.
 		const updated = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		const fields = updated.config?.metadata_fields || [];
 		expect( fields.find( ( f ) => f.key === FIELD.key ) ).toBeTruthy();
@@ -538,7 +538,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 
 		await admin.visitAdminPage(
 			'admin.php',
-			'page=vip-workflow-sequences'
+			'page=vip-workflows-sequences'
 		);
 
 		await openSequenceForEdit( page, sequence.name );
@@ -567,7 +567,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 		await expect
 			.poll( async () => {
 				const bp = await requestUtils.rest( {
-					path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+					path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 				} );
 				return ( bp.config?.metadata_fields || [] ).find(
 					( f ) => f.key === FIELD.key
@@ -582,7 +582,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 	} ) => {
 		await admin.visitAdminPage(
 			'admin.php',
-			'page=vip-workflow-sequences'
+			'page=vip-workflows-sequences'
 		);
 		await page
 			.getByRole( 'link', { name: 'New editorial sequence' } )

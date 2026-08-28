@@ -2,14 +2,14 @@
 /**
  * Experiments REST Controller.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Plugin;
+use VIPWorkflows\Plugin;
 use WP_Error;
 use WP_REST_Controller;
 use WP_REST_Request;
@@ -26,7 +26,7 @@ class ExperimentsController extends WP_REST_Controller {
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->namespace = 'vip-workflow/v1';
+		$this->namespace = 'vip-workflows/v1';
 		$this->rest_base = 'settings/experiments';
 	}
 
@@ -99,7 +99,7 @@ class ExperimentsController extends WP_REST_Controller {
 		if ( null === $experiment ) {
 			return new WP_Error(
 				'rest_experiment_not_found',
-				sprintf( /* translators: %s: experiment ID. */ __( 'Unknown experiment "%s".', 'vip-workflow' ), $id ),
+				sprintf( /* translators: %s: experiment ID. */ __( 'Unknown experiment "%s".', 'vip-workflows' ), $id ),
 				array( 'status' => 404 )
 			);
 		}
@@ -107,7 +107,7 @@ class ExperimentsController extends WP_REST_Controller {
 		if ( ! $experiment->is_available() ) {
 			return new WP_Error(
 				'rest_experiment_unavailable',
-				sprintf( /* translators: %s: experiment ID. */ __( 'Experiment "%s" is not available.', 'vip-workflow' ), $id ),
+				sprintf( /* translators: %s: experiment ID. */ __( 'Experiment "%s" is not available.', 'vip-workflows' ), $id ),
 				array( 'status' => 400 )
 			);
 		}

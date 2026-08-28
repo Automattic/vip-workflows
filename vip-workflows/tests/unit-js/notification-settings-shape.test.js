@@ -50,7 +50,7 @@ register(
 );
 
 /**
- * A channel as `GET /vip-workflow/v1/notifications/channels` returns it.
+ * A channel as `GET /vip-workflows/v1/notifications/channels` returns it.
  *
  * @param {Object} overrides Field overrides.
  * @return {Object} Channel entry.
@@ -63,7 +63,7 @@ const channel = ( overrides = {} ) => ( {
 	...overrides,
 } );
 
-/** Events as `GET /vip-workflow/v1/notifications/events` returns them. */
+/** Events as `GET /vip-workflows/v1/notifications/events` returns them. */
 const EVENTS = [
 	{ id: 'sla.breached', label: 'SLA Breached' },
 	{ id: 'published', label: 'Published' },
@@ -91,24 +91,24 @@ function mockRest( {
 			return Promise.resolve( onWrite( { path, data } ) );
 		}
 
-		if ( '/vip-workflow/v1/notifications/channels' === path ) {
+		if ( '/vip-workflows/v1/notifications/channels' === path ) {
 			return Promise.resolve( channels );
 		}
 
 		const settingsRoute = path.match(
-			/^\/vip-workflow\/v1\/notifications\/(.+)\/settings$/
+			/^\/vip-workflows\/v1\/notifications\/(.+)\/settings$/
 		);
 		if ( settingsRoute ) {
 			return Promise.resolve( settings[ settingsRoute[ 1 ] ] || {} );
 		}
 
-		if ( '/vip-workflow/v1/notifications/events' === path ) {
+		if ( '/vip-workflows/v1/notifications/events' === path ) {
 			return Promise.resolve( EVENTS );
 		}
-		if ( '/vip-workflow/v1/notification-routing' === path ) {
+		if ( '/vip-workflows/v1/notification-routing' === path ) {
 			return Promise.resolve( { routing } );
 		}
-		if ( '/vip-workflow/v1/notification-debug' === path ) {
+		if ( '/vip-workflows/v1/notification-debug' === path ) {
 			return Promise.resolve( debug );
 		}
 
@@ -297,7 +297,7 @@ describe( 'Notifications screen shape', () => {
 
 		await waitFor( () => expect( writes ).toHaveLength( 1 ) );
 		expect( writes[ 0 ].path ).toBe(
-			'/vip-workflow/v1/notifications/slack-default/settings'
+			'/vip-workflows/v1/notifications/slack-default/settings'
 		);
 		expect( writes[ 0 ].data ).toEqual( {
 			webhook_url: 'https://hooks.slack.com/services/x',
@@ -445,7 +445,7 @@ describe( 'Notifications screen shape', () => {
 
 		await waitFor( () => expect( writes ).toHaveLength( 1 ) );
 		expect( writes[ 0 ] ).toEqual( {
-			path: '/vip-workflow/v1/notification-routing',
+			path: '/vip-workflows/v1/notification-routing',
 			data: { 'sla.breached': [ 'slack-default' ] },
 		} );
 		await waitFor( () =>
@@ -478,7 +478,7 @@ describe( 'Notifications screen shape', () => {
 
 		await waitFor( () => expect( writes ).toHaveLength( 1 ) );
 		expect( writes[ 0 ].path ).toBe(
-			'/vip-workflow/v1/notification-debug'
+			'/vip-workflows/v1/notification-debug'
 		);
 		expect( writes[ 0 ].data.enabled ).toBe( true );
 	} );

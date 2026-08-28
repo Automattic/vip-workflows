@@ -153,7 +153,7 @@ function RegionBandsComponent( {
 										'%d stage',
 										'%d stages',
 										stageCount,
-										'vip-workflow'
+										'vip-workflows'
 									),
 									stageCount
 								) }

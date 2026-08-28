@@ -1322,7 +1322,7 @@ function Flow( {
 			{
 				id: 'add-region',
 				icon: plus,
-				label: __( 'Add post status…', 'vip-workflow' ),
+				label: __( 'Add post status…', 'vip-workflows' ),
 				disabled: remaining.length === 0,
 				onSelect: () => onAddRegion?.(),
 			},
@@ -1334,7 +1334,7 @@ function Flow( {
 				icon: trash,
 				label: sprintf(
 					/* translators: %s: post status label (e.g. Pending Review) */
-					__( 'Remove “%s”', 'vip-workflow' ),
+					__( 'Remove “%s”', 'vip-workflows' ),
 					regionLabel( menu.region )
 				),
 				onSelect: () => onRemoveRegion?.( menu.region ),
@@ -1446,8 +1446,8 @@ function Flow( {
 				<Controls showInteractive={ false }>
 					<ControlButton
 						onClick={ handleResetLayout }
-						title={ __( 'Reset layout', 'vip-workflow' ) }
-						aria-label={ __( 'Reset layout', 'vip-workflow' ) }
+						title={ __( 'Reset layout', 'vip-workflows' ) }
+						aria-label={ __( 'Reset layout', 'vip-workflows' ) }
 					>
 						<Icon icon={ rotateLeft } size={ 16 } />
 					</ControlButton>
@@ -1477,7 +1477,7 @@ function Flow( {
 					// One name for the menu however it was opened. Which
 					// region it was opened on is already carried by the item
 					// that names it ("Remove “Pending Review”").
-					label={ __( 'Canvas actions', 'vip-workflow' ) }
+					label={ __( 'Canvas actions', 'vip-workflows' ) }
 					onClose={ closeMenu }
 				/>
 			) }

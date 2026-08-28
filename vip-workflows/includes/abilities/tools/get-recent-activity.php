@@ -4,12 +4,12 @@
  *
  * Returns recent editorial activity across the site.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the recent activity query.
@@ -24,7 +24,7 @@ function execute_get_recent_activity( ?array $input = null ) {
 
 	global $wpdb;
 
-	$table = \VIPWorkflow\Database\Schema::get_table_name( 'workflow_events' );
+	$table = \VIPWorkflows\Database\Schema::get_table_name( 'workflows_events' );
 	$since = gmdate( 'Y-m-d H:i:s', strtotime( "-{$days} days" ) );
 
 	// The EventBus stores its own `post.stage_changed` / `stage.{key}.entered`
@@ -32,7 +32,7 @@ function execute_get_recent_activity( ?array $input = null ) {
 	// `status_transition` row, so an unfiltered read reports one stage change
 	// three times over — and eats the limit doing it. Serve assistants the same
 	// de-duplicated stream the audit log serves.
-	$exclusion = \VIPWorkflow\Workflow\StatusManager::bus_bookkeeping_exclusion( 'event_type' );
+	$exclusion = \VIPWorkflows\Workflow\StatusManager::bus_bookkeeping_exclusion( 'event_type' );
 
 	$results = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$wpdb->prepare(
@@ -52,7 +52,7 @@ function execute_get_recent_activity( ?array $input = null ) {
 			continue;
 		}
 
-		$actor_name = \VIPWorkflow\Workflow\Actor::name_for(
+		$actor_name = \VIPWorkflows\Workflow\Actor::name_for(
 			array(
 				'actor_id'    => (int) $row->actor_id,
 				'actor_type'  => $row->actor_type ?? 'user',
@@ -72,7 +72,7 @@ function execute_get_recent_activity( ?array $input = null ) {
 
 	return array(
 		/* translators: %d: number of days in the activity period. */
-		'period' => sprintf( __( 'Last %d days', 'vip-workflow' ), $days ),
+		'period' => sprintf( __( 'Last %d days', 'vip-workflows' ), $days ),
 		'count'  => count( $events ),
 		'events' => $events,
 	);
@@ -85,23 +85,23 @@ function execute_get_recent_activity( ?array $input = null ) {
  */
 function register_get_recent_activity(): void {
 	wp_register_ability(
-		'vip-workflow/get-recent-activity',
+		'vip-workflows/get-recent-activity',
 		array(
-			'label'               => __( 'Get Recent Activity', 'vip-workflow' ),
-			'description'         => __( 'Returns recent editorial activity across the site (status transitions, assignments, etc.).', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Get Recent Activity', 'vip-workflows' ),
+			'description'         => __( 'Returns recent editorial activity across the site (status transitions, assignments, etc.).', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
 				'properties'           => array(
 					'days'  => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of days to look back (default 7, max 30).', 'vip-workflow' ),
+						'description' => __( 'Number of days to look back (default 7, max 30).', 'vip-workflows' ),
 						'default'     => 7,
 					),
 					'limit' => array(
 						'type'        => 'integer',
-						'description' => __( 'Maximum number of events (default 20, max 50).', 'vip-workflow' ),
+						'description' => __( 'Maximum number of events (default 20, max 50).', 'vip-workflows' ),
 						'default'     => 20,
 					),
 				),
@@ -112,15 +112,15 @@ function register_get_recent_activity(): void {
 				'properties'           => array(
 					'period' => array(
 						'type'        => 'string',
-						'description' => __( 'The time period queried.', 'vip-workflow' ),
+						'description' => __( 'The time period queried.', 'vip-workflows' ),
 					),
 					'count'  => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of events returned.', 'vip-workflow' ),
+						'description' => __( 'Number of events returned.', 'vip-workflows' ),
 					),
 					'events' => array(
 						'type'        => 'array',
-						'description' => __( 'Array of recent activity events.', 'vip-workflow' ),
+						'description' => __( 'Array of recent activity events.', 'vip-workflows' ),
 					),
 				),
 			),

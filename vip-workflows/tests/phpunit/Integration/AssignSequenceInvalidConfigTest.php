@@ -11,12 +11,12 @@
  * Driven through the real route because the value under test is the HTTP contract:
  * a machine-readable code and the exception's own message reaching the client.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
 use WP_REST_Request;
 
@@ -28,7 +28,7 @@ class AssignSequenceInvalidConfigTest extends TestCase
 	/**
 	 * Route template.
 	 */
-	private const ROUTE = '/vip-workflow/v1/workflow/post/%d/sequence';
+	private const ROUTE = '/vip-workflows/v1/workflow/post/%d/sequence';
 
 	public function set_up(): void
 	{
@@ -90,7 +90,7 @@ class AssignSequenceInvalidConfigTest extends TestCase
 			return $ids;
 		};
 
-		add_filter( 'vip_workflow_sequences_for_post', $make_eligible );
+		add_filter( 'vip_workflows_sequences_for_post', $make_eligible );
 
 		try {
 			$request = new WP_REST_Request( 'POST', sprintf( self::ROUTE, $post_id ) );
@@ -99,7 +99,7 @@ class AssignSequenceInvalidConfigTest extends TestCase
 
 			return rest_get_server()->dispatch( $request );
 		} finally {
-			remove_filter( 'vip_workflow_sequences_for_post', $make_eligible );
+			remove_filter( 'vip_workflows_sequences_for_post', $make_eligible );
 		}
 	}
 
@@ -175,8 +175,8 @@ class AssignSequenceInvalidConfigTest extends TestCase
 
 		$this->dispatch_assign( $post_id, $sequence_id );
 
-		$this->assertSame( '', get_post_meta( $post_id, \VIPWorkflow\Workflow\StatusManager::SEQUENCE_META_KEY, true ) );
-		$this->assertSame( '', get_post_meta( $post_id, \VIPWorkflow\Workflow\StatusManager::STAGE_META_KEY, true ) );
+		$this->assertSame( '', get_post_meta( $post_id, \VIPWorkflows\Workflow\StatusManager::SEQUENCE_META_KEY, true ) );
+		$this->assertSame( '', get_post_meta( $post_id, \VIPWorkflows\Workflow\StatusManager::STAGE_META_KEY, true ) );
 	}
 
 	/**
@@ -185,7 +185,7 @@ class AssignSequenceInvalidConfigTest extends TestCase
 	 */
 	public function test_a_normalized_sequence_still_assigns(): void
 	{
-		$sequence_id = (int) ( new \VIPWorkflow\Sequences\SequenceRepository() )->create(
+		$sequence_id = (int) ( new \VIPWorkflows\Sequences\SequenceRepository() )->create(
 			'Assign Healthy Flow',
 			'assign-healthy-flow',
 			'',

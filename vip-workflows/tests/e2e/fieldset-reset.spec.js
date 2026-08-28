@@ -84,14 +84,20 @@ async function shrinksUnderPressure( page, rootSelector ) {
 
 test.describe( 'fieldset shrink reset', () => {
 	test( 'admin canvas', async ( { admin, page } ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflow-settings' );
+		await admin.visitAdminPage(
+			'admin.php',
+			'page=vip-workflows-settings'
+		);
 		await page.waitForLoadState( 'networkidle' ).catch( () => {} );
 		await page
-			.locator( '.vip-workflow-admin-page fieldset' )
+			.locator( '.vip-workflows-admin-page fieldset' )
 			.first()
 			.waitFor();
 
-		const floors = await fieldsetFloors( page, '.vip-workflow-admin-page' );
+		const floors = await fieldsetFloors(
+			page,
+			'.vip-workflows-admin-page'
+		);
 		expect(
 			floors,
 			'no fieldset found — has the Settings screen changed?'
@@ -105,12 +111,12 @@ test.describe( 'fieldset shrink reset', () => {
 		// Given 50px of a 200px row, it must take 50px — not the ~200px+ the UA
 		// floor produces.
 		expect(
-			await shrinksUnderPressure( page, '.vip-workflow-admin-page' )
+			await shrinksUnderPressure( page, '.vip-workflows-admin-page' )
 		).toBeLessThanOrEqual( 50 );
 	} );
 
 	test( 'portaled modal', async ( { admin, page } ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflow-tools' );
+		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-tools' );
 		await page.waitForLoadState( 'networkidle' ).catch( () => {} );
 
 		const trigger = page.getByRole( 'button', {

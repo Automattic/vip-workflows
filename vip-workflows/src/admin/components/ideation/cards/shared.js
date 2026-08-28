@@ -151,7 +151,7 @@ export function useSummarize( onSummarize ) {
 				setSummary( result.summary );
 			}
 		} catch {
-			setSummarizeError( __( 'Summarization failed.', 'vip-workflow' ) );
+			setSummarizeError( __( 'Summarization failed.', 'vip-workflows' ) );
 		} finally {
 			setSummarizing( false );
 		}
@@ -178,7 +178,7 @@ export function useNotes( sourceId, projectId, initial ) {
 		setSavingNotes( true );
 		try {
 			await apiFetch( {
-				path: `/vip-workflow/v1/ideation/${ projectId }/sources/${ sourceId }`,
+				path: `/vip-workflows/v1/ideation/${ projectId }/sources/${ sourceId }`,
 				method: 'PUT',
 				data: { notes },
 			} );
@@ -228,7 +228,7 @@ export function CardDetailModal( {
 	meta,
 	excerpt,
 	summary,
-	summaryTitle = __( 'AI Summary', 'vip-workflow' ),
+	summaryTitle = __( 'AI Summary', 'vip-workflows' ),
 	actions,
 	notes,
 	setNotes,
@@ -237,8 +237,8 @@ export function CardDetailModal( {
 	notesPlaceholder,
 } ) {
 	const classNames = [
-		'vip-workflow-ideation-detail-modal',
-		'vip-workflow-modal--truncate-title',
+		'vip-workflows-ideation-detail-modal',
+		'vip-workflows-modal--truncate-title',
 		className,
 	]
 		.filter( Boolean )
@@ -256,11 +256,11 @@ export function CardDetailModal( {
 				{ meta }
 				{ excerpt }
 
-				<hr className="vip-workflow-ideation-detail-modal__separator" />
+				<hr className="vip-workflows-ideation-detail-modal__separator" />
 
 				<CollapsibleCard.Root
 					defaultOpen
-					className="vip-workflow-ideation-detail-modal__summary-card"
+					className="vip-workflows-ideation-detail-modal__summary-card"
 				>
 					<CollapsibleCard.Header>
 						<Card.Title>{ summaryTitle }</Card.Title>
@@ -272,12 +272,12 @@ export function CardDetailModal( {
 
 				<TextareaControl
 					__nextHasNoMarginBottom
-					label={ __( 'Notes', 'vip-workflow' ) }
+					label={ __( 'Notes', 'vip-workflows' ) }
 					value={ notes }
 					onChange={ setNotes }
 					placeholder={
 						notesPlaceholder ||
-						__( 'Add your notes…', 'vip-workflow' )
+						__( 'Add your notes…', 'vip-workflows' )
 					}
 					rows={ 6 }
 				/>
@@ -291,7 +291,7 @@ export function CardDetailModal( {
 					isBusy={ savingNotes }
 					disabled={ savingNotes }
 				>
-					{ __( 'Save notes', 'vip-workflow' ) }
+					{ __( 'Save notes', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 		</Modal>
@@ -340,9 +340,9 @@ export function CardThumb( { src, alt = '', className = '' } ) {
 	if ( failedSrc === src ) {
 		return (
 			<span
-				className={ `${ className } vip-workflow-ideation-card__image-unavailable`.trim() }
+				className={ `${ className } vip-workflows-ideation-card__image-unavailable`.trim() }
 				role="img"
-				aria-label={ __( 'Image unavailable', 'vip-workflow' ) }
+				aria-label={ __( 'Image unavailable', 'vip-workflows' ) }
 			/>
 		);
 	}
@@ -385,7 +385,7 @@ export const CARD_PREVIEW_LIMIT = 300;
  *   - the body must be non-blank once trimmed, so whitespace never displaces
  *     text.
  *
- * Line breaks in the result survive to the DOM; `.vip-workflow-ideation-card__excerpt`
+ * Line breaks in the result survive to the DOM; `.vip-workflows-ideation-card__excerpt`
  * carries `white-space: pre-line` and clamps to four lines.
  *
  * @param {Object} card    The card.
@@ -415,8 +415,8 @@ export function buildSimilarQuery( card ) {
 
 	const query = title.length > 80 ? title.substring( 0, 80 ) : title;
 	const fallback = isMedia
-		? 'vip-workflow/media-scout'
-		: 'vip-workflow/web-researcher';
+		? 'vip-workflows/media-scout'
+		: 'vip-workflows/web-researcher';
 	const assistant = card.ability_id || fallback;
 
 	return { assistant, query };
@@ -456,17 +456,17 @@ export function CardActions( {
 				<Button
 					icon={ undo }
 					onClick={ onRestore }
-					label={ __( 'Restore', 'vip-workflow' ) }
+					label={ __( 'Restore', 'vip-workflows' ) }
 					showTooltip
-					className="vip-workflow-ideation-card__action"
+					className="vip-workflows-ideation-card__action"
 					size="small"
 				/>
 				<Button
 					icon={ trash }
 					onClick={ onDelete }
-					label={ __( 'Delete', 'vip-workflow' ) }
+					label={ __( 'Delete', 'vip-workflows' ) }
 					showTooltip
-					className="vip-workflow-ideation-card__action vip-workflow-ideation-card__action--delete"
+					className="vip-workflows-ideation-card__action vip-workflows-ideation-card__action--delete"
 					size="small"
 					isDestructive
 				/>
@@ -482,11 +482,11 @@ export function CardActions( {
 					onClick={ isPinned ? onUnpin : onPin }
 					label={
 						isPinned
-							? __( 'Unpin', 'vip-workflow' )
-							: __( 'Pin', 'vip-workflow' )
+							? __( 'Unpin', 'vip-workflows' )
+							: __( 'Pin', 'vip-workflows' )
 					}
 					showTooltip
-					className={ `vip-workflow-ideation-card__action ${
+					className={ `vip-workflows-ideation-card__action ${
 						isPinned ? 'is-active' : ''
 					}` }
 					size="small"
@@ -497,9 +497,9 @@ export function CardActions( {
 					icon={ external }
 					href={ url }
 					target="_blank"
-					label={ __( 'Open', 'vip-workflow' ) }
+					label={ __( 'Open', 'vip-workflows' ) }
 					showTooltip
-					className="vip-workflow-ideation-card__action"
+					className="vip-workflows-ideation-card__action"
 					size="small"
 				/>
 			) }
@@ -507,18 +507,18 @@ export function CardActions( {
 				<Button
 					icon={ search }
 					onClick={ onFindSimilar }
-					label={ __( 'Find similar', 'vip-workflow' ) }
+					label={ __( 'Find similar', 'vip-workflows' ) }
 					showTooltip
-					className="vip-workflow-ideation-card__action"
+					className="vip-workflows-ideation-card__action"
 					size="small"
 				/>
 			) }
 			<Button
 				icon={ closeSmall }
 				onClick={ onDismiss }
-				label={ __( 'Dismiss', 'vip-workflow' ) }
+				label={ __( 'Dismiss', 'vip-workflows' ) }
 				showTooltip
-				className="vip-workflow-ideation-card__action vip-workflow-ideation-card__action--dismiss"
+				className="vip-workflows-ideation-card__action vip-workflows-ideation-card__action--dismiss"
 				size="small"
 			/>
 		</>

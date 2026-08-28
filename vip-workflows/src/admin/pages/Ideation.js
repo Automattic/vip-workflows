@@ -51,13 +51,13 @@ export default function Ideation( { route, onNavigate } ) {
 			setLoading( true );
 			try {
 				const state = await apiFetch( {
-					path: `/vip-workflow/v1/ideation/${ projectId }`,
+					path: `/vip-workflows/v1/ideation/${ projectId }`,
 				} );
 				setProjectState( state );
 			} catch ( err ) {
 				setError(
 					err.message ||
-						__( 'Failed to load project.', 'vip-workflow' )
+						__( 'Failed to load project.', 'vip-workflows' )
 				);
 			} finally {
 				setLoading( false );
@@ -79,7 +79,7 @@ export default function Ideation( { route, onNavigate } ) {
 
 			try {
 				const state = await apiFetch( {
-					path: '/vip-workflow/v1/ideation/seed',
+					path: '/vip-workflows/v1/ideation/seed',
 					method: 'POST',
 					data: { seed },
 				} );
@@ -92,7 +92,7 @@ export default function Ideation( { route, onNavigate } ) {
 					err.message ||
 						__(
 							'Failed to create ideation project.',
-							'vip-workflow'
+							'vip-workflows'
 						)
 				);
 			} finally {
@@ -127,7 +127,7 @@ export default function Ideation( { route, onNavigate } ) {
 				align="center"
 				justify="center"
 				gap="md"
-				className="vip-workflow-ideation-loading"
+				className="vip-workflows-ideation-loading"
 			>
 				<Spinner />
 			</Stack>
@@ -146,7 +146,7 @@ export default function Ideation( { route, onNavigate } ) {
 
 	return (
 		// wpds-allow R7 -- block-flow page column; the sections below carry their own margin-top, which a flex Stack would stop collapsing (see Ideation.css)
-		<div className="vip-workflow-ideation-landing">
+		<div className="vip-workflows-ideation-landing">
 			{ error && (
 				<Notice
 					status="error"

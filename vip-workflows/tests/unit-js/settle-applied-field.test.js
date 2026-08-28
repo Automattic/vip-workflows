@@ -11,7 +11,7 @@ import '@testing-library/jest-dom';
 
 import { settleAppliedField } from '../../src/common/settle-applied-field';
 
-const SETTLE_CLASS = 'vip-workflow-field--settling';
+const SETTLE_CLASS = 'vip-workflows-field--settling';
 
 describe( 'settleAppliedField', () => {
 	afterEach( () => {

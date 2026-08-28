@@ -2,12 +2,12 @@
 /**
  * Ability result data object.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
 /**
  * Represents the result of an ability execution.

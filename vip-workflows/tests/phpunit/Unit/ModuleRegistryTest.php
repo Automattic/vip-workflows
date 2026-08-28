@@ -2,14 +2,14 @@
 /**
  * Module registry unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\ModuleInterface;
+use VIPWorkflows\ModuleInterface;
 
 /**
  * Tests for Plugin::register_module() and ModuleInterface contract.
@@ -18,7 +18,7 @@ class ModuleRegistryTest extends TestCase
 {
 
     /**
-     * @var \VIPWorkflow\Plugin
+     * @var \VIPWorkflows\Plugin
      */
     private $plugin;
 
@@ -27,7 +27,7 @@ class ModuleRegistryTest extends TestCase
         parent::setUp();
 
         // Get a fresh Plugin instance via reflection (bypasses singleton).
-        $reflection = new \ReflectionClass( \VIPWorkflow\Plugin::class );
+        $reflection = new \ReflectionClass( \VIPWorkflows\Plugin::class );
         $this->plugin = $reflection->newInstanceWithoutConstructor();
 
         // Initialize the modules array via reflection.

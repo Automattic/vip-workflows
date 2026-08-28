@@ -24,7 +24,7 @@ import { fetchChannelDestinations } from '../../src/admin/components/Notificatio
 const group = {
 	prefix: 'slack-',
 	label: 'Slack',
-	addEndpoint: '/vip-workflow/v1/slack-destinations',
+	addEndpoint: '/vip-workflows/v1/slack-destinations',
 };
 
 describe( 'fetchChannelDestinations', () => {
@@ -53,7 +53,7 @@ describe( 'fetchChannelDestinations', () => {
 		apiFetch.mockResolvedValue( { ok: true } );
 
 		await expect( fetchChannelDestinations( group ) ).rejects.toThrow(
-			'/vip-workflow/v1/slack-destinations'
+			'/vip-workflows/v1/slack-destinations'
 		);
 	} );
 

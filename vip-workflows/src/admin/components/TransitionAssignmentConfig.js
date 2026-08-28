@@ -80,20 +80,20 @@ export function expandRequiresAssignment( requirement ) {
  * no agent at all. The option is withdrawn until a real agent picker exists.
  *
  * The server side is untouched — `AssignmentManager::get_assignee_types()` still
- * registers `agent`, still validates one, and the `vip_workflow_assignee_types`
+ * registers `agent`, still validates one, and the `vip_workflows_assignee_types`
  * filter can still add more — so a sequence that already stores one keeps its
  * stored shape. What is gone is authoring a new one blind.
  */
 const ASSIGNEE_TYPES = [
-	{ label: __( 'User', 'vip-workflow' ), value: 'user' },
-	{ label: __( 'Role', 'vip-workflow' ), value: 'role' },
+	{ label: __( 'User', 'vip-workflows' ), value: 'user' },
+	{ label: __( 'Role', 'vip-workflows' ), value: 'role' },
 ];
 
 /**
  * The type options to show for a transition, including one this build no longer
  * offers.
  *
- * A stored `agent` — or a type an out-of-tree `vip_workflow_assignee_types`
+ * A stored `agent` — or a type an out-of-tree `vip_workflows_assignee_types`
  * filter registered — matches no option, and a `<select>` whose value matches
  * nothing renders blank. Blank reads as "not set yet", which is exactly wrong:
  * the transition does carry a type, and silently drawing it as unset is how an
@@ -113,7 +113,7 @@ function assigneeTypeOptions( assigneeType ) {
 		{
 			label: sprintf(
 				/* translators: %s: an assignee type this build cannot author, e.g. "agent". */
-				__( '%s (no longer available)', 'vip-workflow' ),
+				__( '%s (no longer available)', 'vip-workflows' ),
 				assigneeType
 			),
 			value: assigneeType,
@@ -161,12 +161,12 @@ export function AssignmentInputConfig( {
 			direction="column"
 			gap="md"
 			align="stretch"
-			className="vip-workflow-assignment-config"
+			className="vip-workflows-assignment-config"
 		>
 			<SelectControl
 				__next40pxDefaultSize
 				__nextHasNoMarginBottom
-				label={ __( 'Assignee type', 'vip-workflow' ) }
+				label={ __( 'Assignee type', 'vip-workflows' ) }
 				value={ assigneeType }
 				options={ assigneeTypeOptions( assigneeType ) }
 				onChange={ ( v ) => onUpdateInput( 'assignee_type', v ) }
@@ -174,31 +174,31 @@ export function AssignmentInputConfig( {
 			<TextControl
 				__next40pxDefaultSize
 				__nextHasNoMarginBottom
-				label={ __( 'Assignment key', 'vip-workflow' ) }
+				label={ __( 'Assignment key', 'vip-workflows' ) }
 				value={ input?.meta_key || '' }
 				onChange={ ( v ) =>
 					onUpdateInput( 'meta_key', sanitizeAssignmentKey( v ) )
 				}
-				placeholder={ __( 'e.g., legal-reviewer', 'vip-workflow' ) }
+				placeholder={ __( 'e.g., legal-reviewer', 'vip-workflows' ) }
 				help={
 					keyProblem ||
 					__(
 						'Unique identifier for this assignment slot',
-						'vip-workflow'
+						'vip-workflows'
 					)
 				}
 			/>
 			<TextControl
 				__next40pxDefaultSize
 				__nextHasNoMarginBottom
-				label={ __( 'Label', 'vip-workflow' ) }
+				label={ __( 'Label', 'vip-workflows' ) }
 				value={ input?.label || '' }
 				onChange={ ( v ) => onUpdateInput( 'label', v ) }
-				placeholder={ __( 'e.g., Select reviewer', 'vip-workflow' ) }
+				placeholder={ __( 'e.g., Select reviewer', 'vip-workflows' ) }
 			/>
 			<ToggleControl
 				__nextHasNoMarginBottom
-				label={ __( 'Required', 'vip-workflow' ) }
+				label={ __( 'Required', 'vip-workflows' ) }
 				checked={ input?.required || false }
 				onChange={ ( v ) => onUpdateInput( 'required', v ) }
 			/>
@@ -230,12 +230,12 @@ export function AssignmentInputConfig( {
 			{ assigneeType === 'user' && availableRoles.length > 0 && (
 				<Fieldset.Root>
 					<Fieldset.Legend>
-						{ __( 'Filter by role', 'vip-workflow' ) }
+						{ __( 'Filter by role', 'vip-workflows' ) }
 					</Fieldset.Legend>
 					<Fieldset.Description>
 						{ __(
 							'Leave all unchecked to offer every user.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Fieldset.Description>
 					<Stack direction="column" gap="md" align="stretch">
@@ -280,16 +280,16 @@ export function RequiresAssignmentConfig( { transition, onToggle, onUpdate } ) {
 			direction="column"
 			gap="md"
 			align="stretch"
-			className="vip-workflow-transition__requires"
+			className="vip-workflows-transition__requires"
 		>
 			<ToggleControl
 				__nextHasNoMarginBottom
-				label={ __( 'Requires assignment', 'vip-workflow' ) }
+				label={ __( 'Requires assignment', 'vip-workflows' ) }
 				checked={ Boolean( transition.requires_assignment ) }
 				onChange={ onToggle }
 				help={ __(
 					'Restrict this transition to a previously assigned user or role',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			/>
 			{ transition.requires_assignment && (
@@ -297,33 +297,33 @@ export function RequiresAssignmentConfig( { transition, onToggle, onUpdate } ) {
 					direction="column"
 					gap="md"
 					align="stretch"
-					className="vip-workflow-requires-config"
+					className="vip-workflows-requires-config"
 				>
 					<TextControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Assignment key', 'vip-workflow' ) }
+						label={ __( 'Assignment key', 'vip-workflows' ) }
 						value={ requirement.meta_key }
 						onChange={ ( v ) =>
 							onUpdate( 'meta_key', sanitizeAssignmentKey( v ) )
 						}
 						placeholder={ __(
 							'e.g., legal-reviewer',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 						help={ __(
 							'Must match assignment key from another transition',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					/>
 					<SelectControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
-						label={ __( 'Match mode', 'vip-workflow' ) }
+						label={ __( 'Match mode', 'vip-workflows' ) }
 						value={ requirement.match }
 						options={ [
 							{
-								label: __( 'Current user', 'vip-workflow' ),
+								label: __( 'Current user', 'vip-workflows' ),
 								value: 'current_user',
 							},
 							// There is deliberately no "current user role" option.
@@ -343,7 +343,7 @@ export function RequiresAssignmentConfig( { transition, onToggle, onUpdate } ) {
 							// any gate-satisfying assignment completed — so a user
 							// or role assignment reaches this mode the same way.
 							{
-								label: __( 'Completed', 'vip-workflow' ),
+								label: __( 'Completed', 'vip-workflows' ),
 								value: 'completed',
 							},
 						] }

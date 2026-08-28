@@ -2,15 +2,15 @@
 /**
  * Tests for UrlMetaExtractor.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Integrations\UrlMetaExtractor;
+use VIPWorkflows\Integrations\UrlMetaExtractor;
 use WP_Error;
 
 /**

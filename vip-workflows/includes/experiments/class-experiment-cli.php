@@ -2,12 +2,12 @@
 /**
  * Experiment WP-CLI commands.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Experiments;
+namespace VIPWorkflows\Experiments;
 
 use WP_CLI;
 use WP_CLI\Utils;
@@ -17,9 +17,9 @@ use WP_CLI\Utils;
  *
  * ## EXAMPLES
  *
- *     wp vip-workflow experiment list
- *     wp vip-workflow experiment enable ideation
- *     wp vip-workflow experiment disable ideation
+ *     wp vip-workflows experiment list
+ *     wp vip-workflows experiment enable ideation
+ *     wp vip-workflows experiment disable ideation
  */
 class ExperimentCLI {
 
@@ -40,7 +40,7 @@ class ExperimentCLI {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp vip-workflow experiment list
+	 *     wp vip-workflows experiment list
 	 *
 	 * @subcommand list
 	 *
@@ -81,7 +81,7 @@ class ExperimentCLI {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp vip-workflow experiment enable ideation
+	 *     wp vip-workflows experiment enable ideation
 	 *
 	 * @param array $args       Positional args.
 	 * @param array $assoc_args Named args.
@@ -114,7 +114,7 @@ class ExperimentCLI {
 	 *
 	 * ## EXAMPLES
 	 *
-	 *     wp vip-workflow experiment disable ideation
+	 *     wp vip-workflows experiment disable ideation
 	 *
 	 * @param array $args       Positional args.
 	 * @param array $assoc_args Named args.
@@ -143,7 +143,7 @@ class ExperimentCLI {
 	 * @return ExperimentRegistry
 	 */
 	private function get_registry(): ExperimentRegistry {
-		$plugin = \VIPWorkflow\Plugin::get_instance();
+		$plugin = \VIPWorkflows\Plugin::get_instance();
 		return $plugin->get_experiment_registry();
 	}
 }

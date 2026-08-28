@@ -83,7 +83,7 @@ Extend save/update sanitization for `type: 'phase'` configs. Sanitize `phases[].
 ### Ideation Controller (`class-ideation-controller.php`)
 - In `create_pitch()`: load active phase sequence, check role is allowed, then execute configured transition tools against the ideation project. On tool failure, return `tool_check_failed` error with `hard_failures` / `soft_warnings` (same error shape as editorial transitions in `StatusManager::run_transition_tools()`). On role failure or missing transition, return `403`.
 - In `create_draft()`: same check for the `ideation` to `editorial` transition.
-- Expose enabled transitions and button labels via the existing localized data (`vipWorkflowIdeation`) so the frontend knows which buttons to render without an extra API call.
+- Expose enabled transitions and button labels via the existing localized data (`vipWorkflowsIdeation`) so the frontend knows which buttons to render without an extra API call.
 
 ## Frontend Changes
 

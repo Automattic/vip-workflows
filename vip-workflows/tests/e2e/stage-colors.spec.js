@@ -14,7 +14,7 @@ const SEED_COLOR = '#111111';
 
 async function createSequence( requestUtils, label ) {
 	return requestUtils.rest( {
-		path: '/vip-workflow/v1/sequences',
+		path: '/vip-workflows/v1/sequences',
 		method: 'POST',
 		data: {
 			name: `E2E Stage Colors ${ label }`,
@@ -48,14 +48,14 @@ async function createSequence( requestUtils, label ) {
 	} );
 }
 
-test.describe( 'VIP Workflow — automatic stage colors', () => {
+test.describe( 'VIP Workflows — automatic stage colors', () => {
 	let sequenceId;
 
 	test.afterEach( async ( { requestUtils } ) => {
 		if ( sequenceId ) {
 			await requestUtils
 				.rest( {
-					path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+					path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 					method: 'DELETE',
 				} )
 				.catch( () => {} );
@@ -70,7 +70,7 @@ test.describe( 'VIP Workflow — automatic stage colors', () => {
 		sequenceId = bp.id;
 
 		const list = await requestUtils.rest( {
-			path: '/vip-workflow/v1/sequences',
+			path: '/vip-workflows/v1/sequences',
 		} );
 		const mine = list.find( ( b ) => b.id === sequenceId );
 		expect( mine ).toBeTruthy();
@@ -95,13 +95,13 @@ test.describe( 'VIP Workflow — automatic stage colors', () => {
 
 		await admin.visitAdminPage(
 			'admin.php',
-			'page=vip-workflow-sequences'
+			'page=vip-workflows-sequences'
 		);
 		// Open the sequence in the graph editor. The card is
-		// `.vip-workflow-summary-card`; "Edit" is an onClick <Button> (role
+		// `.vip-workflows-summary-card`; "Edit" is an onClick <Button> (role
 		// button); the editor's landmark is the sequence editor's "Save" action.
 		await page
-			.locator( '.vip-workflow-summary-card' )
+			.locator( '.vip-workflows-summary-card' )
 			.filter( { hasText: bp.name } )
 			.getByRole( 'button', { name: 'Edit' } )
 			.click();
@@ -128,7 +128,7 @@ test.describe( 'VIP Workflow — automatic stage colors', () => {
 		await expect
 			.poll( async () => {
 				const updated = await requestUtils.rest( {
-					path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+					path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 				} );
 				return updated.config.statuses
 					.find( ( s ) => s.key === 'draft' )
@@ -137,7 +137,7 @@ test.describe( 'VIP Workflow — automatic stage colors', () => {
 			.toBe( '#879f11' );
 
 		const updated = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		const draft = updated.config.statuses.find(
 			( s ) => s.key === 'draft'

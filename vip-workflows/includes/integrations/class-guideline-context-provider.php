@@ -2,12 +2,12 @@
 /**
  * GuidelineContextProvider - Canonical AI-facing guideline reader.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
 /**
  * Reads editorial guideline context from the WordPress Knowledge storage.
@@ -16,7 +16,7 @@ namespace VIPWorkflow\Integrations;
  * headed for Core (see WordPress/gutenberg#77230). Each guideline scope is one
  * `guideline`-typed row addressed by a `guideline-{scope}` slug, with the text
  * in `post_content`; per-block guidelines are `guideline-block-*` rows whose
- * canonical block name is the row title. VIP Workflow does not own guideline
+ * canonical block name is the row title. VIP Workflows does not own guideline
  * storage.
  *
  * Rows are read directly rather than through `/wp/v2/knowledge` because that
@@ -95,7 +95,7 @@ class GuidelineContextProvider {
 		 * @param string $context     Guideline packet text, or the empty-state sentinel.
 		 * @param int    $category_id Optional category ID supplied by the caller.
 		 */
-		return (string) apply_filters( 'vip_workflow_guideline_context', $context, $category_id );
+		return (string) apply_filters( 'vip_workflows_guideline_context', $context, $category_id );
 	}
 
 	/**
@@ -111,7 +111,7 @@ class GuidelineContextProvider {
 			? array()
 			: array(
 				array(
-					'name' => __( 'Content Guidelines', 'vip-workflow' ),
+					'name' => __( 'Content Guidelines', 'vip-workflows' ),
 					'rule' => $packet_text,
 				),
 			);
@@ -123,7 +123,7 @@ class GuidelineContextProvider {
 		 * @param array<int, array{name: string, rule: string}> $rules   Rule definitions.
 		 * @param int                                            $post_id Optional post ID supplied by the caller.
 		 */
-		return (array) apply_filters( 'vip_workflow_editorial_alignment_rules', $rules, $post_id );
+		return (array) apply_filters( 'vip_workflows_editorial_alignment_rules', $rules, $post_id );
 	}
 
 	/**

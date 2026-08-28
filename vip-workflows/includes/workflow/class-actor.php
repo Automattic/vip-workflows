@@ -2,12 +2,12 @@
 /**
  * Who did something, in one shape.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Workflow;
+namespace VIPWorkflows\Workflow;
 
 /**
  * The one description of an actor this plugin serves to a client.
@@ -204,10 +204,10 @@ final class Actor {
 				}
 			}
 
-			return '' !== $agent_actor ? $agent_actor : __( 'Agent', 'vip-workflow' );
+			return '' !== $agent_actor ? $agent_actor : __( 'Agent', 'vip-workflows' );
 		}
 
 		$user = get_userdata( (int) ( $entry['actor_id'] ?? 0 ) );
-		return $user ? $user->display_name : __( 'System', 'vip-workflow' );
+		return $user ? $user->display_name : __( 'System', 'vip-workflows' );
 	}
 }

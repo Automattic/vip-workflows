@@ -17,23 +17,23 @@
  * meta keys) and what it calls empty (a per-type rule, never `empty()` — a `0` a
  * person typed is an answer).
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\PostTypeManager;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\PostTypeManager;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
- * @covers \VIPWorkflow\Workflow\StatusManager::check_required_metadata
- * @covers \VIPWorkflow\Sequences\Sequence::metadata_value_is_empty
+ * @covers \VIPWorkflows\Workflow\StatusManager::check_required_metadata
+ * @covers \VIPWorkflows\Sequences\Sequence::metadata_value_is_empty
  */
 class RequiredMetadataTransitionTest extends TestCase
 {
@@ -171,7 +171,7 @@ class RequiredMetadataTransitionTest extends TestCase
         $post_status = $sequence->get_stage_status( $from_stage );
         $post        = $this->create_mock_post( array( 'ID' => 1, 'post_status' => $post_status ) );
 
-        $meta[ '_vip_workflow_sequence_id' ]  = (string) self::SEQUENCE_ID;
+        $meta[ '_vip_workflows_sequence_id' ]  = (string) self::SEQUENCE_ID;
         $meta[ StatusManager::STAGE_META_KEY ] = $from_stage;
 
         Functions\when( 'get_post' )->justReturn( $post );

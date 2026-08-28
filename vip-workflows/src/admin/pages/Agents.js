@@ -29,15 +29,15 @@ export default function Agents() {
 		<AdminPage
 			breadcrumbs={ [
 				{
-					label: __( 'Workflows', 'vip-workflow' ),
-					href: 'admin.php?page=vip-workflow',
+					label: __( 'Workflows', 'vip-workflows' ),
+					href: 'admin.php?page=vip-workflows',
 				},
-				{ label: __( 'Agents', 'vip-workflow' ) },
+				{ label: __( 'Agents', 'vip-workflows' ) },
 			] }
-			title={ __( 'Agents', 'vip-workflow' ) }
+			title={ __( 'Agents', 'vip-workflows' ) }
 			subtitle={ __(
 				'Configure agents that assist with editorial work.',
-				'vip-workflow'
+				'vip-workflows'
 			) }
 			actions={
 				<>
@@ -45,7 +45,7 @@ export default function Agents() {
 						variant="secondary"
 						onClick={ () => setShowHowTo( true ) }
 					>
-						{ __( 'Add custom agents', 'vip-workflow' ) }
+						{ __( 'Add custom agents', 'vip-workflows' ) }
 					</Button>
 					<Button
 						variant="primary"
@@ -53,7 +53,7 @@ export default function Agents() {
 						isBusy={ agents.saving }
 						disabled={ agents.saving || ! agents.canSave }
 					>
-						{ __( 'Save', 'vip-workflow' ) }
+						{ __( 'Save', 'vip-workflows' ) }
 					</Button>
 				</>
 			}

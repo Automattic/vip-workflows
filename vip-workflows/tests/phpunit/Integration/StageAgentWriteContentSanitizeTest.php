@@ -13,14 +13,14 @@
  * editor into block recovery. See AgentNotesMarkupFidelityTest for the path
  * that depends on it.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Abilities\Agents\StageAgent;
+use VIPWorkflows\Abilities\Agents\StageAgent;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/agents/class-stage-agent.php';
 

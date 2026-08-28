@@ -72,17 +72,17 @@ async function renderRail( props = {} ) {
 }
 
 /** The rail's END pill, or null. */
-const endPill = () => document.querySelector( '.vip-workflow-rail__end' );
+const endPill = () => document.querySelector( '.vip-workflows-rail__end' );
 /** The green finished check on the stage mark, or null. */
-const doneMark = () => document.querySelector( '.vip-workflow-rail__done' );
+const doneMark = () => document.querySelector( '.vip-workflows-rail__done' );
 /** The neutral (dead end) stage dot, or null. */
 const neutralDot = () =>
-	document.querySelector( '.vip-workflow-rail__dot--neutral' );
+	document.querySelector( '.vip-workflows-rail__dot--neutral' );
 /** Everything in the actions column the drawing measures itself against. */
 const railTargets = () => document.querySelectorAll( '[data-rail-target]' );
 /** Every line, wave and arrowhead the rail's SVG track draws. */
 const trackPaths = () =>
-	document.querySelectorAll( '.vip-workflow-rail__track path' );
+	document.querySelectorAll( '.vip-workflows-rail__track path' );
 
 /**
  * Give jsdom a laid-out box for the duration of one test.
@@ -119,7 +119,7 @@ describe( 'TransitionRail degenerate states', () => {
 	beforeEach( () => {
 		apiFetch.mockReset();
 		apiFetch.mockImplementation( ( { path } ) => {
-			if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+			if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 				return Promise.resolve( [] );
 			}
 			return Promise.resolve( {} );
@@ -257,7 +257,7 @@ describe( 'TransitionRail degenerate states', () => {
 		expect( pass ).toHaveAttribute( 'aria-disabled', 'true' );
 		expect( fail ).toHaveAttribute( 'aria-disabled', 'true' );
 		expect(
-			document.querySelector( '.vip-workflow-rail__spinner' )
+			document.querySelector( '.vip-workflows-rail__spinner' )
 		).toBeInTheDocument();
 		expect( endPill() ).not.toBeInTheDocument();
 		// An unrouted outcome draws no button.
@@ -350,7 +350,7 @@ describe( 'TransitionRail degenerate states', () => {
 		expect( pass ).toHaveAttribute( 'aria-disabled', 'true' );
 		// No run is in flight — the mark must not claim one.
 		expect(
-			document.querySelector( '.vip-workflow-rail__spinner' )
+			document.querySelector( '.vip-workflows-rail__spinner' )
 		).not.toBeInTheDocument();
 		expect( endPill() ).not.toBeInTheDocument();
 	} );
@@ -417,7 +417,7 @@ describe( 'TransitionRail degenerate states', () => {
 
 	it( 'blocked-by-check: the transition stays live with the failing check beneath it', async () => {
 		apiFetch.mockImplementation( ( { path } ) => {
-			if ( path.startsWith( '/vip-workflow/v1/abilities?' ) ) {
+			if ( path.startsWith( '/vip-workflows/v1/abilities?' ) ) {
 				return Promise.resolve( [
 					{
 						id: 'x/seo',
@@ -459,7 +459,9 @@ describe( 'TransitionRail degenerate states', () => {
 		// not a painted dot.
 		await waitFor( () =>
 			expect(
-				document.querySelector( 'svg.vip-workflow-rail__outcome--fail' )
+				document.querySelector(
+					'svg.vip-workflows-rail__outcome--fail'
+				)
 			).toBeInTheDocument()
 		);
 

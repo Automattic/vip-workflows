@@ -45,13 +45,13 @@ export const REGION_ORDER = [ 'draft', 'pending', 'private', 'publish' ];
 export function regionLabel( region ) {
 	switch ( region ) {
 		case 'draft':
-			return __( 'Draft', 'vip-workflow' );
+			return __( 'Draft', 'vip-workflows' );
 		case 'pending':
-			return __( 'Pending Review', 'vip-workflow' );
+			return __( 'Pending Review', 'vip-workflows' );
 		case 'private':
-			return __( 'Private', 'vip-workflow' );
+			return __( 'Private', 'vip-workflows' );
 		case 'publish':
-			return __( 'Published', 'vip-workflow' );
+			return __( 'Published', 'vip-workflows' );
 		default:
 			return region;
 	}
@@ -68,20 +68,20 @@ export function regionDescription( region ) {
 		case 'draft':
 			return __(
 				'Work in progress. New content is created here.',
-				'vip-workflow'
+				'vip-workflows'
 			);
 		case 'pending':
 			return __(
 				'Submitted for review, not yet published.',
-				'vip-workflow'
+				'vip-workflows'
 			);
 		case 'private':
 			return __(
 				'Visible only to logged-in users who can read private posts.',
-				'vip-workflow'
+				'vip-workflows'
 			);
 		case 'publish':
-			return __( 'Live on the site.', 'vip-workflow' );
+			return __( 'Live on the site.', 'vip-workflows' );
 		default:
 			return '';
 	}

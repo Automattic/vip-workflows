@@ -43,7 +43,7 @@ export function IdeationPanel( { postId } ) {
 		let cancelled = false;
 
 		apiFetch( {
-			path: `/vip-workflow/v1/workflow/post/${ postId }/ideation`,
+			path: `/vip-workflows/v1/workflow/post/${ postId }/ideation`,
 		} )
 			.then( ( response ) => {
 				if ( ! cancelled ) {
@@ -78,13 +78,13 @@ export function IdeationPanel( { postId } ) {
 	}
 
 	return (
-		<div className="vip-workflow-panel__section vip-workflow-ideation">
-			<div className="vip-workflow-panel__section-title">
-				{ __( 'From Ideation', 'vip-workflow' ) }
+		<div className="vip-workflows-panel__section vip-workflows-ideation">
+			<div className="vip-workflows-panel__section-title">
+				{ __( 'From Ideation', 'vip-workflows' ) }
 			</div>
 
 			{ source && (
-				<Card.Root className="vip-workflow-ideation__source">
+				<Card.Root className="vip-workflows-ideation__source">
 					<Card.Header>
 						<Card.Title>
 							{ source.url ? (
@@ -100,7 +100,7 @@ export function IdeationPanel( { postId } ) {
 						{ source.excerpt && (
 							<Text
 								variant="body-sm"
-								className="vip-workflow-ideation__source-excerpt"
+								className="vip-workflows-ideation__source-excerpt"
 							>
 								{ source.excerpt }
 							</Text>
@@ -108,7 +108,7 @@ export function IdeationPanel( { postId } ) {
 						{ ( source.domain || source.provider ) && (
 							<Text
 								variant="body-sm"
-								className="vip-workflow-ideation__meta"
+								className="vip-workflows-ideation__meta"
 							>
 								{ source.domain || source.provider }
 							</Text>
@@ -118,19 +118,19 @@ export function IdeationPanel( { postId } ) {
 			) }
 
 			{ items.length > 0 && (
-				<ul className="vip-workflow-ideation__items">
+				<ul className="vip-workflows-ideation__items">
 					{ items.map( ( item ) => (
 						<li
 							key={ item.id }
-							className={ `vip-workflow-ideation__item${
+							className={ `vip-workflows-ideation__item${
 								item.pinned
-									? ' vip-workflow-ideation__item--pinned'
+									? ' vip-workflows-ideation__item--pinned'
 									: ''
 							}` }
 						>
 							<Text
 								variant="body-sm"
-								className="vip-workflow-ideation__item-title"
+								className="vip-workflows-ideation__item-title"
 							>
 								{ item.url ? (
 									<ExternalLink href={ item.url }>
@@ -143,17 +143,17 @@ export function IdeationPanel( { postId } ) {
 							{ ( item.domain || item.uploaded ) && (
 								<Text
 									variant="body-sm"
-									className="vip-workflow-ideation__meta"
+									className="vip-workflows-ideation__meta"
 								>
 									{ item.uploaded
-										? __( 'Uploaded', 'vip-workflow' )
+										? __( 'Uploaded', 'vip-workflows' )
 										: item.domain }
 								</Text>
 							) }
 							{ item.excerpt && (
 								<Text
 									variant="body-sm"
-									className="vip-workflow-ideation__item-excerpt"
+									className="vip-workflows-ideation__item-excerpt"
 								>
 									{ item.excerpt }
 								</Text>
@@ -166,9 +166,9 @@ export function IdeationPanel( { postId } ) {
 			{ ideation.url && (
 				<ExternalLink
 					href={ ideation.url }
-					className="vip-workflow-ideation__workspace"
+					className="vip-workflows-ideation__workspace"
 				>
-					{ __( 'Open in Ideation', 'vip-workflow' ) }
+					{ __( 'Open in Ideation', 'vip-workflows' ) }
 				</ExternalLink>
 			) }
 		</div>

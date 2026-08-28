@@ -1,10 +1,10 @@
 # Guidelines
 
-Guidelines are owned by the Gutenberg/Core Guidelines feature, not by VIP Workflow.
+Guidelines are owned by the Gutenberg/Core Guidelines feature, not by VIP Workflows.
 
 ## Storage
 
-VIP Workflow no longer registers a `vip_guideline` CPT, custom Guidelines admin page, user profile guideline link, or `/vip-workflow/v1/guideline` REST API.
+VIP Workflows no longer registers a `vip_guideline` CPT, custom Guidelines admin page, user profile guideline link, or `/vip-workflows/v1/guideline` REST API.
 
 Content standards are managed in the Gutenberg UI (Settings → Guidelines) and stored in the `wp_knowledge` post type — the Knowledge primitive introduced by [WordPress/gutenberg#77230](https://github.com/WordPress/gutenberg/issues/77230) and headed for Core. Each guideline is one `guideline`-typed row:
 
@@ -19,7 +19,7 @@ Content standards are managed in the Gutenberg UI (Settings → Guidelines) and 
 
 > **Historical note.** Guidelines were previously a singleton exposed at `/wp/v2/content-guidelines`. [WordPress/gutenberg#79263](https://github.com/WordPress/gutenberg/pull/79263) dissolved that singleton into per-scope rows and deleted the route. There is no migration — the feature was flag-gated and experimental.
 
-## How VIP Workflow Consumes Guidelines
+## How VIP Workflows Consumes Guidelines
 
 `DraftBuilder::gather_guideline_context()` delegates to `GuidelineContextProvider`, which reads published guideline rows directly and renders them as markdown sections ordered by the scope registry.
 
@@ -27,11 +27,11 @@ Rows are read with a direct query rather than through `/wp/v2/knowledge`, becaus
 
 The Editorial Alignment Checker reads the same provider. It does not read legacy option-backed Editorial Rules.
 
-Extensions can alter the guideline text and the alignment rules without owning storage, via the `vip_workflow_guideline_context` and `vip_workflow_editorial_alignment_rules` filters — see [extension-points.md](extension-points.md#9-editorial-guideline-filters).
+Extensions can alter the guideline text and the alignment rules without owning storage, via the `vip_workflows_guideline_context` and `vip_workflows_editorial_alignment_rules` filters — see [extension-points.md](extension-points.md#9-editorial-guideline-filters).
 
 ## Missing Guidelines
 
-VIP Workflow never synthesizes fallback guidelines from local storage. When there is no guideline text, AI draft generation receives `No guideline context available.` and Editorial Alignment returns a `no_rules` error.
+VIP Workflows never synthesizes fallback guidelines from local storage. When there is no guideline text, AI draft generation receives `No guideline context available.` and Editorial Alignment returns a `no_rules` error.
 
 That empty state has two very different causes, and only one is a problem:
 
@@ -47,6 +47,6 @@ The third row is the guard against a repeat of the `/wp/v2/content-guidelines` r
 
 Root `npm run dev` loads the latest stable packaged Gutenberg release from `https://downloads.wordpress.org/plugin/gutenberg.zip` through `.wp-env.json`.
 
-Guidelines currently sits behind Gutenberg's `gutenberg-guidelines` experiment (Settings → Experiments); enable it to exercise the integration. VIP Workflow does not enable it. [WordPress/gutenberg#79674](https://github.com/WordPress/gutenberg/pull/79674) will remove that toggle and load the feature unconditionally, which is why `GuidelineContextProvider` gates on `post_type_exists( 'wp_knowledge' )` rather than on the experiment flag.
+Guidelines currently sits behind Gutenberg's `gutenberg-guidelines` experiment (Settings → Experiments); enable it to exercise the integration. VIP Workflows does not enable it. [WordPress/gutenberg#79674](https://github.com/WordPress/gutenberg/pull/79674) will remove that toggle and load the feature unconditionally, which is why `GuidelineContextProvider` gates on `post_type_exists( 'wp_knowledge' )` rather than on the experiment flag.
 
 `tests/phpunit/Integration/GuidelineContextProviderKnowledgeTest.php` asserts this integration against the real Gutenberg module, so an upstream reshape fails a test instead of silently emptying every AI prompt.

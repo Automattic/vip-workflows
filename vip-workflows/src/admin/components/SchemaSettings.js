@@ -41,7 +41,7 @@ import './SchemaSettings.css';
 function CheckModePill( { value, onChange, disabled = false } ) {
 	return (
 		<ToggleGroupControl
-			label={ __( 'Check enforcement mode', 'vip-workflow' ) }
+			label={ __( 'Check enforcement mode', 'vip-workflows' ) }
 			hideLabelFromVision
 			isBlock
 			value={ value }
@@ -55,12 +55,12 @@ function CheckModePill( { value, onChange, disabled = false } ) {
 			     the <button> it renders. */ }
 			<ToggleGroupControlOption
 				value="soft"
-				label={ __( 'Soft', 'vip-workflow' ) }
+				label={ __( 'Soft', 'vip-workflows' ) }
 				disabled={ disabled }
 			/>
 			<ToggleGroupControlOption
 				value="hard"
-				label={ __( 'Hard', 'vip-workflow' ) }
+				label={ __( 'Hard', 'vip-workflows' ) }
 				disabled={ disabled }
 			/>
 		</ToggleGroupControl>
@@ -95,10 +95,10 @@ export function SchemaSettings( {
 
 	return (
 		// wpds-allow R7 -- shared settings surface (combined selector also styles AssistantCard); flex retained for that consumer
-		<div className={ className || 'vip-workflow-schema-settings' }>
+		<div className={ className || 'vip-workflows-schema-settings' }>
 			{ entries.map( ( [ key, field ] ) => {
 				const value = values[ key ] ?? field.default ?? '';
-				const fieldId = `vip-workflow-schema-settings-${ instanceId }-${ key }`;
+				const fieldId = `vip-workflows-schema-settings-${ instanceId }-${ key }`;
 				const label = field.label || field.description || key;
 				const help = field.label ? field.description || '' : '';
 				const required = field.required || false;
@@ -118,7 +118,7 @@ export function SchemaSettings( {
 							key={ key }
 							className={
 								enforceable
-									? 'vip-workflow-tool-option vip-workflow-tool-option--check'
+									? 'vip-workflows-tool-option vip-workflows-tool-option--check'
 									: undefined
 							}
 						>
@@ -130,7 +130,7 @@ export function SchemaSettings( {
 								<div
 									className={
 										enforceable
-											? 'vip-workflow-tool-option__toggle-group'
+											? 'vip-workflows-tool-option__toggle-group'
 											: undefined
 									}
 								>
@@ -163,15 +163,15 @@ export function SchemaSettings( {
 							key={ key }
 							className={
 								enforceable
-									? 'vip-workflow-tool-option vip-workflow-tool-option--check'
+									? 'vip-workflows-tool-option vip-workflows-tool-option--check'
 									: undefined
 							}
 						>
 							{ enforceable && (
 								// wpds-allow R7 -- label wrapper (margin only) in raw option row
-								<div className="vip-workflow-tool-option__header">
+								<div className="vip-workflows-tool-option__header">
 									<label
-										className="vip-workflow-tool-option__label"
+										className="vip-workflows-tool-option__label"
 										htmlFor={ fieldId }
 									>
 										{ label }
@@ -209,7 +209,7 @@ export function SchemaSettings( {
 							key={ key }
 							className={
 								enforceable
-									? 'vip-workflow-tool-option vip-workflow-tool-option--check'
+									? 'vip-workflows-tool-option vip-workflows-tool-option--check'
 									: undefined
 							}
 						>
@@ -224,14 +224,14 @@ export function SchemaSettings( {
 									gap="md"
 									className={
 										enforceable
-											? 'vip-workflow-tool-option__input-group'
+											? 'vip-workflows-tool-option__input-group'
 											: undefined
 									}
 								>
 									{ enforceable ? (
 										<>
 											<label
-												className="vip-workflow-tool-option__label"
+												className="vip-workflows-tool-option__label"
 												htmlFor={ fieldId }
 											>
 												{ label }
@@ -241,7 +241,7 @@ export function SchemaSettings( {
 												__nextHasNoMarginBottom
 												id={ fieldId }
 												type="number"
-												className="vip-workflow-tool-option__number"
+												className="vip-workflows-tool-option__number"
 												value={ value }
 												onChange={ ( val ) =>
 													onChange(
@@ -296,15 +296,15 @@ export function SchemaSettings( {
 							key={ key }
 							className={
 								enforceable
-									? 'vip-workflow-tool-option vip-workflow-tool-option--check'
+									? 'vip-workflows-tool-option vip-workflows-tool-option--check'
 									: undefined
 							}
 						>
 							{ enforceable && (
 								// wpds-allow R7 -- label wrapper (margin only) in raw option row
-								<div className="vip-workflow-tool-option__header">
+								<div className="vip-workflows-tool-option__header">
 									<label
-										className="vip-workflow-tool-option__label"
+										className="vip-workflows-tool-option__label"
 										htmlFor={ fieldId }
 									>
 										{ label }
@@ -319,7 +319,7 @@ export function SchemaSettings( {
 								<TextareaControl
 									__nextHasNoMarginBottom
 									id={ fieldId }
-									className="vip-workflow-tool-option__textarea"
+									className="vip-workflows-tool-option__textarea"
 									label={ enforceable ? undefined : label }
 									help={ enforceable ? undefined : help }
 									placeholder={ field.placeholder || '' }
@@ -348,15 +348,15 @@ export function SchemaSettings( {
 						key={ key }
 						className={
 							enforceable
-								? 'vip-workflow-tool-option vip-workflow-tool-option--check'
+								? 'vip-workflows-tool-option vip-workflows-tool-option--check'
 								: undefined
 						}
 					>
 						{ enforceable && (
 							// wpds-allow R7 -- label wrapper (margin only) in raw option row
-							<div className="vip-workflow-tool-option__header">
+							<div className="vip-workflows-tool-option__header">
 								<label
-									className="vip-workflow-tool-option__label"
+									className="vip-workflows-tool-option__label"
 									htmlFor={ fieldId }
 								>
 									{ required ? `${ label } *` : label }

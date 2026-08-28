@@ -11,9 +11,9 @@ related: [phase-sequence, extensible-research-agents, story-discovery]
 
 Four different patterns exist for plugin-configurable settings:
 
-- **Tools** (built-in + most extensions): Settings hidden inside `input_schema` properties (any field with a `default`). Custom rendering in `ToolsSettings.js`. Saved to `vip_workflow_ability_settings[id].options`.
-- **Assistants/Discovery**: `meta.settings_schema`. Rendered by `SchemaSettings.js`. Saved via dual-write to `vip_workflow_ability_settings` + `vip_discovery_provider_{slug}`.
-- **Channels**: `get_settings_schema()` PHP method. Rendered by `SchemaSettings.js` (when schema present) or hardcoded UI (email/slack). Saved to `vip_workflow_channel_{id}`.
+- **Tools** (built-in + most extensions): Settings hidden inside `input_schema` properties (any field with a `default`). Custom rendering in `ToolsSettings.js`. Saved to `vip_workflows_ability_settings[id].options`.
+- **Assistants/Discovery**: `meta.settings_schema`. Rendered by `SchemaSettings.js`. Saved via dual-write to `vip_workflows_ability_settings` + `vip_discovery_provider_{slug}`.
+- **Channels**: `get_settings_schema()` PHP method. Rendered by `SchemaSettings.js` (when schema present) or hardcoded UI (email/slack). Saved to `vip_workflows_channel_{id}`.
 - **Editorial Alignment** (extension): Previously owned a private `workflow_editorial_alignment_settings` option and custom `class-settings-page.php`; current Guidelines work removes that rule store so the checker reads Gutenberg/Core Guidelines instead.
 
 This also exposes a **pre-existing bug**: when tools run during transitions (workflow or phase), only `post_id`/`project_id` is passed as input. Saved settings like `min_words: 500` are never merged into `$input`, so tools fall back to hardcoded defaults. Moving settings out of `input_schema` and into `AbilitySettings::get_options()` fixes this.
@@ -63,7 +63,7 @@ Field properties (superset of what exists today):
 
 Plugins can bypass schema-driven rendering entirely by injecting custom React components via JS filters. This takes precedence over auto-rendered settings.
 
-For tools: `vip_workflow_tool_settings_{slug}` filter.
+For tools: `vip_workflows_tool_settings_{slug}` filter.
 
 Use cases: the checklist tool (complex list editor), or any plugin needing UI that cannot be expressed as simple form fields.
 

@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name: Workflow: Parse.ly
- * Description: Bridges wp-parsely's Smart Linking, headline suggestions, Traffic Boost and analytics into VIP Workflow's abilities, agents, discovery providers and ideation assistants.
+ * Description: Bridges wp-parsely's Smart Linking, headline suggestions, Traffic Boost and analytics into VIP Workflows' abilities, agents, discovery providers and ideation assistants.
  * Version: 0.1.0
  * Author: WordPress VIP
  * Author URI: https://wpvip.com/
@@ -29,9 +29,9 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely;
 
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Abilities\RequirementGroup;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -70,7 +70,7 @@ Abilities\PerformanceCheck::register_config_bridge();
  */
 Abilities\PerformanceCheck::register_warmer();
 add_action( 'wp_abilities_api_init', array( Agents\SmartLinkingAgent::class, 'register' ) );
-add_action( 'vip_workflow_register_discovery_providers', array( Discovery\ParselyDiscoveryProvider::class, 'register' ) );
+add_action( 'vip_workflows_register_discovery_providers', array( Discovery\ParselyDiscoveryProvider::class, 'register' ) );
 
 Discovery\PromptScorer::register();
 Discovery\DiscoveryPoller::register();
@@ -219,7 +219,7 @@ function check_suggestions_availability(): bool|Availability {
 
 // ── Unified Assistants Tab ───────────────────────────────────────────
 
-add_action( 'vip_workflow_register_assistant_meta', __NAMESPACE__ . '\register_assistant_meta' );
+add_action( 'vip_workflows_register_assistant_meta', __NAMESPACE__ . '\register_assistant_meta' );
 
 /**
  * Group every Parse.ly capability into one Integrations card.
@@ -233,7 +233,7 @@ add_action( 'vip_workflow_register_assistant_meta', __NAMESPACE__ . '\register_a
  * we want: a card advertising an integration that contributes nothing is worse
  * than no card. Later units append their ids here.
  *
- * @param \VIPWorkflow\Assistants\AssistantRegistry $registry Registry instance.
+ * @param \VIPWorkflows\Assistants\AssistantRegistry $registry Registry instance.
  */
 function register_assistant_meta( $registry ): void {
 	$registry->register(

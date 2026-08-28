@@ -2,20 +2,20 @@
 /**
  * Tools REST API controller.
  *
- * Admin-gated surface for configuring tools (abilities in the `vip-workflow`
+ * Admin-gated surface for configuring tools (abilities in the `vip-workflows`
  * category). Mirrors the AssistantsController pattern: a read-only list plus a
  * per-tool settings save. Replaces the retired `/v1/settings/abilities`
  * endpoint.
  *
- * @package VIPWorkflow\API
+ * @package VIPWorkflows\API
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Abilities\Ability;
-use VIPWorkflow\Abilities\AbilitySettings;
+use VIPWorkflows\Abilities\Ability;
+use VIPWorkflows\Abilities\AbilitySettings;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -50,9 +50,9 @@ class ToolsController extends WP_REST_Controller {
 				'permission_callback' => array( $this, 'admin_permissions_check' ),
 				'args'                => array(
 					'category' => array(
-						'description' => __( 'Filter by ability category.', 'vip-workflow' ),
+						'description' => __( 'Filter by ability category.', 'vip-workflows' ),
 						'type'        => 'string',
-						'default'     => 'vip-workflow',
+						'default'     => 'vip-workflows',
 					),
 				),
 			)
@@ -82,7 +82,7 @@ class ToolsController extends WP_REST_Controller {
 	 * @return WP_REST_Response
 	 */
 	public function get_items( $request ): WP_REST_Response {
-		$category = $request ? ( $request->get_param( 'category' ) ?? 'vip-workflow' ) : 'vip-workflow';
+		$category = $request ? ( $request->get_param( 'category' ) ?? 'vip-workflows' ) : 'vip-workflows';
 		$data     = array();
 
 		foreach ( wp_get_abilities() as $ability ) {
@@ -110,7 +110,7 @@ class ToolsController extends WP_REST_Controller {
 		if ( ! is_array( $updates ) ) {
 			return new WP_Error(
 				'invalid_payload',
-				__( 'Invalid settings payload.', 'vip-workflow' ),
+				__( 'Invalid settings payload.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -119,7 +119,7 @@ class ToolsController extends WP_REST_Controller {
 		if ( ! $ability ) {
 			return new WP_Error(
 				'unknown_tool',
-				__( 'Unknown tool.', 'vip-workflow' ),
+				__( 'Unknown tool.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -154,14 +154,14 @@ class ToolsController extends WP_REST_Controller {
 	}
 
 	/**
-	 * Resolve a configurable `vip-workflow` tool by ability ID.
+	 * Resolve a configurable `vip-workflows` tool by ability ID.
 	 *
 	 * @param  string $id Ability ID.
 	 * @return object|null Ability instance, or null if not a configurable tool.
 	 */
 	private function find_tool( string $id ): ?object {
 		foreach ( wp_get_abilities() as $ability ) {
-			if ( $ability->get_name() === $id && $this->is_tool( $ability, 'vip-workflow' ) ) {
+			if ( $ability->get_name() === $id && $this->is_tool( $ability, 'vip-workflows' ) ) {
 				return $ability;
 			}
 		}

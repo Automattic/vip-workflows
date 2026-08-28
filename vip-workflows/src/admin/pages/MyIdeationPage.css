@@ -1,10 +1,10 @@
 /**
  * My Ideation page — intro, empty state, and the project title/tags cell. The
  * table itself is a `@wordpress/dataviews` DataView (styled by the enqueued
- * `vip-workflow-dataviews` stylesheet) wrapped in `.vip-workflow-card-surface`.
+ * `vip-workflows-dataviews` stylesheet) wrapped in `.vip-workflows-card-surface`.
  */
 
-.vip-workflow-my-ideation__empty {
+.vip-workflows-my-ideation__empty {
 	text-align: center;
 	padding: var(--wpds-dimension-gap-3xl) var(--wpds-dimension-padding-xl);
 	background: var(--wpds-color-background-surface-neutral-strong);
@@ -12,14 +12,14 @@
 	border-radius: var(--wpds-border-radius-md);
 }
 
-.vip-workflow-my-ideation__empty p {
+.vip-workflows-my-ideation__empty p {
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* The title uses the shared `TitleLink` cell (see DataViewCells.js). The tag
    line's type comes from `<Text variant="body-sm">`. */
 
-.vip-workflow-my-ideation__tags {
+.vip-workflows-my-ideation__tags {
 	display: block;
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted tag-line tone; <Text> exposes no color prop */
 	margin-top: 2px; /* wpds-allow R3 -- 2px optical offset under the title link; below --wpds-dimension-gap-xs (4px), the smallest gap token a parent Stack could use */

@@ -2,7 +2,7 @@
  * The guard over the shared abilities-response fixture.
  *
  * Three bugs shipped this week behind a green suite because the JS fixture for
- * `GET /vip-workflow/v1/abilities` did not match what the endpoint returns. None was
+ * `GET /vip-workflows/v1/abilities` did not match what the endpoint returns. None was
  * caught by a test; each was caught by looking at the screen. What they have in
  * common is not a missing assertion — it is that no test could distinguish a correct
  * fixture from an invented one, so the fixture was free to encode the bug's own
@@ -165,7 +165,7 @@ describe( 'the three fixtures that shipped bugs', () => {
 	it( 'rejects a label stored in `name` (raw ability ids on screen)', () => {
 		// `{ id: ABILITY, name: 'Web Researcher' }`. No endpoint returns this:
 		// `name` is the identifier, `label` is the human name. Thirty tests stayed
-		// green over a panel rendering `vip-workflow/web-researcher` to the reader.
+		// green over a panel rendering `vip-workflows/web-researcher` to the reader.
 		const problems = validateAbilityFixture(
 			vipAbility( { name: 'Web Researcher' } )
 		);
@@ -173,7 +173,7 @@ describe( 'the three fixtures that shipped bugs', () => {
 		expect( problems.join( '\n' ) ).toMatch(
 			/"name" is "Web Researcher", which is not an ability identifier/
 		);
-		expect( problems.join( '\n' ) ).toMatch( /id="vip-workflow/ );
+		expect( problems.join( '\n' ) ).toMatch( /id="vip-workflows/ );
 	} );
 
 	it( 'rejects a fixture with `enabled` omitted (collected cards vanished)', () => {

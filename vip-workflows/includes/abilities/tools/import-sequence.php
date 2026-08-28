@@ -6,12 +6,12 @@
  * SequencesController::import_sequence() so slug dedup, metadata validation,
  * assignment-meta regeneration, and the phase-type Ideation gate are reused.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the sequence import.
@@ -24,16 +24,16 @@ function execute_import_sequence( ?array $input = null ) {
 	$sequence_json = $input['sequence_json'] ?? null;
 
 	if ( ! is_array( $sequence_json ) ) {
-		return new \WP_Error( 'missing_sequence_json', __( 'The "sequence_json" parameter is required and must be the exported sequence object.', 'vip-workflow' ) );
+		return new \WP_Error( 'missing_sequence_json', __( 'The "sequence_json" parameter is required and must be the exported sequence object.', 'vip-workflows' ) );
 	}
 
-	$request = new \WP_REST_Request( 'POST', '/vip-workflow/v1/sequences/import' );
+	$request = new \WP_REST_Request( 'POST', '/vip-workflows/v1/sequences/import' );
 	$request->set_param( 'sequence_json', $sequence_json );
 	if ( array_key_exists( 'name', $input ) ) {
 		$request->set_param( 'name', $input['name'] );
 	}
 
-	$response = ( new \VIPWorkflow\API\SequencesController() )->import_sequence( $request );
+	$response = ( new \VIPWorkflows\API\SequencesController() )->import_sequence( $request );
 
 	if ( is_wp_error( $response ) ) {
 		return $response;
@@ -45,7 +45,7 @@ function execute_import_sequence( ?array $input = null ) {
 	// Per the no-fallback rule, a success response missing the prepared sequence
 	// is a data-integrity bug — surface it rather than coalescing.
 	if ( ! is_array( $sequence ) || ! array_key_exists( 'id', $sequence ) ) {
-		return new \WP_Error( 'import_response_incomplete', __( 'Sequence was imported but the response did not include the created sequence.', 'vip-workflow' ) );
+		return new \WP_Error( 'import_response_incomplete', __( 'Sequence was imported but the response did not include the created sequence.', 'vip-workflows' ) );
 	}
 
 	return array(
@@ -67,11 +67,11 @@ function execute_import_sequence( ?array $input = null ) {
  */
 function register_import_sequence(): void {
 	wp_register_ability(
-		'vip-workflow/import-sequence',
+		'vip-workflows/import-sequence',
 		array(
-			'label'               => __( 'Import Sequence', 'vip-workflow' ),
-			'description'         => __( 'Imports a workflow sequence from an exported JSON definition. The imported sequence is created as a draft.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Import Sequence', 'vip-workflows' ),
+			'description'         => __( 'Imports a workflow sequence from an exported JSON definition. The imported sequence is created as a draft.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -79,11 +79,11 @@ function register_import_sequence(): void {
 				'properties'           => array(
 					'sequence_json' => array(
 						'type'        => 'object',
-						'description' => __( 'The exported sequence object (as produced by the export endpoint): must include type, name, and config.statuses.', 'vip-workflow' ),
+						'description' => __( 'The exported sequence object (as produced by the export endpoint): must include type, name, and config.statuses.', 'vip-workflows' ),
 					),
 					'name'           => array(
 						'type'        => 'string',
-						'description' => __( 'Optional name override for the imported sequence. Defaults to the name in the JSON.', 'vip-workflow' ),
+						'description' => __( 'Optional name override for the imported sequence. Defaults to the name in the JSON.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -93,35 +93,35 @@ function register_import_sequence(): void {
 				'properties'           => array(
 					'sequence_id'    => array(
 						'type'        => 'integer',
-						'description' => __( 'The imported sequence ID.', 'vip-workflow' ),
+						'description' => __( 'The imported sequence ID.', 'vip-workflows' ),
 					),
 					'uuid'           => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence UUID.', 'vip-workflow' ),
+						'description' => __( 'The sequence UUID.', 'vip-workflows' ),
 					),
 					'name'           => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence name.', 'vip-workflow' ),
+						'description' => __( 'The sequence name.', 'vip-workflows' ),
 					),
 					'slug'           => array(
 						'type'        => 'string',
-						'description' => __( 'The generated sequence slug.', 'vip-workflow' ),
+						'description' => __( 'The generated sequence slug.', 'vip-workflows' ),
 					),
 					'type'           => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence type.', 'vip-workflow' ),
+						'description' => __( 'The sequence type.', 'vip-workflows' ),
 					),
 					'status'         => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence lifecycle state (imported sequences are created as draft).', 'vip-workflow' ),
+						'description' => __( 'The sequence lifecycle state (imported sequences are created as draft).', 'vip-workflows' ),
 					),
 					'statuses_count' => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of statuses in the imported sequence.', 'vip-workflow' ),
+						'description' => __( 'Number of statuses in the imported sequence.', 'vip-workflows' ),
 					),
 					'success'        => array(
 						'type'        => 'boolean',
-						'description' => __( 'Whether the sequence was imported.', 'vip-workflow' ),
+						'description' => __( 'Whether the sequence was imported.', 'vip-workflows' ),
 					),
 				),
 			),

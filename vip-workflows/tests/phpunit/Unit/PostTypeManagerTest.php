@@ -2,18 +2,18 @@
 /**
  * PostTypeManager unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\PostTypeManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\PostTypeManager;
 
 /**
  * Tests for the PostTypeManager class.
@@ -91,7 +91,7 @@ class PostTypeManagerTest extends TestCase
         $received_post = null;
         Functions\when( 'apply_filters' )->alias(
             function ( $tag, $value, $filtered_post = null ) use ( &$received_post ) {
-                if ( 'vip_workflow_sequences_for_post' === $tag ) {
+                if ( 'vip_workflows_sequences_for_post' === $tag ) {
                     $received_post = $filtered_post;
                     // Restrict this post to no eligible sequences.
                     return array();
@@ -113,7 +113,7 @@ class PostTypeManagerTest extends TestCase
 
         Functions\when( 'apply_filters' )->alias(
             function ( $tag, $value ) {
-                if ( 'vip_workflow_sequences_for_post' === $tag ) {
+                if ( 'vip_workflows_sequences_for_post' === $tag ) {
                     return array( '2', '5' );
                 }
                 return $value;

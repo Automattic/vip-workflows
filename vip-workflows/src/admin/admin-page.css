@@ -21,11 +21,11 @@
  *   subtitle       Text body-md  fg/content/neutral/weak
  *
  * Two measures have no WPDS token and live as custom properties on
- * `.vip-workflow-admin-page`: --vip-workflow-admin-page-icon-size (24px, ready
+ * `.vip-workflows-admin-page`: --vip-workflows-admin-page-icon-size (24px, ready
  * to swap for --wpds-dimension-size-sm once @wordpress/theme ships that set)
- * and --vip-workflow-admin-page-content-width (settled — see its declaration).
+ * and --vip-workflows-admin-page-content-width (settled — see its declaration).
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 /* The AdminPage owns a full-bleed layout. Neutralize the wp-admin insets the
@@ -35,11 +35,11 @@
    screens are affected, not the rest of wp-admin.
      - `.wrap` default margin: 10px 20px 0 2px
      - `#wpcontent` default padding-left: 20px (the core content gutter) */
-.wrap:has( .vip-workflow-admin-page ) {
+.wrap:has( .vip-workflows-admin-page ) {
 	margin: 0;
 }
 
-#wpcontent:has( .vip-workflow-admin-page ) {
+#wpcontent:has( .vip-workflows-admin-page ) {
 	padding-left: 0; /* wpds-allow R2 -- zero needs no token */
 }
 
@@ -49,8 +49,8 @@
    property only travels downwards, and that box is the one that pins itself to
    the viewport on a full-bleed screen (see below) — from here the value still
    reaches `.wrap`, the page, and its header. */
-#wpbody-content:has( .vip-workflow-admin-page ) {
-	--vip-workflow-admin-page-viewport-offset: 32px;
+#wpbody-content:has( .vip-workflows-admin-page ) {
+	--vip-workflows-admin-page-viewport-offset: 32px;
 }
 
 /* Always reserve the page scrollbar's gutter. Our constrained column is
@@ -59,14 +59,14 @@
    tabs/screens, and on first paint when content grows past the viewport.
    Set on the document scroll container (`html`); Safari uses overlay
    scrollbars and is unaffected. */
-html:has( .vip-workflow-admin-page ) {
+html:has( .vip-workflows-admin-page ) {
 	scrollbar-gutter: stable;
 }
 
 /* Recolor the wp-admin background (set on `body` by colors.css) to our neutral
    surface so one background fills the whole screen. The page stays transparent
    and shows it through; only the header paints its own (stronger) layer. */
-body:has( .vip-workflow-admin-page ) {
+body:has( .vip-workflows-admin-page ) {
 	background: var( --wpds-color-background-surface-neutral );
 }
 
@@ -111,7 +111,7 @@ body:has( .vip-workflow-admin-page ) {
    list. An ID-scoped wp-admin rule would out-specify this (0,2,0) rule and
    needs its own targeted override.
    ============================================================================ */
-.wrap:has( .vip-workflow-admin-page )
+.wrap:has( .vip-workflows-admin-page )
 	:where( p, h1, h2, h3, h4, h5, h6 ):where(
 		:not( .description, .notice, .notice * )
 	) {
@@ -134,7 +134,7 @@ body:has( .vip-workflow-admin-page ) {
    Scoped to the admin canvas like every other reset in this file. Modals get
    their copy from src/styles/modal-reset.css.
    ============================================================================ */
-.wrap:has( .vip-workflow-admin-page ) fieldset {
+.wrap:has( .vip-workflows-admin-page ) fieldset {
 	min-inline-size: 0; /* wpds-allow R2 -- zero needs no token; undoes a UA min-content floor, not a design dimension */
 }
 
@@ -144,15 +144,15 @@ body:has( .vip-workflow-admin-page ) {
    `.description`) and supply the muted foreground token here. Use this instead
    of `className="description"` on a `<Text>` — that class is unlayered wp-admin
    CSS that clobbers the component and is deliberately excluded from the reset. */
-.vip-workflow-description {
+.vip-workflows-description {
 	color: var( --wpds-color-foreground-content-neutral-weak );
 }
 
 /* The page is a flex column holding a sticky header over the content. Header
    and content each own their padding (matching core), so the page itself adds
    none. It also defines the two measures WPDS doesn't tokenize. */
-.vip-workflow-admin-page {
-	--vip-workflow-admin-page-icon-size: 24px;
+.vip-workflows-admin-page {
+	--vip-workflows-admin-page-icon-size: 24px;
 
 	/* The canonical content width for this project: 42.5rem = 680px, the
 	   measure every `constrained` screen's header and content column cap at.
@@ -164,7 +164,7 @@ body:has( .vip-workflow-admin-page ) {
 	   them. Rounding to whichever token is nearer is a regression, not a
 	   cleanup — change this only with a deliberate design decision behind it,
 	   and change it here, not per screen. */
-	--vip-workflow-admin-page-content-width: 42.5rem;
+	--vip-workflows-admin-page-content-width: 42.5rem;
 	box-sizing: border-box;
 	min-height: 100%;
 	display: flex;
@@ -194,10 +194,10 @@ body:has( .vip-workflow-admin-page ) {
    Core's bottom gutter for the footer goes with it: the footer is hidden on
    these screens (below), and on a box that is now exactly one viewport tall
    that padding is just empty space pushing a second scrollbar. */
-#wpbody-content:has( .vip-workflow-admin-page--full-bleed ) {
+#wpbody-content:has( .vip-workflows-admin-page--full-bleed ) {
 	display: flex;
 	flex-direction: column;
-	height: calc( 100vh - var( --vip-workflow-admin-page-viewport-offset ) );
+	height: calc( 100vh - var( --vip-workflows-admin-page-viewport-offset ) );
 	padding-bottom: 0; /* wpds-allow R2 -- zero needs no token */
 }
 
@@ -206,7 +206,7 @@ body:has( .vip-workflow-admin-page ) {
    otherwise drop that strip out of the top-right corner into a full-width row
    of its own, eating canvas height on any screen that registers a help tab or a
    screen option. `align-self` is where a flex column says the same thing. */
-#wpbody-content:has( .vip-workflow-admin-page--full-bleed )
+#wpbody-content:has( .vip-workflows-admin-page--full-bleed )
 	> #screen-meta-links {
 	align-self: flex-end;
 }
@@ -214,7 +214,7 @@ body:has( .vip-workflow-admin-page ) {
 /* `.wrap` takes what is left of that box, and stays a flex column of its own so
    the notices core *does* relocate into it — after `.wp-header-end`, above the
    app — are absorbed the same way. */
-.wrap:has( .vip-workflow-admin-page--full-bleed ) {
+.wrap:has( .vip-workflows-admin-page--full-bleed ) {
 	display: flex;
 	flex-direction: column;
 	flex: 1;
@@ -226,8 +226,8 @@ body:has( .vip-workflow-admin-page ) {
    wrappers — without naming any of them, so the chain still resolves if those
    wrappers change; and it cannot reach into page content, since nothing inside
    the page contains the page. */
-.wrap:has( .vip-workflow-admin-page--full-bleed )
-	*:has( .vip-workflow-admin-page--full-bleed ) {
+.wrap:has( .vip-workflows-admin-page--full-bleed )
+	*:has( .vip-workflows-admin-page--full-bleed ) {
 	flex: 1;
 	min-height: 0;
 	display: flex;
@@ -239,7 +239,7 @@ body:has( .vip-workflow-admin-page ) {
    the content fills the remaining height, scrolling internally rather than the
    page. The inner content (e.g. .kanban-wrapper, .calendar-container) fills the
    content column with height: 100%. */
-.vip-workflow-admin-page--full-bleed {
+.vip-workflows-admin-page--full-bleed {
 	flex: 1;
 	min-height: 0;
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
@@ -247,19 +247,19 @@ body:has( .vip-workflow-admin-page ) {
 
 /* The page doesn't scroll in app-canvas mode, so the header is a static flex
    item at the top rather than a sticky overlay. */
-.vip-workflow-admin-page--full-bleed .vip-workflow-admin-page__header {
+.vip-workflows-admin-page--full-bleed .vip-workflows-admin-page__header {
 	position: static;
 }
 
 /* Content fills the height below the header and owns its own scroll. The
    board/calendar supply their own padding, so the content wrapper adds none. */
-.vip-workflow-admin-page--full-bleed .vip-workflow-admin-page__content {
+.vip-workflows-admin-page--full-bleed .vip-workflows-admin-page__content {
 	min-height: 0;
 	display: flex;
 	flex-direction: column;
 }
 
-.vip-workflow-admin-page--full-bleed .vip-workflow-admin-page__content-inner {
+.vip-workflows-admin-page--full-bleed .vip-workflows-admin-page__content-inner {
 	flex: 1;
 	min-height: 0;
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
@@ -272,8 +272,8 @@ body:has( .vip-workflow-admin-page ) {
    below that width — the very double-scrollbar this offset exists to prevent.
    Match core's breakpoint so the clearance stays correct at every width. */
 @media screen and ( max-width: 782px ) {
-	#wpbody-content:has( .vip-workflow-admin-page ) {
-		--vip-workflow-admin-page-viewport-offset: 46px;
+	#wpbody-content:has( .vip-workflows-admin-page ) {
+		--vip-workflows-admin-page-viewport-offset: 46px;
 	}
 }
 
@@ -281,7 +281,7 @@ body:has( .vip-workflow-admin-page ) {
    ("Thank you for creating with WordPress") would push the page past 100vh and
    add a second vertical scrollbar. These screens own the whole canvas — drop
    the footer so the only scrolling is inside the board/calendar itself. */
-body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
+body:has( .vip-workflows-admin-page--full-bleed ) #wpfooter {
 	display: none;
 }
 
@@ -291,33 +291,33 @@ body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
    caps and centers, so the divider always runs the full width.
    ============================================================================ */
 
-.vip-workflow-admin-page__header {
+.vip-workflows-admin-page__header {
 	position: sticky;
 	/* Tuck just below the fixed wp-admin bar rather than scrolling under it. */
-	top: var( --vip-workflow-admin-page-viewport-offset );
+	top: var( --vip-workflows-admin-page-viewport-offset );
 	z-index: 10;
 	background: var( --wpds-color-background-surface-neutral-strong );
 	border-block-end: var( --wpds-border-width-xs ) solid
 		var( --wpds-color-stroke-surface-neutral-weak );
 }
 
-.vip-workflow-admin-page__header-inner {
+.vip-workflows-admin-page__header-inner {
 	display: flex;
 	flex-direction: column;
 	gap: var( --wpds-dimension-gap-xs );
 	padding: var( --wpds-dimension-padding-lg ) var( --wpds-dimension-padding-2xl );
 }
 
-.vip-workflow-admin-page__header-inner.is-constrained {
+.vip-workflows-admin-page__header-inner.is-constrained {
 	width: 100%;
-	max-width: var( --vip-workflow-admin-page-content-width );
+	max-width: var( --vip-workflows-admin-page-content-width );
 	margin-inline: auto;
 }
 
 /* The single header row: visual + trail/title on the left, actions on the
    right. `min-height` keeps short headers (no subtitle) a consistent bar
    height, matching the 32px control height core's header uses. */
-.vip-workflow-admin-page__header-row {
+.vip-workflows-admin-page__header-row {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -325,18 +325,18 @@ body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
 	min-height: var( --wpds-dimension-size-md );
 }
 
-.vip-workflow-admin-page__header-main {
+.vip-workflows-admin-page__header-main {
 	display: flex;
 	align-items: center;
 	gap: var( --wpds-dimension-gap-sm );
 	min-width: 0;
 }
 
-.vip-workflow-admin-page__icon {
+.vip-workflows-admin-page__icon {
 	display: inline-flex;
 	flex-shrink: 0;
-	width: var( --vip-workflow-admin-page-icon-size );
-	height: var( --vip-workflow-admin-page-icon-size );
+	width: var( --vip-workflows-admin-page-icon-size );
+	height: var( --vip-workflows-admin-page-icon-size );
 	color: var( --wpds-color-foreground-content-neutral );
 }
 
@@ -344,11 +344,11 @@ body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
    Breadcrumbs — an inline list whose final item is the page <h1>.
    ============================================================================ */
 
-.vip-workflow-admin-page__breadcrumbs {
+.vip-workflows-admin-page__breadcrumbs {
 	min-width: 0;
 }
 
-.vip-workflow-admin-page__breadcrumb-list {
+.vip-workflows-admin-page__breadcrumb-list {
 	display: flex;
 	align-items: center;
 	flex-wrap: wrap;
@@ -359,21 +359,21 @@ body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
 
 /* Parent items keep their intrinsic width; only the last (the heading) is
    allowed to shrink so its truncation engages. */
-.vip-workflow-admin-page__breadcrumb-item {
+.vip-workflows-admin-page__breadcrumb-item {
 	display: inline-flex;
 	align-items: center;
 	flex-shrink: 0;
 	min-width: 0;
 }
 
-.vip-workflow-admin-page__breadcrumb-item:last-child {
+.vip-workflows-admin-page__breadcrumb-item:last-child {
 	flex-shrink: 1;
 }
 
 /* Link tone neutral: colored, underlined, with a weak decoration color. */
-.vip-workflow-admin-page__breadcrumb-link,
-.vip-workflow-admin-page__breadcrumb-link:visited {
-	font: var( --vip-workflow-text-body-lg );
+.vip-workflows-admin-page__breadcrumb-link,
+.vip-workflows-admin-page__breadcrumb-link:visited {
+	font: var( --vip-workflows-text-body-lg );
 	color: var( --wpds-color-foreground-interactive-neutral );
 	text-decoration-line: underline;
 	text-decoration-thickness: 0.5px;
@@ -381,13 +381,13 @@ body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
 	text-underline-offset: 0.2em;
 }
 
-.vip-workflow-admin-page__breadcrumb-link:hover,
-.vip-workflow-admin-page__breadcrumb-link:active {
+.vip-workflows-admin-page__breadcrumb-link:hover,
+.vip-workflows-admin-page__breadcrumb-link:active {
 	color: var( --wpds-color-foreground-interactive-neutral-active );
 }
 
-.vip-workflow-admin-page__breadcrumb-separator {
-	font: var( --vip-workflow-text-body-lg );
+.vip-workflows-admin-page__breadcrumb-separator {
+	font: var( --vip-workflows-text-body-lg );
 	margin-inline: var( --wpds-dimension-gap-sm );
 	color: var( --wpds-color-stroke-surface-neutral );
 	user-select: none;
@@ -402,7 +402,7 @@ body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
    this selector covers both since each sits inside the header.
    ============================================================================ */
 
-.vip-workflow-admin-page__header .vip-workflow-admin-page__title {
+.vip-workflows-admin-page__header .vip-workflows-admin-page__title {
 	margin: 0;
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
 	color: var( --wpds-color-foreground-content-neutral );
@@ -415,7 +415,7 @@ body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
    Actions
    ============================================================================ */
 
-.vip-workflow-admin-page__actions {
+.vip-workflows-admin-page__actions {
 	display: flex;
 	align-items: center;
 	gap: var( --wpds-dimension-gap-sm );
@@ -426,7 +426,7 @@ body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
    Subtitle (body-md)
    ============================================================================ */
 
-.vip-workflow-admin-page__subtitle {
+.vip-workflows-admin-page__subtitle {
 	margin: 0;
 	padding-block-end: var( --wpds-dimension-padding-xs );
 	color: var( --wpds-color-foreground-content-neutral-weak );
@@ -436,16 +436,16 @@ body:has( .vip-workflow-admin-page--full-bleed ) #wpfooter {
    Content
    ============================================================================ */
 
-.vip-workflow-admin-page__content {
+.vip-workflows-admin-page__content {
 	flex-grow: 1;
 }
 
-.vip-workflow-admin-page__content-inner {
+.vip-workflows-admin-page__content-inner {
 	padding: var( --wpds-dimension-padding-lg ) var( --wpds-dimension-padding-2xl );
 }
 
-.vip-workflow-admin-page__content-inner.is-constrained {
+.vip-workflows-admin-page__content-inner.is-constrained {
 	width: 100%;
-	max-width: var( --vip-workflow-admin-page-content-width );
+	max-width: var( --vip-workflows-admin-page-content-width );
 	margin-inline: auto;
 }

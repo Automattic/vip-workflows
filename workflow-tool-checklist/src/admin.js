@@ -2,7 +2,7 @@
  * Checklist Tool Admin Settings
  *
  * Registers a custom settings component for the checklist tool
- * using WordPress hooks to extend the VIP Workflow Integrations page.
+ * using WordPress hooks to extend the VIP Workflows Integrations page.
  */
 
 import './admin.css';
@@ -267,7 +267,7 @@ function ChecklistSettings( { disabled, onSaveRef, onHasChangesChange } ) {
 // ignored it would keep letting a reader add, rename and delete items on a tool
 // that never runs — the same bug the card fixed for its own controls.
 addFilter(
-	'vipWorkflow.toolSettingsComponent',
+	'vipWorkflows.toolSettingsComponent',
 	'workflow-tool-checklist',
 	( component, ability, callbacks ) => {
 		if ( ability.id === 'workflow-tool-checklist/checklist' ) {

@@ -1,8 +1,8 @@
 /**
  * SettingsLoading — the one loading row for settings screens.
  *
- * Four hand-rolled variants existed before this (`vip-workflow-loading`,
- * `vip-workflow-assistants-loading`, `vip-workflow-integrations-loading`, and an
+ * Four hand-rolled variants existed before this (`vip-workflows-loading`,
+ * `vip-workflows-assistants-loading`, `vip-workflows-integrations-loading`, and an
  * inline-`style` one in PromptsSettings); they collapse into this. The row, its
  * centring and the 8px gap are the `Stack`'s; the shared class adds only the
  * surface padding and muted tone `Stack` has no props for.
@@ -23,9 +23,9 @@ import { __ } from '@wordpress/i18n';
  */
 export function SettingsLoading( { label } ) {
 	return (
-		<Stack className="vip-workflow-loading" align="center" gap="sm">
+		<Stack className="vip-workflows-loading" align="center" gap="sm">
 			<Spinner />
-			{ label || __( 'Loading…', 'vip-workflow' ) }
+			{ label || __( 'Loading…', 'vip-workflows' ) }
 		</Stack>
 	);
 }

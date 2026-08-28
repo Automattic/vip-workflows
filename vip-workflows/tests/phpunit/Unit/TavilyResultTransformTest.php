@@ -11,17 +11,17 @@
  * Driven through `search()` rather than the private transform, because the claims
  * are about what a caller receives.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\CredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Ideation\Research\SearchProviders\TavilyProvider;
+use VIPWorkflows\AI\CredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Ideation\Research\SearchProviders\TavilyProvider;
 
 require_once __DIR__ . '/../../../includes/integrations/class-markdown.php';
 
@@ -36,7 +36,7 @@ class TavilyResultTransformTest extends TestCase
         Functions\when( 'wp_remote_retrieve_response_code' )->justReturn( 200 );
         Functions\when( '__' )->returnArg();
 
-        // Use the credential seam rather than defining VIP_WORKFLOW_TAVILY_KEY:
+        // Use the credential seam rather than defining VIP_WORKFLOWS_TAVILY_KEY:
         // a constant cannot be undefined again, and the tests asserting an
         // unconfigured provider run in the same process.
         Credentials::get_instance()->set_backend(

@@ -16,9 +16,9 @@ import { render, screen, fireEvent } from './helpers/render-wp-component';
 
 import ImageCard from '../../src/admin/components/ideation/cards/ImageCard';
 
-const PLACEHOLDER = '.vip-workflow-ideation-card--image__placeholder';
+const PLACEHOLDER = '.vip-workflows-ideation-card--image__placeholder';
 const VIDEO_PLACEHOLDER =
-	'.vip-workflow-ideation-card--image__video-placeholder';
+	'.vip-workflows-ideation-card--image__video-placeholder';
 
 const imageCard = {
 	source_id: 'img1',

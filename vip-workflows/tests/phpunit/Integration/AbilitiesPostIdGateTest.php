@@ -18,15 +18,15 @@
  * The lookup was never needed: `get_available_transitions()` already returns a
  * computed `label` for each transition.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StatusManager;
 use WP_REST_Request;
 
 class AbilitiesPostIdGateTest extends TestCase {
@@ -34,7 +34,7 @@ class AbilitiesPostIdGateTest extends TestCase {
 	/**
 	 * A tool that really is registered, so the filtered listing is non-empty.
 	 */
-	private const REQUIRED_TOOL = 'vip-workflow/keyword-check';
+	private const REQUIRED_TOOL = 'vip-workflows/keyword-check';
 
 	/**
 	 * A post authored by somebody else.
@@ -99,7 +99,7 @@ class AbilitiesPostIdGateTest extends TestCase {
 	private function list_as( string $role, ?int $post_id = null ): \WP_REST_Response {
 		wp_set_current_user( (int) self::factory()->user->create( array( 'role' => $role ) ) );
 
-		$request = new WP_REST_Request( 'GET', '/vip-workflow/v1/abilities' );
+		$request = new WP_REST_Request( 'GET', '/vip-workflows/v1/abilities' );
 		if ( null !== $post_id ) {
 			$request->set_query_params( array( 'post_id' => $post_id ) );
 		}

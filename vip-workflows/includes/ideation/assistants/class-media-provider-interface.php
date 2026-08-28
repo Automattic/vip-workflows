@@ -6,7 +6,7 @@
  * workspace. Providers can search for existing media or generate new assets.
  *
  * Internal providers implement this directly. External plugins hook into
- * `vip_workflow_media_providers` and return instances of this interface.
+ * `vip_workflows_media_providers` and return instances of this interface.
  *
  * This interface is frozen with respect to required methods. Because external
  * plugins supply implementations through a public filter, adding a method here
@@ -15,14 +15,14 @@
  * provider explain *why* `is_configured()` is false, and which callers probe for
  * with `instanceof`.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  *
  * @see MediaProviderRequirements
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
 interface MediaProviderInterface {
 

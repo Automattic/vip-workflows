@@ -10,7 +10,7 @@ const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
 const PROMPT_ID = 'media/image-analysis';
 
 async function openPromptsTab( admin, page ) {
-	await admin.visitAdminPage( 'admin.php', 'page=vip-workflow-settings' );
+	await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-settings' );
 	await page.getByRole( 'tab', { name: 'Prompts' } ).click();
 	await expect( getPromptTextbox( page ) ).toBeVisible();
 }
@@ -30,12 +30,12 @@ async function savePrompts( page ) {
 	await page.getByRole( 'button', { name: 'Save' } ).click();
 }
 
-test.describe( 'VIP Workflow — configurable prompts (Settings)', () => {
+test.describe( 'VIP Workflows — configurable prompts (Settings)', () => {
 	test.afterEach( async ( { requestUtils } ) => {
 		// Reset the override so runs stay isolated.
 		await requestUtils
 			.rest( {
-				path: `/vip-workflow/v1/prompts/${ PROMPT_ID }`,
+				path: `/vip-workflows/v1/prompts/${ PROMPT_ID }`,
 				method: 'POST',
 				data: { prompt: '' },
 			} )
@@ -58,7 +58,7 @@ test.describe( 'VIP Workflow — configurable prompts (Settings)', () => {
 		await expect
 			.poll( async () => {
 				const prompts = await requestUtils.rest( {
-					path: '/vip-workflow/v1/prompts',
+					path: '/vip-workflows/v1/prompts',
 				} );
 				return ( prompts.find( ( p ) => p.id === PROMPT_ID ) || {} )
 					.override;
@@ -76,7 +76,7 @@ test.describe( 'VIP Workflow — configurable prompts (Settings)', () => {
 		requestUtils,
 	} ) => {
 		await requestUtils.rest( {
-			path: `/vip-workflow/v1/prompts/${ PROMPT_ID }`,
+			path: `/vip-workflows/v1/prompts/${ PROMPT_ID }`,
 			method: 'POST',
 			data: { prompt: 'Temporary override.' },
 		} );
@@ -93,7 +93,7 @@ test.describe( 'VIP Workflow — configurable prompts (Settings)', () => {
 		await expect
 			.poll( async () => {
 				const prompts = await requestUtils.rest( {
-					path: '/vip-workflow/v1/prompts',
+					path: '/vip-workflows/v1/prompts',
 				} );
 				return ( prompts.find( ( p ) => p.id === PROMPT_ID ) || {} )
 					.override;

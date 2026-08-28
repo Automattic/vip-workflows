@@ -2,16 +2,16 @@
 /**
  * Credentials facade tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\AI\CredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\AI\CredentialBackend;
 
 class CredentialsTest extends TestCase
 {
@@ -63,13 +63,13 @@ class CredentialsTest extends TestCase
      */
     public function test_constant_override_wins_over_backend(): void
     {
-        if ( ! defined( 'VIP_WORKFLOW_OPENAI_KEY' ) ) {
-            define( 'VIP_WORKFLOW_OPENAI_KEY', 'oai-from-constant' );
+        if ( ! defined( 'VIP_WORKFLOWS_OPENAI_KEY' ) ) {
+            define( 'VIP_WORKFLOWS_OPENAI_KEY', 'oai-from-constant' );
         }
         $creds = Credentials::get_instance();
         $creds->set_backend( $this->fake_backend( array( 'openai' => 'oai-from-backend' ) ) );
 
-        $this->assertSame( VIP_WORKFLOW_OPENAI_KEY, $creds->api_key( 'openai' ) );
+        $this->assertSame( VIP_WORKFLOWS_OPENAI_KEY, $creds->api_key( 'openai' ) );
         $this->assertNotSame( 'oai-from-backend', $creds->api_key( 'openai' ) );
     }
 
@@ -77,8 +77,8 @@ class CredentialsTest extends TestCase
     {
         $creds = Credentials::get_instance();
 
-        $this->assertSame( 'VIP_WORKFLOW_TAVILY_KEY', $creds->constant_name( 'tavily' ) );
-        $this->assertSame( 'VIP_WORKFLOW_YOUTUBE_KEY', $creds->constant_name( 'youtube' ) );
+        $this->assertSame( 'VIP_WORKFLOWS_TAVILY_KEY', $creds->constant_name( 'tavily' ) );
+        $this->assertSame( 'VIP_WORKFLOWS_YOUTUBE_KEY', $creds->constant_name( 'youtube' ) );
     }
 
     public function test_constant_name_is_empty_for_an_unknown_service(): void
@@ -90,10 +90,10 @@ class CredentialsTest extends TestCase
     {
         $creds = Credentials::get_instance();
 
-        $creds->set_backend( new \VIPWorkflow\AI\ConnectorsCredentialBackend() );
+        $creds->set_backend( new \VIPWorkflows\AI\ConnectorsCredentialBackend() );
         $this->assertTrue( $creds->has_admin_credential_ui() );
 
-        $creds->set_backend( new \VIPWorkflow\AI\LegacyCredentialBackend() );
+        $creds->set_backend( new \VIPWorkflows\AI\LegacyCredentialBackend() );
         $this->assertFalse(
             $creds->has_admin_credential_ui(),
             'The legacy backend reads an option no UI writes, so there is nowhere to link.'
@@ -148,7 +148,7 @@ class CredentialsTest extends TestCase
 
     public function test_provider_reads_option(): void
     {
-        $this->options['vip_workflow_ai_provider'] = 'anthropic';
+        $this->options['vip_workflows_ai_provider'] = 'anthropic';
         $this->assertSame( 'anthropic', Credentials::get_instance()->provider() );
     }
 
@@ -156,7 +156,7 @@ class CredentialsTest extends TestCase
     {
         $creds = Credentials::get_instance();
         $creds->set_backend( $this->fake_backend( array( 'anthropic' => 'sk-ant' ) ) );
-        $this->options['vip_workflow_ai_provider'] = 'anthropic';
+        $this->options['vip_workflows_ai_provider'] = 'anthropic';
 
         $this->assertSame( 'anthropic', $creds->provider() );
     }
@@ -165,7 +165,7 @@ class CredentialsTest extends TestCase
     {
         $creds = Credentials::get_instance();
         $creds->set_backend( $this->fake_backend( array() ) );
-        $this->options['vip_workflow_ai_provider'] = '';
+        $this->options['vip_workflows_ai_provider'] = '';
 
         $this->assertSame( 'openai', $creds->provider() );
     }
@@ -174,7 +174,7 @@ class CredentialsTest extends TestCase
     {
         $creds = Credentials::get_instance();
         $creds->set_backend( $this->fake_backend( array() ) );
-        $this->options['vip_workflow_ai_provider'] = array( 'openai' );
+        $this->options['vip_workflows_ai_provider'] = array( 'openai' );
 
         $this->assertSame(
             '',
@@ -211,14 +211,14 @@ class CredentialsTest extends TestCase
         $creds = Credentials::get_instance();
         $creds->set_backend( $this->fake_backend( array() ) );
 
-        unset( $this->options['vip_workflow_ai_provider'] );
+        unset( $this->options['vip_workflows_ai_provider'] );
         $this->assertSame(
             'openai',
             $creds->provider(),
             'Nothing stored: the lone keyed provider is the only one the site could mean.'
         );
 
-        $this->options['vip_workflow_ai_provider'] = 'mistral';
+        $this->options['vip_workflows_ai_provider'] = 'mistral';
         $this->assertSame(
             '',
             $creds->provider(),
@@ -234,7 +234,7 @@ class CredentialsTest extends TestCase
     {
         $creds = Credentials::get_instance();
         $creds->set_backend( $this->fake_backend( array( 'anthropic' => 'sk-ant' ) ) );
-        $this->options['vip_workflow_ai_provider'] = 'mistral';
+        $this->options['vip_workflows_ai_provider'] = 'mistral';
 
         $this->assertSame( '', $creds->provider() );
     }
@@ -265,29 +265,29 @@ class CredentialsTest extends TestCase
             'A provider derived from a lone credential is not a saved choice.'
         );
 
-        $this->options['vip_workflow_ai_provider'] = 'openai';
+        $this->options['vip_workflows_ai_provider'] = 'openai';
         $this->assertTrue( $creds->has_explicit_provider() );
 
-        $this->options['vip_workflow_ai_provider'] = '';
+        $this->options['vip_workflows_ai_provider'] = '';
         $this->assertFalse( $creds->has_explicit_provider() );
     }
 
     public function test_model_reads_dedicated_option_for_openai(): void
     {
-        $this->options['vip_workflow_ai_model'] = 'gpt-4o-mini';
+        $this->options['vip_workflows_ai_model'] = 'gpt-4o-mini';
         $this->assertSame( 'gpt-4o-mini', Credentials::get_instance()->model() );
     }
 
     public function test_model_reads_per_provider_map(): void
     {
-        $this->options['vip_workflow_ai_provider'] = 'anthropic';
-        $this->options['vip_workflow_ai_models']   = array( 'anthropic' => 'claude-sonnet-4-5' );
+        $this->options['vip_workflows_ai_provider'] = 'anthropic';
+        $this->options['vip_workflows_ai_models']   = array( 'anthropic' => 'claude-sonnet-4-5' );
         $this->assertSame( 'claude-sonnet-4-5', Credentials::get_instance()->model() );
     }
 
     public function test_model_falls_back_to_legacy_option(): void
     {
-        $this->options['vip_workflow_api_keys'] = array( 'openai_model' => 'gpt-4-turbo' );
+        $this->options['vip_workflows_api_keys'] = array( 'openai_model' => 'gpt-4-turbo' );
         $this->assertSame( 'gpt-4-turbo', Credentials::get_instance()->model() );
     }
 
@@ -298,7 +298,7 @@ class CredentialsTest extends TestCase
 
     public function test_model_empty_for_non_openai_provider_without_config(): void
     {
-        $this->options['vip_workflow_ai_provider'] = 'google';
+        $this->options['vip_workflows_ai_provider'] = 'google';
         $this->assertSame( '', Credentials::get_instance()->model() );
     }
 

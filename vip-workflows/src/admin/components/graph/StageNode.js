@@ -104,7 +104,7 @@ function StageNodeComponent( { id, data, selected } ) {
 				'%d transition',
 				'%d transitions',
 				transitionCount,
-				'vip-workflow'
+				'vip-workflows'
 			),
 			transitionCount
 		);
@@ -157,7 +157,7 @@ function StageNodeComponent( { id, data, selected } ) {
 					     canvas; this is the only screen-reader signal for it. */ }
 					{ isTerminal && (
 						<VisuallyHidden>
-							{ __( 'Final stage', 'vip-workflow' ) }
+							{ __( 'Final stage', 'vip-workflows' ) }
 						</VisuallyHidden>
 					) }
 					{ publishes && (
@@ -166,7 +166,7 @@ function StageNodeComponent( { id, data, selected } ) {
 							className="wf-stage-node__publishes"
 						>
 							<Icon icon={ published } size={ 16 } />
-							{ __( 'Publishes', 'vip-workflow' ) }
+							{ __( 'Publishes', 'vip-workflows' ) }
 						</Text>
 					) }
 				</Stack>
@@ -194,7 +194,10 @@ function StageNodeComponent( { id, data, selected } ) {
 								target
 									? sprintf(
 											/* translators: 1: outcome label (e.g. On pass), 2: destination stage key */
-											__( '%1$s → %2$s', 'vip-workflow' ),
+											__(
+												'%1$s → %2$s',
+												'vip-workflows'
+											),
 											outcomeLabel,
 											target
 									  )
@@ -202,7 +205,7 @@ function StageNodeComponent( { id, data, selected } ) {
 											/* translators: %s: outcome label (e.g. On pass) */
 											__(
 												'%s — drag to a stage to route it',
-												'vip-workflow'
+												'vip-workflows'
 											),
 											outcomeLabel
 									  )

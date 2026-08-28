@@ -40,23 +40,23 @@ import { SettingsLoading } from './SettingsLoading';
 export function ToolsHowToModal( { onClose } ) {
 	return (
 		<HowToModal
-			title={ __( 'Add custom tools', 'vip-workflow' ) }
+			title={ __( 'Add custom tools', 'vip-workflows' ) }
 			skillType="tool"
 			onClose={ onClose }
 		>
 			<Text variant="body-md" render={ <p /> }>
 				{ __(
-					'Register custom tools using vip_workflow_register_ability(). Tools must set meta.type to appear here.',
-					'vip-workflow'
+					'Register custom tools using vip_workflows_register_ability(). Tools must set meta.type to appear here.',
+					'vip-workflows'
 				) }
 			</Text>
-			<pre className="vip-workflow-code">{ `add_action( 'wp_abilities_api_init', function() {
-    vip_workflow_register_ability(
+			<pre className="vip-workflows-code">{ `add_action( 'wp_abilities_api_init', function() {
+    vip_workflows_register_ability(
         'my-plugin/my-check',
         [
             'label'       => 'My Custom Check',
             'description' => 'Analyzes content for custom rules.',
-            'category'    => 'vip-workflow',
+            'category'    => 'vip-workflows',
             'input_schema'  => [
                 'type' => 'object',
                 'properties' => [
@@ -91,7 +91,7 @@ export function ToolsHowToModal( { onClose } ) {
 } );
 
 function my_check_execute( array $input ): array {
-    $settings  = \\VIPWorkflow\\Abilities\\AbilitySettings
+    $settings  = \\VIPWorkflows\\Abilities\\AbilitySettings
         ::get_instance()->get_options( 'my-plugin/my-check' );
     $threshold = $settings['threshold'] ?? 80;
 
@@ -122,14 +122,14 @@ function getTransitionHelp( supports ) {
 	if ( phase && workflow ) {
 		return __(
 			'Available on workflow and phase transitions.',
-			'vip-workflow'
+			'vip-workflows'
 		);
 	}
 	if ( phase ) {
-		return __( 'Available on phase transitions.', 'vip-workflow' );
+		return __( 'Available on phase transitions.', 'vip-workflows' );
 	}
 	if ( workflow ) {
-		return __( 'Available on workflow transitions.', 'vip-workflow' );
+		return __( 'Available on workflow transitions.', 'vip-workflows' );
 	}
 	return '';
 }
@@ -181,7 +181,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 
 	const save = useCallback( async () => {
 		const updated = await apiFetch( {
-			path: `/vip-workflow/v1/tools/${ ability.id }/settings`,
+			path: `/vip-workflows/v1/tools/${ ability.id }/settings`,
 			method: 'POST',
 			data: {
 				enabled: localAbility.enabled,
@@ -257,7 +257,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 	// control disabled by a precondition says why in `help`, not in a tooltip.
 	const disabledHelp = __(
 		'Enable the tool to change this.',
-		'vip-workflow'
+		'vip-workflows'
 	);
 
 	return (
@@ -270,7 +270,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 				<Card.Title render={ <h2 /> }>{ localAbility.name }</Card.Title>
 				<ToggleControl
 					__nextHasNoMarginBottom
-					label={ __( 'Enabled', 'vip-workflow' ) }
+					label={ __( 'Enabled', 'vip-workflows' ) }
 					checked={ localAbility.enabled }
 					onChange={ ( val ) => handleToggle( 'enabled', val ) }
 				/>
@@ -298,7 +298,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 							<Text variant="body-md">
 								{ __(
 									'This tool has required settings that are not yet configured.',
-									'vip-workflow'
+									'vip-workflows'
 								) }
 							</Text>
 						) }
@@ -311,7 +311,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 							__nextHasNoMarginBottom
 							label={ __(
 								'Show in command palette',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 							help={ configDisabled ? disabledHelp : undefined }
 							checked={ localAbility.show_in_commands ?? false }
@@ -326,7 +326,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 							__nextHasNoMarginBottom
 							label={ __(
 								'Can be used in transitions',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 							help={
 								configDisabled
@@ -347,7 +347,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 				{ hasSettings && (
 					<Stack direction="column" gap="lg">
 						<Text variant="heading-sm" render={ <h3 /> }>
-							{ __( 'Settings', 'vip-workflow' ) }
+							{ __( 'Settings', 'vip-workflows' ) }
 						</Text>
 						{ /*
 						 * The schema fields have no single owning control to
@@ -360,7 +360,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 							<Text variant="body-md" render={ <p /> }>
 								{ __(
 									'Enable the tool to change these settings.',
-									'vip-workflow'
+									'vip-workflows'
 								) }
 							</Text>
 						) : (
@@ -368,7 +368,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 								<Text variant="body-md" render={ <p /> }>
 									{ __(
 										'Soft flags a warning; hard blocks the transition.',
-										'vip-workflow'
+										'vip-workflows'
 									) }
 								</Text>
 							)
@@ -393,7 +393,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 				) }
 
 				{ /*
-				 * Filter: vipWorkflow.toolSettingsComponent
+				 * Filter: vipWorkflows.toolSettingsComponent
 				 *
 				 * A plugin-supplied component owns its own controls, so the
 				 * contract has to hand it the state to own them with: `disabled`
@@ -402,7 +402,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 				 * reports a change through `onHasChangesChange`.
 				 */ }
 				{ applyFilters(
-					'vipWorkflow.toolSettingsComponent',
+					'vipWorkflows.toolSettingsComponent',
 					null,
 					localAbility,
 					{
@@ -439,18 +439,18 @@ export function useToolsSettings() {
 	const tabs = [
 		{
 			name: 'check',
-			title: __( 'Checks', 'vip-workflow' ),
-			empty: __( 'No check tools are registered.', 'vip-workflow' ),
+			title: __( 'Checks', 'vip-workflows' ),
+			empty: __( 'No check tools are registered.', 'vip-workflows' ),
 		},
 		{
 			name: 'validator',
-			title: __( 'Validators', 'vip-workflow' ),
-			empty: __( 'No validation tools are registered.', 'vip-workflow' ),
+			title: __( 'Validators', 'vip-workflows' ),
+			empty: __( 'No validation tools are registered.', 'vip-workflows' ),
 		},
 		{
 			name: 'helper',
-			title: __( 'Helpers', 'vip-workflow' ),
-			empty: __( 'No helper tools are registered.', 'vip-workflow' ),
+			title: __( 'Helpers', 'vip-workflows' ),
+			empty: __( 'No helper tools are registered.', 'vip-workflows' ),
 		},
 	];
 
@@ -462,7 +462,7 @@ export function useToolsSettings() {
 	);
 
 	useEffect( () => {
-		apiFetch( { path: '/vip-workflow/v1/tools' } )
+		apiFetch( { path: '/vip-workflows/v1/tools' } )
 			.then( ( data ) => {
 				setAbilities( data || [] );
 				setLoading( false );
@@ -526,14 +526,14 @@ export function useToolsSettings() {
 			setError(
 				sprintf(
 					/* translators: %s: semicolon-separated list of tool names and their errors. */
-					__( 'Some tools could not be saved: %s', 'vip-workflow' ),
+					__( 'Some tools could not be saved: %s', 'vip-workflows' ),
 					failures.join( '; ' )
 				)
 			);
 			return;
 		}
 
-		createSuccessNotice( __( 'Tools saved.', 'vip-workflow' ), {
+		createSuccessNotice( __( 'Tools saved.', 'vip-workflows' ), {
 			type: 'snackbar',
 		} );
 	}, [ dirtyIds, abilities, createSuccessNotice ] );
@@ -578,7 +578,9 @@ export function ToolsSettings( { state } ) {
 
 	if ( loading ) {
 		return (
-			<SettingsLoading label={ __( 'Loading tools…', 'vip-workflow' ) } />
+			<SettingsLoading
+				label={ __( 'Loading tools…', 'vip-workflows' ) }
+			/>
 		);
 	}
 
@@ -598,7 +600,7 @@ export function ToolsSettings( { state } ) {
 			) }
 
 			<Tabs.Root
-				className="vip-workflow-tabs"
+				className="vip-workflows-tabs"
 				value={ activeTab }
 				onValueChange={ handleTabChange }
 			>

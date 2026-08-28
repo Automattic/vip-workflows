@@ -6,15 +6,15 @@
  * registered prompts (grouped, with defaults + current overrides) plus a
  * per-prompt override save/reset. Mirrors the ToolsController pattern.
  *
- * @package VIPWorkflow\API
+ * @package VIPWorkflows\API
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\PromptSettings;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\PromptSettings;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -29,7 +29,7 @@ class PromptsController extends WP_REST_Controller {
 	/**
 	 * Maximum accepted override length, in bytes.
 	 *
-	 * Bounds what an admin can persist into the `vip_workflow_prompts` option
+	 * Bounds what an admin can persist into the `vip_workflows_prompts` option
 	 * and later feed into AI calls. Generous enough for long system prompts.
 	 */
 	private const MAX_PROMPT_LENGTH = 20000;
@@ -115,7 +115,7 @@ class PromptsController extends WP_REST_Controller {
 		if ( ! is_array( $params ) || ! array_key_exists( 'prompt', $params ) ) {
 			return new WP_Error(
 				'invalid_payload',
-				__( 'Request must include a "prompt" value.', 'vip-workflow' ),
+				__( 'Request must include a "prompt" value.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -124,7 +124,7 @@ class PromptsController extends WP_REST_Controller {
 		if ( ! is_string( $prompt ) ) {
 			return new WP_Error(
 				'invalid_prompt',
-				__( 'Prompt must be a string.', 'vip-workflow' ),
+				__( 'Prompt must be a string.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -138,7 +138,7 @@ class PromptsController extends WP_REST_Controller {
 			return new WP_Error(
 				'prompt_too_large',
 				/* translators: %d: maximum prompt length in characters. */
-				sprintf( __( 'Prompt is too large. Maximum is %d characters.', 'vip-workflow' ), self::MAX_PROMPT_LENGTH ),
+				sprintf( __( 'Prompt is too large. Maximum is %d characters.', 'vip-workflows' ), self::MAX_PROMPT_LENGTH ),
 				array( 'status' => 413 )
 			);
 		}
@@ -148,7 +148,7 @@ class PromptsController extends WP_REST_Controller {
 		if ( null === $definition ) {
 			return new WP_Error(
 				'unknown_prompt',
-				__( 'Unknown prompt.', 'vip-workflow' ),
+				__( 'Unknown prompt.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -156,7 +156,7 @@ class PromptsController extends WP_REST_Controller {
 		if ( ! PromptSettings::get_instance()->set_override( $id, $prompt ) ) {
 			return new WP_Error(
 				'save_failed',
-				__( 'Failed to save the prompt override.', 'vip-workflow' ),
+				__( 'Failed to save the prompt override.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}

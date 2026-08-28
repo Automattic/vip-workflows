@@ -33,10 +33,10 @@ export default function TagCloudCard( {
 		// column, but supplies no gap of its own).
 		<Card.Root
 			render={ <Stack direction="column" gap="sm" /> }
-			className="vip-workflow-ideation-card vip-workflow-ideation-card--tags"
+			className="vip-workflows-ideation-card vip-workflows-ideation-card--tags"
 		>
 			<Stack
-				className="vip-workflow-ideation-card--tags__header"
+				className="vip-workflows-ideation-card--tags__header"
 				align="center"
 				gap="xs"
 			>
@@ -51,14 +51,14 @@ export default function TagCloudCard( {
 					<path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
 					<line x1="7" y1="7" x2="7.01" y2="7" />
 				</svg>
-				<span>{ __( 'Topics', 'vip-workflow' ) }</span>
+				<span>{ __( 'Topics', 'vip-workflows' ) }</span>
 			</Stack>
 			<Stack wrap="wrap" gap="xs">
 				{ tags.map( ( tag ) => (
 					// wpds-allow R7 -- inline topic pill; no <Text> variant
 					<span
 						key={ tag }
-						className="vip-workflow-ideation-card--tags__pill"
+						className="vip-workflows-ideation-card--tags__pill"
 					>
 						{ tag }
 					</span>
@@ -66,7 +66,7 @@ export default function TagCloudCard( {
 			</Stack>
 			<Stack
 				justify="flex-end"
-				className="vip-workflow-ideation-card__actions vip-workflow-ideation-card__actions--minimal"
+				className="vip-workflows-ideation-card__actions vip-workflows-ideation-card__actions--minimal"
 				gap="xs"
 			>
 				<CardActions

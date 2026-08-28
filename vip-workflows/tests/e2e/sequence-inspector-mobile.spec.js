@@ -27,7 +27,7 @@ const DESKTOP = { width: 1400, height: 900 };
  */
 async function createSequence( requestUtils ) {
 	return requestUtils.rest( {
-		path: '/vip-workflow/v1/sequences',
+		path: '/vip-workflows/v1/sequences',
 		method: 'POST',
 		data: {
 			name: `E2E Inspector Mobile ${ Date.now() }`,
@@ -59,9 +59,9 @@ async function createSequence( requestUtils ) {
  * @param {string}                                               name  Sequence name.
  */
 async function openEditor( admin, page, name ) {
-	await admin.visitAdminPage( 'admin.php', 'page=vip-workflow-sequences' );
+	await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-sequences' );
 	await page
-		.locator( '.vip-workflow-summary-card' )
+		.locator( '.vip-workflows-summary-card' )
 		.filter( { hasText: name } )
 		.getByRole( 'button', { name: 'Edit' } )
 		.click();
@@ -71,7 +71,7 @@ async function openEditor( admin, page, name ) {
 const panelToggle = ( page ) =>
 	page.getByRole( 'button', { name: /Collapse panel|Expand panel/ } );
 
-test.describe( 'VIP Workflow — inspector mobile layout', () => {
+test.describe( 'VIP Workflows — inspector mobile layout', () => {
 	let sequenceId;
 
 	test.afterEach( async ( { requestUtils } ) => {

@@ -5,7 +5,7 @@
  * Single seam for all AI/service credential reads. Call sites ask this facade
  * for a key by logical service id instead of calling ApiKeysController directly.
  * The facade:
- *   - honors a `VIP_WORKFLOW_*_KEY` constant override first (parity with the old
+ *   - honors a `VIP_WORKFLOWS_*_KEY` constant override first (parity with the old
  *     stack, regardless of which backend is active);
  *   - otherwise delegates to a capability-selected backend — the WordPress
  *     Connectors API when present (native on 7.0, via Gutenberg 23.0+ on 6.9),
@@ -15,12 +15,12 @@
  *
  * See docs/specs/ai-connectors-audit.md for the mapping and contract.
  *
- * @package VIPWorkflow\AI
+ * @package VIPWorkflows\AI
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\AI;
+namespace VIPWorkflows\AI;
 
 /**
  * Resolves credentials and the model preference through a pluggable backend.
@@ -31,32 +31,32 @@ final class Credentials {
 	 * Logical service id => constant override name (parity with the old stack).
 	 */
 	private const SERVICE_CONSTANTS = array(
-		'openai'    => 'VIP_WORKFLOW_OPENAI_KEY',
-		'anthropic' => 'VIP_WORKFLOW_ANTHROPIC_KEY',
-		'google'    => 'VIP_WORKFLOW_GOOGLE_KEY',
-		'tavily'    => 'VIP_WORKFLOW_TAVILY_KEY',
-		'youtube'   => 'VIP_WORKFLOW_YOUTUBE_KEY',
+		'openai'    => 'VIP_WORKFLOWS_OPENAI_KEY',
+		'anthropic' => 'VIP_WORKFLOWS_ANTHROPIC_KEY',
+		'google'    => 'VIP_WORKFLOWS_GOOGLE_KEY',
+		'tavily'    => 'VIP_WORKFLOWS_TAVILY_KEY',
+		'youtube'   => 'VIP_WORKFLOWS_YOUTUBE_KEY',
 	);
 
 	/**
 	 * Explicitly selected general-AI provider, written only by the settings screen.
 	 */
-	private const PROVIDER_OPTION = 'vip_workflow_ai_provider';
+	private const PROVIDER_OPTION = 'vip_workflows_ai_provider';
 
 	/**
 	 * Per-provider model preference map (provider id => model id).
 	 */
-	private const MODELS_OPTION = 'vip_workflow_ai_models';
+	private const MODELS_OPTION = 'vip_workflows_ai_models';
 
 	/**
 	 * Legacy single-model option (pre-multi-provider; treated as OpenAI's model).
 	 */
-	private const MODEL_OPTION = 'vip_workflow_ai_model';
+	private const MODEL_OPTION = 'vip_workflows_ai_model';
 
 	/**
 	 * Legacy keys option that previously also stored the model, for back-compat.
 	 */
-	private const LEGACY_KEYS_OPTION = 'vip_workflow_api_keys';
+	private const LEGACY_KEYS_OPTION = 'vip_workflows_api_keys';
 
 	/**
 	 * Default OpenAI model when none is configured.
@@ -193,7 +193,7 @@ final class Credentials {
 	 * one is used; anything else — no credential, a choice between two, or a
 	 * stored selection this plugin cannot use — resolves to '' and is reported as
 	 * an unmet requirement by
-	 * `VIPWorkflow\Abilities\AiAvailability::for_selected_provider()`.
+	 * `VIPWorkflows\Abilities\AiAvailability::for_selected_provider()`.
 	 *
 	 * Derivation is reached only when *nothing* is stored. A site that stored a
 	 * provider id this plugin does not manage has made a choice, and generating
@@ -335,7 +335,7 @@ final class Credentials {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging of a data-integrity problem.
 		error_log(
 			sprintf(
-				'[VIP Workflow] %1$s holds %2$s, which is not a provider this plugin manages; no provider will be resolved until one is chosen in VIP Workflow → Settings.',
+				'[VIP Workflows] %1$s holds %2$s, which is not a provider this plugin manages; no provider will be resolved until one is chosen in VIP Workflows → Settings.',
 				self::PROVIDER_OPTION,
 				is_string( $stored ) ? '"' . $stored . '"' : 'a value of type ' . gettype( $stored )
 			)

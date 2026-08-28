@@ -2,20 +2,20 @@
 /**
  * Tests for the Seed Analyst brand-context formatting.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use ReflectionMethod;
-use VIPWorkflow\Ideation\Assistants\SeedAnalyst;
+use VIPWorkflows\Ideation\Assistants\SeedAnalyst;
 
 require_once __DIR__ . '/../../../includes/ideation/assistants/class-seed-analyst.php';
 
 /**
- * @covers \VIPWorkflow\Ideation\Assistants\SeedAnalyst
+ * @covers \VIPWorkflows\Ideation\Assistants\SeedAnalyst
  */
 class SeedAnalystTest extends TestCase {
 

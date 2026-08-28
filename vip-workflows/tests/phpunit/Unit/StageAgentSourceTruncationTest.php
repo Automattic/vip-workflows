@@ -16,21 +16,21 @@
  * does for a live fact check, and format_source_context() renders the prompt
  * block that json_encode actually choked on.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use ReflectionProperty;
-use VIPWorkflow\Abilities\Agents\StageAgent;
-use VIPWorkflow\Ideation\Research\SearchProviders\SearchProviderInterface;
-use VIPWorkflow\Ideation\Research\SearchProviders\SearchProviderRegistry;
+use VIPWorkflows\Abilities\Agents\StageAgent;
+use VIPWorkflows\Ideation\Research\SearchProviders\SearchProviderInterface;
+use VIPWorkflows\Ideation\Research\SearchProviders\SearchProviderRegistry;
 
 /**
- * @covers \VIPWorkflow\Abilities\Agents\StageAgent
+ * @covers \VIPWorkflows\Abilities\Agents\StageAgent
  */
 class StageAgentSourceTruncationTest extends TestCase
 {

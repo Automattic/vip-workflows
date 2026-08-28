@@ -5,12 +5,12 @@
  * Provides guideline context gathering and markdown-to-blocks conversion
  * used by both the research and ideation controllers.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
 /**
  * Draft Builder.

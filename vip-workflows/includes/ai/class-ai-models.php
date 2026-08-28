@@ -7,19 +7,19 @@
  * Used by the settings UI to populate the provider-scoped model dropdown and by
  * the controller to validate a saved selection.
  *
- * @package VIPWorkflow\AI
+ * @package VIPWorkflows\AI
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\AI;
+namespace VIPWorkflows\AI;
 
 /**
  * Discovers and caches per-provider text-generation model ids.
  */
 final class AiModels {
 
-	private const CACHE_PREFIX = 'vip_workflow_ai_models_';
+	private const CACHE_PREFIX = 'vip_workflows_ai_models_';
 
 	/**
 	 * Cache TTL — 24h, per the dynamic-discovery decision.

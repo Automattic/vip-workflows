@@ -5,7 +5,7 @@
  * The JS half is tests/unit-js/abilities-response-contract.test.js, reading the SAME
  * tests/fixtures/abilities-response-contract.json. Three bugs shipped this week
  * behind a green suite because each JS suite hand-built its own partial copy of
- * `GET /vip-workflow/v1/abilities`, and a partial copy cannot contradict the code it
+ * `GET /vip-workflows/v1/abilities`, and a partial copy cannot contradict the code it
  * stands in for. The response had no schema either, so there was nothing for a
  * fixture to be wrong against.
  *
@@ -21,23 +21,23 @@
  * asserting about; a schema is a stable thing to compare against, and the behavioral
  * half below keeps the schema from being a comment that lies.
  *
- * Only the plain-`WP_Ability` branch is reachable here: `VIPWorkflow\Abilities\Ability`
+ * Only the plain-`WP_Ability` branch is reachable here: `VIPWorkflows\Abilities\Ability`
  * extends `WP_Ability`, which the unit suite does not load. The subclass branch —
  * where `icon` comes from, the third bug — is pinned against real WordPress in
  * tests/phpunit/Integration/AbilitiesResponseShapeTest.php.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\API\AbilitiesController;
+use VIPWorkflows\API\AbilitiesController;
 
 /**
- * @covers \VIPWorkflow\API\AbilitiesController
+ * @covers \VIPWorkflows\API\AbilitiesController
  */
 class AbilitiesResponseContractTest extends TestCase
 {
@@ -105,7 +105,7 @@ class AbilitiesResponseContractTest extends TestCase
     }
 
     /**
-     * A plain ability object — deliberately NOT a `VIPWorkflow\Abilities\Ability`,
+     * A plain ability object — deliberately NOT a `VIPWorkflows\Abilities\Ability`,
      * so it takes the same branch a bare `WP_Ability` from another plugin takes.
      *
      * @param string $name     Ability name.
@@ -234,7 +234,7 @@ class AbilitiesResponseContractTest extends TestCase
     public function test_get_items_emits_exactly_the_always_present_keys_for_a_plain_ability(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
-            array( $this->plain_ability( 'vip-workflow/readability', 'vip-workflow' ) )
+            array( $this->plain_ability( 'vip-workflows/readability', 'vip-workflows' ) )
         );
 
         $data = $this->bare_controller()->get_items( $this->request() )->get_data();
@@ -264,13 +264,13 @@ class AbilitiesResponseContractTest extends TestCase
     public function test_the_identifier_keys_carry_the_identifier_and_never_the_label(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
-            array( $this->plain_ability( 'vip-workflow/readability', 'vip-workflow' ) )
+            array( $this->plain_ability( 'vip-workflows/readability', 'vip-workflows' ) )
         );
 
         $row = $this->bare_controller()->get_items( $this->request() )->get_data()[0];
 
         foreach ( self::contract()['invariants']['identityKeys']['keys'] as $key ) {
-            $this->assertSame( 'vip-workflow/readability', $row[ $key ] );
+            $this->assertSame( 'vip-workflows/readability', $row[ $key ] );
             $this->assertMatchesRegularExpression(
                 '#' . self::contract()['invariants']['abilityIdPattern'] . '#',
                 $row[ $key ]
@@ -287,7 +287,7 @@ class AbilitiesResponseContractTest extends TestCase
     public function test_required_for_is_absent_without_a_post_id(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
-            array( $this->plain_ability( 'vip-workflow/readability', 'vip-workflow' ) )
+            array( $this->plain_ability( 'vip-workflows/readability', 'vip-workflows' ) )
         );
 
         $row = $this->bare_controller()->get_items( $this->request() )->get_data()[0];

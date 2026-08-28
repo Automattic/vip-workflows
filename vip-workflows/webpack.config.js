@@ -27,7 +27,7 @@ module.exports = {
 		editor: path.resolve( __dirname, 'src/editor/index.js' ),
 		// The shared workflow side-effect decision table and copy. Built as its
 		// own entry because the classic list-table surfaces (Quick Edit, Bulk
-		// Edit) consume it through the `vipWorkflowSideEffect` global from an
+		// Edit) consume it through the `vipWorkflowsSideEffect` global from an
 		// inline script that cannot import — see class-posts-columns.php, which
 		// enqueues build/side-effect.js off build/side-effect.asset.php.
 		'side-effect': path.resolve(

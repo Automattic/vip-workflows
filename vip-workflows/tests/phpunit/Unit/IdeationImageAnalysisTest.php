@@ -26,18 +26,18 @@
  * integration suite. The SSRF validation
  * logic itself is covered by tests/phpunit/Unit/SsrfGuardTest.php.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit {
+namespace VIPWorkflows\Tests\Unit {
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\AI\CorePrompts;
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\API\IdeationController;
+use VIPWorkflows\AI\CorePrompts;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\API\IdeationController;
 use WordPress\AiClient\AiClient;
 use WP_Post;
 
@@ -81,7 +81,7 @@ class IdeationImageAnalysisTest extends TestCase
         mkdir( $this->uploads_dir );
 
         // The analysis path resolves its instruction through PromptRegistry, which
-        // in production is filled on the `vip_workflow_register_prompts` action.
+        // in production is filled on the `vip_workflows_register_prompts` action.
         // `do_action` is a no-op in the unit suite, so the registry stays empty
         // unless a test fills it: register the core prompts this file's code path
         // reads. Without this the registry only happened to be populated by
@@ -154,7 +154,7 @@ class IdeationImageAnalysisTest extends TestCase
         // Credentials::model() reads this option.
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                if ( 'vip_workflow_ai_model' === $option ) {
+                if ( 'vip_workflows_ai_model' === $option ) {
                     return 'gpt-4o';
                 }
                 return $default;
@@ -261,7 +261,7 @@ class IdeationImageAnalysisTest extends TestCase
     {
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                return 'vip_workflow_ai_provider' === $option ? 'anthropic' : $default;
+                return 'vip_workflows_ai_provider' === $option ? 'anthropic' : $default;
             }
         );
 
@@ -445,4 +445,4 @@ class IdeationImageAnalysisTest extends TestCase
     }
 }
 
-} // namespace VIPWorkflow\Tests\Unit
+} // namespace VIPWorkflows\Tests\Unit

@@ -9,7 +9,7 @@
  * dirty card, so the card owns the request and the header owns the decision to
  * make it. See docs/guides/settings-standard.md.
  *
- * Plugins inject a custom settings UI via the `vipWorkflow.assistantSettings`
+ * Plugins inject a custom settings UI via the `vipWorkflows.assistantSettings`
  * JS filter. When no custom component is provided, settings fields are
  * auto-rendered from the assistant's `settings_schema`.
  *
@@ -42,9 +42,9 @@ import './AssistantCard.css';
  * act on, and the third was a whole sentence in a pill.
  */
 const CAPABILITY_LABELS = {
-	research: __( 'research', 'vip-workflow' ),
-	discovery: __( 'story discovery', 'vip-workflow' ),
-	stage: __( 'AI stage automation', 'vip-workflow' ),
+	research: __( 'research', 'vip-workflows' ),
+	discovery: __( 'story discovery', 'vip-workflows' ),
+	stage: __( 'AI stage automation', 'vip-workflows' ),
 };
 
 /**
@@ -184,7 +184,7 @@ export function AssistantCard( {
 
 		try {
 			const updated = await apiFetch( {
-				path: `/vip-workflow/v1/assistants/${ encodeURIComponent(
+				path: `/vip-workflows/v1/assistants/${ encodeURIComponent(
 					assistant.slug
 				) }/settings`,
 				method: 'POST',
@@ -233,7 +233,7 @@ export function AssistantCard( {
 
 		try {
 			const updated = await apiFetch( {
-				path: `/vip-workflow/v1/assistants/${ encodeURIComponent(
+				path: `/vip-workflows/v1/assistants/${ encodeURIComponent(
 					assistant.slug
 				) }`,
 			} );
@@ -254,7 +254,7 @@ export function AssistantCard( {
 			onError(
 				sprintf(
 					/* translators: 1: agent name, 2: error message. */
-					__( 'Could not re-check %1$s: %2$s', 'vip-workflow' ),
+					__( 'Could not re-check %1$s: %2$s', 'vip-workflows' ),
 					local.label,
 					err.message
 				)
@@ -272,7 +272,7 @@ export function AssistantCard( {
 	 */
 	const configDisabled = ! local.enabled;
 
-	// Filter: vipWorkflow.assistantSettings
+	// Filter: vipWorkflows.assistantSettings
 	//
 	// Unified filter for injecting a custom settings component into any
 	// assistant card, regardless of its underlying capabilities. Receives the
@@ -283,7 +283,7 @@ export function AssistantCard( {
 	// off, and a plugin that honours it neither lets a reader edit an agent that
 	// does not run nor reports a change through `onHasChangesChange`.
 	let pluginComponent = applyFilters(
-		'vipWorkflow.assistantSettings',
+		'vipWorkflows.assistantSettings',
 		null,
 		local,
 		{
@@ -304,7 +304,7 @@ export function AssistantCard( {
 			name: local.label,
 		};
 		pluginComponent = applyFilters(
-			'vipWorkflow.assistantSettingsComponent',
+			'vipWorkflows.assistantSettingsComponent',
 			null,
 			legacyAssistant,
 			{
@@ -321,7 +321,7 @@ export function AssistantCard( {
 		local.provider_slugs.length > 0
 	) {
 		const LegacyProviderComponent = applyFilters(
-			'vip_workflow_discovery_provider_settings',
+			'vip_workflows_discovery_provider_settings',
 			null,
 			local.provider_slugs[ 0 ]
 		);
@@ -366,7 +366,7 @@ export function AssistantCard( {
 
 	const requirements = (
 		<Stack
-			className="vip-workflow-assistant-card__requirements"
+			className="vip-workflows-assistant-card__requirements"
 			direction="column"
 			gap="md"
 		>
@@ -385,7 +385,7 @@ export function AssistantCard( {
 				<Text variant="body-md">
 					{ __(
 						'This agent has required settings that are not yet configured.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				</Text>
 			) }
@@ -394,7 +394,7 @@ export function AssistantCard( {
 				<Text variant="body-sm">
 					{ sprintf(
 						/* translators: %s: comma-separated list of the capabilities on this card that are configured. */
-						__( 'Still working: %s.', 'vip-workflow' ),
+						__( 'Still working: %s.', 'vip-workflows' ),
 						workingSources.join( ', ' )
 					) }
 				</Text>
@@ -408,7 +408,7 @@ export function AssistantCard( {
 					isBusy={ rechecking }
 					disabled={ rechecking || saving }
 				>
-					{ __( 'Retry', 'vip-workflow' ) }
+					{ __( 'Retry', 'vip-workflows' ) }
 				</Button>
 			</Stack>
 		</Stack>
@@ -416,7 +416,7 @@ export function AssistantCard( {
 
 	return (
 		<Card.Root
-			className="vip-workflow-assistant-card"
+			className="vip-workflows-assistant-card"
 			data-assistant-slug={ local.slug }
 		>
 			<Card.Header
@@ -428,16 +428,16 @@ export function AssistantCard( {
 					<Card.Title render={ <h2 /> }>{ local.label }</Card.Title>
 					<Text
 						variant="body-sm"
-						className="vip-workflow-assistant-card__origin"
+						className="vip-workflows-assistant-card__origin"
 					>
 						{ isBuiltIn
-							? __( 'Built-in', 'vip-workflow' )
+							? __( 'Built-in', 'vip-workflows' )
 							: originLabel( local ) }
 					</Text>
 				</Stack>
 				<ToggleControl
 					__nextHasNoMarginBottom
-					label={ __( 'Enabled', 'vip-workflow' ) }
+					label={ __( 'Enabled', 'vip-workflows' ) }
 					checked={ !! local.enabled }
 					onChange={ handleToggle }
 				/>
@@ -453,7 +453,7 @@ export function AssistantCard( {
 					<Text variant="body-md" render={ <p /> }>
 						{ sprintf(
 							/* translators: %s: comma-separated list of what the agent provides. */
-							__( 'Provides: %s', 'vip-workflow' ),
+							__( 'Provides: %s', 'vip-workflows' ),
 							capabilities
 								.map(
 									( capability ) =>
@@ -477,7 +477,7 @@ export function AssistantCard( {
 						 * about an agent nobody is waiting on.
 						 */
 						<Stack
-							className="vip-workflow-assistant-card__hint"
+							className="vip-workflows-assistant-card__hint"
 							direction="column"
 						>
 							{ requirements }
@@ -505,7 +505,7 @@ export function AssistantCard( {
 									<Text variant="body-md" render={ <p /> }>
 										{ __(
 											'Enable the agent to change these settings.',
-											'vip-workflow'
+											'vip-workflows'
 										) }
 									</Text>
 								) }

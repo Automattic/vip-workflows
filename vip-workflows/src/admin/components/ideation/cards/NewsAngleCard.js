@@ -33,9 +33,9 @@ export default function NewsAngleCard( {
 		// but supplies no gap of its own).
 		<Card.Root
 			render={ <Stack direction="column" gap="sm" /> }
-			className="vip-workflow-ideation-card vip-workflow-ideation-card--angle"
+			className="vip-workflows-ideation-card vip-workflows-ideation-card--angle"
 		>
-			<div className="vip-workflow-ideation-card--angle__icon">
+			<div className="vip-workflows-ideation-card--angle__icon">
 				<svg
 					width="24"
 					height="24"
@@ -47,16 +47,16 @@ export default function NewsAngleCard( {
 					<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
 				</svg>
 			</div>
-			<blockquote className="vip-workflow-ideation-card--angle__quote">
+			<blockquote className="vip-workflows-ideation-card--angle__quote">
 				{ content }
 			</blockquote>
 			{ /* wpds-allow R7 -- uppercase news-angle label; no <Text> variant */ }
-			<span className="vip-workflow-ideation-card--angle__label">
-				{ __( 'News Angle', 'vip-workflow' ) }
+			<span className="vip-workflows-ideation-card--angle__label">
+				{ __( 'News Angle', 'vip-workflows' ) }
 			</span>
 			<Stack
 				justify="flex-end"
-				className="vip-workflow-ideation-card__actions vip-workflow-ideation-card__actions--minimal"
+				className="vip-workflows-ideation-card__actions vip-workflows-ideation-card__actions--minimal"
 				gap="xs"
 			>
 				<CardActions

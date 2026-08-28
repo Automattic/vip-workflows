@@ -6,17 +6,17 @@
  * video-transcript prompt resolve through the PromptRegistry and reproduce the
  * prior inline text byte-for-byte, including the conditional image blocks.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\CorePrompts;
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\PromptSettings;
+use VIPWorkflows\AI\CorePrompts;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\PromptSettings;
 
 class IdeationDraftPromptsTest extends TestCase
 {
@@ -30,12 +30,12 @@ class IdeationDraftPromptsTest extends TestCase
 
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                return 'vip_workflow_prompts' === $option ? $this->prompt_overrides : $default;
+                return 'vip_workflows_prompts' === $option ? $this->prompt_overrides : $default;
             }
         );
         Functions\when( 'update_option' )->alias(
             function ( string $option, $value ) {
-                if ( 'vip_workflow_prompts' === $option ) {
+                if ( 'vip_workflows_prompts' === $option ) {
                     $this->prompt_overrides = $value;
                 }
                 return true;

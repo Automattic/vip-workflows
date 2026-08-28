@@ -16,14 +16,14 @@
  * own `<Stack gap="md">`, which already sets them 12px off what precedes them.
  */
 
-.vip-workflow-assignment-config {
+.vip-workflows-assignment-config {
 	padding: var(--wpds-dimension-padding-md);
 	background: var(--wpds-color-background-surface-neutral); /* wpds-allow R6 -- inset-panel tint; Stack has no surface prop (Card-adoption candidate) */
 	border-radius: var(--wpds-border-radius-md); /* wpds-allow R6 -- inset-panel radius; Stack has no radius prop (Card-adoption candidate) */
 	border-left: 3px solid var(--wpds-color-stroke-interactive-brand); /* wpds-allow R6 -- accent rule marking the assignment panel; Stack has no border prop */
 }
 
-.vip-workflow-requires-config {
+.vip-workflows-requires-config {
 	padding: var(--wpds-dimension-padding-md);
 	background: var(--wpds-color-background-surface-caution-weak); /* wpds-allow R6 -- inset-panel tint; Stack has no surface prop (Card-adoption candidate) */
 	border-radius: var(--wpds-border-radius-md); /* wpds-allow R6 -- inset-panel radius; Stack has no radius prop (Card-adoption candidate) */
@@ -33,7 +33,7 @@
 /* Leading divider for the requires block. It is the sole child of its inspector
    section, so the parent Stack's gap never applies to it and the offset above
    the rule has to be a margin. */
-.vip-workflow-transition__requires {
+.vip-workflows-transition__requires {
 	margin-top: var(--wpds-dimension-gap-lg); /* wpds-allow R3 -- offset above a leading divider on a sole child; no parent Stack gap applies */
 	padding-top: var(--wpds-dimension-gap-lg);
 	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak); /* wpds-allow R6 -- section divider; Stack has no divider/border prop */

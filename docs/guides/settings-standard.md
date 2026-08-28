@@ -89,12 +89,12 @@ Every settings screen is an `AdminPage` with `constrained`.
 ```jsx
 <AdminPage
 	breadcrumbs={ [
-		{ label: __( 'Workflows', 'vip-workflow' ), href: 'admin.php?page=vip-workflow' },
-		{ label: __( 'Tools', 'vip-workflow' ) },
+		{ label: __( 'Workflows', 'vip-workflows' ), href: 'admin.php?page=vip-workflows' },
+		{ label: __( 'Tools', 'vip-workflows' ) },
 	] }
-	title={ __( 'Tools', 'vip-workflow' ) }
-	subtitle={ __( 'Configure workflow tools available to your team.', 'vip-workflow' ) }
-	actions={ <Button variant="secondary" onClick={ … }>{ __( 'Add custom tool', 'vip-workflow' ) }</Button> }
+	title={ __( 'Tools', 'vip-workflows' ) }
+	subtitle={ __( 'Configure workflow tools available to your team.', 'vip-workflows' ) }
+	actions={ <Button variant="secondary" onClick={ … }>{ __( 'Add custom tool', 'vip-workflows' ) }</Button> }
 	constrained
 >
 ```
@@ -126,7 +126,7 @@ exactly one strip per screen.
 | Persistence | The active tab round-trips through the `tab` query param. |
 
 ```jsx
-<Tabs.Root className="vip-workflow-tabs" value={ selected } onValueChange={ onChange }>
+<Tabs.Root className="vip-workflows-tabs" value={ selected } onValueChange={ onChange }>
 	<Tabs.List>
 		{ tabs.map( ( tab ) => (
 			<Tabs.Tab key={ tab.name } value={ tab.name }>{ tab.title }</Tabs.Tab>
@@ -206,8 +206,8 @@ every settings screen, and it is **not a card**.
 
 ```jsx
 <SettingsSection
-	title={ __( 'Workflow behavior', 'vip-workflow' ) }
-	description={ __( 'How posts enter and move through a workflow.', 'vip-workflow' ) }
+	title={ __( 'Workflow behavior', 'vip-workflows' ) }
+	description={ __( 'How posts enter and move through a workflow.', 'vip-workflows' ) }
 >
 	<ToggleControl … />
 	<ToggleControl … />
@@ -256,7 +256,7 @@ list items.
 		<Card.Title render={ <h2 /> }>{ entity.name }</Card.Title>
 		<ToggleControl
 			__nextHasNoMarginBottom
-			label={ __( 'Enabled', 'vip-workflow' ) }
+			label={ __( 'Enabled', 'vip-workflows' ) }
 			checked={ entity.enabled }
 			onChange={ onToggle }
 		/>
@@ -294,8 +294,8 @@ list of names before it reads as a wall of forms.
 ```jsx
 <ToggleControl
 	__nextHasNoMarginBottom
-	label={ __( 'Allow users to review their own posts', 'vip-workflow' ) }
-	help={ __( 'Authors can see their own posts in the Review Queue.', 'vip-workflow' ) }
+	label={ __( 'Allow users to review their own posts', 'vip-workflows' ) }
+	help={ __( 'Authors can see their own posts in the Review Queue.', 'vip-workflows' ) }
 	checked={ … }
 	onChange={ … }
 />
@@ -346,7 +346,7 @@ pinned to the bottom of the constrained content column, holding exactly one
 ```jsx
 <SettingsFooter>
 	<Button variant="primary" onClick={ onSave } isBusy={ saving } disabled={ saving || ! isDirty }>
-		{ __( 'Save', 'vip-workflow' ) }
+		{ __( 'Save', 'vip-workflows' ) }
 	</Button>
 </SettingsFooter>
 ```
@@ -526,7 +526,7 @@ Today `h3` is rendered as `heading-lg` (AssistantsTab how-to), `heading-md`
 three type treatments for one structural level, two of them in the same file.
 Heading levels also never skip: a page `h1` is followed by `h2`, not `h3`.
 
-The `vip-workflow-eyebrow` class is not a heading style. Section headings use
+The `vip-workflows-eyebrow` class is not a heading style. Section headings use
 the table above.
 
 ---
@@ -610,7 +610,7 @@ Retired by this standard: `getSaveButtonLabel`, `UnsavedChangesHint`
 - [ ] Every caught error reaches a `Notice`; no `console.error`-only paths.
 - [ ] `Notice` uses `onRemove`, not `onDismiss`.
 - [ ] Loading via `SettingsLoading`; empty state is a `Text`, not a wrapper div.
-- [ ] Headings follow the level/variant table; no skipped levels; `vip-workflow-eyebrow` not used as a heading.
+- [ ] Headings follow the level/variant table; no skipped levels; `vip-workflows-eyebrow` not used as a heading.
 - [ ] Labels sentence case, per the vocabulary table.
 - [ ] Emoji removed from labels, `get_icon()`, and how-to code samples.
 
@@ -635,7 +635,7 @@ screens, in Ideation and the list pages, and are not this standard's to close.
 | Deprecated `Notice onDismiss` | 20 files |
 | Per-card / per-section save buttons | 6 components |
 | `getSaveButtonLabel` + `UnsavedChangesHint` (label swap + separate dirty string + snackbar) | 8 files |
-| Distinct loading renders | 4 — `vip-workflow-loading`, `vip-workflow-assistants-loading`, `vip-workflow-integrations-loading`, and an inline-`style` variant in `PromptsSettings` |
+| Distinct loading renders | 4 — `vip-workflows-loading`, `vip-workflows-assistants-loading`, `vip-workflows-integrations-loading`, and an inline-`style` variant in `PromptsSettings` |
 | Cards wrapping screen-own settings | 5 components; in 3 of them (`GeneralSettings`, `ExperimentsSettings`, `SystemEventsCard`) the card title repeats its tab verbatim |
 | Title Case section headings | throughout |
 | Emoji as `get_icon()` return | 5 PHP classes + 3 how-to code samples |
@@ -666,7 +666,7 @@ chrome went back to `Card.Root`, taking the stylesheet from 78 lines to 8.
 8. **`How to Add Custom Tools` stranded** in a panel-surface bar at the bottom
    of the content.
 9. `Show in Command Palette (⌘K)`; `Checks`/`Settings` label via
-   `vip-workflow-eyebrow`; section `h3` under a page `h1`.
+   `vip-workflows-eyebrow`; section `h3` under a page `h1`.
 
 ### Agents (`AssistantsTab.js` + `AssistantCard.js`, 927 lines) — **migrated**
 
@@ -727,7 +727,7 @@ at all, so that matrix had been saving and silently losing the value on reload.
 7. **Add-channel action in a bottom bar** per tab, with its error `Notice`
    rendered inside that bar.
 8. Group description, empty-state text and channel description all render as
-   `vip-workflow-description` paragraphs at the same weight, so the tab has no
+   `vip-workflows-description` paragraphs at the same weight, so the tab has no
    visual hierarchy.
 
 ### Settings (`Settings.js` + the four tab components) — **migrated**

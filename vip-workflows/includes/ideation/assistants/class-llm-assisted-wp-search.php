@@ -5,17 +5,17 @@
  * Phase 1 implementation of ArchiveSearchInterface.
  * Uses WP_Query for candidate retrieval, then LLM for relevance re-ranking.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\AiInference;
-use VIPWorkflow\Abilities\AiAvailability;
-use VIPWorkflow\Integrations\LlmTextGenerator;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\AiInference;
+use VIPWorkflows\Abilities\AiAvailability;
+use VIPWorkflows\Integrations\LlmTextGenerator;
 
 /**
  * LLMAssisted WPSearch.

@@ -5,7 +5,7 @@
  * Lives in the integration suite because every claim here is about persistence
  * and dispatch: what project meta survives a run that did not complete, what a
  * completed run replaces, and whether the route's permission gate holds. The
- * research-agent reset also needs a real registered `VIPWorkflow\Abilities\Ability`,
+ * research-agent reset also needs a real registered `VIPWorkflows\Abilities\Ability`,
  * which `wp_register_ability()` can only produce while `wp_abilities_api_init`
  * is running.
  *
@@ -15,33 +15,33 @@
  * the only run outcome this suite can produce for real, so the completed-run
  * behaviour is asserted against the commit step it feeds.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
 use ReflectionMethod;
-use VIPWorkflow\Abilities\AbilitySettings;
-use VIPWorkflow\AI\CredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\API\IdeationController;
-use VIPWorkflow\Ideation\Assistants\IdeationOrchestrator;
-use VIPWorkflow\Ideation\Assistants\WebResearcher;
+use VIPWorkflows\Abilities\AbilitySettings;
+use VIPWorkflows\AI\CredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\API\IdeationController;
+use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Ideation\Assistants\WebResearcher;
 use WP_REST_Request;
 
 /**
- * @covers \VIPWorkflow\Ideation\Assistants\IdeationOrchestrator::restart_analysis
- * @covers \VIPWorkflow\API\IdeationController::restart_analysis
+ * @covers \VIPWorkflows\Ideation\Assistants\IdeationOrchestrator::restart_analysis
+ * @covers \VIPWorkflows\API\IdeationController::restart_analysis
  */
 class IdeationRestartAnalysisTest extends TestCase
 {
     private const POST_TYPE = 'vip_ideation';
 
-    private const ANALYST = 'vip-workflow/seed-analyst';
+    private const ANALYST = 'vip-workflows/seed-analyst';
 
-    private const WEB_RESEARCHER = 'vip-workflow/web-researcher';
+    private const WEB_RESEARCHER = 'vip-workflows/web-researcher';
 
     private const META_SEED = '_vip_ideation_seed';
 
@@ -289,7 +289,7 @@ class IdeationRestartAnalysisTest extends TestCase
 
         $result = ( new IdeationOrchestrator() )->restart_analysis( $project_id );
 
-        $stored = $this->decoded_meta( $project_id, '_vip_ideation_asst_vip-workflow__seed-analyst' );
+        $stored = $this->decoded_meta( $project_id, '_vip_ideation_asst_vip-workflows__seed-analyst' );
 
         $this->assertSame( 'unavailable', $stored['status'] );
         // Register-neutral: requirement identity is stored, never a rendered
@@ -309,13 +309,13 @@ class IdeationRestartAnalysisTest extends TestCase
         $project_id = $this->project_with_prior_analysis();
         update_post_meta(
             $project_id,
-            '_vip_ideation_asst_vip-workflow__web-researcher',
+            '_vip_ideation_asst_vip-workflows__web-researcher',
             (string) wp_json_encode( array( 'status' => 'completed', 'card_count' => 4 ) )
         );
 
         ( new IdeationOrchestrator() )->restart_analysis( $project_id );
 
-        $stored = $this->decoded_meta( $project_id, '_vip_ideation_asst_vip-workflow__web-researcher' );
+        $stored = $this->decoded_meta( $project_id, '_vip_ideation_asst_vip-workflows__web-researcher' );
         $this->assertSame( 'completed', $stored['status'] );
     }
 
@@ -394,13 +394,13 @@ class IdeationRestartAnalysisTest extends TestCase
         $project_id = $this->project_with_prior_analysis();
         update_post_meta(
             $project_id,
-            '_vip_ideation_asst_vip-workflow__web-researcher',
+            '_vip_ideation_asst_vip-workflows__web-researcher',
             (string) wp_json_encode( array( 'status' => 'completed', 'card_count' => 4 ) )
         );
 
         $this->invoke( 'reset_research_assistants', $project_id );
 
-        $stored = $this->decoded_meta( $project_id, '_vip_ideation_asst_vip-workflow__web-researcher' );
+        $stored = $this->decoded_meta( $project_id, '_vip_ideation_asst_vip-workflows__web-researcher' );
         $this->assertSame( 'pending', $stored['status'] );
         $this->assertSame( array(), $stored['cards'] );
 
@@ -435,7 +435,7 @@ class IdeationRestartAnalysisTest extends TestCase
         $this->register_ideation_routes();
 
         return rest_get_server()->dispatch(
-            new WP_REST_Request( 'POST', '/vip-workflow/v1/ideation/' . $project_id . '/restart-analysis' )
+            new WP_REST_Request( 'POST', '/vip-workflows/v1/ideation/' . $project_id . '/restart-analysis' )
         );
     }
 

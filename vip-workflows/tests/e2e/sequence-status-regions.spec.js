@@ -31,7 +31,7 @@ const { deleteSequence } = require( './helpers/workflow' );
  */
 async function createTwoStageSequence( requestUtils ) {
 	return requestUtils.rest( {
-		path: '/vip-workflow/v1/sequences',
+		path: '/vip-workflows/v1/sequences',
 		method: 'POST',
 		data: {
 			name: `E2E Status Regions ${ Date.now() }`,
@@ -65,7 +65,7 @@ async function createTwoStageSequence( requestUtils ) {
  */
 async function createCheckpointSequence( requestUtils ) {
 	return requestUtils.rest( {
-		path: '/vip-workflow/v1/sequences',
+		path: '/vip-workflows/v1/sequences',
 		method: 'POST',
 		data: {
 			name: `E2E Region Checkpoint ${ Date.now() }`,
@@ -135,9 +135,9 @@ async function dragConnection( page, grip, target ) {
  * @param {string}                                               name  Sequence name.
  */
 async function openEditor( admin, page, name ) {
-	await admin.visitAdminPage( 'admin.php', 'page=vip-workflow-sequences' );
+	await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-sequences' );
 	await page
-		.locator( '.vip-workflow-summary-card' )
+		.locator( '.vip-workflows-summary-card' )
 		.filter( { hasText: name } )
 		.getByRole( 'button', { name: 'Edit' } )
 		.click();
@@ -191,7 +191,7 @@ const band = ( page, region ) =>
 const regionLabel = ( page, region ) =>
 	page.locator( `.wf-region-labels__label[data-region="${ region }"]` );
 
-test.describe( 'VIP Workflow — sequence status regions', () => {
+test.describe( 'VIP Workflows — sequence status regions', () => {
 	let sequenceId;
 
 	test.afterEach( async ( { requestUtils } ) => {
@@ -343,7 +343,7 @@ test.describe( 'VIP Workflow — sequence status regions', () => {
 		).toBeVisible();
 
 		const saved = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		const review = saved.config.statuses.find(
 			( s ) => s.key === 'review'
@@ -469,7 +469,7 @@ test.describe( 'VIP Workflow — sequence status regions', () => {
 		).toBeVisible();
 
 		const saved = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		const byKey = Object.fromEntries(
 			saved.config.statuses.map( ( s ) => [ s.key, s ] )
@@ -549,7 +549,7 @@ test.describe( 'VIP Workflow — sequence status regions', () => {
 		).toBeVisible();
 
 		const saved = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		const draft = saved.config.statuses.find( ( s ) => s.key === 'draft' );
 

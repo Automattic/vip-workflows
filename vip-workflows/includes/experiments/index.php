@@ -2,5 +2,5 @@
 /**
  * Silence is golden.
  *
- * @package VIPWorkflow\Experiments
+ * @package VIPWorkflows\Experiments
  */

@@ -14,19 +14,19 @@
  */
 
 /* Fieldset.Legend ships the uppercase field-label chrome; the section name is an h2. */
-.vip-workflow-settings-section__legend {
+.vip-workflows-settings-section__legend {
 	font: revert-layer; /* wpds-allow R5 -- reverts to DS heading over Fieldset label styles */
 	text-transform: none;
 	color: inherit;
 }
 
-.vip-workflow-settings-section__description {
+.vip-workflows-settings-section__description {
 	/* wpds-allow R6 -- muted tone for the group's context line; <Text> exposes `variant` only, with no colour or tone prop */
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* wpds-allow R3 -- name-to-controls distance; the three are Fieldset.Root's own
    flex children, so this rides on top of its `xs` gap to reach `lg`. */
-.vip-workflow-settings-section__controls {
+.vip-workflows-settings-section__controls {
 	margin-block-start: var(--wpds-dimension-gap-md);
 }

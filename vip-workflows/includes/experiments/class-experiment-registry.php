@@ -5,14 +5,14 @@
  * Tracks registered experiments, resolves enabled state, and registers
  * modules for enabled experiments.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Experiments;
+namespace VIPWorkflows\Experiments;
 
-use VIPWorkflow\Plugin;
+use VIPWorkflows\Plugin;
 
 /**
  * Manages experiment registration and enabled state.
@@ -22,12 +22,12 @@ class ExperimentRegistry {
 	/**
 	 * Option name for storing enabled experiment IDs.
 	 */
-	public const OPTION_NAME = 'vip_workflow_experiments';
+	public const OPTION_NAME = 'vip_workflows_experiments';
 
 	/**
 	 * Filter name for code-level overrides.
 	 */
-	public const FILTER_NAME = 'vip_workflow_experiments';
+	public const FILTER_NAME = 'vip_workflows_experiments';
 
 	/**
 	 * Registered experiments.
@@ -116,7 +116,7 @@ class ExperimentRegistry {
 		 *
 		 * @param string $experiment_id The experiment that was enabled.
 		 */
-		do_action( 'vip_workflow_experiment_enabled', $experiment_id );
+		do_action( 'vip_workflows_experiment_enabled', $experiment_id );
 
 		return true;
 	}
@@ -144,7 +144,7 @@ class ExperimentRegistry {
 		 *
 		 * @param string $experiment_id The experiment that was disabled.
 		 */
-		do_action( 'vip_workflow_experiment_disabled', $experiment_id );
+		do_action( 'vip_workflows_experiment_disabled', $experiment_id );
 
 		return true;
 	}

@@ -3,11 +3,11 @@
  */
 
 /* Title field: position context for the fetching-meta spinner overlay */
-.vip-workflow-add-source__title-wrapper {
+.vip-workflows-add-source__title-wrapper {
 	position: relative;
 }
 
-.vip-workflow-add-source__meta-spinner {
+.vip-workflows-add-source__meta-spinner {
 	position: absolute;
 	right: var(--wpds-dimension-gap-sm);
 	top: var(--wpds-dimension-gap-2xl);

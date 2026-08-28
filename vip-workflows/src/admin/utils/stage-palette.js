@@ -7,7 +7,7 @@
  * was allowed, so stage colors drifted off the design system. The editor now
  * offers a fixed, named palette instead: the collaboration
  * qualitative palette (`collaborator.stroke`, slots 1–7), the shared categorical
- * palette VIP Workflow stage/badge colors are migrating onto.
+ * palette VIP Workflows stage/badge colors are migrating onto.
  *
  * A palette only holds if everything is on it. The hexes those old pickers
  * wrote are still in stored sequences, so `snapToPalette` moves each onto the
@@ -30,13 +30,13 @@ import { __ } from '@wordpress/i18n';
  * @type {Array<{ name: string, value: string }>}
  */
 export const STAGE_PALETTE = [
-	{ name: __( 'Purple', 'vip-workflow' ), value: '#C36EFF' },
-	{ name: __( 'Pink', 'vip-workflow' ), value: '#FF51A8' },
-	{ name: __( 'Orange', 'vip-workflow' ), value: '#E4780A' },
-	{ name: __( 'Magenta', 'vip-workflow' ), value: '#FF35EE' },
-	{ name: __( 'Green', 'vip-workflow' ), value: '#879F11' },
-	{ name: __( 'Teal', 'vip-workflow' ), value: '#46A494' },
-	{ name: __( 'Blue', 'vip-workflow' ), value: '#00A2C3' },
+	{ name: __( 'Purple', 'vip-workflows' ), value: '#C36EFF' },
+	{ name: __( 'Pink', 'vip-workflows' ), value: '#FF51A8' },
+	{ name: __( 'Orange', 'vip-workflows' ), value: '#E4780A' },
+	{ name: __( 'Magenta', 'vip-workflows' ), value: '#FF35EE' },
+	{ name: __( 'Green', 'vip-workflows' ), value: '#879F11' },
+	{ name: __( 'Teal', 'vip-workflows' ), value: '#46A494' },
+	{ name: __( 'Blue', 'vip-workflows' ), value: '#00A2C3' },
 ];
 
 /** The color the canvas draws a stage that carries none. */

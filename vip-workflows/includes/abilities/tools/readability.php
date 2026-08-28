@@ -2,12 +2,12 @@
 /**
  * Readability ability - WordPress Abilities API compatible.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the readability analysis.
@@ -37,11 +37,11 @@ function execute_readability( ?array $input = null ) {
 	if ( empty( $content ) ) {
 		return new \WP_Error(
 			'no_content',
-			__( 'No content to analyze.', 'vip-workflow' )
+			__( 'No content to analyze.', 'vip-workflows' )
 		);
 	}
 
-	$settings     = \VIPWorkflow\Abilities\AbilitySettings::get_instance()->get_options( 'vip-workflow/readability' );
+	$settings     = \VIPWorkflows\Abilities\AbilitySettings::get_instance()->get_options( 'vip-workflows/readability' );
 	$target_grade = $settings['target_grade'] ?? 8;
 
 	// Get plain text.
@@ -58,7 +58,7 @@ function execute_readability( ?array $input = null ) {
 	if ( 0 === $word_count || 0 === $sentences ) {
 		return new \WP_Error(
 			'insufficient_content',
-			__( 'Not enough content to analyze.', 'vip-workflow' )
+			__( 'Not enough content to analyze.', 'vip-workflows' )
 		);
 	}
 
@@ -118,7 +118,7 @@ function execute_readability( ?array $input = null ) {
 			'type'     => 'grade_too_high',
 			'message'  => sprintf(
 			/* translators: 1: Flesch-Kincaid grade, 2: Target grade */
-				__( 'Reading level (grade %1$s) is above target (grade %2$d). Content may be too complex.', 'vip-workflow' ),
+				__( 'Reading level (grade %1$s) is above target (grade %2$d). Content may be too complex.', 'vip-workflows' ),
 				$fk_grade,
 				$target_grade
 			),
@@ -132,14 +132,14 @@ function execute_readability( ?array $input = null ) {
 			'type'     => 'long_sentences',
 			'message'  => sprintf(
 			/* translators: %s: Average sentence length */
-				__( 'Average sentence length is %s words. Aim for 15-20 words.', 'vip-workflow' ),
+				__( 'Average sentence length is %s words. Aim for 15-20 words.', 'vip-workflows' ),
 				round( $avg_sentence_length, 1 )
 			),
 			'severity' => 'warning',
 		);
 		$suggestions[] = array(
 			'type'    => 'shorten_sentences',
-			'message' => __( 'Break long sentences into shorter ones. Use periods more often.', 'vip-workflow' ),
+			'message' => __( 'Break long sentences into shorter ones. Use periods more often.', 'vip-workflows' ),
 		);
 	}
 
@@ -149,7 +149,7 @@ function execute_readability( ?array $input = null ) {
 			'type'     => 'complex_vocabulary',
 			'message'  => sprintf(
 			/* translators: %s: Percentage of complex words */
-				__( '%s%% of words are complex (3+ syllables). Consider simpler alternatives.', 'vip-workflow' ),
+				__( '%s%% of words are complex (3+ syllables). Consider simpler alternatives.', 'vip-workflows' ),
 				round( $complex_word_pct, 1 )
 			),
 			'severity' => 'info',
@@ -162,7 +162,7 @@ function execute_readability( ?array $input = null ) {
 				'type'    => 'simplify_words',
 				'message' => sprintf(
 				/* translators: %s: List of complex words */
-					__( 'Consider simpler alternatives for: %s', 'vip-workflow' ),
+					__( 'Consider simpler alternatives for: %s', 'vip-workflows' ),
 					implode( ', ', $complex_examples )
 				),
 			);
@@ -176,7 +176,7 @@ function execute_readability( ?array $input = null ) {
 				'type'     => 'split_sentence',
 				'message'  => sprintf(
 				/* translators: 1: Sentence number, 2: Word count, 3: Sentence preview */
-					__( 'Sentence %1$d has %2$d words: "%3$s"', 'vip-workflow' ),
+					__( 'Sentence %1$d has %2$d words: "%3$s"', 'vip-workflows' ),
 					$ls['index'],
 					$ls['word_count'],
 					$ls['preview']
@@ -209,7 +209,7 @@ function execute_readability( ?array $input = null ) {
 	$grade_desc = grade_to_description( $fk_grade );
 	$summary    = sprintf(
 	/* translators: 1: Grade level, 2: Grade description, 3: Ease description */
-		__( 'Grade level: %1$s (%2$s). %3$s', 'vip-workflow' ),
+		__( 'Grade level: %1$s (%2$s). %3$s', 'vip-workflows' ),
 		$fk_grade,
 		$grade_desc,
 		ease_to_description( $flesch_ease )
@@ -243,26 +243,26 @@ function can_execute_readability(): bool {
  */
 function register_readability(): void {
 	wp_register_ability(
-		'vip-workflow/readability',
+		'vip-workflows/readability',
 		array(
-			'label'               => __( 'Readability Analysis', 'vip-workflow' ),
-			'description'         => __( 'Analyze content readability using Flesch-Kincaid score, sentence length, and complexity metrics.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Readability Analysis', 'vip-workflows' ),
+			'description'         => __( 'Analyze content readability using Flesch-Kincaid score, sentence length, and complexity metrics.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
 				'properties'           => array(
 					'post_id'      => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID to analyze.', 'vip-workflow' ),
+						'description' => __( 'The post ID to analyze.', 'vip-workflows' ),
 					),
 					'content'      => array(
 						'type'        => 'string',
-						'description' => __( 'Raw content to analyze (alternative to post_id).', 'vip-workflow' ),
+						'description' => __( 'Raw content to analyze (alternative to post_id).', 'vip-workflows' ),
 					),
 					'target_grade' => array(
 						'type'        => 'integer',
-						'description' => __( 'Target reading grade level.', 'vip-workflow' ),
+						'description' => __( 'Target reading grade level.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -273,28 +273,28 @@ function register_readability(): void {
 				'properties'           => array(
 					'score'       => array(
 						'type'        => 'number',
-						'description' => __( 'Readability score from 0-100.', 'vip-workflow' ),
+						'description' => __( 'Readability score from 0-100.', 'vip-workflows' ),
 					),
 					'status'      => array(
 						'type'        => 'string',
 						'enum'        => array( 'pass', 'warning', 'fail' ),
-						'description' => __( 'Status: pass, warning, or fail.', 'vip-workflow' ),
+						'description' => __( 'Status: pass, warning, or fail.', 'vip-workflows' ),
 					),
 					'summary'     => array(
 						'type'        => 'string',
-						'description' => __( 'Summary message.', 'vip-workflow' ),
+						'description' => __( 'Summary message.', 'vip-workflows' ),
 					),
 					'analysis'    => array(
 						'type'        => 'object',
-						'description' => __( 'Detailed metrics.', 'vip-workflow' ),
+						'description' => __( 'Detailed metrics.', 'vip-workflows' ),
 					),
 					'issues'      => array(
 						'type'        => 'array',
-						'description' => __( 'List of issues found.', 'vip-workflow' ),
+						'description' => __( 'List of issues found.', 'vip-workflows' ),
 					),
 					'suggestions' => array(
 						'type'        => 'array',
-						'description' => __( 'List of improvement suggestions.', 'vip-workflow' ),
+						'description' => __( 'List of improvement suggestions.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -311,8 +311,8 @@ function register_readability(): void {
 					'target_grade' => array(
 						'type'        => 'integer',
 						'default'     => 8,
-						'label'       => __( 'Target reading grade level', 'vip-workflow' ),
-						'description' => __( 'Content above this grade level will flag warnings.', 'vip-workflow' ),
+						'label'       => __( 'Target reading grade level', 'vip-workflows' ),
+						'description' => __( 'Content above this grade level will flag warnings.', 'vip-workflows' ),
 						'minimum'     => 1,
 						'maximum'     => 16,
 						'enforceable' => true,
@@ -397,13 +397,13 @@ function syllable_count( string $word ): int {
  */
 function grade_to_description( float $grade ): string {
 	if ( $grade <= 5 ) {
-		return __( 'Elementary school', 'vip-workflow' );
+		return __( 'Elementary school', 'vip-workflows' );
 	} elseif ( $grade <= 8 ) {
-		return __( 'Middle school', 'vip-workflow' );
+		return __( 'Middle school', 'vip-workflows' );
 	} elseif ( $grade <= 12 ) {
-		return __( 'High school', 'vip-workflow' );
+		return __( 'High school', 'vip-workflows' );
 	} else {
-		return __( 'College level', 'vip-workflow' );
+		return __( 'College level', 'vip-workflows' );
 	}
 }
 
@@ -415,14 +415,14 @@ function grade_to_description( float $grade ): string {
  */
 function ease_to_description( float $ease ): string {
 	if ( $ease >= 80 ) {
-		return __( 'Very easy to read.', 'vip-workflow' );
+		return __( 'Very easy to read.', 'vip-workflows' );
 	} elseif ( $ease >= 60 ) {
-		return __( 'Easy to read.', 'vip-workflow' );
+		return __( 'Easy to read.', 'vip-workflows' );
 	} elseif ( $ease >= 40 ) {
-		return __( 'Moderately difficult.', 'vip-workflow' );
+		return __( 'Moderately difficult.', 'vip-workflows' );
 	} elseif ( $ease >= 20 ) {
-		return __( 'Difficult to read.', 'vip-workflow' );
+		return __( 'Difficult to read.', 'vip-workflows' );
 	} else {
-		return __( 'Very difficult to read.', 'vip-workflow' );
+		return __( 'Very difficult to read.', 'vip-workflows' );
 	}
 }

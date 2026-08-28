@@ -34,10 +34,10 @@ export default class ErrorBoundary extends Component {
 		if ( this.state.hasError ) {
 			return (
 				<AdminPage
-					title={ __( 'Something went wrong', 'vip-workflow' ) }
+					title={ __( 'Something went wrong', 'vip-workflows' ) }
 					subtitle={ __(
 						'An error occurred while rendering this page.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					constrained
 				>
@@ -45,7 +45,7 @@ export default class ErrorBoundary extends Component {
 						variant="primary"
 						onClick={ () => window.location.reload() }
 					>
-						{ __( 'Reload page', 'vip-workflow' ) }
+						{ __( 'Reload page', 'vip-workflows' ) }
 					</Button>
 				</AdminPage>
 			);

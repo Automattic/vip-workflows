@@ -7,14 +7,14 @@
  * `note` comments, anchored to blocks via `metadata.noteId`, and re-runs replace
  * the agent's own notes without stacking or orphaning human replies.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Abilities\Agents\StageAgent;
+use VIPWorkflows\Abilities\Agents\StageAgent;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/agents/class-stage-agent.php';
 

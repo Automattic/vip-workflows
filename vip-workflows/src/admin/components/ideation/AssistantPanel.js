@@ -24,23 +24,23 @@ import { renderAssistantIcon } from './assistant-icon';
 
 import './AssistantPanel.css';
 
-export const SEED_ANALYST_ID = 'vip-workflow/seed-analyst';
+export const SEED_ANALYST_ID = 'vip-workflows/seed-analyst';
 
 const READINESS_LABELS = {
 	'needs-context': {
-		text: __( 'Needs more context', 'vip-workflow' ),
+		text: __( 'Needs more context', 'vip-workflows' ),
 		className: 'is-needs-context',
 	},
 	developing: {
-		text: __( 'Developing', 'vip-workflow' ),
+		text: __( 'Developing', 'vip-workflows' ),
 		className: 'is-developing',
 	},
 	'looking-solid': {
-		text: __( 'Looking solid', 'vip-workflow' ),
+		text: __( 'Looking solid', 'vip-workflows' ),
 		className: 'is-looking-solid',
 	},
 	'ready-to-pitch': {
-		text: __( 'Ready to pitch', 'vip-workflow' ),
+		text: __( 'Ready to pitch', 'vip-workflows' ),
 		className: 'is-ready',
 	},
 };
@@ -60,7 +60,7 @@ function getAssistantStatusLabel( effectiveStatus, cardCount ) {
 				{ cardCount > 0 &&
 					` ${ sprintf(
 						// translators: %d: number of cards found.
-						__( '%d found', 'vip-workflow' ),
+						__( '%d found', 'vip-workflows' ),
 						cardCount
 					) }` }
 			</>
@@ -70,7 +70,7 @@ function getAssistantStatusLabel( effectiveStatus, cardCount ) {
 		return null;
 	}
 	if ( effectiveStatus === 'pending' ) {
-		return __( 'waiting…', 'vip-workflow' );
+		return __( 'waiting…', 'vip-workflows' );
 	}
 	return effectiveStatus;
 }
@@ -84,11 +84,11 @@ function getAssistantStatusLabel( effectiveStatus, cardCount ) {
  */
 function getQueryResultLabel( status, cardCount ) {
 	if ( status !== 'completed' ) {
-		return __( 'failed', 'vip-workflow' );
+		return __( 'failed', 'vip-workflows' );
 	}
 	return cardCount > 0
-		? `${ __( 'found', 'vip-workflow' ) } ${ cardCount }`
-		: __( 'found nothing', 'vip-workflow' );
+		? `${ __( 'found', 'vip-workflows' ) } ${ cardCount }`
+		: __( 'found nothing', 'vip-workflows' );
 }
 
 /**
@@ -183,7 +183,7 @@ function UnavailableRetry( { assistantId, onRetry, disabled } ) {
 		<Stack
 			direction="column"
 			gap="xs"
-			className="vip-workflow-ideation-panel__assistant-retry"
+			className="vip-workflows-ideation-panel__assistant-retry"
 		>
 			<Button
 				variant="secondary"
@@ -193,18 +193,18 @@ function UnavailableRetry( { assistantId, onRetry, disabled } ) {
 				disabled={ retrying || disabled }
 			>
 				{ retrying
-					? __( 'Retrying…', 'vip-workflow' )
-					: __( 'Retry', 'vip-workflow' ) }
+					? __( 'Retrying…', 'vip-workflows' )
+					: __( 'Retry', 'vip-workflows' ) }
 			</Button>
 			{ retryFailed && (
 				<Text
 					variant="body-sm"
 					render={ <p /> }
-					className="vip-workflow-ideation-panel__assistant-error"
+					className="vip-workflows-ideation-panel__assistant-error"
 				>
 					{ __(
 						'The agent could not run. Nothing changed.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				</Text>
 			) }
@@ -254,11 +254,11 @@ function SeedAnalystRestart( { onRestart, disabled } ) {
 		const proceed = await confirm(
 			__(
 				'Re-running replaces the seed analysis and every board card, and re-runs every research agent. Pinned board cards will be lost. Sources stay on the board, and anything an agent finds again lands on the source it already added rather than a copy.',
-				'vip-workflow'
+				'vip-workflows'
 			),
 			{
-				title: __( 'Start the analysis over?', 'vip-workflow' ),
-				confirmLabel: __( 'Start over', 'vip-workflow' ),
+				title: __( 'Start the analysis over?', 'vip-workflows' ),
+				confirmLabel: __( 'Start over', 'vip-workflows' ),
 				isDestructive: true,
 			}
 		);
@@ -291,7 +291,7 @@ function SeedAnalystRestart( { onRestart, disabled } ) {
 		<Stack
 			direction="column"
 			gap="xs"
-			className="vip-workflow-ideation-panel__assistant-retry"
+			className="vip-workflows-ideation-panel__assistant-retry"
 		>
 			<Button
 				variant="secondary"
@@ -305,18 +305,18 @@ function SeedAnalystRestart( { onRestart, disabled } ) {
 				disabled={ restarting || disabled }
 			>
 				{ restarting
-					? __( 'Starting over…', 'vip-workflow' )
-					: __( 'Start over', 'vip-workflow' ) }
+					? __( 'Starting over…', 'vip-workflows' )
+					: __( 'Start over', 'vip-workflows' ) }
 			</Button>
 			{ restartFailed && (
 				<Text
 					variant="body-sm"
 					render={ <p /> }
-					className="vip-workflow-ideation-panel__assistant-error"
+					className="vip-workflows-ideation-panel__assistant-error"
 				>
 					{ __(
 						'The analysis could not run. Nothing changed.',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				</Text>
 			) }
@@ -354,13 +354,13 @@ function buildAssistantMaps( researchAbilities ) {
 	const icons = {};
 	const workingMessages = {};
 	const runnable = new Set();
-	const options = [ { label: __( 'Auto', 'vip-workflow' ), value: 'auto' } ];
+	const options = [ { label: __( 'Auto', 'vip-workflows' ), value: 'auto' } ];
 
 	( researchAbilities || [] ).forEach( ( a ) => {
 		order.push( a.id );
 		icons[ a.id ] = a.icon || 'search';
 		workingMessages[ a.id ] =
-			a.thinking_message || __( 'Working…', 'vip-workflow' );
+			a.thinking_message || __( 'Working…', 'vip-workflows' );
 
 		if ( a.enabled ) {
 			runnable.add( a.id );
@@ -442,10 +442,10 @@ export default function AssistantPanel( {
 				<Stack
 					align="center"
 					gap="sm"
-					className="vip-workflow-ideation-panel__mentor-loading"
+					className="vip-workflows-ideation-panel__mentor-loading"
 				>
 					<Spinner />
-					<span>{ __( 'Evaluating…', 'vip-workflow' ) }</span>
+					<span>{ __( 'Evaluating…', 'vip-workflows' ) }</span>
 				</Stack>
 			);
 		}
@@ -461,7 +461,7 @@ export default function AssistantPanel( {
 				<Text
 					variant="body-md"
 					render={ <p /> }
-					className="vip-workflow-ideation-panel__mentor-error"
+					className="vip-workflows-ideation-panel__mentor-error"
 				>
 					{ mentorError }
 				</Text>
@@ -473,11 +473,11 @@ export default function AssistantPanel( {
 					<Text
 						variant="body-md"
 						render={ <p /> }
-						className="vip-workflow-ideation-panel__mentor-placeholder"
+						className="vip-workflows-ideation-panel__mentor-placeholder"
 					>
 						{ __(
 							'Auto-refresh is paused. Click "Refresh guidance" to run manually.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
 				);
@@ -486,9 +486,9 @@ export default function AssistantPanel( {
 				<Text
 					variant="body-md"
 					render={ <p /> }
-					className="vip-workflow-ideation-panel__mentor-placeholder"
+					className="vip-workflows-ideation-panel__mentor-placeholder"
 				>
-					{ __( 'Mentor is warming up…', 'vip-workflow' ) }
+					{ __( 'Mentor is warming up…', 'vip-workflows' ) }
 				</Text>
 			);
 		}
@@ -496,11 +496,11 @@ export default function AssistantPanel( {
 			<Text
 				variant="body-md"
 				render={ <p /> }
-				className="vip-workflow-ideation-panel__mentor-placeholder"
+				className="vip-workflows-ideation-panel__mentor-placeholder"
 			>
 				{ __(
 					'Click "Refresh guidance" to get editorial feedback.',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			</Text>
 		);
@@ -508,36 +508,36 @@ export default function AssistantPanel( {
 
 	return (
 		<Stack
-			className="vip-workflow-ideation-panel"
+			className="vip-workflows-ideation-panel"
 			direction="column"
 			gap="lg"
 		>
-			<div className="vip-workflow-ideation-panel__header">
+			<div className="vip-workflows-ideation-panel__header">
 				<Text
 					variant="heading-sm"
 					render={ <h3 /> }
-					className="vip-workflow-ideation-panel__title vip-workflow-eyebrow"
+					className="vip-workflows-ideation-panel__title vip-workflows-eyebrow"
 				>
-					{ __( 'Agents', 'vip-workflow' ) }
+					{ __( 'Agents', 'vip-workflows' ) }
 				</Text>
 			</div>
 
 			{ /* Mentor Section */ }
-			{ /* wpds-allow R7 -- flex-column surface panel carrying the shared vip-workflow-panel-surface binding; kept as <div> to avoid rebinding that utility to a component */ }
-			<div className="vip-workflow-ideation-panel__mentor vip-workflow-panel-surface">
+			{ /* wpds-allow R7 -- flex-column surface panel carrying the shared vip-workflows-panel-surface binding; kept as <div> to avoid rebinding that utility to a component */ }
+			<div className="vip-workflows-ideation-panel__mentor vip-workflows-panel-surface">
 				<Stack align="center" gap="sm">
 					{ /* wpds-allow R7 -- emoji icon sized via font-size token; no Text variant for the glyph */ }
-					<span className="vip-workflow-ideation-panel__mentor-icon">
+					<span className="vip-workflows-ideation-panel__mentor-icon">
 						&#x1F393;
 					</span>
 					{ /* wpds-allow R7 -- bold inline label (heading-md token); no matching Text variant */ }
-					<span className="vip-workflow-ideation-panel__mentor-label">
-						{ __( 'Editorial Mentor', 'vip-workflow' ) }
+					<span className="vip-workflows-ideation-panel__mentor-label">
+						{ __( 'Editorial Mentor', 'vip-workflows' ) }
 					</span>
 					{ readinessInfo && (
 						// wpds-allow R7 -- status pill with semantic bg/color per readiness state; styled inline label
 						<span
-							className={ `vip-workflow-ideation-panel__readiness ${ readinessInfo.className }` }
+							className={ `vip-workflows-ideation-panel__readiness ${ readinessInfo.className }` }
 						>
 							{ readinessInfo.text }
 						</span>
@@ -552,7 +552,7 @@ export default function AssistantPanel( {
 								<Button
 									key={ idx }
 									size="small"
-									className="vip-workflow-ideation-panel__suggestion-btn"
+									className="vip-workflows-ideation-panel__suggestion-btn"
 									onClick={ () =>
 										onRunQuery &&
 										onRunQuery(
@@ -563,7 +563,7 @@ export default function AssistantPanel( {
 									disabled={ !! runningQuery }
 								>
 									{ /* wpds-allow R7 -- emoji icon sized via font-size token; no Text variant for the glyph */ }
-									<span className="vip-workflow-ideation-panel__suggestion-icon">
+									<span className="vip-workflows-ideation-panel__suggestion-icon">
 										{ renderAssistantIcon(
 											ASSISTANT_ICONS[
 												suggestion.assistant
@@ -580,35 +580,35 @@ export default function AssistantPanel( {
 						variant="tertiary"
 						onClick={ onRunMentor }
 						disabled={ mentorLoading }
-						className="vip-workflow-ideation-panel__mentor-refresh"
+						className="vip-workflows-ideation-panel__mentor-refresh"
 						size="small"
 					>
-						{ __( 'Refresh guidance', 'vip-workflow' ) }
+						{ __( 'Refresh guidance', 'vip-workflows' ) }
 					</Button>
 					<ToggleControl
 						checked={ autoRefresh }
 						onChange={ onToggleAutoRefresh }
-						className="vip-workflow-ideation-panel__mentor-auto-toggle"
+						className="vip-workflows-ideation-panel__mentor-auto-toggle"
 						__nextHasNoMarginBottom
 					/>
 					{ /* wpds-allow R7 -- inline status label (Auto/Paused); min-width reserves space against layout shift */ }
-					<span className="vip-workflow-ideation-panel__mentor-auto-label">
+					<span className="vip-workflows-ideation-panel__mentor-auto-label">
 						{ autoRefresh
-							? __( 'Auto', 'vip-workflow' )
-							: __( 'Paused', 'vip-workflow' ) }
+							? __( 'Auto', 'vip-workflows' )
+							: __( 'Paused', 'vip-workflows' ) }
 					</span>
 				</Stack>
 			</div>
 
 			{ /* Seed Analysis */ }
 			{ seedAnalysis?.news_angle && (
-				<div className="vip-workflow-ideation-panel__section">
+				<div className="vip-workflows-ideation-panel__section">
 					<Text
 						variant="heading-sm"
 						render={ <h4 /> }
-						className="vip-workflow-ideation-panel__section-title"
+						className="vip-workflows-ideation-panel__section-title"
 					>
-						{ __( 'News Angle', 'vip-workflow' ) }
+						{ __( 'News Angle', 'vip-workflows' ) }
 					</Text>
 					<Text variant="body-md" render={ <p /> }>
 						{ seedAnalysis.news_angle }
@@ -620,13 +620,13 @@ export default function AssistantPanel( {
 				Object.keys( seedAnalysis.entities ).some(
 					( k ) => seedAnalysis.entities[ k ]?.length > 0
 				) && (
-					<div className="vip-workflow-ideation-panel__section">
+					<div className="vip-workflows-ideation-panel__section">
 						<Text
 							variant="heading-sm"
 							render={ <h4 /> }
-							className="vip-workflow-ideation-panel__section-title"
+							className="vip-workflows-ideation-panel__section-title"
 						>
-							{ __( 'Entities', 'vip-workflow' ) }
+							{ __( 'Entities', 'vip-workflows' ) }
 						</Text>
 						<Stack direction="column" gap="xs">
 							{ Object.entries( seedAnalysis.entities ).map(
@@ -638,14 +638,14 @@ export default function AssistantPanel( {
 										// wpds-allow R7 -- styled inline row: bold label + comma-joined items (body-sm)
 										<div
 											key={ category }
-											className="vip-workflow-ideation-panel__entity-group"
+											className="vip-workflows-ideation-panel__entity-group"
 										>
 											{ /* wpds-allow R7 -- bold capitalized inline category label; no Text variant */ }
-											<span className="vip-workflow-ideation-panel__entity-label">
+											<span className="vip-workflows-ideation-panel__entity-label">
 												{ category }:
 											</span>
 											{ /* wpds-allow R7 -- inline items text with a small offset from the label */ }
-											<span className="vip-workflow-ideation-panel__entity-items">
+											<span className="vip-workflows-ideation-panel__entity-items">
 												{ items.join( ', ' ) }
 											</span>
 										</div>
@@ -675,23 +675,23 @@ export default function AssistantPanel( {
 						// wpds-allow R7 -- flex-column surface card kept as <div> (owns its bg/border/radius chrome)
 						<div
 							key={ id }
-							className={ `vip-workflow-ideation-panel__assistant ${
+							className={ `vip-workflows-ideation-panel__assistant ${
 								isWorking ? 'is-working' : ''
 							}` }
 						>
 							<Stack align="center" justify="space-between">
 								{ icon && (
 									// wpds-allow R7 -- assistant icon (dashicon slug or emoji) sized via font-size token; no Text variant for the glyph
-									<span className="vip-workflow-ideation-panel__assistant-icon">
+									<span className="vip-workflows-ideation-panel__assistant-icon">
 										{ renderAssistantIcon( icon ) }
 									</span>
 								) }
 								{ /* wpds-allow R7 -- inline assistant name label (body-sm); no Text variant */ }
-								<span className="vip-workflow-ideation-panel__assistant-name">
+								<span className="vip-workflows-ideation-panel__assistant-name">
 									{ data.label }
 								</span>
 								<span
-									className={ `vip-workflow-ideation-panel__assistant-status is-${ effectiveStatus }` }
+									className={ `vip-workflows-ideation-panel__assistant-status is-${ effectiveStatus }` }
 								>
 									{ getAssistantStatusLabel(
 										effectiveStatus,
@@ -706,16 +706,16 @@ export default function AssistantPanel( {
 										direction="row"
 										align="center"
 										gap="xs"
-										className="vip-workflow-ideation-panel__working-dots"
+										className="vip-workflows-ideation-panel__working-dots"
 									>
 										<span />
 										<span />
 										<span />
 									</Stack>
 									{ /* wpds-allow R7 -- italic brand-colored working message; no Text variant */ }
-									<span className="vip-workflow-ideation-panel__working-text">
+									<span className="vip-workflows-ideation-panel__working-text">
 										{ ASSISTANT_WORKING_MESSAGES[ id ] ||
-											__( 'Working…', 'vip-workflow' ) }
+											__( 'Working…', 'vip-workflows' ) }
 									</span>
 								</Stack>
 							) }
@@ -723,7 +723,7 @@ export default function AssistantPanel( {
 								<Text
 									variant="body-sm"
 									render={ <p /> }
-									className="vip-workflow-ideation-panel__assistant-summary"
+									className="vip-workflows-ideation-panel__assistant-summary"
 								>
 									{ data.summary }
 								</Text>
@@ -760,7 +760,7 @@ export default function AssistantPanel( {
 									<Text
 										variant="body-sm"
 										render={ <p /> }
-										className="vip-workflow-ideation-panel__assistant-error"
+										className="vip-workflows-ideation-panel__assistant-error"
 									>
 										{ data.error }
 									</Text>
@@ -786,31 +786,31 @@ export default function AssistantPanel( {
 				<Stack
 					direction="column"
 					gap="sm"
-					className="vip-workflow-ideation-panel__thread"
+					className="vip-workflows-ideation-panel__thread"
 				>
 					<Text
 						variant="heading-sm"
 						render={ <h4 /> }
-						className="vip-workflow-ideation-panel__section-title"
+						className="vip-workflows-ideation-panel__section-title"
 					>
-						{ __( 'Follow-up Queries', 'vip-workflow' ) }
+						{ __( 'Follow-up Queries', 'vip-workflows' ) }
 					</Text>
 					{ ( queryLog || [] ).map( ( entry ) => (
 						<Stack
 							direction="column"
 							gap="xs"
 							key={ entry.id }
-							className="vip-workflow-ideation-panel__thread-entry"
+							className="vip-workflows-ideation-panel__thread-entry"
 						>
 							{ /* wpds-allow R7 -- bold quoted query text (::before/after quotes); no Text variant */ }
-							<span className="vip-workflow-ideation-panel__thread-query">
+							<span className="vip-workflows-ideation-panel__thread-query">
 								{ entry.query }
 							</span>
 							<Stack
 								render={ <span /> }
 								align="center"
 								gap="xs"
-								className="vip-workflow-ideation-panel__thread-result"
+								className="vip-workflows-ideation-panel__thread-result"
 							>
 								{ assistantLabel( entry.assistant ) }{ ' ' }
 								{ getQueryResultLabel(
@@ -824,23 +824,23 @@ export default function AssistantPanel( {
 						<Stack
 							direction="column"
 							gap="xs"
-							className="vip-workflow-ideation-panel__thread-entry is-running"
+							className="vip-workflows-ideation-panel__thread-entry is-running"
 						>
 							{ /* wpds-allow R7 -- bold quoted query text (::before/after quotes); no Text variant */ }
-							<span className="vip-workflow-ideation-panel__thread-query">
+							<span className="vip-workflows-ideation-panel__thread-query">
 								{ runningQuery.query }
 							</span>
 							<Stack
 								render={ <span /> }
 								align="center"
 								gap="xs"
-								className="vip-workflow-ideation-panel__thread-result"
+								className="vip-workflows-ideation-panel__thread-result"
 							>
 								<Spinner />
 								{ assistantLabel(
 									runningQuery.assistant
 								) }{ ' ' }
-								{ __( 'searching…', 'vip-workflow' ) }
+								{ __( 'searching…', 'vip-workflows' ) }
 							</Stack>
 						</Stack>
 					) }
@@ -867,17 +867,17 @@ function QueryInput( { onSubmit, disabled, assistantOptions = [] } ) {
 		}
 		const lower = q.toLowerCase();
 		if ( /image|photo|picture|visual|graphic/.test( lower ) ) {
-			return 'vip-workflow/media-scout';
+			return 'vip-workflows/media-scout';
 		}
 		if ( /video|youtube|clip|footage/.test( lower ) ) {
-			return 'vip-workflow/media-scout';
+			return 'vip-workflows/media-scout';
 		}
 		if (
 			/archive|our (article|post|coverage)|previous|past/.test( lower )
 		) {
-			return 'vip-workflow/archive-scout';
+			return 'vip-workflows/archive-scout';
 		}
-		return 'vip-workflow/web-researcher';
+		return 'vip-workflows/web-researcher';
 	}, [] );
 
 	const handleSubmit = useCallback( () => {
@@ -903,15 +903,15 @@ function QueryInput( { onSubmit, disabled, assistantOptions = [] } ) {
 		<Stack
 			direction="column"
 			gap="sm"
-			className="vip-workflow-ideation-panel__query-input"
+			className="vip-workflows-ideation-panel__query-input"
 		>
-			<Stack gap="sm" className="vip-workflow-ideation-panel__query-row">
+			<Stack gap="sm" className="vip-workflows-ideation-panel__query-row">
 				<TextControl
 					value={ query }
 					onChange={ setQuery }
 					placeholder={ __(
 						'Ask an agent to find more…',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					onKeyDown={ handleKeyDown }
 					disabled={ disabled }
@@ -922,7 +922,7 @@ function QueryInput( { onSubmit, disabled, assistantOptions = [] } ) {
 					value={ assistant }
 					options={ assistantOptions }
 					onChange={ setAssistant }
-					className="vip-workflow-ideation-panel__query-assistant"
+					className="vip-workflows-ideation-panel__query-assistant"
 					disabled={ disabled }
 					__nextHasNoMarginBottom
 					__next40pxDefaultSize
@@ -933,10 +933,10 @@ function QueryInput( { onSubmit, disabled, assistantOptions = [] } ) {
 				onClick={ handleSubmit }
 				isBusy={ disabled }
 				disabled={ disabled || ! query.trim() }
-				className="vip-workflow-ideation-panel__query-submit"
+				className="vip-workflows-ideation-panel__query-submit"
 				size="small"
 			>
-				{ __( 'Search', 'vip-workflow' ) }
+				{ __( 'Search', 'vip-workflows' ) }
 			</Button>
 		</Stack>
 	);

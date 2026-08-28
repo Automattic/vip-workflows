@@ -2,24 +2,24 @@
 /**
  * Sequence-id meta auth_callback tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Plugin;
+use VIPWorkflows\Plugin;
 
 /**
- * Verifies the _vip_workflow_sequence_id post meta enforces per-object edit
+ * Verifies the _vip_workflows_sequence_id post meta enforces per-object edit
  * rights, not a bare edit_posts capability.
  */
 class SequenceIdMetaAuthTest extends TestCase
 {
     /**
-     * Capture the auth_callback registered for _vip_workflow_sequence_id.
+     * Capture the auth_callback registered for _vip_workflows_sequence_id.
      */
     private function capture_sequence_id_auth_callback(): callable
     {
@@ -27,7 +27,7 @@ class SequenceIdMetaAuthTest extends TestCase
 
         Functions\when( 'register_post_meta' )->alias(
             function ( string $post_type, string $meta_key, array $args ) use ( &$captured ) {
-                if ( '_vip_workflow_sequence_id' === $meta_key ) {
+                if ( '_vip_workflows_sequence_id' === $meta_key ) {
                     $captured = $args['auth_callback'];
                 }
             }
@@ -55,7 +55,7 @@ class SequenceIdMetaAuthTest extends TestCase
             fn( $capability, $post_id = null ) => 'edit_post' === $capability && 123 === $post_id
         );
 
-        $this->assertTrue( $auth( true, '_vip_workflow_sequence_id', 123 ) );
-        $this->assertFalse( $auth( true, '_vip_workflow_sequence_id', 456 ) );
+        $this->assertTrue( $auth( true, '_vip_workflows_sequence_id', 123 ) );
+        $this->assertFalse( $auth( true, '_vip_workflows_sequence_id', 456 ) );
     }
 }

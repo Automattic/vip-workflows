@@ -44,19 +44,19 @@ export default function Settings() {
 	const tabs = [
 		{
 			name: 'general',
-			title: __( 'General', 'vip-workflow' ),
+			title: __( 'General', 'vip-workflows' ),
 		},
 		{
 			name: 'ai-services',
-			title: __( 'AI services', 'vip-workflow' ),
+			title: __( 'AI services', 'vip-workflows' ),
 		},
 		{
 			name: 'prompts',
-			title: __( 'Prompts', 'vip-workflow' ),
+			title: __( 'Prompts', 'vip-workflows' ),
 		},
 		{
 			name: 'experiments',
-			title: __( 'Experiments', 'vip-workflow' ),
+			title: __( 'Experiments', 'vip-workflows' ),
 			// Enabling or disabling an experiment registers or removes
 			// server-side menus and REST routes, so the page cannot show the
 			// result of saving one without reloading.
@@ -130,7 +130,7 @@ export default function Settings() {
 					/* translators: %s: semicolon-separated list of tab names and their errors. */
 					__(
 						'Some settings could not be saved: %s',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					failures.join( '; ' )
 				)
@@ -152,7 +152,7 @@ export default function Settings() {
 			return;
 		}
 
-		createSuccessNotice( __( 'Settings saved.', 'vip-workflow' ), {
+		createSuccessNotice( __( 'Settings saved.', 'vip-workflows' ), {
 			type: 'snackbar',
 		} );
 	};
@@ -166,15 +166,15 @@ export default function Settings() {
 		<AdminPage
 			breadcrumbs={ [
 				{
-					label: __( 'Workflows', 'vip-workflow' ),
-					href: 'admin.php?page=vip-workflow',
+					label: __( 'Workflows', 'vip-workflows' ),
+					href: 'admin.php?page=vip-workflows',
 				},
-				{ label: __( 'Settings', 'vip-workflow' ) },
+				{ label: __( 'Settings', 'vip-workflows' ) },
 			] }
-			title={ __( 'Settings', 'vip-workflow' ) }
+			title={ __( 'Settings', 'vip-workflows' ) }
 			subtitle={ __(
 				'Configure workflow settings and preferences.',
-				'vip-workflow'
+				'vip-workflows'
 			) }
 			constrained
 		>
@@ -190,7 +190,7 @@ export default function Settings() {
 				) }
 
 				<Tabs.Root
-					className="vip-workflow-tabs"
+					className="vip-workflows-tabs"
 					value={ activeTab }
 					onValueChange={ handleTabChange }
 				>
@@ -230,7 +230,7 @@ export default function Settings() {
 						isBusy={ saving }
 						disabled={ saving || dirtyPanels.length === 0 }
 					>
-						{ __( 'Save', 'vip-workflow' ) }
+						{ __( 'Save', 'vip-workflows' ) }
 					</Button>
 				</SettingsFooter>
 			</Stack>

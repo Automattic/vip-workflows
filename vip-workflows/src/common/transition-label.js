@@ -32,7 +32,7 @@ import { __, sprintf } from '@wordpress/i18n';
 export function derivedTransitionLabel( destinationLabel ) {
 	return sprintf(
 		/* translators: %s: destination stage label. */
-		__( 'Move to %s', 'vip-workflow' ),
+		__( 'Move to %s', 'vip-workflows' ),
 		destinationLabel
 	);
 }

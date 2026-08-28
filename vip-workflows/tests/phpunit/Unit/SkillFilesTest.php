@@ -8,12 +8,12 @@
  * agent skill resolves, the old assistant directory is gone, and the SKILL.md
  * frontmatter/convention reflect the rename.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 /**
  * Tests for the renamed skill files on disk.
@@ -58,8 +58,8 @@ class SkillFilesTest extends TestCase
 	{
 		$contents = file_get_contents( $this->plugin_dir() . '/skills/create-agent/SKILL.md' );
 
-		$this->assertStringContainsString( 'name: create-vip-workflow-agent', $contents );
-		$this->assertStringNotContainsString( 'create-vip-workflow-assistant', $contents );
+		$this->assertStringContainsString( 'name: create-vip-workflows-agent', $contents );
+		$this->assertStringNotContainsString( 'create-vip-workflows-assistant', $contents );
 	}
 
 	public function test_agent_skill_uses_agent_plugin_naming_convention(): void

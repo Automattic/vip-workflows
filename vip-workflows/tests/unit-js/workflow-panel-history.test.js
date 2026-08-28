@@ -147,8 +147,8 @@ import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
 
-const STATUS_PATH = '/vip-workflow/v1/workflow/post/42/status';
-const HISTORY_PATH = '/vip-workflow/v1/workflow/post/42/history';
+const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
+const HISTORY_PATH = '/vip-workflows/v1/workflow/post/42/history';
 
 const STATUS_RESPONSE = {
 	has_workflow: true,
@@ -224,7 +224,7 @@ async function renderWithHistory( history ) {
 		if ( path.startsWith( HISTORY_PATH ) ) {
 			return Promise.resolve( historyResponse( history ) );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 			return Promise.resolve( [] );
 		}
 		return Promise.resolve( {} );

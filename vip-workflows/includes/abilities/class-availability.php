@@ -19,12 +19,12 @@
  * legacy callback returning an array of plain values can never be mistaken for
  * it — such an array stays truthy-coerced, as it is today.
  *
- * @package VIPWorkflow\Abilities
+ * @package VIPWorkflows\Abilities
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
 /**
  * Whether an ability's dependencies are met, and what is missing if not.

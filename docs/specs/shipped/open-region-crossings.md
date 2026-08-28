@@ -93,7 +93,7 @@ what can *happen*.
 ## What the rule buys
 
 - **One funnel per region.** However a post got into `pending` — an edge or core
-  — it arrives at the same stage and runs the same `vip_workflow_entered_{stage}`
+  — it arrives at the same stage and runs the same `vip_workflows_entered_{stage}`
   effects (agent dispatch, notifications, audit event). This is the justification
   stated in both `illegal_crossings()` and `canEnter()`.
 - **A smaller state matrix.** Cross-region entry collapses from
@@ -271,9 +271,9 @@ stored row remains valid. Two notes:
    drawn docked on the region boundary because it was the door. As a
    "core lands here" marker it is still worth showing, but possibly quieter. A
    canvas call, not a model one.
-3. **Region-scoped entered event: shape and naming.** `vip_workflow_entered_region_{region}`
+3. **Region-scoped entered event: shape and naming.** `vip_workflows_entered_region_{region}`
    fired from `dispatch_stage_change()` when `from_region !== to_region`, with
-   the same `$context` payload — or a single `vip_workflow_region_changed` with
+   the same `$context` payload — or a single `vip_workflows_region_changed` with
    both regions as arguments. Settle when it is built, not here.
 
 ## Code entry points

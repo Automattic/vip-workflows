@@ -37,7 +37,7 @@ register(
 const CONNECTORS_URL = 'https://example.com/wp-admin/options-connectors.php';
 
 /**
- * A tool payload as `GET /vip-workflow/v1/tools` returns it.
+ * A tool payload as `GET /vip-workflows/v1/tools` returns it.
  *
  * @param {Object} overrides Field overrides.
  * @return {Object} Tool entry.
@@ -178,7 +178,7 @@ describe( 'Tools page — a tool that cannot run', () => {
 								kind: 'none',
 								url: '',
 								label: '',
-								hint: 'Set the VIP_WORKFLOW_TAVILY_KEY constant in wp-config.php.',
+								hint: 'Set the VIP_WORKFLOWS_TAVILY_KEY constant in wp-config.php.',
 							},
 						},
 					],
@@ -187,7 +187,7 @@ describe( 'Tools page — a tool that cannot run', () => {
 		);
 
 		expect(
-			requirements( container ).getByText( /VIP_WORKFLOW_TAVILY_KEY/ )
+			requirements( container ).getByText( /VIP_WORKFLOWS_TAVILY_KEY/ )
 		).toBeInTheDocument();
 		expect(
 			requirements( container ).queryByRole( 'link' )

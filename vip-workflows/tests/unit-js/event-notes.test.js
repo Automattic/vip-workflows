@@ -106,7 +106,7 @@ describe( 'EventNotes', () => {
 		);
 
 		expect(
-			container.querySelector( '.vip-workflow-event-notes' ).textContent
+			container.querySelector( '.vip-workflows-event-notes' ).textContent
 		).toBe( 'Assignee: Ada Lovelace · Reason: needs a second pass' );
 	} );
 
@@ -121,7 +121,7 @@ describe( 'EventNotes', () => {
 		);
 
 		expect(
-			container.querySelector( '.vip-workflow-event-notes' ).textContent
+			container.querySelector( '.vip-workflows-event-notes' ).textContent
 		).toBe( 'Note: one two' );
 	} );
 

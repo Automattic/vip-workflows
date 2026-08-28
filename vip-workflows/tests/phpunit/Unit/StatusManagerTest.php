@@ -7,19 +7,19 @@
  * meta, the reconcile layer reseats at region entry stages, assign_sequence
  * seats by region, and region-crossing capability gates defer to core caps.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\PostTypeManager;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\PostTypeManager;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Tests for the StatusManager class.
@@ -286,7 +286,7 @@ class StatusManagerTest extends TestCase
         Functions\when( 'get_post' )->justReturn( $post );
         $this->stub_meta(
             array(
-                '_vip_workflow_sequence_id'  => '1',
+                '_vip_workflows_sequence_id'  => '1',
                 StatusManager::STAGE_META_KEY => $current_stage,
             )
         );
@@ -332,7 +332,7 @@ class StatusManagerTest extends TestCase
 
         Functions\expect( 'get_post_meta' )
             ->once()
-            ->with( 1, '_vip_workflow_sequence_id', true )
+            ->with( 1, '_vip_workflows_sequence_id', true )
             ->andReturn( '' );
 
         $result = $this->status_manager->get_sequence_for_post( 1 );
@@ -354,7 +354,7 @@ class StatusManagerTest extends TestCase
 
         Functions\expect( 'get_post_meta' )
             ->once()
-            ->with( 1, '_vip_workflow_sequence_id', true )
+            ->with( 1, '_vip_workflows_sequence_id', true )
             ->andReturn( '5' );
 
         $this->sequence_repository
@@ -398,7 +398,7 @@ class StatusManagerTest extends TestCase
         Functions\when( 'get_post' )->justReturn( $post );
         $this->stub_meta(
             array(
-                '_vip_workflow_sequence_id'  => '1',
+                '_vip_workflows_sequence_id'  => '1',
                 StatusManager::STAGE_META_KEY => 'review',
             )
         );
@@ -428,7 +428,7 @@ class StatusManagerTest extends TestCase
         Functions\when( 'get_post' )->justReturn( $post );
         $this->stub_meta(
             array(
-                '_vip_workflow_sequence_id'  => '1',
+                '_vip_workflows_sequence_id'  => '1',
                 StatusManager::STAGE_META_KEY => 'ghost',
             )
         );
@@ -471,7 +471,7 @@ class StatusManagerTest extends TestCase
 
         Functions\expect( 'get_post_meta' )
             ->once()
-            ->with( 1, '_vip_workflow_sequence_id', true )
+            ->with( 1, '_vip_workflows_sequence_id', true )
             ->andReturn( '' );
 
         $result = $this->status_manager->get_available_transitions( 1 );
@@ -631,7 +631,7 @@ class StatusManagerTest extends TestCase
 
         Functions\expect( 'get_post_meta' )
             ->once()
-            ->with( 1, '_vip_workflow_sequence_id', true )
+            ->with( 1, '_vip_workflows_sequence_id', true )
             ->andReturn( '' );
 
         $result = $this->status_manager->transition( 1, 'review' );
@@ -656,7 +656,7 @@ class StatusManagerTest extends TestCase
         Functions\when( 'get_post' )->justReturn( $post );
         $this->stub_meta(
             array(
-                '_vip_workflow_sequence_id'  => '1',
+                '_vip_workflows_sequence_id'  => '1',
                 StatusManager::STAGE_META_KEY => 'draft',
             )
         );
@@ -713,7 +713,7 @@ class StatusManagerTest extends TestCase
         $this->assertTrue( $result );
         $this->assertContains( array( StatusManager::STAGE_META_KEY, 'review' ), $meta_writes );
 
-        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflow_status_transition' === $e[0] ) );
+        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflows_status_transition' === $e[0] ) );
         $this->assertCount( 1, $transition_events );
         $this->assertSame( 'workflow', $transition_events[0][5]['cause'] );
         $this->assertSame( 'pending', $transition_events[0][5]['committed_status'] );
@@ -753,7 +753,7 @@ class StatusManagerTest extends TestCase
         $this->assertTrue( $result );
         $this->assertContains( array( StatusManager::STAGE_META_KEY, 'promote' ), $meta_writes );
 
-        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflow_status_transition' === $e[0] ) );
+        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflows_status_transition' === $e[0] ) );
         $this->assertSame( 'future', $transition_events[0][5]['committed_status'] );
     }
 
@@ -843,7 +843,7 @@ class StatusManagerTest extends TestCase
             'The post is seated at the stage the edge names, not at the region checkpoint.'
         );
 
-        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflow_status_transition' === $e[0] ) );
+        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflows_status_transition' === $e[0] ) );
         $this->assertSame( 'publish', $transition_events[0][5]['committed_status'] );
         $this->assertSame( 'draft', $transition_events[0][5]['previous_status'] );
     }
@@ -902,7 +902,7 @@ class StatusManagerTest extends TestCase
             'The region-status write goes through core before the stage meta moves.'
         );
 
-        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflow_status_transition' === $e[0] ) );
+        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflows_status_transition' === $e[0] ) );
         $this->assertSame( 'workflow', $transition_events[0][5]['cause'] );
         $this->assertSame( 'publish', $transition_events[0][5]['committed_status'] );
         $this->assertSame( 'draft', $transition_events[0][5]['previous_status'], 'previous_status is the pre-write committed status.' );
@@ -969,7 +969,7 @@ class StatusManagerTest extends TestCase
 
         $this->assertSame( $core_error, $result );
         $this->assertEmpty(
-            array_filter( $events, fn( $e ) => 'vip_workflow_status_transition' === $e[0] ),
+            array_filter( $events, fn( $e ) => 'vip_workflows_status_transition' === $e[0] ),
             'No stage-change event fires when the crossing write fails.'
         );
     }
@@ -1006,7 +1006,7 @@ class StatusManagerTest extends TestCase
 
         $this->assertTrue( $result, 'The coercion is accepted, not treated as a failure.' );
 
-        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflow_status_transition' === $e[0] ) );
+        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflows_status_transition' === $e[0] ) );
         $this->assertSame( 'future', $transition_events[0][5]['committed_status'] );
         $this->assertSame( 'draft', $transition_events[0][5]['previous_status'] );
     }
@@ -1189,7 +1189,7 @@ class StatusManagerTest extends TestCase
         Functions\when( 'get_post' )->justReturn( $post );
         $this->stub_meta(
             array(
-                '_vip_workflow_sequence_id'  => (string) $sequence->id,
+                '_vip_workflows_sequence_id'  => (string) $sequence->id,
                 StatusManager::STAGE_META_KEY => $stage,
             )
         );
@@ -1232,7 +1232,7 @@ class StatusManagerTest extends TestCase
 
         $this->assertContains( array( StatusManager::STAGE_META_KEY, 'published' ), $meta_writes );
 
-        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflow_status_transition' === $e[0] ) );
+        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflows_status_transition' === $e[0] ) );
         $this->assertCount( 1, $transition_events );
         $this->assertSame( 'published', $transition_events[0][2] );
         $this->assertSame( 'review', $transition_events[0][3] );
@@ -1240,8 +1240,8 @@ class StatusManagerTest extends TestCase
         $this->assertSame( 'publish', $transition_events[0][5]['committed_status'] );
         $this->assertSame( 'publish', $transition_events[0][5]['previous_status'], 'A reseat writes no status: previous equals committed.' );
 
-        $this->assertCount( 1, array_filter( $events, fn( $e ) => 'vip_workflow_entered_published' === $e[0] ) );
-        $this->assertCount( 1, array_filter( $events, fn( $e ) => 'vip_workflow_exited_review' === $e[0] ) );
+        $this->assertCount( 1, array_filter( $events, fn( $e ) => 'vip_workflows_entered_published' === $e[0] ) );
+        $this->assertCount( 1, array_filter( $events, fn( $e ) => 'vip_workflows_exited_review' === $e[0] ) );
     }
 
     /**
@@ -1274,7 +1274,7 @@ class StatusManagerTest extends TestCase
 
         $this->assertContains( array( StatusManager::STAGE_META_KEY, 'draft' ), $meta_writes );
 
-        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflow_status_transition' === $e[0] ) );
+        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflows_status_transition' === $e[0] ) );
         $this->assertSame( 'core', $transition_events[0][5]['cause'] );
     }
 
@@ -1542,16 +1542,16 @@ class StatusManagerTest extends TestCase
         $this->assertContains( array( StatusManager::SEQUENCE_META_KEY, 1 ), $meta_writes );
         $this->assertContains( array( StatusManager::STAGE_META_KEY, 'draft' ), $meta_writes );
 
-        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflow_status_transition' === $e[0] ) );
+        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflows_status_transition' === $e[0] ) );
         $this->assertCount( 1, $transition_events );
         $this->assertSame( 'draft', $transition_events[0][2] );
         $this->assertSame( '', $transition_events[0][3], 'No prior stage: old stage is empty.' );
         $this->assertSame( 'workflow', $transition_events[0][5]['cause'] );
         $this->assertSame( 'draft', $transition_events[0][5]['previous_status'], 'Seating writes no status: previous equals committed.' );
 
-        $this->assertCount( 1, array_filter( $events, fn( $e ) => 'vip_workflow_entered_draft' === $e[0] ) );
+        $this->assertCount( 1, array_filter( $events, fn( $e ) => 'vip_workflows_entered_draft' === $e[0] ) );
         $this->assertEmpty(
-            array_filter( $events, fn( $e ) => str_starts_with( $e[0], 'vip_workflow_exited_' ) ),
+            array_filter( $events, fn( $e ) => str_starts_with( $e[0], 'vip_workflows_exited_' ) ),
             'No exited event fires when there was no prior stage.'
         );
     }
@@ -1621,7 +1621,7 @@ class StatusManagerTest extends TestCase
         $this->assertTrue( $result );
         $this->assertContains( array( StatusManager::STAGE_META_KEY, 'published' ), $meta_writes );
 
-        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflow_status_transition' === $e[0] ) );
+        $transition_events = array_values( array_filter( $events, fn( $e ) => 'vip_workflows_status_transition' === $e[0] ) );
         $this->assertSame( 'future', $transition_events[0][5]['committed_status'] );
     }
 
@@ -1792,7 +1792,7 @@ class StatusManagerTest extends TestCase
             1,
             'published',
             array(
-                'agent_actor'      => 'vip-workflow/test-agent',
+                'agent_actor'      => 'vip-workflows/test-agent',
                 'agent_actor_user' => 9,
             )
         );
@@ -1831,7 +1831,7 @@ class StatusManagerTest extends TestCase
             1,
             'published',
             array(
-                'agent_actor'      => 'vip-workflow/test-agent',
+                'agent_actor'      => 'vip-workflows/test-agent',
                 'agent_actor_user' => 7,
             )
         );

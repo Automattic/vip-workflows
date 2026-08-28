@@ -9,7 +9,7 @@
  *
  *   const [ confirm, confirmDialog ] = useConfirm();
  *   // …
- *   if ( ! ( await confirm( __( 'Delete this?', 'vip-workflow' ) ) ) ) {
+ *   if ( ! ( await confirm( __( 'Delete this?', 'vip-workflows' ) ) ) ) {
  *       return;
  *   }
  *   // …
@@ -60,7 +60,7 @@ export function useConfirm() {
 
 	const confirmDialog = dialog ? (
 		<Modal
-			title={ dialog.title || __( 'Please confirm', 'vip-workflow' ) }
+			title={ dialog.title || __( 'Please confirm', 'vip-workflows' ) }
 			onRequestClose={ () => settle( false ) }
 			size="small"
 		>
@@ -73,14 +73,14 @@ export function useConfirm() {
 			) }
 			<ModalActions>
 				<Button variant="tertiary" onClick={ () => settle( false ) }>
-					{ dialog.cancelLabel || __( 'Cancel', 'vip-workflow' ) }
+					{ dialog.cancelLabel || __( 'Cancel', 'vip-workflows' ) }
 				</Button>
 				<Button
 					variant="primary"
 					isDestructive={ dialog.isDestructive }
 					onClick={ () => settle( true ) }
 				>
-					{ dialog.confirmLabel || __( 'Confirm', 'vip-workflow' ) }
+					{ dialog.confirmLabel || __( 'Confirm', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 		</Modal>

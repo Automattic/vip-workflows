@@ -13,15 +13,15 @@
  * offered in the assignment picker. Assign one and they can read the post's
  * title and edit URL while holding no capability to edit anything.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StatusManager;
 use WP_REST_Request;
 
 class MyWorkCapabilityFloorTest extends TestCase {
@@ -73,7 +73,7 @@ class MyWorkCapabilityFloorTest extends TestCase {
 
 		// The assignment picker offers Subscribers, so this is an ordinary state
 		// rather than a contrived one.
-		update_post_meta( $this->post_id, '_vip_workflow_assigned_to', $this->subscriber );
+		update_post_meta( $this->post_id, '_vip_workflows_assigned_to', $this->subscriber );
 	}
 
 	/**
@@ -85,7 +85,7 @@ class MyWorkCapabilityFloorTest extends TestCase {
 	private function work_as( int $user_id ): \WP_REST_Response {
 		wp_set_current_user( $user_id );
 
-		return rest_do_request( new WP_REST_Request( 'GET', '/vip-workflow/v1/workflow/my-work' ) );
+		return rest_do_request( new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/my-work' ) );
 	}
 
 	/**
@@ -120,7 +120,7 @@ class MyWorkCapabilityFloorTest extends TestCase {
 	 */
 	public function test_contributor_still_reaches_their_own_work(): void {
 		$contributor = (int) self::factory()->user->create( array( 'role' => 'contributor' ) );
-		update_post_meta( $this->post_id, '_vip_workflow_assigned_to', $contributor );
+		update_post_meta( $this->post_id, '_vip_workflows_assigned_to', $contributor );
 
 		$response = $this->work_as( $contributor );
 

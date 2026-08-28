@@ -4,15 +4,15 @@
  *
  * Emits workflow events to the EventBus for automation flows.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Workflow;
+namespace VIPWorkflows\Workflow;
 
-use VIPWorkflow\ModuleInterface;
-use VIPWorkflow\Plugin;
+use VIPWorkflows\ModuleInterface;
+use VIPWorkflows\Plugin;
 
 /**
  * Handles emitting workflow events to the EventBus.
@@ -34,7 +34,7 @@ class WorkflowEvents implements ModuleInterface {
 	 */
 	public function init(): void {
 		// Workflow stage transitions.
-		add_action( 'vip_workflow_status_transition', array( $this, 'on_status_transition' ), 10, 5 );
+		add_action( 'vip_workflows_status_transition', array( $this, 'on_status_transition' ), 10, 5 );
 
 		// Go-live emits via two complementary paths, exactly-once by construction:
 		// workflow-driven publishes emit from the workflow stage action above
@@ -168,12 +168,12 @@ class WorkflowEvents implements ModuleInterface {
 		// A workflow transition is mid-commit: its stage meta is not written yet
 		// and the workflow path emits at the correct moment with the correct
 		// stage. Suppress this fire so emission stays exactly-once.
-		if ( \VIPWorkflow\Workflow\StatusManager::is_transition_in_progress( $post->ID ) ) {
+		if ( \VIPWorkflows\Workflow\StatusManager::is_transition_in_progress( $post->ID ) ) {
 			return;
 		}
 
 		// Only workflow-managed posts emit workflow events.
-		if ( ! get_post_meta( $post->ID, \VIPWorkflow\Workflow\StatusManager::SEQUENCE_META_KEY, true ) ) {
+		if ( ! get_post_meta( $post->ID, \VIPWorkflows\Workflow\StatusManager::SEQUENCE_META_KEY, true ) ) {
 			return;
 		}
 
@@ -188,7 +188,7 @@ class WorkflowEvents implements ModuleInterface {
 			// Sequence meta exists but the sequence no longer resolves — a
 			// data-integrity condition; log it rather than emitting a half-formed event.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( 'VIP Workflow: post %d went live carrying a sequence reference that no longer resolves; post.published not emitted.', $post->ID ) );
+			error_log( sprintf( 'VIP Workflows: post %d went live carrying a sequence reference that no longer resolves; post.published not emitted.', $post->ID ) );
 			return;
 		}
 
@@ -200,7 +200,7 @@ class WorkflowEvents implements ModuleInterface {
 				'post_id'          => $post->ID,
 				'post_title'       => $post->post_title,
 				'post_type'        => $post->post_type,
-				'stage'            => (string) get_post_meta( $post->ID, \VIPWorkflow\Workflow\StatusManager::STAGE_META_KEY, true ),
+				'stage'            => (string) get_post_meta( $post->ID, \VIPWorkflows\Workflow\StatusManager::STAGE_META_KEY, true ),
 				'previous_status'  => $old_status,
 				'committed_status' => 'publish',
 				'cause'            => 'core',

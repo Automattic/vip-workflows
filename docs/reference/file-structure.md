@@ -9,7 +9,7 @@ Pair with [architecture.md](architecture.md) for the conceptual model and [code-
 ### Root Plugin Files
 
 ```
-vip-workflow/
+vip-workflows/
 ├── vip-workflows.php          # Plugin header, bootstrap, activation hooks
 ├── autoload-paths.php        # Autoloader path resolver (class_to_relative_path); required before includes/
 ├── uninstall.php             # Cleanup on uninstall
@@ -17,9 +17,9 @@ vip-workflow/
 ├── package.json              # JS dependencies (React, @wordpress packages)
 ├── webpack.config.js         # Build configuration (admin, editor)
 └── skills/                   # AI agent skill files for extensibility
-    ├── create-vip-workflow-assistant/SKILL.md
-    ├── create-vip-workflow-tool/SKILL.md
-    └── create-vip-workflow-notification-channel/SKILL.md
+    ├── create-vip-workflows-assistant/SKILL.md
+    ├── create-vip-workflows-tool/SKILL.md
+    └── create-vip-workflows-notification-channel/SKILL.md
 ```
 
 ### PHP Code (`includes/`)
@@ -30,7 +30,7 @@ includes/
 ├── class-module-interface.php          # ModuleInterface contract
 │
 ├── abilities/
-│   ├── functions.php                   # vip_workflow_register_ability() wrapper
+│   ├── functions.php                   # vip_workflows_register_ability() wrapper
 │   ├── class-ability.php               # Extends WP_Ability with VIP metadata
 │   ├── class-ability-registry.php      # Tool registration
 │   ├── class-ability-executor.php      # Tool execution engine
@@ -81,7 +81,7 @@ includes/
 ├── experiments/
 │   ├── class-experiment.php              # Abstract base for toggleable experiments
 │   ├── class-experiment-registry.php     # Tracks experiments, resolves enabled state
-│   ├── class-experiment-cli.php          # WP-CLI: wp vip-workflow experiment
+│   ├── class-experiment-cli.php          # WP-CLI: wp vip-workflows experiment
 │   └── class-ideation-experiment.php     # Ideation experiment declaration
 │
 ├── ideation/

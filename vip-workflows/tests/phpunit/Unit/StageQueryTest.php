@@ -2,16 +2,16 @@
 /**
  * StageQuery unit tests — the storage-agnostic stage query seam.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Workflow\StageQuery;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Workflow\StageQuery;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Tests the WP_Query-arg building of StageQuery (DB-backed methods live in Integration).

@@ -3,10 +3,10 @@
  * Integration bootstrap for workflow-parsely.
  *
  * This plugin is a bridge, so its tests are only meaningful with all three
- * plugins loaded: wp-parsely (the capability source), vip-workflow (the
+ * plugins loaded: wp-parsely (the capability source), vip-workflows (the
  * extension points), and workflow-parsely itself.
  *
- * vip-workflow's own bootstrap deliberately loads only vip-workflows.php, and
+ * vip-workflows's own bootstrap deliberately loads only vip-workflows.php, and
  * extending it to load extension plugins would couple core's test harness to
  * every extension in the monorepo. This suite exists instead, and is the
  * pattern any other `workflow-*` plugin can copy.
@@ -51,7 +51,7 @@ tests_add_filter(
 	static function () use ( $wfp_plugin_dir ): void {
 		/*
 		 * Order matters. wp-parsely first so its service classes exist, then
-		 * vip-workflow so its registries and Abilities classes are defined,
+		 * vip-workflows so its registries and Abilities classes are defined,
 		 * then this plugin, whose registrations reference both.
 		 */
 		$wp_parsely = $wfp_plugin_dir . '/wp-parsely/wp-parsely.php';
@@ -74,12 +74,12 @@ tests_add_filter(
 		/*
 		 * Shared ability-tool helpers.
 		 *
-		 * Composer autoloads vip-workflow's `includes/` by classmap, which
+		 * Composer autoloads vip-workflows's `includes/` by classmap, which
 		 * resolves classes only — a file of plain functions is never picked up.
 		 * In production `Plugin` include_once's this when it registers the
 		 * built-in tools; under the test suite that path is not reached, and
 		 * StageAgent::read_post() calls require_post_edit_permission() from it.
-		 * Loaded here for the same reason vip-workflow's own bootstrap loads it.
+		 * Loaded here for the same reason vip-workflows's own bootstrap loads it.
 		 */
 		require_once $wfp_plugin_dir . '/vip-workflows/includes/abilities/tools/helpers.php';
 
@@ -91,9 +91,9 @@ tests_add_filter(
 Yoast\WPTestUtils\WPIntegration\bootstrap_it();
 
 /*
- * vip-workflow's custom tables. Activation hooks do not fire under the test
+ * vip-workflows's custom tables. Activation hooks do not fire under the test
  * suite — plugins are merely loaded — so any bridge test touching a wp_vip_*
  * table would fail on a clean database without this. install() is idempotent
  * and version-guarded.
  */
-( new VIPWorkflow\Database\Schema() )->install();
+( new VIPWorkflows\Database\Schema() )->install();

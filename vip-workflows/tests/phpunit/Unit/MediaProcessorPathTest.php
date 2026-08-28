@@ -2,15 +2,15 @@
 /**
  * MediaProcessor path-trust tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Integrations\UploadsPathGuard;
+use VIPWorkflows\Integrations\UploadsPathGuard;
 use WP_Error;
 
 /**

@@ -2,19 +2,19 @@
 /**
  * AbilityExecutor error-handling unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Abilities\AbilityResultRepository;
-use VIPWorkflow\Abilities\AbilitySettings;
-use VIPWorkflow\Automation\EventBus;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilityResultRepository;
+use VIPWorkflows\Abilities\AbilitySettings;
+use VIPWorkflows\Automation\EventBus;
 
 /**
  * A WP_Error returned by an ability is a failure, whatever it carries.
@@ -65,7 +65,7 @@ class AbilityExecutorErrorHandlingTest extends TestCase
             new \WP_Error( 'rest_forbidden', 'Sorry, you are not allowed to do that.', array( 'status' => 403 ) )
         );
 
-        $result = $executor->execute( 'vip-workflow/some-check' );
+        $result = $executor->execute( 'vip-workflows/some-check' );
 
         $this->assertFalse(
             $result->success,
@@ -84,7 +84,7 @@ class AbilityExecutorErrorHandlingTest extends TestCase
             new \WP_Error( 'boom', 'Something broke.', 'context-string' )
         );
 
-        $result = $executor->execute( 'vip-workflow/some-check' );
+        $result = $executor->execute( 'vip-workflows/some-check' );
 
         $this->assertFalse( $result->success );
         $this->assertSame( 'Something broke.', $result->error );
@@ -98,7 +98,7 @@ class AbilityExecutorErrorHandlingTest extends TestCase
     {
         list( $executor ) = $this->executor_returning( array( 'status' => 'pass', 'issues' => array() ) );
 
-        $result = $executor->execute( 'vip-workflow/some-check' );
+        $result = $executor->execute( 'vip-workflows/some-check' );
 
         $this->assertTrue( $result->success );
         $this->assertSame( 'pass', $result->output['status'] ?? null );

@@ -2,18 +2,18 @@
 /**
  * Legacy credential backend.
  *
- * Reads keys from the plugin's original encrypted `vip_workflow_api_keys`
+ * Reads keys from the plugin's original encrypted `vip_workflows_api_keys`
  * option. Used only when the WordPress Connectors API is unavailable (e.g. WP
  * older than 6.9, or 6.9 without Gutenberg 23.0+). Mirrors the AES-256-CBC
  * scheme of the soon-to-be-removed ApiKeysController so existing stored keys
  * keep resolving during and after the migration.
  *
- * @package VIPWorkflow\AI
+ * @package VIPWorkflows\AI
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\AI;
+namespace VIPWorkflows\AI;
 
 /**
  * Resolves keys from the legacy encrypted option store.
@@ -23,7 +23,7 @@ final class LegacyCredentialBackend implements CredentialBackend {
 	/**
 	 * Option storing the encrypted key map.
 	 */
-	private const OPTION_NAME = 'vip_workflow_api_keys';
+	private const OPTION_NAME = 'vip_workflows_api_keys';
 
 	/**
 	 * Cipher used by the legacy store.

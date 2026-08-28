@@ -26,14 +26,14 @@
  * the text parsed as JSON, so the finish-reason check has one implementation and
  * sits on the only path from a configured builder to usable output.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
-use VIPWorkflow\AI\Credentials;
+use VIPWorkflows\AI\Credentials;
 use WP_Error;
 
 /**
@@ -131,7 +131,7 @@ class LlmTextGenerator {
 	 *
 	 * A single ideation run calls this once per generation, so one misconfigured
 	 * ceiling would otherwise report itself in dozens of identical copies. Mirrors
-	 * the de-duplication in `VIPWorkflow\AI\AiInference`.
+	 * the de-duplication in `VIPWorkflows\AI\AiInference`.
 	 *
 	 * @var array<string, true>
 	 */
@@ -190,7 +190,7 @@ class LlmTextGenerator {
 		self::report(
 			$cap < self::THINKING_FLOOR
 				? sprintf(
-					'A %d-token ceiling was requested, but the selected model "%s" accepts at most %d — below the %d tokens this plugin\'s models spend on reasoning alone. The request has been clamped to %d so the provider does not refuse it outright, but this model cannot complete a generation here whatever the ceiling. Select a model with a larger output limit in VIP Workflow settings.',
+					'A %d-token ceiling was requested, but the selected model "%s" accepts at most %d — below the %d tokens this plugin\'s models spend on reasoning alone. The request has been clamped to %d so the provider does not refuse it outright, but this model cannot complete a generation here whatever the ceiling. Select a model with a larger output limit in VIP Workflows settings.',
 					$requested,
 					$model_id,
 					$cap,
@@ -269,7 +269,7 @@ class LlmTextGenerator {
 				'no_candidates',
 				sprintf(
 					/* translators: %s: what was being generated, e.g. "AI agent". */
-					__( 'The %s returned no response at all. Re-running it may succeed; if it keeps happening, the AI provider is not answering.', 'vip-workflow' ),
+					__( 'The %s returned no response at all. Re-running it may succeed; if it keeps happening, the AI provider is not answering.', 'vip-workflows' ),
 					$context
 				)
 			);
@@ -283,12 +283,12 @@ class LlmTextGenerator {
 				null === $max_tokens
 					? sprintf(
 						/* translators: %s: what was being generated, e.g. "AI agent". */
-						__( 'The %s stopped at its token limit before it finished. That ceiling is a setting, not a problem with your content — ask an administrator to raise it for this step.', 'vip-workflow' ),
+						__( 'The %s stopped at its token limit before it finished. That ceiling is a setting, not a problem with your content — ask an administrator to raise it for this step.', 'vip-workflows' ),
 						$context
 					)
 					: sprintf(
 						/* translators: 1: what was being generated, e.g. "AI agent". 2: the configured token ceiling. */
-						__( 'The %1$s used its entire %2$d-token limit before it finished, so it produced nothing usable. That ceiling is a setting, not a problem with your content — ask an administrator to raise it for this step.', 'vip-workflow' ),
+						__( 'The %1$s used its entire %2$d-token limit before it finished, so it produced nothing usable. That ceiling is a setting, not a problem with your content — ask an administrator to raise it for this step.', 'vip-workflows' ),
 						$context,
 						$max_tokens
 					)
@@ -300,7 +300,7 @@ class LlmTextGenerator {
 				'content_filtered',
 				sprintf(
 					/* translators: %s: what was being generated, e.g. "AI agent". */
-					__( 'The %s was stopped by the AI provider\'s content filter, so it returned nothing. Re-running it will not help until the wording that triggered the filter changes.', 'vip-workflow' ),
+					__( 'The %s was stopped by the AI provider\'s content filter, so it returned nothing. Re-running it will not help until the wording that triggered the filter changes.', 'vip-workflows' ),
 					$context
 				)
 			);
@@ -319,7 +319,7 @@ class LlmTextGenerator {
 				'no_text_content',
 				sprintf(
 					/* translators: %s: what was being generated, e.g. "AI agent". */
-					__( 'The %s finished without writing any text. Re-running it may succeed.', 'vip-workflow' ),
+					__( 'The %s finished without writing any text. Re-running it may succeed.', 'vip-workflows' ),
 					$context
 				)
 			);

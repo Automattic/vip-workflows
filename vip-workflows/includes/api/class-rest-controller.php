@@ -2,14 +2,14 @@
 /**
  * REST API controller.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Plugin;
+use VIPWorkflows\Plugin;
 
 /**
  * Main REST API controller that initializes all endpoint controllers.
@@ -20,7 +20,7 @@ class RestController {
 	/**
 	 * API namespace.
 	 */
-	public const NAMESPACE = 'vip-workflow/v1';
+	public const NAMESPACE = 'vip-workflows/v1';
 
 	/**
 	 * Initialize the REST API.
@@ -69,13 +69,13 @@ class RestController {
 		}
 
 		/**
-		 * Filters the REST API controllers registered by VIP Workflow.
+		 * Filters the REST API controllers registered by VIP Workflows.
 		 *
 		 * @param array $controllers Array of controller instances.
 		 *
 		 * @since 1.2.0
 		 */
-		$controllers = apply_filters( 'vip_workflow_rest_controllers', $controllers );
+		$controllers = apply_filters( 'vip_workflows_rest_controllers', $controllers );
 
 		foreach ( $controllers as $controller ) {
 			$controller->register_routes();
@@ -94,7 +94,7 @@ class RestController {
 		$tables_exist    = array();
 		$required_tables = array(
 			'vip_sequences',
-			'vip_workflow_events',
+			'vip_workflows_events',
 			'vip_ability_results',
 		);
 
@@ -117,8 +117,8 @@ class RestController {
 		return new \WP_REST_Response(
 			array(
 				'status'          => 'ok',
-				'version'         => VIP_WORKFLOW_VERSION,
-				'db_version'      => get_option( 'vip_workflow_db_version', 'not installed' ),
+				'version'         => VIP_WORKFLOWS_VERSION,
+				'db_version'      => get_option( 'vip_workflows_db_version', 'not installed' ),
 				'tables_exist'    => $tables_exist,
 				'sequence_count' => $sequence_count,
 			)

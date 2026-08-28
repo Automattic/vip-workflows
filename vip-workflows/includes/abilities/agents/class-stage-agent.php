@@ -8,15 +8,15 @@
  * returns the standard tool contract ({ status: pass|fail, summary }).
  * This base collects the logic those agents share.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Agents;
+namespace VIPWorkflows\Abilities\Agents;
 
-use VIPWorkflow\AI\AiInference;
-use VIPWorkflow\Integrations\LlmTextGenerator;
+use VIPWorkflows\AI\AiInference;
+use VIPWorkflows\Integrations\LlmTextGenerator;
 use WordPress\AiClient\Providers\Http\DTO\RequestOptions;
 
 /**
@@ -52,17 +52,17 @@ class StageAgent {
 	public static function read_post( int $post_id ) {
 		$post = get_post( $post_id );
 		if ( ! $post ) {
-			return new \WP_Error( 'no_post', __( 'Post not found.', 'vip-workflow' ) );
+			return new \WP_Error( 'no_post', __( 'Post not found.', 'vip-workflows' ) );
 		}
 
-		$permission_error = \VIPWorkflow\Abilities\Tools\require_post_edit_permission( $post_id );
+		$permission_error = \VIPWorkflows\Abilities\Tools\require_post_edit_permission( $post_id );
 		if ( $permission_error ) {
 			return $permission_error;
 		}
 
 		$content = trim( (string) $post->post_content );
 		if ( '' === $content ) {
-			return new \WP_Error( 'no_content', __( 'Post has no content for the agent to work on.', 'vip-workflow' ) );
+			return new \WP_Error( 'no_content', __( 'Post has no content for the agent to work on.', 'vip-workflows' ) );
 		}
 
 		return array(
@@ -122,7 +122,7 @@ class StageAgent {
 					->usingModel( AiInference::get_instance()->model() )
 					->usingMaxTokens( $bounded_max_tokens )
 					->usingRequestOptions( $request_options ),
-				__( 'AI agent', 'vip-workflow' ),
+				__( 'AI agent', 'vip-workflows' ),
 				$bounded_max_tokens
 			);
 		} catch ( \Throwable $e ) {
@@ -138,7 +138,7 @@ class StageAgent {
 		if ( '' === $response ) {
 			return new \WP_Error(
 				'no_text_content',
-				__( 'The AI agent finished without writing any text. Re-running it may succeed.', 'vip-workflow' )
+				__( 'The AI agent finished without writing any text. Re-running it may succeed.', 'vip-workflows' )
 			);
 		}
 
@@ -222,7 +222,7 @@ class StageAgent {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 		$raw = $wpdb->get_var( $wpdb->prepare( "SELECT result FROM {$analyses} WHERE project_id = %d AND tool_type = 'summarize' ORDER BY created_at DESC LIMIT 1", $project_id ) );
 		if ( '' !== (string) $wpdb->last_error ) {
-			return new \WP_Error( 'ideation_lookup_failed', __( 'Could not read the ideation summary to fact-check against.', 'vip-workflow' ) );
+			return new \WP_Error( 'ideation_lookup_failed', __( 'Could not read the ideation summary to fact-check against.', 'vip-workflows' ) );
 		}
 		$summary = '';
 		if ( is_string( $raw ) && '' !== $raw ) {
@@ -242,7 +242,7 @@ class StageAgent {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			$rows = $wpdb->get_results( $wpdb->prepare( "SELECT title, url, excerpt FROM {$table} WHERE project_id = %d AND source_id IN ({$placeholders})", array_merge( array( $project_id ), $pinned ) ), ARRAY_A );
 			if ( '' !== (string) $wpdb->last_error ) {
-				return new \WP_Error( 'ideation_lookup_failed', __( 'Could not read the ideation sources to fact-check against.', 'vip-workflow' ) );
+				return new \WP_Error( 'ideation_lookup_failed', __( 'Could not read the ideation sources to fact-check against.', 'vip-workflows' ) );
 			}
 			$sources = self::normalize_sources( is_array( $rows ) ? $rows : array(), $max_sources );
 		}
@@ -277,7 +277,7 @@ class StageAgent {
 			return self::empty_context();
 		}
 
-		$registry = 'VIPWorkflow\\Ideation\\Research\\SearchProviders\\SearchProviderRegistry';
+		$registry = 'VIPWorkflows\\Ideation\\Research\\SearchProviders\\SearchProviderRegistry';
 		// Web search needs a booted WordPress (the HTTP API plus the ideation
 		// search registry). Without them — e.g. the unit suite, which never boots
 		// WordPress — there is simply no web-search grounding to gather; this is a
@@ -302,14 +302,14 @@ class StageAgent {
 		try {
 			$results = $provider->search( $query, $max_sources );
 		} catch ( \Throwable $e ) {
-			return new \WP_Error( 'search_provider_failed', __( 'The search provider could not be reached to fact-check against.', 'vip-workflow' ) );
+			return new \WP_Error( 'search_provider_failed', __( 'The search provider could not be reached to fact-check against.', 'vip-workflows' ) );
 		}
 
 		if ( is_wp_error( $results ) ) {
 			return $results;
 		}
 		if ( ! is_array( $results ) ) {
-			return new \WP_Error( 'search_provider_failed', __( 'The search provider returned an unexpected response.', 'vip-workflow' ) );
+			return new \WP_Error( 'search_provider_failed', __( 'The search provider returned an unexpected response.', 'vip-workflows' ) );
 		}
 
 		$sources = self::normalize_sources( $results, $max_sources );
@@ -450,13 +450,13 @@ class StageAgent {
 		if ( null !== $expected_modified ) {
 			$current = get_post( $post_id );
 			if ( ! $current ) {
-				return new \WP_Error( 'no_post', __( 'Post not found.', 'vip-workflow' ) );
+				return new \WP_Error( 'no_post', __( 'Post not found.', 'vip-workflows' ) );
 			}
 
 			if ( (string) ( $current->post_modified_gmt ?? '' ) !== $expected_modified ) {
 				return new \WP_Error(
 					'concurrent_edit',
-					__( 'The post was edited while the agent was working; the agent did not overwrite those changes.', 'vip-workflow' )
+					__( 'The post was edited while the agent was working; the agent did not overwrite those changes.', 'vip-workflows' )
 				);
 			}
 		}
@@ -732,13 +732,13 @@ class StageAgent {
 	public static function write_block_notes( int $post_id, array $issue_map, ?string $summary_note, ?string $expected_modified, string $marker, string $label = '' ) {
 		$current = get_post( $post_id );
 		if ( ! $current ) {
-			return new \WP_Error( 'no_post', __( 'Post not found.', 'vip-workflow' ) );
+			return new \WP_Error( 'no_post', __( 'Post not found.', 'vip-workflows' ) );
 		}
 
 		if ( null !== $expected_modified && (string) ( $current->post_modified_gmt ?? '' ) !== $expected_modified ) {
 			return new \WP_Error(
 				'concurrent_edit',
-				__( 'The post was edited while the agent was working; the agent did not overwrite those changes.', 'vip-workflow' )
+				__( 'The post was edited while the agent was working; the agent did not overwrite those changes.', 'vip-workflows' )
 			);
 		}
 
@@ -963,12 +963,12 @@ class StageAgent {
 		);
 
 		if ( ! $comment_id ) {
-			return new \WP_Error( 'note_insert_failed', __( 'Could not create the note comment.', 'vip-workflow' ) );
+			return new \WP_Error( 'note_insert_failed', __( 'Could not create the note comment.', 'vip-workflows' ) );
 		}
 
 		if ( ! update_comment_meta( (int) $comment_id, $marker, '1' ) ) {
 			wp_delete_comment( (int) $comment_id, true );
-			return new \WP_Error( 'note_marker_failed', __( 'Could not tag the note comment for later cleanup.', 'vip-workflow' ) );
+			return new \WP_Error( 'note_marker_failed', __( 'Could not tag the note comment for later cleanup.', 'vip-workflows' ) );
 		}
 
 		return (int) $comment_id;

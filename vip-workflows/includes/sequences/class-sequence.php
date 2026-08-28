@@ -2,12 +2,12 @@
 /**
  * Sequence data class.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Sequences;
+namespace VIPWorkflows\Sequences;
 
 /**
  * Represents a workflow sequence entity.
@@ -462,15 +462,15 @@ class Sequence {
 		$user_roles = $user->roles;
 
 		// Check if user has a role that can bypass workflow restrictions.
-		$bypass_roles     = \VIPWorkflow\Admin\Settings::get_bypass_workflow_roles();
+		$bypass_roles     = \VIPWorkflows\Admin\Settings::get_bypass_workflow_roles();
 		$can_bypass       = ! empty( array_intersect( $user_roles, $bypass_roles ) );
-		$can_bypass_tools = \VIPWorkflow\Admin\Settings::can_user_bypass_tool_checks( $user_id );
+		$can_bypass_tools = \VIPWorkflows\Admin\Settings::can_user_bypass_tool_checks( $user_id );
 
 		if ( $can_bypass ) {
 			return $can_bypass_tools ? $transitions : $this->lock_disabled_required_tools( $transitions );
 		}
 
-		$assignment_manager = new \VIPWorkflow\Workflow\AssignmentManager();
+		$assignment_manager = new \VIPWorkflows\Workflow\AssignmentManager();
 		$allowed = array();
 
 		// Missing required fields are a property of the POST, not of any one edge,
@@ -526,7 +526,7 @@ class Sequence {
 					$transition['_locked_code']   = self::CODE_REQUIRED_METADATA;
 					$transition['_locked_reason'] = sprintf(
 						/* translators: %s: list of metadata field labels, joined for the locale. */
-						__( 'Required fields are empty: %s', 'vip-workflow' ),
+						__( 'Required fields are empty: %s', 'vip-workflows' ),
 						wp_sprintf( '%l', array_map( fn( $field ) => (string) $field['label'], $missing_metadata ) )
 					);
 				}
@@ -551,7 +551,7 @@ class Sequence {
 	 * @return array Transitions with disabled-tool locks projected.
 	 */
 	private function lock_disabled_required_tools( array $transitions ): array {
-		$settings = \VIPWorkflow\Abilities\AbilitySettings::get_instance();
+		$settings = \VIPWorkflows\Abilities\AbilitySettings::get_instance();
 
 		foreach ( $transitions as &$transition ) {
 			if ( ! empty( $transition['_locked'] ) ) {
@@ -569,7 +569,7 @@ class Sequence {
 				$transition['_locked']        = true;
 				$transition['_locked_reason'] = sprintf(
 					/* translators: %s: list of required tool IDs. */
-					__( 'Required checks are switched off: %s', 'vip-workflow' ),
+					__( 'Required checks are switched off: %s', 'vip-workflows' ),
 					wp_sprintf( '%l', $disabled_tools )
 				);
 			}
@@ -608,7 +608,7 @@ class Sequence {
 			// crossing capability cannot be resolved. Fail closed on the edge.
 			error_log( // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				sprintf(
-					'[VIP Workflow] Cannot resolve post type for post %d while filtering region-crossing transitions in sequence "%s".',
+					'[VIP Workflows] Cannot resolve post type for post %d while filtering region-crossing transitions in sequence "%s".',
 					$post_id,
 					$this->slug
 				)
@@ -651,7 +651,7 @@ class Sequence {
 		if ( ! isset( $caps->{$cap_name} ) || ! is_string( $caps->{$cap_name} ) || '' === $caps->{$cap_name} ) {
 			error_log( // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				sprintf(
-					'[VIP Workflow] Post type of post %d declares no "%s" capability; hiding the region-crossing transition in sequence "%s" (fail closed).',
+					'[VIP Workflows] Post type of post %d declares no "%s" capability; hiding the region-crossing transition in sequence "%s" (fail closed).',
 					$post_id,
 					$cap_name,
 					$this->slug

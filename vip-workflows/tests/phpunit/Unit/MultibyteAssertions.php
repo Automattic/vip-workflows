@@ -8,12 +8,12 @@
  * assertion alone passes for most inputs even with a byte-based cut in place,
  * so the encoding check is what actually pins the bug.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 /**
  * Shared UTF-8 / JSON-encodability assertions.

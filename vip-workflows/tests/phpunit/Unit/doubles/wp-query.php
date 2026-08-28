@@ -14,7 +14,7 @@
  * suite; under integration the real WP_Query from WordPress core is used and
  * the class_exists guard makes this a no-op there.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );

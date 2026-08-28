@@ -2,20 +2,20 @@
 /**
  * Status Manager - handles workflow status transitions.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Workflow;
+namespace VIPWorkflows\Workflow;
 
-use VIPWorkflow\Plugin;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Database\Schema;
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Abilities\AbilitySettings;
-use VIPWorkflow\Workflow\AssignmentManager;
+use VIPWorkflows\Plugin;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Database\Schema;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilitySettings;
+use VIPWorkflows\Workflow\AssignmentManager;
 
 /**
  * Manages workflow status transitions for posts.
@@ -40,12 +40,12 @@ class StatusManager {
 	/**
 	 * Meta key holding the authoritative workflow stage for a post.
 	 */
-	public const STAGE_META_KEY = '_vip_workflow_current_stage_key';
+	public const STAGE_META_KEY = '_vip_workflows_current_stage_key';
 
 	/**
 	 * Meta key holding the sequence a post is managed by.
 	 */
-	public const SEQUENCE_META_KEY = '_vip_workflow_sequence_id';
+	public const SEQUENCE_META_KEY = '_vip_workflows_sequence_id';
 
 	/**
 	 * Request-scoped re-entrancy guard, keyed by post ID.
@@ -113,7 +113,7 @@ class StatusManager {
 		}
 
 		// Only return if a sequence is explicitly assigned.
-		$sequence_id = get_post_meta( $post_id, '_vip_workflow_sequence_id', true );
+		$sequence_id = get_post_meta( $post_id, '_vip_workflows_sequence_id', true );
 		if ( $sequence_id ) {
 			return $this->sequence_repository->find( (int) $sequence_id );
 		}
@@ -125,7 +125,7 @@ class StatusManager {
 	 * Whether a post carries a workflow identity that cannot be resolved.
 	 *
 	 * `get_sequence_for_post()` answers null for two very different posts: one
-	 * that was never put in a workflow, and one whose `_vip_workflow_sequence_id`
+	 * that was never put in a workflow, and one whose `_vip_workflows_sequence_id`
 	 * names a sequence row that has since been deleted. Only the second is a
 	 * data-integrity condition, and the difference matters at every surface:
 	 * crosses_publish_boundary() fails CLOSED on it — reporting a crossing for
@@ -172,7 +172,7 @@ class StatusManager {
 		$queued_at = strtotime( (string) ( $job['queued_at'] ?? '' ) );
 		if ( ! $queued_at || ( current_time( 'timestamp' ) - $queued_at ) > StageAgentRunner::PENDING_TTL ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( 'VIP Workflow: agent job for post %d at stage "%s" timed out (queued_at: %s).', $post_id, $stage, (string) ( $job['queued_at'] ?? '' ) ) );
+			error_log( sprintf( 'VIP Workflows: agent job for post %d at stage "%s" timed out (queued_at: %s).', $post_id, $stage, (string) ( $job['queued_at'] ?? '' ) ) );
 
 			update_post_meta(
 				$post_id,
@@ -181,7 +181,7 @@ class StatusManager {
 					'stage_key'  => $stage,
 					'ability_id' => (string) ( $job['ability_id'] ?? '' ),
 					'status'     => 'failed',
-					'error'      => __( 'Agent run timed out.', 'vip-workflow' ),
+					'error'      => __( 'Agent run timed out.', 'vip-workflows' ),
 					'failed_at'  => current_time( 'mysql' ),
 					'from_stage' => (string) ( $job['from_stage'] ?? '' ),
 				)
@@ -259,7 +259,7 @@ class StatusManager {
 		if ( null === $revert_to ) {
 			return new \WP_Error(
 				'no_agent_revert',
-				__( 'This post has no failed AI stage to go back from.', 'vip-workflow' ),
+				__( 'This post has no failed AI stage to go back from.', 'vip-workflows' ),
 				array( 'status' => 409 )
 			);
 		}
@@ -331,7 +331,7 @@ class StatusManager {
 		if ( ! $status_key ) {
 			// A post with a sequence but no stage meta is a data-integrity bug — bail, do not infer from post_status.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Post %d has a sequence but no stage meta; cannot resolve current stage.', $post_id ) );
+			error_log( sprintf( '[VIP Workflows] Post %d has a sequence but no stage meta; cannot resolve current stage.', $post_id ) );
 			return null;
 		}
 
@@ -341,7 +341,7 @@ class StatusManager {
 			// bug (dangling key after a sequence edit). Log and bail; never fabricate
 			// a synthetic stage.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Post %d stage meta names stage "%s", which is not defined in sequence "%s"; cannot resolve current stage.', $post_id, $status_key, $sequence->slug ) );
+			error_log( sprintf( '[VIP Workflows] Post %d stage meta names stage "%s", which is not defined in sequence "%s"; cannot resolve current stage.', $post_id, $status_key, $sequence->slug ) );
 			return null;
 		}
 
@@ -444,7 +444,7 @@ class StatusManager {
 
 		return sprintf(
 			/* translators: %s: destination stage label. */
-			__( 'Move to %s', 'vip-workflow' ),
+			__( 'Move to %s', 'vip-workflows' ),
 			$to_status['label'] ?? $transition['to'] ?? ''
 		);
 	}
@@ -561,7 +561,7 @@ class StatusManager {
 	public function transition( int $post_id, string $to_status, array $options = array() ) {
 		$post = get_post( $post_id );
 		if ( ! $post ) {
-			return new \WP_Error( 'invalid_post', __( 'Post not found.', 'vip-workflow' ) );
+			return new \WP_Error( 'invalid_post', __( 'Post not found.', 'vip-workflows' ) );
 		}
 
 		// Trash is a core-owned overlay that suspends the workflow in place:
@@ -570,7 +570,7 @@ class StatusManager {
 		if ( 'trash' === $post->post_status ) {
 			return new \WP_Error(
 				'post_trashed',
-				__( 'This post is in the Trash; restore it before changing its workflow stage.', 'vip-workflow' ),
+				__( 'This post is in the Trash; restore it before changing its workflow stage.', 'vip-workflows' ),
 				array( 'status' => 409 )
 			);
 		}
@@ -579,7 +579,7 @@ class StatusManager {
 		if ( ! $sequence ) {
 			return new \WP_Error(
 				'no_sequence',
-				__( 'No workflow sequence for this post.', 'vip-workflow' ),
+				__( 'No workflow sequence for this post.', 'vip-workflows' ),
 				array( 'status' => 409 )
 			);
 		}
@@ -589,7 +589,7 @@ class StatusManager {
 			// Meta is the sole authority; a workflow post with no stage is a data-integrity bug.
 			return new \WP_Error(
 				'no_stage',
-				__( 'This post has no workflow stage.', 'vip-workflow' ),
+				__( 'This post has no workflow stage.', 'vip-workflows' ),
 				array( 'status' => 409 )
 			);
 		}
@@ -617,7 +617,7 @@ class StatusManager {
 				'invalid_transition',
 				sprintf(
 					/* translators: %1$s: current workflow status key, %2$s: target workflow status key. */
-					__( 'Transition from "%1$s" to "%2$s" is not allowed.', 'vip-workflow' ),
+					__( 'Transition from "%1$s" to "%2$s" is not allowed.', 'vip-workflows' ),
 					$current_stage,
 					$to_status
 				),
@@ -635,7 +635,7 @@ class StatusManager {
 			if ( null !== $routed_targets && ! in_array( $to_status, $routed_targets, true ) ) {
 				return new \WP_Error(
 					'unrouted_agent_exit',
-					__( 'This stage belongs to an AI agent; only the destinations its outcomes route to can be taken.', 'vip-workflow' ),
+					__( 'This stage belongs to an AI agent; only the destinations its outcomes route to can be taken.', 'vip-workflows' ),
 					array( 'status' => 403 )
 				);
 			}
@@ -654,7 +654,7 @@ class StatusManager {
 				'invalid_transition',
 				sprintf(
 					/* translators: %s: target status key. */
-					__( '"%s" is not a defined workflow stage and cannot be a transition target.', 'vip-workflow' ),
+					__( '"%s" is not a defined workflow stage and cannot be a transition target.', 'vip-workflows' ),
 					$to_status
 				),
 				array( 'status' => 422 )
@@ -675,13 +675,13 @@ class StatusManager {
 			$to_region   = $sequence->get_stage_status( $to_status );
 		} catch ( \InvalidArgumentException $e ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Cannot transition post %d from "%s" to "%s": %s', $post_id, $current_stage, $to_status, $e->getMessage() ) );
+			error_log( sprintf( '[VIP Workflows] Cannot transition post %d from "%s" to "%s": %s', $post_id, $current_stage, $to_status, $e->getMessage() ) );
 
 			return new \WP_Error(
 				'stage_region_missing',
 				sprintf(
 					/* translators: %s: the underlying reason, naming the stage. */
-					__( 'This workflow cannot be used until its stages have status regions: %s Open the sequence and assign the missing ones.', 'vip-workflow' ),
+					__( 'This workflow cannot be used until its stages have status regions: %s Open the sequence and assign the missing ones.', 'vip-workflows' ),
 					$e->getMessage()
 				),
 				array( 'status' => 409 )
@@ -710,7 +710,7 @@ class StatusManager {
 			if ( ! user_can( $actor_id, 'edit_post', $post_id ) ) {
 				return new \WP_Error(
 					'cannot_edit_post',
-					__( 'The agent is not acting for a user who may edit this post.', 'vip-workflow' ),
+					__( 'The agent is not acting for a user who may edit this post.', 'vip-workflows' ),
 					array( 'status' => 403 )
 				);
 			}
@@ -718,7 +718,7 @@ class StatusManager {
 			if ( $from_region !== $to_region && ! $this->user_can_cross_region( $post, $from_region, $to_region, $actor_id ) ) {
 				return new \WP_Error(
 					'forbidden_region_crossing',
-					__( 'The agent is not acting for a user who may change this post to that status.', 'vip-workflow' ),
+					__( 'The agent is not acting for a user who may change this post to that status.', 'vip-workflows' ),
 					array( 'status' => 403 )
 				);
 			}
@@ -729,7 +729,7 @@ class StatusManager {
 			if ( ! current_user_can( 'edit_post', $post_id ) ) {
 				return new \WP_Error(
 					'cannot_edit_post',
-					__( 'You are not allowed to edit this post.', 'vip-workflow' ),
+					__( 'You are not allowed to edit this post.', 'vip-workflows' ),
 					array( 'status' => 403 )
 				);
 			}
@@ -739,7 +739,7 @@ class StatusManager {
 			if ( $from_region !== $to_region && ! $this->current_user_can_cross_region( $post, $from_region, $to_region ) ) {
 				return new \WP_Error(
 					'forbidden_region_crossing',
-					__( 'You do not have permission to change this post to that status.', 'vip-workflow' ),
+					__( 'You do not have permission to change this post to that status.', 'vip-workflows' ),
 					array( 'status' => 403 )
 				);
 			}
@@ -752,7 +752,7 @@ class StatusManager {
 		if ( ! $is_agent_actor && ! $is_revert && ! $sequence->can_user_transition( $current_stage, $to_status ) ) {
 			return new \WP_Error(
 				'forbidden_transition',
-				__( 'You do not have permission to perform this transition.', 'vip-workflow' ),
+				__( 'You do not have permission to perform this transition.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -762,7 +762,7 @@ class StatusManager {
 			$assignment_requirement = $assignment_manager->normalize_requirement( $transition_config['requires_assignment'] );
 
 			if ( ! $assignment_manager->user_satisfies_requirement( $post_id, get_current_user_id(), $assignment_requirement ) ) {
-				if ( ! \VIPWorkflow\Admin\Settings::can_user_bypass_workflow() ) {
+				if ( ! \VIPWorkflows\Admin\Settings::can_user_bypass_workflow() ) {
 					return new \WP_Error(
 						'assignment_required',
 						$assignment_manager->get_error_message( $post_id, $assignment_requirement ),
@@ -785,7 +785,7 @@ class StatusManager {
 		// This lives here, in transition(), and not in each surface, because
 		// EVERY surface goes through this method — the block editor panel, the
 		// Kanban board, My Queue, the Quick Edit buttons, and the
-		// `vip-workflow/transition-post` ability. It rides the existing
+		// `vip-workflows/transition-post` ability. It rides the existing
 		// warnings_pending protocol so none of them needs a second one. It is
 		// deliberately outside the can_user_bypass_tool_checks() block below: a
 		// tool-check bypass says nothing about whether you meant to kill an agent.
@@ -800,7 +800,7 @@ class StatusManager {
 						'type'    => 'agent_in_progress',
 						// Same sentence as the JS getAgentInterruptWarning(), to
 						// the character, so the two surfaces share one .pot entry.
-						'message' => __( 'An AI agent is working on this post — continuing will stop it.', 'vip-workflow' ),
+						'message' => __( 'An AI agent is working on this post — continuing will stop it.', 'vip-workflows' ),
 					),
 				),
 			);
@@ -874,7 +874,7 @@ class StatusManager {
 		// and the most often false: both regions are already resolved above, and
 		// most edges in most sequences never touch the publish boundary.
 		if ( Sequence::crosses_into_publish( $from_region, $to_region )
-			&& ! $is_agent_actor && ! $is_revert && ! \VIPWorkflow\Admin\Settings::can_user_bypass_workflow() ) {
+			&& ! $is_agent_actor && ! $is_revert && ! \VIPWorkflows\Admin\Settings::can_user_bypass_workflow() ) {
 			$metadata_check = $this->check_required_metadata( $post_id, $sequence );
 
 			if ( is_wp_error( $metadata_check ) ) {
@@ -884,7 +884,7 @@ class StatusManager {
 		}
 
 		// Run required tools and check for hard failures (unless user can bypass).
-		if ( ! \VIPWorkflow\Admin\Settings::can_user_bypass_tool_checks() ) {
+		if ( ! \VIPWorkflows\Admin\Settings::can_user_bypass_tool_checks() ) {
 			$tool_check = $this->run_transition_tools( $post_id, $transition_config, $acknowledge_warnings );
 
 			if ( is_wp_error( $tool_check ) ) {
@@ -1049,7 +1049,7 @@ class StatusManager {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log(
 					sprintf(
-						'[VIP Workflow] Post %d: transition "%s" -> "%s" was abandoned (stage is now "%s"), and restoring post_status "%s" ALSO failed: %s. The post is left with a committed status that its stage does not match.',
+						'[VIP Workflows] Post %d: transition "%s" -> "%s" was abandoned (stage is now "%s"), and restoring post_status "%s" ALSO failed: %s. The post is left with a committed status that its stage does not match.',
 						$post_id,
 						$expected_stage,
 						$to_status,
@@ -1064,7 +1064,7 @@ class StatusManager {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log(
 			sprintf(
-				'[VIP Workflow] Post %d: transition "%s" -> "%s" was abandoned; the stage was "%s" at write time.',
+				'[VIP Workflows] Post %d: transition "%s" -> "%s" was abandoned; the stage was "%s" at write time.',
 				$post_id,
 				$expected_stage,
 				$to_status,
@@ -1077,7 +1077,7 @@ class StatusManager {
 				'transition_conflict',
 				sprintf(
 					/* translators: 1: stage the transition started from, 2: stage the post is in now. */
-					__( 'This post moved to another stage while your change was being applied: it started at "%1$s" and is now at "%2$s". Reload and try again.', 'vip-workflow' ),
+					__( 'This post moved to another stage while your change was being applied: it started at "%1$s" and is now at "%2$s". Reload and try again.', 'vip-workflows' ),
 					$expected_stage,
 					$actual_stage
 				),
@@ -1087,7 +1087,7 @@ class StatusManager {
 
 		return new \WP_Error(
 			'transition_write_failed',
-			__( 'The workflow stage could not be saved. The post was not moved.', 'vip-workflow' ),
+			__( 'The workflow stage could not be saved. The post was not moved.', 'vip-workflows' ),
 			array( 'status' => 500 )
 		);
 	}
@@ -1137,7 +1137,7 @@ class StatusManager {
 			// Data-integrity condition: an unregistered post type cannot resolve the
 			// crossing capability. Fail closed.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Cannot resolve post type "%s" for post %d while checking region-crossing capability.', $post->post_type, $post->ID ) );
+			error_log( sprintf( '[VIP Workflows] Cannot resolve post type "%s" for post %d while checking region-crossing capability.', $post->post_type, $post->ID ) );
 			return null;
 		}
 
@@ -1208,14 +1208,14 @@ class StatusManager {
 		 * @param Sequence $sequence Sequence.
 		 * @param array     $context   { 'cause' => 'workflow'|'core', 'committed_status' => string, 'previous_status' => string }.
 		 */
-		do_action( 'vip_workflow_status_transition', $post_id, $new_stage, $old_stage, $sequence, $context );
+		do_action( 'vip_workflows_status_transition', $post_id, $new_stage, $old_stage, $sequence, $context );
 
 		// Specific stage entered / exited events.
-		do_action( "vip_workflow_entered_{$new_stage}", $post_id, $old_stage, $sequence, $context );
+		do_action( "vip_workflows_entered_{$new_stage}", $post_id, $old_stage, $sequence, $context );
 
 		// An assignment seat has no stage to exit.
 		if ( '' !== $old_stage ) {
-			do_action( "vip_workflow_exited_{$old_stage}", $post_id, $new_stage, $sequence, $context );
+			do_action( "vip_workflows_exited_{$old_stage}", $post_id, $new_stage, $sequence, $context );
 		}
 	}
 
@@ -1229,7 +1229,7 @@ class StatusManager {
 	 * @param array  $data    Data to store (note values).
 	 */
 	private function store_transition_data( int $post_id, string $status, array $data ): void {
-		$existing = get_post_meta( $post_id, '_vip_workflow_transition_data', true );
+		$existing = get_post_meta( $post_id, '_vip_workflows_transition_data', true );
 		if ( ! is_array( $existing ) ) {
 			$existing = array();
 		}
@@ -1247,11 +1247,11 @@ class StatusManager {
 		$existing[ $status ][] = array(
 			'timestamp' => current_time( 'mysql' ),
 			'user_id'   => $user_id,
-			'user_name' => $user ? $user->display_name : __( 'Unknown', 'vip-workflow' ),
+			'user_name' => $user ? $user->display_name : __( 'Unknown', 'vip-workflows' ),
 			'notes'     => $data,
 		);
 
-		update_post_meta( $post_id, '_vip_workflow_transition_data', $existing );
+		update_post_meta( $post_id, '_vip_workflows_transition_data', $existing );
 	}
 
 	/**
@@ -1468,7 +1468,7 @@ class StatusManager {
 			// A stored stage missing its region is a data-integrity condition.
 			// Log and fail closed, for the same reason as above.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Cannot resolve the publish boundary for post %d moving to status "%s": %s', $post_id, $target_status, $e->getMessage() ) );
+			error_log( sprintf( '[VIP Workflows] Cannot resolve the publish boundary for post %d moving to status "%s": %s', $post_id, $target_status, $e->getMessage() ) );
 			return true;
 		}
 
@@ -1534,7 +1534,7 @@ class StatusManager {
 	public function remove_sequence( int $post_id ): bool|\WP_Error {
 		$post = get_post( $post_id );
 		if ( ! $post ) {
-			return new \WP_Error( 'invalid_post', __( 'Post not found.', 'vip-workflow' ), array( 'status' => 404 ) );
+			return new \WP_Error( 'invalid_post', __( 'Post not found.', 'vip-workflows' ), array( 'status' => 404 ) );
 		}
 
 		$sequence_id = get_post_meta( $post_id, self::SEQUENCE_META_KEY, true );
@@ -1543,7 +1543,7 @@ class StatusManager {
 			// no-op: the caller believed the post was managed.
 			return new \WP_Error(
 				'no_sequence',
-				__( 'No workflow sequence for this post.', 'vip-workflow' ),
+				__( 'No workflow sequence for this post.', 'vip-workflows' ),
 				array( 'status' => 409 )
 			);
 		}
@@ -1557,7 +1557,7 @@ class StatusManager {
 		$sequence = $this->sequence_repository->find( (int) $sequence_id );
 		if ( ! $sequence ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Post %d names sequence %d, which does not exist; removing the dangling workflow identity.', $post_id, (int) $sequence_id ) );
+			error_log( sprintf( '[VIP Workflows] Post %d names sequence %d, which does not exist; removing the dangling workflow identity.', $post_id, (int) $sequence_id ) );
 		}
 
 		delete_post_meta( $post_id, self::SEQUENCE_META_KEY );
@@ -1567,7 +1567,7 @@ class StatusManager {
 		// claimed within it, and a surviving assignee would keep the post in its
 		// claimer's queue with no stage to work. The controller-side removal this
 		// method replaces cleared it; keep doing so.
-		delete_post_meta( $post_id, '_vip_workflow_assigned_to' );
+		delete_post_meta( $post_id, '_vip_workflows_assigned_to' );
 
 		$this->log_workflow_event(
 			$post_id,
@@ -1607,7 +1607,7 @@ class StatusManager {
 		$current_stage = get_post_meta( $post_id, self::STAGE_META_KEY, true );
 		if ( ! $current_stage || null === $sequence->get_status( (string) $current_stage ) ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Post %d has sequence "%s" but its stage meta ("%s") is missing or undefined; cannot resolve its workflow stage.', $post_id, $sequence->slug, (string) $current_stage ) );
+			error_log( sprintf( '[VIP Workflows] Post %d has sequence "%s" but its stage meta ("%s") is missing or undefined; cannot resolve its workflow stage.', $post_id, $sequence->slug, (string) $current_stage ) );
 			return null;
 		}
 
@@ -1654,7 +1654,7 @@ class StatusManager {
 			// region without a checkpoint) — log and bail rather than fatal a core
 			// status write.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Cannot reconcile a move to status "%s" on post %d: %s', $target_status, $post_id, $e->getMessage() ) );
+			error_log( sprintf( '[VIP Workflows] Cannot reconcile a move to status "%s" on post %d: %s', $target_status, $post_id, $e->getMessage() ) );
 			return null;
 		}
 
@@ -1662,7 +1662,7 @@ class StatusManager {
 			// The sequence does not model this region (e.g. core set `pending` and
 			// the sequence has no pending-region stage). Tolerated: the stage stays.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Post %d moved to status "%s", a region sequence "%s" does not model; stage "%s" left in place.', $post_id, $target_status, $sequence->slug, $current_stage ) );
+			error_log( sprintf( '[VIP Workflows] Post %d moved to status "%s", a region sequence "%s" does not model; stage "%s" left in place.', $post_id, $target_status, $sequence->slug, $current_stage ) );
 			return null;
 		}
 
@@ -1749,7 +1749,7 @@ class StatusManager {
 		$is_agent    = '' !== $agent_actor;
 
 		$wpdb->insert(
-			Schema::get_table_name( 'workflow_events' ),
+			Schema::get_table_name( 'workflows_events' ),
 			array(
 				'post_id'    => $post_id,
 				'event_type' => 'status_transition',
@@ -1806,7 +1806,7 @@ class StatusManager {
 	public function get_transition_history( int $post_id, int $limit = 20, int $offset = 0 ): array {
 		global $wpdb;
 
-		$table = Schema::get_table_name( 'workflow_events' );
+		$table = Schema::get_table_name( 'workflows_events' );
 
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
@@ -1844,7 +1844,7 @@ class StatusManager {
 	public function count_transition_history( int $post_id ): int {
 		global $wpdb;
 
-		$table = Schema::get_table_name( 'workflow_events' );
+		$table = Schema::get_table_name( 'workflows_events' );
 
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
@@ -1940,23 +1940,23 @@ class StatusManager {
 	 */
 	public static function event_type_label( string $event_type ): string {
 		$labels = array(
-			'status_transition'     => __( 'Stage Changed', 'vip-workflow' ),
-			'transition_blocked'    => __( 'Transition Blocked', 'vip-workflow' ),
-			'tool_warnings'         => __( 'Tool Warnings', 'vip-workflow' ),
-			'workflow.assigned'     => __( 'Workflow Assigned', 'vip-workflow' ),
-			'workflow.removed'      => __( 'Workflow Removed', 'vip-workflow' ),
-			'post.claimed'          => __( 'Post Claimed', 'vip-workflow' ),
-			'post.released'         => __( 'Post Released', 'vip-workflow' ),
-			'ability.executed'      => __( 'Tool Executed', 'vip-workflow' ),
-			'ability.failed'        => __( 'Tool Failed', 'vip-workflow' ),
+			'status_transition'     => __( 'Stage Changed', 'vip-workflows' ),
+			'transition_blocked'    => __( 'Transition Blocked', 'vip-workflows' ),
+			'tool_warnings'         => __( 'Tool Warnings', 'vip-workflows' ),
+			'workflow.assigned'     => __( 'Workflow Assigned', 'vip-workflows' ),
+			'workflow.removed'      => __( 'Workflow Removed', 'vip-workflows' ),
+			'post.claimed'          => __( 'Post Claimed', 'vip-workflows' ),
+			'post.released'         => __( 'Post Released', 'vip-workflows' ),
+			'ability.executed'      => __( 'Tool Executed', 'vip-workflows' ),
+			'ability.failed'        => __( 'Tool Failed', 'vip-workflows' ),
 			// Configuration events. These carry no post, which the response shape
 			// already allows (`post_id` is a nullable column and `post` is null here).
-			'sequence.updated'     => __( 'Sequence Updated', 'vip-workflow' ),
-			'sequence.activated'   => __( 'Sequence Activated', 'vip-workflow' ),
-			'sequence.deactivated' => __( 'Sequence Deactivated', 'vip-workflow' ),
+			'sequence.updated'     => __( 'Sequence Updated', 'vip-workflows' ),
+			'sequence.activated'   => __( 'Sequence Activated', 'vip-workflows' ),
+			'sequence.deactivated' => __( 'Sequence Deactivated', 'vip-workflows' ),
 			// Maintenance. Carries no post and no actor: the nightly prune runs
 			// on cron and belongs to no one.
-			'maintenance.cleanup'  => __( 'Cleanup Run', 'vip-workflow' ),
+			'maintenance.cleanup'  => __( 'Cleanup Run', 'vip-workflows' ),
 		);
 
 		if ( isset( $labels[ $event_type ] ) ) {
@@ -2010,7 +2010,7 @@ class StatusManager {
 		// enter a workflow.
 		if ( 'trash' === $post->post_status ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Refusing to assign sequence %d to post %d: the post is in the Trash.', $sequence_id, $post_id ) );
+			error_log( sprintf( '[VIP Workflows] Refusing to assign sequence %d to post %d: the post is in the Trash.', $sequence_id, $post_id ) );
 			return false;
 		}
 
@@ -2038,7 +2038,7 @@ class StatusManager {
 				'unmodeled_post_status',
 				sprintf(
 					/* translators: 1: sequence name. 2: post status label, e.g. "Pending Review". */
-					__( 'The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post\'s status, or choose a sequence that covers it.', 'vip-workflow' ),
+					__( 'The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post\'s status, or choose a sequence that covers it.', 'vip-workflows' ),
 					$sequence->name,
 					$region_label
 				),
@@ -2129,7 +2129,7 @@ class StatusManager {
 				// prefix in ToolFailuresModal, which prints "{label}: {message}",
 				// so naming the field in both halves read "Section: Section is
 				// required and has no value.".
-				'message'  => __( 'This field is required and has no value.', 'vip-workflow' ),
+				'message'  => __( 'This field is required and has no value.', 'vip-workflows' ),
 				'severity' => 'hard',
 			);
 		}
@@ -2142,7 +2142,7 @@ class StatusManager {
 			Sequence::CODE_REQUIRED_METADATA,
 			sprintf(
 				/* translators: %s: list of metadata field labels, joined for the locale. */
-				__( 'Transition blocked by required fields: %s', 'vip-workflow' ),
+				__( 'Transition blocked by required fields: %s', 'vip-workflows' ),
 				wp_sprintf( '%l', $missing_labels )
 			),
 			array(
@@ -2197,7 +2197,7 @@ class StatusManager {
 					$hard_failures[] = array(
 						'tool'     => $tool_id,
 						'key'      => 'tool_disabled',
-						'message'  => __( 'This required check is switched off. Re-enable it, or remove it from this transition.', 'vip-workflow' ),
+						'message'  => __( 'This required check is switched off. Re-enable it, or remove it from this transition.', 'vip-workflows' ),
 						'severity' => 'hard',
 					);
 
@@ -2214,12 +2214,12 @@ class StatusManager {
 					$reason = trim( (string) ( $result->error ?? '' ) );
 
 					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging of tool execution failures.
-					error_log( "VIP Workflow: Tool {$tool_id} failed: " . ( '' !== $reason ? $reason : 'no reason given' ) );
+					error_log( "VIP Workflows: Tool {$tool_id} failed: " . ( '' !== $reason ? $reason : 'no reason given' ) );
 
 					$hard_failures[] = array(
 						'tool'     => $tool_id,
 						'key'      => 'execution_error',
-						'message'  => '' !== $reason ? $reason : __( 'Check could not be completed', 'vip-workflow' ),
+						'message'  => '' !== $reason ? $reason : __( 'Check could not be completed', 'vip-workflows' ),
 						'severity' => 'hard',
 					);
 
@@ -2246,14 +2246,14 @@ class StatusManager {
 							$hard_failures[] = array(
 								'tool'    => $tool_id,
 								'key'     => $check_key,
-								'message' => $issue['message'] ?? $issue['description'] ?? __( 'Check failed', 'vip-workflow' ),
+								'message' => $issue['message'] ?? $issue['description'] ?? __( 'Check failed', 'vip-workflows' ),
 								'severity' => 'hard',
 							);
 						} else {
 							$soft_warnings[] = array(
 								'tool'    => $tool_id,
 								'key'     => $check_key,
-								'message' => $issue['message'] ?? $issue['description'] ?? __( 'Check warning', 'vip-workflow' ),
+								'message' => $issue['message'] ?? $issue['description'] ?? __( 'Check warning', 'vip-workflows' ),
 								'severity' => 'soft',
 							);
 						}
@@ -2261,7 +2261,7 @@ class StatusManager {
 				}
 			} catch ( \Exception $e ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging of tool execution failures.
-				error_log( "VIP Workflow: Tool {$tool_id} threw exception: " . $e->getMessage() );
+				error_log( "VIP Workflows: Tool {$tool_id} threw exception: " . $e->getMessage() );
 				// Same reasoning: no verdict reached. Also covers a required tool
 				// whose plugin is gone — the executor throws resolving the name.
 				$hard_failures[] = array(
@@ -2277,7 +2277,7 @@ class StatusManager {
 		if ( ! empty( $hard_failures ) ) {
 			return new \WP_Error(
 				'tool_check_failed',
-				__( 'Transition blocked by required checks.', 'vip-workflow' ),
+				__( 'Transition blocked by required checks.', 'vip-workflows' ),
 				array(
 					'status'        => 422,
 					'hard_failures' => $hard_failures,
@@ -2317,7 +2317,7 @@ class StatusManager {
 		$sequence  = $this->get_sequence_for_post( $post_id );
 
 		$wpdb->insert(
-			Schema::get_table_name( 'workflow_events' ),
+			Schema::get_table_name( 'workflows_events' ),
 			array(
 				'post_id'    => $post_id,
 				'event_type' => 'transition_blocked',
@@ -2352,7 +2352,7 @@ class StatusManager {
 		$sequence = $this->get_sequence_for_post( $post_id );
 
 		$wpdb->insert(
-			Schema::get_table_name( 'workflow_events' ),
+			Schema::get_table_name( 'workflows_events' ),
 			array(
 				'post_id'    => $post_id,
 				'event_type' => 'tool_warnings',
@@ -2381,7 +2381,7 @@ class StatusManager {
 		global $wpdb;
 
 		$wpdb->insert(
-			Schema::get_table_name( 'workflow_events' ),
+			Schema::get_table_name( 'workflows_events' ),
 			array(
 				'post_id'    => $post_id,
 				'event_type' => $event_type,

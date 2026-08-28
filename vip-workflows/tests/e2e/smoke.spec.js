@@ -9,12 +9,12 @@
 const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
 const { EDITORIAL_REVIEW_SLUG } = require( './helpers/workflow' );
 
-test.describe( 'VIP Workflow — smoke', () => {
+test.describe( 'VIP Workflows — smoke', () => {
 	test( 'REST API is available and default sequences are seeded', async ( {
 		requestUtils,
 	} ) => {
 		const sequences = await requestUtils.rest( {
-			path: '/vip-workflow/v1/sequences',
+			path: '/vip-workflows/v1/sequences',
 		} );
 
 		expect( Array.isArray( sequences ) ).toBe( true );
@@ -23,10 +23,10 @@ test.describe( 'VIP Workflow — smoke', () => {
 	} );
 
 	test( 'admin Workflow app renders', async ( { admin, page } ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflow' );
+		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
 
-		// The React app mounts into #vip-workflow-root (src/admin/index.js).
-		const root = page.locator( '#vip-workflow-root' );
+		// The React app mounts into #vip-workflows-root (src/admin/index.js).
+		const root = page.locator( '#vip-workflows-root' );
 		await expect( root ).toBeAttached();
 		// The app renders content into the root once booted.
 		await expect( root ).not.toBeEmpty();
@@ -36,7 +36,7 @@ test.describe( 'VIP Workflow — smoke', () => {
 		admin,
 		page,
 	} ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflow' );
+		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
 
 		// The removed app shell hid the admin bar and menu and added a
 		// fullscreen body class. Guard the central behavioral change: the

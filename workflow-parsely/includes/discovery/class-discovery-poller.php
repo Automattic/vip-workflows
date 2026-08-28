@@ -26,7 +26,7 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Discovery;
 
-use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;

@@ -2,18 +2,18 @@
 /**
  * AbilitiesController unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\API\AbilitiesController;
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Abilities\AbilityResult;
-use VIPWorkflow\Abilities\AbilitySettings;
+use VIPWorkflows\API\AbilitiesController;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilityResult;
+use VIPWorkflows\Abilities\AbilitySettings;
 use WP_Error;
 
 class AbilitiesControllerTest extends TestCase
@@ -31,12 +31,12 @@ class AbilitiesControllerTest extends TestCase
         AbilitySettings::get_instance()->clear_cache();
     }
 
-    public function test_get_items_without_category_returns_only_vip_workflow_abilities(): void
+    public function test_get_items_without_category_returns_only_vip_workflows_abilities(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
             array(
-                $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' ),
-                $this->create_ability_stub( 'vip-workflow/web-researcher', 'research' ),
+                $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' ),
+                $this->create_ability_stub( 'vip-workflows/web-researcher', 'research' ),
             )
         );
 
@@ -45,17 +45,17 @@ class AbilitiesControllerTest extends TestCase
         $data       = $response->get_data();
 
         $this->assertCount( 1, $data );
-        $this->assertSame( 'vip-workflow/readability', $data[0]['id'] );
-        $this->assertSame( 'vip-workflow', $data[0]['category'] );
+        $this->assertSame( 'vip-workflows/readability', $data[0]['id'] );
+        $this->assertSame( 'vip-workflows', $data[0]['category'] );
     }
 
     public function test_get_items_with_research_category_returns_only_research_abilities(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
             array(
-                $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' ),
-                $this->create_ability_stub( 'vip-workflow/web-researcher', 'research' ),
-                $this->create_ability_stub( 'vip-workflow/archive-scout', 'research' ),
+                $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' ),
+                $this->create_ability_stub( 'vip-workflows/web-researcher', 'research' ),
+                $this->create_ability_stub( 'vip-workflows/archive-scout', 'research' ),
             )
         );
 
@@ -63,29 +63,29 @@ class AbilitiesControllerTest extends TestCase
         $response   = $controller->get_items( $this->create_request_stub( array( 'category' => 'research' ) ) );
         $data       = $response->get_data();
 
-        // Strict filter: only 'research' abilities returned, vip-workflow ones excluded.
+        // Strict filter: only 'research' abilities returned, vip-workflows ones excluded.
         $this->assertCount( 2, $data );
         $ids = array_column( $data, 'id' );
-        $this->assertContains( 'vip-workflow/web-researcher', $ids );
-        $this->assertContains( 'vip-workflow/archive-scout', $ids );
-        $this->assertNotContains( 'vip-workflow/readability', $ids );
+        $this->assertContains( 'vip-workflows/web-researcher', $ids );
+        $this->assertContains( 'vip-workflows/archive-scout', $ids );
+        $this->assertNotContains( 'vip-workflows/readability', $ids );
     }
 
-    public function test_get_items_with_vip_workflow_category_excludes_research_abilities(): void
+    public function test_get_items_with_vip_workflows_category_excludes_research_abilities(): void
     {
         Functions\when( 'wp_get_abilities' )->justReturn(
             array(
-                $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' ),
-                $this->create_ability_stub( 'vip-workflow/web-researcher', 'research' ),
+                $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' ),
+                $this->create_ability_stub( 'vip-workflows/web-researcher', 'research' ),
             )
         );
 
         $controller = $this->create_controller();
-        $response   = $controller->get_items( $this->create_request_stub( array( 'category' => 'vip-workflow' ) ) );
+        $response   = $controller->get_items( $this->create_request_stub( array( 'category' => 'vip-workflows' ) ) );
         $data       = $response->get_data();
 
         $this->assertCount( 1, $data );
-        $this->assertSame( 'vip-workflow/readability', $data[0]['id'] );
+        $this->assertSame( 'vip-workflows/readability', $data[0]['id'] );
         $this->assertNotSame( 'research', $data[0]['category'] );
     }
 
@@ -95,12 +95,12 @@ class AbilitiesControllerTest extends TestCase
             array(
                 $this->create_ability_stub_with_meta(
                     'workflow-agent-reformat-to-template/reformat-to-template',
-                    'vip-workflow',
+                    'vip-workflows',
                     array( 'supports' => array( 'workflow', 'stage' ), 'stage_eligible' => true )
                 ),
                 $this->create_ability_stub_with_meta(
-                    'vip-workflow/readability',
-                    'vip-workflow',
+                    'vip-workflows/readability',
+                    'vip-workflows',
                     array( 'supports' => array( 'workflow' ), 'transition_eligible' => true )
                 ),
             )
@@ -124,8 +124,8 @@ class AbilitiesControllerTest extends TestCase
                     array( 'supports' => array( 'workflow', 'stage' ), 'stage_eligible' => true )
                 ),
                 $this->create_ability_stub_with_meta(
-                    'vip-workflow/readability',
-                    'vip-workflow',
+                    'vip-workflows/readability',
+                    'vip-workflows',
                     array( 'supports' => array( 'workflow' ), 'transition_eligible' => true )
                 ),
             )
@@ -166,7 +166,7 @@ class AbilitiesControllerTest extends TestCase
     }
 
     /**
-     * These stubs are plain objects, not `VIPWorkflow\Abilities\Ability`, so they
+     * These stubs are plain objects, not `VIPWorkflows\Abilities\Ability`, so they
      * exercise the same branch a bare `WP_Ability` takes: no structured
      * availability channel exists, and the key must still be present with an
      * empty group list rather than omitted.
@@ -181,7 +181,7 @@ class AbilitiesControllerTest extends TestCase
     {
         Functions\when( 'current_user_can' )->justReturn( true );
         Functions\when( 'wp_get_abilities' )->justReturn(
-            array( $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' ) )
+            array( $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' ) )
         );
 
         $controller = $this->create_controller();
@@ -201,11 +201,11 @@ class AbilitiesControllerTest extends TestCase
     {
         Functions\when( 'current_user_can' )->justReturn( true );
         Functions\when( 'wp_get_ability' )->justReturn(
-            $this->create_ability_stub( 'vip-workflow/readability', 'vip-workflow' )
+            $this->create_ability_stub( 'vip-workflows/readability', 'vip-workflows' )
         );
 
         $controller = $this->create_controller();
-        $data       = $controller->get_item( $this->create_request_stub( array( 'id' => 'vip-workflow/readability' ) ) )->get_data();
+        $data       = $controller->get_item( $this->create_request_stub( array( 'id' => 'vip-workflows/readability' ) ) )->get_data();
 
         $this->assertArrayHasKey( 'availability', $data );
         $this->assertSame( array(), $data['availability']['groups'] );
@@ -408,7 +408,7 @@ class AbilitiesControllerTest extends TestCase
         $controller->run_ability(
             $this->create_request_stub(
                 array(
-                    'id'      => 'vip-workflow/readability',
+                    'id'      => 'vip-workflows/readability',
                     'post_id' => 123,
                 )
             )
@@ -427,7 +427,7 @@ class AbilitiesControllerTest extends TestCase
         $controller->run_ability(
             $this->create_request_stub(
                 array(
-                    'id'      => 'vip-workflow/readability',
+                    'id'      => 'vip-workflows/readability',
                     'post_id' => 123,
                     'options' => array(
                         'tone'       => 'formal',

@@ -4,31 +4,31 @@
 
 /* Seed Input */
 
-.vip-workflow-ideation-seed__header {
+.vip-workflows-ideation-seed__header {
 	text-align: center;
 }
 
-.vip-workflow-ideation-seed__title {
+.vip-workflows-ideation-seed__title {
 	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- title color on <Text>; Text has no color prop */
 }
 
-.vip-workflow-ideation-seed__subtitle {
+.vip-workflows-ideation-seed__subtitle {
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted subtitle color on <Text>; Text has no color prop */
 }
 
-.vip-workflow-ideation-seed__input-wrap {
+.vip-workflows-ideation-seed__input-wrap {
 	padding: var(--wpds-dimension-padding-lg);
-	box-shadow: var(--vip-workflow-elevation-xs);
+	box-shadow: var(--vip-workflows-elevation-xs);
 	transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.vip-workflow-ideation-seed__input-wrap:focus-within {
+.vip-workflows-ideation-seed__input-wrap:focus-within {
 	border-color: var(--wpds-color-stroke-interactive-brand);
 	box-shadow: 0 0 0 1px var(--wpds-color-stroke-interactive-brand);
 }
 
-.vip-workflow-ideation-seed__textarea {
-	font: var(--vip-workflow-text-body-lg);
+.vip-workflows-ideation-seed__textarea {
+	font: var(--vip-workflows-text-body-lg);
 	font-family: inherit; /* wpds-allow R5 -- intentional inherit/reset */
 	width: 100%;
 	border: none;
@@ -43,21 +43,21 @@
    wp-admin's default textarea focus box-shadow so the two don't stack into a
    double ring. */
 
-.vip-workflow-ideation-seed__textarea:focus {
+.vip-workflows-ideation-seed__textarea:focus {
 	box-shadow: none;
 }
 
-.vip-workflow-ideation-seed__textarea::placeholder {
+.vip-workflows-ideation-seed__textarea::placeholder {
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-.vip-workflow-ideation-seed__actions {
+.vip-workflows-ideation-seed__actions {
 	margin-top: 12px; /* wpds-allow R3 -- separates action bar from textarea; parent surface panel is not a Stack */
 	padding-top: var(--wpds-dimension-padding-md);
 	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak); /* wpds-allow R6 -- divider rule on <Stack>; Stack has no border prop */
 }
 
-.vip-workflow-ideation-seed__hint {
-	font: var(--vip-workflow-text-body-sm);
+.vip-workflows-ideation-seed__hint {
+	font: var(--vip-workflows-text-body-sm);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }

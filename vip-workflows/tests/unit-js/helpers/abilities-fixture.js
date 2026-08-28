@@ -1,7 +1,7 @@
 /**
  * The one description of the abilities response, for every JS suite that reads one.
  *
- * `GET /vip-workflow/v1/abilities` had no schema and no shared fixture, so each
+ * `GET /vip-workflows/v1/abilities` had no schema and no shared fixture, so each
  * suite hand-built its own partial copy of the response — and a partial copy cannot
  * contradict the code it stands in for. Three bugs shipped behind a green suite
  * because of it: a fixture that set `name` to the human name let thirty tests pass
@@ -18,7 +18,7 @@
  *
  * Three variants, because the endpoint really does emit three different key sets:
  *
- *   - `vipAbility()` — a `VIPWorkflow\Abilities\Ability`, which every VIP agent is.
+ *   - `vipAbility()` — a `VIPWorkflows\Abilities\Ability`, which every VIP agent is.
  *     Carries every key except the request-scoped ones. This is the default; reach
  *     for it unless a test is specifically about one of the others.
  *   - `plainAbility()` — a third-party plain `WP_Ability`, which has no icon,
@@ -50,7 +50,7 @@ const ALWAYS_KEYS = keysWithPresence( 'always' );
 const ABILITY_SUBCLASS_KEYS = keysWithPresence( 'ability_subclass' );
 const REQUEST_PARAM_KEYS = keysWithPresence( 'request_param' );
 
-const DEFAULT_ID = 'vip-workflow/web-researcher';
+const DEFAULT_ID = 'vip-workflows/web-researcher';
 
 /**
  * A realistic value for every key the endpoint can emit.
@@ -109,7 +109,7 @@ function build( keys, overrides = {} ) {
 }
 
 /**
- * A `VIPWorkflow\Abilities\Ability` row — the shape every VIP agent produces.
+ * A `VIPWorkflows\Abilities\Ability` row — the shape every VIP agent produces.
  *
  * @param {Object} overrides Field overrides.
  * @return {Object} Ability response row.

@@ -9,7 +9,7 @@
 
 /* Side-by-side control row (Bot name / Bot icon) inside the Slack channel card.
    Both controls are Stack children, and Stack has no per-child sizing prop. */
-.vip-workflow-channel-settings__control-row > * {
+.vip-workflows-channel-settings__control-row > * {
 	flex: 1;
 	min-width: 0;
 }

@@ -2,20 +2,20 @@
 /**
  * Notifications REST Controller.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_REST_Server;
 use WP_Error;
-use VIPWorkflow\Notifications\Channels\SlackChannel;
-use VIPWorkflow\Notifications\NotificationDispatcher;
+use VIPWorkflows\Notifications\Channels\SlackChannel;
+use VIPWorkflows\Notifications\NotificationDispatcher;
 
 /**
  * REST controller for notification channels, event-to-channel routing and
@@ -35,7 +35,7 @@ class NotificationsController extends WP_REST_Controller {
 	 * Constructor.
 	 */
 	public function __construct() {
-		$this->namespace  = 'vip-workflow/v1';
+		$this->namespace  = 'vip-workflows/v1';
 		$this->rest_base  = 'notifications';
 		$this->dispatcher = new NotificationDispatcher();
 	}
@@ -216,7 +216,7 @@ class NotificationsController extends WP_REST_Controller {
 			return new WP_Error(
 				'channel_not_found',
 				/* translators: %s: notification channel ID. */
-				sprintf( __( 'Channel "%s" not found.', 'vip-workflow' ), $channel_id ),
+				sprintf( __( 'Channel "%s" not found.', 'vip-workflows' ), $channel_id ),
 				array( 'status' => 404 )
 			);
 		}
@@ -227,7 +227,7 @@ class NotificationsController extends WP_REST_Controller {
 			return new WP_REST_Response(
 				array(
 					'success' => true,
-					'message' => __( 'Test message sent!', 'vip-workflow' ),
+					'message' => __( 'Test message sent!', 'vip-workflows' ),
 				)
 			);
 		}
@@ -259,7 +259,7 @@ class NotificationsController extends WP_REST_Controller {
 			return new WP_Error(
 				'channel_not_found',
 				/* translators: %s: notification channel ID. */
-				sprintf( __( 'Channel "%s" not found.', 'vip-workflow' ), $channel_id ),
+				sprintf( __( 'Channel "%s" not found.', 'vip-workflows' ), $channel_id ),
 				array( 'status' => 404 )
 			);
 		}
@@ -267,7 +267,7 @@ class NotificationsController extends WP_REST_Controller {
 		$settings = $channel->get_settings();
 
 		// Allow channels to add computed fields.
-		$settings = apply_filters( 'vip_workflow_channel_settings', $settings, $channel_id, $channel );
+		$settings = apply_filters( 'vip_workflows_channel_settings', $settings, $channel_id, $channel );
 
 		return new WP_REST_Response( $settings );
 	}
@@ -288,7 +288,7 @@ class NotificationsController extends WP_REST_Controller {
 			return new WP_Error(
 				'channel_not_found',
 				/* translators: %s: notification channel ID. */
-				sprintf( __( 'Channel "%s" not found.', 'vip-workflow' ), $channel_id ),
+				sprintf( __( 'Channel "%s" not found.', 'vip-workflows' ), $channel_id ),
 				array( 'status' => 404 )
 			);
 		}

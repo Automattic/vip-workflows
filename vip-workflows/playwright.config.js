@@ -1,5 +1,5 @@
 /**
- * Playwright configuration for VIP Workflow end-to-end tests.
+ * Playwright configuration for VIP Workflows end-to-end tests.
  *
  * Extends the WordPress-standard config bundled with `@wordpress/scripts`
  * (which wires up the admin storage state, the wp-env web server on port 8889,

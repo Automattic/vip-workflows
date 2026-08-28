@@ -25,7 +25,7 @@ import { useState, useEffect, useMemo } from '@wordpress/element';
 // DataViews JS is bundled via the /wp subpath. Its stylesheet cannot be imported
 // here — the dependency-extraction plugin externalizes every `@wordpress/*`
 // request, including the CSS — so it is copied into build/ at build time and
-// enqueued as `vip-workflow-dataviews` (see class-admin.php).
+// enqueued as `vip-workflows-dataviews` (see class-admin.php).
 import { DataViews } from '@wordpress/dataviews/wp';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
@@ -112,8 +112,8 @@ export function AuditLog() {
 	// Fetch filter options on mount.
 	useEffect( () => {
 		Promise.all( [
-			apiFetch( { path: '/vip-workflow/v1/audit-log/event-types' } ),
-			apiFetch( { path: '/vip-workflow/v1/audit-log/users' } ),
+			apiFetch( { path: '/vip-workflows/v1/audit-log/event-types' } ),
+			apiFetch( { path: '/vip-workflows/v1/audit-log/users' } ),
 		] )
 			.then( ( [ typesRes, usersRes ] ) => {
 				setEventTypeElements(
@@ -142,7 +142,7 @@ export function AuditLog() {
 		let cancelled = false;
 		setIsLoading( true );
 
-		apiFetch( { path: `/vip-workflow/v1/audit-log?${ query }` } )
+		apiFetch( { path: `/vip-workflows/v1/audit-log?${ query }` } )
 			.then( ( response ) => {
 				if ( cancelled ) {
 					return;
@@ -204,7 +204,7 @@ export function AuditLog() {
 			// where two Saves share a screen).
 			{
 				id: 'view-post',
-				label: __( 'Edit post', 'vip-workflow' ),
+				label: __( 'Edit post', 'vip-workflows' ),
 				isEligible: ( item ) => !! item.post?.edit_link,
 				callback: ( [ item ] ) => {
 					window.location.assign( item.post.edit_link );
@@ -220,8 +220,8 @@ export function AuditLog() {
 		// same block <div> every other DataViews panel uses. The class beside
 		// it styles nothing of its own: it scopes the two vendored-DataViews
 		// fixes in workflow-event-fields.css, which the history modal shares.
-		// wpds-allow R7 -- not a styled <div>: .vip-workflow-audit-log is a scope hook with no declarations of its own, and <Stack> is display:flex, which would change the box DataViews lays itself out in
-		<div className="vip-workflow-audit-log vip-workflow-card-surface">
+		// wpds-allow R7 -- not a styled <div>: .vip-workflows-audit-log is a scope hook with no declarations of its own, and <Stack> is display:flex, which would change the box DataViews lays itself out in
+		<div className="vip-workflows-audit-log vip-workflows-card-surface">
 			<DataViews
 				data={ data }
 				fields={ fields }
@@ -231,7 +231,7 @@ export function AuditLog() {
 				paginationInfo={ paginationInfo }
 				isLoading={ isLoading }
 				defaultLayouts={ { activity: {} } }
-				searchLabel={ __( 'Search audit log', 'vip-workflow' ) }
+				searchLabel={ __( 'Search audit log', 'vip-workflows' ) }
 				getItemId={ ( item ) => String( item.id ) }
 			/>
 

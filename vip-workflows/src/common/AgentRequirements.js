@@ -49,7 +49,7 @@ export function CredentialsLink( { credentialsUrl } ) {
 	 */
 	return (
 		<Link href={ credentialsUrl } openInNewTab rel="noopener noreferrer">
-			{ __( 'Where to get these credentials', 'vip-workflow' ) }
+			{ __( 'Where to get these credentials', 'vip-workflows' ) }
 		</Link>
 	);
 }
@@ -103,7 +103,7 @@ export function RequirementDestination( { destination } ) {
 		<>
 			<Text
 				variant="body-sm"
-				className="vip-workflow-agent-requirements__hint"
+				className="vip-workflows-agent-requirements__hint"
 			>
 				{ destination.hint }
 			</Text>
@@ -146,7 +146,7 @@ export function RequirementRow( { requirement, ownerLabel, showDestination } ) {
 
 	return (
 		<Stack
-			className="vip-workflow-agent-requirements__requirement"
+			className="vip-workflows-agent-requirements__requirement"
 			direction="column"
 			gap="xs"
 		>
@@ -156,11 +156,11 @@ export function RequirementRow( { requirement, ownerLabel, showDestination } ) {
 			{ showSources && (
 				<Text
 					variant="body-sm"
-					className="vip-workflow-agent-requirements__sources"
+					className="vip-workflows-agent-requirements__sources"
 				>
 					{ sprintf(
 						/* translators: %s: comma-separated list of capability names that need this requirement. */
-						__( 'Needed by: %s', 'vip-workflow' ),
+						__( 'Needed by: %s', 'vip-workflows' ),
 						sources.join( ', ' )
 					) }
 				</Text>
@@ -244,13 +244,13 @@ export function RequirementGroup( { group, ownerLabel, showDestinations } ) {
 	if ( 'any' === group.satisfy ) {
 		return (
 			<Stack
-				className="vip-workflow-agent-requirements__group"
+				className="vip-workflows-agent-requirements__group"
 				direction="column"
 				gap="xs"
 			>
 				{ requirements.length > 1 && (
 					<Text variant="body-md">
-						{ __( 'Configure at least one of:', 'vip-workflow' ) }
+						{ __( 'Configure at least one of:', 'vip-workflows' ) }
 					</Text>
 				) }
 				{ rows }
@@ -261,7 +261,7 @@ export function RequirementGroup( { group, ownerLabel, showDestinations } ) {
 
 	return (
 		<Stack
-			className="vip-workflow-agent-requirements__group"
+			className="vip-workflows-agent-requirements__group"
 			direction="column"
 			gap="md"
 		>
@@ -308,7 +308,7 @@ export function requirementText( groups ) {
 			if ( 'any' === group.satisfy && reasons.length > 1 ) {
 				return sprintf(
 					/* translators: %s: semicolon-separated list of requirements, any one of which is enough. */
-					__( 'Needs one of: %s', 'vip-workflow' ),
+					__( 'Needs one of: %s', 'vip-workflows' ),
 					reasons.join( '; ' )
 				);
 			}
@@ -375,7 +375,7 @@ export function AgentRequirements( {
 
 	return (
 		<Stack
-			className="vip-workflow-agent-requirements"
+			className="vip-workflows-agent-requirements"
 			direction="column"
 			gap="md"
 		>

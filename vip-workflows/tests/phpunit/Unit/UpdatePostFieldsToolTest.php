@@ -2,12 +2,12 @@
 /**
  * Update Post Fields ability tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use WP_Error;
@@ -45,7 +45,7 @@ class UpdatePostFieldsToolTest extends TestCase
             fn( $capability, $post_id = null ) => 'edit_post' === $capability && 123 === $post_id
         );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_post_fields(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_post_fields(
             array(
                 'post_id' => 123,
                 'fields'  => array( 'author' => 2 ),
@@ -65,7 +65,7 @@ class UpdatePostFieldsToolTest extends TestCase
             fn( $capability, $post_id = null ) => in_array( $capability, array( 'edit_post', 'edit_others_posts' ), true )
         );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_post_fields(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_post_fields(
             array(
                 'post_id' => 123,
                 'fields'  => array( 'author' => 2 ),
@@ -87,7 +87,7 @@ class UpdatePostFieldsToolTest extends TestCase
             fn( $capability, $post_id = null ) => 'edit_post' === $capability && 123 === $post_id
         );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_post_fields(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_post_fields(
             array(
                 'post_id' => 123,
                 'fields'  => array( 'title' => 'New Title' ),

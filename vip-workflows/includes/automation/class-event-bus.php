@@ -2,14 +2,14 @@
 /**
  * Event bus.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Automation;
+namespace VIPWorkflows\Automation;
 
-use VIPWorkflow\Database\Schema;
+use VIPWorkflows\Database\Schema;
 
 /**
  * Central event bus for workflow events.
@@ -20,7 +20,7 @@ use VIPWorkflow\Database\Schema;
  * flows" off the back of each event, and that engine was removed — nothing could
  * author a flow, so nothing ever ran. See the 2.24.0 schema migration.
  *
- * A subscriber wanting to act on an event hooks `vip_workflow_event_emitted`.
+ * A subscriber wanting to act on an event hooks `vip_workflows_event_emitted`.
  */
 class EventBus {
 
@@ -58,7 +58,7 @@ class EventBus {
 		 * @param array  $event_data Event data.
 		 * @param int    $event_id   Stored event ID.
 		 */
-		do_action( 'vip_workflow_event_emitted', $event_type, $event_data, $event_id );
+		do_action( 'vip_workflows_event_emitted', $event_type, $event_data, $event_id );
 	}
 
 	/**
@@ -73,7 +73,7 @@ class EventBus {
 		global $wpdb;
 
 		$wpdb->insert(
-			Schema::get_table_name( 'workflow_events' ),
+			Schema::get_table_name( 'workflows_events' ),
 			array(
 				'post_id'    => $context['post_id'] ?? null,
 				'event_type' => $event_type,

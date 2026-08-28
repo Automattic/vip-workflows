@@ -24,7 +24,7 @@ describe( 'ActionRow', () => {
 		);
 
 		const row = screen.getByText( 'Cancel' ).parentElement;
-		expect( row ).toHaveClass( 'vip-workflow-action-row' );
+		expect( row ).toHaveClass( 'vip-workflows-action-row' );
 		expect( row ).toHaveStyle( {
 			flexDirection: 'row',
 			justifyContent: 'flex-end',
@@ -59,7 +59,7 @@ describe( 'ActionRow', () => {
 		);
 
 		const row = screen.getByText( 'Save' ).parentElement;
-		expect( row ).toHaveClass( 'vip-workflow-action-row' );
+		expect( row ).toHaveClass( 'vip-workflows-action-row' );
 		expect( row ).toHaveClass( 'my-surface__actions' );
 	} );
 } );
@@ -74,8 +74,8 @@ describe( 'ModalActions', () => {
 		);
 
 		const row = screen.getByText( 'Cancel' ).parentElement;
-		expect( row ).toHaveClass( 'vip-workflow-modal-actions' );
-		expect( row ).toHaveClass( 'vip-workflow-action-row' );
+		expect( row ).toHaveClass( 'vip-workflows-modal-actions' );
+		expect( row ).toHaveClass( 'vip-workflows-action-row' );
 		expect( row ).toHaveStyle( {
 			flexDirection: 'row',
 			justifyContent: 'flex-end',

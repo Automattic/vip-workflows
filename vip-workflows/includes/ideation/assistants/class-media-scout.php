@@ -4,17 +4,17 @@
  *
  * Dedicated ability for finding visual and video assets. Runs all registered
  * media providers (Tavily images, Tavily videos, YouTube, AI generation, etc.).
- * Extensible via the `vip_workflow_media_providers` filter.
+ * Extensible via the `vip_workflows_media_providers` filter.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\RequirementGroup;
 
 /**
  * Media Scout.
@@ -25,11 +25,11 @@ class MediaScout {
 	 * Register as an ability.
 	 */
 	public static function register_ability(): void {
-		vip_workflow_register_ability(
-			'vip-workflow/media-scout',
+		vip_workflows_register_ability(
+			'vip-workflows/media-scout',
 			array(
-				'label'               => __( 'Media Scout', 'vip-workflow' ),
-				'description'         => __( 'Finds relevant images and videos from the web.', 'vip-workflow' ),
+				'label'               => __( 'Media Scout', 'vip-workflows' ),
+				'description'         => __( 'Finds relevant images and videos from the web.', 'vip-workflows' ),
 				'category'            => 'research',
 				'input_schema'        => array(
 					'type'       => 'object',
@@ -59,8 +59,8 @@ class MediaScout {
 					'show_in_commands'      => false,
 					'transition_eligible'   => false,
 					'icon'                  => 'camera',
-					'thinking_message'      => __( 'Searching for media...', 'vip-workflow' ),
-					'success_message'       => __( 'Media search complete.', 'vip-workflow' ),
+					'thinking_message'      => __( 'Searching for media...', 'vip-workflows' ),
+					'success_message'       => __( 'Media search complete.', 'vip-workflows' ),
 					'availability_callback' => array( self::class, 'check_availability' ),
 				),
 			)
@@ -156,7 +156,7 @@ class MediaScout {
 		if ( empty( $cards ) ) {
 			return array(
 				'cards'   => array(),
-				'summary' => __( 'No media found.', 'vip-workflow' ),
+				'summary' => __( 'No media found.', 'vip-workflows' ),
 			);
 		}
 
@@ -166,15 +166,15 @@ class MediaScout {
 		$parts = array();
 		if ( $image_count > 0 ) {
 			/* translators: %d: number of images */
-			$parts[] = sprintf( __( '%d images', 'vip-workflow' ), $image_count );
+			$parts[] = sprintf( __( '%d images', 'vip-workflows' ), $image_count );
 		}
 		if ( $video_count > 0 ) {
 			/* translators: %d: number of videos */
-			$parts[] = sprintf( __( '%d videos', 'vip-workflow' ), $video_count );
+			$parts[] = sprintf( __( '%d videos', 'vip-workflows' ), $video_count );
 		}
 
 		/* translators: %s: comma-separated list of media counts */
-		$summary = sprintf( __( 'Found %s from the web.', 'vip-workflow' ), implode( ', ', $parts ) );
+		$summary = sprintf( __( 'Found %s from the web.', 'vip-workflows' ), implode( ', ', $parts ) );
 
 		return array(
 			'cards'   => $cards,
@@ -221,12 +221,12 @@ class MediaScout {
 							'source'       => 'media-scout',
 						),
 					),
-					'summary' => __( 'Generated 1 AI image.', 'vip-workflow' ),
+					'summary' => __( 'Generated 1 AI image.', 'vip-workflows' ),
 				);
 			}
 		}
 
-		return new \WP_Error( 'no_provider', __( 'No generative media provider available.', 'vip-workflow' ) );
+		return new \WP_Error( 'no_provider', __( 'No generative media provider available.', 'vip-workflows' ) );
 	}
 
 	/**
@@ -247,6 +247,6 @@ class MediaScout {
 		 *
 		 * @param MediaProviderInterface[] $providers Registered media providers.
 		 */
-		return apply_filters( 'vip_workflow_media_providers', $providers );
+		return apply_filters( 'vip_workflows_media_providers', $providers );
 	}
 }

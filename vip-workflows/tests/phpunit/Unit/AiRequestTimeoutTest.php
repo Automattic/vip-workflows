@@ -2,14 +2,14 @@
 /**
  * Tests for the AI provider HTTP-timeout extension.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Plugin;
+use VIPWorkflows\Plugin;
 
 /**
  * Covers Plugin::extend_ai_request_timeout().

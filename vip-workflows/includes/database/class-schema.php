@@ -2,15 +2,15 @@
 /**
  * Database schema management.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Database;
+namespace VIPWorkflows\Database;
 
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
 
 /**
  * Handles database table creation and migrations.
@@ -26,7 +26,7 @@ class Schema {
 	/**
 	 * Option name for storing DB version.
 	 */
-	private const VERSION_OPTION = 'vip_workflow_db_version';
+	private const VERSION_OPTION = 'vip_workflows_db_version';
 
 	/**
 	 * Routing event ids the old System Events matrix wrote, mapped to the ids the
@@ -70,7 +70,7 @@ class Schema {
 	 * inferred region is a repaired sequence someone should confirm; a failed row is a
 	 * broken sequence someone has to fix. Deleted once an admin acknowledges it.
 	 */
-	public const REGION_REVIEW_OPTION = 'vip_workflow_sequences_need_region_review';
+	public const REGION_REVIEW_OPTION = 'vip_workflows_sequences_need_region_review';
 
 	/**
 	 * Install or upgrade database tables.
@@ -119,7 +119,7 @@ class Schema {
 				try {
 					( $migration['run'] )();
 				} catch ( \Throwable $e ) {
-					$message = sprintf( 'VIP Workflow schema migration to %s threw: %s', $migration['version'], $e->getMessage() );
+					$message = sprintf( 'VIP Workflows schema migration to %s threw: %s', $migration['version'], $e->getMessage() );
                     // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 					error_log( $message );
 					// phpcs:ignore WordPress.Security.EscapeOutput.ExceptionNotEscaped -- $e is the chained previous Throwable, not message output; the message is escaped above.
@@ -127,7 +127,7 @@ class Schema {
 				}
 
 				if ( $wpdb->last_error ) {
-					$message = sprintf( 'VIP Workflow schema migration to %s failed: %s', $migration['version'], $wpdb->last_error );
+					$message = sprintf( 'VIP Workflows schema migration to %s failed: %s', $migration['version'], $wpdb->last_error );
                     // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 					error_log( $message );
 					throw new \RuntimeException( esc_html( $message ) );
@@ -178,19 +178,19 @@ class Schema {
 				},
 			),
 			// The Workflow Notes (assets) subsystem was removed. Delete the
-			// vip_workflow_note posts + their orphaned postmeta. The _vip_workflow_asset
+			// vip_workflows_note posts + their orphaned postmeta. The _vip_workflows_asset
 			// media attachments are intentionally left in place (no custom table involved).
 			array(
 				'version' => '2.16.0',
 				'run'     => function (): void {
 					global $wpdb;
 
-					// Delete vip_workflow_note posts and their orphaned postmeta.
+					// Delete vip_workflows_note posts and their orphaned postmeta.
                     // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 					$wpdb->query(
 						"DELETE p, pm FROM {$wpdb->prefix}posts p
 						LEFT JOIN {$wpdb->prefix}postmeta pm ON pm.post_id = p.ID
-						WHERE p.post_type = 'vip_workflow_note'"
+						WHERE p.post_type = 'vip_workflows_note'"
 					);
 				},
 			),
@@ -276,7 +276,7 @@ class Schema {
 			// Events matrix wrote.
 			//
 			// Two places used to answer "does this event go to this channel": the
-			// `vip_workflow_notification_routing` option, and an `events` array
+			// `vip_workflows_notification_routing` option, and an `events` array
 			// inside each channel's own settings. The dispatcher read routing first
 			// and fell back to the per-channel list, so a site that only ever used
 			// the old matrix is answered entirely by the fallback. The admin no
@@ -285,7 +285,7 @@ class Schema {
 			//
 			// Read at the options level rather than through the channel registry:
 			// migrations run before channels are registered, and the storage is a
-			// plain `vip_workflow_channel_{id}` option per channel. Slack and ntfy
+			// plain `vip_workflows_channel_{id}` option per channel. Slack and ntfy
 			// never persisted `events` at all (their update_settings() merges a
 			// fixed key list), so there is nothing of theirs to carry over.
 			//
@@ -419,8 +419,8 @@ class Schema {
 					// Re-runnable by construction: a second pass matches no rows.
 					$wpdb->update(
 						$wpdb->postmeta,
-						array( 'meta_key' => '_vip_workflow_sequence_id' ),
-						array( 'meta_key' => '_vip_workflow_blueprint_id' )
+						array( 'meta_key' => '_vip_workflows_sequence_id' ),
+						array( 'meta_key' => '_vip_workflows_blueprint_id' )
 					);
 
 					// vip_automation_flows.blueprint_id became sequence_id. dbDelta cannot
@@ -515,7 +515,7 @@ class Schema {
 	private static function migrate_sequence_event_history(): void {
 		global $wpdb;
 
-		$events_table = $wpdb->prefix . 'vip_workflow_events';
+		$events_table = $wpdb->prefix . 'vip_workflows_events';
 		$type_map     = array(
 			'blueprint.updated'     => 'sequence.updated',
 			'blueprint.activated'   => 'sequence.activated',
@@ -630,7 +630,7 @@ class Schema {
 	 * the channels an admin chose under either are channels they asked for.
 	 */
 	protected static function rekey_routing_to_dispatched_event_ids(): void {
-		$routing = get_option( 'vip_workflow_notification_routing', array() );
+		$routing = get_option( 'vip_workflows_notification_routing', array() );
 		if ( ! is_array( $routing ) ) {
 			return;
 		}
@@ -652,7 +652,7 @@ class Schema {
 		}
 
 		if ( $changed ) {
-			update_option( 'vip_workflow_notification_routing', $routing, false );
+			update_option( 'vip_workflows_notification_routing', $routing, false );
 		}
 	}
 
@@ -676,7 +676,7 @@ class Schema {
 	 * ids would silently inherit whatever an admin ticked years earlier.
 	 */
 	protected static function drop_retired_event_routing(): void {
-		$routing = get_option( 'vip_workflow_notification_routing', array() );
+		$routing = get_option( 'vip_workflows_notification_routing', array() );
 		if ( ! is_array( $routing ) ) {
 			return;
 		}
@@ -699,7 +699,7 @@ class Schema {
 		}
 
 		if ( $changed ) {
-			update_option( 'vip_workflow_notification_routing', $routing, false );
+			update_option( 'vip_workflows_notification_routing', $routing, false );
 		}
 	}
 
@@ -712,12 +712,12 @@ class Schema {
 	protected static function seed_routing_from_channel_events(): void {
 		global $wpdb;
 
-		$routing = get_option( 'vip_workflow_notification_routing', array() );
+		$routing = get_option( 'vip_workflows_notification_routing', array() );
 		if ( ! is_array( $routing ) ) {
 			$routing = array();
 		}
 
-		$prefix       = 'vip_workflow_channel_';
+		$prefix       = 'vip_workflows_channel_';
 		$option_names = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
@@ -756,7 +756,7 @@ class Schema {
 		}
 
 		if ( $changed ) {
-			update_option( 'vip_workflow_notification_routing', $routing, false );
+			update_option( 'vip_workflows_notification_routing', $routing, false );
 		}
 	}
 
@@ -853,7 +853,7 @@ class Schema {
 				);
 
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflow] Cannot normalize sequence %d ("%s"): its stored config is not valid JSON.', (int) $row->id, (string) $row->slug ) );
+				error_log( sprintf( '[VIP Workflows] Cannot normalize sequence %d ("%s"): its stored config is not valid JSON.', (int) $row->id, (string) $row->slug ) );
 				continue;
 			}
 
@@ -882,7 +882,7 @@ class Schema {
 					);
 
 					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					error_log( sprintf( '[VIP Workflow] Cannot normalize sequence %d ("%s"); it needs manual repair in the Sequence editor: %s', (int) $row->id, (string) $row->slug, $rejected->getMessage() ) );
+					error_log( sprintf( '[VIP Workflows] Cannot normalize sequence %d ("%s"); it needs manual repair in the Sequence editor: %s', (int) $row->id, (string) $row->slug, $rejected->getMessage() ) );
 					continue;
 				}
 
@@ -900,12 +900,12 @@ class Schema {
 					);
 
 					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					error_log( sprintf( '[VIP Workflow] Cannot normalize sequence %d ("%s"); it needs manual repair in the Sequence editor: %s', (int) $row->id, (string) $row->slug, $unrepairable->getMessage() ) );
+					error_log( sprintf( '[VIP Workflows] Cannot normalize sequence %d ("%s"); it needs manual repair in the Sequence editor: %s', (int) $row->id, (string) $row->slug, $unrepairable->getMessage() ) );
 					continue;
 				}
 
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflow] Sequence %d ("%s"): removed %d transition(s) that would have left a stage holding two to one target. Originally rejected as: %s', (int) $row->id, (string) $row->slug, count( $repair['dropped'] ), $rejected->getMessage() ) );
+				error_log( sprintf( '[VIP Workflows] Sequence %d ("%s"): removed %d transition(s) that would have left a stage holding two to one target. Originally rejected as: %s', (int) $row->id, (string) $row->slug, count( $repair['dropped'] ), $rejected->getMessage() ) );
 			}
 
 			// A sequence whose regions were inferred rather than declared, or whose
@@ -1029,7 +1029,7 @@ class Schema {
 	protected static function repair_fabricated_stage_labels(): int {
 		global $wpdb;
 
-		$events_table     = self::get_table_name( 'workflow_events' );
+		$events_table     = self::get_table_name( 'workflows_events' );
 		$sequences_table = $wpdb->prefix . 'vip_sequences';
 
 		// `_` is a single-character LIKE wildcard, so this only narrows the scan;
@@ -1086,7 +1086,7 @@ class Schema {
 
 			if ( ! is_array( $data ) ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflow] Cannot repair stage labels on workflow event %d: its stored event_data is not valid JSON.', (int) $row->id ) );
+				error_log( sprintf( '[VIP Workflows] Cannot repair stage labels on workflow event %d: its stored event_data is not valid JSON.', (int) $row->id ) );
 				continue;
 			}
 
@@ -1095,7 +1095,7 @@ class Schema {
 
 			if ( null === $stage_labels ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflow] Cannot repair stage labels on workflow event %d: it names sequence "%s", which does not resolve to exactly one stored sequence.', (int) $row->id, $sequence_name ) );
+				error_log( sprintf( '[VIP Workflows] Cannot repair stage labels on workflow event %d: it names sequence "%s", which does not resolve to exactly one stored sequence.', (int) $row->id, $sequence_name ) );
 				continue;
 			}
 
@@ -1114,7 +1114,7 @@ class Schema {
 
 				if ( ! isset( $stage_labels[ $stage_key ] ) ) {
 					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					error_log( sprintf( '[VIP Workflow] Cannot repair the %s stage label on workflow event %d: sequence "%s" no longer defines stage "%s".', $side, (int) $row->id, $sequence_name, $stage_key ) );
+					error_log( sprintf( '[VIP Workflows] Cannot repair the %s stage label on workflow event %d: sequence "%s" no longer defines stage "%s".', $side, (int) $row->id, $sequence_name, $stage_key ) );
 					continue;
 				}
 
@@ -1133,7 +1133,7 @@ class Schema {
 			$encoded = wp_json_encode( $data );
 			if ( false === $encoded ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflow] Cannot repair stage labels on workflow event %d: its repaired event_data could not be encoded.', (int) $row->id ) );
+				error_log( sprintf( '[VIP Workflows] Cannot repair stage labels on workflow event %d: its repaired event_data could not be encoded.', (int) $row->id ) );
 				continue;
 			}
 
@@ -1257,14 +1257,14 @@ class Schema {
 
 		if ( ! empty( $promoted ) ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflow] Sequence %d ("%s"): seated stage(s) "%s" in the publish region, proven by their legacy publish flag.', $id, $slug, implode( '", "', $promoted ) ) );
+			error_log( sprintf( '[VIP Workflows] Sequence %d ("%s"): seated stage(s) "%s" in the publish region, proven by their legacy publish flag.', $id, $slug, implode( '", "', $promoted ) ) );
 		}
 
 		if ( ! empty( $defaulted ) ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log(
 				sprintf(
-					'[VIP Workflow] Sequence %d ("%s"): stage(s) "%s" declared no status region and nothing in the stored config proves one, so they were seated in the least-privileged "draft" region. Review them in the Sequence editor — any stage that should submit for review belongs in "pending", and any that publishes belongs in "publish".',
+					'[VIP Workflows] Sequence %d ("%s"): stage(s) "%s" declared no status region and nothing in the stored config proves one, so they were seated in the least-privileged "draft" region. Review them in the Sequence editor — any stage that should submit for review belongs in "pending", and any that publishes belongs in "publish".',
 					$id,
 					$slug,
 					implode( '", "', $defaulted )
@@ -1356,7 +1356,7 @@ class Schema {
 
 				if ( ! isset( $defined[ $to ] ) && in_array( $to, $core_statuses, true ) ) {
 					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					error_log( sprintf( '[VIP Workflow] Sequence %d ("%s"): dropped the legacy transition from stage "%s" to core status "%s", which is a status region or overlay rather than a stage.', $id, $slug, (string) ( $stage['key'] ?? '' ), $to ) );
+					error_log( sprintf( '[VIP Workflows] Sequence %d ("%s"): dropped the legacy transition from stage "%s" to core status "%s", which is a status region or overlay rather than a stage.', $id, $slug, (string) ( $stage['key'] ?? '' ), $to ) );
 					continue;
 				}
 
@@ -1404,7 +1404,7 @@ class Schema {
 		dbDelta( $sql );
 
 		// Workflow Roles table.
-		$sql = "CREATE TABLE {$wpdb->prefix}vip_workflow_roles (
+		$sql = "CREATE TABLE {$wpdb->prefix}vip_workflows_roles (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			role_key varchar(100) NOT NULL,
 			display_name varchar(255) NOT NULL,
@@ -1417,7 +1417,7 @@ class Schema {
 		dbDelta( $sql );
 
 		// Workflow Desks table.
-		$sql = "CREATE TABLE {$wpdb->prefix}vip_workflow_desks (
+		$sql = "CREATE TABLE {$wpdb->prefix}vip_workflows_desks (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			name varchar(255) NOT NULL,
 			slug varchar(255) NOT NULL,
@@ -1431,7 +1431,7 @@ class Schema {
 		dbDelta( $sql );
 
 		// User-to-Desk mapping table.
-		$sql = "CREATE TABLE {$wpdb->prefix}vip_workflow_user_desks (
+		$sql = "CREATE TABLE {$wpdb->prefix}vip_workflows_user_desks (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			user_id bigint(20) unsigned NOT NULL,
 			desk_id bigint(20) unsigned NOT NULL,
@@ -1443,7 +1443,7 @@ class Schema {
 		dbDelta( $sql );
 
 		// Workflow Events table (audit log for posts).
-		$sql = "CREATE TABLE {$wpdb->prefix}vip_workflow_events (
+		$sql = "CREATE TABLE {$wpdb->prefix}vip_workflows_events (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			post_id bigint(20) unsigned DEFAULT NULL,
 			event_type varchar(100) NOT NULL,
@@ -1461,7 +1461,7 @@ class Schema {
 		dbDelta( $sql );
 
 		// Notifications table.
-		$sql = "CREATE TABLE {$wpdb->prefix}vip_workflow_notifications (
+		$sql = "CREATE TABLE {$wpdb->prefix}vip_workflows_notifications (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			user_id bigint(20) unsigned NOT NULL,
 			post_id bigint(20) unsigned DEFAULT NULL,
@@ -1593,11 +1593,11 @@ class Schema {
 
 		return array(
 			$wpdb->prefix . 'vip_ability_results',
-			$wpdb->prefix . 'vip_workflow_notifications',
-			$wpdb->prefix . 'vip_workflow_events',
-			$wpdb->prefix . 'vip_workflow_user_desks',
-			$wpdb->prefix . 'vip_workflow_desks',
-			$wpdb->prefix . 'vip_workflow_roles',
+			$wpdb->prefix . 'vip_workflows_notifications',
+			$wpdb->prefix . 'vip_workflows_events',
+			$wpdb->prefix . 'vip_workflows_user_desks',
+			$wpdb->prefix . 'vip_workflows_desks',
+			$wpdb->prefix . 'vip_workflows_roles',
 			$wpdb->prefix . 'vip_sequences',
 			$wpdb->prefix . 'vip_ideation_sources',
 			$wpdb->prefix . 'vip_ideation_analyses',

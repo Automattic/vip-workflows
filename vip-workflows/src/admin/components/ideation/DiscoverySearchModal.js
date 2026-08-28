@@ -51,10 +51,10 @@ export default function DiscoverySearchModal( {
 			try {
 				const [ providers, filters ] = await Promise.all( [
 					apiFetch( {
-						path: '/vip-workflow/v1/discovery/providers',
+						path: '/vip-workflows/v1/discovery/providers',
 					} ),
 					apiFetch( {
-						path: `/vip-workflow/v1/discovery/filters?provider=${ provider }`,
+						path: `/vip-workflows/v1/discovery/filters?provider=${ provider }`,
 					} ),
 				] );
 
@@ -98,7 +98,7 @@ export default function DiscoverySearchModal( {
 				}
 
 				const data = await apiFetch( {
-					path: `/vip-workflow/v1/discovery/search?${ params.toString() }`,
+					path: `/vip-workflows/v1/discovery/search?${ params.toString() }`,
 				} );
 				setResults( data );
 			} catch {
@@ -148,42 +148,42 @@ export default function DiscoverySearchModal( {
 		<Modal
 			title={
 				providerMeta?.label
-					? `${ __( 'Search', 'vip-workflow' ) } ${
+					? `${ __( 'Search', 'vip-workflows' ) } ${
 							providerMeta.label
 					  }`
-					: __( 'Search stories', 'vip-workflow' )
+					: __( 'Search stories', 'vip-workflows' )
 			}
 			onRequestClose={ onClose }
-			className="vip-workflow-ideation-discovery-modal"
+			className="vip-workflows-ideation-discovery-modal"
 			size="large"
 		>
 			<Stack
 				direction="column"
 				gap="xl"
-				className="vip-workflow-ideation-discovery-modal__body"
+				className="vip-workflows-ideation-discovery-modal__body"
 			>
 				<Stack
 					direction="column"
 					gap="md"
-					className="vip-workflow-ideation-discovery-modal__controls"
+					className="vip-workflows-ideation-discovery-modal__controls"
 				>
 					<TextControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
 						placeholder={ __(
 							'Search for topics, events, keywords…',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 						value={ searchText }
 						onChange={ handleTextChange }
 						onKeyDown={ handleKeyDown }
-						className="vip-workflow-ideation-discovery-modal__search-input"
+						className="vip-workflows-ideation-discovery-modal__search-input"
 					/>
 
 					{ loadingFilters ? (
 						<Stack
 							justify="center"
-							className="vip-workflow-ideation-discovery-modal__filters-loading"
+							className="vip-workflows-ideation-discovery-modal__filters-loading"
 						>
 							<Spinner />
 						</Stack>
@@ -192,7 +192,7 @@ export default function DiscoverySearchModal( {
 							<Stack
 								wrap="wrap"
 								gap="md"
-								className="vip-workflow-ideation-discovery-modal__filters"
+								className="vip-workflows-ideation-discovery-modal__filters"
 							>
 								{ filterDefs.map( ( filter ) => (
 									<FilterControl
@@ -218,16 +218,16 @@ export default function DiscoverySearchModal( {
 							isBusy={ searching }
 							disabled={ searching }
 						>
-							{ __( 'Search', 'vip-workflow' ) }
+							{ __( 'Search', 'vip-workflows' ) }
 						</Button>
 					</ModalActions>
 				</Stack>
 
-				<div className="vip-workflow-ideation-discovery-modal__results">
+				<div className="vip-workflows-ideation-discovery-modal__results">
 					{ searching && (
 						<Stack
 							justify="center"
-							className="vip-workflow-ideation-discovery-modal__results-loading"
+							className="vip-workflows-ideation-discovery-modal__results-loading"
 						>
 							<Spinner />
 						</Stack>
@@ -239,18 +239,18 @@ export default function DiscoverySearchModal( {
 							<Text
 								variant="body-md"
 								render={ <p /> }
-								className="vip-workflow-ideation-discovery-modal__no-results"
+								className="vip-workflows-ideation-discovery-modal__no-results"
 							>
 								{ __(
 									'No results found. Try different search terms or filters.',
-									'vip-workflow'
+									'vip-workflows'
 								) }
 							</Text>
 						) }
 
 					{ ! searching && results !== null && results.length > 0 && (
 						// wpds-allow R7 -- responsive 2D auto-fill grid; Stack is 1D flex only
-						<div className="vip-workflow-ideation-discovery-modal__results-grid">
+						<div className="vip-workflows-ideation-discovery-modal__results-grid">
 							{ results.map( ( prompt ) => {
 								const promptKey = `${ provider }-${ prompt.id }`;
 								const isSubmitting = submitting === promptKey;
@@ -258,7 +258,7 @@ export default function DiscoverySearchModal( {
 								return (
 									<Button
 										key={ prompt.id }
-										className="vip-workflow-ideation-discovery__card"
+										className="vip-workflows-ideation-discovery__card"
 										onClick={ () =>
 											onSelect( providerMeta, prompt )
 										}
@@ -267,23 +267,23 @@ export default function DiscoverySearchModal( {
 									>
 										{ isSubmitting && (
 											// wpds-allow R7 -- absolute spinner overlay/scrim; styled in StoryDiscovery.css
-											<div className="vip-workflow-ideation-discovery__card-loading">
+											<div className="vip-workflows-ideation-discovery__card-loading">
 												<Spinner />
 											</div>
 										) }
 										{ /* wpds-allow R7 -- line-clamped title (webkit-box); no Text prop expresses clamp */ }
-										<span className="vip-workflow-ideation-discovery__card-title">
+										<span className="vip-workflows-ideation-discovery__card-title">
 											{ prompt.title }
 										</span>
 										{ prompt.description && (
 											// wpds-allow R7 -- line-clamped description; no Text prop for clamp
-											<span className="vip-workflow-ideation-discovery__card-description">
+											<span className="vip-workflows-ideation-discovery__card-description">
 												{ prompt.description }
 											</span>
 										) }
 										{ prompt.date && (
 											// wpds-allow R7 -- inline meta label (body-sm); styled in StoryDiscovery.css
-											<span className="vip-workflow-ideation-discovery__card-date">
+											<span className="vip-workflows-ideation-discovery__card-date">
 												{ formatPartialDate(
 													prompt.date,
 													prompt.meta?.start_has_time
@@ -292,7 +292,7 @@ export default function DiscoverySearchModal( {
 										) }
 										{ prompt.tags?.length > 0 && (
 											// wpds-allow R7 -- inline tag list (body-sm); styled in StoryDiscovery.css
-											<span className="vip-workflow-ideation-discovery__card-tags">
+											<span className="vip-workflows-ideation-discovery__card-tags">
 												{ prompt.tags
 													.slice( 0, 3 )
 													.join( ', ' ) }
@@ -330,7 +330,7 @@ function FilterControl( { filter, value, onChange } ) {
 					value: opt.value,
 				} ) ) }
 				onChange={ onChange }
-				className="vip-workflow-ideation-discovery-modal__filter"
+				className="vip-workflows-ideation-discovery-modal__filter"
 			/>
 		);
 	}
@@ -347,7 +347,7 @@ function FilterControl( { filter, value, onChange } ) {
 					value: String( opt.value ),
 				} ) ) }
 				onChange={ onChange }
-				className="vip-workflow-ideation-discovery-modal__filter"
+				className="vip-workflows-ideation-discovery-modal__filter"
 			/>
 		);
 	}
@@ -357,12 +357,12 @@ function FilterControl( { filter, value, onChange } ) {
 			<Stack
 				direction="column"
 				gap="xs"
-				className="vip-workflow-ideation-discovery-modal__filter"
+				className="vip-workflows-ideation-discovery-modal__filter"
 			>
 				<Text
 					variant="heading-sm"
 					render={ <span /> }
-					className="vip-workflow-eyebrow"
+					className="vip-workflows-eyebrow"
 				>
 					{ filter.label }
 				</Text>
@@ -380,9 +380,9 @@ function FilterControl( { filter, value, onChange } ) {
 						onChange={ ( from ) =>
 							onChange( { ...( value || {} ), from } )
 						}
-						className="vip-workflow-ideation-discovery-modal__date-input"
+						className="vip-workflows-ideation-discovery-modal__date-input"
 					/>
-					<span>{ __( 'to', 'vip-workflow' ) }</span>
+					<span>{ __( 'to', 'vip-workflows' ) }</span>
 					<TextControl
 						__next40pxDefaultSize
 						__nextHasNoMarginBottom
@@ -391,7 +391,7 @@ function FilterControl( { filter, value, onChange } ) {
 						onChange={ ( to ) =>
 							onChange( { ...( value || {} ), to } )
 						}
-						className="vip-workflow-ideation-discovery-modal__date-input"
+						className="vip-workflows-ideation-discovery-modal__date-input"
 					/>
 				</Stack>
 			</Stack>

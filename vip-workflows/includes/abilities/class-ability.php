@@ -2,7 +2,7 @@
 /**
  * Ability class - extends WP Core's WP_Ability.
  *
- * Adds VIP Workflow-specific extensions:
+ * Adds VIP Workflows-specific extensions:
  * - availability_callback for runtime dependency checks
  * - display_order for UI sorting
  * - icon, thinking_message, success_message for frontend display
@@ -11,13 +11,13 @@
  * strict property validation. Register with ability_class => Ability::class
  * so Core instantiates this subclass directly.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  * @see     WP_Ability
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
 /**
  * Ability.
@@ -61,8 +61,8 @@ class Ability extends \WP_Ability {
 		parent::__construct( $name, $args );
 
 		$this->icon                  = $this->meta['icon'] ?? 'tool';
-		$this->thinking_message      = $this->meta['thinking_message'] ?? __( 'Processing...', 'vip-workflow' );
-		$this->success_message       = $this->meta['success_message'] ?? __( 'Completed successfully.', 'vip-workflow' );
+		$this->thinking_message      = $this->meta['thinking_message'] ?? __( 'Processing...', 'vip-workflows' );
+		$this->success_message       = $this->meta['success_message'] ?? __( 'Completed successfully.', 'vip-workflows' );
 		$this->availability_callback = $this->meta['availability_callback'] ?? null;
 	}
 

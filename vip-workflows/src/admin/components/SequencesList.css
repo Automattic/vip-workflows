@@ -7,7 +7,7 @@
  * left here.
  */
 
-.vip-workflow-sequences-empty {
+.vip-workflows-sequences-empty {
 	text-align: center;
 	padding: var(--wpds-dimension-gap-3xl);
 	background: var(--wpds-color-background-surface-neutral);
@@ -21,14 +21,14 @@
    <DropZone> fills its nearest positioned ancestor, which is what `relative`
    makes this — <Modal> puts our children inside `__children-container`, so
    that is the element to position, not the content box around it. */
-.vip-workflow-import-modal .components-modal__children-container {
+.vip-workflows-import-modal .components-modal__children-container {
 	position: relative;
 }
 
 /* Import modal drop target: the browse control and its hint, inside a box that
    shows where a dragged file can be released before any drag starts. The box
    is the affordance only — the area that accepts the drop is the body above. */
-.vip-workflow-import-modal__drop-target {
+.vip-workflows-import-modal__drop-target {
 	padding: var(--wpds-dimension-padding-lg);
 	border: 1px dashed var(--wpds-color-stroke-surface-neutral);
 	border-radius: var(--wpds-border-radius-md);
@@ -37,7 +37,7 @@
 
 /* Import modal type preview. The modal body is a <Stack>, so this box carries
    no margins of its own. */
-.vip-workflow-import-modal__type-preview {
+.vip-workflows-import-modal__type-preview {
 	padding: var(--wpds-dimension-padding-md);
 	background: var(--wpds-color-background-surface-neutral-weak);
 	border-radius: var(--wpds-border-radius-md);

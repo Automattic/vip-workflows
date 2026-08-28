@@ -8,15 +8,15 @@
  * resolution, and the stage-change event dispatch — none of which the
  * Brain\Monkey unit suite can prove.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Real-WordPress tests for StatusManager under the matrix model.
@@ -117,14 +117,14 @@ class StatusTransitionIntegrationTest extends TestCase
 	 */
 	private function status_manager_with_mapping(): StatusManager
 	{
-		$post_type_manager = new \VIPWorkflow\Workflow\PostTypeManager();
+		$post_type_manager = new \VIPWorkflows\Workflow\PostTypeManager();
 		$post_type_manager->register_post_types();
 
 		return new StatusManager( null, $post_type_manager );
 	}
 
 	/**
-	 * Collect vip_workflow_status_transition dispatches for one post.
+	 * Collect vip_workflows_status_transition dispatches for one post.
 	 *
 	 * @param int   $post_id Post to filter on.
 	 * @param array $events  Capture target: [new, old, context] triples (by reference).
@@ -137,7 +137,7 @@ class StatusTransitionIntegrationTest extends TestCase
 				$events[] = array( $new, $old, $context );
 			}
 		};
-		add_action( 'vip_workflow_status_transition', $listener, 10, 5 );
+		add_action( 'vip_workflows_status_transition', $listener, 10, 5 );
 		return $listener;
 	}
 
@@ -159,7 +159,7 @@ class StatusTransitionIntegrationTest extends TestCase
 
 		$result = ( new StatusManager() )->transition( $post_id, 'review' );
 
-		remove_action( 'vip_workflow_status_transition', $listener, 10 );
+		remove_action( 'vip_workflows_status_transition', $listener, 10 );
 
 		$this->assertTrue( $result );
 		$this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
@@ -209,11 +209,11 @@ class StatusTransitionIntegrationTest extends TestCase
 				$status_at_dispatch = get_post_status( $id );
 			}
 		};
-		add_action( 'vip_workflow_status_transition', $listener, 10, 1 );
+		add_action( 'vip_workflows_status_transition', $listener, 10, 1 );
 
 		$result = ( new StatusManager() )->transition( $post_id, 'published' );
 
-		remove_action( 'vip_workflow_status_transition', $listener, 10 );
+		remove_action( 'vip_workflows_status_transition', $listener, 10 );
 
 		$this->assertTrue( $result );
 		$this->assertSame( 'publish', get_post_status( $post_id ) );
@@ -245,7 +245,7 @@ class StatusTransitionIntegrationTest extends TestCase
 
 		$result = ( new StatusManager() )->transition( $post_id, 'published' );
 
-		remove_action( 'vip_workflow_status_transition', $listener, 10 );
+		remove_action( 'vip_workflows_status_transition', $listener, 10 );
 
 		$this->assertTrue( $result, 'The coercion is not a failure.' );
 		$this->assertSame( 'future', get_post_status( $post_id ), 'Core committed `future` for the future-dated post.' );
@@ -328,7 +328,7 @@ class StatusTransitionIntegrationTest extends TestCase
 			),
 		);
 		$wpdb->update(
-			\VIPWorkflow\Database\Schema::get_table_name( 'sequences' ),
+			\VIPWorkflows\Database\Schema::get_table_name( 'sequences' ),
 			array( 'config' => wp_json_encode( $corrupted ) ),
 			array( 'id' => $sequence_id )
 		);
@@ -363,7 +363,7 @@ class StatusTransitionIntegrationTest extends TestCase
 		$fresh_instance = new StatusManager();
 		$result = $fresh_instance->transition( $post_id, 'published' );
 
-		remove_action( 'vip_workflow_status_transition', $listener, 10 );
+		remove_action( 'vip_workflows_status_transition', $listener, 10 );
 
 		$this->assertTrue( $result );
 		$this->assertSame( 'published', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
@@ -383,10 +383,10 @@ class StatusTransitionIntegrationTest extends TestCase
 	{
 		$post_id = $this->make_workflow_post( 'draft', 'draft' );
 
-		$controller = new \VIPWorkflow\API\WorkflowController();
+		$controller = new \VIPWorkflows\API\WorkflowController();
 
 		// Same-region move: draft -> review keeps post_status draft.
-		$request = new \WP_REST_Request( 'POST', "/vip-workflow/v1/workflow/post/{$post_id}/transition" );
+		$request = new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/transition" );
 		$request->set_param( 'id', $post_id );
 		$request->set_param( 'to_status', 'review' );
 
@@ -399,7 +399,7 @@ class StatusTransitionIntegrationTest extends TestCase
 
 		// Crossing: review -> published commits post_status publish and the
 		// response reports it.
-		$request = new \WP_REST_Request( 'POST', "/vip-workflow/v1/workflow/post/{$post_id}/transition" );
+		$request = new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/transition" );
 		$request->set_param( 'id', $post_id );
 		$request->set_param( 'to_status', 'published' );
 
@@ -487,7 +487,7 @@ class StatusTransitionIntegrationTest extends TestCase
 
 		wp_publish_post( $post_id ); // core-driven, no StatusManager::transition().
 
-		remove_action( 'vip_workflow_status_transition', $listener, 10 );
+		remove_action( 'vip_workflows_status_transition', $listener, 10 );
 
 		$this->assertSame( 'published', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
 		$this->assertCount( 1, $events, 'The checkpoint reseat dispatches exactly once.' );
@@ -511,7 +511,7 @@ class StatusTransitionIntegrationTest extends TestCase
 
 		wp_update_post( array( 'ID' => $post_id, 'post_status' => 'draft' ) );
 
-		remove_action( 'vip_workflow_status_transition', $listener, 10 );
+		remove_action( 'vip_workflows_status_transition', $listener, 10 );
 
 		$this->assertSame( 'draft', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ), 'Publish-region stage reseats at the draft checkpoint.' );
 		$this->assertCount( 1, $events );
@@ -582,7 +582,7 @@ class StatusTransitionIntegrationTest extends TestCase
 
 		wp_update_post( array( 'ID' => $post_id, 'post_status' => 'pending' ) );
 
-		remove_action( 'vip_workflow_status_transition', $listener, 10 );
+		remove_action( 'vip_workflows_status_transition', $listener, 10 );
 
 		$this->assertSame( 'pending', get_post_status( $post_id ) );
 		$this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ), 'Stage left in place for an unmodeled region.' );
@@ -607,7 +607,7 @@ class StatusTransitionIntegrationTest extends TestCase
 
 		$result = $this->status_manager_with_mapping()->assign_sequence( $post_id, $this->sequence_id );
 
-		remove_action( 'vip_workflow_status_transition', $listener, 10 );
+		remove_action( 'vip_workflows_status_transition', $listener, 10 );
 
 		$this->assertTrue( $result );
 		$this->assertSame( 'published', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );

@@ -24,8 +24,8 @@
    checkable against the layout it is matching. Density-dependent: this is the
    `balanced` density both streams use, the layout's default. */
 /* wpds-allow R6 -- vertical alignment between a vendored layout's own columns; DataViews exposes no prop for where its actions sit */
-.vip-workflow-audit-log .dataviews-view-activity__item-actions,
-.vip-workflow-history-modal .dataviews-view-activity__item-actions {
+.vip-workflows-audit-log .dataviews-view-activity__item-actions,
+.vip-workflows-history-modal .dataviews-view-activity__item-actions {
 	/* wpds-allow R3 -- the parent Stack is DataViews' own and takes no gap from here; only this one column moves, so a gap would be wrong anyway */
 	margin-top: calc(
 		var(--wpds-dimension-gap-md) + var(--wpds-dimension-gap-xs)
@@ -38,7 +38,7 @@
    above the description. Collapsing an empty slot is what the layout already
    does for the meta row itself (`…__item-fields:empty { display: none }`); the
    title and description were the oversight. */
-.vip-workflow-audit-log .dataviews-view-activity__item-title:empty,
-.vip-workflow-history-modal .dataviews-view-activity__item-title:empty {
+.vip-workflows-audit-log .dataviews-view-activity__item-title:empty,
+.vip-workflows-history-modal .dataviews-view-activity__item-title:empty {
 	display: none; /* wpds-allow R6 -- collapses an empty slot in vendored dataviews.css; no component prop for it */
 }

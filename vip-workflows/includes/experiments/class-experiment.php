@@ -6,14 +6,14 @@
  * admin modules, and cleanup logic. The ExperimentRegistry checks enabled state
  * before registering modules.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Experiments;
+namespace VIPWorkflows\Experiments;
 
-use VIPWorkflow\ModuleInterface;
+use VIPWorkflows\ModuleInterface;
 
 /**
  * Abstract base class for experiments.

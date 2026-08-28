@@ -1,8 +1,8 @@
-# VIP Workflow Plugin Integration Guide
+# VIP Workflows Plugin Integration Guide
 
 ## Overview
 
-VIP Workflow's admin screens are standard WordPress admin pages under a top-level **Workflows** menu — they render in the normal wp-admin canvas, with the native admin menu and admin bar intact. Third-party plugins add their own pages the ordinary WordPress way; nothing special is required.
+VIP Workflows' admin screens are standard WordPress admin pages under a top-level **Workflows** menu — they render in the normal wp-admin canvas, with the native admin menu and admin bar intact. Third-party plugins add their own pages the ordinary WordPress way; nothing special is required.
 
 > **Note:** Earlier versions wrapped every Workflow page in a custom fullscreen "app shell" that hid the WordPress chrome and injected a React sidebar. That shell was removed — pages now render natively. If you previously relied on the shell (auto-injected sidebar, `is-workflow-plugin-page` body class, fullscreen takeover), see [Migrating off the app shell](#migrating-off-the-app-shell) below.
 
@@ -10,12 +10,12 @@ VIP Workflow's admin screens are standard WordPress admin pages under a top-leve
 
 ### Basic Integration
 
-To add your plugin page beside the core Workflow screens, register it as a submenu under the `vip-workflow` parent:
+To add your plugin page beside the core Workflow screens, register it as a submenu under the `vip-workflows` parent:
 
 ```php
 add_action( 'admin_menu', function() {
     add_submenu_page(
-        'vip-workflow',           // Parent slug
+        'vip-workflows',           // Parent slug
         'My Plugin Page',         // Page title
         'My Plugin',              // Menu title
         'edit_posts',             // Capability
@@ -33,8 +33,8 @@ Your page will:
 ### How It Works
 
 1. **Standard registration**: You register a submenu page with WordPress core's `add_submenu_page()` — exactly as you would for any plugin.
-2. **Native rendering**: Your render callback outputs standard admin HTML into `#wpbody-content`. VIP Workflow does not intercept, buffer, or re-wrap it.
-3. **Menu ordering only**: VIP Workflow reorders its own submenu so core screens are grouped sensibly and third-party pages follow. It does not modify your page's content or chrome.
+2. **Native rendering**: Your render callback outputs standard admin HTML into `#wpbody-content`. VIP Workflows does not intercept, buffer, or re-wrap it.
+3. **Menu ordering only**: VIP Workflows reorders its own submenu so core screens are grouped sensibly and third-party pages follow. It does not modify your page's content or chrome.
 4. **No configuration**: No special hooks, filters, or body classes are involved.
 
 ### Menu Position
@@ -43,7 +43,7 @@ You can influence where your item appears with the optional position argument:
 
 ```php
 add_submenu_page(
-    'vip-workflow',
+    'vip-workflows',
     'My Tool',
     'My Tool',
     'edit_posts',
@@ -53,7 +53,7 @@ add_submenu_page(
 );
 ```
 
-VIP Workflow groups its own core items ahead of third-party pages, so external pages render in the Integrations group regardless of a low position number. Native wp-admin submenu items do not display icons.
+VIP Workflows groups its own core items ahead of third-party pages, so external pages render in the Integrations group regardless of a low position number. Native wp-admin submenu items do not display icons.
 
 ### Important Notes
 
@@ -62,13 +62,13 @@ VIP Workflow groups its own core items ahead of third-party pages, so external p
    - `edit_others_posts` - Editors and admins
    - `manage_options` - Admins only
 
-2. **Priority**: Register your submenu with priority 20 or higher to ensure VIP Workflow's core pages load first.
+2. **Priority**: Register your submenu with priority 20 or higher to ensure VIP Workflows' core pages load first.
 
 3. **Render Function**: Your render callback should output standard WordPress admin HTML. No special wrappers or divs needed.
 
 4. **Styling**: Your page inherits the standard WordPress admin styles. If you need custom styles, enqueue them normally with `admin_enqueue_scripts`.
 
-5. **Scripts**: Enqueue JavaScript as you normally would. VIP Workflow does not enqueue its admin bundle on third-party pages and does not interfere with your scripts.
+5. **Scripts**: Enqueue JavaScript as you normally would. VIP Workflows does not enqueue its admin bundle on third-party pages and does not interfere with your scripts.
 
 ### Example: Complete Plugin Integration
 
@@ -76,7 +76,7 @@ VIP Workflow groups its own core items ahead of third-party pages, so external p
 <?php
 /**
  * Plugin Name: My Workflow Extension
- * Description: Adds custom functionality to VIP Workflow
+ * Description: Adds custom functionality to VIP Workflows
  */
 
 class My_Workflow_Extension {
@@ -88,7 +88,7 @@ class My_Workflow_Extension {
 
     public function register_menu(): void {
         add_submenu_page(
-            'vip-workflow',
+            'vip-workflows',
             __( 'My Extension', 'my-plugin' ),
             __( 'My Extension', 'my-plugin' ),
             'edit_posts',
@@ -150,7 +150,7 @@ new My_Workflow_Extension();
 
 If your page doesn't appear or doesn't render correctly:
 
-1. **Check the parent slug**: Must be exactly `vip-workflow`
+1. **Check the parent slug**: Must be exactly `vip-workflows`
 2. **Check capabilities**: Ensure the current user has the required capability
 3. **Check the hook suffix**: For pages under the Workflows menu it is `workflows_page_{your-menu-slug}` (note the plural, sanitized from the "Workflows" parent title)
 4. **Browser console**: Check for JavaScript errors
@@ -205,9 +205,9 @@ document.addEventListener( 'DOMContentLoaded', () => {
 
 ---
 
-## Extending VIP Workflow Services
+## Extending VIP Workflows Services
 
-Beyond admin pages, VIP Workflow exposes several filter-based extension points that let plugins add functionality to core systems. Every extension uses the same pattern: implement an interface, register via a WordPress filter.
+Beyond admin pages, VIP Workflows exposes several filter-based extension points that let plugins add functionality to core systems. Every extension uses the same pattern: implement an interface, register via a WordPress filter.
 
 ### Media Providers
 
@@ -216,7 +216,7 @@ Add custom image or video sources to the Story Ideation workspace. Media provide
 #### The Interface
 
 ```php
-use VIPWorkflow\Ideation\Assistants\MediaProviderInterface;
+use VIPWorkflows\Ideation\Assistants\MediaProviderInterface;
 
 interface MediaProviderInterface {
     public function get_id(): string;        // Unique slug, e.g. 'unsplash'
@@ -248,7 +248,7 @@ array(
 #### Registering a Provider
 
 ```php
-add_filter( 'vip_workflow_media_providers', function( $providers ) {
+add_filter( 'vip_workflows_media_providers', function( $providers ) {
     $providers[] = new My_Unsplash_Provider();
     return $providers;
 } );
@@ -262,11 +262,11 @@ add_filter( 'vip_workflow_media_providers', function( $providers ) {
 <?php
 /**
  * Plugin Name: Workflow Provider: Unsplash
- * Description: Adds Unsplash photo search to VIP Workflow ideation.
+ * Description: Adds Unsplash photo search to VIP Workflows ideation.
  * Requires Plugins: vip-workflows
  */
 
-use VIPWorkflow\Ideation\Assistants\MediaProviderInterface;
+use VIPWorkflows\Ideation\Assistants\MediaProviderInterface;
 
 class Unsplash_Media_Provider implements MediaProviderInterface {
 
@@ -333,7 +333,7 @@ class Unsplash_Media_Provider implements MediaProviderInterface {
 }
 
 // Register the media provider.
-add_filter( 'vip_workflow_media_providers', function( $providers ) {
+add_filter( 'vip_workflows_media_providers', function( $providers ) {
     $providers[] = new Unsplash_Media_Provider();
     return $providers;
 } );
@@ -344,7 +344,7 @@ add_filter( 'vip_workflow_media_providers', function( $providers ) {
 
 > **Note:** API key entry for the built-in AI providers moved to the WordPress
 > core **Connectors** screen (Settings → Connectors). The plugin's
-> old `vip_workflow_api_key_fields` filter and `ApiKeysController` were removed.
+> old `vip_workflows_api_key_fields` filter and `ApiKeysController` were removed.
 > Third-party providers should read their own key from a `wp-config.php` constant
 > (as above) or register a WordPress core connector for it.
 
@@ -353,7 +353,7 @@ add_filter( 'vip_workflow_media_providers', function( $providers ) {
 To disable a built-in provider (e.g. remove YouTube search):
 
 ```php
-add_filter( 'vip_workflow_media_providers', function( $providers ) {
+add_filter( 'vip_workflows_media_providers', function( $providers ) {
     return array_filter( $providers, function( $p ) {
         return $p->get_id() !== 'youtube';
     } );
@@ -369,11 +369,11 @@ Built-in providers: `tavily-images`, `tavily-videos`, `youtube`, `openai-dalle`.
 The plugin's built-in AI provider keys (OpenAI, Anthropic,
 Google, Tavily, YouTube) are managed by the WordPress core **Connectors** API
 under **Settings → Connectors**, not by the plugin. The old bespoke stack — the
-`vip_workflow_api_key_fields` filter, the `ApiKeysController` class, and the
-`/vip-workflow/v1/settings/api-keys` REST routes — has been removed.
+`vip_workflows_api_key_fields` filter, the `ApiKeysController` class, and the
+`/vip-workflows/v1/settings/api-keys` REST routes — has been removed.
 
-Internally, all credential reads now go through the `VIPWorkflow\AI\Credentials`
-facade, which honors a `VIP_WORKFLOW_*_KEY` constant first and otherwise resolves
+Internally, all credential reads now go through the `VIPWorkflows\AI\Credentials`
+facade, which honors a `VIP_WORKFLOWS_*_KEY` constant first and otherwise resolves
 from core connectors (or a legacy fallback store on environments without
 connectors).
 
@@ -401,8 +401,8 @@ so it appears under Settings → Connectors alongside the built-in providers.
 Add custom delivery channels for workflow notifications.
 
 ```php
-use VIPWorkflow\Notifications\NotificationChannel;
-use VIPWorkflow\Notifications\Notification;
+use VIPWorkflows\Notifications\NotificationChannel;
+use VIPWorkflows\Notifications\Notification;
 
 class My_Channel extends NotificationChannel {
     public function get_id(): string { return 'my-channel'; }
@@ -413,7 +413,7 @@ class My_Channel extends NotificationChannel {
     }
 }
 
-add_filter( 'vip_workflow_notification_channels', function( $channels ) {
+add_filter( 'vip_workflows_notification_channels', function( $channels ) {
     $channels[] = new My_Channel();
     return $channels;
 } );
@@ -428,10 +428,10 @@ Notification channels can be packaged as standalone plugins.
 Register check or helper tools that run in the editor sidebar.
 
 ```php
-add_action( 'vip_workflow_register_abilities', function() {
+add_action( 'vip_workflows_register_abilities', function() {
     wp_register_ability( 'my-plugin/brand-check', array(
         'label'              => 'Brand Check',
-        'category'           => 'vip-workflow',
+        'category'           => 'vip-workflows',
         'execute_callback'   => 'my_brand_check_execute',
         'permission_callback' => function() { return current_user_can( 'edit_posts' ); },
     ) );
@@ -448,22 +448,22 @@ Hook into workflow lifecycle events:
 
 ```php
 // Any status transition
-add_action( 'vip_workflow_status_transition', function( $post_id, $new, $old, $sequence ) {
+add_action( 'vip_workflows_status_transition', function( $post_id, $new, $old, $sequence ) {
     // React to transitions
 }, 10, 4 );
 
 // Specific status entry
-add_action( 'vip_workflow_entered_review', function( $post_id, $old_status, $sequence ) {
+add_action( 'vip_workflows_entered_review', function( $post_id, $old_status, $sequence ) {
     // Post entered review
 }, 10, 3 );
 
 // Pitch lifecycle
-add_action( 'vip_workflow_pitch_approved', function( $pitch_id ) {
+add_action( 'vip_workflows_pitch_approved', function( $pitch_id ) {
     // Pitch was approved
 }, 10, 1 );
 
 // Tool execution
-add_action( 'vip_workflow_ability_executed', function( $ability_id, $post_id, $result ) {
+add_action( 'vip_workflows_ability_executed', function( $ability_id, $post_id, $result ) {
     // Tool finished running
 }, 10, 3 );
 ```
@@ -472,28 +472,28 @@ add_action( 'vip_workflow_ability_executed', function( $ability_id, $post_id, $r
 
 ## Migrating off the app shell
 
-VIP Workflow used to render every page inside a custom fullscreen "app shell": it hid the WordPress admin menu, admin bar, and footer with `!important` CSS, added an `is-fullscreen-mode` body class, suppressed the native submenu flyout, and injected a React sidebar. Third-party pages were given an `is-workflow-plugin-page` body class and repositioned next to that sidebar.
+VIP Workflows used to render every page inside a custom fullscreen "app shell": it hid the WordPress admin menu, admin bar, and footer with `!important` CSS, added an `is-fullscreen-mode` body class, suppressed the native submenu flyout, and injected a React sidebar. Third-party pages were given an `is-workflow-plugin-page` body class and repositioned next to that sidebar.
 
 That shell has been removed. The core screens are now ordinary wp-admin pages and the native menu provides navigation. For integrators this means:
 
-- **No code change is required.** A submenu registered under `vip-workflow` keeps working — it now renders as a plain admin page instead of inside the shell.
+- **No code change is required.** A submenu registered under `vip-workflows` keeps working — it now renders as a plain admin page instead of inside the shell.
 - **The shell affordances are gone.** There is no injected sidebar, no `is-workflow-plugin-page` body class, and no fullscreen takeover. If your page styled itself against those (e.g. compensating for the hidden admin menu, or targeting `body.is-workflow-plugin-page`), remove that styling — your page now lives in the standard canvas.
 - **Hook suffix unchanged.** Pages under the Workflows menu still get the `workflows_page_{slug}` hook suffix for `admin_enqueue_scripts`.
 
 ## Architecture Notes
 
-For VIP Workflow core developers:
+For VIP Workflows core developers:
 
 - **No hardcoding**: The core never references specific plugin pages
 - **Native rendering**: Every page (core and third-party) renders normally into `#wpbody-content`; there is no output buffering, capture, or chrome injection
 - **Menu ordering only**: `Admin::cleanup_menu()` reorders the plugin's own submenu (Main → System → Integrations) via the `$submenu` global; third-party pages fall into the trailing Integrations group
-- **Bundle scoping**: The admin bundle enqueues only on core `vip-workflow` pages (hook suffix contains `vip-workflow`), never on third-party pages
+- **Bundle scoping**: The admin bundle enqueues only on core `vip-workflows` pages (hook suffix contains `vip-workflows`), never on third-party pages
 
 ## Support
 
-If you encounter issues integrating with VIP Workflow:
+If you encounter issues integrating with VIP Workflows:
 
 1. Check this documentation
 2. Review the example code above
-3. Inspect the VIP Workflow source: `includes/admin/class-admin.php`
-4. File an issue in the VIP Workflow repository
+3. Inspect the VIP Workflows source: `includes/admin/class-admin.php`
+4. File an issue in the VIP Workflows repository

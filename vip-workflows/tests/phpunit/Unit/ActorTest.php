@@ -7,15 +7,15 @@
  * unresolvable user is `null` rather than an invented placeholder, and that an
  * agent is credited to the ability rather than to the human it impersonated.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Workflow\Actor;
+use VIPWorkflows\Workflow\Actor;
 
 /**
  * Tests for Actor::from_user() and Actor::from_event().
@@ -116,13 +116,13 @@ class ActorTest extends TestCase
             array(
                 'actor_id'   => 7,
                 'actor_type' => 'agent',
-                'event_data' => array( 'agent_actor' => 'vip-workflow/fact-check' ),
+                'event_data' => array( 'agent_actor' => 'vip-workflows/fact-check' ),
             )
         );
 
         $this->assertSame( 'agent', $actor['type'] );
         $this->assertSame( 'Fact Check Agent', $actor['display_name'] );
-        $this->assertSame( 'vip-workflow/fact-check', $actor['agent_actor'] );
+        $this->assertSame( 'vip-workflows/fact-check', $actor['agent_actor'] );
         $this->assertNull( $actor['avatar'] );
     }
 
@@ -139,13 +139,13 @@ class ActorTest extends TestCase
             array(
                 'actor_id'   => 7,
                 'actor_type' => 'agent',
-                'event_data' => array( 'agent_actor' => 'vip-workflow/fact-check' ),
+                'event_data' => array( 'agent_actor' => 'vip-workflows/fact-check' ),
             )
         );
 
         $this->assertNotSame( 'Ada Lovelace', $actor['display_name'] );
         // No registered ability object, so the id itself is the honest name.
-        $this->assertSame( 'vip-workflow/fact-check', $actor['display_name'] );
+        $this->assertSame( 'vip-workflows/fact-check', $actor['display_name'] );
     }
 
     /**

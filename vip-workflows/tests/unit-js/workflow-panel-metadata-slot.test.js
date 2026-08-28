@@ -80,7 +80,7 @@ import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
 // eslint-disable-next-line import/first
 import { MetadataPanel } from '../../src/editor/components/MetadataPanel';
 
-const STATUS_PATH = '/vip-workflow/v1/workflow/post/42/status';
+const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
 /**
  * Stand-in for the metadata section: the panel is only asked where it puts its
@@ -124,7 +124,7 @@ async function renderPanel() {
 				can_remove: true,
 			} );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 			return Promise.resolve( [] );
 		}
 		return Promise.resolve( {} );
@@ -243,7 +243,7 @@ describe( 'WorkflowPanel metadata slot', () => {
 					can_remove: true,
 				} );
 			}
-			if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+			if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 				return Promise.resolve( [] );
 			}
 			return Promise.resolve( {} );

@@ -8,17 +8,17 @@
  * Author URI: https://wpvip.com/
  * License: GPL-2.0-or-later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain: vip-workflow
+ * Text Domain: vip-workflows
  * Domain Path: /languages
  * Requires at least: 7.0
  * Requires PHP: 8.2
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow;
+namespace VIPWorkflows;
 
 // Prevent direct access.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -28,20 +28,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Self-load guard: when both a site copy and the platform-bundled copy are
 // present, the first one to parse wins and the second returns before redefining
 // any constants. This is the load sentinel the Integration Center wrapper checks.
-if ( defined( 'VIP_WORKFLOW_LOADED' ) ) {
+if ( defined( 'VIP_WORKFLOWS_LOADED' ) ) {
 	return;
 }
 
 // Plugin constants.
-define( 'VIP_WORKFLOW_LOADED', true );
-define( 'VIP_WORKFLOW_VERSION', '0.0.1' );
-define( 'VIP_WORKFLOW_PLUGIN_FILE', __FILE__ );
-define( 'VIP_WORKFLOW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
-define( 'VIP_WORKFLOW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
+define( 'VIP_WORKFLOWS_LOADED', true );
+define( 'VIP_WORKFLOWS_VERSION', '0.0.1' );
+define( 'VIP_WORKFLOWS_PLUGIN_FILE', __FILE__ );
+define( 'VIP_WORKFLOWS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
+define( 'VIP_WORKFLOWS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 // Minimum requirements.
-define( 'VIP_WORKFLOW_MIN_PHP_VERSION', '8.2' );
-define( 'VIP_WORKFLOW_MIN_WP_VERSION', '7.0' );
+define( 'VIP_WORKFLOWS_MIN_PHP_VERSION', '8.2' );
+define( 'VIP_WORKFLOWS_MIN_WP_VERSION', '7.0' );
 
 /**
  * Check minimum requirements before loading the plugin.
@@ -51,12 +51,12 @@ define( 'VIP_WORKFLOW_MIN_WP_VERSION', '7.0' );
 function check_requirements(): bool {
 	$meets_requirements = true;
 
-	if ( version_compare( PHP_VERSION, VIP_WORKFLOW_MIN_PHP_VERSION, '<' ) ) {
+	if ( version_compare( PHP_VERSION, VIP_WORKFLOWS_MIN_PHP_VERSION, '<' ) ) {
 		add_action( 'admin_notices', __NAMESPACE__ . '\\php_version_notice' );
 		$meets_requirements = false;
 	}
 
-	if ( version_compare( get_bloginfo( 'version' ), VIP_WORKFLOW_MIN_WP_VERSION, '<' ) ) {
+	if ( version_compare( get_bloginfo( 'version' ), VIP_WORKFLOWS_MIN_WP_VERSION, '<' ) ) {
 		add_action( 'admin_notices', __NAMESPACE__ . '\\wp_version_notice' );
 		$meets_requirements = false;
 	}
@@ -74,8 +74,8 @@ function php_version_notice(): void {
 			<?php
 			printf(
 				/* translators: 1: Required PHP version, 2: Current PHP version */
-				esc_html__( 'VIP Workflow requires PHP %1$s or higher. You are running PHP %2$s.', 'vip-workflow' ),
-				esc_html( VIP_WORKFLOW_MIN_PHP_VERSION ),
+				esc_html__( 'VIP Workflows requires PHP %1$s or higher. You are running PHP %2$s.', 'vip-workflows' ),
+				esc_html( VIP_WORKFLOWS_MIN_PHP_VERSION ),
 				esc_html( PHP_VERSION )
 			);
 			?>
@@ -94,8 +94,8 @@ function wp_version_notice(): void {
 			<?php
 			printf(
 				/* translators: 1: Required WP version, 2: Current WP version */
-				esc_html__( 'VIP Workflow requires WordPress %1$s or higher. You are running WordPress %2$s.', 'vip-workflow' ),
-				esc_html( VIP_WORKFLOW_MIN_WP_VERSION ),
+				esc_html__( 'VIP Workflows requires WordPress %1$s or higher. You are running WordPress %2$s.', 'vip-workflows' ),
+				esc_html( VIP_WORKFLOWS_MIN_WP_VERSION ),
 				esc_html( get_bloginfo( 'version' ) )
 			);
 			?>
@@ -118,14 +118,14 @@ function autoloader( string $class_name ): void {
 		return;
 	}
 
-	$file = VIP_WORKFLOW_PLUGIN_DIR . 'includes/' . $relative;
+	$file = VIP_WORKFLOWS_PLUGIN_DIR . 'includes/' . $relative;
 
 	// VIP-safe inclusion: resolve real paths and require only when the target
 	// stays within includes/. realpath() returns false for missing files, so a
 	// non-existent class file is skipped silently. The trailing separator on the
 	// base prevents a sibling-prefix directory (e.g. includes-other/) from
 	// passing the boundary check.
-	$real_base = realpath( VIP_WORKFLOW_PLUGIN_DIR . 'includes' );
+	$real_base = realpath( VIP_WORKFLOWS_PLUGIN_DIR . 'includes' );
 	$real_file = realpath( $file );
 
 	if ( false !== $real_file && false !== $real_base && str_starts_with( $real_file, $real_base . DIRECTORY_SEPARATOR ) ) {
@@ -136,13 +136,13 @@ function autoloader( string $class_name ): void {
 spl_autoload_register( __NAMESPACE__ . '\\autoloader' );
 
 // Load Composer autoloader for PSR-4 classes.
-$composer_autoload = VIP_WORKFLOW_PLUGIN_DIR . 'vendor/autoload.php';
+$composer_autoload = VIP_WORKFLOWS_PLUGIN_DIR . 'vendor/autoload.php';
 if ( file_exists( $composer_autoload ) ) {
 	require_once $composer_autoload;
 }
 
 // Load ActionScheduler (not PSR-4, requires explicit bootstrap).
-$action_scheduler = VIP_WORKFLOW_PLUGIN_DIR . 'vendor/woocommerce/action-scheduler/action-scheduler.php';
+$action_scheduler = VIP_WORKFLOWS_PLUGIN_DIR . 'vendor/woocommerce/action-scheduler/action-scheduler.php';
 if ( file_exists( $action_scheduler ) ) {
 	require_once $action_scheduler;
 }
@@ -171,7 +171,7 @@ add_action( 'plugins_loaded', __NAMESPACE__ . '\\init' );
  * Run schema upgrades automatically when the code version bumps.
  */
 function maybe_upgrade_schema(): void {
-	$current = get_option( 'vip_workflow_db_version', '0.0.0' );
+	$current = get_option( 'vip_workflows_db_version', '0.0.0' );
 
 	if ( version_compare( $current, Database\Schema::VERSION, '>=' ) ) {
 		return;
@@ -182,7 +182,7 @@ function maybe_upgrade_schema(): void {
 		$schema->install();
 	} catch ( \RuntimeException $e ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( 'VIP Workflow: schema upgrade failed — ' . $e->getMessage() );
+		error_log( 'VIP Workflows: schema upgrade failed — ' . $e->getMessage() );
 	}
 }
 
@@ -221,7 +221,7 @@ function deactivate(): void {
 	// Clear scheduled jobs if Action Scheduler is available.
 	if ( function_exists( 'as_unschedule_all_actions' ) ) {
 		$jobs = array(
-			'vip_workflow_check_sla_breaches',
+			'vip_workflows_check_sla_breaches',
 		);
 
 		foreach ( $jobs as $job ) {

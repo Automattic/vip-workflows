@@ -6,7 +6,7 @@
  * version/path constants, idempotent double-load via the self-load guard, and
  * VIP-safe autoloader containment.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
@@ -31,10 +31,10 @@ class BootstrapConformanceTest extends TestCase
 
         require_once self::PLUGIN_FILE;
 
-        $this->assertTrue( defined( 'VIP_WORKFLOW_LOADED' ), 'VIP_WORKFLOW_LOADED must be defined for the wrapper is_loaded() check.' );
-        $this->assertTrue( VIP_WORKFLOW_LOADED, 'VIP_WORKFLOW_LOADED must be truthy.' );
+        $this->assertTrue( defined( 'VIP_WORKFLOWS_LOADED' ), 'VIP_WORKFLOWS_LOADED must be defined for the wrapper is_loaded() check.' );
+        $this->assertTrue( VIP_WORKFLOWS_LOADED, 'VIP_WORKFLOWS_LOADED must be truthy.' );
 
-        foreach ( array( 'VIP_WORKFLOW_VERSION', 'VIP_WORKFLOW_PLUGIN_FILE', 'VIP_WORKFLOW_PLUGIN_DIR', 'VIP_WORKFLOW_PLUGIN_URL' ) as $constant ) {
+        foreach ( array( 'VIP_WORKFLOWS_VERSION', 'VIP_WORKFLOWS_PLUGIN_FILE', 'VIP_WORKFLOWS_PLUGIN_DIR', 'VIP_WORKFLOWS_PLUGIN_URL' ) as $constant ) {
             $this->assertTrue( defined( $constant ), sprintf( '%s must be defined by the plugin entrypoint.', $constant ) );
         }
     }
@@ -51,15 +51,15 @@ class BootstrapConformanceTest extends TestCase
 
         require_once self::PLUGIN_FILE;
 
-        $this->assertMatchesRegularExpression( '/^\\d+\\.\\d+\\.\\d+$/', VIP_WORKFLOW_VERSION, 'VIP_WORKFLOW_VERSION should be a semantic version.' );
+        $this->assertMatchesRegularExpression( '/^\\d+\\.\\d+\\.\\d+$/', VIP_WORKFLOWS_VERSION, 'VIP_WORKFLOWS_VERSION should be a semantic version.' );
 
         $source = (string) file_get_contents( self::PLUGIN_FILE );
         $this->assertSame( 1, preg_match( '/^\s*\*\s*Version:\s*(.+)$/m', $source, $matches ), 'Plugin header must declare a Version.' );
-        $this->assertSame( VIP_WORKFLOW_VERSION, trim( $matches[1] ), 'Header Version and VIP_WORKFLOW_VERSION must match.' );
+        $this->assertSame( VIP_WORKFLOWS_VERSION, trim( $matches[1] ), 'Header Version and VIP_WORKFLOWS_VERSION must match.' );
     }
 
     /**
-     * Self-load guard: when VIP_WORKFLOW_LOADED is already defined, requiring the
+     * Self-load guard: when VIP_WORKFLOWS_LOADED is already defined, requiring the
      * file returns before any constant block runs, so the second parse defines nothing.
      * Covers idempotent double-load.
      *
@@ -71,18 +71,18 @@ class BootstrapConformanceTest extends TestCase
         $this->register_wordpress_path_helpers();
 
         // Simulate a site copy having already loaded.
-        define( 'VIP_WORKFLOW_LOADED', true );
+        define( 'VIP_WORKFLOWS_LOADED', true );
 
         require_once self::PLUGIN_FILE;
 
         $this->assertFalse(
-            defined( 'VIP_WORKFLOW_VERSION' ),
-            'Self-load guard must return before the constant block, so VIP_WORKFLOW_VERSION stays undefined on the second load.'
+            defined( 'VIP_WORKFLOWS_VERSION' ),
+            'Self-load guard must return before the constant block, so VIP_WORKFLOWS_VERSION stays undefined on the second load.'
         );
     }
 
     /**
-     * Autoloader containment: a VIPWorkflow class mapping to a non-existent file
+     * Autoloader containment: a VIPWorkflows class mapping to a non-existent file
      * resolves to a false realpath and is skipped silently — no error, no class.
      * Covers the realpath gate, not bare file_exists.
      *
@@ -95,10 +95,10 @@ class BootstrapConformanceTest extends TestCase
 
         require_once self::PLUGIN_FILE;
 
-        \VIPWorkflow\autoloader( 'VIPWorkflow\\Nonexistent\\TotallyFakeClass' );
+        \VIPWorkflows\autoloader( 'VIPWorkflows\\Nonexistent\\TotallyFakeClass' );
 
         $this->assertFalse(
-            class_exists( 'VIPWorkflow\\Nonexistent\\TotallyFakeClass', false ),
+            class_exists( 'VIPWorkflows\\Nonexistent\\TotallyFakeClass', false ),
             'Autoloader must not define a class whose mapped file does not exist within includes/.'
         );
     }
@@ -115,10 +115,10 @@ class BootstrapConformanceTest extends TestCase
 
         require_once self::PLUGIN_FILE;
 
-        \VIPWorkflow\autoloader( 'VIPWorkflow\\Integrations\\YouTubeTranscript' );
+        \VIPWorkflows\autoloader( 'VIPWorkflows\\Integrations\\YouTubeTranscript' );
 
         $this->assertTrue(
-            class_exists( 'VIPWorkflow\\Integrations\\YouTubeTranscript', false ),
+            class_exists( 'VIPWorkflows\\Integrations\\YouTubeTranscript', false ),
             'Containment gate must still load valid classes under includes/.'
         );
     }

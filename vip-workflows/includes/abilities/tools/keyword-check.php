@@ -4,12 +4,12 @@
  *
  * Flags content containing specified keywords.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the keyword check.
@@ -43,11 +43,11 @@ function execute_keyword_check( ?array $input = null ) {
 	if ( empty( $content ) && empty( $title ) ) {
 		return new \WP_Error(
 			'no_content',
-			__( 'No content to analyze.', 'vip-workflow' )
+			__( 'No content to analyze.', 'vip-workflows' )
 		);
 	}
 
-	$settings = \VIPWorkflow\Abilities\AbilitySettings::get_instance()->get_options( 'vip-workflow/keyword-check' );
+	$settings = \VIPWorkflows\Abilities\AbilitySettings::get_instance()->get_options( 'vip-workflows/keyword-check' );
 
 	// Get flagged words from settings.
 	$flagged_words = array();
@@ -73,7 +73,7 @@ function execute_keyword_check( ?array $input = null ) {
 		return array(
 			'score'       => 100,
 			'status'      => 'pass',
-			'summary'     => __( 'No flagged words configured.', 'vip-workflow' ),
+			'summary'     => __( 'No flagged words configured.', 'vip-workflows' ),
 			'issues'      => array(),
 			'suggestions' => array(),
 			'analysis'    => array(
@@ -143,7 +143,7 @@ function execute_keyword_check( ?array $input = null ) {
 						'Found flagged word "%1$s" (%2$d occurrence).',
 						'Found flagged word "%1$s" (%2$d occurrences).',
 						$count,
-						'vip-workflow'
+						'vip-workflows'
 					),
 					esc_html( $word ),
 					$count
@@ -172,7 +172,7 @@ function execute_keyword_check( ?array $input = null ) {
 	// Generate summary.
 	$matches_found = $analysis['matches_found'];
 	if ( 0 === $matches_found ) {
-		$summary = __( 'No flagged words found.', 'vip-workflow' );
+		$summary = __( 'No flagged words found.', 'vip-workflows' );
 	} else {
 		$summary = sprintf(
 		/* translators: %d: Number of flagged words found */
@@ -180,7 +180,7 @@ function execute_keyword_check( ?array $input = null ) {
 				'Found %d flagged word in content.',
 				'Found %d flagged words in content.',
 				$matches_found,
-				'vip-workflow'
+				'vip-workflows'
 			),
 			$matches_found
 		);
@@ -190,7 +190,7 @@ function execute_keyword_check( ?array $input = null ) {
 	if ( ! empty( $issues ) ) {
 		$suggestions[] = array(
 			'type'    => 'review_content',
-			'message' => __( 'Review and remove or replace the flagged words before publishing.', 'vip-workflow' ),
+			'message' => __( 'Review and remove or replace the flagged words before publishing.', 'vip-workflows' ),
 		);
 	}
 
@@ -216,7 +216,7 @@ function can_execute_keyword_check() {
 
 	return new \WP_Error(
 		'rest_forbidden',
-		__( 'You do not have permission to execute this ability.', 'vip-workflow' ),
+		__( 'You do not have permission to execute this ability.', 'vip-workflows' ),
 		array( 'status' => 403 )
 	);
 }
@@ -230,38 +230,38 @@ function can_execute_keyword_check() {
  */
 function register_keyword_check(): void {
 	wp_register_ability(
-		'vip-workflow/keyword-check',
+		'vip-workflows/keyword-check',
 		array(
-			'label'               => __( 'Keyword Check', 'vip-workflow' ),
-			'description'         => __( 'Flag content containing specified keywords (e.g., banned words, competitor names, sensitive terms).', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Keyword Check', 'vip-workflows' ),
+			'description'         => __( 'Flag content containing specified keywords (e.g., banned words, competitor names, sensitive terms).', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
 				'properties'           => array(
 					'post_id'        => array(
 						'type'        => 'integer',
-						'description' => __( 'The post ID to analyze.', 'vip-workflow' ),
+						'description' => __( 'The post ID to analyze.', 'vip-workflows' ),
 					),
 					'content'        => array(
 						'type'        => 'string',
-						'description' => __( 'Raw content to analyze (alternative to post_id).', 'vip-workflow' ),
+						'description' => __( 'Raw content to analyze (alternative to post_id).', 'vip-workflows' ),
 					),
 					'title'          => array(
 						'type'        => 'string',
-						'description' => __( 'Post title (required if using content).', 'vip-workflow' ),
+						'description' => __( 'Post title (required if using content).', 'vip-workflows' ),
 					),
 					'flagged_words'  => array(
 						'type'        => 'string',
-						'description' => __( 'Comma-separated list of words to flag.', 'vip-workflow' ),
+						'description' => __( 'Comma-separated list of words to flag.', 'vip-workflows' ),
 					),
 					'case_sensitive' => array(
 						'type'        => 'boolean',
-						'description' => __( 'Match case-sensitive.', 'vip-workflow' ),
+						'description' => __( 'Match case-sensitive.', 'vip-workflows' ),
 					),
 					'match_partial'  => array(
 						'type'        => 'boolean',
-						'description' => __( 'Match partial words (e.g., "test" matches "testing").', 'vip-workflow' ),
+						'description' => __( 'Match partial words (e.g., "test" matches "testing").', 'vip-workflows' ),
 					),
 				),
 			),
@@ -272,28 +272,28 @@ function register_keyword_check(): void {
 				'properties'           => array(
 					'score'       => array(
 						'type'        => 'number',
-						'description' => __( 'Score from 0-100 (lower = more flagged words).', 'vip-workflow' ),
+						'description' => __( 'Score from 0-100 (lower = more flagged words).', 'vip-workflows' ),
 					),
 					'status'      => array(
 						'type'        => 'string',
 						'enum'        => array( 'pass', 'warning', 'fail' ),
-						'description' => __( 'Status: pass, warning, or fail.', 'vip-workflow' ),
+						'description' => __( 'Status: pass, warning, or fail.', 'vip-workflows' ),
 					),
 					'summary'     => array(
 						'type'        => 'string',
-						'description' => __( 'Summary message.', 'vip-workflow' ),
+						'description' => __( 'Summary message.', 'vip-workflows' ),
 					),
 					'issues'      => array(
 						'type'        => 'array',
-						'description' => __( 'List of flagged words found.', 'vip-workflow' ),
+						'description' => __( 'List of flagged words found.', 'vip-workflows' ),
 					),
 					'suggestions' => array(
 						'type'        => 'array',
-						'description' => __( 'List of improvement suggestions.', 'vip-workflow' ),
+						'description' => __( 'List of improvement suggestions.', 'vip-workflows' ),
 					),
 					'analysis'    => array(
 						'type'        => 'object',
-						'description' => __( 'Detailed analysis data.', 'vip-workflow' ),
+						'description' => __( 'Detailed analysis data.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -310,20 +310,20 @@ function register_keyword_check(): void {
 					'flagged_words'  => array(
 						'type'        => 'string',
 						'default'     => '',
-						'label'       => __( 'Flagged words', 'vip-workflow' ),
-						'description' => __( 'Comma-separated list of words to flag.', 'vip-workflow' ),
+						'label'       => __( 'Flagged words', 'vip-workflows' ),
+						'description' => __( 'Comma-separated list of words to flag.', 'vip-workflows' ),
 						'enforceable' => true,
 					),
 					'case_sensitive' => array(
 						'type'        => 'boolean',
 						'default'     => false,
-						'label'       => __( 'Case-sensitive matching', 'vip-workflow' ),
+						'label'       => __( 'Case-sensitive matching', 'vip-workflows' ),
 					),
 					'match_partial'  => array(
 						'type'        => 'boolean',
 						'default'     => false,
-						'label'       => __( 'Match partial words', 'vip-workflow' ),
-						'description' => __( 'e.g., "test" matches "testing"', 'vip-workflow' ),
+						'label'       => __( 'Match partial words', 'vip-workflows' ),
+						'description' => __( 'e.g., "test" matches "testing"', 'vip-workflows' ),
 					),
 				),
 				'annotations'         => array(

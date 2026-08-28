@@ -43,27 +43,27 @@ import { AssistantCard } from './AssistantCard';
 export function AgentsHowToModal( { onClose } ) {
 	return (
 		<HowToModal
-			title={ __( 'Add custom agents', 'vip-workflow' ) }
+			title={ __( 'Add custom agents', 'vip-workflows' ) }
 			skillType="agent"
 			onClose={ onClose }
 		>
 			<Text variant="body-md" render={ <p /> }>
 				{ __(
 					'Agents can provide research, story discovery, or AI-stage workflow automation. Each plugin appears as a single card here.',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			</Text>
 
 			<Text variant="heading-md" render={ <h2 /> }>
-				{ __( 'Research ability (PHP)', 'vip-workflow' ) }
+				{ __( 'Research ability (PHP)', 'vip-workflows' ) }
 			</Text>
-			<pre className="vip-workflow-code">{ `use VIPWorkflow\\Abilities\\AbilitySettings;
-use VIPWorkflow\\Abilities\\Availability;
-use VIPWorkflow\\Abilities\\RequirementFactory;
-use VIPWorkflow\\Abilities\\RequirementGroup;
+			<pre className="vip-workflows-code">{ `use VIPWorkflows\\Abilities\\AbilitySettings;
+use VIPWorkflows\\Abilities\\Availability;
+use VIPWorkflows\\Abilities\\RequirementFactory;
+use VIPWorkflows\\Abilities\\RequirementGroup;
 
 add_action( 'wp_abilities_api_init', function() {
-    vip_workflow_register_ability(
+    vip_workflows_register_ability(
         'my-plugin/my-researcher',
         [
             'label'       => 'My Source',
@@ -127,9 +127,9 @@ function my_plugin_availability(): bool|Availability {
 }` }</pre>
 
 			<Text variant="heading-md" render={ <h2 /> }>
-				{ __( 'Discovery provider (PHP)', 'vip-workflow' ) }
+				{ __( 'Discovery provider (PHP)', 'vip-workflows' ) }
 			</Text>
-			<pre className="vip-workflow-code">{ `add_action( 'vip_workflow_register_discovery_providers', function( $registry ) {
+			<pre className="vip-workflows-code">{ `add_action( 'vip_workflows_register_discovery_providers', function( $registry ) {
     $registry->register( 'my-source', [
         'label'       => 'My Source',
         'description' => 'Surfaces story ideas from my data source.',
@@ -148,15 +148,15 @@ function my_plugin_availability(): bool|Availability {
 } );` }</pre>
 
 			<Text variant="heading-md" render={ <h2 /> }>
-				{ __( 'Unified card (both capabilities)', 'vip-workflow' ) }
+				{ __( 'Unified card (both capabilities)', 'vip-workflows' ) }
 			</Text>
 			<Text variant="body-md" render={ <p /> }>
 				{ __(
 					'If your plugin provides both a discovery provider and a research ability, group them under one card with a manifest:',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			</Text>
-			<pre className="vip-workflow-code">{ `add_action( 'vip_workflow_register_assistant_meta', function( $registry ) {
+			<pre className="vip-workflows-code">{ `add_action( 'vip_workflows_register_assistant_meta', function( $registry ) {
     $registry->register( 'my-plugin', [
         'label'          => 'My Plugin',
         'description'    => 'Expert sources and story ideas.',
@@ -175,12 +175,12 @@ function my_plugin_availability(): bool|Availability {
 } );` }</pre>
 
 			<Text variant="heading-md" render={ <h2 /> }>
-				{ __( 'AI stage ability (PHP)', 'vip-workflow' ) }
+				{ __( 'AI stage ability (PHP)', 'vip-workflows' ) }
 			</Text>
-			<pre className="vip-workflow-code">{ `add_action( 'vip_workflow_register_abilities', function() {
-    vip_workflow_register_ability( 'my-plugin/fact-check', [
+			<pre className="vip-workflows-code">{ `add_action( 'vip_workflows_register_abilities', function() {
+    vip_workflows_register_ability( 'my-plugin/fact-check', [
         'label'               => 'Fact Check',
-        'category'            => 'vip-workflow',
+        'category'            => 'vip-workflows',
         'input_schema'        => [
             'type'                 => 'object',
             'additionalProperties' => false,
@@ -201,7 +201,7 @@ function my_plugin_availability(): bool|Availability {
     ] );
 } );
 
-add_action( 'vip_workflow_register_assistant_meta', function( $registry ) {
+add_action( 'vip_workflows_register_assistant_meta', function( $registry ) {
     $registry->register( 'my-plugin', [
         'label'        => 'Fact Check',
         'ability_ids'  => [ 'my-plugin/fact-check' ],
@@ -210,18 +210,18 @@ add_action( 'vip_workflow_register_assistant_meta', function( $registry ) {
 } );` }</pre>
 
 			<Text variant="heading-md" render={ <h2 /> }>
-				{ __( 'Custom React settings UI', 'vip-workflow' ) }
+				{ __( 'Custom React settings UI', 'vip-workflows' ) }
 			</Text>
 			<Text variant="body-md" render={ <p /> }>
 				{ __(
 					'For complex configuration, replace the auto-rendered form with a React component:',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			</Text>
-			<pre className="vip-workflow-code">{ `import { addFilter } from '@wordpress/hooks';
+			<pre className="vip-workflows-code">{ `import { addFilter } from '@wordpress/hooks';
 
 addFilter(
-    'vipWorkflow.assistantSettings',
+    'vipWorkflows.assistantSettings',
     'my-plugin/settings',
     ( content, assistant ) => {
         // Match on your ability id, not on assistant.slug — a slug is derived,
@@ -259,13 +259,13 @@ export function useAssistantsSettings() {
 	const tabs = [
 		{
 			name: 'built-in',
-			title: __( 'Built-in', 'vip-workflow' ),
-			empty: __( 'No built-in agents are registered.', 'vip-workflow' ),
+			title: __( 'Built-in', 'vip-workflows' ),
+			empty: __( 'No built-in agents are registered.', 'vip-workflows' ),
 		},
 		{
 			name: 'plugin',
-			title: __( 'From plugins', 'vip-workflow' ),
-			empty: __( 'No agent plugins are installed.', 'vip-workflow' ),
+			title: __( 'From plugins', 'vip-workflows' ),
+			empty: __( 'No agent plugins are installed.', 'vip-workflows' ),
 		},
 	];
 
@@ -294,7 +294,7 @@ export function useAssistantsSettings() {
 		const load = () => {
 			lastLoad = Date.now();
 
-			return apiFetch( { path: '/vip-workflow/v1/assistants' } )
+			return apiFetch( { path: '/vip-workflows/v1/assistants' } )
 				.then( ( data ) => {
 					if ( ! alive ) {
 						return;
@@ -386,14 +386,14 @@ export function useAssistantsSettings() {
 			setError(
 				sprintf(
 					/* translators: %s: semicolon-separated list of agent names and their errors. */
-					__( 'Some agents could not be saved: %s', 'vip-workflow' ),
+					__( 'Some agents could not be saved: %s', 'vip-workflows' ),
 					failures.join( '; ' )
 				)
 			);
 			return;
 		}
 
-		createSuccessNotice( __( 'Agents saved.', 'vip-workflow' ), {
+		createSuccessNotice( __( 'Agents saved.', 'vip-workflows' ), {
 			type: 'snackbar',
 		} );
 	}, [ dirtySlugs, assistants, createSuccessNotice ] );
@@ -439,7 +439,7 @@ export function AssistantsTab( { state } ) {
 	if ( loading ) {
 		return (
 			<SettingsLoading
-				label={ __( 'Loading agents…', 'vip-workflow' ) }
+				label={ __( 'Loading agents…', 'vip-workflows' ) }
 			/>
 		);
 	}
@@ -464,7 +464,7 @@ export function AssistantsTab( { state } ) {
 			) }
 
 			<Tabs.Root
-				className="vip-workflow-tabs"
+				className="vip-workflows-tabs"
 				value={ activeTab }
 				onValueChange={ handleTabChange }
 			>

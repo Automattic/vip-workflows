@@ -2,16 +2,16 @@
 /**
  * Dashboard widget for workflow.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Admin;
+namespace VIPWorkflows\Admin;
 
-use VIPWorkflow\Plugin;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StagePalette;
+use VIPWorkflows\Plugin;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StagePalette;
 
 /**
  * Adds "My Workflow" widget to WordPress dashboard.
@@ -51,8 +51,8 @@ class DashboardWidget {
 	 */
 	public function register_widget(): void {
 		wp_add_dashboard_widget(
-			'vip_workflow_my_work',
-			__( 'My Workflow', 'vip-workflow' ),
+			'vip_workflows_my_work',
+			__( 'My Workflow', 'vip-workflows' ),
 			array( $this, 'render_widget' )
 		);
 	}
@@ -70,8 +70,8 @@ class DashboardWidget {
 
 		if ( empty( $sequences ) || ! $status_manager ) {
 			?>
-			<p class="vip-workflow-dashboard__empty">
-			<?php esc_html_e( 'No workflows configured.', 'vip-workflow' ); ?>
+			<p class="vip-workflows-dashboard__empty">
+			<?php esc_html_e( 'No workflows configured.', 'vip-workflows' ); ?>
 			</p>
 			<?php
 			return;
@@ -112,23 +112,23 @@ class DashboardWidget {
 			}
 		}
 		?>
-		<div class="vip-workflow-dashboard">
-			<h4><?php esc_html_e( 'My Content in Workflow', 'vip-workflow' ); ?></h4>
+		<div class="vip-workflows-dashboard">
+			<h4><?php esc_html_e( 'My Content in Workflow', 'vip-workflows' ); ?></h4>
 		<?php if ( empty( $workflow_posts ) ) : ?>
-				<p class="vip-workflow-dashboard__empty">
-			<?php esc_html_e( 'No content currently in workflow.', 'vip-workflow' ); ?>
+				<p class="vip-workflows-dashboard__empty">
+			<?php esc_html_e( 'No content currently in workflow.', 'vip-workflows' ); ?>
 				</p>
 			<?php else : ?>
-				<ul class="vip-workflow-dashboard__list">
+				<ul class="vip-workflows-dashboard__list">
 				<?php foreach ( array_slice( $workflow_posts, 0, 5 ) as $item ) : ?>
 						<li>
 							<a href="<?php echo esc_url( get_edit_post_link( $item['post']->ID ) ); ?>">
-						<?php echo esc_html( $item['post']->post_title ? $item['post']->post_title : __( '(no title)', 'vip-workflow' ) ); ?>
+						<?php echo esc_html( $item['post']->post_title ? $item['post']->post_title : __( '(no title)', 'vip-workflows' ) ); ?>
 							</a>
 							<?php // The pill's text and its wash are both the stage's own color; the stylesheet owns everything else. ?>
 							<span
-								class="vip-workflow-dashboard__status"
-								style="--vip-workflow-stage-color: <?php echo esc_attr( $item['status']['color'] ?? StagePalette::DEFAULT_COLOR ); ?>"
+								class="vip-workflows-dashboard__status"
+								style="--vip-workflows-stage-color: <?php echo esc_attr( $item['status']['color'] ?? StagePalette::DEFAULT_COLOR ); ?>"
 							>
 					<?php echo esc_html( $item['status']['label'] ?? $item['status']['key'] ); ?>
 							</span>
@@ -140,22 +140,22 @@ class DashboardWidget {
 		<?php
 		// Show summary by sequence.
 		?>
-			<h4><?php esc_html_e( 'Workflow Summary', 'vip-workflow' ); ?></h4>
-			<div class="vip-workflow-dashboard__summary">
+			<h4><?php esc_html_e( 'Workflow Summary', 'vip-workflows' ); ?></h4>
+			<div class="vip-workflows-dashboard__summary">
 		<?php foreach ( $sequences as $sequence ) : ?>
 			<?php
-			$total = array_sum( \VIPWorkflow\Workflow\StageQuery::counts_by_stage( $sequence ) );
+			$total = array_sum( \VIPWorkflows\Workflow\StageQuery::counts_by_stage( $sequence ) );
 			?>
-					<div class="vip-workflow-dashboard__sequence">
+					<div class="vip-workflows-dashboard__sequence">
 						<strong><?php echo esc_html( $sequence->name ); ?></strong>
-						<span class="vip-workflow-dashboard__count"><?php echo (int) $total; ?></span>
+						<span class="vip-workflows-dashboard__count"><?php echo (int) $total; ?></span>
 					</div>
 		<?php endforeach; ?>
 			</div>
 
-			<p class="vip-workflow-dashboard__actions">
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=vip-workflow' ) ); ?>" class="button">
-		<?php esc_html_e( 'View Dashboard', 'vip-workflow' ); ?>
+			<p class="vip-workflows-dashboard__actions">
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=vip-workflows' ) ); ?>" class="button">
+		<?php esc_html_e( 'View Dashboard', 'vip-workflows' ); ?>
 				</a>
 			</p>
 		</div>

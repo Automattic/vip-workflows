@@ -2,15 +2,15 @@
 /**
  * Editor integration.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Editor;
+namespace VIPWorkflows\Editor;
 
-use VIPWorkflow\ModuleInterface;
-use VIPWorkflow\Plugin;
+use VIPWorkflows\ModuleInterface;
+use VIPWorkflows\Plugin;
 
 /**
  * Handles editor (Gutenberg) integration.
@@ -44,7 +44,7 @@ class EditorIntegration implements ModuleInterface {
 			return;
 		}
 
-		$asset_file = VIP_WORKFLOW_PLUGIN_DIR . 'build/editor.asset.php';
+		$asset_file = VIP_WORKFLOWS_PLUGIN_DIR . 'build/editor.asset.php';
 		if ( ! file_exists( $asset_file ) ) {
 			return;
 		}
@@ -57,12 +57,12 @@ class EditorIntegration implements ModuleInterface {
 		// arrives unstyled. Same handle the admin bundle registers, so whichever
 		// screen asks for it first wins and the other reuses it.
 		wp_enqueue_style(
-			'vip-workflow-dataviews',
-			VIP_WORKFLOW_PLUGIN_URL . 'build/dataviews.css',
+			'vip-workflows-dataviews',
+			VIP_WORKFLOWS_PLUGIN_URL . 'build/dataviews.css',
 			array( 'wp-components' ),
 			$asset['version']
 		);
-		wp_style_add_data( 'vip-workflow-dataviews', 'rtl', 'replace' );
+		wp_style_add_data( 'vip-workflows-dataviews', 'rtl', 'replace' );
 
 		// The bundle's two stylesheets, the same split class-admin.php enqueues:
 		// component-level CSS imports land in editor.css (wp-scripts routes only
@@ -71,22 +71,22 @@ class EditorIntegration implements ModuleInterface {
 		// unstyled, the track sits in normal flow, every mount grows the box the
 		// rail measures itself against, and the measure loop crashes the editor.
 		wp_enqueue_style(
-			'vip-workflow-editor-components',
-			VIP_WORKFLOW_PLUGIN_URL . 'build/editor.css',
-			array( 'wp-components', 'vip-workflow-dataviews' ),
+			'vip-workflows-editor-components',
+			VIP_WORKFLOWS_PLUGIN_URL . 'build/editor.css',
+			array( 'wp-components', 'vip-workflows-dataviews' ),
 			$asset['version']
 		);
 
 		wp_enqueue_style(
-			'vip-workflow-editor',
-			VIP_WORKFLOW_PLUGIN_URL . 'build/style-editor.css',
-			array( 'vip-workflow-editor-components' ),
+			'vip-workflows-editor',
+			VIP_WORKFLOWS_PLUGIN_URL . 'build/style-editor.css',
+			array( 'vip-workflows-editor-components' ),
 			$asset['version']
 		);
 
 		wp_enqueue_script(
-			'vip-workflow-editor',
-			VIP_WORKFLOW_PLUGIN_URL . 'build/editor.js',
+			'vip-workflows-editor',
+			VIP_WORKFLOWS_PLUGIN_URL . 'build/editor.js',
 			$asset['dependencies'],
 			$asset['version'],
 			true
@@ -105,10 +105,10 @@ class EditorIntegration implements ModuleInterface {
 		$has_workflow = (bool) $sequence;
 
 		// Check workflow enforcement mode for new posts.
-		$enforcement_mode = \VIPWorkflow\Admin\Settings::get_workflow_enforcement_mode();
+		$enforcement_mode = \VIPWorkflows\Admin\Settings::get_workflow_enforcement_mode();
 		$is_new_post      = in_array( $post->post_status, array( 'auto-draft', 'draft' ), true )
 			&& empty( $post->post_content )
-			&& __( 'Auto Draft', 'vip-workflow' ) === $post->post_title;
+			&& __( 'Auto Draft', 'vip-workflows' ) === $post->post_title;
 
 		// Determine if we should show the workflow modal.
 		$show_workflow_modal = $enforcement_mode && $is_new_post && ! $sequence;
@@ -124,10 +124,10 @@ class EditorIntegration implements ModuleInterface {
 		// showing the pre-transition status until a full reload. JSON keeps the
 		// ints ints and the booleans booleans.
 		wp_add_inline_script(
-			'vip-workflow-editor',
-			'window.vipWorkflowEditor = ' . wp_json_encode(
+			'vip-workflows-editor',
+			'window.vipWorkflowsEditor = ' . wp_json_encode(
 				array(
-					'apiUrl'              => rest_url( 'vip-workflow/v1' ),
+					'apiUrl'              => rest_url( 'vip-workflows/v1' ),
 					'nonce'               => wp_create_nonce( 'wp_rest' ),
 					'postId'              => $post_id,
 					'postType'            => $post->post_type,

@@ -10,16 +10,16 @@
  *
  * So these pin both directions, not just the one the bug was reported for.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use ReflectionMethod;
-use VIPWorkflow\API\IdeationSourcesController;
+use VIPWorkflows\API\IdeationSourcesController;
 
 class IdeationSourcesUploadErrorStatusTest extends TestCase
 {

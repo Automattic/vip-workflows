@@ -6,17 +6,17 @@
  * and research sources. Does NOT handle storage - returns results for
  * the caller to store as needed.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\AI\AiInference;
-use VIPWorkflow\Abilities\AiAvailability;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\AI\AiInference;
+use VIPWorkflows\Abilities\AiAvailability;
 use WP_Error;
 
 /**
@@ -71,7 +71,7 @@ class MediaProcessor {
 		}
 
 		if ( ! file_exists( $file_path ) ) {
-			return new WP_Error( 'file_not_found', __( 'File not found.', 'vip-workflow' ) );
+			return new WP_Error( 'file_not_found', __( 'File not found.', 'vip-workflows' ) );
 		}
 
 		$path_error = UploadsPathGuard::validate( $file_path );
@@ -94,7 +94,7 @@ class MediaProcessor {
 		return new WP_Error(
 			'unsupported_type',
 			/* translators: %s: MIME type of the uploaded file. */
-			sprintf( __( 'Unsupported file type: %s', 'vip-workflow' ), $mime_type )
+			sprintf( __( 'Unsupported file type: %s', 'vip-workflows' ), $mime_type )
 		);
 	}
 
@@ -108,7 +108,7 @@ class MediaProcessor {
 	public function analyze_image( string $file_path, string $mime_type ) {
 		// Resolve the admin-configurable default, then apply the existing filter.
 		$prompt = apply_filters(
-			'vip_workflow_ai_image_prompt',
+			'vip_workflows_ai_image_prompt',
 			PromptRegistry::get_instance()->get( 'media/image-analysis' )
 		);
 
@@ -164,7 +164,7 @@ class MediaProcessor {
 				'file_too_large',
 				sprintf(
 					/* translators: %d: maximum transcription file size in megabytes. */
-					__( 'File is too large for transcription. Maximum size is %dMB.', 'vip-workflow' ),
+					__( 'File is too large for transcription. Maximum size is %dMB.', 'vip-workflows' ),
 					self::MAX_WHISPER_SIZE / ( 1024 * 1024 )
 				)
 			);
@@ -197,7 +197,7 @@ class MediaProcessor {
 	public function process_pdf( string $file_path, string $mime_type ) {
 		// Resolve the admin-configurable default, then apply the existing filter.
 		$prompt = apply_filters(
-			'vip_workflow_media_pdf_prompt',
+			'vip_workflows_media_pdf_prompt',
 			PromptRegistry::get_instance()->get( 'media/pdf-analysis' )
 		);
 
@@ -249,7 +249,7 @@ class MediaProcessor {
 	private function call_whisper_api( string $file_path ): string|WP_Error {
 		$api_key = Credentials::get_instance()->api_key( 'openai' );
 		if ( ! $api_key ) {
-			return new WP_Error( 'no_api_key', __( 'OpenAI API key not configured.', 'vip-workflow' ) );
+			return new WP_Error( 'no_api_key', __( 'OpenAI API key not configured.', 'vip-workflows' ) );
 		}
 
 		$boundary = wp_generate_password( 24, false );
@@ -285,7 +285,7 @@ class MediaProcessor {
 		$body = json_decode( wp_remote_retrieve_body( $response ), true );
 
 		if ( isset( $body['error'] ) ) {
-			return new WP_Error( 'whisper_error', $body['error']['message'] ?? __( 'Transcription failed.', 'vip-workflow' ) );
+			return new WP_Error( 'whisper_error', $body['error']['message'] ?? __( 'Transcription failed.', 'vip-workflows' ) );
 		}
 
 		return $body['text'] ?? '';
@@ -306,7 +306,7 @@ class MediaProcessor {
 			array( 'content_type' => $content_type )
 		);
 		$prompt = apply_filters(
-			'vip_workflow_ai_summary_prompt',
+			'vip_workflows_ai_summary_prompt',
 			$instruction . "\n\nContent:\n" . $text,
 			$content_type
 		);

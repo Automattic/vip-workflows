@@ -12,18 +12,18 @@
  * These tests run against real WordPress with real roles, so the capability
  * answers are core's own.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Abilities\AbilityResult;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StageAgentRunner;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilityResult;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StageAgentRunner;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Real-WordPress tests for the agent publish boundary.
@@ -66,7 +66,7 @@ class AgentPublishBoundaryIntegrationTest extends TestCase
 						'label'  => 'AI Desk',
 						'status' => 'draft',
 						'agent'  => array(
-							'ability_id' => 'vip-workflow/test-agent',
+							'ability_id' => 'vip-workflows/test-agent',
 							'routing'    => array(
 								'pass'  => 'live',
 								'fail'  => 'ai_desk',
@@ -112,7 +112,7 @@ class AgentPublishBoundaryIntegrationTest extends TestCase
 			)
 		);
 
-		update_post_meta( $post_id, '_vip_workflow_sequence_id', $this->sequence_id );
+		update_post_meta( $post_id, '_vip_workflows_sequence_id', $this->sequence_id );
 		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ai_desk' );
 
 		return $post_id;
@@ -181,11 +181,11 @@ class AgentPublishBoundaryIntegrationTest extends TestCase
 		$post_id = $this->make_contributor_post();
 		wp_set_current_user( 0 );
 
-		$result = \VIPWorkflow\Plugin::get_instance()->get_status_manager()->transition(
+		$result = \VIPWorkflows\Plugin::get_instance()->get_status_manager()->transition(
 			$post_id,
 			'live',
 			array(
-				'agent_actor'      => 'vip-workflow/test-agent',
+				'agent_actor'      => 'vip-workflows/test-agent',
 				'agent_actor_user' => 0,
 			)
 		);
@@ -213,7 +213,7 @@ class AgentPublishBoundaryIntegrationTest extends TestCase
 				'post_author' => $author_id,
 			)
 		);
-		update_post_meta( $post_id, '_vip_workflow_sequence_id', $this->sequence_id );
+		update_post_meta( $post_id, '_vip_workflows_sequence_id', $this->sequence_id );
 		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ai_desk' );
 
 		wp_set_current_user( 0 );
@@ -284,7 +284,7 @@ class AgentPublishBoundaryIntegrationTest extends TestCase
 						'label'       => 'AI Desk',
 						'status'      => 'draft',
 						'agent'       => array(
-							'ability_id' => 'vip-workflow/test-agent',
+							'ability_id' => 'vip-workflows/test-agent',
 							'routing'    => array( 'pass' => 'live', 'fail' => 'ai_desk', 'error' => 'ai_desk' ),
 						),
 						'transitions' => array(

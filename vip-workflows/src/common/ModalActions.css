@@ -7,6 +7,6 @@
  * rule only owns the gap between the modal body and the footer. No border-top —
  * the footer is a plain right-aligned button row, matching WPDS dialogs.
  */
-.vip-workflow-modal-actions {
+.vip-workflows-modal-actions {
 	margin-top: var( --wpds-dimension-gap-xl ); /* wpds-allow R3 -- the gap between a @wordpress/components <Modal> body and its footer; a Modal body is not a Stack, and this footer is shared by every modal that uses it */
 }

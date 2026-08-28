@@ -9,36 +9,36 @@
 
 /* Score + status header row is a `<Stack align="center" gap="lg">`. */
 
-.vip-workflow-results-modal__score {
-	font: var(--vip-workflow-text-heading-2xl);
+.vip-workflows-results-modal__score {
+	font: var(--vip-workflows-text-heading-2xl);
 	color: var(--wpds-color-foreground-content-neutral);
 }
 
-.vip-workflow-results-modal__score--pass {
+.vip-workflows-results-modal__score--pass {
 	color: var(--wpds-color-foreground-content-success);
 }
 
-.vip-workflow-results-modal__score--warning {
+.vip-workflows-results-modal__score--warning {
 	color: var(--wpds-color-foreground-content-caution);
 }
 
-.vip-workflow-results-modal__score--fail {
+.vip-workflows-results-modal__score--fail {
 	color: var(--wpds-color-foreground-content-error);
 }
 
-.vip-workflow-results-modal__score-total {
+.vip-workflows-results-modal__score-total {
 	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-.vip-workflow-results-modal__summary {
+.vip-workflows-results-modal__summary {
 	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
 	color: var(--wpds-color-foreground-content-neutral);
 }
 
 /* Issue cards. Each is a `<Stack direction="column" gap="sm">`; the tinted
    surface and its left accent bar have no <Stack> prop, so they stay here. */
-.vip-workflow-results-modal__issue {
+.vip-workflows-results-modal__issue {
 	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
 	/* wpds-allow R6 -- <Stack> exposes no border-radius prop. */
 	border-radius: var(--wpds-border-radius-md);
@@ -49,14 +49,14 @@
 		var(--wpds-color-stroke-surface-neutral);
 }
 
-.vip-workflow-results-modal__issue--pass {
+.vip-workflows-results-modal__issue--pass {
 	/* wpds-allow R6 -- pass tone for the card surface; <Stack> exposes no background prop. */
 	background: var(--wpds-color-background-surface-success-weak);
 	/* wpds-allow R6 -- pass tone for the accent bar; <Stack> exposes no border prop. */
 	border-left-color: var(--wpds-color-stroke-surface-success-strong);
 }
 
-.vip-workflow-results-modal__issue--fail {
+.vip-workflows-results-modal__issue--fail {
 	/* wpds-allow R6 -- fail tone for the card surface; <Stack> exposes no background prop. */
 	background: var(--wpds-color-background-surface-error-weak);
 	/* wpds-allow R6 -- fail tone for the accent bar; <Stack> exposes no border prop. */
@@ -65,23 +65,23 @@
 
 /* The rule name is 11px heading type *without* the uppercase that
    `<Text variant="heading-sm">` forces — a rule id is quoted verbatim. */
-.vip-workflow-results-modal__issue-rule {
-	font: var(--vip-workflow-text-heading-sm);
+.vip-workflows-results-modal__issue-rule {
+	font: var(--vip-workflows-text-heading-sm);
 	color: var(--wpds-color-foreground-content-neutral);
 }
 
-.vip-workflow-results-modal__issue-explanation {
+.vip-workflows-results-modal__issue-explanation {
 	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	padding-left: var(--wpds-dimension-size-sm);
 }
 
 /* Unstructured issue fallback. */
-.vip-workflow-results-modal__issue-text {
+.vip-workflows-results-modal__issue-text {
 	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
 	border-radius: var(--wpds-border-radius-sm);
 	background: var(--wpds-color-background-surface-neutral-weak);
-	font: var(--vip-workflow-text-body-sm);
+	font: var(--vip-workflows-text-body-sm);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
@@ -97,18 +97,18 @@
  * it collapses against the footer's own `margin-top`, which already provides
  * the 24px gap between body and buttons.
  */
-.vip-workflow-results-modal .components-notice {
+.vip-workflows-results-modal .components-notice {
 	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
 }
 
 /* Helper generated-content panel. */
-.vip-workflow-results-modal__generated {
+.vip-workflows-results-modal__generated {
 	padding: var(--wpds-dimension-padding-lg);
 	background: var(--wpds-color-background-surface-neutral-weak);
 	border-radius: var(--wpds-border-radius-md);
 	border-left: var(--wpds-border-width-lg) solid
 		var(--wpds-color-stroke-surface-brand-strong);
-	font: var(--vip-workflow-text-body-lg);
+	font: var(--vip-workflows-text-body-lg);
 	color: var(--wpds-color-foreground-content-neutral);
 }
 
@@ -126,7 +126,7 @@
  */
 /* The list shell is a `<Stack direction="column" gap="sm" render={<ul/>}>`;
    what is left here is the browser's own list styling, undone. */
-.vip-workflow-results-modal__suggestions {
+.vip-workflows-results-modal__suggestions {
 	/* wpds-allow R3 -- undoes the UA list margin; the list owns no spacing of its own. */
 	margin: 0;
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
@@ -135,7 +135,7 @@
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-.vip-workflow-results-modal__suggestion {
+.vip-workflows-results-modal__suggestion {
 	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
 	/* wpds-allow R6 -- <Stack> draws nothing; the tinted surface must be set here. */
 	background: var(--wpds-color-background-surface-neutral-weak);
@@ -145,11 +145,11 @@
 
 /* Holds the row's value and its destination; must be allowed to shrink so the
    truncating meta line below actually truncates. <Stack> has no sizing prop. */
-.vip-workflow-results-modal__suggestion-body {
+.vip-workflows-results-modal__suggestion-body {
 	min-width: 0;
 }
 
-.vip-workflow-results-modal__suggestion-label {
+.vip-workflows-results-modal__suggestion-label {
 	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
 	color: var(--wpds-color-foreground-content-neutral);
 }
@@ -158,14 +158,14 @@
  * Secondary, and allowed to truncate. A destination title is context, not the
  * thing being chosen, so it must never push the value it belongs to off-screen.
  */
-.vip-workflow-results-modal__suggestion-meta {
-	font: var(--vip-workflow-text-body-sm);
+.vip-workflows-results-modal__suggestion-meta {
+	font: var(--vip-workflows-text-body-sm);
 	color: var(--wpds-color-foreground-content-neutral-weak);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.vip-workflow-results-modal__suggestion-apply {
+.vip-workflows-results-modal__suggestion-apply {
 	flex-shrink: 0;
 }

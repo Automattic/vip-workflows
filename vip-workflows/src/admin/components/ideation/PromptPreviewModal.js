@@ -38,18 +38,18 @@ export default function PromptPreviewModal( {
 		<Modal
 			title={ prompt.title }
 			onRequestClose={ onClose }
-			className="vip-workflow-ideation-prompt-preview vip-workflow-modal--truncate-title"
+			className="vip-workflows-ideation-prompt-preview vip-workflows-modal--truncate-title"
 			size="medium"
 		>
 			<Stack
 				direction="column"
 				gap="xl"
-				className="vip-workflow-ideation-prompt-preview__body"
+				className="vip-workflows-ideation-prompt-preview__body"
 			>
 				<Stack
 					wrap="wrap"
 					gap="sm"
-					className="vip-workflow-ideation-prompt-preview__badges"
+					className="vip-workflows-ideation-prompt-preview__badges"
 				>
 					{ provider?.label && (
 						<Badge intent="none">{ provider.label }</Badge>
@@ -63,13 +63,13 @@ export default function PromptPreviewModal( {
 							}
 						>
 							{ prompt.importance === 'key_event'
-								? __( 'Key Event', 'vip-workflow' )
-								: __( 'Top Story', 'vip-workflow' ) }
+								? __( 'Key Event', 'vip-workflows' )
+								: __( 'Top Story', 'vip-workflows' ) }
 						</Badge>
 					) }
 					{ meta.is_embargoed && (
 						<Badge intent="high">
-							{ __( 'Embargoed', 'vip-workflow' ) }
+							{ __( 'Embargoed', 'vip-workflows' ) }
 						</Badge>
 					) }
 				</Stack>
@@ -77,7 +77,7 @@ export default function PromptPreviewModal( {
 				<Stack
 					direction="column"
 					gap="sm"
-					className="vip-workflow-ideation-prompt-preview__section"
+					className="vip-workflows-ideation-prompt-preview__section"
 				>
 					<DateDisplay prompt={ prompt } meta={ meta } />
 				</Stack>
@@ -86,12 +86,12 @@ export default function PromptPreviewModal( {
 					<Stack
 						direction="column"
 						gap="sm"
-						className="vip-workflow-ideation-prompt-preview__section"
+						className="vip-workflows-ideation-prompt-preview__section"
 					>
 						<Text
 							variant="body-md"
 							render={ <p /> }
-							className="vip-workflow-ideation-prompt-preview__description"
+							className="vip-workflows-ideation-prompt-preview__description"
 						>
 							{ meta.content || prompt.description }
 						</Text>
@@ -101,29 +101,29 @@ export default function PromptPreviewModal( {
 				<Stack
 					direction="column"
 					gap="sm"
-					className="vip-workflow-ideation-prompt-preview__details"
+					className="vip-workflows-ideation-prompt-preview__details"
 				>
 					{ prompt.tags?.length > 0 && (
 						<DetailRow
-							label={ __( 'Topics', 'vip-workflow' ) }
+							label={ __( 'Topics', 'vip-workflows' ) }
 							value={ prompt.tags.join( ', ' ) }
 						/>
 					) }
 					{ meta.event_types?.length > 0 && (
 						<DetailRow
-							label={ __( 'Event type', 'vip-workflow' ) }
+							label={ __( 'Event type', 'vip-workflows' ) }
 							value={ meta.event_types.join( ', ' ) }
 						/>
 					) }
 					{ meta.address && (
 						<DetailRow
-							label={ __( 'Location', 'vip-workflow' ) }
+							label={ __( 'Location', 'vip-workflows' ) }
 							value={ meta.address }
 						/>
 					) }
 					{ meta.embargo_date && (
 						<DetailRow
-							label={ __( 'Embargo until', 'vip-workflow' ) }
+							label={ __( 'Embargo until', 'vip-workflows' ) }
 							value={ formatDateTime( meta.embargo_date ) }
 						/>
 					) }
@@ -133,20 +133,20 @@ export default function PromptPreviewModal( {
 					<Stack
 						direction="column"
 						gap="sm"
-						className="vip-workflow-ideation-prompt-preview__section"
+						className="vip-workflows-ideation-prompt-preview__section"
 					>
 						<Text
 							variant="heading-sm"
 							render={ <h4 /> }
-							className="vip-workflow-ideation-prompt-preview__section-title vip-workflow-eyebrow"
+							className="vip-workflows-ideation-prompt-preview__section-title vip-workflows-eyebrow"
 						>
-							{ __( 'Links', 'vip-workflow' ) }
+							{ __( 'Links', 'vip-workflows' ) }
 						</Text>
 						<Stack
 							render={ <ul /> }
 							direction="column"
 							gap="sm"
-							className="vip-workflow-ideation-prompt-preview__links"
+							className="vip-workflows-ideation-prompt-preview__links"
 						>
 							{ meta.links.map( ( link, i ) => (
 								<li key={ i }>
@@ -163,34 +163,34 @@ export default function PromptPreviewModal( {
 					<Stack
 						direction="column"
 						gap="sm"
-						className="vip-workflow-ideation-prompt-preview__section"
+						className="vip-workflows-ideation-prompt-preview__section"
 					>
 						<Text
 							variant="heading-sm"
 							render={ <h4 /> }
-							className="vip-workflow-ideation-prompt-preview__section-title vip-workflow-eyebrow"
+							className="vip-workflows-ideation-prompt-preview__section-title vip-workflows-eyebrow"
 						>
-							{ __( 'Contacts', 'vip-workflow' ) }
+							{ __( 'Contacts', 'vip-workflows' ) }
 						</Text>
 						<Stack
 							render={ <ul /> }
 							direction="column"
 							gap="sm"
-							className="vip-workflow-ideation-prompt-preview__contacts"
+							className="vip-workflows-ideation-prompt-preview__contacts"
 						>
 							{ meta.contacts.map( ( contact, i ) => (
 								<li
 									key={ i }
-									className="vip-workflow-ideation-prompt-preview__contact"
+									className="vip-workflows-ideation-prompt-preview__contact"
 								>
 									{ contact.name && (
 										// wpds-allow R7 -- bold inline contact name; no Text variant for label weight
-										<span className="vip-workflow-ideation-prompt-preview__contact-name">
+										<span className="vip-workflows-ideation-prompt-preview__contact-name">
 											{ contact.name }
 										</span>
 									) }
 									{ contact.role && (
-										<span className="vip-workflow-ideation-prompt-preview__contact-role">
+										<span className="vip-workflows-ideation-prompt-preview__contact-role">
 											{ contact.role }
 										</span>
 									) }
@@ -202,7 +202,7 @@ export default function PromptPreviewModal( {
 										</Link>
 									) }
 									{ contact.phone && (
-										<span className="vip-workflow-ideation-prompt-preview__contact-phone">
+										<span className="vip-workflows-ideation-prompt-preview__contact-phone">
 											{ contact.phone }
 										</span>
 									) }
@@ -222,7 +222,7 @@ export default function PromptPreviewModal( {
 						rel="noopener noreferrer"
 						__next40pxDefaultSize
 					>
-						{ __( 'Open source', 'vip-workflow' ) }
+						{ __( 'Open source', 'vip-workflows' ) }
 					</Button>
 				) }
 				<Button
@@ -231,7 +231,7 @@ export default function PromptPreviewModal( {
 					disabled={ submitting }
 					__next40pxDefaultSize
 				>
-					{ __( 'Use as seed', 'vip-workflow' ) }
+					{ __( 'Use as seed', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 		</Modal>
@@ -251,9 +251,9 @@ function DateDisplay( { prompt, meta } ) {
 	let dateStr = formatPartialDate( prompt.date, meta.start_has_time );
 
 	if ( meta.month_tbc ) {
-		dateStr += ' ' + __( '(month TBC)', 'vip-workflow' );
+		dateStr += ' ' + __( '(month TBC)', 'vip-workflows' );
 	} else if ( meta.year_tbc ) {
-		dateStr += ' ' + __( '(year TBC)', 'vip-workflow' );
+		dateStr += ' ' + __( '(year TBC)', 'vip-workflows' );
 	}
 
 	// A range that begins and ends on one day is that day, so only a genuinely
@@ -270,7 +270,7 @@ function DateDisplay( { prompt, meta } ) {
 		<Text
 			variant="heading-md"
 			render={ <div /> }
-			className="vip-workflow-ideation-prompt-preview__date"
+			className="vip-workflows-ideation-prompt-preview__date"
 		>
 			{ dateStr }
 		</Text>
@@ -281,13 +281,13 @@ function DetailRow( { label, value } ) {
 	return (
 		<Stack
 			gap="md"
-			className="vip-workflow-ideation-prompt-preview__detail-row"
+			className="vip-workflows-ideation-prompt-preview__detail-row"
 		>
 			{ /* wpds-allow R7 -- bold inline field label; no Text variant for label weight */ }
-			<span className="vip-workflow-ideation-prompt-preview__detail-label">
+			<span className="vip-workflows-ideation-prompt-preview__detail-label">
 				{ label }
 			</span>
-			<span className="vip-workflow-ideation-prompt-preview__detail-value">
+			<span className="vip-workflows-ideation-prompt-preview__detail-value">
 				{ value }
 			</span>
 		</Stack>

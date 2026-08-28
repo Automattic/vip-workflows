@@ -15,13 +15,13 @@ import InstallSkillButton from '../../src/admin/components/InstallSkillButton';
 jest.mock( 'jszip', () => jest.fn() );
 
 afterEach( () => {
-	delete window.vipWorkflowAdmin;
+	delete window.vipWorkflowsAdmin;
 	jest.clearAllMocks();
 } );
 
 describe( 'InstallSkillButton', () => {
 	it( 'renders the "Research Agent" download label for the agent skill type', () => {
-		window.vipWorkflowAdmin = { skills: { agent: '# SKILL' } };
+		window.vipWorkflowsAdmin = { skills: { agent: '# SKILL' } };
 
 		render( <InstallSkillButton skillType="agent" /> );
 
@@ -33,7 +33,7 @@ describe( 'InstallSkillButton', () => {
 	} );
 
 	it( 'renders nothing when no skill content is localized for the type', () => {
-		window.vipWorkflowAdmin = { skills: {} };
+		window.vipWorkflowsAdmin = { skills: {} };
 
 		const { container } = render(
 			<InstallSkillButton skillType="agent" />
@@ -46,7 +46,7 @@ describe( 'InstallSkillButton', () => {
 	it( 'no longer maps the legacy "assistant" type to the Research Assistant label', () => {
 		// Pre-rename callers used skillType="assistant"; that key was removed, so
 		// the label must not resolve to "Research Assistant" any more.
-		window.vipWorkflowAdmin = { skills: { assistant: '# SKILL' } };
+		window.vipWorkflowsAdmin = { skills: { assistant: '# SKILL' } };
 
 		render( <InstallSkillButton skillType="assistant" /> );
 

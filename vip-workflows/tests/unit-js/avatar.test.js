@@ -13,7 +13,7 @@ import { Avatar } from '../../src/common/Avatar';
 import { sparkle } from '../../src/common/icons';
 
 const initialsOf = ( ui ) =>
-	render( ui ).container.querySelector( '.vip-workflow-avatar__initials' )
+	render( ui ).container.querySelector( '.vip-workflows-avatar__initials' )
 		.textContent;
 
 describe( 'Avatar initials', () => {
@@ -51,8 +51,8 @@ describe( 'Avatar sizing', () => {
 			render( <Avatar name="Ada Lovelace" size={ size } /> ).container
 				.firstChild.className;
 
-		expect( at( undefined ) ).toContain( 'vip-workflow-avatar--sm' );
-		expect( at( '2xs' ) ).toContain( 'vip-workflow-avatar--2xs' );
+		expect( at( undefined ) ).toContain( 'vip-workflows-avatar--sm' );
+		expect( at( '2xs' ) ).toContain( 'vip-workflows-avatar--2xs' );
 	} );
 
 	it( 'scales the glyph with the box rather than fixing it', () => {

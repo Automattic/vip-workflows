@@ -2,31 +2,31 @@
 /**
  * Main plugin class.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow;
+namespace VIPWorkflows;
 
-use VIPWorkflow\API\RestController;
-use VIPWorkflow\Automation\EventBus;
-use VIPWorkflow\Automation\EventRegistry;
-use VIPWorkflow\Admin\Admin;
-use VIPWorkflow\Editor\EditorIntegration;
-use VIPWorkflow\Workflow\AgentRunner;
-use VIPWorkflow\Workflow\StageAgentRunner;
-use VIPWorkflow\Workflow\PostTypeManager;
-use VIPWorkflow\Workflow\PublishBoundaryGuard;
-use VIPWorkflow\Workflow\StatusManager;
-use VIPWorkflow\Workflow\WorkflowEvents;
-use VIPWorkflow\Maintenance\Cleanup;
-use VIPWorkflow\Notifications\NotificationDispatcher;
-use VIPWorkflow\Experiments\ExperimentCLI;
-use VIPWorkflow\Experiments\ExperimentRegistry;
-use VIPWorkflow\Experiments\IdeationExperiment;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Story\Story;
+use VIPWorkflows\API\RestController;
+use VIPWorkflows\Automation\EventBus;
+use VIPWorkflows\Automation\EventRegistry;
+use VIPWorkflows\Admin\Admin;
+use VIPWorkflows\Editor\EditorIntegration;
+use VIPWorkflows\Workflow\AgentRunner;
+use VIPWorkflows\Workflow\StageAgentRunner;
+use VIPWorkflows\Workflow\PostTypeManager;
+use VIPWorkflows\Workflow\PublishBoundaryGuard;
+use VIPWorkflows\Workflow\StatusManager;
+use VIPWorkflows\Workflow\WorkflowEvents;
+use VIPWorkflows\Maintenance\Cleanup;
+use VIPWorkflows\Notifications\NotificationDispatcher;
+use VIPWorkflows\Experiments\ExperimentCLI;
+use VIPWorkflows\Experiments\ExperimentRegistry;
+use VIPWorkflows\Experiments\IdeationExperiment;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Story\Story;
 
 // Load Abilities API functions.
 require_once __DIR__ . '/abilities/functions.php';
@@ -153,12 +153,12 @@ final class Plugin {
 
 		// Configurable AI system prompts. Core prompts register on
 		// the PromptRegistry's collection hook; call sites resolve via get().
-		add_action( 'vip_workflow_register_prompts', array( \VIPWorkflow\AI\CorePrompts::class, 'register' ) );
+		add_action( 'vip_workflows_register_prompts', array( \VIPWorkflows\AI\CorePrompts::class, 'register' ) );
 
 		// AI credentials via the WordPress Connectors API. Register
 		// the plugin's custom (non-AI) connectors when connectors are available;
 		// AI providers (openai/anthropic/google) are core's default connectors.
-		add_action( 'wp_connectors_init', array( \VIPWorkflow\AI\ConnectorsCredentialBackend::class, 'register_custom_connectors' ) );
+		add_action( 'wp_connectors_init', array( \VIPWorkflows\AI\ConnectorsCredentialBackend::class, 'register_custom_connectors' ) );
 
 		// REST API.
 		$rest_controller = new RestController();
@@ -176,12 +176,12 @@ final class Plugin {
 		 *
 		 * @since 1.3.0
 		 */
-		do_action( 'vip_workflow_register_experiments', $this->experiment_registry );
+		do_action( 'vip_workflows_register_experiments', $this->experiment_registry );
 
 		$this->experiment_registry->register_modules( $this );
 
 		if ( defined( 'WP_CLI' ) && WP_CLI ) {
-			\WP_CLI::add_command( 'vip-workflow experiment', ExperimentCLI::class );
+			\WP_CLI::add_command( 'vip-workflows experiment', ExperimentCLI::class );
 		}
 
 		// --- Modules (self-contained, order does NOT matter) ---
@@ -203,7 +203,7 @@ final class Plugin {
 		 *
 		 * External plugins can register their own modules:
 		 *
-		 * add_action( 'vip_workflow_register_modules', function( $plugin ) {
+		 * add_action( 'vip_workflows_register_modules', function( $plugin ) {
 		 *     $plugin->register_module( new MyModule() );
 		 * } );
 		 *
@@ -211,7 +211,7 @@ final class Plugin {
 		 *
 		 * @since 1.2.0
 		 */
-		do_action( 'vip_workflow_register_modules', $this );
+		do_action( 'vip_workflows_register_modules', $this );
 
 		// Initialize all registered modules.
 		foreach ( $this->modules as $module ) {
@@ -229,18 +229,18 @@ final class Plugin {
 	 */
 	public function register_ability_categories(): void {
 		wp_register_ability_category(
-			'vip-workflow',
+			'vip-workflows',
 			array(
-				'label'       => __( 'VIP Workflow', 'vip-workflow' ),
-				'description' => __( 'Content analysis and workflow automation abilities.', 'vip-workflow' ),
+				'label'       => __( 'VIP Workflows', 'vip-workflows' ),
+				'description' => __( 'Content analysis and workflow automation abilities.', 'vip-workflows' ),
 			)
 		);
 
 		wp_register_ability_category(
 			'research',
 			array(
-				'label'       => __( 'Research', 'vip-workflow' ),
-				'description' => __( 'Research agents that discover sources, media, and context during ideation.', 'vip-workflow' ),
+				'label'       => __( 'Research', 'vip-workflows' ),
+				'description' => __( 'Research agents that discover sources, media, and context during ideation.', 'vip-workflows' ),
 			)
 		);
 	}
@@ -266,9 +266,9 @@ final class Plugin {
 
 		// Register built-in research agents (ideation-only surface).
 		if ( self::experiment_enabled( 'ideation' ) ) {
-			\VIPWorkflow\Ideation\Assistants\ArchiveScout::register_ability();
-			\VIPWorkflow\Ideation\Assistants\WebResearcher::register_ability();
-			\VIPWorkflow\Ideation\Assistants\MediaScout::register_ability();
+			\VIPWorkflows\Ideation\Assistants\ArchiveScout::register_ability();
+			\VIPWorkflows\Ideation\Assistants\WebResearcher::register_ability();
+			\VIPWorkflows\Ideation\Assistants\MediaScout::register_ability();
 		}
 
 		// Workflow query + action tools (MCP-enabled).
@@ -289,27 +289,27 @@ final class Plugin {
 		include_once __DIR__ . '/abilities/tools/remove-from-workflow.php';
 		include_once __DIR__ . '/abilities/tools/update-post-fields.php';
 
-		\VIPWorkflow\Abilities\Tools\register_seo_check();
-		\VIPWorkflow\Abilities\Tools\register_readability();
-		\VIPWorkflow\Abilities\Tools\register_keyword_check();
+		\VIPWorkflows\Abilities\Tools\register_seo_check();
+		\VIPWorkflows\Abilities\Tools\register_readability();
+		\VIPWorkflows\Abilities\Tools\register_keyword_check();
 
 		// Workflow query + action tools.
-		\VIPWorkflow\Abilities\Tools\register_get_workflow_summary();
-		\VIPWorkflow\Abilities\Tools\register_get_my_assignments();
-		\VIPWorkflow\Abilities\Tools\register_get_posts_by_status();
-		\VIPWorkflow\Abilities\Tools\register_get_recent_activity();
-		\VIPWorkflow\Abilities\Tools\register_get_stale_posts();
-		\VIPWorkflow\Abilities\Tools\register_get_transition_history();
-		\VIPWorkflow\Abilities\Tools\register_get_available_transitions();
-		\VIPWorkflow\Abilities\Tools\register_get_sequences();
-		\VIPWorkflow\Abilities\Tools\register_create_sequence();
-		\VIPWorkflow\Abilities\Tools\register_update_sequence();
-		\VIPWorkflow\Abilities\Tools\register_activate_sequence();
-		\VIPWorkflow\Abilities\Tools\register_validate_sequence();
-		\VIPWorkflow\Abilities\Tools\register_import_sequence();
-		\VIPWorkflow\Abilities\Tools\register_transition_post();
-		\VIPWorkflow\Abilities\Tools\register_remove_from_workflow();
-		\VIPWorkflow\Abilities\Tools\register_update_post_fields();
+		\VIPWorkflows\Abilities\Tools\register_get_workflow_summary();
+		\VIPWorkflows\Abilities\Tools\register_get_my_assignments();
+		\VIPWorkflows\Abilities\Tools\register_get_posts_by_status();
+		\VIPWorkflows\Abilities\Tools\register_get_recent_activity();
+		\VIPWorkflows\Abilities\Tools\register_get_stale_posts();
+		\VIPWorkflows\Abilities\Tools\register_get_transition_history();
+		\VIPWorkflows\Abilities\Tools\register_get_available_transitions();
+		\VIPWorkflows\Abilities\Tools\register_get_sequences();
+		\VIPWorkflows\Abilities\Tools\register_create_sequence();
+		\VIPWorkflows\Abilities\Tools\register_update_sequence();
+		\VIPWorkflows\Abilities\Tools\register_activate_sequence();
+		\VIPWorkflows\Abilities\Tools\register_validate_sequence();
+		\VIPWorkflows\Abilities\Tools\register_import_sequence();
+		\VIPWorkflows\Abilities\Tools\register_transition_post();
+		\VIPWorkflows\Abilities\Tools\register_remove_from_workflow();
+		\VIPWorkflows\Abilities\Tools\register_update_post_fields();
 
 		/**
 		 * Fires when abilities should be registered.
@@ -319,7 +319,7 @@ final class Plugin {
 		 * wp_register_ability( 'my-plugin/my-ability', [
 		 *     'label'               => __( 'My Ability', 'my-plugin' ),
 		 *     'description'         => __( 'Does something useful.', 'my-plugin' ),
-		 *     'category'            => 'vip-workflow',
+		 *     'category'            => 'vip-workflows',
 		 *     'input_schema'        => [ ... ],
 		 *     'output_schema'       => [ ... ],
 		 *     'execute_callback'    => 'my_execute_function',
@@ -328,7 +328,7 @@ final class Plugin {
 		 *
 		 * @since 1.0.0
 		 */
-		do_action( 'vip_workflow_register_abilities' );
+		do_action( 'vip_workflows_register_abilities' );
 	}
 
 	/**
@@ -336,7 +336,7 @@ final class Plugin {
 	 */
 	private function register_hooks(): void {
 		// Register ActionScheduler handlers.
-		add_action( 'vip_workflow_execute_flow', array( $this, 'handle_flow_execution' ), 10, 4 );
+		add_action( 'vip_workflows_execute_flow', array( $this, 'handle_flow_execution' ), 10, 4 );
 
 		// Register post meta.
 		add_action( 'init', array( $this, 'register_meta' ) );
@@ -361,7 +361,7 @@ final class Plugin {
 		// Sequence ID - which sequence this post follows.
 		register_post_meta(
 			'',
-			'_vip_workflow_sequence_id',
+			'_vip_workflows_sequence_id',
 			array(
 				'type'              => 'integer',
 				'single'            => true,
@@ -531,12 +531,12 @@ final class Plugin {
 	 */
 	private function init_ai_client(): void {
 		// WordPress 7.0+ bundles php-ai-client in core, and the plugin requires 7.0
-		// (see VIP_WORKFLOW_MIN_WP_VERSION). If the core AI client is missing, the
+		// (see VIP_WORKFLOWS_MIN_WP_VERSION). If the core AI client is missing, the
 		// environment is broken — surface it loudly rather than silently degrade.
 		if ( ! class_exists( 'WordPress\AiClient\AiClient' ) ) {
 			_doing_it_wrong(
 				__METHOD__,
-				esc_html__( 'WordPress 7.0+ core PHP AI Client is required but was not found.', 'vip-workflow' ),
+				esc_html__( 'WordPress 7.0+ core PHP AI Client is required but was not found.', 'vip-workflows' ),
 				'1.0.0'
 			);
 			return;
@@ -554,8 +554,8 @@ final class Plugin {
 		// adapter. Set unconditionally when we have a key:
 		// idempotent with core's connector → AI-client wiring, and covers keys
 		// held in the legacy/fallback store on connectors-capable environments.
-		$credentials = \VIPWorkflow\AI\Credentials::get_instance();
-		foreach ( \VIPWorkflow\AI\Credentials::AI_PROVIDERS as $provider ) {
+		$credentials = \VIPWorkflows\AI\Credentials::get_instance();
+		foreach ( \VIPWorkflows\AI\Credentials::AI_PROVIDERS as $provider ) {
 			$key = $credentials->api_key( $provider );
 			if ( '' !== $key && $registry->hasProvider( $provider ) ) {
 				$registry->setProviderRequestAuthentication(
@@ -565,7 +565,7 @@ final class Plugin {
 			}
 		}
 
-		\WordPress\AiClient\AiClient::setEventDispatcher( new \VIPWorkflow\AI\EventDispatcher() );
+		\WordPress\AiClient\AiClient::setEventDispatcher( new \VIPWorkflows\AI\EventDispatcher() );
 
 		// WP HTTP API defaults to 5s; AI generation needs more headroom, for
 		// every provider (not just OpenAI).

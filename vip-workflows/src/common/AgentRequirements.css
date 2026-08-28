@@ -5,16 +5,16 @@
  * surfaces render an agent's requirements identically.
  */
 
-.vip-workflow-agent-requirements__sources,
-.vip-workflow-agent-requirements__hint {
+.vip-workflows-agent-requirements__sources,
+.vip-workflows-agent-requirements__hint {
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted tone for the requirement sub-lines; Text exposes no color prop in @wordpress/ui 0.9 */
 }
 
 /* Inside an already-muted container — the card's demoted hint, the inspector's
    inline note — a second weak tone would wash the sub-lines out. */
-.vip-workflow-assistant-card__hint .vip-workflow-agent-requirements__sources,
-.vip-workflow-assistant-card__hint .vip-workflow-agent-requirements__hint,
-.vip-workflow-stage-agent-warning .vip-workflow-agent-requirements__sources,
-.vip-workflow-stage-agent-warning .vip-workflow-agent-requirements__hint {
+.vip-workflows-assistant-card__hint .vip-workflows-agent-requirements__sources,
+.vip-workflows-assistant-card__hint .vip-workflows-agent-requirements__hint,
+.vip-workflows-stage-agent-warning .vip-workflows-agent-requirements__sources,
+.vip-workflows-stage-agent-warning .vip-workflows-agent-requirements__hint {
 	color: inherit; /* wpds-allow R6 -- opts the sub-lines out of the weak tone inside an already-muted container; Text exposes no color prop in @wordpress/ui 0.9 */
 }

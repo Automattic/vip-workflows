@@ -7,19 +7,19 @@
  * Shares analysis dimensions (clarity, completeness, newsworthiness,
  * feasibility) with the downstream AI Pitch Analyzer.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Ideation\Assistants;
+namespace VIPWorkflows\Ideation\Assistants;
 
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\AiInference;
-use VIPWorkflow\Abilities\Ability;
-use VIPWorkflow\Abilities\AiAvailability;
-use VIPWorkflow\Integrations\LlmJsonGenerator;
-use VIPWorkflow\Integrations\LlmTextGenerator;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\AiInference;
+use VIPWorkflows\Abilities\Ability;
+use VIPWorkflows\Abilities\AiAvailability;
+use VIPWorkflows\Integrations\LlmJsonGenerator;
+use VIPWorkflows\Integrations\LlmTextGenerator;
 
 /**
  * Editorial Mentor.
@@ -32,7 +32,7 @@ class EditorialMentor {
 	 * @return string
 	 */
 	public function get_id(): string {
-		return 'vip-workflow/editorial-mentor';
+		return 'vip-workflows/editorial-mentor';
 	}
 
 	/**
@@ -90,7 +90,7 @@ class EditorialMentor {
 			$cards = array(
 				array(
 					'type'       => 'mentor-guidance',
-					'title'      => __( 'Editorial Guidance', 'vip-workflow' ),
+					'title'      => __( 'Editorial Guidance', 'vip-workflows' ),
 					'guidance'   => $guidance['guidance'],
 					'readiness'  => $guidance['readiness'],
 					'source'     => 'editorial-mentor',

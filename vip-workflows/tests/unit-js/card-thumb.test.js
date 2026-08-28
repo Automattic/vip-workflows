@@ -44,7 +44,7 @@ describe( 'CardThumb', () => {
 		const { container } = render(
 			<CardThumb
 				src="https://example.test/gone.jpg"
-				className="vip-workflow-ideation-detail-modal__image"
+				className="vip-workflows-ideation-detail-modal__image"
 			/>
 		);
 
@@ -54,10 +54,10 @@ describe( 'CardThumb', () => {
 			name: 'Image unavailable',
 		} );
 		expect( fallback ).toHaveClass(
-			'vip-workflow-ideation-detail-modal__image'
+			'vip-workflows-ideation-detail-modal__image'
 		);
 		expect( fallback ).toHaveClass(
-			'vip-workflow-ideation-card__image-unavailable'
+			'vip-workflows-ideation-card__image-unavailable'
 		);
 	} );
 

@@ -2,12 +2,12 @@
 /**
  * Markdown helpers for AI-generated text.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
 /**
  * Convert the markdown subset our prompts emit into plain text.

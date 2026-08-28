@@ -10,22 +10,22 @@
  * line: agent stages are not reproducible, and nothing may quietly start asking
  * for a temperature again.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use ReflectionMethod;
-use VIPWorkflow\Abilities\Agents\StageAgent;
+use VIPWorkflows\Abilities\Agents\StageAgent;
 use WordPress\AiClient\AiClient;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/agents/class-stage-agent.php';
 
 /**
- * @covers \VIPWorkflow\Abilities\Agents\StageAgent::generate
+ * @covers \VIPWorkflows\Abilities\Agents\StageAgent::generate
  */
 class StageAgentSamplingTest extends TestCase
 {

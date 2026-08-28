@@ -13,27 +13,27 @@
  * handler, so the response was WordPress's generic critical-error page carrying
  * no message at all.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\AI\CredentialBackend;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Plugin;
+use VIPWorkflows\AI\CredentialBackend;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Plugin;
 use WP_REST_Request;
 
 /**
- * @covers \VIPWorkflow\API\IdeationController::create_draft
+ * @covers \VIPWorkflows\API\IdeationController::create_draft
  */
 class IdeationCreateDraftFailureTest extends TestCase
 {
     private const POST_TYPE = 'vip_ideation';
 
-    private const ROUTE = '/vip-workflow/v1/ideation/%d/create-draft';
+    private const ROUTE = '/vip-workflows/v1/ideation/%d/create-draft';
 
     public function set_up(): void
     {
@@ -72,7 +72,7 @@ class IdeationCreateDraftFailureTest extends TestCase
      */
     private function expect_unresolved_provider_notice(): void
     {
-        $this->setExpectedIncorrectUsage( 'VIPWorkflow\\AI\\AiInference::model' );
+        $this->setExpectedIncorrectUsage( 'VIPWorkflows\\AI\\AiInference::model' );
     }
 
     /**

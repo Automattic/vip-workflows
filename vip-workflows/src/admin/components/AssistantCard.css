@@ -8,13 +8,13 @@
  */
 
 /* Which plugin the agent came from, under its name. */
-.vip-workflow-assistant-card__origin {
+.vip-workflows-assistant-card__origin {
 	/* wpds-allow R6 -- muted tone for the card subtitle; Text exposes no color prop in @wordpress/ui 0.9 */
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* Low-emphasis stand-in for the warning notice when the agent is switched off. */
-.vip-workflow-assistant-card__hint {
+.vip-workflows-assistant-card__hint {
 	/* wpds-allow R6 -- muted tone for the whole demoted hint; Stack exposes no color prop in @wordpress/ui 0.9 */
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }

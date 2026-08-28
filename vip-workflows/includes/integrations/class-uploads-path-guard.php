@@ -2,12 +2,12 @@
 /**
  * Validates local file paths before they are read as WordPress uploads.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
 use WP_Error;
 
@@ -30,7 +30,7 @@ final class UploadsPathGuard {
 		if ( false === $real || false === $basedir || ! str_starts_with( $real, $basedir . DIRECTORY_SEPARATOR ) ) {
 			return new WP_Error(
 				'invalid_file_path',
-				__( 'The file is outside the uploads directory.', 'vip-workflow' )
+				__( 'The file is outside the uploads directory.', 'vip-workflows' )
 			);
 		}
 

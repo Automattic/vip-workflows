@@ -35,7 +35,7 @@ const FILE_ICONS = {
 			fill="none"
 			stroke="currentColor"
 			strokeWidth="1.5"
-			className="vip-workflow-ideation-card--document__icon-svg vip-workflow-ideation-card--document__icon-svg--pdf"
+			className="vip-workflows-ideation-card--document__icon-svg vip-workflows-ideation-card--document__icon-svg--pdf"
 		>
 			<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
 			<polyline points="14 2 14 8 20 8" />
@@ -60,7 +60,7 @@ const FILE_ICONS = {
 			fill="none"
 			stroke="currentColor"
 			strokeWidth="1.5"
-			className="vip-workflow-ideation-card--document__icon-svg vip-workflow-ideation-card--document__icon-svg--document"
+			className="vip-workflows-ideation-card--document__icon-svg vip-workflows-ideation-card--document__icon-svg--document"
 		>
 			<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
 			<polyline points="14 2 14 8 20 8" />
@@ -77,7 +77,7 @@ const FILE_ICONS = {
 			fill="none"
 			stroke="currentColor"
 			strokeWidth="1.5"
-			className="vip-workflow-ideation-card--document__icon-svg vip-workflow-ideation-card--document__icon-svg--audio"
+			className="vip-workflows-ideation-card--document__icon-svg vip-workflows-ideation-card--document__icon-svg--audio"
 		>
 			<path d="M9 18V5l12-2v13" />
 			<circle cx="6" cy="18" r="3" />
@@ -117,9 +117,9 @@ function getFileLabel( card ) {
 		return 'PDF';
 	}
 	if ( mime.startsWith( 'audio/' ) ) {
-		return __( 'Audio', 'vip-workflow' );
+		return __( 'Audio', 'vip-workflows' );
 	}
-	return __( 'Document', 'vip-workflow' );
+	return __( 'Document', 'vip-workflows' );
 }
 
 export default function DocumentCard( {
@@ -163,12 +163,12 @@ export default function DocumentCard( {
 	const isError = card.processing_status === 'error';
 	const stuckMessage = __(
 		'Still processing — this is taking longer than expected.',
-		'vip-workflow'
+		'vip-workflows'
 	);
 
 	let errorMessage = null;
 	if ( isError ) {
-		errorMessage = ai.error || __( 'Processing failed.', 'vip-workflow' );
+		errorMessage = ai.error || __( 'Processing failed.', 'vip-workflows' );
 	} else if ( showStuck ) {
 		errorMessage = stuckMessage;
 	}
@@ -189,21 +189,21 @@ export default function DocumentCard( {
 			<Text render={ <p /> }>
 				{ __(
 					'This document is being analyzed by AI. Check back shortly.',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 			</Text>
 		);
 	} else {
 		summaryContent = (
 			<Text render={ <p /> }>
-				{ __( 'No AI summary yet.', 'vip-workflow' ) }
+				{ __( 'No AI summary yet.', 'vip-workflows' ) }
 			</Text>
 		);
 	}
 
 	return (
 		<Card.Root
-			className={ `vip-workflow-ideation-card vip-workflow-ideation-card--document ${
+			className={ `vip-workflows-ideation-card vip-workflows-ideation-card--document ${
 				isPinned ? 'is-pinned' : ''
 			}` }
 			data-source-id={ card.source_id }
@@ -217,40 +217,40 @@ export default function DocumentCard( {
 			tabIndex={ 0 }
 			onKeyDown={ handleCardKeyDown }
 		>
-			<Card.Content className="vip-workflow-ideation-card__row">
+			<Card.Content className="vip-workflows-ideation-card__row">
 				<Stack gap="sm">
 					<Stack
 						align="center"
 						justify="center"
-						className="vip-workflow-ideation-card--document__icon"
+						className="vip-workflows-ideation-card--document__icon"
 					>
 						{ getFileIcon( card ) }
 					</Stack>
 					<Stack
 						direction="column"
 						gap="xs"
-						className="vip-workflow-ideation-card__content"
+						className="vip-workflows-ideation-card__content"
 					>
 						<Stack align="center" gap="sm">
 							<Badge
 								intent="none"
-								className="vip-workflow-ideation-card__badge vip-workflow-ideation-card__badge--document"
+								className="vip-workflows-ideation-card__badge vip-workflows-ideation-card__badge--document"
 							>
 								{ getFileLabel( card ) }
 							</Badge>
 							{ card.file_size && (
 								// wpds-allow R7 -- inline muted file-size label; no <Text> muted-body variant
-								<span className="vip-workflow-ideation-card--document__size">
+								<span className="vip-workflows-ideation-card--document__size">
 									{ formatFileSize( card.file_size ) }
 								</span>
 							) }
 							{ isProcessing && ! showStuck && (
 								<Stack
 									render={ <span /> }
-									className="vip-workflow-ideation-card--document__processing"
+									className="vip-workflows-ideation-card--document__processing"
 									title={ __(
 										'Processing…',
-										'vip-workflow'
+										'vip-workflows'
 									) }
 								>
 									<Spinner />
@@ -264,10 +264,10 @@ export default function DocumentCard( {
 							{ hasSummary && (
 								<Stack
 									render={ <span /> }
-									className="vip-workflow-ideation-card__summarized"
+									className="vip-workflows-ideation-card__summarized"
 									title={ __(
 										'AI Analyzed',
-										'vip-workflow'
+										'vip-workflows'
 									) }
 								>
 									{ AI_ICON }
@@ -276,8 +276,8 @@ export default function DocumentCard( {
 							{ notes && (
 								<Stack
 									render={ <span /> }
-									className="vip-workflow-ideation-card__has-notes"
-									title={ __( 'Has notes', 'vip-workflow' ) }
+									className="vip-workflows-ideation-card__has-notes"
+									title={ __( 'Has notes', 'vip-workflows' ) }
 								>
 									{ NOTES_ICON }
 								</Stack>
@@ -287,7 +287,7 @@ export default function DocumentCard( {
 							<Text
 								variant="heading-md"
 								render={ <h4 /> }
-								className="vip-workflow-ideation-card__title"
+								className="vip-workflows-ideation-card__title"
 							>
 								{ card.title }
 							</Text>
@@ -296,7 +296,7 @@ export default function DocumentCard( {
 							<Text
 								variant="body-sm"
 								render={ <p /> }
-								className="vip-workflow-ideation-card__excerpt"
+								className="vip-workflows-ideation-card__excerpt"
 							>
 								{ preview }
 							</Text>
@@ -305,7 +305,7 @@ export default function DocumentCard( {
 				</Stack>
 			</Card.Content>
 
-			<Stack className="vip-workflow-ideation-card__actions" gap="xs">
+			<Stack className="vip-workflows-ideation-card__actions" gap="xs">
 				<CardActions
 					isDismissed={ isDismissed }
 					isPinned={ isPinned }
@@ -320,11 +320,11 @@ export default function DocumentCard( {
 
 			{ modalOpen && (
 				<CardDetailModal
-					title={ card.title || __( 'Document', 'vip-workflow' ) }
+					title={ card.title || __( 'Document', 'vip-workflows' ) }
 					onClose={ () => setModalOpen( false ) }
 					meta={
 						<Stack
-							className="vip-workflow-ideation-detail-modal__meta"
+							className="vip-workflows-ideation-detail-modal__meta"
 							align="center"
 							gap="sm"
 						>
@@ -340,7 +340,7 @@ export default function DocumentCard( {
 								<Text variant="body-sm">
 									{ __(
 										'AI processing in progress…',
-										'vip-workflow'
+										'vip-workflows'
 									) }
 								</Text>
 							) }
@@ -354,14 +354,14 @@ export default function DocumentCard( {
 									<Stack
 										direction="column"
 										gap="sm"
-										className="vip-workflow-ideation-detail-modal__excerpt"
+										className="vip-workflows-ideation-detail-modal__excerpt"
 									>
 										<Text
 											variant="heading-sm"
 											render={ <h4 /> }
-											className="vip-workflow-eyebrow"
+											className="vip-workflows-eyebrow"
 										>
-											{ __( 'Excerpt', 'vip-workflow' ) }
+											{ __( 'Excerpt', 'vip-workflows' ) }
 										</Text>
 										<Text render={ <p /> }>
 											{ card.excerpt }
@@ -373,14 +373,14 @@ export default function DocumentCard( {
 								<Stack
 									direction="column"
 									gap="sm"
-									className="vip-workflow-ideation-detail-modal__content"
+									className="vip-workflows-ideation-detail-modal__content"
 								>
 									<Text
 										variant="heading-sm"
 										render={ <h4 /> }
-										className="vip-workflow-eyebrow"
+										className="vip-workflows-eyebrow"
 									>
-										{ __( 'Content', 'vip-workflow' ) }
+										{ __( 'Content', 'vip-workflows' ) }
 									</Text>
 									<Text render={ <p /> }>
 										{ card.content }
@@ -408,7 +408,7 @@ export default function DocumentCard( {
 									href={ card.url }
 									target="_blank"
 								>
-									{ __( 'Open file', 'vip-workflow' ) }
+									{ __( 'Open file', 'vip-workflows' ) }
 								</Button>
 							) }
 							{ ( isError || showStuck ) && onRetry ? (
@@ -416,7 +416,7 @@ export default function DocumentCard( {
 									variant="secondary"
 									onClick={ () => onRetry( card.source_id ) }
 								>
-									{ __( 'Retry', 'vip-workflow' ) }
+									{ __( 'Retry', 'vip-workflows' ) }
 								</Button>
 							) : (
 								! isProcessing &&
@@ -430,10 +430,13 @@ export default function DocumentCard( {
 										disabled={ summarizing }
 									>
 										{ displaySummary
-											? __( 'Regenerate', 'vip-workflow' )
+											? __(
+													'Regenerate',
+													'vip-workflows'
+											  )
 											: __(
 													'Analyze document',
-													'vip-workflow'
+													'vip-workflows'
 											  ) }
 									</Button>
 								)
@@ -446,7 +449,7 @@ export default function DocumentCard( {
 					handleSaveNotes={ handleSaveNotes }
 					notesPlaceholder={ __(
 						'Add your notes about this document…',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 				/>
 			) }

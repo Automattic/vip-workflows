@@ -17,30 +17,30 @@
  * These are copies of one bug rather than one shared helper, so each site needs
  * its own fixture; a green test at one site says nothing about the others.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use ReflectionClass;
 use ReflectionMethod;
-use VIPWorkflow\AI\CorePrompts;
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\PromptSettings;
-use VIPWorkflow\Ideation\Assistants\EditorialMentor;
-use VIPWorkflow\Ideation\Research\IdeationAnalyzer;
-use VIPWorkflow\Integrations\MediaProcessor;
+use VIPWorkflows\AI\CorePrompts;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\PromptSettings;
+use VIPWorkflows\Ideation\Assistants\EditorialMentor;
+use VIPWorkflows\Ideation\Research\IdeationAnalyzer;
+use VIPWorkflows\Integrations\MediaProcessor;
 use WordPress\AiClient\AiClient;
 
 require_once __DIR__ . '/../../../includes/ideation/assistants/class-editorial-mentor.php';
 
 /**
- * @covers \VIPWorkflow\Ideation\Assistants\EditorialMentor
- * @covers \VIPWorkflow\Ideation\Research\IdeationAnalyzer
- * @covers \VIPWorkflow\Integrations\MediaProcessor
+ * @covers \VIPWorkflows\Ideation\Assistants\EditorialMentor
+ * @covers \VIPWorkflows\Ideation\Research\IdeationAnalyzer
+ * @covers \VIPWorkflows\Integrations\MediaProcessor
  */
 class MultibyteTruncationTest extends TestCase
 {
@@ -66,10 +66,10 @@ class MultibyteTruncationTest extends TestCase
 
         Functions\when( 'get_option' )->alias(
             static function ( string $option, $default = false ) {
-                if ( 'vip_workflow_ai_model' === $option ) {
+                if ( 'vip_workflows_ai_model' === $option ) {
                     return 'gpt-4o-mini';
                 }
-                if ( 'vip_workflow_prompts' === $option ) {
+                if ( 'vip_workflows_prompts' === $option ) {
                     return array();
                 }
                 return $default;

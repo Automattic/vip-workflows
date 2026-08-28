@@ -9,14 +9,14 @@
 
 const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
 
-test.describe( 'VIP Workflow — navigation', () => {
+test.describe( 'VIP Workflows — navigation', () => {
 	test( 'editors land on My Dashboard at the bare workflow page', async ( {
 		admin,
 		page,
 	} ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflow' );
+		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
 
-		const root = page.locator( '#vip-workflow-root' );
+		const root = page.locator( '#vip-workflows-root' );
 		await expect( root ).toBeAttached();
 		await expect( root ).not.toBeEmpty();
 		// Not the "Coming Soon" fallback — the bare slug must route to My Dashboard.
@@ -24,15 +24,15 @@ test.describe( 'VIP Workflow — navigation', () => {
 		// The native wp-admin Workflows submenu lists My Dashboard.
 		await expect(
 			page
-				.locator( '#toplevel_page_vip-workflow .wp-submenu' )
+				.locator( '#toplevel_page_vip-workflows .wp-submenu' )
 				.getByRole( 'link', { name: 'My Dashboard', exact: true } )
 		).toBeVisible();
 	} );
 
 	const splitPages = [
-		'vip-workflow-notifications',
-		'vip-workflow-agents',
-		'vip-workflow-tools',
+		'vip-workflows-notifications',
+		'vip-workflows-agents',
+		'vip-workflows-tools',
 	];
 	for ( const slug of splitPages ) {
 		test( `${ slug } page loads the workflow shell`, async ( {
@@ -41,7 +41,7 @@ test.describe( 'VIP Workflow — navigation', () => {
 		} ) => {
 			await admin.visitAdminPage( 'admin.php', `page=${ slug }` );
 
-			const root = page.locator( '#vip-workflow-root' );
+			const root = page.locator( '#vip-workflows-root' );
 			await expect( root ).toBeAttached();
 			await expect( root ).not.toBeEmpty();
 			await expect( root ).not.toContainText( 'Coming Soon' );
@@ -54,7 +54,7 @@ test.describe( 'VIP Workflow — navigation', () => {
 	} ) => {
 		await admin.visitAdminPage(
 			'admin.php',
-			'page=vip-workflow-notifications'
+			'page=vip-workflows-notifications'
 		);
 
 		// The strip used to grow with the site: a tab per channel group, a tab
@@ -99,12 +99,12 @@ test.describe( 'VIP Workflow — navigation', () => {
 		admin,
 		page,
 	} ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflow' );
+		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
 
 		// Scope to the Workflows submenu so labels like "Tools" don't collide
 		// with the core wp-admin top-level menus of the same name.
 		const submenu = page.locator(
-			'#toplevel_page_vip-workflow .wp-submenu'
+			'#toplevel_page_vip-workflows .wp-submenu'
 		);
 		await expect(
 			submenu.getByRole( 'link', { name: 'Notifications', exact: true } )

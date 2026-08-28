@@ -24,7 +24,7 @@ const {
 	transition,
 } = require( './helpers/workflow' );
 
-test.describe( 'VIP Workflow — publish via transition (editor UI)', () => {
+test.describe( 'VIP Workflows — publish via transition (editor UI)', () => {
 	let postId;
 
 	test.afterEach( async ( { requestUtils } ) => {
@@ -60,12 +60,12 @@ test.describe( 'VIP Workflow — publish via transition (editor UI)', () => {
 		await expect( publishButton ).toBeVisible();
 
 		const panel = await openWorkflowPanel( page );
-		await expect( panel.locator( '.vip-workflow-rail__stage' ) ).toHaveText(
-			'Ready to Publish'
-		);
+		await expect(
+			panel.locator( '.vip-workflows-rail__stage' )
+		).toHaveText( 'Ready to Publish' );
 
 		const publishNow = panel
-			.locator( '.vip-workflow-rail__actions' )
+			.locator( '.vip-workflows-rail__actions' )
 			.getByRole( 'button', { name: 'Publish Now' } );
 
 		// Declining the confirm abandons the transition entirely.
@@ -85,9 +85,9 @@ test.describe( 'VIP Workflow — publish via transition (editor UI)', () => {
 		await publishNow.click();
 		await dialog.getByRole( 'button', { name: 'Publish' } ).click();
 
-		await expect( panel.locator( '.vip-workflow-rail__stage' ) ).toHaveText(
-			'Published'
-		);
+		await expect(
+			panel.locator( '.vip-workflows-rail__stage' )
+		).toHaveText( 'Published' );
 
 		// The headline: the OPEN editor adopts the committed status without a
 		// reload. The entity record is the editor's source of truth, so this

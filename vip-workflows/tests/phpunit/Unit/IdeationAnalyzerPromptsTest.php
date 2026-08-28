@@ -5,20 +5,20 @@
  * Both prompt builders are pure (no AI call), so each is invoked via
  * reflection and asserted byte-identical to its prior inline text.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use ReflectionClass;
 use ReflectionMethod;
-use VIPWorkflow\AI\CorePrompts;
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\PromptSettings;
-use VIPWorkflow\Ideation\Research\IdeationAnalyzer;
+use VIPWorkflows\AI\CorePrompts;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\PromptSettings;
+use VIPWorkflows\Ideation\Research\IdeationAnalyzer;
 
 class IdeationAnalyzerPromptsTest extends TestCase
 {
@@ -32,12 +32,12 @@ class IdeationAnalyzerPromptsTest extends TestCase
 
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                return 'vip_workflow_prompts' === $option ? $this->prompt_overrides : $default;
+                return 'vip_workflows_prompts' === $option ? $this->prompt_overrides : $default;
             }
         );
         Functions\when( 'update_option' )->alias(
             function ( string $option, $value ) {
-                if ( 'vip_workflow_prompts' === $option ) {
+                if ( 'vip_workflows_prompts' === $option ) {
                     $this->prompt_overrides = $value;
                 }
                 return true;

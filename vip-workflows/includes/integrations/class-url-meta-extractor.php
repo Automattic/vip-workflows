@@ -5,12 +5,12 @@
  * Generic utility for fetching Open Graph and HTML meta tags from any URL.
  * Can be used by research, pitches, or any feature that needs URL metadata.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
 use WP_Error;
 
@@ -28,7 +28,7 @@ class UrlMetaExtractor {
 	/**
 	 * User agent string for requests.
 	 */
-	public const USER_AGENT = 'Mozilla/5.0 (compatible; VIP Workflow)';
+	public const USER_AGENT = 'Mozilla/5.0 (compatible; VIP Workflows)';
 
 	/**
 	 * Fetch metadata from a URL.
@@ -57,7 +57,7 @@ class UrlMetaExtractor {
 			return new WP_Error(
 				'http_error',
 				/* translators: %d: HTTP status code. */
-				sprintf( __( 'HTTP error %d', 'vip-workflow' ), $status_code )
+				sprintf( __( 'HTTP error %d', 'vip-workflows' ), $status_code )
 			);
 		}
 

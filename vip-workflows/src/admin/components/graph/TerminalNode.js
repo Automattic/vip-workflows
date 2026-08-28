@@ -43,8 +43,8 @@ function TerminalNodeComponent( { data } ) {
 			{ /* wpds-allow R7 -- uppercase micro-type on the Start/End pill; the class also carries letter-spacing and colour, which <Text> has no prop for, and its stylesheet is out of this sweep's scope */ }
 			<span className="wf-terminal-pill__label">
 				{ isStart
-					? __( 'Start', 'vip-workflow' )
-					: __( 'End', 'vip-workflow' ) }
+					? __( 'Start', 'vip-workflows' )
+					: __( 'End', 'vip-workflows' ) }
 			</span>
 			{ isStart && (
 				<Handle

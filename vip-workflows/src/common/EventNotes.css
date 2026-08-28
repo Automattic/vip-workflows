@@ -11,7 +11,7 @@
    `line-clamp` beside it is the standard property the same browsers are moving
    to, so this rule keeps working once the prefixed one is dropped. `overflow`
    is what actually hides the rest. */
-.vip-workflow-event-notes {
+.vip-workflows-event-notes {
 	display: -webkit-box; /* wpds-allow R4,R6 -- required by line-clamp; <Text> exposes no prop for truncating to a line count */
 	-webkit-box-orient: vertical;
 	-webkit-line-clamp: 2;

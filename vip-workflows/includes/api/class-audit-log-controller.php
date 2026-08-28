@@ -2,17 +2,17 @@
 /**
  * Audit Log REST API controller.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Admin\Settings;
-use VIPWorkflow\Database\Schema;
-use VIPWorkflow\Workflow\Actor;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Admin\Settings;
+use VIPWorkflows\Database\Schema;
+use VIPWorkflows\Workflow\Actor;
+use VIPWorkflows\Workflow\StatusManager;
 use WP_REST_Controller;
 use WP_REST_Server;
 use WP_REST_Request;
@@ -146,7 +146,7 @@ class AuditLogController extends WP_REST_Controller {
 			: 'created_at';
 		$order           = 'ASC' === strtoupper( $request->get_param( 'order' ) ) ? 'ASC' : 'DESC';
 
-		$table = Schema::get_table_name( 'workflow_events' );
+		$table = Schema::get_table_name( 'workflows_events' );
 
 		// Build WHERE clause. Columns are aliased to `e` so a search JOIN against
 		// the posts table can disambiguate.
@@ -241,7 +241,7 @@ class AuditLogController extends WP_REST_Controller {
 	public function get_event_types() {
 		global $wpdb;
 
-		$table = Schema::get_table_name( 'workflow_events' );
+		$table = Schema::get_table_name( 'workflows_events' );
 
 		// The same exclusion get_events() applies: the bus's bookkeeping rows
 		// are never served, so offering them as filter options would offer
@@ -276,7 +276,7 @@ class AuditLogController extends WP_REST_Controller {
 	public function get_users() {
 		global $wpdb;
 
-		$table = Schema::get_table_name( 'workflow_events' );
+		$table = Schema::get_table_name( 'workflows_events' );
 
 		// Same structural exclusion as every other audit read: an actor must
 		// not become a filter option on the strength of bookkeeping rows the
@@ -296,7 +296,7 @@ class AuditLogController extends WP_REST_Controller {
 				return array(
 					'value' => (int) $user_id,
 					/* translators: %d: user ID. */
-					'label' => $user ? $user->display_name : sprintf( __( 'User #%d', 'vip-workflow' ), $user_id ),
+					'label' => $user ? $user->display_name : sprintf( __( 'User #%d', 'vip-workflows' ), $user_id ),
 				);
 			},
 			$user_ids
@@ -332,7 +332,7 @@ class AuditLogController extends WP_REST_Controller {
 			if ( $post_obj ) {
 				$post = array(
 					'id'        => (int) $event->post_id,
-					'title'     => $post_obj->post_title ? $post_obj->post_title : __( '(no title)', 'vip-workflow' ),
+					'title'     => $post_obj->post_title ? $post_obj->post_title : __( '(no title)', 'vip-workflows' ),
 					'edit_link' => get_edit_post_link( $event->post_id, 'raw' ),
 				);
 			}
@@ -346,7 +346,7 @@ class AuditLogController extends WP_REST_Controller {
 			'actor'           => $actor,
 			'post'            => $post,
 			'created_at'      => $event->created_at,
-			'created_at_human' => human_time_diff( strtotime( $event->created_at ), current_time( 'timestamp' ) ) . ' ' . __( 'ago', 'vip-workflow' ),
+			'created_at_human' => human_time_diff( strtotime( $event->created_at ), current_time( 'timestamp' ) ) . ' ' . __( 'ago', 'vip-workflows' ),
 		);
 	}
 
@@ -373,7 +373,7 @@ class AuditLogController extends WP_REST_Controller {
 		if ( ! Settings::can_user_view_audit_log() ) {
 			return new WP_Error(
 				'rest_forbidden',
-				__( 'You do not have permission to view the audit log.', 'vip-workflow' ),
+				__( 'You do not have permission to view the audit log.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}

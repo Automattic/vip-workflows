@@ -35,7 +35,7 @@ import AssistantPanel, {
 
 import { disabledVipAbility, vipAbility } from './helpers/abilities-fixture';
 
-const ABILITY = 'vip-workflow/web-researcher';
+const ABILITY = 'vip-workflows/web-researcher';
 
 const OFF_ABILITY = 'workflow-discovery-foresight/foresight-research';
 
@@ -45,7 +45,7 @@ const OFF_ABILITY = 'workflow-discovery-foresight/foresight-research';
  * tests/fixtures/abilities-response-contract.json and guarded in both directions by
  * ./abilities-response-contract.test.js. This fixture used to be hand-built and set
  * `name: 'Web Researcher'`, which no endpoint ever returns — and that is why these
- * tests stayed green while the panel rendered `vip-workflow/web-researcher` on
+ * tests stayed green while the panel rendered `vip-workflows/web-researcher` on
  * screen. A fixture that encodes the bug's assumption cannot catch the bug, so it is
  * no longer written by hand here.
  */
@@ -131,7 +131,7 @@ describe( 'ideation panel — an assistant that could not run', () => {
 		).toBeInTheDocument();
 		expect(
 			container.querySelector(
-				'.vip-workflow-ideation-panel__assistant-error'
+				'.vip-workflows-ideation-panel__assistant-error'
 			)
 		).not.toBeInTheDocument();
 	} );
@@ -194,7 +194,7 @@ describe( 'ideation panel — an assistant that could not run', () => {
 							kind: 'none',
 							url: '',
 							label: '',
-							hint: 'Set the VIP_WORKFLOW_TAVILY_KEY constant in wp-config.php.',
+							hint: 'Set the VIP_WORKFLOWS_TAVILY_KEY constant in wp-config.php.',
 						},
 					} ),
 				] ),
@@ -202,7 +202,7 @@ describe( 'ideation panel — an assistant that could not run', () => {
 		);
 
 		expect(
-			screen.getByText( /VIP_WORKFLOW_TAVILY_KEY/ )
+			screen.getByText( /VIP_WORKFLOWS_TAVILY_KEY/ )
 		).toBeInTheDocument();
 		expect( container.querySelector( 'a[href]' ) ).not.toBeInTheDocument();
 	} );
@@ -252,7 +252,7 @@ describe( 'ideation panel — an assistant that could not run', () => {
 
 		expect(
 			container.querySelector(
-				'.vip-workflow-ideation-panel__assistant-error'
+				'.vip-workflows-ideation-panel__assistant-error'
 			)
 		).toBeInTheDocument();
 		expect(
@@ -597,11 +597,11 @@ describe( 'ideation panel — every agent is named, never identified', () => {
 		// so an unscoped query matches twice.
 		expect(
 			container.querySelector(
-				'.vip-workflow-ideation-panel__assistant-name'
+				'.vip-workflows-ideation-panel__assistant-name'
 			)
 		).toHaveTextContent( 'Web Researcher' );
 		expect( container.textContent ).not.toMatch(
-			/vip-workflow\/web-researcher/
+			/vip-workflows\/web-researcher/
 		);
 	} );
 
@@ -641,7 +641,7 @@ describe( 'ideation panel — every agent is named, never identified', () => {
 
 		expect(
 			container.querySelector(
-				'.vip-workflow-ideation-panel__assistant-name'
+				'.vip-workflows-ideation-panel__assistant-name'
 			)
 		).toHaveTextContent( 'Foresight News' );
 		expect(
@@ -754,7 +754,7 @@ describe( 'ideation panel — every agent is named, never identified', () => {
 			}
 		);
 
-		expect( container.textContent ).not.toMatch( /vip-workflow\// );
+		expect( container.textContent ).not.toMatch( /vip-workflows\// );
 	} );
 } );
 
@@ -832,7 +832,7 @@ describe( 'ideation panel — an agent an administrator turned off', () => {
 
 		const names = Array.from(
 			container.querySelectorAll(
-				'.vip-workflow-ideation-panel__assistant-name'
+				'.vip-workflows-ideation-panel__assistant-name'
 			)
 		).map( ( node ) => node.textContent );
 

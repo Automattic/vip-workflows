@@ -6,14 +6,14 @@
  * effort. Created automatically at the earliest pipeline entry point and
  * propagated downstream.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Story;
+namespace VIPWorkflows\Story;
 
-use VIPWorkflow\ModuleInterface;
+use VIPWorkflows\ModuleInterface;
 use WP_Post;
 use WP_Error;
 
@@ -77,8 +77,8 @@ class Story implements ModuleInterface {
 			self::POST_TYPE,
 			array(
 				'labels' => array(
-					'name'          => __( 'Stories', 'vip-workflow' ),
-					'singular_name' => __( 'Story', 'vip-workflow' ),
+					'name'          => __( 'Stories', 'vip-workflows' ),
+					'singular_name' => __( 'Story', 'vip-workflows' ),
 				),
 				'public'              => false,
 				'show_ui'             => false,
@@ -107,12 +107,12 @@ class Story implements ModuleInterface {
 	 */
 	public static function statuses(): array {
 		return array(
-			self::STATUS_IDEATION   => __( 'Ideation', 'vip-workflow' ),
-			self::STATUS_EDITORIAL  => __( 'Editorial', 'vip-workflow' ),
-			self::STATUS_PUBLISHED  => __( 'Published', 'vip-workflow' ),
-			self::STATUS_MONITORING => __( 'Monitoring', 'vip-workflow' ),
-			self::STATUS_REFRESH    => __( 'Refresh', 'vip-workflow' ),
-			self::STATUS_ARCHIVED   => __( 'Archived', 'vip-workflow' ),
+			self::STATUS_IDEATION   => __( 'Ideation', 'vip-workflows' ),
+			self::STATUS_EDITORIAL  => __( 'Editorial', 'vip-workflows' ),
+			self::STATUS_PUBLISHED  => __( 'Published', 'vip-workflows' ),
+			self::STATUS_MONITORING => __( 'Monitoring', 'vip-workflows' ),
+			self::STATUS_REFRESH    => __( 'Refresh', 'vip-workflows' ),
+			self::STATUS_ARCHIVED   => __( 'Archived', 'vip-workflows' ),
 		);
 	}
 

@@ -3,7 +3,7 @@
  * Pipeline-status parity guard.
  *
  * A story's pipeline status is declared twice — once in PHP
- * (VIPWorkflow\Story\Story, which owns the vocabulary and registers a post
+ * (VIPWorkflows\Story\Story, which owns the vocabulary and registers a post
  * status for each) and once in JS (src/admin/utils/pipeline-status.js, which
  * the My Ideation list and the ideation landing's pipeline table draw from).
  * Neither language can read the other's copy without a build step, so this test
@@ -14,14 +14,14 @@
  * could not be filtered for — and it called `editorial` "In Editorial" where
  * PHP calls it "Editorial".
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Story\Story;
+use VIPWorkflows\Story\Story;
 
 class PipelineStatusTest extends TestCase
 {
@@ -46,7 +46,7 @@ class PipelineStatusTest extends TestCase
 
         $this->assertSame( 1, $matched, 'PIPELINE_STATUSES object not found in pipeline-status.js' );
 
-        // Each entry reads `slug: { label: __( 'Name', 'vip-workflow' ), … }`,
+        // Each entry reads `slug: { label: __( 'Name', 'vip-workflows' ), … }`,
         // with the label possibly on its own line when prettier wraps it.
         preg_match_all(
             "/(\w+):\s*\{\s*label:\s*__\(\s*'([^']+)'/s",

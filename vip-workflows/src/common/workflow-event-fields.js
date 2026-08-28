@@ -92,7 +92,7 @@ export function activityView( overrides ) {
 export function eventIconField() {
 	return {
 		id: 'event_icon',
-		label: __( 'Event type', 'vip-workflow' ),
+		label: __( 'Event type', 'vip-workflows' ),
 		// The icon restates what the entry already says, so there is nothing to
 		// sort, filter or search by, and nothing worth letting a reader hide.
 		enableHiding: false,
@@ -126,7 +126,7 @@ export function eventIconField() {
 export function eventTypeField( { elements, enableFiltering = false } = {} ) {
 	return {
 		id: 'event_type',
-		label: __( 'Event', 'vip-workflow' ),
+		label: __( 'Event', 'vip-workflows' ),
 		elements,
 		enableHiding: false,
 		filterBy: enableFiltering
@@ -157,7 +157,7 @@ export function eventTypeField( { elements, enableFiltering = false } = {} ) {
 export function eventPostField() {
 	return {
 		id: 'post',
-		label: __( 'Post', 'vip-workflow' ),
+		label: __( 'Post', 'vip-workflows' ),
 		enableSorting: true,
 		filterBy: false,
 		enableGlobalSearch: true,
@@ -188,7 +188,7 @@ export function eventPostField() {
 export function eventDescriptionField( { onShowNotes } ) {
 	return {
 		id: 'details',
-		label: __( 'Details', 'vip-workflow' ),
+		label: __( 'Details', 'vip-workflows' ),
 		enableSorting: false,
 		filterBy: false,
 		getValue: ( { item } ) => eventSummary( item ),
@@ -225,7 +225,7 @@ export function eventDescriptionField( { onShowNotes } ) {
 export function eventWorkflowField() {
 	return {
 		id: 'sequence',
-		label: __( 'Workflow', 'vip-workflow' ),
+		label: __( 'Workflow', 'vip-workflows' ),
 		enableSorting: false,
 		filterBy: false,
 		getValue: ( { item } ) => item.event_data.sequence_name || '',
@@ -249,7 +249,7 @@ export function eventDateField( { enableSorting = false } = {} ) {
 	return {
 		id: 'created_at',
 		type: 'datetime',
-		label: __( 'Date', 'vip-workflow' ),
+		label: __( 'Date', 'vip-workflows' ),
 		enableHiding: false,
 		enableSorting,
 		filterBy: false,
@@ -273,7 +273,7 @@ export function eventDateField( { enableSorting = false } = {} ) {
 export function eventActorField( { elements, enableFiltering = false } = {} ) {
 	return {
 		id: 'actor',
-		label: __( 'User', 'vip-workflow' ),
+		label: __( 'User', 'vip-workflows' ),
 		elements,
 		filterBy: enableFiltering
 			? { operators: [ 'isAny' ], isPrimary: true }
@@ -307,7 +307,7 @@ export function eventActorField( { elements, enableFiltering = false } = {} ) {
 export function viewNotesAction( { onShowNotes } ) {
 	return {
 		id: 'view-notes',
-		label: __( 'Open notes', 'vip-workflow' ),
+		label: __( 'Open notes', 'vip-workflows' ),
 		isEligible: ( item ) => collectedNotes( item ).length > 0,
 		callback: ( [ item ] ) => onShowNotes( notesDialogProps( item ) ),
 	};

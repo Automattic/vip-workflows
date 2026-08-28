@@ -2,21 +2,21 @@
 /**
  * AssistantRegistry unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Abilities\AbilitySettings;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
-use VIPWorkflow\Assistants\AssistantRegistry;
-use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Abilities\AbilitySettings;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
+use VIPWorkflows\Assistants\AssistantRegistry;
+use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 
 class AssistantRegistryTest extends TestCase
 {
@@ -41,7 +41,7 @@ class AssistantRegistryTest extends TestCase
 			array(
 				$this->create_ability_stub(
 					'workflow-agent-fact-check/fact-check',
-					'vip-workflow',
+					'vip-workflows',
 					array(
 						'supports'       => array( 'workflow', 'stage' ),
 						'stage_eligible' => true,
@@ -87,7 +87,7 @@ class AssistantRegistryTest extends TestCase
 			array(
 				$this->create_ability_stub(
 					'workflow-agent-fact-check/fact-check',
-					'vip-workflow',
+					'vip-workflows',
 					array(
 						'supports'       => array( 'workflow' ),
 						'stage_eligible' => false,
@@ -174,8 +174,8 @@ class AssistantRegistryTest extends TestCase
 		Functions\when( 'wp_get_abilities' )->justReturn(
 			array(
 				$this->create_ability_stub(
-					'vip-workflow/internal-stage-agent',
-					'vip-workflow',
+					'vip-workflows/internal-stage-agent',
+					'vip-workflows',
 					array(
 						'supports'       => array( 'workflow', 'stage' ),
 						'stage_eligible' => true,
@@ -288,7 +288,7 @@ class AssistantRegistryTest extends TestCase
 
 	public function test_two_abilities_from_one_plugin_get_distinct_slugs(): void
 	{
-		// Both core research agents share the vendor prefix "vip-workflow". While
+		// Both core research agents share the vendor prefix "vip-workflows". While
 		// the slug was derived from that prefix alone they collided, so get() and
 		// update_settings() addressed whichever came first — saving one card wrote
 		// to the other's ability, and no card could re-check itself.

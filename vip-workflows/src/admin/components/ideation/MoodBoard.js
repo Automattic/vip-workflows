@@ -95,19 +95,19 @@ function resolveSection( card ) {
 		card.source_type === 'image' ||
 		card.source_type === 'video'
 	) {
-		return 'vip-workflow/media-scout';
+		return 'vip-workflows/media-scout';
 	}
 
 	if ( card.origin === 'archive' || type === 'archive-article' ) {
-		return 'vip-workflow/archive-scout';
+		return 'vip-workflows/archive-scout';
 	}
 
-	return 'vip-workflow/web-researcher';
+	return 'vip-workflows/web-researcher';
 }
 
 const FIXED_SECTIONS = {
 	analysis: {
-		label: __( 'Analysis', 'vip-workflow' ),
+		label: __( 'Analysis', 'vip-workflows' ),
 		icon: (
 			<svg
 				width="14"
@@ -122,10 +122,10 @@ const FIXED_SECTIONS = {
 				<path d="M11 8v6M8 11h6" />
 			</svg>
 		),
-		emptyText: __( 'Seed analysis in progress…', 'vip-workflow' ),
+		emptyText: __( 'Seed analysis in progress…', 'vip-workflows' ),
 	},
 	uploads: {
-		label: __( 'Added by You', 'vip-workflow' ),
+		label: __( 'Added by You', 'vip-workflows' ),
 		icon: (
 			<svg
 				width="14"
@@ -151,7 +151,7 @@ const FIXED_SECTIONS = {
  * that agent's name. It reads `label` \u2014 the human name \u2014 and not `name`, which is
  * the ability *identifier* (`WP_Ability::get_name()`). The previous
  * `a.name || a.label || a.id` precedence therefore resolved to the id on every
- * agent, which is what put `VIP-WORKFLOW/WEB-RESEARCHER` above a board section.
+ * agent, which is what put `VIP-WORKFLOWS/WEB-RESEARCHER` above a board section.
  *
  * Every agent gets a section, turned-off ones included. A section is what makes
  * already-collected cards visible and attributable, and that work was done whatever
@@ -173,7 +173,7 @@ function buildSectionData( researchAbilities ) {
 			label: a.label,
 			icon: renderAssistantIcon( a.icon || 'search' ),
 			emptyText: null,
-			isMedia: key === 'vip-workflow/media-scout',
+			isMedia: key === 'vip-workflows/media-scout',
 			isAgent: true,
 			isEnabled: !! a.enabled,
 		};
@@ -190,17 +190,17 @@ function SkeletonCard( { variant } ) {
 	const isMedia = variant === 'media';
 	return (
 		<div
-			className={ `vip-workflow-ideation-skeleton vip-workflow-panel-surface ${
-				isMedia ? 'vip-workflow-ideation-skeleton--media' : ''
+			className={ `vip-workflows-ideation-skeleton vip-workflows-panel-surface ${
+				isMedia ? 'vip-workflows-ideation-skeleton--media' : ''
 			}` }
 		>
 			<Stack direction="column" gap="sm">
 				{ isMedia && (
-					<div className="vip-workflow-ideation-skeleton__image" />
+					<div className="vip-workflows-ideation-skeleton__image" />
 				) }
-				<div className="vip-workflow-ideation-skeleton__line vip-workflow-ideation-skeleton__line--title" />
-				<div className="vip-workflow-ideation-skeleton__line vip-workflow-ideation-skeleton__line--text" />
-				<div className="vip-workflow-ideation-skeleton__line vip-workflow-ideation-skeleton__line--short" />
+				<div className="vip-workflows-ideation-skeleton__line vip-workflows-ideation-skeleton__line--title" />
+				<div className="vip-workflows-ideation-skeleton__line vip-workflows-ideation-skeleton__line--text" />
+				<div className="vip-workflows-ideation-skeleton__line vip-workflows-ideation-skeleton__line--short" />
 			</Stack>
 		</div>
 	);
@@ -209,7 +209,7 @@ function SkeletonCard( { variant } ) {
 const MEDIA_SUBGROUPS = [
 	{
 		key: 'images',
-		label: __( 'Images', 'vip-workflow' ),
+		label: __( 'Images', 'vip-workflows' ),
 		icon: (
 			<svg
 				width="12"
@@ -234,7 +234,7 @@ const MEDIA_SUBGROUPS = [
 	},
 	{
 		key: 'videos',
-		label: __( 'Videos', 'vip-workflow' ),
+		label: __( 'Videos', 'vip-workflows' ),
 		icon: (
 			<svg
 				width="12"
@@ -252,7 +252,7 @@ const MEDIA_SUBGROUPS = [
 	},
 	{
 		key: 'ai-generated',
-		label: __( 'AI Generated', 'vip-workflow' ),
+		label: __( 'AI Generated', 'vip-workflows' ),
 		icon: (
 			<svg
 				width="12"
@@ -388,14 +388,17 @@ export default function MoodBoard( {
 			<Stack
 				align="center"
 				justify="center"
-				className="vip-workflow-ideation-board vip-workflow-ideation-board--empty"
+				className="vip-workflows-ideation-board vip-workflows-ideation-board--empty"
 			>
 				<Text
 					variant="body-md"
 					render={ <p /> }
-					className="vip-workflow-ideation-board__empty-text"
+					className="vip-workflows-ideation-board__empty-text"
 				>
-					{ __( 'Agents are working on your idea…', 'vip-workflow' ) }
+					{ __(
+						'Agents are working on your idea…',
+						'vip-workflows'
+					) }
 				</Text>
 			</Stack>
 		);
@@ -447,7 +450,7 @@ export default function MoodBoard( {
 		if ( isLoading ) {
 			return (
 				// wpds-allow R7 -- responsive CSS grid (display:grid); not expressible as a Stack
-				<div className="vip-workflow-ideation-section__grid">
+				<div className="vip-workflows-ideation-section__grid">
 					{ Array.from( { length: 2 }, ( _, i ) => (
 						<SkeletonCard
 							key={ i }
@@ -461,7 +464,7 @@ export default function MoodBoard( {
 			<Text
 				variant="body-sm"
 				render={ <p /> }
-				className="vip-workflow-ideation-section__empty"
+				className="vip-workflows-ideation-section__empty"
 			>
 				{ sectionConfig.emptyText }
 			</Text>
@@ -472,7 +475,7 @@ export default function MoodBoard( {
 		<Stack
 			direction="column"
 			gap="xl"
-			className="vip-workflow-ideation-board"
+			className="vip-workflows-ideation-board"
 		>
 			{ SECTION_ORDER.map( ( sectionKey ) => {
 				const sectionConfig = SECTION_CONFIG[ sectionKey ];
@@ -529,29 +532,29 @@ export default function MoodBoard( {
 										<Stack
 											align="center"
 											gap="sm"
-											className="vip-workflow-ideation-section__subheader"
+											className="vip-workflows-ideation-section__subheader"
 										>
 											<Stack
 												render={ <span /> }
 												align="center"
-												className="vip-workflow-ideation-section__subheader-icon"
+												className="vip-workflows-ideation-section__subheader-icon"
 											>
 												{ subgroup.icon }
 											</Stack>
 											<Text
 												variant="heading-sm"
 												render={ <span /> }
-												className="vip-workflow-eyebrow"
+												className="vip-workflows-eyebrow"
 											>
 												{ subgroup.label }
 											</Text>
 											{ /* wpds-allow R7 -- inline count; font token + muted color, no Text variant */ }
-											<span className="vip-workflow-ideation-section__subheader-count">
+											<span className="vip-workflows-ideation-section__subheader-count">
 												{ subCards.length }
 											</span>
 										</Stack>
 										{ /* wpds-allow R7 -- responsive CSS grid (display:grid); not expressible as a Stack */ }
-										<div className="vip-workflow-ideation-section__grid">
+										<div className="vip-workflows-ideation-section__grid">
 											{ subCards.map( renderCard ) }
 										</div>
 									</Stack>
@@ -562,7 +565,7 @@ export default function MoodBoard( {
 				} else {
 					sectionBody = (
 						// wpds-allow R7 -- responsive CSS grid (display:grid); not expressible as a Stack
-						<div className="vip-workflow-ideation-section__grid">
+						<div className="vip-workflows-ideation-section__grid">
 							{ groupCards( sectionCards ).map( ( group ) => {
 								if ( group.cards.length === 1 ) {
 									return renderCard( group.cards[ 0 ] );
@@ -571,7 +574,7 @@ export default function MoodBoard( {
 									<Stack
 										direction="column"
 										key={ group.key }
-										className="vip-workflow-ideation-card-group vip-workflow-card-surface"
+										className="vip-workflows-ideation-card-group vip-workflows-card-surface"
 									>
 										{ group.cards.map( renderCard ) }
 									</Stack>
@@ -586,18 +589,18 @@ export default function MoodBoard( {
 						direction="column"
 						gap="md"
 						key={ sectionKey }
-						className={ `vip-workflow-ideation-section vip-workflow-ideation-section--${ sectionSlug }` }
+						className={ `vip-workflows-ideation-section vip-workflows-ideation-section--${ sectionSlug }` }
 					>
 						<Stack
 							align="center"
 							gap="sm"
-							className="vip-workflow-ideation-section__header"
+							className="vip-workflows-ideation-section__header"
 						>
 							{ icon && (
 								<Stack
 									render={ <span /> }
 									align="center"
-									className="vip-workflow-ideation-section__icon"
+									className="vip-workflows-ideation-section__icon"
 								>
 									{ icon }
 								</Stack>
@@ -605,12 +608,12 @@ export default function MoodBoard( {
 							<Text
 								variant="heading-sm"
 								render={ <h3 /> }
-								className="vip-workflow-ideation-section__title vip-workflow-eyebrow"
+								className="vip-workflows-ideation-section__title vip-workflows-eyebrow"
 							>
 								{ label }
 							</Text>
 							{ /* wpds-allow R7 -- inline count; font token + muted color, no Text variant */ }
-							<span className="vip-workflow-ideation-section__count">
+							<span className="vip-workflows-ideation-section__count">
 								{ sectionCards.length > 0
 									? sectionCards.length
 									: '' }
@@ -624,7 +627,7 @@ export default function MoodBoard( {
 							 */ }
 							{ isOffAgent && (
 								<Badge intent="draft">
-									{ __( 'Turned off', 'vip-workflow' ) }
+									{ __( 'Turned off', 'vip-workflows' ) }
 								</Badge>
 							) }
 							{ isMediaSection &&
@@ -644,7 +647,7 @@ export default function MoodBoard( {
 										onClick={ () =>
 											setGenerateOpen( true )
 										}
-										className="vip-workflow-ideation-section__add vip-workflow-ideation-section__generate"
+										className="vip-workflows-ideation-section__add vip-workflows-ideation-section__generate"
 										size="small"
 										variant="tertiary"
 										disabled={ isGenerating }
@@ -654,13 +657,13 @@ export default function MoodBoard( {
 												<Spinner />
 												{ __(
 													'Generating…',
-													'vip-workflow'
+													'vip-workflows'
 												) }
 											</>
 										) : (
 											__(
 												'Generate AI image',
-												'vip-workflow'
+												'vip-workflows'
 											)
 										) }
 									</Button>
@@ -669,11 +672,11 @@ export default function MoodBoard( {
 								<Button
 									icon={ plus }
 									onClick={ () => setAddSourceOpen( true ) }
-									className="vip-workflow-ideation-section__add"
+									className="vip-workflows-ideation-section__add"
 									size="small"
 									variant="tertiary"
 								>
-									{ __( 'Add source', 'vip-workflow' ) }
+									{ __( 'Add source', 'vip-workflows' ) }
 								</Button>
 							) }
 						</Stack>
@@ -693,20 +696,20 @@ export default function MoodBoard( {
 
 			{ generateOpen && (
 				<Modal
-					title={ __( 'Generate AI image', 'vip-workflow' ) }
+					title={ __( 'Generate AI image', 'vip-workflows' ) }
 					onRequestClose={ () => setGenerateOpen( false ) }
-					className="vip-workflow-ideation-generate-modal"
+					className="vip-workflows-ideation-generate-modal"
 					size="small"
 				>
 					<Stack direction="column" gap="md">
 						<Text
 							variant="body-sm"
 							render={ <p /> }
-							className="vip-workflow-ideation-generate-modal__hint"
+							className="vip-workflows-ideation-generate-modal__hint"
 						>
 							{ __(
 								'Describe the image you want to generate. Be specific about style, subject, and composition.',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 						</Text>
 						<TextControl
@@ -714,7 +717,7 @@ export default function MoodBoard( {
 							onChange={ setGeneratePrompt }
 							placeholder={ __(
 								'e.g., A photojournalistic shot of a bustling newsroom at golden hour',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 							__nextHasNoMarginBottom
 							__next40pxDefaultSize
@@ -725,7 +728,7 @@ export default function MoodBoard( {
 							variant="tertiary"
 							onClick={ () => setGenerateOpen( false ) }
 						>
-							{ __( 'Cancel', 'vip-workflow' ) }
+							{ __( 'Cancel', 'vip-workflows' ) }
 						</Button>
 						<Button
 							variant="primary"
@@ -733,7 +736,7 @@ export default function MoodBoard( {
 							isBusy={ isGenerating }
 							disabled={ ! generatePrompt.trim() || isGenerating }
 						>
-							{ __( 'Generate', 'vip-workflow' ) }
+							{ __( 'Generate', 'vip-workflows' ) }
 						</Button>
 					</ModalActions>
 				</Modal>
@@ -743,28 +746,28 @@ export default function MoodBoard( {
 				<Collapsible.Root
 					open={ dismissedOpen }
 					onOpenChange={ setDismissedOpen }
-					className="vip-workflow-ideation-section vip-workflow-ideation-section--dismissed"
+					className="vip-workflows-ideation-section vip-workflows-ideation-section--dismissed"
 				>
-					<Collapsible.Trigger className="vip-workflow-ideation-section__dismissed-toggle">
+					<Collapsible.Trigger className="vip-workflows-ideation-section__dismissed-toggle">
 						<span
-							className={ `vip-workflow-ideation-section__dismissed-chevron ${
+							className={ `vip-workflows-ideation-section__dismissed-chevron ${
 								dismissedOpen ? 'is-open' : ''
 							}` }
 						>
 							&#9654;
 						</span>
 						{ /* wpds-allow R7 -- bold disclosure label; no Text variant */ }
-						<span className="vip-workflow-ideation-section__dismissed-label">
-							{ __( 'Dismissed', 'vip-workflow' ) }
+						<span className="vip-workflows-ideation-section__dismissed-label">
+							{ __( 'Dismissed', 'vip-workflows' ) }
 						</span>
 						{ /* wpds-allow R7 -- inline count; font token + muted color, no Text variant */ }
-						<span className="vip-workflow-ideation-section__count">
+						<span className="vip-workflows-ideation-section__count">
 							{ dismissedCards.length }
 						</span>
 					</Collapsible.Trigger>
 					<Collapsible.Panel>
 						{ /* wpds-allow R7 -- responsive CSS grid (display:grid); not expressible as a Stack */ }
-						<div className="vip-workflow-ideation-section__grid vip-workflow-ideation-section__grid--dismissed">
+						<div className="vip-workflows-ideation-section__grid vip-workflows-ideation-section__grid--dismissed">
 							{ dismissedCards.map( ( card ) => {
 								const key = getCardKey( card );
 								return (

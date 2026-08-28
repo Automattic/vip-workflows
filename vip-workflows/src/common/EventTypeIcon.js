@@ -155,7 +155,7 @@ export function EventTypeIcon( { eventType } ) {
 		<Icon
 			icon={ icon }
 			aria-hidden="true"
-			className={ `vip-workflow-event-icon vip-workflow-event-icon--${ tone }` }
+			className={ `vip-workflows-event-icon vip-workflows-event-icon--${ tone }` }
 		/>
 	);
 }

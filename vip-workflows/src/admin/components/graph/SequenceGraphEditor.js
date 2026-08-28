@@ -100,7 +100,7 @@ function describeRepair( { dropped }, stages ) {
 			'%1$d transition was removed because the stage already had one to the same place, and its label, roles, required tools and notifications went with it: %2$s.',
 			'%1$d transitions were removed because the stage already had ones to the same places, and their labels, roles, required tools and notifications went with them: %2$s.',
 			dropped.length,
-			'vip-workflow'
+			'vip-workflows'
 		),
 		dropped.length,
 		dropped
@@ -254,12 +254,12 @@ const serializeSequence = ( isPhase, fields ) =>
 const discardPrompt = () => [
 	__(
 		'This sequence has changes that have not been saved. Leaving now discards them.',
-		'vip-workflow'
+		'vip-workflows'
 	),
 	{
-		title: __( 'Discard unsaved changes?', 'vip-workflow' ),
-		confirmLabel: __( 'Discard changes', 'vip-workflow' ),
-		cancelLabel: __( 'Cancel', 'vip-workflow' ),
+		title: __( 'Discard unsaved changes?', 'vip-workflows' ),
+		confirmLabel: __( 'Discard changes', 'vip-workflows' ),
+		cancelLabel: __( 'Cancel', 'vip-workflows' ),
 		isDestructive: true,
 	},
 ];
@@ -293,7 +293,7 @@ function SaveBlockers( { reasons } ) {
 					'This sequence cannot be saved yet — %d thing needs fixing:',
 					'This sequence cannot be saved yet — %d things need fixing:',
 					reasons.length,
-					'vip-workflow'
+					'vip-workflows'
 				),
 				reasons.length
 			) }
@@ -438,12 +438,12 @@ export default function SequenceGraphEditor( {
 	// --- Reference data ----------------------------------------------------
 
 	useEffect( () => {
-		setAvailableRoles( window.vipWorkflowAdmin?.roles || [] );
+		setAvailableRoles( window.vipWorkflowsAdmin?.roles || [] );
 	}, [] );
 
 	useEffect( () => {
 		const context = isPhase ? 'phase' : 'workflow';
-		apiFetch( { path: `/vip-workflow/v1/abilities?context=${ context }` } )
+		apiFetch( { path: `/vip-workflows/v1/abilities?context=${ context }` } )
 			.then( ( tools ) => {
 				setAvailableTools( tools || [] );
 				setToolsLoaded( true );
@@ -452,7 +452,7 @@ export default function SequenceGraphEditor( {
 	}, [ isPhase ] );
 
 	useEffect( () => {
-		apiFetch( { path: '/vip-workflow/v1/notifications/channels' } )
+		apiFetch( { path: '/vip-workflows/v1/notifications/channels' } )
 			.then( ( channels ) => setAvailableChannels( channels || [] ) )
 			.catch( () => setAvailableChannels( [] ) );
 	}, [] );
@@ -463,7 +463,7 @@ export default function SequenceGraphEditor( {
 		if ( isPhase ) {
 			return;
 		}
-		apiFetch( { path: '/vip-workflow/v1/abilities?context=stage' } )
+		apiFetch( { path: '/vip-workflows/v1/abilities?context=stage' } )
 			.then( ( agents ) => setAvailableAgents( agents || [] ) )
 			.catch( () => setAvailableAgents( [] ) );
 	}, [ isPhase ] );
@@ -476,7 +476,7 @@ export default function SequenceGraphEditor( {
 	// pair of keys written out here as well, alongside the copy the write gate
 	// enforces. Both are the server's to answer: it is what accepts the save.
 	useEffect( () => {
-		apiFetch( { path: '/vip-workflow/v1/sequences/options' } )
+		apiFetch( { path: '/vip-workflows/v1/sequences/options' } )
 			.then( ( options ) => {
 				const types = options.post_types;
 				const transitions = options.phase_transitions;
@@ -496,7 +496,7 @@ export default function SequenceGraphEditor( {
 					throw new Error(
 						__(
 							'The server did not say what this sequence can be built from.',
-							'vip-workflow'
+							'vip-workflows'
 						)
 					);
 				}
@@ -518,11 +518,11 @@ export default function SequenceGraphEditor( {
 						( isPhase
 							? __(
 									'Could not load the phases this sequence can connect. Reload the page to try again.',
-									'vip-workflow'
+									'vip-workflows'
 							  )
 							: __(
 									'Could not load the list of post types. Reload the page to try again.',
-									'vip-workflow'
+									'vip-workflows'
 							  ) )
 				);
 				setReadFailed( true );
@@ -657,7 +657,7 @@ export default function SequenceGraphEditor( {
 			return;
 		}
 
-		apiFetch( { path: `/vip-workflow/v1/sequences/${ sequenceId }` } )
+		apiFetch( { path: `/vip-workflows/v1/sequences/${ sequenceId }` } )
 			.then( ( response ) => {
 				const fields = seedFromSequence( response );
 
@@ -684,7 +684,7 @@ export default function SequenceGraphEditor( {
 							/* translators: %s: comma-separated post type slugs */
 							__(
 								'Warning: this sequence references post types that no longer exist: %s. Select valid post types and save.',
-								'vip-workflow'
+								'vip-workflows'
 							),
 							stale.join( ', ' )
 						)
@@ -733,7 +733,7 @@ export default function SequenceGraphEditor( {
 		setError( null );
 
 		apiFetch( {
-			path: `/vip-workflow/v1/sequences/${ savedId }/repair-regions`,
+			path: `/vip-workflows/v1/sequences/${ savedId }/repair-regions`,
 			method: 'POST',
 		} )
 			.then( ( response ) => {
@@ -806,7 +806,7 @@ export default function SequenceGraphEditor( {
 			reasons.push(
 				__(
 					'This sequence is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types.',
-					'vip-workflow'
+					'vip-workflows'
 				)
 			);
 		}
@@ -1313,7 +1313,7 @@ export default function SequenceGraphEditor( {
 							/* translators: %s: stage label or key. */
 							__(
 								'The “%s” stage is set to run an AI agent but none is chosen. Please set one.',
-								'vip-workflow'
+								'vip-workflows'
 							),
 							unfinished[ 0 ].label || unfinished[ 0 ].key
 						)
@@ -1392,8 +1392,8 @@ export default function SequenceGraphEditor( {
 
 			const response = await apiFetch( {
 				path: creating
-					? '/vip-workflow/v1/sequences'
-					: `/vip-workflow/v1/sequences/${ savedId }`,
+					? '/vip-workflows/v1/sequences'
+					: `/vip-workflows/v1/sequences/${ savedId }`,
 				method: creating ? 'POST' : 'PUT',
 				data: payload,
 			} );
@@ -1467,11 +1467,11 @@ export default function SequenceGraphEditor( {
 			! ( await confirm(
 				__(
 					'Are you sure you want to delete this sequence? This cannot be undone.',
-					'vip-workflow'
+					'vip-workflows'
 				),
 				{
-					title: __( 'Delete sequence', 'vip-workflow' ),
-					confirmLabel: __( 'Delete', 'vip-workflow' ),
+					title: __( 'Delete sequence', 'vip-workflows' ),
+					confirmLabel: __( 'Delete', 'vip-workflows' ),
 					isDestructive: true,
 				}
 			) )
@@ -1482,7 +1482,7 @@ export default function SequenceGraphEditor( {
 		setError( null );
 		try {
 			await apiFetch( {
-				path: `/vip-workflow/v1/sequences/${ savedId }`,
+				path: `/vip-workflows/v1/sequences/${ savedId }`,
 				method: 'DELETE',
 			} );
 			// Nothing left to keep, so the unsaved-work guard has nothing to
@@ -1500,16 +1500,16 @@ export default function SequenceGraphEditor( {
 	// `savedId`, not `isNew`: once a new sequence has been saved the crumb
 	// should name it rather than go on calling it new.
 	const current = savedId
-		? trimmedName || __( 'Edit', 'vip-workflow' )
-		: __( 'New', 'vip-workflow' );
+		? trimmedName || __( 'Edit', 'vip-workflows' )
+		: __( 'New', 'vip-workflows' );
 	const breadcrumbs = [
 		{
-			label: __( 'Workflows', 'vip-workflow' ),
-			href: 'admin.php?page=vip-workflow',
+			label: __( 'Workflows', 'vip-workflows' ),
+			href: 'admin.php?page=vip-workflows',
 		},
 		{
-			label: __( 'Sequences', 'vip-workflow' ),
-			href: 'admin.php?page=vip-workflow-sequences',
+			label: __( 'Sequences', 'vip-workflows' ),
+			href: 'admin.php?page=vip-workflows-sequences',
 		},
 		{ label: current },
 	];
@@ -1517,9 +1517,13 @@ export default function SequenceGraphEditor( {
 	if ( loading ) {
 		return (
 			<AdminPage breadcrumbs={ breadcrumbs }>
-				<Stack className="vip-workflow-loading" align="center" gap="sm">
+				<Stack
+					className="vip-workflows-loading"
+					align="center"
+					gap="sm"
+				>
 					<Spinner />
-					{ __( 'Loading sequence…', 'vip-workflow' ) }
+					{ __( 'Loading sequence…', 'vip-workflows' ) }
 				</Stack>
 			</AdminPage>
 		);
@@ -1547,7 +1551,7 @@ export default function SequenceGraphEditor( {
 				onClick={ handleCancel }
 				disabled={ saving }
 			>
-				{ __( 'Cancel', 'vip-workflow' ) }
+				{ __( 'Cancel', 'vip-workflows' ) }
 			</Button>
 			<Button
 				variant="primary"
@@ -1562,7 +1566,7 @@ export default function SequenceGraphEditor( {
 				{ getSaveButtonLabel(
 					saving,
 					saveStatus,
-					__( 'Save', 'vip-workflow' )
+					__( 'Save', 'vip-workflows' )
 				) }
 			</Button>
 		</>
@@ -1647,10 +1651,13 @@ export default function SequenceGraphEditor( {
 								actions={ [
 									{
 										label: repairing
-											? __( 'Assigning…', 'vip-workflow' )
+											? __(
+													'Assigning…',
+													'vip-workflows'
+											  )
 											: __(
 													'Assign default status',
-													'vip-workflow'
+													'vip-workflows'
 											  ),
 										onClick: repairRegions,
 										disabled: repairing,
@@ -1662,7 +1669,7 @@ export default function SequenceGraphEditor( {
 									/* translators: %s: comma-separated stage keys. */
 									__(
 										'These stages have no status region and cannot be used until one is set: %s. Assigning the default puts them in Draft; drag any of them into another status’s section of the canvas afterwards.',
-										'vip-workflow'
+										'vip-workflows'
 									),
 									missingRegions.join( ', ' )
 								) }

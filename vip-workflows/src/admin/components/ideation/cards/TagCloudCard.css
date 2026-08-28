@@ -2,14 +2,14 @@
  * Ideation Tag Cloud card styles.
  */
 
-/* Flex sizing (flex/max-width) is shared with .vip-workflow-ideation-card--angle
+/* Flex sizing (flex/max-width) is shared with .vip-workflows-ideation-card--angle
    in shared.css. */
 
 /* The fill and border are the topic card's identity, not chrome: the card is
    colour-coded against the other insight cards, so it keeps them rather than
    taking <Card.Root>'s neutral surface. Everything else about the surface — the
    radius, and the neutral base underneath — comes from Card. */
-.vip-workflow-ideation-card--tags {
+.vip-workflows-ideation-card--tags {
 	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-sm);
 	background: linear-gradient(135deg, var(--wpds-color-background-surface-info-weak) 0%, var(--wpds-color-background-surface-info) 100%); /* wpds-allow R6 -- Card.Root exposes no surface/tone prop, so the topic card's colour coding is painted over its neutral fill here */
 	border-color: var(--wpds-color-stroke-surface-info); /* wpds-allow R6 -- the matching edge of that same colour coding; Card.Root has no border prop */
@@ -18,18 +18,18 @@
 /* Uppercase eyebrow typography (font-weight/text-transform/letter-spacing) is
    shared in shared.css. */
 
-.vip-workflow-ideation-card--tags__header {
-	font: var(--vip-workflow-text-heading-sm); /* wpds-allow R6 -- eyebrow type on layout Stack; no font prop */
+.vip-workflows-ideation-card--tags__header {
+	font: var(--vip-workflows-text-heading-sm); /* wpds-allow R6 -- eyebrow type on layout Stack; no font prop */
 	color: var(--wpds-color-foreground-content-info-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
 }
 
-.vip-workflow-ideation-card--tags__header svg {
+.vip-workflows-ideation-card--tags__header svg {
 	flex-shrink: 0;
 	color: var(--wpds-color-foreground-content-info-weak); /* wpds-allow R6 -- icon/label color on layout Stack; no color prop */
 }
 
-.vip-workflow-ideation-card--tags__pill {
-	font: var(--vip-workflow-text-body-sm);
+.vip-workflows-ideation-card--tags__pill {
+	font: var(--vip-workflows-text-body-sm);
 	display: inline-block;
 	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-md);
 	background: var(--wpds-color-background-surface-neutral-strong);
@@ -40,7 +40,7 @@
 	transition: background 0.1s, border-color 0.1s;
 }
 
-.vip-workflow-ideation-card--tags__pill:hover {
+.vip-workflows-ideation-card--tags__pill:hover {
 	background: var(--wpds-color-background-surface-info-weak);
 	border-color: var(--wpds-color-stroke-surface-info-strong);
 }

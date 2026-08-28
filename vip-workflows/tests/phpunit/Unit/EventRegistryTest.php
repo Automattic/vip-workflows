@@ -2,14 +2,14 @@
 /**
  * EventRegistry unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
-use VIPWorkflow\Automation\EventRegistry;
+use VIPWorkflows\Automation\EventRegistry;
 
 /**
  * Smoke tests for EventRegistry.

@@ -2,12 +2,12 @@
 /**
  * Registration-contract tests for the Import Sequence ability.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 
@@ -40,10 +40,10 @@ class ImportSequenceAbilityRegistrationTest extends TestCase
 
     public function test_registers_with_sequence_terminology_and_required_input(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_import_sequence();
+        \VIPWorkflows\Abilities\Tools\register_import_sequence();
 
-        $this->assertArrayHasKey( 'vip-workflow/import-sequence', $this->registered );
-        $args = $this->registered['vip-workflow/import-sequence'];
+        $this->assertArrayHasKey( 'vip-workflows/import-sequence', $this->registered );
+        $args = $this->registered['vip-workflows/import-sequence'];
 
         $this->assertSame( 'Import Sequence', $args['label'] );
         $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
@@ -54,8 +54,8 @@ class ImportSequenceAbilityRegistrationTest extends TestCase
 
     public function test_requires_manage_options_and_is_public_to_mcp(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_import_sequence();
-        $args = $this->registered['vip-workflow/import-sequence'];
+        \VIPWorkflows\Abilities\Tools\register_import_sequence();
+        $args = $this->registered['vip-workflows/import-sequence'];
 
         Functions\expect( 'current_user_can' )
             ->once()

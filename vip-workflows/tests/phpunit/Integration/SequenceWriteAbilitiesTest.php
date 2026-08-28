@@ -8,16 +8,16 @@
  * gates can be asserted through `WP_Ability::execute()` — which does not exist in the
  * unit suite, where an `instanceof WP_Ability` check is unconditionally false.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Database\Schema;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Database\Schema;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/helpers.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/update-sequence.php';
@@ -128,7 +128,7 @@ class SequenceWriteAbilitiesTest extends TestCase
         $rows = $wpdb->get_results(
             $wpdb->prepare(
                 'SELECT * FROM %i WHERE event_type LIKE %s ORDER BY id DESC',
-                Schema::get_table_name( 'workflow_events' ),
+                Schema::get_table_name( 'workflows_events' ),
                 'sequence.%'
             )
         );
@@ -177,15 +177,15 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         return array(
             'update'   => array(
-                'vip-workflow/update-sequence',
+                'vip-workflows/update-sequence',
                 array( 'sequence_id' => 1, 'name' => 'Nope', 'statuses' => array( array( 'key' => 'a', 'label' => 'A' ) ) ),
             ),
             'activate' => array(
-                'vip-workflow/activate-sequence',
+                'vip-workflows/activate-sequence',
                 array( 'sequence_id' => 1, 'active' => true ),
             ),
             'validate' => array(
-                'vip-workflow/validate-sequence',
+                'vip-workflows/validate-sequence',
                 array( 'sequence_id' => 1 ),
             ),
         );
@@ -227,7 +227,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses() );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_sequence(
             array(
                 'sequence_id' => $sequence->id,
                 'name'        => 'Renamed Flow',
@@ -259,7 +259,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses() );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_sequence(
             array(
                 'sequence_id' => $sequence->id,
                 'name'        => 'Broken Flow',
@@ -291,7 +291,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses() );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_sequence(
             array(
                 'sequence_id' => $sequence->id,
                 'name'        => 'Overlay Flow',
@@ -306,7 +306,7 @@ class SequenceWriteAbilitiesTest extends TestCase
 
     public function test_update_of_a_missing_sequence_is_an_error(): void
     {
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_sequence(
             array(
                 'sequence_id' => 99999999,
                 'name'        => 'Ghost',
@@ -324,7 +324,7 @@ class SequenceWriteAbilitiesTest extends TestCase
 
         // `post_types` omitted: an update is a full replacement, so the sequence is
         // silently detached from all content unless the agent is told.
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_sequence(
             array(
                 'sequence_id' => $sequence->id,
                 'name'        => 'Detached Flow',
@@ -348,13 +348,13 @@ class SequenceWriteAbilitiesTest extends TestCase
      */
     public function test_update_input_schema_cannot_express_a_lifecycle_change(): void
     {
-        $ability = wp_get_ability( 'vip-workflow/update-sequence' );
+        $ability = wp_get_ability( 'vip-workflows/update-sequence' );
         $schema  = $ability->get_input_schema();
 
         $this->assertFalse( $schema['additionalProperties'] );
         $this->assertArrayNotHasKey( 'status', $schema['properties'] );
         $this->assertArrayNotHasKey( 'active', $schema['properties'] );
-        $this->assertNotContains( 'status', \VIPWorkflow\Abilities\Tools\UPDATE_SEQUENCE_FIELDS );
+        $this->assertNotContains( 'status', \VIPWorkflows\Abilities\Tools\UPDATE_SEQUENCE_FIELDS );
     }
 
     /**
@@ -365,7 +365,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses(), 'draft' );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_sequence(
             array(
                 'sequence_id' => $sequence->id,
                 'name'        => 'Smuggled',
@@ -390,7 +390,7 @@ class SequenceWriteAbilitiesTest extends TestCase
         $sequence = $this->create_sequence( $this->valid_statuses(), 'draft' );
         $this->assertSame( 'draft', $sequence->status );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_sequence(
             array(
                 'sequence_id' => $sequence->id,
                 'name'        => 'Still Draft',
@@ -413,7 +413,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses() );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_update_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_update_sequence(
             array(
                 'sequence_id' => $sequence->id,
                 'name'        => 'Still Active',
@@ -435,7 +435,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses(), 'draft' );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_activate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_activate_sequence(
             array( 'sequence_id' => $sequence->id, 'active' => true )
         );
 
@@ -450,7 +450,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses() );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_activate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_activate_sequence(
             array( 'sequence_id' => $sequence->id, 'active' => false )
         );
 
@@ -463,7 +463,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses(), 'draft' );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_activate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_activate_sequence(
             array( 'sequence_id' => $sequence->id )
         );
 
@@ -476,7 +476,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses() );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_activate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_activate_sequence(
             array( 'sequence_id' => $sequence->id, 'active' => true )
         );
 
@@ -508,7 +508,7 @@ class SequenceWriteAbilitiesTest extends TestCase
 
         $this->assertSame( array(), $sequence->get_stages_missing_region() );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_activate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_activate_sequence(
             array( 'sequence_id' => $sequence->id, 'active' => true )
         );
 
@@ -528,7 +528,7 @@ class SequenceWriteAbilitiesTest extends TestCase
             'draft'
         );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_activate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_activate_sequence(
             array( 'sequence_id' => $sequence->id, 'active' => true )
         );
 
@@ -550,7 +550,7 @@ class SequenceWriteAbilitiesTest extends TestCase
             )
         );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_activate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_activate_sequence(
             array( 'sequence_id' => $sequence->id, 'active' => false )
         );
 
@@ -566,7 +566,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses() );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_validate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
             array(
                 'config' => array(
                     'statuses' => array(
@@ -595,7 +595,7 @@ class SequenceWriteAbilitiesTest extends TestCase
 
     public function test_validate_returns_the_normalized_config_and_describes_the_changes(): void
     {
-        $result = \VIPWorkflow\Abilities\Tools\execute_validate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
             array(
                 'config' => array(
                     'statuses' => array(
@@ -638,7 +638,7 @@ class SequenceWriteAbilitiesTest extends TestCase
             )
         );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_validate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
             array( 'sequence_id' => $sequence->id )
         );
 
@@ -661,7 +661,7 @@ class SequenceWriteAbilitiesTest extends TestCase
             )
         );
 
-        $result = \VIPWorkflow\Abilities\Tools\execute_validate_sequence(
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
             array( 'sequence_id' => $sequence->id )
         );
 
@@ -671,11 +671,11 @@ class SequenceWriteAbilitiesTest extends TestCase
 
     public function test_validate_requires_exactly_one_source(): void
     {
-        $neither = \VIPWorkflow\Abilities\Tools\execute_validate_sequence( array() );
+        $neither = \VIPWorkflows\Abilities\Tools\execute_validate_sequence( array() );
         $this->assertWPError( $neither );
         $this->assertSame( 'missing_input', $neither->get_error_code() );
 
-        $both = \VIPWorkflow\Abilities\Tools\execute_validate_sequence(
+        $both = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
             array( 'sequence_id' => 1, 'config' => array( 'statuses' => array() ) )
         );
         $this->assertWPError( $both );
@@ -691,12 +691,12 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses(), 'draft' );
 
-        $validated = wp_get_ability( 'vip-workflow/validate-sequence' )
+        $validated = wp_get_ability( 'vip-workflows/validate-sequence' )
             ->execute( array( 'sequence_id' => $sequence->id ) );
         $this->assertIsArray( $validated );
         $this->assertTrue( $validated['valid'] );
 
-        $updated = wp_get_ability( 'vip-workflow/update-sequence' )->execute(
+        $updated = wp_get_ability( 'vip-workflows/update-sequence' )->execute(
             array(
                 'sequence_id' => $sequence->id,
                 'name'        => 'Schema Flow',
@@ -707,7 +707,7 @@ class SequenceWriteAbilitiesTest extends TestCase
         $this->assertIsArray( $updated );
         $this->assertTrue( $updated['success'] );
 
-        $activated = wp_get_ability( 'vip-workflow/activate-sequence' )
+        $activated = wp_get_ability( 'vip-workflows/activate-sequence' )
             ->execute( array( 'sequence_id' => $sequence->id, 'active' => true ) );
         $this->assertIsArray( $activated );
         $this->assertTrue( $activated['changed'] );
@@ -727,7 +727,7 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses() );
 
-        \VIPWorkflow\Abilities\Tools\execute_update_sequence(
+        \VIPWorkflows\Abilities\Tools\execute_update_sequence(
             array(
                 'sequence_id' => $sequence->id,
                 'name'        => 'Audited Flow',
@@ -746,14 +746,14 @@ class SequenceWriteAbilitiesTest extends TestCase
         $this->assertSame( $this->admin_id, (int) $event->actor_id );
 
         $data = json_decode( $event->event_data, true );
-        $this->assertSame( 'vip-workflow/update-sequence', $data['agent_actor'] );
+        $this->assertSame( 'vip-workflows/update-sequence', $data['agent_actor'] );
         $this->assertSame( 'Audited Flow', $data['sequence_name'] );
         $this->assertSame( $sequence->id, $data['sequence_id'] );
 
         // The audit trail renders the ability, not the impersonated human.
         $this->assertSame(
             'Update Sequence',
-            \VIPWorkflow\Workflow\Actor::name_for(
+            \VIPWorkflows\Workflow\Actor::name_for(
                 array(
                     'actor_id'    => (int) $event->actor_id,
                     'actor_type'  => $event->actor_type,
@@ -767,10 +767,10 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses(), 'draft' );
 
-        \VIPWorkflow\Abilities\Tools\execute_activate_sequence(
+        \VIPWorkflows\Abilities\Tools\execute_activate_sequence(
             array( 'sequence_id' => $sequence->id, 'active' => true )
         );
-        \VIPWorkflow\Abilities\Tools\execute_activate_sequence(
+        \VIPWorkflows\Abilities\Tools\execute_activate_sequence(
             array( 'sequence_id' => $sequence->id, 'active' => false )
         );
 
@@ -785,7 +785,7 @@ class SequenceWriteAbilitiesTest extends TestCase
             $this->assertNull( $event->post_id );
             $this->assertSame( 'agent', $event->actor_type );
             $data = json_decode( $event->event_data, true );
-            $this->assertSame( 'vip-workflow/activate-sequence', $data['agent_actor'] );
+            $this->assertSame( 'vip-workflows/activate-sequence', $data['agent_actor'] );
         }
 
         $activated = json_decode( $events[1]->event_data, true );
@@ -802,11 +802,11 @@ class SequenceWriteAbilitiesTest extends TestCase
     {
         $sequence = $this->create_sequence( $this->valid_statuses(), 'draft' );
 
-        \VIPWorkflow\Abilities\Tools\execute_activate_sequence(
+        \VIPWorkflows\Abilities\Tools\execute_activate_sequence(
             array( 'sequence_id' => $sequence->id, 'active' => true )
         );
 
-        $request = new \WP_REST_Request( 'GET', '/vip-workflow/v1/audit-log/events' );
+        $request = new \WP_REST_Request( 'GET', '/vip-workflows/v1/audit-log/events' );
         $request->set_param( 'page', 1 );
         $request->set_param( 'per_page', 50 );
         $request->set_param( 'event_type', 'sequence.activated' );
@@ -815,7 +815,7 @@ class SequenceWriteAbilitiesTest extends TestCase
         $request->set_param( 'orderby', 'created_at' );
         $request->set_param( 'order', 'desc' );
 
-        $response = ( new \VIPWorkflow\API\AuditLogController() )->get_events( $request );
+        $response = ( new \VIPWorkflows\API\AuditLogController() )->get_events( $request );
         $events   = $response->get_data()['events'];
 
         $this->assertNotEmpty( $events );

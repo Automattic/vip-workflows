@@ -9,12 +9,12 @@
  * SequencesController::create_item() (real WP create path), so its behavior is
  * covered by the integration suite, not here.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 
@@ -47,22 +47,22 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
 
     public function test_registers_under_stable_slug_with_sequence_terminology(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_create_sequence();
+        \VIPWorkflows\Abilities\Tools\register_create_sequence();
 
-        $this->assertArrayHasKey( 'vip-workflow/create-sequence', $this->registered );
-        $args = $this->registered['vip-workflow/create-sequence'];
+        $this->assertArrayHasKey( 'vip-workflows/create-sequence', $this->registered );
+        $args = $this->registered['vip-workflows/create-sequence'];
 
         // Agent-facing wording uses "sequence", never "sequence".
         $this->assertSame( 'Create Sequence', $args['label'] );
         $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
         $this->assertStringNotContainsStringIgnoringCase( 'blueprint', $args['description'] );
-        $this->assertSame( 'vip-workflow', $args['category'] );
+        $this->assertSame( 'vip-workflows', $args['category'] );
     }
 
     public function test_input_schema_requires_name_and_statuses(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_create_sequence();
-        $args = $this->registered['vip-workflow/create-sequence'];
+        \VIPWorkflows\Abilities\Tools\register_create_sequence();
+        $args = $this->registered['vip-workflows/create-sequence'];
 
         $this->assertSame( array( 'name', 'statuses' ), $args['input_schema']['required'] );
 
@@ -74,8 +74,8 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
 
     public function test_status_and_metadata_item_schemas_match_the_rest_contract(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_create_sequence();
-        $props = $this->registered['vip-workflow/create-sequence']['input_schema']['properties'];
+        \VIPWorkflows\Abilities\Tools\register_create_sequence();
+        $props = $this->registered['vip-workflows/create-sequence']['input_schema']['properties'];
 
         // statuses items declare required keys and the full property set the
         // controller's build_config() honours (parity with get_create_args()).
@@ -87,7 +87,7 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
 
         // Stage × status matrix: the per-stage `status` region is constrained to
         // the core editorial statuses; the removed public/publish flags are gone.
-        $this->assertSame( \VIPWorkflow\Sequences\Sequence::EDITORIAL_STATUSES, $status_items['properties']['status']['enum'] );
+        $this->assertSame( \VIPWorkflows\Sequences\Sequence::EDITORIAL_STATUSES, $status_items['properties']['status']['enum'] );
         $this->assertArrayNotHasKey( 'public', $status_items['properties'] );
         $this->assertArrayNotHasKey( 'publish', $status_items['properties'] );
 
@@ -99,8 +99,8 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
 
     public function test_agent_routing_schema_exposes_only_binary_outcomes(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_create_sequence();
-        $props = $this->registered['vip-workflow/create-sequence']['input_schema']['properties'];
+        \VIPWorkflows\Abilities\Tools\register_create_sequence();
+        $props = $this->registered['vip-workflows/create-sequence']['input_schema']['properties'];
 
         // Stage agents make a binary editorial judgment: routing exposes only
         // pass, fail, and the system-level error outcome — never warning.
@@ -111,8 +111,8 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
 
     public function test_output_schema_uses_sequence_id_key(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_create_sequence();
-        $args = $this->registered['vip-workflow/create-sequence'];
+        \VIPWorkflows\Abilities\Tools\register_create_sequence();
+        $args = $this->registered['vip-workflows/create-sequence'];
 
         $props = $args['output_schema']['properties'];
         $this->assertArrayHasKey( 'sequence_id', $props );
@@ -123,8 +123,8 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
 
     public function test_permission_callback_requires_manage_options(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_create_sequence();
-        $args = $this->registered['vip-workflow/create-sequence'];
+        \VIPWorkflows\Abilities\Tools\register_create_sequence();
+        $args = $this->registered['vip-workflows/create-sequence'];
 
         Functions\expect( 'current_user_can' )
             ->once()
@@ -136,8 +136,8 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
 
     public function test_permission_callback_denies_users_without_manage_options(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_create_sequence();
-        $args = $this->registered['vip-workflow/create-sequence'];
+        \VIPWorkflows\Abilities\Tools\register_create_sequence();
+        $args = $this->registered['vip-workflows/create-sequence'];
 
         Functions\expect( 'current_user_can' )
             ->once()
@@ -149,8 +149,8 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
 
     public function test_exposed_publicly_to_mcp_as_a_non_readonly_tool(): void
     {
-        \VIPWorkflow\Abilities\Tools\register_create_sequence();
-        $args = $this->registered['vip-workflow/create-sequence'];
+        \VIPWorkflows\Abilities\Tools\register_create_sequence();
+        $args = $this->registered['vip-workflows/create-sequence'];
 
         $this->assertTrue( $args['meta']['mcp']['public'] );
         $this->assertSame( 'tool', $args['meta']['mcp']['type'] );

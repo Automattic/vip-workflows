@@ -7,16 +7,16 @@
  * block from the widget's own markup; now they come from a stylesheet, which is
  * only true if this screen actually enqueues it.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Admin\AdminStyles;
-use VIPWorkflow\Admin\DashboardWidget;
+use VIPWorkflows\Admin\AdminStyles;
+use VIPWorkflows\Admin\DashboardWidget;
 
 class DashboardWidgetStylesTest extends TestCase
 {
@@ -33,11 +33,11 @@ class DashboardWidgetStylesTest extends TestCase
 
         // The stylesheet is served from the plugin directory, so the entrypoint
         // constants have to exist.
-        if ( ! defined( 'VIP_WORKFLOW_PLUGIN_URL' ) ) {
-            define( 'VIP_WORKFLOW_PLUGIN_URL', 'https://example.test/wp-content/plugins/vip-workflows/' );
+        if ( ! defined( 'VIP_WORKFLOWS_PLUGIN_URL' ) ) {
+            define( 'VIP_WORKFLOWS_PLUGIN_URL', 'https://example.test/wp-content/plugins/vip-workflows/' );
         }
-        if ( ! defined( 'VIP_WORKFLOW_VERSION' ) ) {
-            define( 'VIP_WORKFLOW_VERSION', '0.0.1' );
+        if ( ! defined( 'VIP_WORKFLOWS_VERSION' ) ) {
+            define( 'VIP_WORKFLOWS_VERSION', '0.0.1' );
         }
 
         $this->enqueued_styles = array();
@@ -119,7 +119,7 @@ class DashboardWidgetStylesTest extends TestCase
         }
 
         $this->assertNotNull( $classic );
-        $this->assertSame( VIP_WORKFLOW_PLUGIN_URL . 'build/classic-admin.css', $classic[1] );
+        $this->assertSame( VIP_WORKFLOWS_PLUGIN_URL . 'build/classic-admin.css', $classic[1] );
         $this->assertSame( array( AdminStyles::TOKENS_HANDLE ), $classic[2] );
     }
 
@@ -128,7 +128,7 @@ class DashboardWidgetStylesTest extends TestCase
      */
     public function test_styles_do_not_load_elsewhere(): void
     {
-        foreach ( array( 'edit.php', 'post.php', 'toplevel_page_vip-workflow', 'options-general.php' ) as $screen ) {
+        foreach ( array( 'edit.php', 'post.php', 'toplevel_page_vip-workflows', 'options-general.php' ) as $screen ) {
             $this->assertSame(
                 array(),
                 $this->handles_enqueued_on( $screen ),

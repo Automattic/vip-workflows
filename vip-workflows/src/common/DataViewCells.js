@@ -42,7 +42,7 @@ const ACTOR_GLYPHS = {
  */
 export function systemActor() {
 	return {
-		display_name: __( 'System', 'vip-workflow' ),
+		display_name: __( 'System', 'vip-workflows' ),
 		type: 'system',
 		avatar: null,
 	};
@@ -64,7 +64,7 @@ export function TitleLink( { href, target, children } ) {
 		<Link
 			href={ href }
 			target={ target }
-			className="vip-workflow-dataview-title"
+			className="vip-workflows-dataview-title"
 		>
 			{ children }
 		</Link>
@@ -92,7 +92,7 @@ export function TitleLink( { href, target, children } ) {
  * name · post"), so it has to stay inline-level rather than blockify.
  *
  * It takes the whole actor rather than a name and a URL, because that is the
- * shape every route now serves (see `VIPWorkflow\Workflow\Actor`). A caller that
+ * shape every route now serves (see `VIPWorkflows\Workflow\Actor`). A caller that
  * has to pick a person apart into props is a caller that can get the pieces
  * wrong, and six of them did.
  *
@@ -136,7 +136,7 @@ export function AuthorCell( {
 			render={ <span /> }
 			align="center"
 			gap="sm"
-			className={ [ 'vip-workflow-dataview-author', className ]
+			className={ [ 'vip-workflows-dataview-author', className ]
 				.filter( Boolean )
 				.join( ' ' ) }
 		>
@@ -145,7 +145,7 @@ export function AuthorCell( {
 				name={ name }
 				icon={ glyph }
 				size={ size }
-				className={ `vip-workflow-dataview-avatar vip-workflow-dataview-avatar--${ type }` }
+				className={ `vip-workflows-dataview-avatar vip-workflows-dataview-avatar--${ type }` }
 			/>
 			{ /* The name is wrapped rather than left as a bare text node so a
 			     call site has something to style: a Kanban card truncates it,
@@ -158,13 +158,13 @@ export function AuthorCell( {
 				<Text
 					variant={ variant }
 					render={
-						<span className="vip-workflow-dataview-author__name" />
+						<span className="vip-workflows-dataview-author__name" />
 					}
 				>
 					{ name }
 				</Text>
 			) : (
-				<span className="vip-workflow-dataview-author__name">
+				<span className="vip-workflows-dataview-author__name">
 					{ name }
 				</span>
 			) }

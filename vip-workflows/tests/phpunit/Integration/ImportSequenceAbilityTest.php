@@ -5,14 +5,14 @@
  * Runs in the integration suite so execute_import_sequence() exercises the real
  * SequencesController::import_sequence() path against a booted WordPress + DB.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\Sequences\SequenceRepository;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/import-sequence.php';
 
@@ -45,7 +45,7 @@ class ImportSequenceAbilityTest extends TestCase
 
 	public function test_imports_a_workflow_sequence_as_draft(): void
 	{
-		$result = \VIPWorkflow\Abilities\Tools\execute_import_sequence(
+		$result = \VIPWorkflows\Abilities\Tools\execute_import_sequence(
 			array( 'sequence_json' => $this->sample_json() )
 		);
 
@@ -62,7 +62,7 @@ class ImportSequenceAbilityTest extends TestCase
 
 	public function test_name_override_is_applied(): void
 	{
-		$result = \VIPWorkflow\Abilities\Tools\execute_import_sequence(
+		$result = \VIPWorkflows\Abilities\Tools\execute_import_sequence(
 			array(
 				'sequence_json' => $this->sample_json(),
 				'name'           => 'Renamed On Import',
@@ -75,7 +75,7 @@ class ImportSequenceAbilityTest extends TestCase
 
 	public function test_missing_sequence_json_returns_error(): void
 	{
-		$result = \VIPWorkflow\Abilities\Tools\execute_import_sequence( array() );
+		$result = \VIPWorkflows\Abilities\Tools\execute_import_sequence( array() );
 
 		$this->assertWPError( $result );
 		$this->assertSame( 'missing_sequence_json', $result->get_error_code() );
@@ -86,7 +86,7 @@ class ImportSequenceAbilityTest extends TestCase
 		$json         = $this->sample_json();
 		$json['type'] = 'bogus';
 
-		$result = \VIPWorkflow\Abilities\Tools\execute_import_sequence(
+		$result = \VIPWorkflows\Abilities\Tools\execute_import_sequence(
 			array( 'sequence_json' => $json )
 		);
 

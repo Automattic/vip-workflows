@@ -6,18 +6,18 @@
  * value's surface, and the one inset the modal header does not supply.
  */
 
-.vip-workflow-event-notes-content {
+.vip-workflows-event-notes-content {
 	margin-top: var(--wpds-dimension-gap-lg); /* wpds-allow R3 -- clears the modal header, which leaves only 4px of content padding above; no parent Stack */
 }
 
 /* The divider sits between items, so it is scoped away from the last one
    rather than declared and then unset. */
-.vip-workflow-event-note-item:not(:last-child) {
+.vip-workflows-event-note-item:not(:last-child) {
 	padding-bottom: var(--wpds-dimension-gap-lg);
 	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral); /* wpds-allow R6 -- separator between notes; Stack has no divider prop */
 }
 
-.vip-workflow-event-note-item__value {
+.vip-workflows-event-note-item__value {
 	color: var(--wpds-color-foreground-content-neutral);
 	white-space: pre-wrap;
 	word-break: break-word;

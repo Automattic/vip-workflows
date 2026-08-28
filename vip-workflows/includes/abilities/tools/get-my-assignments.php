@@ -4,12 +4,12 @@
  *
  * Returns posts assigned to the current user across all workflows.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the assignments query.
@@ -24,7 +24,7 @@ function execute_get_my_assignments( ?array $input = null ) {
 	$limit   = min( (int) ( $input['limit'] ?? 20 ), 50 );
 
 	if ( ! $user_id ) {
-		return new \WP_Error( 'not_logged_in', __( 'User must be logged in.', 'vip-workflow' ) );
+		return new \WP_Error( 'not_logged_in', __( 'User must be logged in.', 'vip-workflows' ) );
 	}
 
 	// Find posts where the current user is assigned via post meta.
@@ -34,7 +34,7 @@ function execute_get_my_assignments( ?array $input = null ) {
 		'posts_per_page' => $limit,
 		'meta_query'     => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
 			array(
-				'key'   => '_vip_workflow_assigned_user',
+				'key'   => '_vip_workflows_assigned_user',
 				'value' => $user_id,
 			),
 		),
@@ -45,7 +45,7 @@ function execute_get_my_assignments( ?array $input = null ) {
 	if ( $status ) {
 		// Filter to a workflow stage (merges into the assignee meta_query; the
 		// stage is decoupled from post_status, which stays 'any').
-		$query_args = \VIPWorkflow\Workflow\StageQuery::by_stage_key( $status, $query_args );
+		$query_args = \VIPWorkflows\Workflow\StageQuery::by_stage_key( $status, $query_args );
 	}
 
 	$query = new \WP_Query( $query_args );
@@ -56,8 +56,8 @@ function execute_get_my_assignments( ?array $input = null ) {
 			continue;
 		}
 
-		$sequence_id = get_post_meta( $post->ID, '_vip_workflow_sequence_id', true );
-		$stage_key    = get_post_meta( $post->ID, '_vip_workflow_current_stage_key', true );
+		$sequence_id = get_post_meta( $post->ID, '_vip_workflows_sequence_id', true );
+		$stage_key    = get_post_meta( $post->ID, '_vip_workflows_current_stage_key', true );
 
 		$posts[] = array(
 			'post_id'       => $post->ID,
@@ -85,22 +85,22 @@ function execute_get_my_assignments( ?array $input = null ) {
  */
 function register_get_my_assignments(): void {
 	wp_register_ability(
-		'vip-workflow/get-my-assignments',
+		'vip-workflows/get-my-assignments',
 		array(
-			'label'               => __( 'Get My Assignments', 'vip-workflow' ),
-			'description'         => __( 'Returns posts assigned to the current user across all workflows.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Get My Assignments', 'vip-workflows' ),
+			'description'         => __( 'Returns posts assigned to the current user across all workflows.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
 				'properties'           => array(
 					'status' => array(
 						'type'        => 'string',
-						'description' => __( 'Optional workflow status to filter by.', 'vip-workflow' ),
+						'description' => __( 'Optional workflow status to filter by.', 'vip-workflows' ),
 					),
 					'limit'  => array(
 						'type'        => 'integer',
-						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflow' ),
+						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflows' ),
 						'default'     => 20,
 					),
 				),
@@ -111,15 +111,15 @@ function register_get_my_assignments(): void {
 				'properties'           => array(
 					'user_id' => array(
 						'type'        => 'integer',
-						'description' => __( 'The current user ID.', 'vip-workflow' ),
+						'description' => __( 'The current user ID.', 'vip-workflows' ),
 					),
 					'count'   => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of assigned posts returned.', 'vip-workflow' ),
+						'description' => __( 'Number of assigned posts returned.', 'vip-workflows' ),
 					),
 					'posts'   => array(
 						'type'        => 'array',
-						'description' => __( 'Array of assigned posts.', 'vip-workflow' ),
+						'description' => __( 'Array of assigned posts.', 'vip-workflows' ),
 					),
 				),
 			),

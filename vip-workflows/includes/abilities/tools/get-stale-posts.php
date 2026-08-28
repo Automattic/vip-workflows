@@ -4,12 +4,12 @@
  *
  * Returns posts that have been stuck in the same workflow status beyond a threshold.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities\Tools;
+namespace VIPWorkflows\Abilities\Tools;
 
 /**
  * Execute the stale posts query.
@@ -40,13 +40,13 @@ function execute_get_stale_posts( ?array $input = null ) {
 
 	if ( $status ) {
 		// A specific workflow stage (StageQuery scopes by stage meta + defaults post_status any).
-		$query_args = \VIPWorkflow\Workflow\StageQuery::by_stage_key( $status, $query_args );
+		$query_args = \VIPWorkflows\Workflow\StageQuery::by_stage_key( $status, $query_args );
 	} else {
 		// "All active workflow stages" — non-terminal, non-dead-end stages, scoped
 		// per sequence so a stage key that is active in one sequence but terminal
 		// in another is not mistaken for stale active work in the latter.
-		$repository = new \VIPWorkflow\Sequences\SequenceRepository();
-		$query_args = \VIPWorkflow\Workflow\StageQuery::active_across( $repository->get_active(), $query_args );
+		$repository = new \VIPWorkflows\Sequences\SequenceRepository();
+		$query_args = \VIPWorkflows\Workflow\StageQuery::active_across( $repository->get_active(), $query_args );
 	}
 
 	$query = new \WP_Query( $query_args );
@@ -64,7 +64,7 @@ function execute_get_stale_posts( ?array $input = null ) {
 			'post_id'    => $post->ID,
 			'title'      => $post->post_title,
 			'status'     => $post->post_status,
-			'author'     => $author ? $author->display_name : __( 'Unknown', 'vip-workflow' ),
+			'author'     => $author ? $author->display_name : __( 'Unknown', 'vip-workflows' ),
 			'modified'   => $post->post_modified,
 			'days_stale' => $days_stale,
 			'edit_url'   => get_edit_post_link( $post->ID, 'raw' ) ? get_edit_post_link( $post->ID, 'raw' ) : '',
@@ -85,27 +85,27 @@ function execute_get_stale_posts( ?array $input = null ) {
  */
 function register_get_stale_posts(): void {
 	wp_register_ability(
-		'vip-workflow/get-stale-posts',
+		'vip-workflows/get-stale-posts',
 		array(
-			'label'               => __( 'Get Stale Posts', 'vip-workflow' ),
-			'description'         => __( 'Returns posts stuck in a workflow status beyond a configurable number of days.', 'vip-workflow' ),
-			'category'            => 'vip-workflow',
+			'label'               => __( 'Get Stale Posts', 'vip-workflows' ),
+			'description'         => __( 'Returns posts stuck in a workflow status beyond a configurable number of days.', 'vip-workflows' ),
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
 				'properties'           => array(
 					'threshold_days' => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of days without modification to be considered stale (default 3).', 'vip-workflow' ),
+						'description' => __( 'Number of days without modification to be considered stale (default 3).', 'vip-workflows' ),
 						'default'     => 3,
 					),
 					'status'         => array(
 						'type'        => 'string',
-						'description' => __( 'Optional specific status to check. Omit for all non-published statuses.', 'vip-workflow' ),
+						'description' => __( 'Optional specific status to check. Omit for all non-published statuses.', 'vip-workflows' ),
 					),
 					'limit'          => array(
 						'type'        => 'integer',
-						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflow' ),
+						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflows' ),
 						'default'     => 20,
 					),
 				),
@@ -116,15 +116,15 @@ function register_get_stale_posts(): void {
 				'properties'           => array(
 					'threshold_days' => array(
 						'type'        => 'integer',
-						'description' => __( 'The threshold used.', 'vip-workflow' ),
+						'description' => __( 'The threshold used.', 'vip-workflows' ),
 					),
 					'count'          => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of stale posts.', 'vip-workflow' ),
+						'description' => __( 'Number of stale posts.', 'vip-workflows' ),
 					),
 					'posts'          => array(
 						'type'        => 'array',
-						'description' => __( 'Array of stale posts.', 'vip-workflow' ),
+						'description' => __( 'Array of stale posts.', 'vip-workflows' ),
 					),
 				),
 			),

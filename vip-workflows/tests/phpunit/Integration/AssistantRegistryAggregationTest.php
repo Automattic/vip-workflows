@@ -3,7 +3,7 @@
  * Requirement aggregation on the Agents surface, driven by real abilities.
  *
  * Lives in the integration suite because `AssistantRegistry` only reads the
- * structured availability channel from a `VIPWorkflow\Abilities\Ability`, and
+ * structured availability channel from a `VIPWorkflows\Abilities\Ability`, and
  * `Ability` extends core's `WP_Ability`, which does not exist in the unit suite.
  * The unit counterpart (tests/phpunit/Unit/AssistantRegistryTest.php) proves the
  * aggregation mechanics through discovery providers; only here can the
@@ -13,18 +13,18 @@
  * registrations on a clean test database — no credentials configured — which is
  * exactly the fresh-install state the feature exists to explain.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
-use VIPWorkflow\Assistants\AssistantRegistry;
-use VIPWorkflow\Ideation\Assistants\MediaScout;
-use VIPWorkflow\Ideation\Assistants\WebResearcher;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
+use VIPWorkflows\Assistants\AssistantRegistry;
+use VIPWorkflows\Ideation\Assistants\MediaScout;
+use VIPWorkflows\Ideation\Assistants\WebResearcher;
 
 class AssistantRegistryAggregationTest extends TestCase
 {
@@ -63,10 +63,10 @@ class AssistantRegistryAggregationTest extends TestCase
             static function () use ( $registered ): void {
                 // `wp_get_ability()` warns on a miss, so membership is tested
                 // against the registered set instead.
-                if ( ! in_array( 'vip-workflow/web-researcher', $registered, true ) ) {
+                if ( ! in_array( 'vip-workflows/web-researcher', $registered, true ) ) {
                     WebResearcher::register_ability();
                 }
-                if ( ! in_array( 'vip-workflow/media-scout', $registered, true ) ) {
+                if ( ! in_array( 'vip-workflows/media-scout', $registered, true ) ) {
                     MediaScout::register_ability();
                 }
                 if ( ! in_array( 'test-plugin/counting-agent', $registered, true ) ) {
@@ -80,13 +80,13 @@ class AssistantRegistryAggregationTest extends TestCase
     /**
      * An ability whose availability callback records how often it is consulted.
      *
-     * Registered through `vip_workflow_register_ability()` so it is a real
-     * `VIPWorkflow\Abilities\Ability` — the only kind whose structured
+     * Registered through `vip_workflows_register_ability()` so it is a real
+     * `VIPWorkflows\Abilities\Ability` — the only kind whose structured
      * availability channel `AssistantRegistry` reads.
      */
     private static function register_counting_ability(): void
     {
-        vip_workflow_register_ability(
+        vip_workflows_register_ability(
             'test-plugin/counting-agent',
             array(
                 'label'               => 'Counting Agent',
@@ -155,7 +155,7 @@ class AssistantRegistryAggregationTest extends TestCase
 
     public function test_ability_availability_reaches_the_entry(): void
     {
-        $entry = $this->entry_for_ability( 'vip-workflow/web-researcher' );
+        $entry = $this->entry_for_ability( 'vip-workflows/web-researcher' );
 
         // No Tavily credential on a clean test database.
         $this->assertFalse( $entry['available'] );
@@ -171,13 +171,13 @@ class AssistantRegistryAggregationTest extends TestCase
 
     public function test_source_attribution_names_the_contributing_ability(): void
     {
-        $entry = $this->entry_for_ability( 'vip-workflow/web-researcher' );
+        $entry = $this->entry_for_ability( 'vip-workflows/web-researcher' );
 
         $this->assertSame(
             array(
                 array(
                     'type'      => 'ability',
-                    'id'        => 'vip-workflow/web-researcher',
+                    'id'        => 'vip-workflows/web-researcher',
                     'label'     => 'Web Researcher',
                     'available' => false,
                 ),
@@ -188,7 +188,7 @@ class AssistantRegistryAggregationTest extends TestCase
 
     public function test_any_group_survives_aggregation_with_its_satisfy_mode(): void
     {
-        $entry = $this->entry_for_ability( 'vip-workflow/media-scout' );
+        $entry = $this->entry_for_ability( 'vip-workflows/media-scout' );
 
         $groups = $entry['availability']->get_groups();
 
@@ -202,7 +202,7 @@ class AssistantRegistryAggregationTest extends TestCase
 
     public function test_two_media_providers_sharing_one_credential_collapse_to_one_row(): void
     {
-        $entry = $this->entry_for_ability( 'vip-workflow/media-scout' );
+        $entry = $this->entry_for_ability( 'vip-workflows/media-scout' );
 
         $tavily = array_values(
             array_filter(

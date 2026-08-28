@@ -2,18 +2,18 @@
 /**
  * ExperimentsController unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Mockery;
-use VIPWorkflow\API\ExperimentsController;
-use VIPWorkflow\Experiments\Experiment;
-use VIPWorkflow\Experiments\ExperimentRegistry;
-use VIPWorkflow\Plugin;
+use VIPWorkflows\API\ExperimentsController;
+use VIPWorkflows\Experiments\Experiment;
+use VIPWorkflows\Experiments\ExperimentRegistry;
+use VIPWorkflows\Plugin;
 
 /**
  * Tests for the ExperimentsController REST API.

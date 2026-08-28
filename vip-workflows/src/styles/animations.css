@@ -19,7 +19,7 @@
 
 /* AssistantPanel: the three-dot "thinking" indicator, each dot delayed against
    the next. */
-@keyframes vip-workflow-ideation-dot-bounce {
+@keyframes vip-workflows-ideation-dot-bounce {
 	0%, 80%, 100% {
 		transform: scale(0.4);
 		opacity: 0.3;
@@ -31,7 +31,7 @@
 }
 
 /* TopBar: pulse while an assistant is running a follow-up query. */
-@keyframes vip-workflow-ideation-pulse {
+@keyframes vip-workflows-ideation-pulse {
 	0%, 100% { opacity: 1; }
 	50% { opacity: 0.5; }
 }
@@ -39,7 +39,7 @@
 /* MoodBoard + StoryDiscovery: the sweep across a skeleton loading card. The
    offsets are absolute, so how far the highlight travels across the card is
    set by the `background-size` of the gradient the consuming rule paints. */
-@keyframes vip-workflow-ideation-shimmer {
+@keyframes vip-workflows-ideation-shimmer {
 	0% { background-position: -400px 0; }
 	100% { background-position: 400px 0; }
 }

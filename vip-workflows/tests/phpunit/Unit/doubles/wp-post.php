@@ -13,7 +13,7 @@
  * real WP_Post from WordPress core is used instead; the class_exists guard
  * makes this a no-op there.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );

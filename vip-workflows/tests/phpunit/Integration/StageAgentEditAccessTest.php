@@ -8,15 +8,15 @@
  * if a user holds core edit_post they can edit, full stop, and interrupting a
  * running agent is a warn/confirm rather than a lockout.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Workflow\StageAgentRunner;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Workflow\StageAgentRunner;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Proves the workflow never silently revokes core edit_post.
@@ -76,7 +76,7 @@ class StageAgentEditAccessTest extends TestCase
             StageAgentRunner::JOB_META,
             array(
                 'stage_key'  => 'ai_desk',
-                'ability_id' => 'vip-workflow/fact-check',
+                'ability_id' => 'vip-workflows/fact-check',
                 'status'     => 'pending',
                 'queued_at'  => current_time( 'mysql' ),
             )

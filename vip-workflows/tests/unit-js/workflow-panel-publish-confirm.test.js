@@ -79,8 +79,8 @@ import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
 
-const STATUS_PATH = '/vip-workflow/v1/workflow/post/42/status';
-const TRANSITION_PATH = '/vip-workflow/v1/workflow/post/42/transition';
+const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
+const TRANSITION_PATH = '/vip-workflows/v1/workflow/post/42/transition';
 
 /**
  * A status payload whose stage offers one publishing exit and one that stays
@@ -157,7 +157,7 @@ async function renderPanel( status ) {
 		if ( path === STATUS_PATH && method !== 'POST' ) {
 			return Promise.resolve( status );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 			return Promise.resolve( [] );
 		}
 		if ( 'POST' === method ) {

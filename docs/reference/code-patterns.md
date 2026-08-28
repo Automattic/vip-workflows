@@ -9,10 +9,10 @@ For subsystem context see [architecture.md](architecture.md); for extension-plug
 ### 1. Getting the Sequence for a Post
 
 ```php
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\Sequences\SequenceRepository;
 
 $repository = new SequenceRepository();
-$sequence_id = get_post_meta($post_id, '_vip_workflow_sequence_id', true);
+$sequence_id = get_post_meta($post_id, '_vip_workflows_sequence_id', true);
 
 if ($sequence_id) {
     $sequence = $repository->get($sequence_id);
@@ -22,7 +22,7 @@ if ($sequence_id) {
 ### 2. Transitioning Post Status
 
 ```php
-use VIPWorkflow\Plugin;
+use VIPWorkflows\Plugin;
 
 $status_manager = Plugin::get_instance()->get_status_manager();
 
@@ -39,10 +39,10 @@ if (is_wp_error($result)) {
 ### 3. Executing a Tool
 
 ```php
-use VIPWorkflow\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilityExecutor;
 
 $executor = new AbilityExecutor();
-$result = $executor->execute('vip-workflow/seo-check', $post_id, [
+$result = $executor->execute('vip-workflows/seo-check', $post_id, [
     'min_words' => 300,
 ]);
 
@@ -57,11 +57,11 @@ if ($result->is_success()) {
 
 ```php
 // In your plugin's init hook
-add_action('vip_workflow_register_abilities', function() {
+add_action('vip_workflows_register_abilities', function() {
     wp_register_ability('my-plugin/custom-check', [
         'label'       => __('Custom Check', 'my-plugin'),
         'description' => __('My custom content check', 'my-plugin'),
-        'category'    => 'vip-workflow',
+        'category'    => 'vip-workflows',
         'input_schema' => [
             'type' => 'object',
             'required' => ['post_id'],
@@ -100,7 +100,7 @@ function my_custom_check_execute($input) {
     $post_id = (int) ($input['post_id'] ?? 0);
 
     // Per-object authorization: the caller must be able to edit *this* post.
-    $permission_error = \VIPWorkflow\Abilities\Tools\require_post_edit_permission($post_id);
+    $permission_error = \VIPWorkflows\Abilities\Tools\require_post_edit_permission($post_id);
     if ($permission_error) {
         return $permission_error;
     }
@@ -121,17 +121,17 @@ function my_custom_check_execute($input) {
 
 ```php
 // Listen for any status transition
-add_action('vip_workflow_status_transition', function($post_id, $new_status, $old_status, $sequence) {
+add_action('vip_workflows_status_transition', function($post_id, $new_status, $old_status, $sequence) {
     // Do something on any transition
 }, 10, 4);
 
 // Listen for specific status entry
-add_action('vip_workflow_entered_review', function($post_id, $old_status, $sequence) {
+add_action('vip_workflows_entered_review', function($post_id, $old_status, $sequence) {
     // Send notification to editors
 }, 10, 3);
 
 // Listen for tool execution
-add_action('vip_workflow_ability_executed', function($ability_id, $post_id, $result) {
+add_action('vip_workflows_ability_executed', function($ability_id, $post_id, $result) {
     // Log to analytics
 }, 10, 3);
 ```
@@ -139,7 +139,7 @@ add_action('vip_workflow_ability_executed', function($ability_id, $post_id, $res
 ### 6. Creating a Sequence Programmatically
 
 ```php
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\Sequences\SequenceRepository;
 
 $repository = new SequenceRepository();
 
@@ -195,7 +195,7 @@ import apiFetch from '@wordpress/api-fetch';
 
 // Transition post status
 const result = await apiFetch({
-    path: `/vip-workflow/v1/workflow/post/${postId}/transition`,
+    path: `/vip-workflows/v1/workflow/post/${postId}/transition`,
     method: 'POST',
     data: {
         to_status: 'review',
@@ -205,7 +205,7 @@ const result = await apiFetch({
 
 // Execute a tool
 const toolResult = await apiFetch({
-    path: `/vip-workflow/v1/abilities/vip-workflow/seo-check/execute`,
+    path: `/vip-workflows/v1/abilities/vip-workflows/seo-check/execute`,
     method: 'POST',
     data: {
         post_id: postId,
@@ -217,12 +217,12 @@ const toolResult = await apiFetch({
 
 // Get notifications
 const notifications = await apiFetch({
-    path: '/vip-workflow/v1/notifications',
+    path: '/vip-workflows/v1/notifications',
 });
 
 // Mark notification as read
 await apiFetch({
-    path: `/vip-workflow/v1/notifications/${notificationId}/read`,
+    path: `/vip-workflows/v1/notifications/${notificationId}/read`,
     method: 'POST',
 });
 
@@ -231,7 +231,7 @@ const formData = new FormData();
 formData.append('file', file);
 
 const asset = await apiFetch({
-    path: '/vip-workflow/v1/assets/upload',
+    path: '/vip-workflows/v1/assets/upload',
     method: 'POST',
     body: formData,
 });
@@ -240,8 +240,8 @@ const asset = await apiFetch({
 ### 8. Sending Notifications Programmatically
 
 ```php
-use VIPWorkflow\Notifications\NotificationDispatcher;
-use VIPWorkflow\Notifications\Notification;
+use VIPWorkflows\Notifications\NotificationDispatcher;
+use VIPWorkflows\Notifications\Notification;
 
 $dispatcher = new NotificationDispatcher();
 
@@ -266,7 +266,7 @@ $dispatcher->send_to_desk($desk_id, $notification);
 ### 9. Scheduling Background Jobs
 
 ```php
-use VIPWorkflow\Plugin;
+use VIPWorkflows\Plugin;
 
 $scheduler = Plugin::get_instance()->get_job_scheduler();
 
@@ -287,7 +287,7 @@ $scheduler->cancel('my-task');
 ### 10. AI Asset Analysis
 
 ```php
-use VIPWorkflow\Integrations\MediaProcessor;
+use VIPWorkflows\Integrations\MediaProcessor;
 
 $processor = new MediaProcessor();
 
@@ -312,7 +312,7 @@ if ( ! is_wp_error( $result ) ) {
 }
 
 // For asset uploads, AIMediaAnalyzer runs automatically via
-// vip_workflow_asset_file_uploaded and writes results to post meta.
+// vip_workflows_asset_file_uploaded and writes results to post meta.
 $analysis = get_post_meta( $asset_id, '_vip_asset_analysis', true );
 ```
 
@@ -324,7 +324,7 @@ $analysis = get_post_meta( $asset_id, '_vip_asset_analysis', true );
 ### 11. Configuring Tool Check Modes
 
 ```php
-use VIPWorkflow\Abilities\AbilitySettings;
+use VIPWorkflows\Abilities\AbilitySettings;
 
 $settings = AbilitySettings::get_instance();
 
@@ -353,7 +353,7 @@ $settings->update_tool_settings('seo-check', [
 ### 12. Using Bypass Permissions
 
 ```php
-use VIPWorkflow\Admin\Settings;
+use VIPWorkflows\Admin\Settings;
 
 // Check if current user can bypass workflow assignment checks
 if (Settings::can_user_bypass_workflow()) {
@@ -403,11 +403,11 @@ $transition = [
 // may never share one: the values arrive as a single flat map.
 
 // When transition executes, input data stored in:
-// 1. Post meta: _vip_workflow_transition_data (per-status history)
+// 1. Post meta: _vip_workflows_transition_data (per-status history)
 // 2. Workflow events table (audit log with notes array)
 
 // Retrieve transition data:
-$transition_data = get_post_meta($post_id, '_vip_workflow_transition_data', true);
+$transition_data = get_post_meta($post_id, '_vip_workflows_transition_data', true);
 $review_history = $transition_data['review'] ?? [];
 // Each entry has: timestamp, user_id, user_name, notes[]
 ```

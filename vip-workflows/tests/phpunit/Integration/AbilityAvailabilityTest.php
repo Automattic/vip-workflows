@@ -7,18 +7,18 @@
  * no `WP_Ability` at all, so the branch matrix below cannot be proven there —
  * only the value objects can (see tests/phpunit/Unit/AvailabilityTest.php).
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Abilities\Ability;
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\Abilities\Ability;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementGroup;
 
 class AbilityAvailabilityTest extends TestCase
 {
@@ -44,7 +44,7 @@ class AbilityAvailabilityTest extends TestCase
         }
 
         return new Ability(
-            'vip-workflow/availability-fixture',
+            'vip-workflows/availability-fixture',
             array(
                 'label'               => 'Availability Fixture',
                 'description'         => 'An ability used to exercise the availability contract.',
@@ -67,7 +67,7 @@ class AbilityAvailabilityTest extends TestCase
             Requirement::KIND_MISSING_CREDENTIAL,
             'Tavily is not connected.',
             'Web research is unavailable.',
-            Destination::none( 'Set VIP_WORKFLOW_TAVILY_KEY.' ),
+            Destination::none( 'Set VIP_WORKFLOWS_TAVILY_KEY.' ),
             array( 'Web Researcher' )
         );
     }
@@ -158,7 +158,7 @@ class AbilityAvailabilityTest extends TestCase
     public function test_plain_bool_function_callback_behaves_as_before(): void
     {
         $ability = new Ability(
-            'vip-workflow/availability-fixture-fn',
+            'vip-workflows/availability-fixture-fn',
             array(
                 'label'               => 'Availability Fixture',
                 'description'         => 'An ability used to exercise the availability contract.',

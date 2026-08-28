@@ -44,7 +44,7 @@ function FailureList( { items, variant } ) {
 			render={ <ul /> }
 			direction="column"
 			gap="sm"
-			className={ `vip-workflow-tool-failures-modal__list vip-workflow-tool-failures-modal__list--${ variant }` }
+			className={ `vip-workflows-tool-failures-modal__list vip-workflows-tool-failures-modal__list--${ variant }` }
 		>
 			{ items.map( ( item, i ) => (
 				<Stack
@@ -53,13 +53,13 @@ function FailureList( { items, variant } ) {
 					direction="row"
 					align="flex-start"
 					gap="sm"
-					className="vip-workflow-tool-failures-modal__item"
+					className="vip-workflows-tool-failures-modal__item"
 				>
-					<span className="vip-workflow-tool-failures-modal__icon">
+					<span className="vip-workflows-tool-failures-modal__icon">
 						<Icon icon={ icon } size={ 16 } />
 					</span>
 					{ /* wpds-allow R7 -- wraps mixed inline content (a bold tool prefix plus the message); <Text> exposes only `variant`, so the <strong> inside would still need its weight from CSS */ }
-					<span className="vip-workflow-tool-failures-modal__text">
+					<span className="vip-workflows-tool-failures-modal__text">
 						{ prefixOf( item ) && (
 							<>
 								<strong>{ prefixOf( item ) }:</strong>{ ' ' }
@@ -78,13 +78,13 @@ export function ToolFailuresModal( {
 	message,
 	hardFailures = [],
 	softWarnings = [],
-	hardTitle = __( 'Required checks failed', 'vip-workflow' ),
-	softTitle = __( 'Warnings (not blocking)', 'vip-workflow' ),
+	hardTitle = __( 'Required checks failed', 'vip-workflows' ),
+	softTitle = __( 'Warnings (not blocking)', 'vip-workflows' ),
 	onClose,
 	actions,
 	className,
 } ) {
-	const classNames = [ 'vip-workflow-tool-failures-modal', className ]
+	const classNames = [ 'vip-workflows-tool-failures-modal', className ]
 		.filter( Boolean )
 		.join( ' ' );
 
@@ -97,14 +97,14 @@ export function ToolFailuresModal( {
 			// The default footer verb is "Close", so the header X needs its own
 			// name — two buttons announced identically is a screen-reader dead
 			// end, and an ambiguous role+name target for tests.
-			closeButtonLabel={ __( 'Close dialog', 'vip-workflow' ) }
+			closeButtonLabel={ __( 'Close dialog', 'vip-workflows' ) }
 		>
 			<Stack direction="column" gap="lg">
 				{ message && (
 					<Text
 						variant="body-md"
 						render={ <p /> }
-						className="vip-workflow-tool-failures-modal__message"
+						className="vip-workflows-tool-failures-modal__message"
 					>
 						{ message }
 					</Text>
@@ -114,7 +114,7 @@ export function ToolFailuresModal( {
 					<Stack
 						direction="column"
 						gap="md"
-						className="vip-workflow-tool-failures-modal__section"
+						className="vip-workflows-tool-failures-modal__section"
 					>
 						<Text variant="heading-md" render={ <h4 /> }>
 							{ hardTitle }
@@ -127,7 +127,7 @@ export function ToolFailuresModal( {
 					<Stack
 						direction="column"
 						gap="md"
-						className="vip-workflow-tool-failures-modal__section"
+						className="vip-workflows-tool-failures-modal__section"
 					>
 						<Text variant="heading-md" render={ <h4 /> }>
 							{ softTitle }
@@ -140,7 +140,7 @@ export function ToolFailuresModal( {
 			<ModalActions>
 				{ actions || (
 					<Button variant="primary" onClick={ onClose }>
-						{ __( 'Close', 'vip-workflow' ) }
+						{ __( 'Close', 'vip-workflows' ) }
 					</Button>
 				) }
 			</ModalActions>

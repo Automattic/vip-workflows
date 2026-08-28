@@ -78,7 +78,7 @@ import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
 
-const STATUS_PATH = '/vip-workflow/v1/workflow/post/42/status';
+const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
 const STATUS_RESPONSE = {
 	has_workflow: true,
@@ -141,7 +141,7 @@ describe( 'WorkflowPanel transition busy state', () => {
 			if ( path === STATUS_PATH && method !== 'POST' ) {
 				return Promise.resolve( STATUS_RESPONSE );
 			}
-			if ( path.startsWith( '/vip-workflow/v1/abilities' ) ) {
+			if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
 				return Promise.resolve( [] );
 			}
 			// The transition POST — left unresolved on purpose.

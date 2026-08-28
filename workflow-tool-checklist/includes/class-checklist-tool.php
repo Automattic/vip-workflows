@@ -24,70 +24,70 @@ class ChecklistTool {
 
 		wp_register_ability(
 			'workflow-tool-checklist/checklist',
-			[
+			array(
 				'label'               => __( 'Pre-publish Checklist', 'workflow-tool-checklist' ),
 				'description'         => __( 'Ensure all required items are checked before proceeding.', 'workflow-tool-checklist' ),
-				'category'            => 'vip-workflow',
-				'input_schema'        => [
+				'category'            => 'vip-workflows',
+				'input_schema'        => array(
 					'type'                 => 'object',
 					'additionalProperties' => false,
-					'properties'           => [
-						'post_id' => [
+					'properties'           => array(
+						'post_id' => array(
 							'type'        => 'integer',
 							'description' => 'The post ID to check.',
 							'required'    => true,
-						],
-					],
-				],
-				'output_schema'       => [
+						),
+					),
+				),
+				'output_schema'       => array(
 					'type'                 => 'object',
 					'additionalProperties' => false,
-					'properties'           => [
-						'passed'  => [
+					'properties'           => array(
+						'passed'  => array(
 							'type'        => 'boolean',
 							'description' => 'Whether all required items were checked.',
 							'required'    => true,
-						],
-						'status'  => [
+						),
+						'status'  => array(
 							'type'        => 'string',
 							'description' => 'Result status (pass/fail).',
 							'required'    => true,
-						],
-						'summary' => [
+						),
+						'summary' => array(
 							'type'        => 'string',
 							'description' => 'Summary of results.',
 							'required'    => true,
-						],
-						'message' => [
+						),
+						'message' => array(
 							'type'        => 'string',
 							'description' => 'Result message.',
 							'required'    => true,
-						],
-						'items'   => [
+						),
+						'items'   => array(
 							'type'        => 'array',
 							'description' => 'Status of each checklist item.',
 							'required'    => true,
-						],
-						'issues'  => [
+						),
+						'issues'  => array(
 							'type'        => 'array',
 							'description' => 'List of issues (unchecked required items).',
 							'required'    => true,
-						],
-					],
-				],
-				'execute_callback'    => [ self::class, 'execute' ],
-				'permission_callback' => [ self::class, 'can_execute' ],
-				'meta'                => [
+						),
+					),
+				),
+				'execute_callback'    => array( self::class, 'execute' ),
+				'permission_callback' => array( self::class, 'can_execute' ),
+				'meta'                => array(
 					'show_in_rest'        => true,
 					'show_in_commands'    => false,
 					'icon'                => 'list-view',
 					'type'                => 'check',
-					'supports'            => [ 'workflow' ],
+					'supports'            => array( 'workflow' ),
 					'transition_eligible' => true,
 					'has_settings'        => true,
 					'has_sidebar_panel'   => true, // Self-registers sidebar panel, exclude from Tools panel.
-				],
-			]
+				),
+			)
 		);
 	}
 
@@ -98,7 +98,7 @@ class ChecklistTool {
 	 * @return bool|\WP_Error
 	 */
 	public static function can_execute( array $input ): bool|\WP_Error {
-		$items = get_option( 'workflow_checklist_items', [] );
+		$items = get_option( 'workflow_checklist_items', array() );
 
 		if ( empty( $items ) ) {
 			return new \WP_Error(
@@ -134,7 +134,7 @@ class ChecklistTool {
 	 * @return array|\WP_Error
 	 */
 	public static function execute( array $input ): array|\WP_Error {
-		$items   = get_option( 'workflow_checklist_items', [] );
+		$items   = get_option( 'workflow_checklist_items', array() );
 		$post_id = $input['post_id'] ?? 0;
 
 		if ( empty( $items ) ) {
@@ -147,31 +147,31 @@ class ChecklistTool {
 		// Get checked items from post meta (set by sidebar UI).
 		$checked_items = get_post_meta( $post_id, '_workflow_checklist_checked', true );
 		if ( ! is_array( $checked_items ) ) {
-			$checked_items = [];
+			$checked_items = array();
 		}
 
-		$results          = [];
-		$issues           = [];
+		$results          = array();
+		$issues           = array();
 		$all_required_met = true;
-		$missing_required = [];
+		$missing_required = array();
 
 		foreach ( $items as $item ) {
 			$is_checked  = in_array( $item['id'], $checked_items, true );
 			$is_required = ! empty( $item['required'] );
 
-			$results[] = [
+			$results[] = array(
 				'id'       => $item['id'],
 				'label'    => $item['label'],
 				'required' => $is_required,
 				'checked'  => $is_checked,
 				'passed'   => $is_checked || ! $is_required,
-			];
+			);
 
 			// Add to issues if required and not checked.
 			if ( $is_required && ! $is_checked ) {
 				$all_required_met   = false;
 				$missing_required[] = $item['label'];
-				$issues[]           = [
+				$issues[]           = array(
 					'check_key'   => $item['id'],
 					'type'        => 'checklist_item',
 					'severity'    => 'error',
@@ -180,7 +180,7 @@ class ChecklistTool {
 						__( 'Required checklist item not checked: %s', 'workflow-tool-checklist' ),
 						$item['label']
 					),
-				];
+				);
 			}
 		}
 
@@ -196,14 +196,14 @@ class ChecklistTool {
 			$status = 'fail';
 		}
 
-		return [
+		return array(
 			'passed'  => $all_required_met,
 			'status'  => $status,
 			'summary' => $message,
 			'message' => $message,
 			'items'   => $results,
 			'issues'  => $issues,
-		];
+		);
 	}
 
 	/**
@@ -212,6 +212,6 @@ class ChecklistTool {
 	 * @return array
 	 */
 	public static function get_items(): array {
-		return get_option( 'workflow_checklist_items', [] );
+		return get_option( 'workflow_checklist_items', array() );
 	}
 }

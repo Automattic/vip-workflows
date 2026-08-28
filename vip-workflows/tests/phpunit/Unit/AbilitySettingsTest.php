@@ -2,15 +2,15 @@
 /**
  * AbilitySettings unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Abilities\AbilitySettings;
+use VIPWorkflows\Abilities\AbilitySettings;
 
 class AbilitySettingsTest extends TestCase
 {
@@ -32,7 +32,7 @@ class AbilitySettingsTest extends TestCase
 
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                return 'vip_workflow_ability_settings' === $option
+                return 'vip_workflows_ability_settings' === $option
                     ? $this->stored_settings
                     : $default;
             }
@@ -40,7 +40,7 @@ class AbilitySettingsTest extends TestCase
 
         Functions\when( 'update_option' )->alias(
             function ( string $option, $value ) {
-                if ( 'vip_workflow_ability_settings' === $option ) {
+                if ( 'vip_workflows_ability_settings' === $option ) {
                     $this->stored_settings = $value;
                 }
 

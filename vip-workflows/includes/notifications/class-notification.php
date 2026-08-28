@@ -2,12 +2,12 @@
 /**
  * Notification data object.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Notifications;
+namespace VIPWorkflows\Notifications;
 
 /**
  * Represents a notification to be sent.
@@ -107,7 +107,7 @@ class Notification {
 		if ( $post_title ) {
 			$url = $this->get_post_url();
 			$fields[] = array(
-				'title' => __( 'Post', 'vip-workflow' ),
+				'title' => __( 'Post', 'vip-workflows' ),
 				'value' => $url ? "<{$url}|{$post_title}>" : $post_title,
 				'short' => true,
 			);
@@ -116,7 +116,7 @@ class Notification {
 		$sequence = $this->get( 'sequence' );
 		if ( $sequence ) {
 			$fields[] = array(
-				'title' => __( 'Workflow', 'vip-workflow' ),
+				'title' => __( 'Workflow', 'vip-workflows' ),
 				'value' => $sequence,
 				'short' => true,
 			);
@@ -125,7 +125,7 @@ class Notification {
 		$status_label = $this->get( 'status_label' );
 		if ( $status_label ) {
 			$fields[] = array(
-				'title' => __( 'Stage', 'vip-workflow' ),
+				'title' => __( 'Stage', 'vip-workflows' ),
 				'value' => $status_label,
 				'short' => true,
 			);
@@ -134,7 +134,7 @@ class Notification {
 		$author = $this->get( 'author_name' );
 		if ( $author ) {
 			$fields[] = array(
-				'title' => __( 'Author', 'vip-workflow' ),
+				'title' => __( 'Author', 'vip-workflows' ),
 				'value' => $author,
 				'short' => true,
 			);

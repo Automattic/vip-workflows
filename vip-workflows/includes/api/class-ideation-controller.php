@@ -5,30 +5,30 @@
  * Endpoints for the story ideation workspace: seed submission,
  * state polling, card interactions, and mentor evaluation.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\AiInference;
-use VIPWorkflow\Ideation\Assistants\IdeationOrchestrator;
-use VIPWorkflow\Integrations\DraftBuilder;
-use VIPWorkflow\Integrations\SsrfGuard;
-use VIPWorkflow\Integrations\UploadsPathGuard;
-use VIPWorkflow\Integrations\LlmJsonGenerator;
-use VIPWorkflow\Integrations\LlmTextGenerator;
-use VIPWorkflow\Integrations\Markdown;
-use VIPWorkflow\Ideation\Research\IdeationAnalyzer;
-use VIPWorkflow\Ideation\Research\IdeationPostTypes;
-use VIPWorkflow\Workflow\Actor;
-use VIPWorkflow\Story\Story;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Abilities\AbilitySettings;
-use VIPWorkflow\Abilities\AiAvailability;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\AiInference;
+use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Integrations\DraftBuilder;
+use VIPWorkflows\Integrations\SsrfGuard;
+use VIPWorkflows\Integrations\UploadsPathGuard;
+use VIPWorkflows\Integrations\LlmJsonGenerator;
+use VIPWorkflows\Integrations\LlmTextGenerator;
+use VIPWorkflows\Integrations\Markdown;
+use VIPWorkflows\Ideation\Research\IdeationAnalyzer;
+use VIPWorkflows\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\Workflow\Actor;
+use VIPWorkflows\Story\Story;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilitySettings;
+use VIPWorkflows\Abilities\AiAvailability;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -45,7 +45,7 @@ class IdeationController extends WP_REST_Controller {
 	 *
 	 * @var mixed
 	 */
-	protected $namespace = 'vip-workflow/v1';
+	protected $namespace = 'vip-workflows/v1';
 	/**
 	 * REST route base.
 	 *
@@ -447,7 +447,7 @@ class IdeationController extends WP_REST_Controller {
 
 		$project = get_post( $project_id );
 		if ( ! $project || IdeationPostTypes::POST_TYPE !== $project->post_type ) {
-			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflow' ), array( 'status' => 404 ) );
+			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflows' ), array( 'status' => 404 ) );
 		}
 
 		$state = $this->orchestrator->get_state( $project_id );
@@ -466,7 +466,7 @@ class IdeationController extends WP_REST_Controller {
 		$project    = get_post( $project_id );
 
 		if ( ! $project || IdeationPostTypes::POST_TYPE !== $project->post_type ) {
-			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflow' ), array( 'status' => 404 ) );
+			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflows' ), array( 'status' => 404 ) );
 		}
 
 		wp_delete_post( $project_id, true );
@@ -545,7 +545,7 @@ class IdeationController extends WP_REST_Controller {
 
 		$project = get_post( $project_id );
 		if ( ! $project || IdeationPostTypes::POST_TYPE !== $project->post_type ) {
-			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflow' ), array( 'status' => 404 ) );
+			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflows' ), array( 'status' => 404 ) );
 		}
 
 		$result = $this->orchestrator->run_initial_assistant( $project_id, $assistant_id );
@@ -553,7 +553,7 @@ class IdeationController extends WP_REST_Controller {
 		if ( 'failed' === ( $result['status'] ?? '' ) ) {
 			return new WP_Error(
 				'assistant_failed',
-				$result['error'] ?? __( 'Agent failed.', 'vip-workflow' ),
+				$result['error'] ?? __( 'Agent failed.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -579,7 +579,7 @@ class IdeationController extends WP_REST_Controller {
 
 		$project = get_post( $project_id );
 		if ( ! $project || IdeationPostTypes::POST_TYPE !== $project->post_type ) {
-			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflow' ), array( 'status' => 404 ) );
+			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflows' ), array( 'status' => 404 ) );
 		}
 
 		$result = $this->orchestrator->restart_analysis( $project_id );
@@ -591,7 +591,7 @@ class IdeationController extends WP_REST_Controller {
 		if ( 'completed' !== ( $result['status'] ?? '' ) ) {
 			return new WP_Error(
 				'restart_failed',
-				$result['error'] ?? __( 'The seed analysis could not run.', 'vip-workflow' ),
+				$result['error'] ?? __( 'The seed analysis could not run.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -611,7 +611,7 @@ class IdeationController extends WP_REST_Controller {
 
 		$project = get_post( $project_id );
 		if ( ! $project || IdeationPostTypes::POST_TYPE !== $project->post_type ) {
-			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflow' ), array( 'status' => 404 ) );
+			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflows' ), array( 'status' => 404 ) );
 		}
 
 		$result = $this->orchestrator->run_query( $project_id, $assistant_id, $query );
@@ -619,7 +619,7 @@ class IdeationController extends WP_REST_Controller {
 		if ( ( $result['status'] ?? '' ) === 'failed' ) {
 			return new WP_Error(
 				'query_failed',
-				$result['error'] ?? __( 'Query failed.', 'vip-workflow' ),
+				$result['error'] ?? __( 'Query failed.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -674,7 +674,7 @@ class IdeationController extends WP_REST_Controller {
 		$project    = get_post( $project_id );
 
 		if ( ! $project || IdeationPostTypes::POST_TYPE !== $project->post_type ) {
-			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflow' ), array( 'status' => 404 ) );
+			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflows' ), array( 'status' => 404 ) );
 		}
 
 		$gate = $this->check_phase_transition( 'editorial', $project_id, (bool) $request->get_param( 'acknowledge_warnings' ) );
@@ -683,7 +683,7 @@ class IdeationController extends WP_REST_Controller {
 		}
 
 		if ( ! class_exists( '\WordPress\AiClient\AiClient' ) ) {
-			return new WP_Error( 'ai_unavailable', __( 'AI client is not available.', 'vip-workflow' ), array( 'status' => 503 ) );
+			return new WP_Error( 'ai_unavailable', __( 'AI client is not available.', 'vip-workflows' ), array( 'status' => 503 ) );
 		}
 
 		$state      = $this->orchestrator->get_state( $project_id );
@@ -836,7 +836,7 @@ class IdeationController extends WP_REST_Controller {
 		if ( empty( $parsed['title'] ) || empty( $parsed['body'] ) ) {
 			return new WP_Error(
 				'ai_parse_error',
-				__( 'AI response is missing required fields (title, body).', 'vip-workflow' ),
+				__( 'AI response is missing required fields (title, body).', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -1001,7 +1001,7 @@ class IdeationController extends WP_REST_Controller {
 				array(
 					'allowed' => false,
 					'code' => 'not_found',
-					'message' => __( 'Project not found.', 'vip-workflow' ),
+					'message' => __( 'Project not found.', 'vip-workflows' ),
 				),
 				200
 			);
@@ -1099,7 +1099,7 @@ class IdeationController extends WP_REST_Controller {
 		$project    = get_post( $project_id );
 
 		if ( ! $project || IdeationPostTypes::POST_TYPE !== $project->post_type ) {
-			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflow' ), array( 'status' => 404 ) );
+			return new WP_Error( 'not_found', __( 'Project not found.', 'vip-workflows' ), array( 'status' => 404 ) );
 		}
 
 		$state      = $this->orchestrator->get_state( $project_id );
@@ -1117,7 +1117,7 @@ class IdeationController extends WP_REST_Controller {
 		);
 
 		if ( empty( $pinned_sources ) ) {
-			return new WP_Error( 'no_pinned', __( 'Pin some sources before generating a summary.', 'vip-workflow' ), array( 'status' => 400 ) );
+			return new WP_Error( 'no_pinned', __( 'Pin some sources before generating a summary.', 'vip-workflows' ), array( 'status' => 400 ) );
 		}
 
 		$analyzer = new IdeationAnalyzer();
@@ -1279,13 +1279,13 @@ class IdeationController extends WP_REST_Controller {
 		}
 
 		$video_url = $source['url'] ?? $source['image'] ?? '';
-		$video_id  = \VIPWorkflow\Integrations\YouTubeTranscript::extract_video_id( $video_url );
+		$video_id  = \VIPWorkflows\Integrations\YouTubeTranscript::extract_video_id( $video_url );
 
 		if ( ! $video_id ) {
 			return;
 		}
 
-		$transcript = \VIPWorkflow\Integrations\YouTubeTranscript::fetch( $video_id );
+		$transcript = \VIPWorkflows\Integrations\YouTubeTranscript::fetch( $video_id );
 		if ( is_wp_error( $transcript ) ) {
 			return;
 		}
@@ -1387,7 +1387,7 @@ class IdeationController extends WP_REST_Controller {
 			$file     = new \WordPress\AiClient\Files\DTO\File( $file_path, $mime_type );
 			$analysis = \WordPress\AiClient\AiClient::prompt(
 				apply_filters(
-					'vip_workflow_ai_image_prompt',
+					'vip_workflows_ai_image_prompt',
 					PromptRegistry::get_instance()->get( 'ideation/image-source-analysis' ),
 					(int) ( $source['attachment_id'] ?? 0 )
 				)
@@ -1534,7 +1534,7 @@ class IdeationController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'no_phase_sequence',
-				__( 'No active phase sequence found. A phase sequence is required.', 'vip-workflow' ),
+				__( 'No active phase sequence found. A phase sequence is required.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -1543,7 +1543,7 @@ class IdeationController extends WP_REST_Controller {
 		if ( ! $transition ) {
 			return new WP_Error(
 				'transition_disabled',
-				__( 'This transition is not configured.', 'vip-workflow' ),
+				__( 'This transition is not configured.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -1551,7 +1551,7 @@ class IdeationController extends WP_REST_Controller {
 		if ( ! $sequence->is_phase_transition_allowed( 'ideation', $to_phase, get_current_user_id() ) ) {
 			return new WP_Error(
 				'transition_forbidden',
-				__( 'You do not have permission for this transition.', 'vip-workflow' ),
+				__( 'You do not have permission for this transition.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -1578,7 +1578,7 @@ class IdeationController extends WP_REST_Controller {
 						'tool'       => $tool_id,
 						'tool_label' => $tool_label,
 						'key'        => 'tool_disabled',
-						'message'    => __( 'This required check is switched off. Re-enable it, or remove it from this transition.', 'vip-workflow' ),
+						'message'    => __( 'This required check is switched off. Re-enable it, or remove it from this transition.', 'vip-workflows' ),
 						'severity'   => 'hard',
 					);
 
@@ -1592,7 +1592,7 @@ class IdeationController extends WP_REST_Controller {
 						'tool'       => $tool_id,
 						'tool_label' => $tool_label,
 						'key'        => 'execution_failed',
-						'message'    => $result->error ? $result->error : __( 'This tool failed to execute.', 'vip-workflow' ),
+						'message'    => $result->error ? $result->error : __( 'This tool failed to execute.', 'vip-workflows' ),
 						'severity'   => 'hard',
 					);
 					continue;
@@ -1611,7 +1611,7 @@ class IdeationController extends WP_REST_Controller {
 						'tool'       => $tool_id,
 						'tool_label' => $tool_label,
 						'key'        => $check_key,
-						'message'    => $issue['message'] ?? $issue['description'] ?? __( 'Check failed', 'vip-workflow' ),
+						'message'    => $issue['message'] ?? $issue['description'] ?? __( 'Check failed', 'vip-workflows' ),
 						'severity'   => $is_hard ? 'hard' : 'soft',
 					);
 
@@ -1623,22 +1623,22 @@ class IdeationController extends WP_REST_Controller {
 				}
 			} catch ( \InvalidArgumentException $e ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging of tool execution failures.
-				error_log( "VIP Workflow: Phase transition tool {$tool_id} not found: " . $e->getMessage() );
+				error_log( "VIP Workflows: Phase transition tool {$tool_id} not found: " . $e->getMessage() );
 				$hard_failures[] = array(
 					'tool'       => $tool_id,
 					'tool_label' => $tool_id,
 					'key'        => 'tool_not_found',
-					'message'    => __( 'This required tool is not installed or registered.', 'vip-workflow' ),
+					'message'    => __( 'This required tool is not installed or registered.', 'vip-workflows' ),
 					'severity'   => 'hard',
 				);
 			} catch ( \Exception $e ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging of tool execution failures.
-				error_log( "VIP Workflow: Phase transition tool {$tool_id} threw exception: " . $e->getMessage() );
+				error_log( "VIP Workflows: Phase transition tool {$tool_id} threw exception: " . $e->getMessage() );
 				$hard_failures[] = array(
 					'tool'       => $tool_id,
 					'tool_label' => $tool_label,
 					'key'        => 'execution_error',
-					'message'    => __( 'This tool failed to run. Contact an administrator.', 'vip-workflow' ),
+					'message'    => __( 'This tool failed to run. Contact an administrator.', 'vip-workflows' ),
 					'severity'   => 'hard',
 				);
 			}
@@ -1647,7 +1647,7 @@ class IdeationController extends WP_REST_Controller {
 		if ( ! empty( $hard_failures ) ) {
 			return new WP_Error(
 				'tool_check_failed',
-				__( 'Transition blocked by required checks.', 'vip-workflow' ),
+				__( 'Transition blocked by required checks.', 'vip-workflows' ),
 				array(
 					'status'        => 422,
 					'hard_failures' => $hard_failures,
@@ -1659,7 +1659,7 @@ class IdeationController extends WP_REST_Controller {
 		if ( ! empty( $soft_warnings ) && ! $acknowledge_warnings ) {
 			return new WP_Error(
 				'tool_check_warnings',
-				__( 'Transition has warnings that need acknowledgement.', 'vip-workflow' ),
+				__( 'Transition has warnings that need acknowledgement.', 'vip-workflows' ),
 				array(
 					'status'        => 422,
 					'hard_failures' => array(),

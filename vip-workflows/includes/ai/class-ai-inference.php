@@ -15,15 +15,15 @@
  * model independently: selecting Anthropic without also saving a model left
  * `Credentials::model()` empty, and every generation in the plugin went to
  * OpenAI. Bailing is both the honest answer and the one the availability gate
- * can describe — see `VIPWorkflow\Abilities\AiAvailability`, which reports the
+ * can describe — see `VIPWorkflows\Abilities\AiAvailability`, which reports the
  * same three conditions this resolver requires.
  *
- * @package VIPWorkflow\AI
+ * @package VIPWorkflows\AI
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\AI;
+namespace VIPWorkflows\AI;
 
 /**
  * Resolves the provider+model for general AI generation.
@@ -78,7 +78,7 @@ final class AiInference {
 
 		if ( '' === $provider ) {
 			self::report(
-				'No AI provider is selected, and none could be derived from this site\'s credentials, so no model can be resolved and generation will fail. Choose a provider in VIP Workflow settings.'
+				'No AI provider is selected, and none could be derived from this site\'s credentials, so no model can be resolved and generation will fail. Choose a provider in VIP Workflows settings.'
 			);
 
 			return null;
@@ -89,7 +89,7 @@ final class AiInference {
 		if ( null === $class ) {
 			self::report(
 				sprintf(
-					'The selected AI provider "%s" is not registered with the WordPress AI Client, so no model can be resolved and generation will fail. Select a registered provider in VIP Workflow settings.',
+					'The selected AI provider "%s" is not registered with the WordPress AI Client, so no model can be resolved and generation will fail. Select a registered provider in VIP Workflows settings.',
 					$provider
 				)
 			);
@@ -100,7 +100,7 @@ final class AiInference {
 		if ( '' === $model_id ) {
 			self::report(
 				sprintf(
-					'No model is configured for the selected AI provider "%s", so no model can be resolved and generation will fail. Choose a model in VIP Workflow settings.',
+					'No model is configured for the selected AI provider "%s", so no model can be resolved and generation will fail. Choose a model in VIP Workflows settings.',
 					$provider
 				)
 			);

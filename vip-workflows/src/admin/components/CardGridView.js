@@ -101,7 +101,7 @@ export function CardGridView( {
 		// Deliberately a <div>: <Stack> is display:flex, which would change the
 		// box DataViews lays itself out in.
 		// wpds-allow R7 -- a <Stack> here is display:flex and would change DataViews' layout box
-		<div className="vip-workflow-card-grid-view vip-workflow-card-surface">
+		<div className="vip-workflows-card-grid-view vip-workflows-card-surface">
 			<DataViews
 				data={ data }
 				fields={ fields }
@@ -170,12 +170,12 @@ export function CardGridView( {
 						   and here they are only where the cards happened to wrap.
 						   These records have an order, not coordinates. */
 						/* wpds-allow R7 -- responsive CSS grid (auto-fill/minmax); Stack is flex-only and can't express a wrapping card grid */
-						<div className="vip-workflow-card-grid" role="list">
+						<div className="vip-workflows-card-grid" role="list">
 							{ data.map( ( item ) => (
 								/* wpds-allow R7 -- carries the list-item role for the card inside it; <Stack> would add a flex box this only needs to be a plain wrapper */
 								<div
 									key={ getItemId( item ) }
-									className="vip-workflow-card-grid__item"
+									className="vip-workflows-card-grid__item"
 									role="listitem"
 								>
 									{ renderCard( item ) }

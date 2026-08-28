@@ -2,15 +2,15 @@
 /**
  * Sequence unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Sequences\Sequence;
+use VIPWorkflows\Sequences\Sequence;
 
 /**
  * Tests for the Sequence class.
@@ -1498,6 +1498,6 @@ class SequenceTest extends TestCase
 
         $this->assertSame( array(), $offered, 'The unresolvable edge fails closed.' );
         $this->assertStringContainsString( 'edit_published_posts', $log, 'The missing cap is named in the log.' );
-        $this->assertSame( 1, substr_count( $log, '[VIP Workflow]' ), 'Exactly one integrity log line.' );
+        $this->assertSame( 1, substr_count( $log, '[VIP Workflows]' ), 'Exactly one integrity log line.' );
     }
 }

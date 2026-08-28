@@ -2,17 +2,17 @@
 /**
  * Ideation Sources REST API Controller.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
-use VIPWorkflow\Ideation\Assistants\IdeationOrchestrator;
-use VIPWorkflow\Ideation\Research\IdeationAnalyzer;
-use VIPWorkflow\Ideation\Research\IdeationPostTypes;
-use VIPWorkflow\Integrations\UrlMetaExtractor;
+use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Ideation\Research\IdeationAnalyzer;
+use VIPWorkflows\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\Integrations\UrlMetaExtractor;
 use WP_Error;
 use WP_REST_Controller;
 use WP_REST_Request;
@@ -29,7 +29,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 	 *
 	 * @var mixed
 	 */
-	protected $namespace = 'vip-workflow/v1';
+	protected $namespace = 'vip-workflows/v1';
 	/**
 	 * REST route base.
 	 *
@@ -182,7 +182,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( '' === trim( $url ) ) {
 			return new WP_Error(
 				'rest_invalid_param',
-				__( 'URL is required.', 'vip-workflow' ),
+				__( 'URL is required.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -279,7 +279,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( false === $inserted ) {
 			return new WP_Error(
 				'rest_db_error',
-				__( 'Could not save source.', 'vip-workflow' ),
+				__( 'Could not save source.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -288,7 +288,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( null === $row ) {
 			return new WP_Error(
 				'rest_not_found',
-				__( 'Source not found after insert.', 'vip-workflow' ),
+				__( 'Source not found after insert.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -372,7 +372,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( empty( $files['file'] ) ) {
 			return new WP_Error(
 				'rest_no_file',
-				__( 'No file uploaded.', 'vip-workflow' ),
+				__( 'No file uploaded.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -408,7 +408,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( ! $attachment ) {
 			return new WP_Error(
 				'rest_attachment_missing',
-				__( 'Attachment could not be loaded.', 'vip-workflow' ),
+				__( 'Attachment could not be loaded.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -471,22 +471,22 @@ class IdeationSourcesController extends WP_REST_Controller {
 			wp_delete_attachment( $attachment_id, true );
 			return new WP_Error(
 				'rest_db_error',
-				__( 'Could not save source.', 'vip-workflow' ),
+				__( 'Could not save source.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
 
 		as_enqueue_async_action(
-			'vip_workflow_process_source',
+			'vip_workflows_process_source',
 			array( $project_id, $source_id ),
-			'vip-workflow'
+			'vip-workflows'
 		);
 
 		$row = $this->get_source_row( $project_id, $source_id );
 		if ( null === $row ) {
 			return new WP_Error(
 				'rest_not_found',
-				__( 'Source not found after insert.', 'vip-workflow' ),
+				__( 'Source not found after insert.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -510,7 +510,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( null === $row ) {
 			return new WP_Error(
 				'rest_not_found',
-				__( 'Source not found.', 'vip-workflow' ),
+				__( 'Source not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -529,7 +529,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( false === $deleted || $deleted < 1 ) {
 			return new WP_Error(
 				'rest_db_error',
-				__( 'Could not delete source.', 'vip-workflow' ),
+				__( 'Could not delete source.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -564,7 +564,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( null === $row ) {
 			return new WP_Error(
 				'rest_not_found',
-				__( 'Source not found.', 'vip-workflow' ),
+				__( 'Source not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -607,7 +607,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( false === $updated ) {
 			return new WP_Error(
 				'rest_db_error',
-				__( 'Could not update source.', 'vip-workflow' ),
+				__( 'Could not update source.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -616,7 +616,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( null === $fresh ) {
 			return new WP_Error(
 				'rest_not_found',
-				__( 'Source not found.', 'vip-workflow' ),
+				__( 'Source not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -640,7 +640,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( null === $row ) {
 			return new WP_Error(
 				'rest_not_found',
-				__( 'Source not found.', 'vip-workflow' ),
+				__( 'Source not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -683,7 +683,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( null === $fresh ) {
 			return new WP_Error(
 				'rest_not_found',
-				__( 'Source not found.', 'vip-workflow' ),
+				__( 'Source not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -713,7 +713,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		if ( null === $row ) {
 			return new WP_Error(
 				'rest_not_found',
-				__( 'Source not found.', 'vip-workflow' ),
+				__( 'Source not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -746,16 +746,16 @@ class IdeationSourcesController extends WP_REST_Controller {
 		);
 
 		as_enqueue_async_action(
-			'vip_workflow_process_source',
+			'vip_workflows_process_source',
 			array( $project_id, $source_id ),
-			'vip-workflow'
+			'vip-workflows'
 		);
 
 		$fresh = $this->get_source_row( $project_id, $source_id );
 		if ( null === $fresh ) {
 			return new WP_Error(
 				'rest_not_found',
-				__( 'Source not found.', 'vip-workflow' ),
+				__( 'Source not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}

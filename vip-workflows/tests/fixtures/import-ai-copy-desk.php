@@ -4,7 +4,7 @@
  *
  * Usage: wp eval-file tests/fixtures/import-ai-copy-desk.php
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -25,10 +25,10 @@ if ( ! empty( $admin ) ) {
 	wp_set_current_user( $admin[0]->ID );
 }
 
-$request = new WP_REST_Request( 'POST', '/vip-workflow/v1/sequences/import' );
+$request = new WP_REST_Request( 'POST', '/vip-workflows/v1/sequences/import' );
 $request->set_param( 'sequence_json', $sequence );
 
-$controller = new \VIPWorkflow\API\SequencesController();
+$controller = new \VIPWorkflows\API\SequencesController();
 $response   = $controller->import_sequence( $request );
 
 if ( is_wp_error( $response ) ) {
@@ -44,7 +44,7 @@ if ( ! $id ) {
 }
 
 // Import creates the sequence as a draft; activate it so it registers on init.
-( new \VIPWorkflow\Sequences\SequenceRepository() )->update( $id, array( 'status' => 'active' ) );
+( new \VIPWorkflows\Sequences\SequenceRepository() )->update( $id, array( 'status' => 'active' ) );
 
 WP_CLI::success(
 	sprintf(

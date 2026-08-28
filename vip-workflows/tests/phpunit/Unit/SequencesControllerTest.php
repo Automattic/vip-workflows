@@ -2,18 +2,18 @@
 /**
  * SequencesController unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\API\SequencesController;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
+use VIPWorkflows\API\SequencesController;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
 
 /**
  * Tests for the SequencesController REST API.
@@ -53,7 +53,7 @@ class SequencesControllerTest extends TestCase
     protected function tearDown(): void
     {
         // Reset the Plugin singleton seeded by feature-gating tests.
-        $reflection    = new \ReflectionClass( \VIPWorkflow\Plugin::class );
+        $reflection    = new \ReflectionClass( \VIPWorkflows\Plugin::class );
         $instance_prop = $reflection->getProperty( 'instance' );
         $instance_prop->setValue( null, null );
 
@@ -292,10 +292,10 @@ class SequencesControllerTest extends TestCase
      */
     private function seed_plugin_with_ideation_enabled( bool $enabled ): void
     {
-        $registry = Mockery::mock( \VIPWorkflow\Experiments\ExperimentRegistry::class );
+        $registry = Mockery::mock( \VIPWorkflows\Experiments\ExperimentRegistry::class );
         $registry->shouldReceive( 'is_enabled' )->with( 'ideation' )->andReturn( $enabled );
 
-        $reflection = new \ReflectionClass( \VIPWorkflow\Plugin::class );
+        $reflection = new \ReflectionClass( \VIPWorkflows\Plugin::class );
         $instance   = $reflection->newInstanceWithoutConstructor();
 
         $registry_prop = $reflection->getProperty( 'experiment_registry' );
@@ -1891,7 +1891,7 @@ class SequencesControllerTest extends TestCase
                 'key'         => 'ai_desk',
                 'transitions' => array( array( 'to' => 'review' ) ),
                 'agent'       => array(
-                    'ability_id' => 'vip-workflow/does-not-exist',
+                    'ability_id' => 'vip-workflows/does-not-exist',
                     'routing'    => array( 'error' => 'review' ),
                 ),
             ),
@@ -1914,7 +1914,7 @@ class SequencesControllerTest extends TestCase
                 'key'         => 'ai_desk',
                 'transitions' => array( array( 'to' => 'review' ) ),
                 'agent'       => array(
-                    'ability_id' => 'vip-workflow/some-tool',
+                    'ability_id' => 'vip-workflows/some-tool',
                     'routing'    => array( 'error' => 'review' ),
                 ),
             ),
@@ -2052,7 +2052,7 @@ class SequencesControllerTest extends TestCase
     /**
      * An import mints fresh assignment slot keys, and the gates that point at
      * them follow. Regenerating the slot alone left `requires_assignment` reading
-     * `_vip_workflow_assignment_{old_key}` — a slot nothing writes any more — so
+     * `_vip_workflows_assignment_{old_key}` — a slot nothing writes any more — so
      * the gated transition failed closed, silently, for every user.
      */
     public function test_import_sequence_repoints_assignment_gates_at_regenerated_keys(): void

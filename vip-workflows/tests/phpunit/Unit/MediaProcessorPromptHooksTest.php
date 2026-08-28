@@ -2,27 +2,27 @@
 /**
  * Prompt-hook coverage for MediaProcessor call sites.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit {
+namespace VIPWorkflows\Tests\Unit {
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\CorePrompts;
-use VIPWorkflow\AI\PromptRegistry;
-use VIPWorkflow\AI\PromptSettings;
-use VIPWorkflow\API\IdeationController;
-use VIPWorkflow\Ideation\Research\SourceProcessingJob;
-use VIPWorkflow\Integrations\MediaProcessor;
+use VIPWorkflows\AI\CorePrompts;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\AI\PromptSettings;
+use VIPWorkflows\API\IdeationController;
+use VIPWorkflows\Ideation\Research\SourceProcessingJob;
+use VIPWorkflows\Integrations\MediaProcessor;
 use WP_Post;
 use WordPress\AiClient\AiClient;
 
 class MediaProcessorPromptHooksTest extends TestCase
 {
     /**
-     * Stored prompt overrides, keyed by prompt id (option vip_workflow_prompts).
+     * Stored prompt overrides, keyed by prompt id (option vip_workflows_prompts).
      *
      * @var array<string, string>
      */
@@ -45,11 +45,11 @@ class MediaProcessorPromptHooksTest extends TestCase
 
         Functions\when( 'get_option' )->alias(
             function ( string $option, $default = false ) {
-                if ( 'vip_workflow_ai_model' === $option ) {
+                if ( 'vip_workflows_ai_model' === $option ) {
                     return 'gpt-4o-mini';
                 }
 
-                if ( 'vip_workflow_prompts' === $option ) {
+                if ( 'vip_workflows_prompts' === $option ) {
                     return $this->prompt_overrides;
                 }
 
@@ -58,7 +58,7 @@ class MediaProcessorPromptHooksTest extends TestCase
         );
         Functions\when( 'update_option' )->alias(
             function ( string $option, $value ) {
-                if ( 'vip_workflow_prompts' === $option ) {
+                if ( 'vip_workflows_prompts' === $option ) {
                     $this->prompt_overrides = $value;
                 }
                 return true;
@@ -74,11 +74,11 @@ class MediaProcessorPromptHooksTest extends TestCase
 
         Functions\when( 'apply_filters' )->alias(
             function ( string $tag, $value, ...$args ) {
-                if ( 'vip_workflow_ai_image_prompt' === $tag ) {
+                if ( 'vip_workflows_ai_image_prompt' === $tag ) {
                     return 'FILTERED IMAGE PROMPT';
                 }
 
-                if ( 'vip_workflow_ai_summary_prompt' === $tag ) {
+                if ( 'vip_workflows_ai_summary_prompt' === $tag ) {
                     return sprintf( 'FILTERED SUMMARY PROMPT (%s)', $args[0] ?? 'unknown' );
                 }
 
@@ -310,7 +310,7 @@ class MediaProcessorPromptHooksTest extends TestCase
         $filter_args = array();
         Functions\when( 'apply_filters' )->alias(
             function ( string $tag, $value, ...$args ) use ( &$filter_args ) {
-                if ( 'vip_workflow_ai_summary_prompt' === $tag ) {
+                if ( 'vip_workflows_ai_summary_prompt' === $tag ) {
                     $filter_args = $args;
                 }
                 return $value;

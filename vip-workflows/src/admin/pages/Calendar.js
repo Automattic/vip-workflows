@@ -134,7 +134,7 @@ function PostPreviewModal( { post, onClose } ) {
 		<Modal
 			title={ post.title }
 			onRequestClose={ onClose }
-			className="vip-workflow-calendar-post-modal vip-workflow-modal--truncate-title"
+			className="vip-workflows-calendar-post-modal vip-workflows-modal--truncate-title"
 			size="medium"
 		>
 			<ModalBody>
@@ -144,7 +144,7 @@ function PostPreviewModal( { post, onClose } ) {
 					</StatusBadge>
 					{ post.is_scheduled && (
 						<Badge intent="informational">
-							{ __( 'Scheduled', 'vip-workflow' ) }
+							{ __( 'Scheduled', 'vip-workflows' ) }
 						</Badge>
 					) }
 				</Stack>
@@ -153,13 +153,13 @@ function PostPreviewModal( { post, onClose } ) {
 					actor={ post.author }
 					size="sm"
 					variant="body-md"
-					className="vip-workflow-calendar-post-modal__meta-row"
+					className="vip-workflows-calendar-post-modal__meta-row"
 				/>
 
 				<Stack
 					align="center"
 					gap="sm"
-					className="vip-workflow-calendar-post-modal__meta-row"
+					className="vip-workflows-calendar-post-modal__meta-row"
 				>
 					<Text>
 						{ formatDateTime( siteWallClock( post.start ) ) }
@@ -174,7 +174,7 @@ function PostPreviewModal( { post, onClose } ) {
 					<Stack
 						align="center"
 						gap="sm"
-						className="vip-workflow-calendar-post-modal__meta-row"
+						className="vip-workflows-calendar-post-modal__meta-row"
 					>
 						<Icon icon={ workflowIcon } size={ 20 } />
 						<Text>{ post.workflow.sequence_name }</Text>
@@ -190,7 +190,7 @@ function PostPreviewModal( { post, onClose } ) {
 						href={ post.view_url }
 						target="_blank"
 					>
-						{ __( 'Open', 'vip-workflow' ) }
+						{ __( 'Open', 'vip-workflows' ) }
 					</Button>
 				) }
 				<Button
@@ -199,7 +199,7 @@ function PostPreviewModal( { post, onClose } ) {
 					href={ post.edit_url }
 					target="_blank"
 				>
-					{ __( 'Edit', 'vip-workflow' ) }
+					{ __( 'Edit', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 		</Modal>
@@ -264,25 +264,25 @@ function DayPostsModal( { date: dayDate, posts, onClose, onGoToDay } ) {
 		() => [
 			{
 				id: 'title',
-				label: __( 'Title', 'vip-workflow' ),
+				label: __( 'Title', 'vip-workflows' ),
 				enableHiding: false,
 				getValue: ( { item } ) => item.title,
 			},
 			{
 				id: 'time',
-				label: __( 'Time', 'vip-workflow' ),
+				label: __( 'Time', 'vip-workflows' ),
 				getValue: ( { item } ) => item.start,
 				render: ( { item } ) =>
 					formatTime( siteWallClock( item.start ) ),
 			},
 			{
 				id: 'status',
-				label: __( 'Status', 'vip-workflow' ),
+				label: __( 'Status', 'vip-workflows' ),
 				getValue: ( { item } ) => item.status_label,
 				render: ( { item } ) => (
 					// wpds-allow R7 -- inline-flex glyph wrapper; Stack's stylesheet is `display: flex` (block-level), which would reflow the feed's media slot
 					<span
-						className="vip-workflow-calendar-day-posts__status-icon"
+						className="vip-workflows-calendar-day-posts__status-icon"
 						title={ item.status_label }
 						aria-label={ item.status_label }
 					>
@@ -298,7 +298,7 @@ function DayPostsModal( { date: dayDate, posts, onClose, onGoToDay } ) {
 		() => [
 			{
 				id: 'edit',
-				label: __( 'Edit', 'vip-workflow' ),
+				label: __( 'Edit', 'vip-workflows' ),
 				isPrimary: false,
 				icon: editIcon,
 				callback: ( items ) => {
@@ -309,7 +309,7 @@ function DayPostsModal( { date: dayDate, posts, onClose, onGoToDay } ) {
 			},
 			{
 				id: 'view',
-				label: __( 'Open', 'vip-workflow' ),
+				label: __( 'Open', 'vip-workflows' ),
 				isPrimary: false,
 				icon: externalIcon,
 				isEligible: ( item ) => item.is_published && !! item.view_url,
@@ -335,13 +335,13 @@ function DayPostsModal( { date: dayDate, posts, onClose, onGoToDay } ) {
 				<Button
 					__next40pxDefaultSize
 					icon={ calendar }
-					label={ __( 'View in day view', 'vip-workflow' ) }
+					label={ __( 'View in day view', 'vip-workflows' ) }
 					showTooltip
 					onClick={ onGoToDay }
 				/>
 			}
 			onRequestClose={ onClose }
-			className="vip-workflow-calendar-day-posts-modal"
+			className="vip-workflows-calendar-day-posts-modal"
 			size="medium"
 		>
 			<DataViews
@@ -397,9 +397,9 @@ function YearView( { date, events, onSelectDay } ) {
 	}, [ events ] );
 
 	return (
-		<div className="vip-workflow-calendar-year-view">
+		<div className="vip-workflows-calendar-year-view">
 			{ /* wpds-allow R7 -- responsive CSS grid (display:grid); not expressible as a Stack */ }
-			<div className="vip-workflow-calendar-year-view__grid">
+			<div className="vip-workflows-calendar-year-view__grid">
 				{ months.map( ( month ) => {
 					const monthStart = startOfMonth( month );
 					const monthEnd = endOfMonth( month );
@@ -416,16 +416,16 @@ function YearView( { date, events, onSelectDay } ) {
 							key={ format( month, 'yyyy-MM' ) }
 							direction="column"
 							gap="md"
-							className="vip-workflow-calendar-year-view__month"
+							className="vip-workflows-calendar-year-view__month"
 						>
 							<Text
 								variant="heading-md"
-								className="vip-workflow-calendar-year-view__month-header"
+								className="vip-workflows-calendar-year-view__month-header"
 							>
 								{ format( month, 'MMMM' ) }
 							</Text>
 							{ /* wpds-allow R7 -- 7-column CSS grid (display:grid); not expressible as a Stack */ }
-							<div className="vip-workflow-calendar-year-view__weekdays">
+							<div className="vip-workflows-calendar-year-view__weekdays">
 								{ [ 'S', 'M', 'T', 'W', 'T', 'F', 'S' ].map(
 									( day, i ) => (
 										<span key={ i }>{ day }</span>
@@ -433,7 +433,7 @@ function YearView( { date, events, onSelectDay } ) {
 								) }
 							</div>
 							{ /* wpds-allow R7 -- 7-column CSS grid (display:grid); not expressible as a Stack */ }
-							<div className="vip-workflow-calendar-year-view__days">
+							<div className="vip-workflows-calendar-year-view__days">
 								{ /* Empty cells for offset */ }
 								{ Array.from( { length: firstDayOfWeek } ).map(
 									( _, i ) => (
@@ -442,7 +442,7 @@ function YearView( { date, events, onSelectDay } ) {
 											render={ <span /> }
 											align="center"
 											justify="center"
-											className="vip-workflow-calendar-year-view__day vip-workflow-calendar-year-view__day--empty"
+											className="vip-workflows-calendar-year-view__day vip-workflows-calendar-year-view__day--empty"
 										/>
 									)
 								) }
@@ -470,13 +470,13 @@ function YearView( { date, events, onSelectDay } ) {
 											direction="column"
 											align="center"
 											justify="center"
-											className={ `vip-workflow-calendar-year-view__day ${
+											className={ `vip-workflows-calendar-year-view__day ${
 												hasEvents
-													? 'vip-workflow-calendar-year-view__day--has-events'
+													? 'vip-workflows-calendar-year-view__day--has-events'
 													: ''
 											} ${
 												isToday
-													? 'vip-workflow-calendar-year-view__day--today'
+													? 'vip-workflows-calendar-year-view__day--today'
 													: ''
 											}` }
 											role="button"
@@ -514,7 +514,7 @@ function YearView( { date, events, onSelectDay } ) {
 											{ format( day, 'd' ) }
 											{ hasEvents && (
 												// wpds-allow R7 -- count pill: flex centring plus its own fill/type/radius chrome, none of which Stack or Text exposes as a prop
-												<span className="vip-workflow-calendar-year-view__day-count">
+												<span className="vip-workflows-calendar-year-view__day-count">
 													{ dayEvents.length }
 												</span>
 											) }
@@ -548,11 +548,11 @@ function RescheduleModal( { event, newDate, type, onConfirm, onCancel } ) {
 		<Modal
 			title={
 				type === 'publish'
-					? __( 'Publish Post?', 'vip-workflow' )
-					: __( 'Schedule Post?', 'vip-workflow' )
+					? __( 'Publish Post?', 'vip-workflows' )
+					: __( 'Schedule Post?', 'vip-workflows' )
 			}
 			onRequestClose={ onCancel }
-			className="vip-workflow-calendar-reschedule-modal"
+			className="vip-workflows-calendar-reschedule-modal"
 			size="small"
 		>
 			<Text variant="body-md" render={ <p /> }>
@@ -566,7 +566,7 @@ function RescheduleModal( { event, newDate, type, onConfirm, onCancel } ) {
 					variant="tertiary"
 					onClick={ onCancel }
 				>
-					{ __( 'Cancel', 'vip-workflow' ) }
+					{ __( 'Cancel', 'vip-workflows' ) }
 				</Button>
 				<Button
 					__next40pxDefaultSize
@@ -574,8 +574,8 @@ function RescheduleModal( { event, newDate, type, onConfirm, onCancel } ) {
 					onClick={ onConfirm }
 				>
 					{ type === 'publish'
-						? __( 'Publish', 'vip-workflow' )
-						: __( 'Schedule', 'vip-workflow' ) }
+						? __( 'Publish', 'vip-workflows' )
+						: __( 'Schedule', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 		</Modal>
@@ -689,7 +689,7 @@ export default function Calendar() {
 		try {
 			const { start, end } = getDateRange();
 			const response = await apiFetch( {
-				path: `/vip-workflow/v1/workflow/calendar?start=${ start }&end=${ end }&filter=${ filter }`,
+				path: `/vip-workflows/v1/workflow/calendar?start=${ start }&end=${ end }&filter=${ filter }`,
 			} );
 
 			// Transform events for react-big-calendar.
@@ -807,12 +807,12 @@ export default function Calendar() {
 			const label = isFuture
 				? sprintf(
 						/* translators: %s: the date and time the post is now scheduled for. */
-						__( 'Scheduled for %s', 'vip-workflow' ),
+						__( 'Scheduled for %s', 'vip-workflows' ),
 						when
 				  )
 				: sprintf(
 						/* translators: %s: the date and time the post went live. */
-						__( 'Published (%s)', 'vip-workflow' ),
+						__( 'Published (%s)', 'vip-workflows' ),
 						when
 				  );
 			createSuccessNotice( label, { type: 'snackbar' } );
@@ -820,7 +820,7 @@ export default function Calendar() {
 			setEvents( originalEvents );
 			createErrorNotice(
 				err.message ||
-					__( 'Failed to reschedule post.', 'vip-workflow' ),
+					__( 'Failed to reschedule post.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 		}
@@ -906,10 +906,10 @@ export default function Calendar() {
 					align="center"
 					justify="center"
 					gap="md"
-					className="vip-workflow-calendar-loading"
+					className="vip-workflows-calendar-loading"
 				>
 					<Spinner />
-					<span>{ __( 'Loading calendar…', 'vip-workflow' ) }</span>
+					<span>{ __( 'Loading calendar…', 'vip-workflows' ) }</span>
 				</Stack>
 			);
 		}
@@ -953,11 +953,11 @@ export default function Calendar() {
 					// renders an event — the grid, the drag preview, and the
 					// "+N more" popup it portals to <body>. Calendar.css hangs
 					// the chip styling off it precisely because that popup
-					// escapes the .vip-workflow-calendar-body wrapper the rest
+					// escapes the .vip-workflows-calendar-body wrapper the rest
 					// of the .rbc-* overrides are scoped under.
-					className: 'vip-workflow-calendar-event',
+					className: 'vip-workflows-calendar-event',
 					style: {
-						'--vip-workflow-calendar-event-color':
+						'--vip-workflows-calendar-event-color':
 							event.status_color,
 					},
 				} ) }
@@ -965,7 +965,7 @@ export default function Calendar() {
 					const isToday = isSameDay( date, new Date() );
 					return {
 						className: isToday
-							? 'vip-workflow-calendar-day--today'
+							? 'vip-workflows-calendar-day--today'
 							: '',
 					};
 				} }
@@ -979,7 +979,7 @@ export default function Calendar() {
 				<Button
 					__next40pxDefaultSize
 					icon={ chevronLeft }
-					label={ __( 'Previous', 'vip-workflow' ) }
+					label={ __( 'Previous', 'vip-workflows' ) }
 					showTooltip
 					onClick={ () => handleNavigate( 'PREV' ) }
 				/>
@@ -988,12 +988,12 @@ export default function Calendar() {
 					variant="secondary"
 					onClick={ () => handleNavigate( 'TODAY' ) }
 				>
-					{ __( 'Today', 'vip-workflow' ) }
+					{ __( 'Today', 'vip-workflows' ) }
 				</Button>
 				<Button
 					__next40pxDefaultSize
 					icon={ chevronRight }
-					label={ __( 'Next', 'vip-workflow' ) }
+					label={ __( 'Next', 'vip-workflows' ) }
 					showTooltip
 					onClick={ () => handleNavigate( 'NEXT' ) }
 				/>
@@ -1003,11 +1003,11 @@ export default function Calendar() {
 				value={ filter }
 				options={ [
 					{
-						label: __( 'All Posts', 'vip-workflow' ),
+						label: __( 'All Posts', 'vip-workflows' ),
 						value: 'all',
 					},
 					{
-						label: __( 'Published Only', 'vip-workflow' ),
+						label: __( 'Published Only', 'vip-workflows' ),
 						value: 'published',
 					},
 				] }
@@ -1016,7 +1016,7 @@ export default function Calendar() {
 			/>
 			<Stack>
 				<ToggleGroupControl
-					label={ __( 'Calendar view', 'vip-workflow' ) }
+					label={ __( 'Calendar view', 'vip-workflows' ) }
 					hideLabelFromVision
 					value={ view }
 					onChange={ setView }
@@ -1026,19 +1026,19 @@ export default function Calendar() {
 				>
 					<ToggleGroupControlOption
 						value="day"
-						label={ __( 'Day', 'vip-workflow' ) }
+						label={ __( 'Day', 'vip-workflows' ) }
 					/>
 					<ToggleGroupControlOption
 						value="week"
-						label={ __( 'Week', 'vip-workflow' ) }
+						label={ __( 'Week', 'vip-workflows' ) }
 					/>
 					<ToggleGroupControlOption
 						value="month"
-						label={ __( 'Month', 'vip-workflow' ) }
+						label={ __( 'Month', 'vip-workflows' ) }
 					/>
 					<ToggleGroupControlOption
 						value="year"
-						label={ __( 'Year', 'vip-workflow' ) }
+						label={ __( 'Year', 'vip-workflows' ) }
 					/>
 				</ToggleGroupControl>
 			</Stack>
@@ -1050,12 +1050,12 @@ export default function Calendar() {
 			fullBleed
 			breadcrumbs={ [
 				{
-					label: __( 'Workflows', 'vip-workflow' ),
-					href: 'admin.php?page=vip-workflow',
+					label: __( 'Workflows', 'vip-workflows' ),
+					href: 'admin.php?page=vip-workflows',
 				},
 				{
-					label: __( 'Calendar', 'vip-workflow' ),
-					href: 'admin.php?page=vip-workflow-calendar',
+					label: __( 'Calendar', 'vip-workflows' ),
+					href: 'admin.php?page=vip-workflows-calendar',
 				},
 			] }
 			title={ getViewTitle() }
@@ -1063,7 +1063,7 @@ export default function Calendar() {
 		>
 			<Stack
 				direction="column"
-				className="vip-workflow-calendar-container"
+				className="vip-workflows-calendar-container"
 			>
 				{ /* Calendar Body. Stays a plain block wrapper: it only supplies
 				     the flex sizing and the clip, while react-big-calendar's
@@ -1071,7 +1071,7 @@ export default function Calendar() {
 				     <Stack> here would nest a second, redundant flex context
 				     around a component that lays itself out. */ }
 				{ /* wpds-allow R7 -- clip/size frame around react-big-calendar, which owns its own flex layout */ }
-				<div className="vip-workflow-calendar-body">
+				<div className="vip-workflows-calendar-body">
 					{ renderCalendarBody() }
 				</div>
 			</Stack>

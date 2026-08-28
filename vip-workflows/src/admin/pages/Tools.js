@@ -29,15 +29,15 @@ export default function Tools() {
 		<AdminPage
 			breadcrumbs={ [
 				{
-					label: __( 'Workflows', 'vip-workflow' ),
-					href: 'admin.php?page=vip-workflow',
+					label: __( 'Workflows', 'vip-workflows' ),
+					href: 'admin.php?page=vip-workflows',
 				},
-				{ label: __( 'Tools', 'vip-workflow' ) },
+				{ label: __( 'Tools', 'vip-workflows' ) },
 			] }
-			title={ __( 'Tools', 'vip-workflow' ) }
+			title={ __( 'Tools', 'vip-workflows' ) }
 			subtitle={ __(
 				'Configure workflow tools available to your team.',
-				'vip-workflow'
+				'vip-workflows'
 			) }
 			actions={
 				<>
@@ -45,7 +45,7 @@ export default function Tools() {
 						variant="secondary"
 						onClick={ () => setShowHowTo( true ) }
 					>
-						{ __( 'Add custom tools', 'vip-workflow' ) }
+						{ __( 'Add custom tools', 'vip-workflows' ) }
 					</Button>
 					<Button
 						variant="primary"
@@ -53,7 +53,7 @@ export default function Tools() {
 						isBusy={ tools.saving }
 						disabled={ tools.saving || ! tools.canSave }
 					>
-						{ __( 'Save', 'vip-workflow' ) }
+						{ __( 'Save', 'vip-workflows' ) }
 					</Button>
 				</>
 			}

@@ -2,15 +2,15 @@
 /**
  * YouTubeTranscript unit tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\Integrations\YouTubeTranscript;
+use VIPWorkflows\Integrations\YouTubeTranscript;
 use WP_Error;
 
 /**
@@ -27,7 +27,7 @@ class YouTubeTranscriptTest extends TestCase
                 'wp_parse_url'                            => function ( $url, $component = -1 ) {
                     return -1 === $component ? parse_url( $url ) : parse_url( $url, $component );
                 },
-                'VIPWorkflow\Integrations\dns_get_record' => function ( $host, $type ) {
+                'VIPWorkflows\Integrations\dns_get_record' => function ( $host, $type ) {
                     unset( $host );
 
                     if ( DNS_A === $type ) {
@@ -36,7 +36,7 @@ class YouTubeTranscriptTest extends TestCase
 
                     return array();
                 },
-                'VIPWorkflow\Integrations\gethostbynamel' => fn() => array( '8.8.8.8' ),
+                'VIPWorkflows\Integrations\gethostbynamel' => fn() => array( '8.8.8.8' ),
             )
         );
     }

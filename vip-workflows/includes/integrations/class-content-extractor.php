@@ -5,12 +5,12 @@
  * Fetches HTML, strips non-content elements (scripts, styles, navigation),
  * and returns clean text suitable for LLM processing.
  *
- * @package VIPWorkflow
+ * @package VIPWorkflows
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Integrations;
+namespace VIPWorkflows\Integrations;
 
 use WP_Error;
 
@@ -33,7 +33,7 @@ class ContentExtractor {
 	/**
 	 * User agent string.
 	 */
-	private const USER_AGENT = 'Mozilla/5.0 (compatible; VIP Workflow)';
+	private const USER_AGENT = 'Mozilla/5.0 (compatible; VIP Workflows)';
 
 	/**
 	 * Fetch and extract readable text from a URL.
@@ -61,7 +61,7 @@ class ContentExtractor {
 			return new WP_Error(
 				'http_error',
 				/* translators: %1$d: HTTP status code, %2$s: requested URL. */
-				sprintf( __( 'HTTP error %1$d for %2$s', 'vip-workflow' ), $status_code, $url )
+				sprintf( __( 'HTTP error %1$d for %2$s', 'vip-workflows' ), $status_code, $url )
 			);
 		}
 

@@ -5,18 +5,18 @@
  * discarded, no spurious failure), while the new entry stage's own dispatch
  * (cause 'core') proceeds normally, exactly once.
  *
- * @package VIPWorkflow\Tests\Integration
+ * @package VIPWorkflows\Tests\Integration
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Integration;
+namespace VIPWorkflows\Tests\Integration;
 
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Abilities\AbilityResult;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\StageAgentRunner;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilityResult;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StageAgentRunner;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Real-WordPress tests for the reseat × stage-agent race.
@@ -214,7 +214,7 @@ class AgentReseatIntegrationTest extends TestCase
 		$listener  = function ( $listener_post_id ) use ( &$completed ) {
 			$completed[] = $listener_post_id;
 		};
-		add_action( 'vip_workflow_agent_completed', $listener );
+		add_action( 'vip_workflows_agent_completed', $listener );
 
 		// The agent "runs" and, mid-execution, a core-driven status change
 		// lands (pending → draft crosses a region boundary → reseat).
@@ -236,7 +236,7 @@ class AgentReseatIntegrationTest extends TestCase
 
 		( new StageAgentRunner( $executor ) )->run_stage_agent( $post_id, 'ai_desk' );
 
-		remove_action( 'vip_workflow_agent_completed', $listener );
+		remove_action( 'vip_workflows_agent_completed', $listener );
 
 		// The reseat won: the post sits at the new entry stage, never at the
 		// stale run's pass route — discriminating, because ai_intake HAS a
@@ -244,7 +244,7 @@ class AgentReseatIntegrationTest extends TestCase
 		// stage would have moved the post there.
 		$this->assertSame( 'ai_intake', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ), 'The abandoned run must not route its exit transition from the reseated stage.' );
 		$this->assertSame( 'draft', get_post_status( $post_id ), 'The abandoned run must not fire its exit transition.' );
-		$this->assertSame( array(), $completed, 'The discarded result must not fire vip_workflow_agent_completed.' );
+		$this->assertSame( array(), $completed, 'The discarded result must not fire vip_workflows_agent_completed.' );
 
 		// Abandon-specific observable: the loop-guard chain was restored — an
 		// abandoned run never transitioned, so it does not count toward MAX_CHAIN.

@@ -1,5 +1,5 @@
 {
-	"route": "GET /vip-workflow/v1/abilities",
+	"route": "GET /vip-workflows/v1/abilities",
 	"builtBy": "vip-workflows/includes/api/class-abilities-controller.php::get_items()",
 	"declaredBy": "vip-workflows/includes/api/class-abilities-controller.php::get_item_schema()",
 	"why": [
@@ -18,7 +18,7 @@
 	],
 	"presenceRules": {
 		"always": "Emitted for every ability in every response. A fixture may never omit one.",
-		"ability_subclass": "Emitted only for a `VIPWorkflow\\Abilities\\Ability`, which a plain `WP_Ability` is not. Every VIP agent is one, so the default fixture variant carries these; only the deliberate plain-ability variant omits them.",
+		"ability_subclass": "Emitted only for a `VIPWorkflows\\Abilities\\Ability`, which a plain `WP_Ability` is not. Every VIP agent is one, so the default fixture variant carries these; only the deliberate plain-ability variant omits them.",
 		"request_param": "Emitted only when a request parameter asks for it. Absent from the default variant, because the default models a request that did not pass that parameter."
 	},
 	"keys": {
@@ -45,7 +45,7 @@
 		"category": {
 			"presence": "always",
 			"type": "string",
-			"why": "Ability category, e.g. `vip-workflow` or `research`."
+			"why": "Ability category, e.g. `vip-workflows` or `research`."
 		},
 		"schema": {
 			"presence": "always",

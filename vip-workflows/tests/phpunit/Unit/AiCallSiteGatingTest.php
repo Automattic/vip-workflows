@@ -17,12 +17,12 @@
  * return only became reachable in everyday states once the provider default was
  * removed.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 class AiCallSiteGatingTest extends TestCase
 {

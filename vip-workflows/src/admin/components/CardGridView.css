@@ -6,10 +6,10 @@
 
 /* Inner padding for the DataViews panel. On a built-in layout — the Audit Log,
    My Work — DataViews' own chrome (`.dataviews__view-actions`, table cells)
-   supplies the 16px/24px insets inside `.vip-workflow-card-surface`. Free
+   supplies the 16px/24px insets inside `.vip-workflows-card-surface`. Free
    composition renders our children bare, so the panel supplies the same insets
    here. */
-.vip-workflow-card-grid-view {
+.vip-workflows-card-grid-view {
 	padding: var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-2xl);
 }
 
@@ -22,7 +22,7 @@
 /* The card track. `auto-fill` + `minmax` lets a row hold as many cards as the
    panel is wide, which is what makes the same grid work on the Sequences page
    and inside the Jobs tab. */
-.vip-workflow-card-grid {
+.vip-workflows-card-grid {
 	display: grid;
 	grid-template-columns: repeat( auto-fill, minmax( 300px, 1fr ) );
 	gap: var(--wpds-dimension-padding-xl);
@@ -32,6 +32,6 @@
    it is what stretches to the tallest card in the row; the card fills it so its
    actions row still lands on the bottom edge rather than under a short
    description. */
-.vip-workflow-card-grid__item > * {
+.vip-workflows-card-grid__item > * {
 	height: 100%;
 }

@@ -7,21 +7,21 @@
  * users, non-publish region crosses, and every system context pass through
  * untouched.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
 use ReflectionProperty;
-use VIPWorkflow\Sequences\Sequence;
-use VIPWorkflow\Sequences\SequenceRepository;
-use VIPWorkflow\Workflow\PostTypeManager;
-use VIPWorkflow\Workflow\PublishBoundaryGuard;
-use VIPWorkflow\Workflow\StatusManager;
+use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\PostTypeManager;
+use VIPWorkflows\Workflow\PublishBoundaryGuard;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Tests for the publish-boundary save-layer veto.
@@ -715,7 +715,7 @@ class PublishBoundaryGuardTest extends TestCase
         $result = $this->filter_rest( 'publish' );
 
         $this->assertInstanceOf( \WP_Error::class, $result );
-        $this->assertSame( 'vip_workflow_publish_boundary', $result->get_error_code() );
+        $this->assertSame( 'vip_workflows_publish_boundary', $result->get_error_code() );
         $this->assertStringContainsString( "'Test Workflow'", $result->get_error_message() );
         $this->assertSame( 409, $result->get_error_data()['status'] );
     }

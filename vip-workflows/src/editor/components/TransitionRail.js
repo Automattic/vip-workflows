@@ -165,19 +165,19 @@ function indicatorState( result ) {
  */
 function indicatorTitle( state, stale ) {
 	if ( 'none' === state ) {
-		return __( 'Not run yet', 'vip-workflow' );
+		return __( 'Not run yet', 'vip-workflows' );
 	}
 
 	const base = {
-		pass: __( 'Passed', 'vip-workflow' ),
-		fail: __( 'Failing', 'vip-workflow' ),
-		error: __( 'Warning', 'vip-workflow' ),
+		pass: __( 'Passed', 'vip-workflows' ),
+		fail: __( 'Failing', 'vip-workflows' ),
+		error: __( 'Warning', 'vip-workflows' ),
 	}[ state ];
 
 	return stale
 		? sprintf(
 				/* translators: %s: the check's last outcome (Passed / Failing / Warning). */
-				__( '%s — before the latest edit', 'vip-workflow' ),
+				__( '%s — before the latest edit', 'vip-workflows' ),
 				base
 		  )
 		: base;
@@ -247,9 +247,9 @@ const OUTCOME_ICONS = {
  */
 function OutcomeMark( { state, stale } ) {
 	const classes = [
-		'vip-workflow-rail__outcome',
-		`vip-workflow-rail__outcome--${ state }`,
-		stale && 'vip-workflow-rail__outcome--stale',
+		'vip-workflows-rail__outcome',
+		`vip-workflows-rail__outcome--${ state }`,
+		stale && 'vip-workflows-rail__outcome--stale',
 	]
 		.filter( Boolean )
 		.join( ' ' );
@@ -294,17 +294,17 @@ function CheckIssues( { issues, checkModes, onOpenFull } ) {
 			key={ idx }
 			variant="body-sm"
 			render={ <div /> }
-			className={ `vip-workflow-rail__issue ${
+			className={ `vip-workflows-rail__issue ${
 				severity !== rollup
-					? `vip-workflow-rail__issue--${ severity }`
+					? `vip-workflows-rail__issue--${ severity }`
 					: ''
 			}` }
 		>
 			{ severity !== rollup && (
-				<span className="vip-workflow-rail__issue-grade">
+				<span className="vip-workflows-rail__issue-grade">
 					{ 'hard' === severity
-						? __( 'Blocks:', 'vip-workflow' )
-						: __( 'Warns:', 'vip-workflow' ) }
+						? __( 'Blocks:', 'vip-workflows' )
+						: __( 'Warns:', 'vip-workflows' ) }
 				</span>
 			) }
 			{ issue.message || issue.description || '' }
@@ -317,10 +317,10 @@ function CheckIssues( { issues, checkModes, onOpenFull } ) {
 		<Button
 			variant="link"
 			size="small"
-			className="vip-workflow-rail__full-result"
+			className="vip-workflows-rail__full-result"
 			onClick={ onOpenFull }
 		>
-			{ __( 'Open full result', 'vip-workflow' ) }
+			{ __( 'Open full result', 'vip-workflows' ) }
 		</Button>
 	);
 
@@ -328,18 +328,18 @@ function CheckIssues( { issues, checkModes, onOpenFull } ) {
 		<Text
 			variant="body-sm"
 			render={ <div /> }
-			className={ `vip-workflow-rail__rollup vip-workflow-rail__rollup--${ rollup }` }
+			className={ `vip-workflows-rail__rollup vip-workflows-rail__rollup--${ rollup }` }
 		>
 			{ 'hard' === rollup
-				? __( 'Blocks this move.', 'vip-workflow' )
-				: __( 'Warns before moving.', 'vip-workflow' ) }
+				? __( 'Blocks this move.', 'vip-workflows' )
+				: __( 'Warns before moving.', 'vip-workflows' ) }
 		</Text>
 	);
 
 	if ( rest.length === 0 ) {
 		return (
 			<Stack
-				className="vip-workflow-rail__issues"
+				className="vip-workflows-rail__issues"
 				direction="column"
 				gap="xs"
 			>
@@ -353,7 +353,7 @@ function CheckIssues( { issues, checkModes, onOpenFull } ) {
 	return (
 		<Collapsible.Root open={ open } onOpenChange={ setOpen }>
 			<Stack
-				className="vip-workflow-rail__issues"
+				className="vip-workflows-rail__issues"
 				direction="column"
 				gap="xs"
 			>
@@ -370,12 +370,12 @@ function CheckIssues( { issues, checkModes, onOpenFull } ) {
 						) }
 					</Stack>
 				</Collapsible.Panel>
-				<Collapsible.Trigger className="vip-workflow-rail__more">
+				<Collapsible.Trigger className="vip-workflows-rail__more">
 					{ open
-						? __( 'Show less', 'vip-workflow' )
+						? __( 'Show less', 'vip-workflows' )
 						: sprintf(
 								// translators: %d: how many further issues the tool reported.
-								__( '+ %d more', 'vip-workflow' ),
+								__( '+ %d more', 'vip-workflows' ),
 								rest.length
 						  ) }
 				</Collapsible.Trigger>
@@ -453,7 +453,7 @@ export function TransitionRail( {
 	const containerRef = useRef( null );
 	const prevRef = useRef( null );
 	const pathsSignatureRef = useRef( '' );
-	const labelId = useInstanceId( TransitionRail, 'vip-workflow-rail-stage' );
+	const labelId = useInstanceId( TransitionRail, 'vip-workflows-rail-stage' );
 
 	const { editPost } = useDispatch( editorStore );
 	const { createSuccessNotice, createErrorNotice } =
@@ -477,7 +477,7 @@ export function TransitionRail( {
 
 		let cancelled = false;
 
-		apiFetch( { path: `/vip-workflow/v1/abilities?post_id=${ postId }` } )
+		apiFetch( { path: `/vip-workflows/v1/abilities?post_id=${ postId }` } )
 			.then( ( data ) => {
 				if ( cancelled ) {
 					return;
@@ -520,7 +520,7 @@ export function TransitionRail( {
 		Promise.all(
 			abilities.map( ( ability ) =>
 				apiFetch( {
-					path: `/vip-workflow/v1/posts/${ postId }/ability-results?ability_id=${ encodeURIComponent(
+					path: `/vip-workflows/v1/posts/${ postId }/ability-results?ability_id=${ encodeURIComponent(
 						ability.id
 					) }&limit=1`,
 				} ).catch( () => [] )
@@ -569,7 +569,7 @@ export function TransitionRail( {
 			speak(
 				sprintf(
 					/* translators: 1: the agent stage's label, 2: the new stage's label. */
-					__( '%1$s finished. Moved to %2$s.', 'vip-workflow' ),
+					__( '%1$s finished. Moved to %2$s.', 'vip-workflows' ),
 					prev.current?.label || '',
 					current.label || ''
 				),
@@ -583,7 +583,7 @@ export function TransitionRail( {
 		speak(
 			sprintf(
 				/* translators: %s: the new stage's label. */
-				__( 'Moved to %s.', 'vip-workflow' ),
+				__( 'Moved to %s.', 'vip-workflows' ),
 				current.label || ''
 			),
 			'polite'
@@ -603,7 +603,7 @@ export function TransitionRail( {
 			return; // Not laid out (or jsdom) — nothing to draw against.
 		}
 
-		const mark = container.querySelector( '.vip-workflow-rail__mark' );
+		const mark = container.querySelector( '.vip-workflows-rail__mark' );
 		const markRect = mark?.getBoundingClientRect();
 		const top = markRect
 			? Math.round( markRect.top - base.top + markRect.height / 2 )
@@ -677,7 +677,7 @@ export function TransitionRail( {
 
 		try {
 			const result = await apiFetch( {
-				path: `/vip-workflow/v1/abilities/${ ability.id }/run`,
+				path: `/vip-workflows/v1/abilities/${ ability.id }/run`,
 				method: 'POST',
 				data: { post_id: postId },
 			} );
@@ -693,14 +693,14 @@ export function TransitionRail( {
 					result?.output?.status === 'pass'
 						? sprintf(
 								/* translators: %s: the check's name. */
-								__( '%s passed.', 'vip-workflow' ),
+								__( '%s passed.', 'vip-workflows' ),
 								ability.label || ability.name
 						  )
 						: sprintf(
 								/* translators: %s: the check's name. */
 								__(
 									'%s finished with issues.',
-									'vip-workflow'
+									'vip-workflows'
 								),
 								ability.label || ability.name
 						  ),
@@ -723,14 +723,14 @@ export function TransitionRail( {
 							err.message ||
 							__(
 								'Check could not be completed',
-								'vip-workflow'
+								'vip-workflows'
 							),
 					},
 				} ) );
 				speak(
 					sprintf(
 						/* translators: %s: the check's name. */
-						__( '%s could not be completed.', 'vip-workflow' ),
+						__( '%s could not be completed.', 'vip-workflows' ),
 						ability.label || ability.name
 					),
 					'polite'
@@ -759,7 +759,7 @@ export function TransitionRail( {
 					// translators: %s: the post field name that was applied (e.g. Excerpt, Title).
 					__(
 						'%s applied! Save the post to keep it.',
-						'vip-workflow'
+						'vip-workflows'
 					),
 					field.charAt( 0 ).toUpperCase() + field.slice( 1 )
 				),
@@ -768,7 +768,7 @@ export function TransitionRail( {
 			setHelperModal( null );
 		} catch ( err ) {
 			createErrorNotice(
-				err.message || __( 'Failed to apply.', 'vip-workflow' ),
+				err.message || __( 'Failed to apply.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 		} finally {
@@ -819,17 +819,17 @@ export function TransitionRail( {
 	if ( flash ) {
 		// The resolve beat: the spinner's work is done, the outcome button
 		// carries the news, and the mark settles back to the plain dot.
-		markContent = <span className="vip-workflow-rail__dot" />;
+		markContent = <span className="vip-workflows-rail__dot" />;
 	} else if ( showAgent ) {
-		markContent = <Spinner className="vip-workflow-rail__spinner" />;
+		markContent = <Spinner className="vip-workflows-rail__spinner" />;
 	} else if ( isCompleted ) {
-		markContent = <span className="vip-workflow-rail__done" />;
+		markContent = <span className="vip-workflows-rail__done" />;
 	} else if ( isDeadEnd ) {
 		markContent = (
-			<span className="vip-workflow-rail__dot vip-workflow-rail__dot--neutral" />
+			<span className="vip-workflows-rail__dot vip-workflows-rail__dot--neutral" />
 		);
 	} else {
-		markContent = <span className="vip-workflow-rail__dot" />;
+		markContent = <span className="vip-workflows-rail__dot" />;
 	}
 
 	const showHere = ! isEnd && ! showAgent;
@@ -867,21 +867,21 @@ export function TransitionRail( {
 		return (
 			<Fragment key={ ability.id }>
 				<Stack
-					className="vip-workflow-rail__dep"
+					className="vip-workflows-rail__dep"
 					direction="row"
 					align="center"
 					gap="sm"
 				>
 					<span
-						className="vip-workflow-rail__dep-indicator"
+						className="vip-workflows-rail__dep-indicator"
 						title={
 							isRunning
-								? __( 'Running', 'vip-workflow' )
+								? __( 'Running', 'vip-workflows' )
 								: indicatorTitle( state, stale )
 						}
 					>
 						{ isRunning ? (
-							<Spinner className="vip-workflow-rail__dep-spinner" />
+							<Spinner className="vip-workflows-rail__dep-spinner" />
 						) : (
 							<OutcomeMark state={ state } stale={ stale } />
 						) }
@@ -889,7 +889,7 @@ export function TransitionRail( {
 					<Button
 						variant="secondary"
 						size="compact"
-						className="vip-workflow-rail__check"
+						className="vip-workflows-rail__check"
 						onClick={ () => runCheck( ability ) }
 						isBusy={ isRunning }
 						disabled={
@@ -904,11 +904,11 @@ export function TransitionRail( {
 					<Text
 						variant="body-sm"
 						render={ <div /> }
-						className="vip-workflow-rail__issues vip-workflow-rail__rollup--hard"
+						className="vip-workflows-rail__issues vip-workflows-rail__rollup--hard"
 					>
 						{ __(
 							'This required check is switched off. Re-enable it, or remove it from this transition.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 					</Text>
 				) }
@@ -920,7 +920,7 @@ export function TransitionRail( {
 					<Text
 						variant="body-sm"
 						render={ <div /> }
-						className="vip-workflow-rail__stale-note"
+						className="vip-workflows-rail__stale-note"
 					>
 						{ indicatorTitle( state, true ) }
 					</Text>
@@ -929,12 +929,12 @@ export function TransitionRail( {
 					<Text
 						variant="body-sm"
 						render={ <div /> }
-						className="vip-workflow-rail__issues vip-workflow-rail__rollup--soft"
+						className="vip-workflows-rail__issues vip-workflows-rail__rollup--soft"
 					>
 						{ result.error ||
 							__(
 								'Check could not be completed',
-								'vip-workflow'
+								'vip-workflows'
 							) }
 					</Text>
 				) }
@@ -961,7 +961,7 @@ export function TransitionRail( {
 		// that has to say so.
 		const outcomeActions = agentOutcomes( shownStage, allStatuses ).map(
 			( { outcome, label } ) => (
-				<div className="vip-workflow-rail__group" key={ outcome }>
+				<div className="vip-workflows-rail__group" key={ outcome }>
 					{ /* The mark rides the Button's icon slot (the action
 					     standard's home for a button's glyph), so the Button
 					     owns the icon–label spacing too — but only if it can
@@ -975,7 +975,7 @@ export function TransitionRail( {
 					     theirs. */ }
 					<Button
 						variant="secondary"
-						className="vip-workflow-rail__transition"
+						className="vip-workflows-rail__transition"
 						data-rail-target=""
 						disabled
 						accessibleWhenDisabled
@@ -1005,11 +1005,11 @@ export function TransitionRail( {
 		// is not already carried by the heading.
 		actions = (
 			<div
-				className="wf-terminal-pill vip-workflow-rail__end"
+				className="wf-terminal-pill vip-workflows-rail__end"
 				data-rail-target=""
 			>
 				<span className="wf-terminal-pill__label">
-					{ __( 'End', 'vip-workflow' ) }
+					{ __( 'End', 'vip-workflows' ) }
 				</span>
 			</div>
 		);
@@ -1026,22 +1026,22 @@ export function TransitionRail( {
 		if ( current.agent?.ability_id ) {
 			emptyText = __(
 				'Moves from this stage belong to its AI agent.',
-				'vip-workflow'
+				'vip-workflows'
 			);
 		} else if ( ( current.transitions || [] ).length > 0 ) {
 			emptyText = __(
 				'Moves from this stage belong to other roles.',
-				'vip-workflow'
+				'vip-workflows'
 			);
 		} else {
-			emptyText = __( 'This stage declares no moves.', 'vip-workflow' );
+			emptyText = __( 'This stage declares no moves.', 'vip-workflows' );
 		}
 
 		actions = (
 			<Text
 				variant="body-sm"
 				render={ <p /> }
-				className="vip-workflow-rail__empty"
+				className="vip-workflows-rail__empty"
 			>
 				{ emptyText }
 			</Text>
@@ -1066,12 +1066,12 @@ export function TransitionRail( {
 			const isBusy = transitioningTo === t.to;
 
 			return (
-				<div className="vip-workflow-rail__group" key={ t.to }>
+				<div className="vip-workflows-rail__group" key={ t.to }>
 					<Button
 						variant={
 							t === soleTransition ? 'primary' : 'secondary'
 						}
-						className="vip-workflow-rail__transition"
+						className="vip-workflows-rail__transition"
 						data-rail-target=""
 						onClick={ ( event ) =>
 							onTransition( t, event.currentTarget )
@@ -1090,7 +1090,7 @@ export function TransitionRail( {
 						<Text
 							variant="body-sm"
 							render={ <p /> }
-							className="vip-workflow-rail__help"
+							className="vip-workflows-rail__help"
 						>
 							{ t._locked_reason }
 						</Text>
@@ -1103,10 +1103,10 @@ export function TransitionRail( {
 
 	return (
 		// wpds-allow R7 -- the rail is a drawing anchored to its own box: the SVG track is positioned against this element, which no <Stack> contract covers.
-		<div className="vip-workflow-rail" ref={ containerRef }>
+		<div className="vip-workflows-rail" ref={ containerRef }>
 			{ paths && (
 				<svg
-					className="vip-workflow-rail__track"
+					className="vip-workflows-rail__track"
 					aria-hidden="true"
 					focusable="false"
 					width={ paths.width }
@@ -1119,19 +1119,21 @@ export function TransitionRail( {
 						<path
 							key={ `h${ i }` }
 							d={ ARROW_PATH }
-							className="vip-workflow-rail__track-head"
+							className="vip-workflows-rail__track-head"
 							transform={ `translate(${ x } ${ y })` }
 						/>
 					) ) }
 				</svg>
 			) }
 			<Stack
-				className="vip-workflow-rail__now"
+				className="vip-workflows-rail__now"
 				direction="row"
 				align="flex-start"
 				gap="sm"
 			>
-				<span className="vip-workflow-rail__mark">{ markContent }</span>
+				<span className="vip-workflows-rail__mark">
+					{ markContent }
+				</span>
 				<Stack direction="column">
 					<Stack direction="row" align="center" gap="sm">
 						{ /* An ending announces the ending, not the room the
@@ -1145,10 +1147,10 @@ export function TransitionRail( {
 						<Text
 							variant="heading-md"
 							id={ labelId }
-							className="vip-workflow-rail__stage"
+							className="vip-workflows-rail__stage"
 						>
 							{ isCompleted
-								? __( 'Workflow Completed', 'vip-workflow' )
+								? __( 'Workflow Completed', 'vip-workflows' )
 								: shownStage?.label }
 						</Text>
 						{ /* Core visibility, which the stage does not imply: a
@@ -1172,23 +1174,23 @@ export function TransitionRail( {
 									}
 								>
 									{ postStatus === 'future'
-										? __( 'Scheduled', 'vip-workflow' )
-										: __( 'Live', 'vip-workflow' ) }
+										? __( 'Scheduled', 'vip-workflows' )
+										: __( 'Live', 'vip-workflows' ) }
 								</Badge>
 							) }
 					</Stack>
 					{ showHere && (
 						<Text
 							variant="body-sm"
-							className="vip-workflow-rail__here"
+							className="vip-workflows-rail__here"
 						>
-							{ __( 'you are here', 'vip-workflow' ) }
+							{ __( 'you are here', 'vip-workflows' ) }
 						</Text>
 					) }
 					{ isCompleted && (
 						<Text
 							variant="body-sm"
-							className="vip-workflow-rail__ending"
+							className="vip-workflows-rail__ending"
 						>
 							{ shownStage?.label }
 						</Text>
@@ -1199,7 +1201,7 @@ export function TransitionRail( {
 					{ ! flash && shownStage?.description && (
 						<Text
 							variant="body-sm"
-							className="vip-workflow-rail__description"
+							className="vip-workflows-rail__description"
 						>
 							{ shownStage.description }
 						</Text>
@@ -1212,7 +1214,7 @@ export function TransitionRail( {
 			     of dead space under the heading. */ }
 			{ actions && (
 				<Stack
-					className="vip-workflow-rail__actions"
+					className="vip-workflows-rail__actions"
 					direction="column"
 					gap="sm"
 					role="group"

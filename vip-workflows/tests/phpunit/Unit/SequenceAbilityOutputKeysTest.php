@@ -8,7 +8,7 @@
  * functions read the global $wpdb / WP_Query, so a WP_Query double plus a
  * mocked $wpdb let these run without a database.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
@@ -40,7 +40,7 @@ namespace {
 	}
 }
 
-namespace VIPWorkflow\Tests\Unit {
+namespace VIPWorkflows\Tests\Unit {
 
 	use Brain\Monkey\Functions;
 	use Mockery;
@@ -92,7 +92,7 @@ namespace VIPWorkflow\Tests\Unit {
 		{
 			$this->mock_wpdb();
 
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_sequences();
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_sequences();
 
 			$this->assertArrayHasKey( 'sequences', $result );
 			$this->assertArrayNotHasKey( 'blueprints', $result );
@@ -104,7 +104,7 @@ namespace VIPWorkflow\Tests\Unit {
 		{
 			$this->mock_wpdb();
 
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_sequences( array( 'type' => 'workflow' ) );
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_sequences( array( 'type' => 'workflow' ) );
 
 			$this->assertArrayHasKey( 'sequences', $result );
 			$this->assertArrayNotHasKey( 'blueprints', $result );
@@ -116,7 +116,7 @@ namespace VIPWorkflow\Tests\Unit {
 		{
 			$this->mock_wpdb();
 
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_workflow_summary();
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_workflow_summary();
 
 			$this->assertArrayHasKey( 'sequences', $result );
 			$this->assertArrayNotHasKey( 'blueprints', $result );
@@ -128,7 +128,7 @@ namespace VIPWorkflow\Tests\Unit {
 			// without the inner status loop touching WP_Query.
 			$this->mock_wpdb( array( $this->make_sequence_row( 7, 'My Sequence' ) ) );
 
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_workflow_summary();
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_workflow_summary();
 
 			$this->assertCount( 1, $result['sequences'] );
 			$item = $result['sequences'][0];
@@ -145,7 +145,7 @@ namespace VIPWorkflow\Tests\Unit {
 			// get_row() => null means find() returns null -> WP_Error.
 			$this->mock_wpdb( array(), null );
 
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_workflow_summary(
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_workflow_summary(
 				array( 'sequence_id' => 999 )
 			);
 
@@ -171,11 +171,11 @@ namespace VIPWorkflow\Tests\Unit {
 				)
 			);
 			Functions\when( 'get_post_meta' )->alias(
-				fn( $id, $key ) => '_vip_workflow_sequence_id' === $key ? 42 : ''
+				fn( $id, $key ) => '_vip_workflows_sequence_id' === $key ? 42 : ''
 			);
 			Functions\when( 'current_user_can' )->justReturn( true );
 
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_my_assignments();
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_my_assignments();
 
 			$this->assertSame( 1, $result['count'] );
 			$post = $result['posts'][0];
@@ -199,11 +199,11 @@ namespace VIPWorkflow\Tests\Unit {
 				)
 			);
 			Functions\when( 'get_post_meta' )->alias(
-				fn( $id, $key ) => '_vip_workflow_sequence_id' === $key ? 42 : ''
+				fn( $id, $key ) => '_vip_workflows_sequence_id' === $key ? 42 : ''
 			);
 			Functions\when( 'current_user_can' )->justReturn( true );
 
-			$result = \VIPWorkflow\Abilities\Tools\execute_get_posts_by_status(
+			$result = \VIPWorkflows\Abilities\Tools\execute_get_posts_by_status(
 				array( 'status' => 'draft' )
 			);
 

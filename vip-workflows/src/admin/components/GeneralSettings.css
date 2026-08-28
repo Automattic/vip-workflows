@@ -10,13 +10,13 @@
  * stylesheet sets no outer margins.
  */
 
-.vip-workflow-settings-field {
+.vip-workflows-settings-field {
 	/* wpds-allow R3 -- legend, description, grid; tighter than Fieldset's default xs */
 	gap: var(--wpds-dimension-gap-sm);
 }
 
 /* Fieldset.Legend ships the uppercase field-label chrome; the group name is an h3. */
-.vip-workflow-settings-field__legend {
+.vip-workflows-settings-field__legend {
 	/* wpds-allow R6 -- Fieldset.Legend styles itself as a field label; this slot holds a section heading, and the primitive exposes no variant for that */
 	font: revert-layer; /* wpds-allow R5 -- reverts to DS heading over Fieldset label styles */
 	/* wpds-allow R6 -- same override, same reason */
@@ -25,12 +25,12 @@
 	color: inherit;
 }
 
-.vip-workflow-settings-field__description {
+.vip-workflows-settings-field__description {
 	/* wpds-allow R6 -- muted tone; <Text> exposes `variant` only, with no colour or tone prop */
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-.vip-workflow-settings-field__roles {
+.vip-workflows-settings-field__roles {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
 	gap: var(--wpds-dimension-gap-sm);

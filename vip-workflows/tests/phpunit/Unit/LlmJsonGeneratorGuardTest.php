@@ -21,12 +21,12 @@
  * These are assertions about source text, so they hold for every plugin in the
  * repo, including the extension plugins that reach into core's Integrations.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
@@ -155,7 +155,7 @@ class LlmJsonGeneratorGuardTest extends TestCase
             array(),
             $offenders,
             'These files call generateTextResult() directly. Pass the configured builder to '
-                . 'VIPWorkflow\Integrations\LlmTextGenerator::generate() (or ::LlmJsonGenerator::generate() '
+                . 'VIPWorkflows\Integrations\LlmTextGenerator::generate() (or ::LlmJsonGenerator::generate() '
                 . 'for JSON) instead, so the finish reason is read before the text is used.'
         );
     }
@@ -181,7 +181,7 @@ class LlmJsonGeneratorGuardTest extends TestCase
             array(),
             $offenders,
             'These files use LlmJsonParser directly, which skips the finish-reason check. '
-                . 'Call VIPWorkflow\Integrations\LlmJsonGenerator::generate() with the configured builder.'
+                . 'Call VIPWorkflows\Integrations\LlmJsonGenerator::generate() with the configured builder.'
         );
     }
 
@@ -211,7 +211,7 @@ class LlmJsonGeneratorGuardTest extends TestCase
             $offenders,
             'These files request JSON and then call generateText(), which discards the finish '
                 . 'reason and turns a reply cut off at the token ceiling into a parse error. '
-                . 'Hand the builder to VIPWorkflow\Integrations\LlmJsonGenerator::generate().'
+                . 'Hand the builder to VIPWorkflows\Integrations\LlmJsonGenerator::generate().'
         );
     }
 

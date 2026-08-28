@@ -104,7 +104,7 @@ export function WorkflowHistoryModal( { postId, onClose } ) {
 		// checked here rather than a 403's error body reaching the table as if it
 		// were a page of entries.
 		apiFetch( {
-			path: `/vip-workflow/v1/workflow/post/${ postId }/history?${ query }`,
+			path: `/vip-workflows/v1/workflow/post/${ postId }/history?${ query }`,
 			parse: false,
 		} )
 			.then( async ( response ) => {
@@ -115,7 +115,7 @@ export function WorkflowHistoryModal( { postId, onClose } ) {
 				if ( ! response.ok ) {
 					throw new Error(
 						body?.message ||
-							__( 'Could not load the history.', 'vip-workflow' )
+							__( 'Could not load the history.', 'vip-workflows' )
 					);
 				}
 				setData( body );
@@ -136,7 +136,7 @@ export function WorkflowHistoryModal( { postId, onClose } ) {
 				}
 				setError(
 					err.message ||
-						__( 'Could not load the history.', 'vip-workflow' )
+						__( 'Could not load the history.', 'vip-workflows' )
 				);
 				setIsLoading( false );
 			} );
@@ -167,9 +167,9 @@ export function WorkflowHistoryModal( { postId, onClose } ) {
 
 	return (
 		<Modal
-			title={ __( 'Workflow History', 'vip-workflow' ) }
+			title={ __( 'Workflow History', 'vip-workflows' ) }
 			onRequestClose={ onClose }
-			className="vip-workflow-history-modal"
+			className="vip-workflows-history-modal"
 			size="medium"
 		>
 			{ error ? (
@@ -206,7 +206,7 @@ export function WorkflowHistoryModal( { postId, onClose } ) {
 			) }
 			<ModalActions>
 				<Button variant="primary" onClick={ onClose }>
-					{ __( 'Close', 'vip-workflow' ) }
+					{ __( 'Close', 'vip-workflows' ) }
 				</Button>
 			</ModalActions>
 

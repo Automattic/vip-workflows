@@ -9,12 +9,12 @@
  * open is a dead instruction. Which register is emitted is decided where a
  * requirement is serialized, not where it is authored.
  *
- * @package VIPWorkflow\Abilities
+ * @package VIPWorkflows\Abilities
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
 /**
  * An unmet requirement, attributed to the sources that need it.

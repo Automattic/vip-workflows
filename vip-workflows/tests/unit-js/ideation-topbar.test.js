@@ -30,7 +30,7 @@ import { render, screen, within } from './helpers/render-wp-component';
 
 import TopBar from '../../src/admin/components/ideation/TopBar';
 
-const ABILITY = 'vip-workflow/web-researcher';
+const ABILITY = 'vip-workflows/web-researcher';
 
 /**
  * Render the top bar over a given assistants map.
@@ -77,7 +77,7 @@ function renderStatus( status, extra = {} ) {
  */
 function statusBadgeClasses( container ) {
 	const badge = container.querySelector(
-		'.vip-workflow-ideation-topbar__assistant-status'
+		'.vip-workflows-ideation-topbar__assistant-status'
 	);
 
 	expect( badge ).toBeInTheDocument();
@@ -106,7 +106,7 @@ describe( 'ideation top bar — assistant labels', () => {
 				status: 'completed',
 				label: 'Foresight Research',
 			},
-			'vip-workflow/seed-analyst': {
+			'vip-workflows/seed-analyst': {
 				status: 'completed',
 				label: 'Seed Analyst',
 			},
@@ -116,13 +116,13 @@ describe( 'ideation top bar — assistant labels', () => {
 			/workflow-discovery-foresight\/foresight-research/
 		);
 		expect( container.textContent ).not.toMatch(
-			/vip-workflow\/seed-analyst/
+			/vip-workflows\/seed-analyst/
 		);
 	} );
 
 	it( 'names the Seed Analyst, which is no research ability at all', () => {
 		renderTopBar( {
-			'vip-workflow/seed-analyst': {
+			'vip-workflows/seed-analyst': {
 				status: 'completed',
 				label: 'Seed Analyst',
 			},
@@ -173,7 +173,7 @@ describe( 'ideation top bar — assistant status tone', () => {
 
 		expect(
 			container.querySelector(
-				'.vip-workflow-ideation-topbar__assistant-status'
+				'.vip-workflows-ideation-topbar__assistant-status'
 			)
 		).not.toBeInTheDocument();
 		expect( screen.getByText( 'done' ) ).toBeInTheDocument();
@@ -184,7 +184,7 @@ describe( 'ideation top bar — agent chips are not controls', () => {
 	it( 'renders no interactive element among the agent statuses', () => {
 		const { container } = renderTopBar( {
 			[ ABILITY ]: { status: 'completed', label: 'Web Researcher' },
-			'vip-workflow/media-scout': {
+			'vip-workflows/media-scout': {
 				status: 'completed',
 				label: 'Media Scout',
 				card_count: 12,
@@ -192,7 +192,7 @@ describe( 'ideation top bar — agent chips are not controls', () => {
 		} );
 
 		const agents = container.querySelector(
-			'.vip-workflow-ideation-topbar__assistants'
+			'.vip-workflows-ideation-topbar__assistants'
 		);
 
 		expect( agents ).toBeInTheDocument();
@@ -233,7 +233,7 @@ describe( 'ideation top bar — an unavailable agent names its requirement', () 
 		const { container } = renderTopBar( unavailable );
 
 		const unmet = container.querySelector(
-			'.vip-workflow-ideation-topbar__assistant-unmet'
+			'.vip-workflows-ideation-topbar__assistant-unmet'
 		);
 
 		expect( unmet ).toBeInTheDocument();

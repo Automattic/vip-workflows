@@ -45,15 +45,15 @@ export default function SequenceSettingsInspector( {
 	const metadataSummary = fieldCount
 		? sprintf(
 				/* translators: %d: number of metadata fields. */
-				_n( '%d field', '%d fields', fieldCount, 'vip-workflow' ),
+				_n( '%d field', '%d fields', fieldCount, 'vip-workflows' ),
 				fieldCount
 		  )
-		: __( 'None', 'vip-workflow' );
+		: __( 'None', 'vip-workflows' );
 
 	return (
 		<InspectorShell
-			eyebrow={ __( 'Sequence', 'vip-workflow' ) }
-			title={ name || __( 'Untitled sequence', 'vip-workflow' ) }
+			eyebrow={ __( 'Sequence', 'vip-workflows' ) }
+			title={ name || __( 'Untitled sequence', 'vip-workflows' ) }
 		>
 			<Stack direction="column" gap="lg" align="stretch">
 				<SequenceIdentityFields
@@ -61,7 +61,7 @@ export default function SequenceSettingsInspector( {
 					onNameChange={ onNameChange }
 					namePlaceholder={ __(
 						'e.g. Editorial Review',
-						'vip-workflow'
+						'vip-workflows'
 					) }
 					description={ description }
 					onDescriptionChange={ onDescriptionChange }
@@ -69,7 +69,7 @@ export default function SequenceSettingsInspector( {
 					onActiveChange={ onActiveChange }
 				/>
 
-				<InspectorSection title={ __( 'Post types', 'vip-workflow' ) }>
+				<InspectorSection title={ __( 'Post types', 'vip-workflows' ) }>
 					{ postTypes.length === 0 && <Spinner /> }
 					{ postTypes.length > 0 && (
 						<Stack direction="column" gap="xs" align="stretch">
@@ -90,13 +90,13 @@ export default function SequenceSettingsInspector( {
 					) }
 				</InspectorSection>
 
-				<InspectorSection title={ __( 'AI stages', 'vip-workflow' ) }>
+				<InspectorSection title={ __( 'AI stages', 'vip-workflows' ) }>
 					<ToggleControl
 						__nextHasNoMarginBottom
-						label={ __( 'Let AI stages publish', 'vip-workflow' ) }
+						label={ __( 'Let AI stages publish', 'vip-workflows' ) }
 						help={ __(
 							'An AI stage routes on what a language model returned, and that model reads the post’s own content, so publishing and going private both wait for a person. Off by default. Turning it on grants no new rights — an agent still cannot publish for an author who could not.',
-							'vip-workflow'
+							'vip-workflows'
 						) }
 						checked={ settings?.allow_agent_publish === true }
 						onChange={ ( allow ) =>
@@ -109,7 +109,7 @@ export default function SequenceSettingsInspector( {
 				</InspectorSection>
 
 				<InspectorSection
-					title={ __( 'Metadata fields', 'vip-workflow' ) }
+					title={ __( 'Metadata fields', 'vip-workflows' ) }
 					summary={ metadataSummary }
 					collapsible
 					// Opens straight to the editor once fields exist; an empty
@@ -131,7 +131,7 @@ export default function SequenceSettingsInspector( {
 				{ /* A sequence that was never saved has nothing to delete. */ }
 				{ ! isNew && (
 					<InspectorDangerZone
-						label={ __( 'Delete sequence', 'vip-workflow' ) }
+						label={ __( 'Delete sequence', 'vip-workflows' ) }
 						onClick={ onDelete }
 						busy={ deleting }
 					/>

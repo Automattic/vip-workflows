@@ -73,13 +73,13 @@ export function MetadataRow( {
 		accessibleName = required
 			? sprintf(
 					/* translators: %1$s: metadata field label, %2$s: its current value. */
-					__( 'Change %1$s: %2$s (required)', 'vip-workflow' ),
+					__( 'Change %1$s: %2$s (required)', 'vip-workflows' ),
 					fieldLabel,
 					displayLabel
 			  )
 			: sprintf(
 					/* translators: %1$s: metadata field label, %2$s: its current value. */
-					__( 'Change %1$s: %2$s', 'vip-workflow' ),
+					__( 'Change %1$s: %2$s', 'vip-workflows' ),
 					fieldLabel,
 					displayLabel
 			  );
@@ -87,12 +87,12 @@ export function MetadataRow( {
 		accessibleName = required
 			? sprintf(
 					/* translators: %s: metadata field label. */
-					__( 'Set %s (required)', 'vip-workflow' ),
+					__( 'Set %s (required)', 'vip-workflows' ),
 					fieldLabel
 			  )
 			: sprintf(
 					/* translators: %s: metadata field label. */
-					__( 'Set %s', 'vip-workflow' ),
+					__( 'Set %s', 'vip-workflows' ),
 					fieldLabel
 			  );
 	}
@@ -100,7 +100,7 @@ export function MetadataRow( {
 	const headerTitle = required
 		? sprintf(
 				/* translators: %s: metadata field label. */
-				__( '%s (required)', 'vip-workflow' ),
+				__( '%s (required)', 'vip-workflows' ),
 				fieldLabel
 		  )
 		: fieldLabel;
@@ -117,7 +117,7 @@ export function MetadataRow( {
 			// the answer the author can see on screen wins over a payload
 			// computed before they typed it.
 			invalid={ blocking && ! hasValue }
-			errorMessage={ __( 'Required to publish.', 'vip-workflow' ) }
+			errorMessage={ __( 'Required to publish.', 'vip-workflows' ) }
 			onPopoverClose={ onPopoverClose }
 			renderContent={ renderContent }
 		/>

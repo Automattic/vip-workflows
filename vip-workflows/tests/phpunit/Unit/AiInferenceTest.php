@@ -2,17 +2,17 @@
 /**
  * AI inference resolver tests.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
-use VIPWorkflow\AI\AiInference;
-use VIPWorkflow\AI\CredentialBackend;
-use VIPWorkflow\AI\Credentials;
+use VIPWorkflows\AI\AiInference;
+use VIPWorkflows\AI\CredentialBackend;
+use VIPWorkflows\AI\Credentials;
 use WordPress\AiClient\AiClient;
 
 class AiInferenceTest extends TestCase
@@ -66,15 +66,15 @@ class AiInferenceTest extends TestCase
 
     public function test_returns_model_for_selected_provider(): void
     {
-        $this->options['vip_workflow_ai_provider'] = 'anthropic';
-        $this->options['vip_workflow_ai_models']   = array( 'anthropic' => 'claude-sonnet-4-5' );
+        $this->options['vip_workflows_ai_provider'] = 'anthropic';
+        $this->options['vip_workflows_ai_models']   = array( 'anthropic' => 'claude-sonnet-4-5' );
 
         $this->assertSame( 'claude-sonnet-4-5', AiInference::get_instance()->model() );
     }
 
     public function test_reads_openai_model_from_legacy_option(): void
     {
-        $this->options['vip_workflow_ai_model'] = 'gpt-4o-mini';
+        $this->options['vip_workflows_ai_model'] = 'gpt-4o-mini';
 
         $this->assertSame( 'gpt-4o-mini', AiInference::get_instance()->model() );
     }
@@ -110,7 +110,7 @@ class AiInferenceTest extends TestCase
         Functions\when( '_doing_it_wrong' )->justReturn( null );
 
         // google is registered in the AI Client stub but has no model configured.
-        $this->options['vip_workflow_ai_provider'] = 'google';
+        $this->options['vip_workflows_ai_provider'] = 'google';
 
         $this->assertNull(
             AiInference::get_instance()->model(),
@@ -138,8 +138,8 @@ class AiInferenceTest extends TestCase
         unset( $providers['anthropic'] );
         $registry->providers = $providers;
 
-        $this->options['vip_workflow_ai_provider'] = 'anthropic';
-        $this->options['vip_workflow_ai_models']   = array( 'anthropic' => 'claude-sonnet-5' );
+        $this->options['vip_workflows_ai_provider'] = 'anthropic';
+        $this->options['vip_workflows_ai_models']   = array( 'anthropic' => 'claude-sonnet-5' );
 
         try {
             $this->assertNull( AiInference::get_instance()->model() );
@@ -159,7 +159,7 @@ class AiInferenceTest extends TestCase
 
         // Unique to this test, so the once-per-request guard is not already
         // satisfied by another test in this process.
-        $this->options['vip_workflow_ai_provider'] = 'anthropic';
+        $this->options['vip_workflows_ai_provider'] = 'anthropic';
 
         $inference = AiInference::get_instance();
 

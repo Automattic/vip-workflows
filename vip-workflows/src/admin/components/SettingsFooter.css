@@ -7,7 +7,7 @@
  * showing through while it is pinned, and the space around the button.
  */
 
-.vip-workflow-settings-footer {
+.vip-workflows-settings-footer {
 	position: sticky;
 	bottom: 0; /* wpds-allow R2 -- zero needs no token */
 	z-index: 1;

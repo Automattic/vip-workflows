@@ -93,7 +93,7 @@ async function auditCascade( page, opts = {} ) {
 				) {
 					return 'wpadmin';
 				}
-				if ( /vip-workflow\//.test( href ) ) {
+				if ( /vip-workflows\//.test( href ) ) {
 					return 'ours';
 				}
 				return null; // other unlayered author CSS (theme, other plugins)

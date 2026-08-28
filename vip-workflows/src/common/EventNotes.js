@@ -56,7 +56,7 @@ export function collectedNotes( event ) {
 export function notesDialogProps( event ) {
 	return {
 		notes: collectedNotes( event ),
-		title: __( 'Transition Notes', 'vip-workflow' ),
+		title: __( 'Transition Notes', 'vip-workflows' ),
 	};
 }
 
@@ -76,7 +76,7 @@ function previewText( notes ) {
 		.map( ( note ) =>
 			sprintf(
 				/* translators: 1: the question a transition asked. 2: the answer written to it. */
-				__( '%1$s: %2$s', 'vip-workflow' ),
+				__( '%1$s: %2$s', 'vip-workflows' ),
 				note.label,
 				// Answers are free text and may be typed across several lines.
 				// The preview is a run of text, so its own line breaks are the
@@ -121,17 +121,17 @@ export function EventNotes( { notes, onShowNotes } ) {
 			<Text
 				ref={ previewRef }
 				render={ <div /> }
-				className="vip-workflow-event-notes"
+				className="vip-workflows-event-notes"
 			>
 				{ text }
 			</Text>
 			{ isClamped && (
 				<Button
 					variant="link"
-					className="vip-workflow-event-notes__more"
+					className="vip-workflows-event-notes__more"
 					onClick={ onShowNotes }
 				>
-					{ __( 'View more', 'vip-workflow' ) }
+					{ __( 'View more', 'vip-workflows' ) }
 				</Button>
 			) }
 		</>

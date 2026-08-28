@@ -6,18 +6,18 @@
  * ApiKeysController into the general-settings endpoint and became
  * multi-provider.
  *
- * @package VIPWorkflow\Tests\Unit
+ * @package VIPWorkflows\Tests\Unit
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Tests\Unit;
+namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use Mockery;
-use VIPWorkflow\API\GeneralSettingsController;
-use VIPWorkflow\AI\Credentials;
-use VIPWorkflow\AI\CredentialBackend;
+use VIPWorkflows\API\GeneralSettingsController;
+use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\AI\CredentialBackend;
 use WordPress\OpenAiAiProvider\Provider\OpenAiProvider;
 use WordPress\AnthropicAiProvider\Provider\AnthropicProvider;
 use WordPress\GoogleAiProvider\Provider\GoogleProvider;
@@ -93,7 +93,7 @@ class GeneralSettingsModelTest extends TestCase
      */
     public function test_get_settings_exposes_provider_model_and_catalog(): void
     {
-        $this->options['vip_workflow_ai_provider'] = 'openai';
+        $this->options['vip_workflows_ai_provider'] = 'openai';
 
         $data = ( new GeneralSettingsController() )->get_settings()->get_data();
 
@@ -108,8 +108,8 @@ class GeneralSettingsModelTest extends TestCase
 
     public function test_get_settings_reflects_stored_model(): void
     {
-        $this->options['vip_workflow_ai_provider'] = 'openai';
-        $this->options['vip_workflow_ai_model']    = 'gpt-4-turbo';
+        $this->options['vip_workflows_ai_provider'] = 'openai';
+        $this->options['vip_workflows_ai_model']    = 'gpt-4-turbo';
         $data = ( new GeneralSettingsController() )->get_settings()->get_data();
         $this->assertSame( 'gpt-4-turbo', $data['ai_model'] );
     }
@@ -117,10 +117,10 @@ class GeneralSettingsModelTest extends TestCase
     public function test_get_settings_falls_back_to_legacy_model_option(): void
     {
         // Back-compat: an install upgraded from the removed api-keys stack has no
-        // vip_workflow_ai_model yet, only the legacy vip_workflow_api_keys map.
+        // vip_workflows_ai_model yet, only the legacy vip_workflows_api_keys map.
         // The controller must surface that model via Credentials::model().
-        $this->options['vip_workflow_ai_provider'] = 'openai';
-        $this->options['vip_workflow_api_keys']    = array( 'openai_model' => 'gpt-4-turbo' );
+        $this->options['vip_workflows_ai_provider'] = 'openai';
+        $this->options['vip_workflows_api_keys']    = array( 'openai_model' => 'gpt-4-turbo' );
         $data = ( new GeneralSettingsController() )->get_settings()->get_data();
         $this->assertSame( 'gpt-4-turbo', $data['ai_model'] );
     }
@@ -131,24 +131,24 @@ class GeneralSettingsModelTest extends TestCase
             $this->request( array( 'ai_provider' => 'anthropic', 'ai_model' => 'claude-sonnet-4-5' ) )
         );
 
-        $this->assertSame( 'anthropic', $this->options['vip_workflow_ai_provider'] );
-        $this->assertSame( 'claude-sonnet-4-5', $this->options['vip_workflow_ai_models']['anthropic'] );
+        $this->assertSame( 'anthropic', $this->options['vip_workflows_ai_provider'] );
+        $this->assertSame( 'claude-sonnet-4-5', $this->options['vip_workflows_ai_models']['anthropic'] );
     }
 
     public function test_save_persists_model_into_per_provider_map_for_openai(): void
     {
-        $this->options['vip_workflow_ai_provider'] = 'openai';
+        $this->options['vip_workflows_ai_provider'] = 'openai';
 
         ( new GeneralSettingsController() )->save_settings(
             $this->request( array( 'ai_model' => 'gpt-4o-mini' ) )
         );
 
-        $this->assertSame( 'gpt-4o-mini', $this->options['vip_workflow_ai_models']['openai'] );
+        $this->assertSame( 'gpt-4o-mini', $this->options['vip_workflows_ai_models']['openai'] );
     }
 
     public function test_get_settings_marks_a_stored_provider_as_selected(): void
     {
-        $this->options['vip_workflow_ai_provider'] = 'anthropic';
+        $this->options['vip_workflows_ai_provider'] = 'anthropic';
 
         $data = ( new GeneralSettingsController() )->get_settings()->get_data();
 
@@ -176,7 +176,7 @@ class GeneralSettingsModelTest extends TestCase
         );
 
         $this->assertArrayNotHasKey(
-            'vip_workflow_ai_models',
+            'vip_workflows_ai_models',
             $this->options,
             'The map is keyed by provider; a model filed under \'\' is unreachable.'
         );
@@ -203,7 +203,7 @@ class GeneralSettingsModelTest extends TestCase
             $this->request( array( 'ai_provider' => 'google' ) )
         );
 
-        $this->assertArrayNotHasKey( 'vip_workflow_ai_provider', $this->options );
+        $this->assertArrayNotHasKey( 'vip_workflows_ai_provider', $this->options );
     }
 
     /**
@@ -214,15 +214,15 @@ class GeneralSettingsModelTest extends TestCase
      */
     public function test_save_writes_no_model_when_the_posted_provider_is_rejected(): void
     {
-        $this->options['vip_workflow_ai_provider'] = 'openai';
+        $this->options['vip_workflows_ai_provider'] = 'openai';
 
         ( new GeneralSettingsController() )->save_settings(
             $this->request( array( 'ai_provider' => 'google', 'ai_model' => 'gpt-4o-mini' ) )
         );
 
-        $this->assertSame( 'openai', $this->options['vip_workflow_ai_provider'] );
+        $this->assertSame( 'openai', $this->options['vip_workflows_ai_provider'] );
         $this->assertArrayNotHasKey(
-            'vip_workflow_ai_models',
+            'vip_workflows_ai_models',
             $this->options,
             'The model was aimed at Google; it must not land on OpenAI.'
         );
@@ -238,19 +238,19 @@ class GeneralSettingsModelTest extends TestCase
             $this->request( array( 'ai_provider' => 'google', 'allow_self_review' => true ) )
         );
 
-        $this->assertTrue( $this->options['vip_workflow_settings']['allow_self_review'] );
+        $this->assertTrue( $this->options['vip_workflows_settings']['allow_self_review'] );
     }
 
     public function test_save_ignores_invalid_model(): void
     {
         // Stated so the assertion turns on the model being invalid, not on there
         // being no provider to file it under.
-        $this->options['vip_workflow_ai_provider'] = 'openai';
+        $this->options['vip_workflows_ai_provider'] = 'openai';
 
         ( new GeneralSettingsController() )->save_settings(
             $this->request( array( 'ai_model' => 'not-a-model' ) )
         );
 
-        $this->assertArrayNotHasKey( 'vip_workflow_ai_models', $this->options );
+        $this->assertArrayNotHasKey( 'vip_workflows_ai_models', $this->options );
     }
 }

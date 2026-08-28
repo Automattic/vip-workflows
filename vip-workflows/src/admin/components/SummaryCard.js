@@ -43,13 +43,13 @@ export function SummaryCard( { title, badges, description, meta, actions } ) {
 		// The surface — background, border, radius — is Card's, not ours. The
 		// body is rendered as a <Stack> so the card keeps its gap: Card.Root is
 		// a flex column but sets no gap, and Card.Content is padding only.
-		<Card.Root className="vip-workflow-summary-card">
+		<Card.Root className="vip-workflows-summary-card">
 			<Card.Content
-				className="vip-workflow-summary-card__body"
+				className="vip-workflows-summary-card__body"
 				render={ <Stack direction="column" gap="md" /> }
 			>
 				<Stack
-					className="vip-workflow-summary-card__header"
+					className="vip-workflows-summary-card__header"
 					justify="space-between"
 					align="flex-start"
 					gap="sm"
@@ -57,13 +57,13 @@ export function SummaryCard( { title, badges, description, meta, actions } ) {
 					<Text
 						variant="heading-lg"
 						render={ <h3 /> }
-						className="vip-workflow-summary-card__title"
+						className="vip-workflows-summary-card__title"
 					>
 						{ title }
 					</Text>
 					{ badges?.length > 0 && (
 						<Stack
-							className="vip-workflow-summary-card__badges"
+							className="vip-workflows-summary-card__badges"
 							wrap="wrap"
 							gap="sm"
 						>
@@ -75,7 +75,7 @@ export function SummaryCard( { title, badges, description, meta, actions } ) {
 					<Text
 						variant="body-md"
 						render={ <p /> }
-						className="vip-workflow-summary-card__description"
+						className="vip-workflows-summary-card__description"
 					>
 						{ description }
 					</Text>
@@ -83,13 +83,13 @@ export function SummaryCard( { title, badges, description, meta, actions } ) {
 				{ meta && (
 					<Text
 						variant="body-sm"
-						className="vip-workflow-summary-card__meta"
+						className="vip-workflows-summary-card__meta"
 					>
 						{ meta }
 					</Text>
 				) }
 				{ actions.length > 0 && (
-					<ActionRow className="vip-workflow-summary-card__actions">
+					<ActionRow className="vip-workflows-summary-card__actions">
 						{ /* A labeled card-footer verb carries no icon — icons are
 						     for actions that repeat across surfaces or appear
 						     icon-only — which is also what lets every action

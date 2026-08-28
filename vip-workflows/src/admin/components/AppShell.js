@@ -1,7 +1,7 @@
 /**
  * Application Shell Component
  *
- * Page dispatcher for the VIP Workflow admin screens. Each screen is a real
+ * Page dispatcher for the VIP Workflows admin screens. Each screen is a real
  * wp-admin page (registered server-side); this component reads the `?page=`
  * query parameter and mounts the matching screen into the standard wp-admin
  * canvas. Navigation between screens is handled by the native wp-admin menu;
@@ -126,35 +126,38 @@ export default function AppShell() {
 	 */
 	const renderContent = () => {
 		// Sequences page (handles its own hash sub-routing internally)
-		if ( page === 'vip-workflow-sequences' ) {
+		if ( page === 'vip-workflows-sequences' ) {
 			return <Sequences />;
 		}
 
 		// Audit Log page
-		if ( page === 'vip-workflow-audit-log' ) {
+		if ( page === 'vip-workflows-audit-log' ) {
 			return <AuditLog />;
 		}
 
-		// My Dashboard page (also the landing page at the bare `vip-workflow` slug)
-		if ( page === 'vip-workflow-my-dashboard' || page === 'vip-workflow' ) {
+		// My Dashboard page (also the landing page at the bare `vip-workflows` slug)
+		if (
+			page === 'vip-workflows-my-dashboard' ||
+			page === 'vip-workflows'
+		) {
 			return <MyDashboard />;
 		}
 
 		// Kanban board page
-		if ( page === 'vip-workflow-kanban' ) {
+		if ( page === 'vip-workflows-kanban' ) {
 			return <Kanban />;
 		}
 
 		// Calendar page
-		if ( page === 'vip-workflow-calendar' ) {
+		if ( page === 'vip-workflows-calendar' ) {
 			return <Calendar />;
 		}
 
 		// Ideation page (only routed while the Ideation feature is enabled).
 		// Ideation still drives sub-views through the shell's hash router.
 		if (
-			page === 'vip-workflow-ideation' &&
-			window.vipWorkflowAdmin?.experiments?.ideation
+			page === 'vip-workflows-ideation' &&
+			window.vipWorkflowsAdmin?.experiments?.ideation
 		) {
 			return (
 				<Ideation route={ displayedRoute } onNavigate={ navigate } />
@@ -162,32 +165,32 @@ export default function AppShell() {
 		}
 
 		// Settings page
-		if ( page === 'vip-workflow-settings' ) {
+		if ( page === 'vip-workflows-settings' ) {
 			return <Settings />;
 		}
 
 		// Notifications page (Channels + Routing & Debug tabs)
-		if ( page === 'vip-workflow-notifications' ) {
+		if ( page === 'vip-workflows-notifications' ) {
 			return <Notifications />;
 		}
 
 		// Agents page
-		if ( page === 'vip-workflow-agents' ) {
+		if ( page === 'vip-workflows-agents' ) {
 			return <Agents />;
 		}
 
 		// Tools page
-		if ( page === 'vip-workflow-tools' ) {
+		if ( page === 'vip-workflows-tools' ) {
 			return <Tools />;
 		}
 
 		// Default fallback
 		return (
 			<AdminPage
-				title={ __( 'Coming Soon', 'vip-workflow' ) }
+				title={ __( 'Coming Soon', 'vip-workflows' ) }
 				subtitle={ __(
 					'This page is being migrated to the new design.',
-					'vip-workflow'
+					'vip-workflows'
 				) }
 				constrained
 			/>
@@ -207,15 +210,15 @@ export default function AppShell() {
 	// Get transition class.
 	const getTransitionClass = () => {
 		if ( transitionState === 'entering' ) {
-			return 'vip-workflow-view vip-workflow-view-entering';
+			return 'vip-workflows-view vip-workflows-view-entering';
 		}
-		return 'vip-workflow-view';
+		return 'vip-workflows-view';
 	};
 
 	// Render the active screen into the standard wp-admin canvas.
 	return (
 		<>
-			<div className="vip-workflow-view-container">
+			<div className="vip-workflows-view-container">
 				<div className={ getTransitionClass() }>
 					<ErrorBoundary>
 						<Suspense

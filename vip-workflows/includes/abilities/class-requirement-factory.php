@@ -9,14 +9,14 @@
  * all of it from a service slug so the structured return is shorter than the
  * bool it replaces, and so the in-repo providers stay DRY.
  *
- * @package VIPWorkflow\Abilities
+ * @package VIPWorkflows\Abilities
  */
 
 declare( strict_types=1 );
 
-namespace VIPWorkflow\Abilities;
+namespace VIPWorkflows\Abilities;
 
-use VIPWorkflow\AI\Credentials;
+use VIPWorkflows\AI\Credentials;
 
 /**
  * Named constructors for requirement shapes.
@@ -60,12 +60,12 @@ final class RequirementFactory {
 				Requirement::KIND_MISSING_CREDENTIAL,
 				sprintf(
 					/* translators: %s: service display name, e.g. "My Source". */
-					__( '%s is not connected. VIP Workflow does not manage this service\'s credentials, so the plugin that provides it must supply its own configuration.', 'vip-workflow' ),
+					__( '%s is not connected. VIP Workflows does not manage this service\'s credentials, so the plugin that provides it must supply its own configuration.', 'vip-workflows' ),
 					$service_label
 				),
 				sprintf(
 					/* translators: %s: service display name, e.g. "My Source". */
-					__( '%s is not connected. Ask an administrator to connect it.', 'vip-workflow' ),
+					__( '%s is not connected. Ask an administrator to connect it.', 'vip-workflows' ),
 					$service_label
 				),
 				Destination::none(),
@@ -81,21 +81,21 @@ final class RequirementFactory {
 		 */
 		$admin_reason = sprintf(
 			/* translators: %s: service display name, e.g. "Tavily". */
-			__( '%s is not connected.', 'vip-workflow' ),
+			__( '%s is not connected.', 'vip-workflows' ),
 			$service_label
 		);
 
 		if ( $credentials->has_admin_credential_ui() ) {
 			$destination = Destination::admin_url(
 				admin_url( 'options-connectors.php' ),
-				__( 'Settings → Connectors', 'vip-workflow' ),
-				__( 'Add its API key in Settings → Connectors.', 'vip-workflow' )
+				__( 'Settings → Connectors', 'vip-workflows' ),
+				__( 'Add its API key in Settings → Connectors.', 'vip-workflows' )
 			);
 		} else {
 			$destination = Destination::none(
 				sprintf(
-					/* translators: %s: PHP constant name, e.g. "VIP_WORKFLOW_TAVILY_KEY". */
-					__( 'This site has no credential screen, so set the %s constant in wp-config.php.', 'vip-workflow' ),
+					/* translators: %s: PHP constant name, e.g. "VIP_WORKFLOWS_TAVILY_KEY". */
+					__( 'This site has no credential screen, so set the %s constant in wp-config.php.', 'vip-workflows' ),
 					$credentials->constant_name( $service )
 				)
 			);
@@ -107,7 +107,7 @@ final class RequirementFactory {
 			$admin_reason,
 			sprintf(
 				/* translators: %s: service display name, e.g. "Tavily". */
-				__( '%s is not connected. Ask an administrator to connect it.', 'vip-workflow' ),
+				__( '%s is not connected. Ask an administrator to connect it.', 'vip-workflows' ),
 				$service_label
 			),
 			$destination,

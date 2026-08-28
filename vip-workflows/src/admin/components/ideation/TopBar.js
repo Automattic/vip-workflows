@@ -57,29 +57,29 @@ function statusIntent( status ) {
  */
 const STATUS_INDICATORS = {
 	pending: {
-		label: __( 'waiting…', 'vip-workflow' ),
+		label: __( 'waiting…', 'vip-workflows' ),
 		className: 'is-pending',
 		toneClassName: 'is-tone-pending',
 	},
 	running: {
-		label: __( 'searching…', 'vip-workflow' ),
+		label: __( 'searching…', 'vip-workflows' ),
 		className: 'is-running',
 		toneClassName: 'is-tone-running',
 	},
 	completed: {
-		label: __( 'done', 'vip-workflow' ),
+		label: __( 'done', 'vip-workflows' ),
 		className: 'is-completed',
 		toneClassName: 'is-tone-completed',
 	},
 	failed: {
-		label: __( 'failed', 'vip-workflow' ),
+		label: __( 'failed', 'vip-workflows' ),
 		className: 'is-failed',
 		toneClassName: 'is-tone-failed',
 	},
 	// No `toneClassName`: an unavailable agent is not in the status row at all, and
 	// its own line leads with a caution glyph rather than a tone dot.
 	unavailable: {
-		label: __( 'Setup needed', 'vip-workflow' ),
+		label: __( 'Setup needed', 'vip-workflows' ),
 		className: 'is-unavailable',
 	},
 };
@@ -115,7 +115,7 @@ function resolveAssistant( id, data, runningQuery, initialAssistants ) {
 	if ( ! isActive && 'completed' === status && cardCount > 0 ) {
 		statusLabel = sprintf(
 			/* translators: %d: number of sources the agent found. */
-			__( '%d found', 'vip-workflow' ),
+			__( '%d found', 'vip-workflows' ),
 			cardCount
 		);
 	}
@@ -158,11 +158,11 @@ function AgentStatus( { assistant } ) {
 			render={ <span /> }
 			align="center"
 			gap="xs"
-			className={ `vip-workflow-ideation-topbar__assistant ${ statusInfo.className }` }
+			className={ `vip-workflows-ideation-topbar__assistant ${ statusInfo.className }` }
 		>
 			{ /* wpds-allow R7 -- tone dot: a decorative disc, not text; no WPDS analog */ }
 			<span
-				className={ `vip-workflow-ideation-topbar__assistant-dot ${ statusInfo.toneClassName }` }
+				className={ `vip-workflows-ideation-topbar__assistant-dot ${ statusInfo.toneClassName }` }
 				aria-hidden="true"
 			/>
 			<Text variant="body-sm" render={ <span /> }>
@@ -173,7 +173,7 @@ function AgentStatus( { assistant } ) {
 			) : (
 				<Badge
 					intent={ statusIntent( status ) }
-					className="vip-workflow-ideation-topbar__assistant-status"
+					className="vip-workflows-ideation-topbar__assistant-status"
 				>
 					{ statusLabel }
 				</Badge>
@@ -212,7 +212,7 @@ function AgentUnavailable( { assistant } ) {
 			direction="row"
 			align="center"
 			gap="xs"
-			className="vip-workflow-ideation-topbar__assistant-unmet"
+			className="vip-workflows-ideation-topbar__assistant-unmet"
 		>
 			<Icon icon={ caution } size={ 16 } />
 			<Text variant="body-sm" render={ <span /> }>
@@ -220,7 +220,7 @@ function AgentUnavailable( { assistant } ) {
 			</Text>
 			<Badge
 				intent={ statusIntent( 'unavailable' ) }
-				className="vip-workflow-ideation-topbar__assistant-status"
+				className="vip-workflows-ideation-topbar__assistant-status"
 			>
 				{ statusInfo.label }
 			</Badge>
@@ -265,11 +265,11 @@ export default function TopBar( {
 		const proceed = await confirm(
 			__(
 				'This deletes the ideation project — its board, sources and analysis. This cannot be undone.',
-				'vip-workflow'
+				'vip-workflows'
 			),
 			{
-				title: __( 'Delete this ideation?', 'vip-workflow' ),
-				confirmLabel: __( 'Delete', 'vip-workflow' ),
+				title: __( 'Delete this ideation?', 'vip-workflows' ),
+				confirmLabel: __( 'Delete', 'vip-workflows' ),
 				isDestructive: true,
 			}
 		);
@@ -280,7 +280,7 @@ export default function TopBar( {
 	};
 
 	const pinnedCount = ( state.pinned_ids || [] ).length;
-	const phaseConfig = window.vipWorkflowIdeation?.phaseConfig;
+	const phaseConfig = window.vipWorkflowsIdeation?.phaseConfig;
 	const phaseTransitions = phaseConfig?.transitions || {};
 
 	const assistants = Object.entries( state.assistants || {} ).map(
@@ -296,51 +296,51 @@ export default function TopBar( {
 
 	return (
 		// wpds-allow R7 -- sticky app-shell surface bar (position/background/border)
-		<div className="vip-workflow-ideation-topbar">
+		<div className="vip-workflows-ideation-topbar">
 			<Stack
 				direction="row"
 				align="center"
 				gap="md"
-				className="vip-workflow-ideation-topbar__row vip-workflow-ideation-topbar__row--primary"
+				className="vip-workflows-ideation-topbar__row vip-workflows-ideation-topbar__row--primary"
 			>
 				<Button
 					icon={ arrowLeft }
 					onClick={ onBack }
-					label={ __( 'Back to Ideation', 'vip-workflow' ) }
+					label={ __( 'Back to Ideation', 'vip-workflows' ) }
 					showTooltip
-					className="vip-workflow-ideation-topbar__back"
+					className="vip-workflows-ideation-topbar__back"
 				/>
 				<Stack
 					direction="row"
 					align="baseline"
 					gap="xs"
-					className="vip-workflow-ideation-topbar__seed"
+					className="vip-workflows-ideation-topbar__seed"
 				>
 					<Text
 						variant="heading-sm"
 						render={ <span /> }
-						className="vip-workflow-ideation-topbar__seed-label vip-workflow-eyebrow"
+						className="vip-workflows-ideation-topbar__seed-label vip-workflows-eyebrow"
 					>
-						{ __( 'Seed', 'vip-workflow' ) }
+						{ __( 'Seed', 'vip-workflows' ) }
 					</Text>
 					{ /* wpds-allow R7 -- truncating heading label (font token + ellipsis, no Text prop) */ }
-					<span className="vip-workflow-ideation-topbar__seed-text">
+					<span className="vip-workflows-ideation-topbar__seed-text">
 						{ state.seed }
 					</span>
 				</Stack>
 
 				<Stack
 					gap="sm"
-					className="vip-workflow-ideation-topbar__actions"
+					className="vip-workflows-ideation-topbar__actions"
 				>
 					<Button
 						variant="tertiary"
 						icon={ trash }
 						onClick={ handleDeleteClick }
-						className="vip-workflow-ideation-topbar__action vip-workflow-ideation-topbar__action--delete"
+						className="vip-workflows-ideation-topbar__action vip-workflows-ideation-topbar__action--delete"
 						isDestructive
 					>
-						{ __( 'Delete', 'vip-workflow' ) }
+						{ __( 'Delete', 'vip-workflows' ) }
 					</Button>
 					{ phaseTransitions.editorial &&
 						phaseTransitions.editorial.allowed && (
@@ -348,14 +348,14 @@ export default function TopBar( {
 								variant="primary"
 								icon={ pencil }
 								onClick={ () => onCreateDraft() }
-								className="vip-workflow-ideation-topbar__action"
+								className="vip-workflows-ideation-topbar__action"
 								isBusy={ creatingDraft }
 								disabled={ creatingDraft }
 							>
 								{ creatingDraft
-									? __( 'Creating…', 'vip-workflow' )
+									? __( 'Creating…', 'vip-workflows' )
 									: phaseTransitions.editorial.label ||
-									  __( 'Create draft', 'vip-workflow' ) }
+									  __( 'Create draft', 'vip-workflows' ) }
 							</Button>
 						) }
 				</Stack>
@@ -365,21 +365,21 @@ export default function TopBar( {
 				<Stack
 					direction="column"
 					gap="xs"
-					className="vip-workflow-ideation-topbar__row vip-workflow-ideation-topbar__row--agents"
+					className="vip-workflows-ideation-topbar__row vip-workflows-ideation-topbar__row--agents"
 				>
 					<Stack
 						direction="row"
 						wrap="wrap"
 						align="center"
 						gap="md"
-						className="vip-workflow-ideation-topbar__assistants"
+						className="vip-workflows-ideation-topbar__assistants"
 					>
 						<Text
 							variant="heading-sm"
 							render={ <span /> }
-							className="vip-workflow-eyebrow"
+							className="vip-workflows-eyebrow"
 						>
-							{ __( 'Agents', 'vip-workflow' ) }
+							{ __( 'Agents', 'vip-workflows' ) }
 						</Text>
 						{ running.map( ( assistant ) => (
 							<AgentStatus
@@ -389,10 +389,10 @@ export default function TopBar( {
 						) ) }
 						{ pinnedCount > 0 && (
 							// wpds-allow R7 -- inline count; margin-auto alignment, no Text prop
-							<span className="vip-workflow-ideation-topbar__pin-count">
+							<span className="vip-workflows-ideation-topbar__pin-count">
 								{ sprintf(
 									/* translators: %d: number of cards the editor has pinned. */
-									__( '%d pinned', 'vip-workflow' ),
+									__( '%d pinned', 'vip-workflows' ),
 									pinnedCount
 								) }
 							</span>

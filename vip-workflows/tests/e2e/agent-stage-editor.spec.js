@@ -15,7 +15,7 @@
  * Selector note: the graph editor exposes stable hooks — `.wf-stage-node` for a
  * canvas node, `.wf-stage-node__handle--{outcome}` for its outcome handles,
  * `.wf-stage-inspector__route.is-{outcome}` for the inspector's read-out of
- * where that outcome leads, and `.vip-workflow-summary-card` for a list card.
+ * where that outcome leads, and `.vip-workflows-summary-card` for a list card.
  * The agent picker is a labeled combobox sitting in the open beside Label and
  * Color on every stage — see `selectAgent`.
  */
@@ -31,7 +31,7 @@ const { deleteSequence } = require( './helpers/workflow' );
  */
 async function createAgentlessSequence( requestUtils ) {
 	return requestUtils.rest( {
-		path: '/vip-workflow/v1/sequences',
+		path: '/vip-workflows/v1/sequences',
 		method: 'POST',
 		data: {
 			name: `E2E AI Stage Editor ${ Date.now() }`,
@@ -71,9 +71,9 @@ async function createAgentlessSequence( requestUtils ) {
  * @param {string}                                               name  Sequence name.
  */
 async function openEditor( admin, page, name ) {
-	await admin.visitAdminPage( 'admin.php', 'page=vip-workflow-sequences' );
+	await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-sequences' );
 	await page
-		.locator( '.vip-workflow-summary-card' )
+		.locator( '.vip-workflows-summary-card' )
 		.filter( { hasText: name } )
 		.getByRole( 'button', { name: 'Edit' } )
 		.click();
@@ -155,7 +155,7 @@ function routeRow( page, outcome ) {
 	return page.locator( `.wf-stage-inspector__route.is-${ outcome }` );
 }
 
-test.describe( 'VIP Workflow — graph editor AI stage config', () => {
+test.describe( 'VIP Workflows — graph editor AI stage config', () => {
 	let sequenceId;
 
 	test.afterEach( async ( { requestUtils } ) => {
@@ -234,7 +234,7 @@ test.describe( 'VIP Workflow — graph editor AI stage config', () => {
 		await expect
 			.poll( async () => {
 				const saved = await requestUtils.rest( {
-					path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+					path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 				} );
 				return saved.config?.statuses?.find(
 					( s ) => s.key === 'copy_desk'
@@ -243,7 +243,7 @@ test.describe( 'VIP Workflow — graph editor AI stage config', () => {
 			.toBe( 'workflow-agent-copy-edit/copy-edit' );
 
 		const updated = await requestUtils.rest( {
-			path: `/vip-workflow/v1/sequences/${ sequenceId }`,
+			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 		} );
 		const agent = updated.config.statuses.find(
 			( s ) => s.key === 'copy_desk'

@@ -67,7 +67,7 @@ register(
 );
 
 /**
- * `GET /vip-workflow/v1/settings/general`, as the controller returns it.
+ * `GET /vip-workflows/v1/settings/general`, as the controller returns it.
  *
  * @return {Object} General settings payload.
  */
@@ -140,19 +140,19 @@ function mockRoutes( overrides = {} ) {
 		}
 
 		// The roles route is a child of the general one, so it is matched first.
-		if ( path === '/vip-workflow/v1/settings/general/roles' ) {
+		if ( path === '/vip-workflows/v1/settings/general/roles' ) {
 			return Promise.resolve( roles() );
 		}
-		if ( path === '/vip-workflow/v1/settings/general' ) {
+		if ( path === '/vip-workflows/v1/settings/general' ) {
 			return Promise.resolve( generalSettings() );
 		}
-		if ( path === '/vip-workflow/v1/settings/experiments' ) {
+		if ( path === '/vip-workflows/v1/settings/experiments' ) {
 			return Promise.resolve( experiments() );
 		}
-		if ( path === '/vip-workflow/v1/prompts' ) {
+		if ( path === '/vip-workflows/v1/prompts' ) {
 			return Promise.resolve( prompts() );
 		}
-		if ( path.startsWith( '/vip-workflow/v1/prompts/' ) ) {
+		if ( path.startsWith( '/vip-workflows/v1/prompts/' ) ) {
 			return Promise.resolve( {
 				...prompts()[ 0 ],
 				override: 'Edited.',
@@ -309,7 +309,7 @@ describe( 'Settings screen shape', () => {
 		mockRadioControlProps.length = 0;
 
 		await renderSettings( {
-			'GET /vip-workflow/v1/settings/general': () =>
+			'GET /vip-workflows/v1/settings/general': () =>
 				Promise.resolve( {
 					...generalSettings(),
 					workflow_enforcement: true,
@@ -361,7 +361,7 @@ describe( 'Settings screen shape', () => {
 		await waitFor( () =>
 			expect( apiFetch ).toHaveBeenCalledWith(
 				expect.objectContaining( {
-					path: '/vip-workflow/v1/settings/general',
+					path: '/vip-workflows/v1/settings/general',
 					method: 'POST',
 					data: expect.objectContaining( {
 						allow_self_review: true,
@@ -408,7 +408,7 @@ describe( 'Settings screen shape', () => {
 
 	it( 'names the tab a failed save came from', async () => {
 		const { container } = await renderSettings( {
-			'POST /vip-workflow/v1/settings/general': () =>
+			'POST /vip-workflows/v1/settings/general': () =>
 				Promise.reject( new Error( 'Network down' ) ),
 		} );
 

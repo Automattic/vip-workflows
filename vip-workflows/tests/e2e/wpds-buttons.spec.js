@@ -15,7 +15,7 @@ const {
 	openWorkflowPanel,
 } = require( './helpers/workflow' );
 
-test.describe( 'VIP Workflow — WPDS buttons (e2e)', () => {
+test.describe( 'VIP Workflows — WPDS buttons (e2e)', () => {
 	let postId;
 	let sequenceId;
 
@@ -36,7 +36,7 @@ test.describe( 'VIP Workflow — WPDS buttons (e2e)', () => {
 		admin,
 		page,
 	} ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflow' );
+		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
 
 		const fab = page.getByRole( 'button', { name: 'Open AI Agent' } );
 		if ( ( await fab.count() ) === 0 ) {
@@ -58,7 +58,7 @@ test.describe( 'VIP Workflow — WPDS buttons (e2e)', () => {
 		admin,
 		page,
 	} ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflow-kanban' );
+		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-kanban' );
 
 		const hideButtons = page.getByRole( 'button', { name: 'Hide column' } );
 		await expect( hideButtons.first() ).toBeVisible();
@@ -67,14 +67,14 @@ test.describe( 'VIP Workflow — WPDS buttons (e2e)', () => {
 		// Hide the first column -> it collapses into a restore badge.
 		await hideButtons.first().click();
 		const badge = page.locator(
-			'.vip-workflow-kanban-hidden-column-badge'
+			'.vip-workflows-kanban-hidden-column-badge'
 		);
 		await expect( badge.first() ).toBeVisible();
 
 		// Clicking the badge (a converted WPDS Button) restores the column.
 		await badge.first().click();
 		await expect(
-			page.locator( '.vip-workflow-kanban-hidden-column-badge' )
+			page.locator( '.vip-workflows-kanban-hidden-column-badge' )
 		).toHaveCount( 0 );
 		await expect(
 			page.getByRole( 'button', { name: 'Hide column' } )
@@ -103,13 +103,13 @@ test.describe( 'VIP Workflow — WPDS buttons (e2e)', () => {
 		// side-anchored dialog that replaced the full-screen modals.
 		await panel.getByRole( 'button', { name: 'Assign Reviewer' } ).click();
 
-		const popover = page.locator( '.vip-workflow-transition-popover' );
+		const popover = page.locator( '.vip-workflows-transition-popover' );
 		await expect( popover ).toBeVisible();
 
 		// Roles hydrate from the editor localize payload, so the role Buttons
 		// render inside the popover's selection step. Pick the Editor role.
 		await popover
-			.locator( '.vip-workflow-transition-popover__role' )
+			.locator( '.vip-workflows-transition-popover__role' )
 			.filter( { hasText: 'Editor' } )
 			.click();
 
@@ -124,11 +124,11 @@ test.describe( 'VIP Workflow — WPDS buttons (e2e)', () => {
 		// reached still has to be readable). Both halves are asserted: the
 		// heading alone would pass for any terminal stage, and the ending line
 		// alone would not prove the workflow was recognised as finished.
-		await expect( panel.locator( '.vip-workflow-rail__stage' ) ).toHaveText(
-			'Workflow Completed'
-		);
 		await expect(
-			panel.locator( '.vip-workflow-rail__ending' )
+			panel.locator( '.vip-workflows-rail__stage' )
+		).toHaveText( 'Workflow Completed' );
+		await expect(
+			panel.locator( '.vip-workflows-rail__ending' )
 		).toHaveText( 'Assigned' );
 	} );
 } );
