@@ -619,7 +619,7 @@ export default function MoodBoard( {
 							 * `draft` and not `low`: the caution intents are
 							 * amber, and a turned-off agent is a configuration
 							 * state, not something to warn a writer about. This
-							 * is the same neutral tone the Editorial Sequences
+							 * is the same neutral tone the Workflow Sequences
 							 * list gives a sequence that exists but is not live.
 							 */ }
 							{ isOffAgent && (

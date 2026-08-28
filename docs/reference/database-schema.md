@@ -7,7 +7,7 @@ Generated from `vip-workflow/includes/database/class-schema.php` (v2.14.0).
 ## Core Tables
 
 ### `wp_vip_sequences`
-Editorial and phase process definitions. JSON config drives statuses, transitions, required tools, and role permissions. The `type` column is `'workflow'` (labeled "Editorial Sequences" in the UI) or `'phase'`.
+Workflow and phase process definitions. JSON config drives statuses, transitions, required tools, and role permissions. The `type` column is `'workflow'` (labeled "Workflow Sequences" in the UI) or `'phase'`.
 
 ```sql
 CREATE TABLE wp_vip_sequences (
