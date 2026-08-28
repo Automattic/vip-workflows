@@ -11,6 +11,11 @@
  * because enabling or disabling an experiment registers or removes server-side
  * menus and REST routes. See docs/guides/settings-standard.md.
  *
+ * That reload used to flash "Loading experiments…" over the toggles: the panel
+ * remounted, and asked for a registry the server had just rendered into the
+ * page. It now reads that seed and paints the toggles on the first frame. The
+ * fetch remains for any screen that does not localize the registry.
+ *
  * @package
  */
 
@@ -28,6 +33,35 @@ import { SettingsLoading } from './SettingsLoading';
 const PANEL_ID = 'experiments';
 
 /**
+ * The registry the server rendered into the page for this request.
+ *
+ * Present on the settings screen, absent elsewhere. Anything but an array is
+ * treated as absent so a malformed payload falls back to fetching rather than
+ * rendering an empty panel.
+ *
+ * @return {?Array} The seeded experiments, or null when the page did not seed them.
+ */
+function readSeededRegistry() {
+	const seeded = window.vipWorkflowAdmin?.experimentsRegistry;
+	return Array.isArray( seeded ) ? seeded : null;
+}
+
+/**
+ * Map a registry to the draft state the toggles bind to.
+ *
+ * @param {?Array} registry Experiments, or null.
+ * @return {Object} Draft enabled state keyed by experiment id.
+ */
+function draftsFrom( registry ) {
+	return Object.fromEntries(
+		( registry || [] ).map( ( experiment ) => [
+			experiment.id,
+			experiment.enabled,
+		] )
+	);
+}
+
+/**
  * Experiments panel.
  *
  * @param {Object}   props               Component props.
@@ -36,30 +70,31 @@ const PANEL_ID = 'experiments';
  * @return {JSX.Element} The panel.
  */
 export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
-	const [ experiments, setExperiments ] = useState( null );
-	const [ drafts, setDrafts ] = useState( {} );
-	const [ loading, setLoading ] = useState( true );
+	const [ seeded ] = useState( readSeededRegistry );
+	const [ experiments, setExperiments ] = useState( seeded );
+	const [ drafts, setDrafts ] = useState( () => draftsFrom( seeded ) );
+	const [ loading, setLoading ] = useState( null === seeded );
 	const [ error, setError ] = useState( null );
 
 	useEffect( () => {
+		// The seed was rendered by the request that served this page, so it is
+		// this page's truth. Re-requesting it would only reintroduce the
+		// loading state the seed exists to avoid.
+		if ( null !== seeded ) {
+			return;
+		}
+
 		apiFetch( { path: '/vip-workflow/v1/settings/experiments' } )
 			.then( ( data ) => {
 				setExperiments( data );
-				setDrafts(
-					Object.fromEntries(
-						data.map( ( experiment ) => [
-							experiment.id,
-							experiment.enabled,
-						] )
-					)
-				);
+				setDrafts( draftsFrom( data ) );
 				setLoading( false );
 			} )
 			.catch( ( err ) => {
 				setError( err.message );
 				setLoading( false );
 			} );
-	}, [] );
+	}, [ seeded ] );
 
 	const hasChanges = ( experiments || [] ).some(
 		( experiment ) => drafts[ experiment.id ] !== experiment.enabled

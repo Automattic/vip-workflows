@@ -463,6 +463,16 @@ class Admin implements ModuleInterface {
 			$localize_data['skills'] = $this->load_skill_files();
 		}
 
+		// Saving an experiment reloads the screen, because enabling or disabling
+		// one registers or removes server-side menus and REST routes. Seeding the
+		// registry the panel renders is what keeps that reload from flashing a
+		// loading state over the toggles: this request has already resolved it,
+		// so the panel has nothing left to wait for. The `experiments` map above
+		// is enabled flags only, which is not enough to render the panel.
+		if ( str_contains( $hook_suffix, 'vip-workflow-settings' ) ) {
+			$localize_data['experimentsRegistry'] = Plugin::get_instance()->get_experiment_registry()->to_array();
+		}
+
 		$asset_file = VIP_WORKFLOW_PLUGIN_DIR . 'build/admin.asset.php';
 		if ( ! file_exists( $asset_file ) ) {
 			$this->render_build_required_notice();
