@@ -68,7 +68,7 @@ private function init_components(): void {
     $this->modules = array();
 
     $this->register_module( new EditorIntegration() );
-    $this->register_module( new JobScheduler() );
+    $this->register_module( new Cleanup() );
     $this->register_module( new IdeationPostTypes() );
     $this->register_module( new ResearchPostTypes() );
     $this->register_module( new SourceProcessingJob() );
@@ -181,7 +181,6 @@ Not everything becomes a module. **Core services** that other subsystems depend 
 | `EventBus` | Referenced by 5+ subsystems via getter |
 | `PostTypeManager` | Must init before StatusManager; referenced by many |
 | `StatusManager` | Referenced by editor, dashboard, controllers |
-| `JobScheduler` | Referenced by JobsController |
 
 These are initialized first, in order, before the module loop runs. They keep their existing getters on `Plugin`. The module loop handles everything else — subsystems that are self-contained and register hooks.
 

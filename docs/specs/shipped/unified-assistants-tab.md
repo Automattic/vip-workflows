@@ -31,7 +31,7 @@ The other Integrations tabs (Notification Channels, Tools, Jobs) are unaffected.
 
 **What does NOT change:**
 
-- Tools tab, Notification Channels tab, Jobs tab
+- Tools tab, Notification Channels tab
 - Discovery provider registration (`vip_workflow_register_discovery_providers`)
 - Ability registration (`wp_abilities_api_init`)
 - REST APIs for discovery recommend/search/select

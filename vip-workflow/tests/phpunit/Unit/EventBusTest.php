@@ -84,14 +84,8 @@ class EventBusTest extends TestCase
 
         $this->wpdb->insert_id = 1;
 
-        // No global flows.
-        $this->wpdb->shouldReceive( 'get_results' )
-            ->once()
-            ->andReturn( array() );
-
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
 
-        // Don't pass post_id to avoid triggering sequence lookup which requires Plugin init.
         $this->event_bus->emit(
             'status.transition',
             array( 'from' => 'draft', 'to' => 'review' )
@@ -111,10 +105,6 @@ class EventBusTest extends TestCase
             ->andReturn( true );
 
         $this->wpdb->insert_id = 1;
-
-        $this->wpdb->shouldReceive( 'get_results' )
-            ->once()
-            ->andReturn( array() );
 
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
 
@@ -144,138 +134,6 @@ class EventBusTest extends TestCase
     }
 
     /**
-     * Test event matching with exact match.
-     */
-    public function test_event_matching_exact(): void
-    {
-        // Create a global flow that matches exactly.
-        $flow_row = (object) array(
-            'id'             => 1,
-            'name'           => 'Test Flow',
-            'status'         => 'active',
-            'trigger_events' => '["status.draft.entered"]',
-            'conditions'     => '[]',
-            'actions'        => '[]',
-            'sequence_id'   => null,
-            'priority'       => 10,
-        );
-
-        // Expect exactly 2 inserts: one for event storage, one for flow execution.
-        $insert_count = 0;
-        $this->wpdb->shouldReceive( 'insert' )
-            ->twice()
-            ->andReturnUsing(
-                function () use ( &$insert_count ) {
-                    $insert_count++;
-                    return true;
-                }
-            );
-
-        $this->wpdb->insert_id = 1;
-
-        // Return the flow from global flows query.
-        $this->wpdb->shouldReceive( 'get_results' )
-            ->once()
-            ->andReturn( array( $flow_row ) );
-
-        // Expect flow execution to be updated (status change).
-        $this->wpdb->shouldReceive( 'update' )
-            ->once()
-            ->andReturn( true );
-
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-
-        $this->event_bus->emit( 'status.draft.entered', array() );
-
-        // Verify both inserts happened.
-        $this->assertSame( 2, $insert_count, 'Expected 2 inserts: event + flow execution' );
-    }
-
-    /**
-     * Test event matching with wildcard pattern.
-     */
-    public function test_event_matching_wildcard(): void
-    {
-        // Create a global flow with wildcard pattern.
-        $flow_row = (object) array(
-            'id'             => 1,
-            'name'           => 'Wildcard Flow',
-            'status'         => 'active',
-            'trigger_events' => '["status.*.entered"]',
-            'conditions'     => '[]',
-            'actions'        => '[]',
-            'sequence_id'   => null,
-            'priority'       => 10,
-        );
-
-        // Expect exactly 2 inserts: one for event storage, one for flow execution.
-        $insert_count = 0;
-        $this->wpdb->shouldReceive( 'insert' )
-            ->twice()
-            ->andReturnUsing(
-                function () use ( &$insert_count ) {
-                    $insert_count++;
-                    return true;
-                }
-            );
-
-        $this->wpdb->insert_id = 1;
-
-        $this->wpdb->shouldReceive( 'get_results' )
-            ->once()
-            ->andReturn( array( $flow_row ) );
-
-        // Expect flow execution to be updated.
-        $this->wpdb->shouldReceive( 'update' )
-            ->once()
-            ->andReturn( true );
-
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-
-        // Should match "status.review.entered" against "status.*.entered".
-        $this->event_bus->emit( 'status.review.entered', array() );
-
-        // Verify wildcard matching triggered flow execution.
-        $this->assertSame( 2, $insert_count, 'Expected 2 inserts: event + flow execution (wildcard match)' );
-    }
-
-    /**
-     * Test non-matching events don't trigger flows.
-     */
-    public function test_event_not_matching(): void
-    {
-        // Create a global flow that shouldn't match.
-        $flow_row = (object) array(
-            'id'             => 1,
-            'name'           => 'Specific Flow',
-            'status'         => 'active',
-            'trigger_events' => '["status.published.entered"]',
-            'conditions'     => '[]',
-            'actions'        => '[]',
-            'sequence_id'   => null,
-            'priority'       => 10,
-        );
-
-        $this->wpdb->shouldReceive( 'insert' )
-            ->once()
-            ->andReturn( true );
-
-        $this->wpdb->insert_id = 1;
-
-        $this->wpdb->shouldReceive( 'get_results' )
-            ->once()
-            ->andReturn( array( $flow_row ) );
-
-        Functions\expect( 'get_current_user_id' )->andReturn( 1 );
-
-        // This event should NOT match "status.published.entered".
-        $this->event_bus->emit( 'status.draft.entered', array() );
-
-        // No execution insert should happen (only event insert).
-        $this->assertTrue( true );
-    }
-
-    /**
      * Test emit with actor context.
      */
     public function test_emit_with_actor_context(): void
@@ -294,10 +152,6 @@ class EventBusTest extends TestCase
             ->andReturn( true );
 
         $this->wpdb->insert_id = 1;
-
-        $this->wpdb->shouldReceive( 'get_results' )
-            ->once()
-            ->andReturn( array() );
 
         $this->event_bus->emit(
             'cron.job.completed',

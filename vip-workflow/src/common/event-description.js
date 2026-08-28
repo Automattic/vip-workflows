@@ -329,6 +329,34 @@ export function eventDescription( event ) {
 		case 'sequence.deactivated':
 			return __( 'Sequence deactivated', 'vip-workflow' );
 
+		// The nightly prune. Counts are the whole story when it worked; when a
+		// DELETE failed the count is null and the error is what a reader needs,
+		// so say that instead of printing "0 deleted" over a broken run.
+		case 'maintenance.cleanup': {
+			if ( eventData.errors?.length ) {
+				return sprintf(
+					/* translators: %s: the database error the cleanup run reported. */
+					__( 'Cleanup failed: %s', 'vip-workflow' ),
+					eventData.errors[ 0 ]
+				);
+			}
+
+			const deleted =
+				( eventData.ability_results_deleted ?? 0 ) +
+				( eventData.events_deleted ?? 0 );
+
+			return sprintf(
+				/* translators: %d: number of expired rows deleted. */
+				_n(
+					'Cleanup removed %d expired row',
+					'Cleanup removed %d expired rows',
+					deleted,
+					'vip-workflow'
+				),
+				deleted
+			);
+		}
+
 		default:
 			return '';
 	}

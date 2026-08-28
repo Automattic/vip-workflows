@@ -59,7 +59,7 @@ class AdminTest extends TestCase
     {
         // Registered in a deliberately scrambled order.
         $GLOBALS['submenu']['vip-workflow'] = array(
-            array( 'Jobs', 'manage_options', 'vip-workflow-jobs' ),
+            array( 'Audit Log', 'edit_others_posts', 'vip-workflow-audit-log' ),
             array( 'My Extension', 'edit_posts', 'my-plugin-page' ),
             array( 'My Dashboard', 'edit_posts', 'vip-workflow-my-dashboard' ),
             array( 'Settings', 'manage_options', 'vip-workflow-settings' ),
@@ -76,7 +76,7 @@ class AdminTest extends TestCase
                 'vip-workflow-kanban',
                 // System.
                 'vip-workflow-sequences',
-                'vip-workflow-jobs',
+                'vip-workflow-audit-log',
                 'vip-workflow-settings',
                 // Integrations (third-party).
                 'my-plugin-page',

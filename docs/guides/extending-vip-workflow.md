@@ -11,8 +11,7 @@ VIP Workflow is designed to be extended. You don't fork it; you ship a small Wor
 | Add a check / helper tool that runs on transitions | Same Abilities API with `meta.type` = `check`, `helper`, or `validator` ([`vip-workflow/skills/create-tool/SKILL.md`](../../vip-workflow/skills/create-tool/SKILL.md)) |
 | Deliver notifications over a new channel (Slack DM, push, SMS) | Extend `NotificationChannel`, filter `vip_workflow_notification_channels` ([`vip-workflow/skills/create-notification-channel/SKILL.md`](../../vip-workflow/skills/create-notification-channel/SKILL.md)) |
 | Surface story prompts from an external source (wire, trending, calendars) | Register a Discovery Provider on `vip_workflow_register_discovery_providers` ([`specs/shipped/story-discovery.md`](../specs/shipped/story-discovery.md)) |
-| Add a signal to story prompts another plugin fetched | Filter `vip_workflow_discovery_prompts` — cached reads only ([`reference/extension-points.md`](../reference/extension-points.md#11-discovery-prompt-enrichment)) |
-| Run a recurring background job | Extend `Job`, hook into `vip_workflow_jobs_init` |
+| Add a signal to story prompts another plugin fetched | Filter `vip_workflow_discovery_prompts` — cached reads only ([`reference/extension-points.md`](../reference/extension-points.md#10-discovery-prompt-enrichment)) |
 | Add an admin page under the Workflow shell | Standard `add_submenu_page` with parent slug `vip-workflow` (see [`vip-workflow/docs/PLUGIN-INTEGRATION.md`](../../vip-workflow/docs/PLUGIN-INTEGRATION.md)) |
 | Add a new internal subsystem to the core plugin | Implement `ModuleInterface`, register via `vip_workflow_register_modules` ([`specs/shipped/module-registry.md`](../specs/shipped/module-registry.md)) |
 
@@ -96,7 +95,6 @@ The surfaces extensions plug into:
 - **Events** (`vip_workflow_*` actions and filters; central `EventBus` for auditing): a pub/sub layer for automation and notifications.
 - **Module System** (`ModuleInterface`, `vip_workflow_register_modules`): register a subsystem with its own `init()` and REST controllers.
 - **Notification Channels** (`vip_workflow_notification_channels` filter + `NotificationChannel` base class): plug in delivery mechanisms.
-- **Jobs** (`vip_workflow_jobs_init` + `Job` base class): register ActionScheduler-backed recurring work.
 - **Discovery Providers** (`vip_workflow_register_discovery_providers`): feed story prompts into ideation.
 - **Stage Agents** (`meta.stage_eligible` on an ability plus a `stage` manifest capability): an AI agent that runs when a post enters an AI-owned workflow stage, then routes the exit transition based on its outcome. See [`vip-workflow/skills/create-agent/SKILL.md`](../../vip-workflow/skills/create-agent/SKILL.md) (Stage Agents).
 - **Sequences**: your extension can ship JSON sequences at activation time; the editorial sequence schema lives in `vip-workflow/includes/sequences/`.

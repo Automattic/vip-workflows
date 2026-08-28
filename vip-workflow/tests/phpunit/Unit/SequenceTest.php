@@ -66,14 +66,6 @@ class SequenceTest extends TestCase
                 'transitions'  => array(),
             ),
         ),
-        'automations' => array(
-            array(
-                'id'      => 'auto-notify',
-                'name'    => 'Notify on Review',
-                'trigger' => 'status.review.entered',
-                'actions' => array(),
-            ),
-        ),
     );
 
     /**
@@ -324,18 +316,6 @@ class SequenceTest extends TestCase
 
         $archived = Sequence::from_row( $row );
         $this->assertFalse( $archived->is_active() );
-    }
-
-    /**
-     * Test get_automations returns automations config.
-     */
-    public function test_get_automations(): void
-    {
-        $sequence   = $this->create_sequence();
-        $automations = $sequence->get_automations();
-
-        $this->assertCount( 1, $automations );
-        $this->assertSame( 'auto-notify', $automations[0]['id'] );
     }
 
     /**

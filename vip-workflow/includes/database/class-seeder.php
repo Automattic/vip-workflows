@@ -186,16 +186,6 @@ class Seeder {
 					'transitions' => array(),
 				),
 			),
-			'automations'  => array(
-				array(
-					'trigger' => 'status.review.entered',
-					'action'  => 'notify',
-					'config'  => array(
-						'to'      => 'role:editor',
-						'message' => '{{post.title}} is ready for review',
-					),
-				),
-			),
 			'settings'     => array(
 				'allow_skip' => false,
 			),

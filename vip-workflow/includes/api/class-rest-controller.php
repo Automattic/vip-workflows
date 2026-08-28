@@ -56,7 +56,6 @@ class RestController {
 			new AuditLogController(),
 			new GeneralSettingsController(),
 			new ExperimentsController(),
-			new JobsController(),
 			new AssistantsController(),
 			new UtilityController(),
 			new MetadataController(),

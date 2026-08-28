@@ -36,7 +36,6 @@ const Settings = lazy( () => import( '../pages/Settings' ) );
 const Notifications = lazy( () => import( '../pages/Notifications' ) );
 const Agents = lazy( () => import( '../pages/Agents' ) );
 const Tools = lazy( () => import( '../pages/Tools' ) );
-const Jobs = lazy( () => import( '../pages/Jobs' ) );
 
 /**
  * Parse hash URL for sub-routing within a page.
@@ -180,11 +179,6 @@ export default function AppShell() {
 		// Tools page
 		if ( page === 'vip-workflow-tools' ) {
 			return <Tools />;
-		}
-
-		// Jobs page
-		if ( page === 'vip-workflow-jobs' ) {
-			return <Jobs />;
 		}
 
 		// Default fallback

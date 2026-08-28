@@ -158,36 +158,7 @@ add_filter('vip_workflow_notification_channels', function($channels) {
 });
 ```
 
-### 3. Custom Background Jobs
-
-```php
-// workflow-job-my-task/includes/class-my-task-job.php
-use VIPWorkflow\Jobs\Job;
-
-class MyTaskJob extends Job {
-    public function get_id(): string {
-        return 'my-task';
-    }
-
-    public function get_name(): string {
-        return __('My Task', 'my-plugin');
-    }
-
-    public function get_schedule(): string {
-        return 'daily'; // or cron expression
-    }
-
-    public function execute(array $args = []): void {
-        // Your task logic
-    }
-}
-
-add_action('vip_workflow_jobs_init', function($scheduler) {
-    $scheduler->register_job(new MyTaskJob());
-});
-```
-
-### 4. Custom Research Agents
+### 3. Custom Research Agents
 
 Research agents run during story ideation and produce cards for the mood board.
 
@@ -267,7 +238,7 @@ Key points:
 
 Working example: `workflow-assistant-wikipedia/`
 
-### 5. Stage-Capable Agents
+### 4. Stage-Capable Agents
 
 Stage-capable agents run when a post enters an AI-owned workflow stage. Register a stage-eligible Ability for execution and an agent manifest so the Agents tab can mark it as available in AI stages.
 
@@ -320,11 +291,11 @@ Key points:
 - The stage owns routing; the agent owns only the outcome
 - The manifest `capabilities` value drives the Agents card's "Available in AI stage" indicator only when backed by a registered stage-eligible ability
 
-### 6. Custom Tools (Abilities)
+### 5. Custom Tools (Abilities)
 
 See [Registering a Custom Tool in code-patterns.md](code-patterns.md#4-registering-a-custom-tool).
 
-### 7. Event Listeners
+### 6. Event Listeners
 
 ```php
 // Listen for workflow events. The 5th arg is $context =
@@ -335,7 +306,7 @@ add_action('vip_workflow_entered_{stage}', 'my_stage_handler', 10, 4);
 add_action('vip_workflow_ability_executed', 'my_tool_handler', 10, 3);
 ```
 
-### 8. REST API Extensions
+### 7. REST API Extensions
 
 ```php
 add_action('rest_api_init', function() {
@@ -349,7 +320,7 @@ add_action('rest_api_init', function() {
 });
 ```
 
-### 9. AI Prompt Filters
+### 8. AI Prompt Filters
 
 These filters customize the prompts sent to the Vision and Whisper APIs. All
 three fire inside `MediaProcessor`, so they apply to every call site (asset
@@ -383,7 +354,7 @@ add_filter( 'vip_workflow_ai_summary_prompt', function( string $prompt, string $
 }, 10, 2 );
 ```
 
-### 10. Editorial Guideline Filters
+### 9. Editorial Guideline Filters
 
 Guidelines come from the Gutenberg/Core Knowledge storage (`wp_knowledge`
 guideline rows), read through `GuidelineContextProvider` — see
@@ -416,7 +387,7 @@ add_filter( 'vip_workflow_editorial_alignment_rules', function ( array $rules ):
 
 ---
 
-### 11. Discovery Prompt Enrichment
+### 10. Discovery Prompt Enrichment
 
 `vip_workflow_discovery_prompts` runs over the grouped story prompts on their way out
 of `GET /vip-workflow/v1/discovery/recommend`, immediately before the response.

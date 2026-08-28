@@ -33,9 +33,8 @@ import {
 	pencil,
 	plusCircle,
 	published,
-	scheduled,
 	tool,
-	trendingDown,
+	trash,
 	unlock,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/ui';
@@ -62,9 +61,8 @@ import './EventTypeIcon.css';
  *
  * Glyphs are deliberately not all distinct. Some of these are the same
  * occurrence surfaced by two subsystems — `status_transition` and
- * `post.stage_changed` are one stage change, `sla.warning` and
- * `post.sla_warning` one deadline — and drawing them alike is the honest
- * reading, not a collision.
+ * `post.stage_changed` are one stage change — and drawing them alike is the
+ * honest reading, not a collision.
  */
 const EVENT_TYPE_ICONS = {
 	// A post moved between stages: the arrow is the transition itself.
@@ -93,12 +91,9 @@ const EVENT_TYPE_ICONS = {
 	'post.workflow_completed': { icon: published, tone: 'success' },
 	// Went live, publicly — distinct from reaching the last stage of a workflow.
 	'post.published': { icon: globe, tone: 'success' },
-	// A deadline, so both read as a clock; only the tone says how bad it is.
-	'post.sla_warning': { icon: scheduled, tone: 'warning' },
-	'sla.warning': { icon: scheduled, tone: 'warning' },
-	'post.sla_breached': { icon: scheduled, tone: 'error' },
-	'sla.breached': { icon: scheduled, tone: 'error' },
-	'goal.at_risk': { icon: trendingDown, tone: 'warning' },
+	// The nightly prune, which is the one thing that reaches the log with no
+	// post and no actor behind it.
+	'maintenance.cleanup': { icon: trash, tone: 'neutral' },
 	'task.created': { icon: plusCircle, tone: 'info' },
 	'task.completed': { icon: check, tone: 'success' },
 };
