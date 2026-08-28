@@ -146,7 +146,7 @@ One verb per concept. Sentence case throughout (`Add source`, not
 | Run again | **Retry** | `Try again`, `Re-check`, `Retry Processing` |
 | Produce new AI output | **Regenerate** | `Re-analyze` on an already-analyzed item |
 | Apply a result | **Use this** | `Use This` |
-| Create | **Add {noun}** / **New {noun}** | `Create your first editorial sequence` (→ `New sequence`) |
+| Create | **Add {noun}** / **New {noun}** | `Create your first sequence` (→ `New sequence`) |
 
 Dynamic labels are built with `sprintf()` and a translator comment — never
 string concatenation.

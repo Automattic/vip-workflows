@@ -584,9 +584,7 @@ test.describe( 'VIP Workflow — editorial metadata (UI)', () => {
 			'admin.php',
 			'page=vip-workflow-sequences'
 		);
-		await page
-			.getByRole( 'link', { name: 'New editorial sequence' } )
-			.click();
+		await page.getByRole( 'link', { name: 'New sequence' } ).click();
 		await expect(
 			page.getByRole( 'button', { name: 'Save' } )
 		).toBeVisible();
