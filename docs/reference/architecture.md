@@ -377,34 +377,13 @@ add_filter( 'vip_workflow_media_providers', function( $providers ) {
 - Slack: Requires webhook URL in settings
 - Custom: Plugin provides settings UI
 
-### 7. Jobs System
+### 7. Scheduled Cleanup
 
-**Background job scheduler** using ActionScheduler.
+Two tables grow one row at a time and nothing else prunes them: `vip_ability_results` (a row per tool run) and `vip_workflow_events` (a row per workflow event). `VIPWorkflow\Maintenance\Cleanup` deletes ability results older than 90 days and events older than a year, nightly at 2am site time on ActionScheduler.
 
-**Architecture**:
-- **JobScheduler**: Wrapper around ActionScheduler with registration and monitoring
-- **Job Abstract Class**: Base class for all jobs with scheduling and execution hooks
-- **Built-in Jobs**: Cleanup, SLA monitoring
-- **Custom Jobs**: Extensible via standalone plugins
+It is a single routine, not a job framework. There is no job registry, no per-job settings and no Jobs screen: an earlier version had all three, plus a `Job` base class and a `vip_workflow_register_jobs` hook, and nothing outside the plugin ever used them.
 
-**Built-In Jobs**:
-
-**CleanupJob** - Daily cleanup:
-- Old workflow events (configurable retention, default 90 days)
-- Old ability results (configurable retention)
-- Orphaned asset attachments
-
-**SlaCheckJob** - Hourly monitoring:
-- Checks posts stuck in statuses beyond configured SLA time
-- Sends notifications to editors/managers
-- Logs SLA violations to events table
-- Configurable per-status thresholds
-
-**Job Admin UI**:
-- View all registered jobs
-- See last run time and next scheduled time
-- Manually trigger job execution
-- View job execution history
+**Reporting**: a run writes one `maintenance.cleanup` event to the audit log carrying what it deleted, or the database error if a DELETE failed. That is the whole interface — "did cleanup run, and did it work" is answered where every other question about what the plugin did is answered, with the same filters. The entry carries no post and no actor: it belongs to no one, and crediting it to whoever happened to be logged in when cron fired would be a lie.
 
 ### 8. Events & Automation
 
@@ -423,31 +402,9 @@ do_action('vip_workflow_ability_executed', $ability_id, $post_id, $result);
 do_action('vip_workflow_ability_failed', $ability_id, $post_id, $error);
 ```
 
-**Automation Flows** (stored in `wp_vip_automation_flows`):
-- Trigger on specific events
-- Evaluate conditions (post type, status, user role, etc.)
-- Execute actions (send notification, run tool, webhook, etc.)
-- Action handlers extensible via plugins
+**What listens**: the bus stores every event it emits — that stream is what the audit log, a post's Workflow History modal and the `get-recent-activity` ability read. Delivery is `NotificationDispatcher`, which matches an event against the routing option and sends on each subscribed channel. Anything else subscribes with `add_action( 'vip_workflow_event_emitted', … )`.
 
-**Example Automation**:
-```json
-{
-  "trigger": "status.review.entered",
-  "conditions": [
-    {"field": "post_type", "operator": "equals", "value": "post"}
-  ],
-  "actions": [
-    {
-      "type": "notify",
-      "config": {
-        "to": "role:editor",
-        "channel": "slack",
-        "message": "{{post.title}} needs review"
-      }
-    }
-  ]
-}
-```
+There is no rules engine. An earlier version stored trigger/condition/action "flows" in `wp_vip_automation_flows` and executed them off the bus; nothing could author a flow, so the table was always empty and the engine was removed.
 
 ---
 
@@ -525,11 +482,8 @@ VIPWorkflow\Plugin (Singleton Bootstrap)
 │       └── ai-agent.php
 │
 ├── Automation\
-│   ├── EventBus (Pub/sub system)
-│   ├── EventRegistry (Event definitions)
-│   ├── ConditionEvaluator (Flow conditions)
-│   └── handlers/
-│       └── NotificationHandler
+│   ├── EventBus (Records every event the plugin emits)
+│   └── EventRegistry (Event definitions)
 │
 ├── Notifications\
 │   ├── NotificationDispatcher (Central dispatcher)
@@ -539,11 +493,8 @@ VIPWorkflow\Plugin (Singleton Bootstrap)
 │       ├── EmailChannel
 │       └── SlackChannel
 │
-├── Jobs\
-│   ├── JobScheduler (ActionScheduler wrapper)
-│   ├── Job (Abstract base)
-│   ├── CleanupJob
-│   └── SlaCheckJob
+├── Maintenance\
+│   └── Cleanup (Nightly prune, reported to the audit log)
 │
 ├── API\
 │   ├── RestController (Base class)
@@ -575,13 +526,10 @@ VIPWorkflow\Plugin (Singleton Bootstrap)
 │   ├── Schema (Table definitions)
 │   └── Seeder (Default data)
 │
-├── Integrations\
-│   ├── AIMediaAnalyzer (event adapter — vip_workflow_asset_file_uploaded → MediaProcessor)
-│   ├── MediaProcessor (core AI: image vision, audio/video transcription, PDF analysis; shared by assets + research + ideation)
-│   └── UrlMetaExtractor (Fetch Open Graph/meta from URLs)
-│
-└── Monitoring\
-    └── SlaMonitor (SLA tracking)
+└── Integrations\
+    ├── AIMediaAnalyzer (event adapter — vip_workflow_asset_file_uploaded → MediaProcessor)
+    ├── MediaProcessor (core AI: image vision, audio/video transcription, PDF analysis; shared by assets + research + ideation)
+    └── UrlMetaExtractor (Fetch Open Graph/meta from URLs)
 ```
 
 ### Bootstrap Flow
@@ -604,7 +552,7 @@ function init() {
    - Ability registration (on 'wp_abilities_api_init' hook)
    - REST API controllers
 3. Register modules (order does NOT matter):
-   - register_module() for each subsystem (EditorIntegration, JobScheduler, etc.)
+   - register_module() for each subsystem (EditorIntegration, Cleanup, etc.)
    - Admin modules gated with is_admin()
    - do_action('vip_workflow_register_modules') for external plugins
    - foreach loop calls init() on all registered modules

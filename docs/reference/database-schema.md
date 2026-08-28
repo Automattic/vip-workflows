@@ -95,56 +95,6 @@ CREATE TABLE wp_vip_ability_results (
 
 ---
 
-## Automation Tables
-
-### `wp_vip_automation_flows`
-Automation rule definitions. Trigger event + conditions + actions, scoped to a sequence.
-
-```sql
-CREATE TABLE wp_vip_automation_flows (
-    id bigint(20) unsigned AUTO_INCREMENT PRIMARY KEY,
-    uuid char(36) NOT NULL UNIQUE,
-    name varchar(255) NOT NULL,
-    description text,
-    sequence_id bigint(20) unsigned DEFAULT NULL,
-    trigger_events longtext NOT NULL,              -- JSON
-    conditions longtext,                           -- JSON
-    actions longtext NOT NULL,                     -- JSON
-    status varchar(20) NOT NULL DEFAULT 'active',
-    priority int(10) unsigned NOT NULL DEFAULT 10,
-    created_by bigint(20) unsigned NOT NULL,
-    created_at datetime NOT NULL,
-    updated_at datetime NOT NULL,
-    KEY sequence_id (sequence_id),
-    KEY status (status),
-    KEY priority (priority),
-    KEY status_sequence_priority (status, sequence_id, priority)
-);
-```
-
-### `wp_vip_automation_executions`
-Execution log for automation runs. One row per flow triggered.
-
-```sql
-CREATE TABLE wp_vip_automation_executions (
-    id bigint(20) unsigned AUTO_INCREMENT PRIMARY KEY,
-    flow_id bigint(20) unsigned NOT NULL,
-    post_id bigint(20) unsigned DEFAULT NULL,
-    trigger_event_id bigint(20) unsigned DEFAULT NULL,
-    status varchar(20) NOT NULL DEFAULT 'pending', -- pending, success, failed, skipped
-    started_at datetime NOT NULL,
-    completed_at datetime DEFAULT NULL,
-    execution_data longtext,                       -- JSON
-    error_data longtext,                           -- JSON
-    KEY flow_id (flow_id),
-    KEY post_id (post_id),
-    KEY status (status),
-    KEY started_at (started_at)
-);
-```
-
----
-
 ## Organization Tables
 
 ### `wp_vip_workflow_roles`
@@ -327,7 +277,6 @@ Stored in `wp_postmeta`:
 | `_vip_workflow_current_stage_key` | string | Current workflow stage (unprefixed) |
 | `_vip_workflow_assigned_to` | integer | Assigned user ID |
 | `_vip_workflow_assigned_desk` | integer | Assigned desk ID |
-| `_vip_workflow_sla_deadline` | datetime | SLA deadline for current status |
 | `_vip_workflow_transition_data` | array | Per-status transition history (serialized) |
 | `wfp_{note_id}_{slug}` | mixed | Transition input notes (dynamic keys from sequence config) |
 | `_vip_asset_analysis` | array | AI analysis results (serialized) |

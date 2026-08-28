@@ -442,31 +442,6 @@ See `workflow-tool-checklist/` for a check tool maintained in this repository.
 
 ---
 
-### Background Jobs
-
-Register recurring background tasks.
-
-```php
-use VIPWorkflow\Jobs\Job;
-
-class My_Sync_Job extends Job {
-    public function get_id(): string { return 'my-sync'; }
-    public function get_name(): string { return 'My Sync'; }
-    public function get_schedule(): string { return 'daily'; }
-    public function execute( array $args = array() ): void {
-        // Your task logic
-    }
-}
-
-add_action( 'vip_workflow_jobs_init', function( $scheduler ) {
-    $scheduler->register_job( new My_Sync_Job() );
-} );
-```
-
-Background jobs can be packaged as standalone plugins.
-
----
-
 ### Event Listeners
 
 Hook into workflow lifecycle events:

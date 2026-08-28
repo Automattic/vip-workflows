@@ -261,12 +261,6 @@ Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 - Register via `vip_workflow_notification_channels` filter
 - Provide settings page for API keys/config
 
-**Background Jobs** (e.g., airtable-daily-stats):
-- Extend `Job` base class
-- Implement `execute()` method
-- Schedule via `JobScheduler::schedule_recurring()`
-- Provide settings page for external service configuration
-
 **Media Providers** (image/video sources for ideation):
 - Implement `MediaProviderInterface` (get_id, get_name, is_configured, is_generative, search_media)
 - Register via `vip_workflow_media_providers` filter

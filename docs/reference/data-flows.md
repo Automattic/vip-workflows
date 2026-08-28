@@ -64,9 +64,9 @@ StatusManager::transition($post_id, 'review', $options)
 13. Fire action: do_action('vip_workflow_status_transition', ...)
 14. Fire action: do_action('vip_workflow_entered_review', ...)
     ↓
-EventBus picks up events
+EventBus stores the event (audit log, post history, recent activity)
     ↓
-Automation flows execute (notifications, webhooks, etc.)
+NotificationDispatcher delivers on the routed channels
     ↓
 Return success to client
     ↓
@@ -171,11 +171,10 @@ Status transition occurs (e.g., post enters "review")
     ↓
 StatusManager fires: do_action('vip_workflow_entered_review', $post_id, ...)
     ↓
-NotificationHandler listening on hook
+NotificationDispatcher listening on hook
     ↓
-1. Check if automation flow exists for this event
-2. Evaluate conditions (post type, user role, etc.)
-3. If conditions pass, create Notification object
+1. Check the routing option for channels subscribed to this event
+2. If any are, create the Notification object
     ↓
 NotificationDispatcher::dispatch($notification)
     ↓
@@ -207,33 +206,21 @@ User sees:
 - Slack message in channel
 ```
 
-### Flow 6: Background Job Execution
+### Flow 6: Nightly Cleanup
 
 ```
-Cron triggers (hourly for SLA check)
+Cron triggers (nightly, 2am site time)
     ↓
-ActionScheduler runs: vip_workflow_run_job
+ActionScheduler runs: vip_workflow_cleanup
     ↓
-JobScheduler::execute_job('sla-check')
+Cleanup::run()
     ↓
-SlaCheckJob::execute()
+1. DELETE ability results older than 90 days
+2. DELETE workflow events older than 1 year
     ↓
-1. Get all active sequences
-2. For each sequence:
+3. Write one maintenance.cleanup event to wp_vip_workflow_events
+   (post_id NULL, actor_id 0, actor_type 'system'), carrying the row
+   counts — or the database error, when a DELETE failed
     ↓
-    3. Get SLA thresholds per status
-    4. Query posts in each status
-    5. Check time in status vs threshold
-    6. For posts exceeding SLA:
-        ↓
-        7. Log SLA breach to wp_vip_workflow_events
-        8. Create notification for editors
-        9. Update post meta with breach flag
-    ↓
-10. Fire action: do_action('vip_workflow_sla_check_complete', $results)
-11. Return execution summary
-    ↓
-Job execution logged to ActionScheduler tables
-    ↓
-Admin can view job history in Jobs admin page
+Admin sees the run in the Audit Log, filterable as "Cleanup Run"
 ```

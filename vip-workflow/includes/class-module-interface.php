@@ -12,7 +12,7 @@ namespace VIPWorkflow;
 /**
  * Contract for plugin subsystems that self-register via hooks.
  *
- * Core services (EventBus, PostTypeManager, StatusManager, JobScheduler)
+ * Core services (EventBus, PostTypeManager, StatusManager)
  * are NOT modules — they are explicit dependencies initialized in order
  * by Plugin before the module loop runs.
  */

@@ -15,6 +15,11 @@
  * channels sharing one event, an event routing already answers for, and a
  * re-run that must change nothing.
  *
+ * SLA and `goal.at_risk` were removed in 2.24.0. Both migrations still name
+ * them, and so does this file: an upgrading site really can hold those rows,
+ * and 2.20/2.21 have to carry them correctly before 2.24 deletes them. The last
+ * group below covers that deletion.
+ *
  * @package VIPWorkflow\Tests\Unit
  */
 
@@ -92,6 +97,15 @@ class SchemaRoutingSeedTest extends TestCase
     private function rekey(): void
     {
         $method = new \ReflectionMethod( Schema::class, 'rekey_routing_to_dispatched_event_ids' );
+        $method->invoke( null );
+    }
+
+    /**
+     * Run the 2.24.0 cleanup of retired events.
+     */
+    private function drop_retired(): void
+    {
+        $method = new \ReflectionMethod( Schema::class, 'drop_retired_event_routing' );
         $method->invoke( null );
     }
 
@@ -268,5 +282,61 @@ class SchemaRoutingSeedTest extends TestCase
 
         $this->assertSame( [], $this->routing()['sla.breached'] );
         $this->assertArrayNotHasKey( 'sla_breach', $this->routing() );
+    }
+
+    // -------------------------------------------------------------------------
+    // 2.24.0 — forgetting the events that were removed
+    // -------------------------------------------------------------------------
+
+    /**
+     * SLA and goal routing goes; everything else is left alone.
+     *
+     * Both spellings are dropped. 2.21.0 re-keys the underscored ids onto the
+     * dotted ones and runs first, but a site can arrive having skipped it.
+     */
+    public function test_it_forgets_routing_for_the_retired_events(): void
+    {
+        $this->options['vip_workflow_notification_routing'] = [
+            'sla.warning'  => [ 'email' ],
+            'sla.breached' => [ 'email', 'slack' ],
+            'sla_breach'   => [ 'slack' ],
+            'goal.at_risk' => [ 'email' ],
+            'goal_at_risk' => [ 'slack' ],
+            'published'    => [ 'email' ],
+        ];
+
+        $this->drop_retired();
+
+        $this->assertSame( [ 'published' => [ 'email' ] ], $this->routing() );
+    }
+
+    /**
+     * A site that never ticked any of them is not written to at all.
+     */
+    public function test_it_leaves_an_untouched_option_alone(): void
+    {
+        $this->options['vip_workflow_notification_routing'] = [ 'published' => [ 'email' ] ];
+
+        $this->drop_retired();
+
+        $this->assertSame( [ 'published' => [ 'email' ] ], $this->routing() );
+    }
+
+    /**
+     * Re-running changes nothing, which is what makes the migration safe to
+     * replay on a fresh install alongside every other entry.
+     */
+    public function test_it_is_re_runnable(): void
+    {
+        $this->options['vip_workflow_notification_routing'] = [
+            'goal.at_risk' => [ 'email' ],
+            'published'    => [ 'email' ],
+        ];
+
+        $this->drop_retired();
+        $before = $this->routing();
+        $this->drop_retired();
+
+        $this->assertSame( $before, $this->routing() );
     }
 }

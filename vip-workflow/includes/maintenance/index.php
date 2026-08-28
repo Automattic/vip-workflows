@@ -2,5 +2,5 @@
 /**
  * Silence is golden.
  *
- * @package VIPWorkflow\Jobs
+ * @package VIPWorkflow\Maintenance
  */

@@ -61,24 +61,6 @@ class EventRegistry {
 			)
 		);
 
-		$this->register(
-			'post.sla_warning',
-			array(
-				'label'       => 'SLA Warning',
-				'description' => 'Fired when a stage reaches 90% of its target duration',
-				'category'    => 'workflow',
-			)
-		);
-
-		$this->register(
-			'post.sla_breached',
-			array(
-				'label'       => 'SLA Breached',
-				'description' => 'Fired when a stage exceeds its target duration',
-				'category'    => 'workflow',
-			)
-		);
-
 		// Stage events (pattern: stage.{key}.entered, stage.{key}.completed).
 		$this->register(
 			'stage.*.entered',
@@ -97,35 +79,6 @@ class EventRegistry {
 				'description' => 'Fired when a specific stage is completed',
 				'category'    => 'stage',
 				'pattern'     => true,
-			)
-		);
-
-		// SLA events.
-		$this->register(
-			'sla.warning',
-			array(
-				'label'       => 'SLA Warning',
-				'description' => 'Fired when a post is approaching its SLA deadline',
-				'category'    => 'sla',
-			)
-		);
-
-		$this->register(
-			'sla.breached',
-			array(
-				'label'       => 'SLA Breached',
-				'description' => 'Fired when a post exceeds its SLA deadline',
-				'category'    => 'sla',
-			)
-		);
-
-		// Goal events.
-		$this->register(
-			'goal.at_risk',
-			array(
-				'label'       => 'Goal At Risk',
-				'description' => 'Fired when a post is at risk of missing its goal date',
-				'category'    => 'goal',
 			)
 		);
 

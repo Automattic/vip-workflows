@@ -384,7 +384,16 @@ class SchemaTest extends TestCase
         $versions = array_column( $this->registered_migrations(), 'version' );
 
         $this->assertContains( '2.22.0', $versions );
-        $this->assertSame( '2.23.0', end( $versions ) );
+        $this->assertContains( '2.23.0', $versions );
+
+        // Ordering is the claim, not position: entries are appended after this
+        // one over time, so asserting it sits last dates the moment a migration
+        // is added rather than testing anything about the rename.
+        $this->assertGreaterThan(
+            array_search( '2.22.0', $versions, true ),
+            array_search( '2.23.0', $versions, true ),
+            'The storage rename must run after the transition-input migration.'
+        );
     }
 
     /**

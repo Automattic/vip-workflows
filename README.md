@@ -4,7 +4,7 @@
 [![JavaScript](https://github.com/Automattic/vip-workflows/actions/workflows/js-unit.yml/badge.svg)](https://github.com/Automattic/vip-workflows/actions/workflows/js-unit.yml)
 [![PHPUnit](https://github.com/Automattic/vip-workflows/actions/workflows/phpunit.yml/badge.svg)](https://github.com/Automattic/vip-workflows/actions/workflows/phpunit.yml)
 
-VIP Workflow is a workflow-orchestration platform for WordPress. It gives editorial teams sequence-driven stages, governed transitions, assignments, AI-assisted tools and agents, story ideation, discovery providers, notifications, background jobs, and automation.
+VIP Workflow is a workflow-orchestration platform for WordPress. It gives editorial teams sequence-driven stages, governed transitions, assignments, AI-assisted tools and agents, story ideation, discovery providers, and notifications.
 
 ## Requirements
 

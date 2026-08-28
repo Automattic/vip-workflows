@@ -28,7 +28,7 @@ const {
 
 const STRICT = !! process.env.WPDS_AUDIT_STRICT;
 
-// DS-bearing admin screens. The System screens (Settings…Jobs) render on the
+// DS-bearing admin screens. The System screens (Settings…Tools) render on the
 // shared AdminPage scaffold (covered by admin-page.css's reset); Board/Kanban
 // are full-bleed app canvases. Add new DS screens here as they ship.
 const SCREENS = [
@@ -38,7 +38,6 @@ const SCREENS = [
 	{ name: 'Notifications', query: 'page=vip-workflow-notifications' },
 	{ name: 'Agents', query: 'page=vip-workflow-agents' },
 	{ name: 'Tools', query: 'page=vip-workflow-tools' },
-	{ name: 'Jobs', query: 'page=vip-workflow-jobs' },
 ];
 
 // Aggregated across the (single-worker) file run, written out in afterAll.

@@ -21,7 +21,7 @@ class Schema {
 	/**
 	 * Database version.
 	 */
-	public const VERSION = '2.23.0';
+	public const VERSION = '2.24.0';
 
 	/**
 	 * Option name for storing DB version.
@@ -430,8 +430,17 @@ class Schema {
 					// as global. Carry the values over and retire the old column.
 					$flows = $wpdb->prefix . 'vip_automation_flows';
 
+					// The automation-flow engine was removed in 2.24.0, so create_tables()
+					// no longer makes this table and a fresh install replays every
+					// migration from 0.0.0 — this one included. Ask whether the table is
+					// there before naming it in a statement: SHOW COLUMNS against a table
+					// that does not exist sets $wpdb->last_error, and run_migrations()
+					// turns any last_error into a thrown RuntimeException. Without this
+					// guard, installing the plugin fresh fails here.
+					$has_flows_table = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $flows ) ) === $flows;
+
 					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-					$has_old_column = (bool) $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM `{$flows}` LIKE %s", 'blueprint_id' ) );
+					$has_old_column = $has_flows_table && (bool) $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM `{$flows}` LIKE %s", 'blueprint_id' ) );
 
 					if ( $has_old_column ) {
 						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -458,6 +467,36 @@ class Schema {
 					// the copied rows through the sequence write gate after the storage
 					// rename has completed.
 					self::replay_stored_stage_configs( true );
+				},
+			),
+			// The automation-flow engine was removed. Drop its two tables.
+			//
+			// Nothing could ever author a flow: no UI, no REST route and no CLI
+			// wrote vip_automation_flows, so the engine that read it — condition
+			// evaluation, action dispatch, execution tracking — ran against an
+			// always-empty table on every event the bus emitted. The one
+			// automation the seeder shipped was sequence-level and keyed
+			// `action`, which the dispatcher never read.
+			//
+			// Both tables are dropped rather than left orphaned: neither can hold
+			// a row a site would miss, and get_owned_tables() no longer lists them
+			// for uninstall to reach.
+			//
+			// The same release retires SLA and `goal.at_risk`, which were offered
+			// as routable notification events; drop_retired_event_routing() below
+			// forgets whatever a site had ticked for them.
+			array(
+				'version' => '2.24.0',
+				'run'     => function (): void {
+					global $wpdb;
+
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}vip_automation_executions" );
+
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}vip_automation_flows" );
+
+					self::drop_retired_event_routing();
 				},
 			),
 		);
@@ -610,6 +649,53 @@ class Schema {
 			$routing[ $canonical ] = array_values( array_unique( $merged ) );
 			unset( $routing[ $legacy ] );
 			$changed = true;
+		}
+
+		if ( $changed ) {
+			update_option( 'vip_workflow_notification_routing', $routing, false );
+		}
+	}
+
+	/**
+	 * Forget notification routing for the events retired in 2.24.0.
+	 *
+	 * SLA had no input: nothing set a stage's target duration, so the check that
+	 * would have fired `sla.warning` and `sla.breached` never had one to read.
+	 * `goal.at_risk` had no emitter at all — two listeners disagreeing about the
+	 * payload, and no caller in any commit. All three were offered on the
+	 * Notifications screen as routable events, so a site can hold rows for them.
+	 *
+	 * Both spellings are dropped. The 2.21.0 migration re-keys the underscored
+	 * ids the old System Events matrix wrote onto the dotted ones the dispatcher
+	 * fired, and it runs first — but a site can arrive here having skipped it,
+	 * and asking about four keys is cheaper than reasoning about which.
+	 *
+	 * The rows are inert — should_notify_channel() is an isset() lookup against
+	 * ids nothing dispatches — but leaving them means the option keeps
+	 * describing features that are gone, and a later event reusing one of these
+	 * ids would silently inherit whatever an admin ticked years earlier.
+	 */
+	protected static function drop_retired_event_routing(): void {
+		$routing = get_option( 'vip_workflow_notification_routing', array() );
+		if ( ! is_array( $routing ) ) {
+			return;
+		}
+
+		$retired = array(
+			'sla.warning',
+			'sla.breached',
+			'sla_warning',
+			'sla_breach',
+			'goal.at_risk',
+			'goal_at_risk',
+		);
+
+		$changed = false;
+		foreach ( $retired as $event_id ) {
+			if ( array_key_exists( $event_id, $routing ) ) {
+				unset( $routing[ $event_id ] );
+				$changed = true;
+			}
 		}
 
 		if ( $changed ) {
@@ -1413,49 +1499,6 @@ class Schema {
 		) $charset_collate;";
 		dbDelta( $sql );
 
-		// Automation Flows table.
-		$sql = "CREATE TABLE {$wpdb->prefix}vip_automation_flows (
-			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-			uuid char(36) NOT NULL,
-			name varchar(255) NOT NULL,
-			description text,
-			sequence_id bigint(20) unsigned DEFAULT NULL,
-			trigger_events longtext NOT NULL,
-			conditions longtext,
-			actions longtext NOT NULL,
-			status varchar(20) NOT NULL DEFAULT 'active',
-			priority int(10) unsigned NOT NULL DEFAULT 10,
-			created_by bigint(20) unsigned NOT NULL,
-			created_at datetime NOT NULL,
-			updated_at datetime NOT NULL,
-			PRIMARY KEY (id),
-			UNIQUE KEY uuid (uuid),
-			KEY sequence_id (sequence_id),
-			KEY status (status),
-			KEY priority (priority),
-			KEY status_sequence_priority (status, sequence_id, priority)
-		) $charset_collate;";
-		dbDelta( $sql );
-
-		// Automation Executions table.
-		$sql = "CREATE TABLE {$wpdb->prefix}vip_automation_executions (
-			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-			flow_id bigint(20) unsigned NOT NULL,
-			post_id bigint(20) unsigned DEFAULT NULL,
-			trigger_event_id bigint(20) unsigned DEFAULT NULL,
-			status varchar(20) NOT NULL DEFAULT 'pending',
-			started_at datetime NOT NULL,
-			completed_at datetime DEFAULT NULL,
-			execution_data longtext,
-			error_data longtext,
-			PRIMARY KEY (id),
-			KEY flow_id (flow_id),
-			KEY post_id (post_id),
-			KEY status (status),
-			KEY started_at (started_at)
-		) $charset_collate;";
-		dbDelta( $sql );
-
 		// Ideation Sources table.
 		$sql = "CREATE TABLE {$wpdb->prefix}vip_ideation_sources (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -1553,8 +1596,6 @@ class Schema {
 			$wpdb->prefix . 'vip_workflow_notifications',
 			$wpdb->prefix . 'vip_workflow_events',
 			$wpdb->prefix . 'vip_workflow_user_desks',
-			$wpdb->prefix . 'vip_automation_executions',
-			$wpdb->prefix . 'vip_automation_flows',
 			$wpdb->prefix . 'vip_workflow_desks',
 			$wpdb->prefix . 'vip_workflow_roles',
 			$wpdb->prefix . 'vip_sequences',

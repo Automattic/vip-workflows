@@ -1954,6 +1954,9 @@ class StatusManager {
 			'sequence.updated'     => __( 'Sequence Updated', 'vip-workflow' ),
 			'sequence.activated'   => __( 'Sequence Activated', 'vip-workflow' ),
 			'sequence.deactivated' => __( 'Sequence Deactivated', 'vip-workflow' ),
+			// Maintenance. Carries no post and no actor: the nightly prune runs
+			// on cron and belongs to no one.
+			'maintenance.cleanup'  => __( 'Cleanup Run', 'vip-workflow' ),
 		);
 
 		if ( isset( $labels[ $event_type ] ) ) {
