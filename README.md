@@ -1,10 +1,10 @@
-# VIP Workflow
+# VIP Workflows
 
 [![PHPCS](https://github.com/Automattic/vip-workflows/actions/workflows/phpcs.yml/badge.svg)](https://github.com/Automattic/vip-workflows/actions/workflows/phpcs.yml)
 [![JavaScript](https://github.com/Automattic/vip-workflows/actions/workflows/js-unit.yml/badge.svg)](https://github.com/Automattic/vip-workflows/actions/workflows/js-unit.yml)
 [![PHPUnit](https://github.com/Automattic/vip-workflows/actions/workflows/phpunit.yml/badge.svg)](https://github.com/Automattic/vip-workflows/actions/workflows/phpunit.yml)
 
-VIP Workflow is a workflow-orchestration platform for WordPress. It gives editorial teams sequence-driven stages, governed transitions, assignments, AI-assisted tools and agents, story ideation, discovery providers, and notifications.
+VIP Workflows is a workflow-orchestration platform for WordPress. It gives editorial teams sequence-driven stages, governed transitions, assignments, AI-assisted tools and agents, story ideation, discovery providers, and notifications.
 
 ## Requirements
 
@@ -24,7 +24,7 @@ npm run setup
 npm run build
 ```
 
-Mount or copy `vip-workflow/` into `wp-content/plugins/`, then activate **VIP Workflow**. The `workflow-*` directories are standalone extension plugins and can be installed independently after the core plugin is active.
+Mount or copy `vip-workflows/` into `wp-content/plugins/`, then activate **VIP Workflows**. The `workflow-*` directories are standalone extension plugins and can be installed independently after the core plugin is active.
 
 For the complete local setup, see [Local development](docs/local-development.md).
 
@@ -47,7 +47,7 @@ For the complete local setup, see [Local development](docs/local-development.md)
 | `workflow-agent-tag-sanity-check` | AI-owned tag review stage |
 | `workflow-parsely` | Parse.ly abilities, agents, and discovery integration |
 
-See [Extending VIP Workflow](docs/guides/extending-vip-workflow.md) for the supported extension points.
+See [Extending VIP Workflows](docs/guides/extending-vip-workflows.md) for the supported extension points.
 
 ## Development
 
@@ -59,7 +59,7 @@ npm run build
 npm run check:all
 ```
 
-The full test strategy, including the isolated integration database and Playwright environment, is documented in [Testing](vip-workflow/docs/TESTING.md).
+The full test strategy, including the isolated integration database and Playwright environment, is documented in [Testing](vip-workflows/docs/TESTING.md).
 
 GitHub Actions runs PHPCS, JavaScript lint and unit tests, PHPUnit on PHP 8.2–8.5, real-WordPress integration tests, and Playwright end-to-end tests.
 
@@ -76,4 +76,4 @@ GitHub Actions runs PHPCS, JavaScript lint and unit tests, PHPUnit on PHP 8.2–
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Report security issues through the process in [SECURITY.md](SECURITY.md), not through a public issue.
 
-VIP Workflow is licensed under the [GNU General Public License v2](LICENSE).
+VIP Workflows is licensed under the [GNU General Public License v2](LICENSE).

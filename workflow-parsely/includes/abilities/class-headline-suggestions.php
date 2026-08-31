@@ -16,7 +16,7 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Abilities;
 
-use VIPWorkflow\Abilities\Availability;
+use VIPWorkflows\Abilities\Availability;
 use WorkflowParsely\ParselyClient;
 use WP_Error;
 
@@ -46,16 +46,16 @@ class HeadlineSuggestions {
 	 * Register the ability.
 	 */
 	public static function register(): void {
-		if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+		if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
 			return;
 		}
 
-		vip_workflow_register_ability(
+		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
 				'label'               => __( 'Headline Suggestions', 'workflow-parsely' ),
 				'description'         => __( 'Suggest alternative headlines for a post using Parse.ly.', 'workflow-parsely' ),
-				'category'            => 'vip-workflow',
+				'category'            => 'vip-workflows',
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'additionalProperties' => false,
@@ -197,7 +197,7 @@ class HeadlineSuggestions {
 			);
 		}
 
-		$permission_error = \VIPWorkflow\Abilities\Tools\require_post_edit_permission( (int) $input['post_id'] );
+		$permission_error = \VIPWorkflows\Abilities\Tools\require_post_edit_permission( (int) $input['post_id'] );
 		if ( $permission_error ) {
 			return $permission_error;
 		}

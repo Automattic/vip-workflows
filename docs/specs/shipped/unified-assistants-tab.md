@@ -32,7 +32,7 @@ The other Integrations tabs (Notification Channels, Tools, Jobs) are unaffected.
 **What does NOT change:**
 
 - Tools tab, Notification Channels tab
-- Discovery provider registration (`vip_workflow_register_discovery_providers`)
+- Discovery provider registration (`vip_workflows_register_discovery_providers`)
 - Ability registration (`wp_abilities_api_init`)
 - REST APIs for discovery recommend/search/select
 - REST APIs for ability execution
@@ -43,14 +43,14 @@ The refactor is purely about the settings UI on the Integrations page.
 
 ## Backend: AssistantRegistry
 
-### New file: `vip-workflow/includes/assistants/class-assistant-registry.php`
+### New file: `vip-workflows/includes/assistants/class-assistant-registry.php`
 
 A singleton that combines research abilities, stage-eligible abilities, and discovery providers into a unified assistant list, grouped by plugin slug.
 
-- Reads research abilities from `wp_get_abilities()` filtered by `get_category() === 'research'` and plugin-scoped stage-eligible abilities where `meta.supports` includes `stage` and `meta.stage_eligible` is true (merged with per-ability settings from `AbilitySettings`). Unmigrated core `vip-workflow/*` stage abilities stay internal until they are moved into agent plugins.
+- Reads research abilities from `wp_get_abilities()` filtered by `get_category() === 'research'` and plugin-scoped stage-eligible abilities where `meta.supports` includes `stage` and `meta.stage_eligible` is true (merged with per-ability settings from `AbilitySettings`). Unmigrated core `vip-workflows/*` stage abilities stay internal until they are moved into agent plugins.
 - Reads discovery providers from `DiscoveryProviderRegistry`
-- Auto-generates an entry per unclaimed source: an ability `workflow-assistant-wikipedia/wikipedia` maps to slug `workflow-assistant-wikipedia-wikipedia`; a discovery provider `foresight-news` maps to slug `foresight-news`. **Amended:** the derived slug carries the whole ability id, not just its vendor prefix. Prefix-only derivation collapsed every ability a plugin registers onto one slug — both core research agents derived `vip-workflow` — and the entry slug is how a card addresses itself over REST. Grouping several abilities onto one card is what a manifest is for, and a manifest keeps its declared slug; this affects only entries generated because nothing claimed them. Nothing persists an entry slug (settings write through to ability ids and provider slugs), so widening it changed addressing only
-- Plugins that span multiple capabilities (e.g., `workflow-qwoted` registers a discovery provider AND a research ability) declare a manifest via the `vip_workflow_register_assistant_meta` action with explicit `ability_ids`, `provider_slugs`, and optional `capabilities`; matched capabilities are merged into a single card
+- Auto-generates an entry per unclaimed source: an ability `workflow-assistant-wikipedia/wikipedia` maps to slug `workflow-assistant-wikipedia-wikipedia`; a discovery provider `foresight-news` maps to slug `foresight-news`. **Amended:** the derived slug carries the whole ability id, not just its vendor prefix. Prefix-only derivation collapsed every ability a plugin registers onto one slug — both core research agents derived `vip-workflows` — and the entry slug is how a card addresses itself over REST. Grouping several abilities onto one card is what a manifest is for, and a manifest keeps its declared slug; this affects only entries generated because nothing claimed them. Nothing persists an entry slug (settings write through to ability ids and provider slugs), so widening it changed addressing only
+- Plugins that span multiple capabilities (e.g., `workflow-qwoted` registers a discovery provider AND a research ability) declare a manifest via the `vip_workflows_register_assistant_meta` action with explicit `ability_ids`, `provider_slugs`, and optional `capabilities`; matched capabilities are merged into a single card
 
 Unified assistant shape:
 
@@ -70,13 +70,13 @@ array(
 
 The `capabilities` array determines where the assistant participates: landing page recommendations, project research, AI-owned workflow stages, or a combination. The Agents tab renders these as compact labels, including **Available in AI stage** for `stage`.
 
-Plugins declare their unified metadata via a new action `vip_workflow_register_assistant_meta`. For simple plugins that only register one capability (like Wikipedia), the registry auto-generates metadata from the ability or provider registration. No changes needed in existing extension plugins.
+Plugins declare their unified metadata via a new action `vip_workflows_register_assistant_meta`. For simple plugins that only register one capability (like Wikipedia), the registry auto-generates metadata from the ability or provider registration. No changes needed in existing extension plugins.
 
 ### New REST endpoints
 
-**`GET /vip-workflow/v1/assistants`** returns the unified assistant list with capabilities, availability, enabled status, merged options, and merged settings schema.
+**`GET /vip-workflows/v1/assistants`** returns the unified assistant list with capabilities, availability, enabled status, merged options, and merged settings schema.
 
-**`POST /vip-workflow/v1/assistants/{slug}/settings`** saves settings for a single assistant. Body: `{ enabled?: bool, options?: object }`. The registry writes through to the existing storage (`vip_workflow_ability_settings[id]` for each covered ability, `vip_discovery_provider_settings[slug].enabled` and `vip_discovery_provider_{slug}` config for each covered provider) so legacy consumers (ability executor, discovery controller) keep working unchanged.
+**`POST /vip-workflows/v1/assistants/{slug}/settings`** saves settings for a single assistant. Body: `{ enabled?: bool, options?: object }`. The registry writes through to the existing storage (`vip_workflows_ability_settings[id]` for each covered ability, `vip_discovery_provider_settings[slug].enabled` and `vip_discovery_provider_{slug}` config for each covered provider) so legacy consumers (ability executor, discovery controller) keep working unchanged.
 
 The existing `GET /v1/discovery/providers` endpoint remains available for internal use. `GET/POST /v1/discovery/settings` was kept alongside it at ship time, but the Integrations page uses only the new unified endpoints, nothing else ever called it, and it has since been deleted as an orphaned surface. The old `GET/POST /v1/settings/abilities` endpoint was also retired in favor of the per-surface `GET /v1/tools` and `POST /v1/tools/{id}/settings` endpoints.
 
@@ -108,15 +108,15 @@ Remove the `discovery` tab entry. Update the header description. Four tabs remai
 
 `AssistantCard` checks three JS filters in priority order:
 
-1. **`vipWorkflow.assistantSettings`** (new unified hook) — receives the unified assistant entry (`slug`, `capabilities`, `ability_ids`, `provider_slugs`, `options`, …) plus a `{ disabled, onHasChangesChange, onSaveRef }` callbacks object.
-2. **`vipWorkflow.assistantSettingsComponent`** (legacy assistants hook) — applied when the unified hook returns nothing AND the card covers at least one ability. Receives a shim with `id` set to the first covered ability id so existing filters keep working, plus the same callbacks object.
-3. **`vip_workflow_discovery_provider_settings`** (legacy discovery hook) — applied when neither of the above return anything AND the card covers at least one provider. Receives the first covered provider slug, and returns a component *type* that the card renders with `providerSlug` and `disabled` props.
+1. **`vipWorkflows.assistantSettings`** (new unified hook) — receives the unified assistant entry (`slug`, `capabilities`, `ability_ids`, `provider_slugs`, `options`, …) plus a `{ disabled, onHasChangesChange, onSaveRef }` callbacks object.
+2. **`vipWorkflows.assistantSettingsComponent`** (legacy assistants hook) — applied when the unified hook returns nothing AND the card covers at least one ability. Receives a shim with `id` set to the first covered ability id so existing filters keep working, plus the same callbacks object.
+3. **`vip_workflows_discovery_provider_settings`** (legacy discovery hook) — applied when neither of the above return anything AND the card covers at least one provider. Receives the first covered provider slug, and returns a component *type* that the card renders with `providerSlug` and `disabled` props.
 
 The card always supplies the callbacks object, on every path — a filter callback may destructure it without guarding, and the two `disabled` shapes above are the whole contract for that member.
 
 `disabled` is `true` while the agent is switched off. A plugin-supplied settings component **must** honor it: pass it to every control it renders, and never report `true` through `onHasChangesChange` while it is set. The card can only disable the controls it renders itself, and a plugin component replaces those — so without this the card's own fix just moves the bug one layer out, and a switched-off agent stays configurable and savable.
 
-Plugins using the old hooks continue to work. New plugins use `vipWorkflow.assistantSettings`.
+Plugins using the old hooks continue to work. New plugins use `vipWorkflows.assistantSettings`.
 
 ## How Existing Plugins Map
 

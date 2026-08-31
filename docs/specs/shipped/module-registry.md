@@ -27,7 +27,7 @@ A lightweight `ModuleInterface` and a registration loop. Not a framework. Not a 
 ### ModuleInterface
 
 ```php
-namespace VIPWorkflow;
+namespace VIPWorkflows;
 
 interface ModuleInterface {
     public function get_id(): string;
@@ -42,7 +42,7 @@ That's it. Two methods. `get_id()` returns a unique string identifier. `init()` 
 For subsystems that register REST endpoints:
 
 ```php
-namespace VIPWorkflow\API;
+namespace VIPWorkflows\API;
 
 interface RestModuleInterface {
     public function register_routes(): void;
@@ -81,7 +81,7 @@ private function init_components(): void {
     // ... future modules
 
     // Allow external plugins to register modules.
-    do_action( 'vip_workflow_register_modules', $this );
+    do_action( 'vip_workflows_register_modules', $this );
 
     // Initialize all modules.
     foreach ( $this->modules as $module ) {
@@ -126,7 +126,7 @@ public function register_routes(): void {
     );
 
     // Allow external plugins to add controllers.
-    $controllers = apply_filters( 'vip_workflow_rest_controllers', $controllers );
+    $controllers = apply_filters( 'vip_workflows_rest_controllers', $controllers );
 
     foreach ( $controllers as $controller ) {
         $controller->register_routes();
@@ -139,7 +139,7 @@ public function register_routes(): void {
 Same pattern for `Admin::init()`:
 
 ```php
-namespace VIPWorkflow\Admin;
+namespace VIPWorkflows\Admin;
 
 interface AdminModuleInterface {
     public function init(): void;
@@ -160,7 +160,7 @@ Example diff for `IdeationPostTypes`:
 
 ```php
 - class IdeationPostTypes {
-+ class IdeationPostTypes implements \VIPWorkflow\ModuleInterface {
++ class IdeationPostTypes implements \VIPWorkflows\ModuleInterface {
 +
 +     public function get_id(): string {
 +         return 'ideation-post-types';
@@ -199,5 +199,5 @@ These are initialized first, in order, before the module loop runs. They keep th
 4. Refactor `Plugin::init_components()` to use `register_module()` + loop
 5. Refactor `RestController::register_routes()` to use array + loop
 6. Refactor `Admin::init()` to use array + loop
-7. Add `vip_workflow_register_modules` action and `vip_workflow_rest_controllers` filter
+7. Add `vip_workflows_register_modules` action and `vip_workflows_rest_controllers` filter
 8. Verify all existing functionality works unchanged

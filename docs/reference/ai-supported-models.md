@@ -1,6 +1,6 @@
 # Supported AI Providers and Models
 
-**Scope:** the provider and model an administrator selects under VIP Workflow → Settings for general AI generation — media analysis, ideation, research, stage agents, and the AI extension tools. Not the search/media services (Tavily, YouTube), which are not AI Client providers.
+**Scope:** the provider and model an administrator selects under VIP Workflows → Settings for general AI generation — media analysis, ideation, research, stage agents, and the AI extension tools. Not the search/media services (Tavily, YouTube), which are not AI Client providers.
 
 **Audience:** whoever is answering "is this model supported?" or "why did this generation fail on our model?".
 

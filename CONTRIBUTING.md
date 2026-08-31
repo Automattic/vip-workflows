@@ -20,4 +20,4 @@ Please see our guide to setting up a [local development environment](docs/local-
 
 ## Versioning
 
-VIP Workflow uses [semantic versioning](https://semver.org/).
+VIP Workflows uses [semantic versioning](https://semver.org/).

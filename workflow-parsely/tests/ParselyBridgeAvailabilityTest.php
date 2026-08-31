@@ -9,7 +9,7 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Tests;
 
-use VIPWorkflow\Abilities\Availability;
+use VIPWorkflows\Abilities\Availability;
 use Yoast\WPTestUtils\WPIntegration\TestCase;
 
 class ParselyBridgeAvailabilityTest extends TestCase {

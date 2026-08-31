@@ -38,7 +38,7 @@ jobs:
       - name: Install dependencies
         run: |
           npm ci
-          composer --working-dir=vip-workflow install --no-interaction --prefer-dist --no-progress
+          composer --working-dir=vip-workflows install --no-interaction --prefer-dist --no-progress
           composer --working-dir=workflow-parsely install --no-interaction --prefer-dist --no-progress
 
       - name: Start WordPress test environment

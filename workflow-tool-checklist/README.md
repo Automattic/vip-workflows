@@ -12,13 +12,13 @@ Customizable checklist for workflow transitions. Define items that must be check
 
 ## Installation
 
-1. Requires **VIP Workflow** plugin
+1. Requires **VIP Workflows** plugin
 2. Activate this plugin
-3. Configure checklist items in **VIP Workflow → Integrations → Tools**
+3. Configure checklist items in **VIP Workflows → Integrations → Tools**
 
 ## Configuration
 
-Navigate to **VIP Workflow → Integrations → Tools** to configure checklist items:
+Navigate to **VIP Workflows → Integrations → Tools** to configure checklist items:
 
 **Checklist Items:**
 
@@ -133,8 +133,8 @@ The ability returns:
 ## Requirements
 
 - WordPress VIP
-- VIP Workflow plugin
+- VIP Workflows plugin
 
 ## Development
 
-Demonstrates the Tool/Ability extension pattern. Tools register with the WordPress Abilities API and appear in the VIP Workflow Tools tab.
+Demonstrates the Tool/Ability extension pattern. Tools register with the WordPress Abilities API and appear in the VIP Workflows Tools tab.

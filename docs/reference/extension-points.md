@@ -1,6 +1,6 @@
 # Extension Points Reference
 
-How external plugins extend VIP Workflow: media providers, notification channels, background jobs, custom tools, event listeners, and REST API routes. Includes working examples from this repository.
+How external plugins extend VIP Workflows: media providers, notification channels, background jobs, custom tools, event listeners, and REST API routes. Includes working examples from this repository.
 
 For deeper PHP examples see [code-patterns.md](code-patterns.md); for the underlying subsystems see [architecture.md](architecture.md).
 
@@ -36,10 +36,10 @@ The following plugins in this repository demonstrate extensibility:
 
 ```php
 // workflow-provider-unsplash/workflow-provider-unsplash.php
-use VIPWorkflow\Abilities\Destination;
-use VIPWorkflow\Abilities\Requirement;
-use VIPWorkflow\Ideation\Assistants\MediaProviderInterface;
-use VIPWorkflow\Ideation\Assistants\MediaProviderRequirements;
+use VIPWorkflows\Abilities\Destination;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Ideation\Assistants\MediaProviderInterface;
+use VIPWorkflows\Ideation\Assistants\MediaProviderRequirements;
 
 // MediaProviderRequirements is optional: implementing it lets Media Scout say
 // *why* this provider is unconfigured instead of only that it is. Callers probe
@@ -63,7 +63,7 @@ class UnsplashMediaProvider implements MediaProviderInterface, MediaProviderRequ
     // Only called when is_configured() returns false.
     //
     // RequirementFactory::missing_credential() is the shorter path, but it only
-    // covers services the plugin knows about through VIPWorkflow\AI\Credentials.
+    // covers services the plugin knows about through VIPWorkflows\AI\Credentials.
     // A third-party key read from a constant has no entry there, so construct the
     // requirement directly with a `none` destination that names the constant —
     // never an admin URL, since no screen writes this key.
@@ -112,7 +112,7 @@ class UnsplashMediaProvider implements MediaProviderInterface, MediaProviderRequ
 }
 
 // Register the provider.
-add_filter( 'vip_workflow_media_providers', function( $providers ) {
+add_filter( 'vip_workflows_media_providers', function( $providers ) {
     $providers[] = new UnsplashMediaProvider();
     return $providers;
 } );
@@ -123,17 +123,17 @@ add_filter( 'vip_workflow_media_providers', function( $providers ) {
 
 > The plugin has no API-key entry UI. Keys for the built-in services live on
 > WordPress core's **Settings → Connectors** screen and are read through
-> `VIPWorkflow\AI\Credentials`; the old `vip_workflow_api_key_fields` filter and
+> `VIPWorkflows\AI\Credentials`; the old `vip_workflows_api_key_fields` filter and
 > `ApiKeysController` were removed. A third-party provider either
 > reads its key from a `wp-config.php` constant (as above) or registers its own
 > core connector. See
-> [`vip-workflow/docs/PLUGIN-INTEGRATION.md` § API Keys](../../vip-workflow/docs/PLUGIN-INTEGRATION.md#api-keys).
+> [`vip-workflows/docs/PLUGIN-INTEGRATION.md` § API Keys](../../vip-workflows/docs/PLUGIN-INTEGRATION.md#api-keys).
 
 ### 2. Custom Notification Channels
 
 ```php
 // workflow-channel-my-service/workflow-channel-my-service.php
-use VIPWorkflow\Notifications\NotificationChannel;
+use VIPWorkflows\Notifications\NotificationChannel;
 
 class MyServiceChannel extends NotificationChannel {
     public function get_id(): string {
@@ -152,7 +152,7 @@ class MyServiceChannel extends NotificationChannel {
     }
 }
 
-add_filter('vip_workflow_notification_channels', function($channels) {
+add_filter('vip_workflows_notification_channels', function($channels) {
     $channels[] = new MyServiceChannel();
     return $channels;
 });
@@ -165,11 +165,11 @@ Research agents run during story ideation and produce cards for the mood board.
 ```php
 // workflow-agent-my-source/workflow-agent-my-source.php
 add_action( 'wp_abilities_api_init', function() {
-    if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+    if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
         return;
     }
 
-    vip_workflow_register_ability(
+    vip_workflows_register_ability(
         'workflow-agent-my-source/my-source',
         array(
             'label'               => __( 'My Source', 'my-plugin' ),
@@ -229,7 +229,7 @@ function my_source_execute( array $input ): array {
 ```
 
 Key points:
-- Register via `vip_workflow_register_ability` (not `wp_register_ability`) to get VIP Workflow metadata
+- Register via `vip_workflows_register_ability` (not `wp_register_ability`) to get VIP Workflows metadata
 - `category` must be `'research'` and `meta.type` must be `'research'` for the orchestrator to discover it
 - `meta.display_order` controls position in the agent panel (lower = earlier)
 - Cards are stored in `wp_vip_ideation_sources` with `ability_id` linking back to the agent
@@ -243,12 +243,12 @@ Working example: `workflow-assistant-wikipedia/`
 Stage-capable agents run when a post enters an AI-owned workflow stage. Register a stage-eligible Ability for execution and an agent manifest so the Agents tab can mark it as available in AI stages.
 
 ```php
-add_action( 'vip_workflow_register_abilities', function() {
-    vip_workflow_register_ability(
+add_action( 'vip_workflows_register_abilities', function() {
+    vip_workflows_register_ability(
         'my-plugin/fact-check',
         array(
             'label'               => __( 'Fact Check', 'my-plugin' ),
-            'category'            => 'vip-workflow',
+            'category'            => 'vip-workflows',
             'input_schema'        => array(
                 'type'                 => 'object',
                 'additionalProperties' => false,
@@ -273,7 +273,7 @@ add_action( 'vip_workflow_register_abilities', function() {
     );
 } );
 
-add_action( 'vip_workflow_register_assistant_meta', function( $registry ) {
+add_action( 'vip_workflows_register_assistant_meta', function( $registry ) {
     $registry->register(
         'my-plugin',
         array(
@@ -286,7 +286,7 @@ add_action( 'vip_workflow_register_assistant_meta', function( $registry ) {
 ```
 
 Key points:
-- `meta.supports` must include `stage` and `meta.stage_eligible` must be true for `/vip-workflow/v1/abilities?context=stage`
+- `meta.supports` must include `stage` and `meta.stage_eligible` must be true for `/vip-workflows/v1/abilities?context=stage`
 - The stage agent returns `{ status, summary }` with `status` set to `pass` or `fail` (a binary editorial judgment); `WP_Error` or an invalid contract result is an execution error — it follows the stage's `error` route when the sequence configures one (the error path is opt-in), and otherwise fails in place with a "go back to the previous stage" action in the editor
 - The stage owns routing; the agent owns only the outcome
 - The manifest `capabilities` value drives the Agents card's "Available in AI stage" indicator only when backed by a registered stage-eligible ability
@@ -301,9 +301,9 @@ See [Registering a Custom Tool in code-patterns.md](code-patterns.md#4-registeri
 // Listen for workflow events. The 5th arg is $context =
 // ['cause' => 'workflow'|'core', 'committed_status' => ...];
 // four-argument listeners keep working (the extra arg is additive).
-add_action('vip_workflow_status_transition', 'my_transition_handler', 10, 5);
-add_action('vip_workflow_entered_{stage}', 'my_stage_handler', 10, 4);
-add_action('vip_workflow_ability_executed', 'my_tool_handler', 10, 3);
+add_action('vip_workflows_status_transition', 'my_transition_handler', 10, 5);
+add_action('vip_workflows_entered_{stage}', 'my_stage_handler', 10, 4);
+add_action('vip_workflows_ability_executed', 'my_tool_handler', 10, 3);
 ```
 
 ### 7. REST API Extensions
@@ -329,24 +329,24 @@ sources).
 
 | Filter | Signature | Notes |
 |--------|-----------|-------|
-| `vip_workflow_ai_image_prompt` | `(string $prompt)` | Image/vision analysis. Renamed from `vip_workflow_media_image_prompt` on the MediaProcessor path. ⚠️ Also dropped the `$attachment_id` second arg that existed on the asset-upload path pre-merge. |
-| `vip_workflow_ai_summary_prompt` | `(string $prompt, string $content_type)` | Transcript/text summarization. `$content_type` is additive and backward-compatible. |
-| `vip_workflow_media_pdf_prompt` | `(string $prompt)` | PDF analysis. New filter; no legacy name. |
+| `vip_workflows_ai_image_prompt` | `(string $prompt)` | Image/vision analysis. Renamed from `vip_workflows_media_image_prompt` on the MediaProcessor path. ⚠️ Also dropped the `$attachment_id` second arg that existed on the asset-upload path pre-merge. |
+| `vip_workflows_ai_summary_prompt` | `(string $prompt, string $content_type)` | Transcript/text summarization. `$content_type` is additive and backward-compatible. |
+| `vip_workflows_media_pdf_prompt` | `(string $prompt)` | PDF analysis. New filter; no legacy name. |
 
-**Migrating `vip_workflow_media_image_prompt` callbacks:** rename to
-`vip_workflow_ai_image_prompt`. Default prompt is unchanged; only the filter
+**Migrating `vip_workflows_media_image_prompt` callbacks:** rename to
+`vip_workflows_ai_image_prompt`. Default prompt is unchanged; only the filter
 name moved.
 
-**Migrating `vip_workflow_ai_image_prompt` callbacks that read `$attachment_id`:**
+**Migrating `vip_workflows_ai_image_prompt` callbacks that read `$attachment_id`:**
 the second argument is no longer passed. If you need attachment context, hook
-`vip_workflow_asset_file_uploaded` separately to capture the attachment id.
+`vip_workflows_asset_file_uploaded` separately to capture the attachment id.
 
 ```php
-add_filter( 'vip_workflow_ai_image_prompt', function( string $prompt ): string {
+add_filter( 'vip_workflows_ai_image_prompt', function( string $prompt ): string {
     return $prompt . "\n\nAlways respond in Spanish.";
 } );
 
-add_filter( 'vip_workflow_ai_summary_prompt', function( string $prompt, string $content_type ): string {
+add_filter( 'vip_workflows_ai_summary_prompt', function( string $prompt, string $content_type ): string {
     if ( 'transcript' === $content_type ) {
         return $prompt . "\n\nHighlight any speaker attributions.";
     }
@@ -364,14 +364,14 @@ unchanged.
 
 | Filter | Signature | Fires in / affects |
 |--------|-----------|--------------------|
-| `vip_workflow_guideline_context` | `(string $context, int $category_id)` | `GuidelineContextProvider::gather_context()` — the canonical guideline text. Applies to ideation draft generation (`DraftBuilder`) **and** the ideation brand context (`IdeationOrchestrator`). The empty state is the literal string `No guideline context available.`. |
-| `vip_workflow_editorial_alignment_rules` | `(array $rules, int $post_id)` | `GuidelineContextProvider::get_editorial_alignment_rules()` — the `{ name, rule }` list the Editorial Alignment Checker validates against. |
+| `vip_workflows_guideline_context` | `(string $context, int $category_id)` | `GuidelineContextProvider::gather_context()` — the canonical guideline text. Applies to ideation draft generation (`DraftBuilder`) **and** the ideation brand context (`IdeationOrchestrator`). The empty state is the literal string `No guideline context available.`. |
+| `vip_workflows_editorial_alignment_rules` | `(array $rules, int $post_id)` | `GuidelineContextProvider::get_editorial_alignment_rules()` — the `{ name, rule }` list the Editorial Alignment Checker validates against. |
 
-The discovery scouts (`archive-scout`, `web-researcher`, `media-scout`) intentionally have no guideline hook: they are retrieval tools driven by the search queries the Seed Analyst produces, so guidelines already shape discovery upstream via `vip_workflow_guideline_context`.
+The discovery scouts (`archive-scout`, `web-researcher`, `media-scout`) intentionally have no guideline hook: they are retrieval tools driven by the search queries the Seed Analyst produces, so guidelines already shape discovery upstream via `vip_workflows_guideline_context`.
 
 ```php
 // Append a house rule to every guideline-aware AI prompt.
-add_filter( 'vip_workflow_guideline_context', function ( string $context ): string {
+add_filter( 'vip_workflows_guideline_context', function ( string $context ): string {
     if ( 'No guideline context available.' === $context ) {
         return $context;
     }
@@ -379,7 +379,7 @@ add_filter( 'vip_workflow_guideline_context', function ( string $context ): stri
 } );
 
 // Add a bespoke rule to the Editorial Alignment Checker.
-add_filter( 'vip_workflow_editorial_alignment_rules', function ( array $rules ): array {
+add_filter( 'vip_workflows_editorial_alignment_rules', function ( array $rules ): array {
     $rules[] = array( 'name' => 'Locale', 'rule' => 'Use UK English spelling.' );
     return $rules;
 } );
@@ -389,15 +389,15 @@ add_filter( 'vip_workflow_editorial_alignment_rules', function ( array $rules ):
 
 ### 10. Discovery Prompt Enrichment
 
-`vip_workflow_discovery_prompts` runs over the grouped story prompts on their way out
-of `GET /vip-workflow/v1/discovery/recommend`, immediately before the response.
+`vip_workflows_discovery_prompts` runs over the grouped story prompts on their way out
+of `GET /vip-workflows/v1/discovery/recommend`, immediately before the response.
 
 It exists because a discovery provider only ever sees its own results, and the plugin
 holding an extra signal is usually not the plugin that fetched the prompt. Attaching
 performance history to a wire item, or a legal flag to a diary date, has no other seam.
 
 ```php
-add_filter( 'vip_workflow_discovery_prompts', function ( array $grouped ): array {
+add_filter( 'vip_workflows_discovery_prompts', function ( array $grouped ): array {
     foreach ( $grouped as $group_index => $group ) {
         foreach ( $group['prompts'] as $prompt_index => $prompt ) {
             // Cached read only — see the note on cost below.

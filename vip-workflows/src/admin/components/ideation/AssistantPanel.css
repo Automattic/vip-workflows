@@ -1,0 +1,327 @@
+/**
+ * Ideation assistant panel (incl. mentor) styles.
+ */
+
+.vip-workflows-ideation-panel {
+	padding: var(--wpds-dimension-padding-lg);
+}
+
+/* Mentor */
+
+/* Flex-column surface panel kept as a <div>: it carries the shared
+   `vip-workflows-panel-surface` utility, which is bound only to <div>s elsewhere;
+   turning this into a <Stack> would rebind that utility to a component. The
+   panel Stack's gap owns the spacing below, so no margin here. */
+.vip-workflows-ideation-panel__mentor {
+	display: flex; /* wpds-allow R4 -- flex-column surface panel kept as <div>; see block note */
+	flex-direction: column; /* wpds-allow R4 -- flex-column surface panel kept as <div>; see block note */
+	gap: var(--wpds-dimension-gap-sm); /* wpds-allow R4 -- flex-column surface panel kept as <div>; see block note */
+	padding: var(--wpds-dimension-padding-lg);
+}
+
+.vip-workflows-ideation-panel__mentor-icon {
+	font-size: var(--wpds-typography-font-size-lg);
+}
+
+.vip-workflows-ideation-panel__mentor-label {
+	font: var(--vip-workflows-text-heading-md);
+	color: var(--wpds-color-foreground-content-neutral);
+}
+
+.vip-workflows-ideation-panel__readiness {
+	font: var(--vip-workflows-text-body-sm);
+	margin-left: auto; /* wpds-allow R3 -- margin-auto pushes the readiness pill to the row end; no Stack prop */
+	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
+	border-radius: var( --wpds-border-radius-lg );
+}
+
+.vip-workflows-ideation-panel__readiness.is-needs-context {
+	background: var(--wpds-color-background-surface-error-weak);
+	color: var(--wpds-color-foreground-content-error);
+}
+
+.vip-workflows-ideation-panel__readiness.is-developing {
+	background: var(--wpds-color-background-surface-warning-weak);
+	color: var(--wpds-color-foreground-content-warning);
+}
+
+.vip-workflows-ideation-panel__readiness.is-looking-solid {
+	background: var(--wpds-color-background-surface-success-weak);
+	color: var(--wpds-color-foreground-content-success);
+}
+
+.vip-workflows-ideation-panel__readiness.is-ready {
+	background: var(--wpds-color-background-surface-info-weak);
+	color: var(--wpds-color-foreground-content-info-weak);
+}
+
+/* The mentor guidance is a <Text variant="body-md">; its variant owns the
+   leading, so nothing is styled here. */
+
+.vip-workflows-ideation-panel__mentor-placeholder {
+	font-style: italic;
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted placeholder color on the <Text> */
+	margin: 0; /* wpds-allow R3 -- reset the <p> UA margin so the mentor flex-gap owns spacing */
+}
+
+.vip-workflows-ideation-panel__mentor-loading {
+	font: var(--vip-workflows-text-body-sm); /* wpds-allow R6 -- sizes the inline "Evaluating…" label on the layout Stack */
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted color for the loading label on the Stack */
+}
+
+.vip-workflows-ideation-panel__mentor-refresh {
+	font: var(--vip-workflows-text-body-sm) !important; /* wpds-allow R6 -- compact refresh control; forces body-sm over the default Button type */
+}
+
+/* Panel Sections */
+
+.vip-workflows-ideation-panel__section {
+	padding-bottom: var(--wpds-dimension-padding-lg);
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
+.vip-workflows-ideation-panel__section-title {
+	margin: 0 0 6px; /* wpds-allow R3 -- space below the title inside the non-Stack .__section divider block */
+}
+
+/* Inside the flex-column __thread the parent `gap` owns the spacing below the
+   title; drop the 6px here so it doesn't stack (the margin stays load-bearing
+   in the non-flex .__section divider blocks). */
+
+.vip-workflows-ideation-panel__thread .vip-workflows-ideation-panel__section-title {
+	margin-bottom: 0; /* wpds-allow R3 -- defer to the thread Stack's gap; cancels the divider-block margin above */
+}
+
+/* The section body is a <Text variant="body-md">; its variant owns the leading,
+   so nothing is styled here. */
+
+.vip-workflows-ideation-panel__entity-group {
+	font: var(--vip-workflows-text-body-sm);
+}
+
+.vip-workflows-ideation-panel__entity-label {
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	text-transform: capitalize;
+}
+
+.vip-workflows-ideation-panel__entity-items {
+	color: var(--wpds-color-foreground-content-neutral);
+	margin-left: 4px; /* wpds-allow R3 -- small inline offset from the category label; inline flow, no Stack gap */
+}
+
+/* Assistant Results in Panel */
+
+/* Flex-column surface card kept as a <div> — it owns its bg/border/radius
+   chrome; the enclosing card-list Stack's gap owns the spacing between cards. */
+.vip-workflows-ideation-panel__assistant {
+	display: flex; /* wpds-allow R4 -- flex-column surface card kept as <div>; see block note */
+	flex-direction: column; /* wpds-allow R4 -- flex-column surface card kept as <div>; see block note */
+	gap: var(--wpds-dimension-gap-xs); /* wpds-allow R4 -- flex-column surface card kept as <div>; see block note */
+	background: var(--wpds-color-background-surface-neutral-strong);
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	border-radius: var( --wpds-border-radius-lg );
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-md);
+}
+
+.vip-workflows-ideation-panel__assistant-name {
+	font: var(--vip-workflows-text-body-sm);
+	color: var(--wpds-color-foreground-content-neutral);
+}
+
+.vip-workflows-ideation-panel__assistant-status {
+	font: var(--vip-workflows-text-body-sm);
+	padding: var(--wpds-dimension-padding-xs) var(--wpds-dimension-padding-sm);
+	border-radius: var( --wpds-border-radius-md );
+	background: var(--wpds-color-background-surface-neutral-weak);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflows-ideation-panel__assistant-status.is-completed {
+	background: var(--wpds-color-background-surface-success-weak);
+	color: var(--wpds-color-foreground-content-success);
+}
+
+.vip-workflows-ideation-panel__assistant-status.is-failed {
+	background: var(--wpds-color-background-surface-error-weak);
+	color: var(--wpds-color-foreground-content-error);
+}
+
+.vip-workflows-ideation-panel__assistant-summary {
+	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- explicit body text color on the summary <Text> */
+}
+
+/* Keeps the retry button at its intrinsic width rather than stretching it to
+   the column's full width. Layout on a class already bound to a <Stack>, so no
+   suppression is needed. */
+.vip-workflows-ideation-panel__assistant-retry {
+	align-items: flex-start;
+}
+
+.vip-workflows-ideation-panel__assistant-error {
+	color: var(--wpds-color-foreground-content-error-weak); /* wpds-allow R6 -- semantic error text color on the error <Text> */
+}
+
+/* TODO: REMOVE THIS STYLE. Testing only to show cache hits. */
+
+.vip-workflows-ideation-panel__assistant-icon {
+	font-size: var(--wpds-typography-font-size-md);
+	margin-right: 4px; /* wpds-allow R3 -- keeps the icon adjacent to the name under the header's space-between */
+}
+
+.vip-workflows-ideation-panel__assistant-status.is-pending {
+	background: var(--wpds-color-background-surface-neutral-weak);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflows-ideation-panel__assistant-status.is-running {
+	background: var(--wpds-color-background-surface-warning-weak); /* wpds-allow R6 -- styles the status pill <span>; flagged only because the shared is-running token also rides the thread-entry Stack */
+	color: var(--wpds-color-foreground-content-warning); /* wpds-allow R6 -- see above; not a component override */
+}
+
+/* Working state: animated dots and message */
+
+.vip-workflows-ideation-panel__assistant.is-working {
+	border-color: var(--wpds-color-stroke-interactive-brand);
+	background: linear-gradient(135deg, var(--wpds-color-background-surface-info-weak) 0%, var(--wpds-color-background-surface-neutral-strong) 100%);
+}
+
+
+.vip-workflows-ideation-panel__working-text {
+	font: var(--vip-workflows-text-body-sm);
+	font-style: italic;
+	color: var(--wpds-color-foreground-interactive-brand);
+}
+
+.vip-workflows-ideation-panel__working-dots span {
+	width: 6px;
+	height: 6px;
+	border-radius: var( --vip-workflows-border-radius-full ); /* wpds-allow R6 -- decorative dot chrome on the loader Stack's child spans; no component prop */
+	background: var(--wpds-color-background-interactive-brand-strong); /* wpds-allow R6 -- decorative dot chrome on the loader Stack's child spans; no component prop */
+	display: block;
+	animation: vip-workflows-ideation-dot-bounce 1.2s ease-in-out infinite;
+}
+
+.vip-workflows-ideation-panel__working-dots span:nth-child(2) {
+	animation-delay: 0.15s;
+}
+
+.vip-workflows-ideation-panel__working-dots span:nth-child(3) {
+	animation-delay: 0.3s;
+}
+
+/* Mentor Controls */
+
+.vip-workflows-ideation-panel__mentor-auto-toggle {
+	margin: 0 0 0 auto; /* wpds-allow R3 -- margin-auto right-aligns the toggle group in the controls row; no Stack prop */
+}
+
+
+.vip-workflows-ideation-panel__mentor-auto-label {
+	font: var(--vip-workflows-text-body-sm);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+	min-width: 40px;
+}
+
+/* Mentor Error State */
+
+.vip-workflows-ideation-panel__mentor-error {
+	color: var(--wpds-color-foreground-content-error-weak); /* wpds-allow R6 -- semantic error text color on the <Text> */
+	margin: 0; /* wpds-allow R3 -- reset the <p> UA margin; the mentor flex-gap owns spacing */
+	padding: var(--wpds-dimension-padding-sm);
+	background: var(--wpds-color-background-surface-error-weak); /* wpds-allow R6 -- error-notice surface on the <Text> */
+	border-radius: var(--wpds-border-radius-md); /* wpds-allow R6 -- error-notice corner radius on the <Text> */
+}
+
+/* Co-scoped with .components-button so these win over the base Button styles
+   on specificity + source order — no !important needed. This is a custom
+   list-action button (plain Button), not a WPDS secondary, so it owns its own
+   chrome here. */
+/* wpds-allow R6 -- co-scoped with .components-button for the custom suggestion-chip chrome below */
+.vip-workflows-ideation-panel__suggestion-btn.components-button {
+	font: var(--vip-workflows-text-body-sm); /* wpds-allow R6 -- compact chip type over the default Button */
+	justify-content: flex-start;
+	gap: 6px;
+	height: auto;
+	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
+	border: 1px solid var(--wpds-color-stroke-surface-neutral); /* wpds-allow R6 -- chip border chrome */
+	background: var(--wpds-color-background-surface-neutral); /* wpds-allow R6 -- chip surface chrome */
+	text-align: left;
+	white-space: normal;
+}
+
+.vip-workflows-ideation-panel__suggestion-btn.components-button:hover {
+	background: var(--wpds-color-background-surface-neutral-weak); /* wpds-allow R6 -- chip hover surface */
+	border-color: var(--wpds-color-stroke-interactive-brand); /* wpds-allow R6 -- chip hover border */
+}
+
+.vip-workflows-ideation-panel__suggestion-icon {
+	flex-shrink: 0;
+	font-size: var(--wpds-typography-font-size-md);
+}
+
+/* Query thread */
+
+.vip-workflows-ideation-panel__thread {
+	padding-top: var(--wpds-dimension-padding-md);
+	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak); /* wpds-allow R6 -- divider rule above the follow-up thread on the layout Stack */
+}
+
+.vip-workflows-ideation-panel__thread-entry {
+	font: var(--vip-workflows-text-body-sm); /* wpds-allow R6 -- base body-sm type for the inline query/result children on the Stack */
+}
+
+.vip-workflows-ideation-panel__thread-query {
+	display: block;
+	color: var(--wpds-color-foreground-content-neutral);
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.vip-workflows-ideation-panel__thread-query::before {
+	content: "\201C";
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflows-ideation-panel__thread-query::after {
+	content: "\201D";
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflows-ideation-panel__thread-result {
+	font: var(--vip-workflows-text-body-sm); /* wpds-allow R6 -- sizes the inline result text on the Stack */
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted result color on the Stack */
+}
+
+.vip-workflows-ideation-panel__thread-result::before {
+	content: "\2192";
+	margin-right: 2px; /* wpds-allow R3 -- 2px gap after the arrow glyph in the ::before; no Stack equivalent */
+}
+
+.vip-workflows-ideation-panel__thread-entry.is-running .vip-workflows-ideation-panel__thread-result {
+	color: var(--wpds-color-foreground-interactive-brand); /* wpds-allow R6 -- active-query accent color on the result Stack */
+}
+
+.vip-workflows-ideation-panel__thread-entry.is-running .vip-workflows-ideation-panel__thread-result .components-spinner {
+	width: 14px;
+	height: 14px;
+}
+
+/* Query input */
+
+.vip-workflows-ideation-panel__query-input {
+	padding-top: var(--wpds-dimension-padding-md);
+	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak); /* wpds-allow R6 -- divider rule above the query input on the layout Stack */
+}
+
+.vip-workflows-ideation-panel__query-row .components-base-control {
+	flex: 1;
+}
+
+.vip-workflows-ideation-panel__query-assistant {
+	max-width: 140px;
+}
+
+
+.vip-workflows-ideation-panel__query-submit {
+	width: 100%;
+}

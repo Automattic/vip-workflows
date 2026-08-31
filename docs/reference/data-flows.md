@@ -11,7 +11,7 @@ Cross-references: see [architecture.md](architecture.md) for component context, 
 ```
 User clicks "Submit for Review" button in Editor Sidebar
     ↓
-JavaScript: POST /vip-workflow/v1/workflow/post/{id}/transition
+JavaScript: POST /vip-workflows/v1/workflow/post/{id}/transition
     ↓
 WorkflowController::transition()
     ↓
@@ -56,13 +56,13 @@ StatusManager::transition($post_id, 'review', $options)
     wp_update_post(['post_status' => <target region status>]) — written through
     core BEFORE the stage write; committed status read back and accepted
     (same-region moves never touch post_status; trashed posts are rejected up front)
-8. Update meta: _vip_workflow_current_stage_key
+8. Update meta: _vip_workflows_current_stage_key
 9. Mark assignment requirement completed (if applicable)
 10. Process transition input data (if provided)
-11. Store transition data in _vip_workflow_transition_data
-12. Log to wp_vip_workflow_events with notes
-13. Fire action: do_action('vip_workflow_status_transition', ...)
-14. Fire action: do_action('vip_workflow_entered_review', ...)
+11. Store transition data in _vip_workflows_transition_data
+12. Log to wp_vip_workflows_events with notes
+13. Fire action: do_action('vip_workflows_status_transition', ...)
+14. Fire action: do_action('vip_workflows_entered_review', ...)
     ↓
 EventBus stores the event (audit log, post history, recent activity)
     ↓
@@ -101,11 +101,11 @@ map onto core statuses via each stage's `status` region
 ```
 User clicks "Run SEO Check" in Tools Panel
     ↓
-JavaScript: POST /vip-workflow/v1/abilities/vip-workflow/seo-check/execute
+JavaScript: POST /vip-workflows/v1/abilities/vip-workflows/seo-check/execute
     ↓
 AbilitiesController::execute_ability()
     ↓
-AbilityExecutor::execute('vip-workflow/seo-check', $post_id, $options)
+AbilityExecutor::execute('vip-workflows/seo-check', $post_id, $options)
     ↓
 1. Validate ability exists
 2. Get post content
@@ -122,7 +122,7 @@ AbilityExecutor::execute('vip-workflow/seo-check', $post_id, $options)
         Return result array
 4. Create AbilityResult object
 5. Store in wp_vip_ability_results
-6. Fire action: do_action('vip_workflow_ability_executed', ...)
+6. Fire action: do_action('vip_workflows_ability_executed', ...)
     ↓
 Return result to client
     ↓
@@ -134,14 +134,14 @@ Tools Panel displays results with pass/warning/fail status
 ```
 User uploads image to a story
     ↓
-JavaScript: POST /vip-workflow/v1/assets/upload (multipart/form-data)
+JavaScript: POST /vip-workflows/v1/assets/upload (multipart/form-data)
     ↓
 AssetsController::upload()
     ↓
 1. Validate file type and size
 2. Upload to WordPress media library (wp_handle_upload)
 3. Create WorkflowNote CPT with attachment ID
-4. Fire action: do_action('vip_workflow_asset_uploaded', $asset_id, $attachment_id)
+4. Fire action: do_action('vip_workflows_asset_uploaded', $asset_id, $attachment_id)
     ↓
 AIMediaAnalyzer listening on hook (thin adapter)
     ↓
@@ -169,7 +169,7 @@ Asset displayed with AI-generated metadata
 ```
 Status transition occurs (e.g., post enters "review")
     ↓
-StatusManager fires: do_action('vip_workflow_entered_review', $post_id, ...)
+StatusManager fires: do_action('vip_workflows_entered_review', $post_id, ...)
     ↓
 NotificationDispatcher listening on hook
     ↓
@@ -181,7 +181,7 @@ NotificationDispatcher::dispatch($notification)
 1. Determine target users (role:editor, user:123, desk:5)
 2. For each user:
     ↓
-    3. Store in wp_vip_workflow_notifications (in-app)
+    3. Store in wp_vip_workflows_notifications (in-app)
     4. Get user's notification preferences
     5. For each enabled channel:
         ↓
@@ -198,7 +198,7 @@ NotificationDispatcher::dispatch($notification)
             Plugin-specific delivery
     ↓
 6. Log delivery status
-7. Fire action: do_action('vip_workflow_notification_sent', ...)
+7. Fire action: do_action('vip_workflows_notification_sent', ...)
     ↓
 User sees:
 - Bell icon in admin bar updates (unread count++)
@@ -211,14 +211,14 @@ User sees:
 ```
 Cron triggers (nightly, 2am site time)
     ↓
-ActionScheduler runs: vip_workflow_cleanup
+ActionScheduler runs: vip_workflows_cleanup
     ↓
 Cleanup::run()
     ↓
 1. DELETE ability results older than 90 days
 2. DELETE workflow events older than 1 year
     ↓
-3. Write one maintenance.cleanup event to wp_vip_workflow_events
+3. Write one maintenance.cleanup event to wp_vip_workflows_events
    (post_id NULL, actor_id 0, actor_type 'system'), carrying the row
    counts — or the database error, when a DELETE failed
     ↓

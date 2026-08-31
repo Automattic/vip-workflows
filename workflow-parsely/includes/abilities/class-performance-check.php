@@ -64,9 +64,9 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Abilities;
 
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\AbilityExecutor;
-use VIPWorkflow\Abilities\AbilitySettings;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilitySettings;
 use WorkflowParsely\PerformanceLens;
 use WP_Error;
 
@@ -139,16 +139,16 @@ class PerformanceCheck {
 	 * Register the ability.
 	 */
 	public static function register(): void {
-		if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+		if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
 			return;
 		}
 
-		vip_workflow_register_ability(
+		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
 				'label'               => __( 'Compare to past performance', 'workflow-parsely' ),
 				'description'         => __( 'Compare this post with how similar stories performed, using Parse.ly.', 'workflow-parsely' ),
-				'category'            => 'vip-workflow',
+				'category'            => 'vip-workflows',
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'additionalProperties' => false,

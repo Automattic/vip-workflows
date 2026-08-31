@@ -19,8 +19,8 @@ jobs:
       - name: Check for version change
         id: version_check
         run: |
-          OLD_VERSION=$(git show HEAD^:vip-workflow/vip-workflow.php 2>/dev/null | sed -n 's/.*Version: *//p' | head -n 1 | tr -d '[:space:]')
-          NEW_VERSION=$(git show HEAD:vip-workflow/vip-workflow.php | sed -n 's/.*Version: *//p' | head -n 1 | tr -d '[:space:]')
+          OLD_VERSION=$(git show HEAD^:vip-workflows/vip-workflows.php 2>/dev/null | sed -n 's/.*Version: *//p' | head -n 1 | tr -d '[:space:]')
+          NEW_VERSION=$(git show HEAD:vip-workflows/vip-workflows.php | sed -n 's/.*Version: *//p' | head -n 1 | tr -d '[:space:]')
           if [ -z "$OLD_VERSION" ] || [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
             echo "No version change detected"
             exit 0
@@ -40,26 +40,26 @@ jobs:
         with:
           node-version: 24
           cache: npm
-          cache-dependency-path: vip-workflow/package-lock.json
+          cache-dependency-path: vip-workflows/package-lock.json
 
       - name: Build plugin zip
         if: steps.version_check.outputs.new_version
         run: >
           ./tools/package-plugin.sh
           "${{ steps.version_check.outputs.new_version }}"
-          vip-workflow
+          vip-workflows
 
       - name: Prepare release asset
         if: steps.version_check.outputs.new_version
         run: >
           cp
-          "dist/vip-workflow-${{ steps.version_check.outputs.new_version }}.zip"
-          dist/vip-workflow.zip
+          "dist/vip-workflows-${{ steps.version_check.outputs.new_version }}.zip"
+          dist/vip-workflows.zip
 
       - name: Create release
         if: steps.version_check.outputs.new_version
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
           tag_name: v${{ steps.version_check.outputs.new_version }}
-          files: dist/vip-workflow.zip
+          files: dist/vip-workflows.zip
           generate_release_notes: true

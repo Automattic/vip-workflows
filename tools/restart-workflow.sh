@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 #
-# Restart the vip-workflow plugin and its dependents.
-# Deactivates dependent plugins first, then vip-workflow, then reactivates in reverse order.
-# If vip-workflow fails to activate, a breadcrumb file records which dependents were stranded
+# Restart the vip-workflows plugin and its dependents.
+# Deactivates dependent plugins first, then vip-workflows, then reactivates in reverse order.
+# If vip-workflows fails to activate, a breadcrumb file records which dependents were stranded
 # so the next successful run reactivates them.
 
 set -euo pipefail
@@ -17,7 +17,7 @@ export PATH="$HOME/Library/Application Support/Local/lightning-services/mysql-8.
 WP_PATH="$HOME/dev/wp-local/mcp/app/public"
 WP="wp --path=$WP_PATH"
 
-MAIN_PLUGIN="vip-workflow"
+MAIN_PLUGIN="vip-workflows"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 STRANDED_FILE="$SCRIPT_DIR/.stranded-plugins"
 
@@ -65,11 +65,11 @@ if (( ${#deactivated[@]} )); then
 	deactivated=("${deduped[@]}")
 fi
 
-# Deactivate vip-workflow.
+# Deactivate vip-workflows.
 echo "  Deactivating $MAIN_PLUGIN..."
 $WP plugin deactivate "$MAIN_PLUGIN"
 
-# Reactivate vip-workflow.
+# Reactivate vip-workflows.
 echo "  Activating $MAIN_PLUGIN..."
 if ! $WP plugin activate "$MAIN_PLUGIN"; then
 	echo "  ERROR: $MAIN_PLUGIN failed to activate"
