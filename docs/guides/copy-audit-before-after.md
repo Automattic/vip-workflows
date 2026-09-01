@@ -1,14 +1,14 @@
 # UX copy audit — before / after
 
-Every user-facing string that changed. Derived from the diff between the audit commit and HEAD rather than from an edit log, so a string renamed twice shows only its **net** result. **405 strings** across the plugin and its five extension plugins.
+Every user-facing string that changed. Derived from the diff between the audit commit and HEAD rather than from an edit log, so a string renamed twice shows only its **net** result. **411 strings** across the plugin and its five extension plugins.
 
 Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes are excluded.
 
 | Group | Strings |
 |---|---|
-| [Capitalization](#capitalization) | 94 |
-| [Terminology: sequence → workflow](#terminology-sequence-workflow) | 137 |
-| [Capitalization + terminology](#capitalization-terminology) | 23 |
+| [Capitalization](#capitalization) | 100 |
+| [Terminology: sequence → workflow](#terminology-sequence-workflow) | 138 |
+| [Capitalization + terminology](#capitalization-terminology) | 22 |
 | [Ability labels](#ability-labels) | 8 |
 | [New: reader-facing tool summaries](#new-reader-facing-tool-summaries) | 26 |
 | [New: Quick Edit strings, now translatable](#new-quick-edit-strings-now-translatable) | 5 |
@@ -21,13 +21,13 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | [Removed “successfully”](#removed-successfully) | 4 |
 | [Typography](#typography) | 22 |
 | [Terminal periods](#terminal-periods) | 6 |
-| **Total** | **405** |
+| **Total** | **411** |
 
 ---
 
-## Capitalization (94)
+## Capitalization (100)
 
-*78 distinct strings across 94 sites.*
+*82 distinct strings across 100 sites.*
 
 | Before | After | Where |
 |---|---|---|
@@ -62,6 +62,9 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Media Scout | Media scout | `class-media-scout.php` |
 | My Ability | My ability | `class-plugin.php` |
 | My Content in Workflow | My content in workflow | `class-dashboard-widget.php` |
+| My Ideation | My ideation | `MyDashboardPage.js` |
+| My Queue | My queue | `MyDashboardPage.js` |
+| My Work | My work | `MyDashboardPage.js` |
 | News Angle | News angle | `class-seed-analyst.php` |
 | No Workflow | No workflow | `KanbanBoard.js` |
 | Parse.ly Trending | Parse.ly trending | `class-parsely-discovery-provider.php` |
@@ -82,6 +85,7 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Select a Workflow | Select a workflow | `WorkflowRequiredModal.js` |
 | Send Back for Review | Send back for review | `editorial-review-sequence.json` |
 | SEO Check | SEO check | `seo-check.php` |
+| Slack (Default) | Slack (default) | `class-slack-channel.php` |
 | Slack (New) | Slack (new) | `NotificationChannelsTab.js` |
 | Smart Linking | Smart linking | `class-smart-linking.php` |
 | Smart Linking Check | Smart linking check | `class-smart-linking-agent.php` |
@@ -110,9 +114,9 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Workflow: Pre-publish Checklist | Workflow: Pre-publish checklist | `editor.js` |
 | YouTube Videos | YouTube videos | `class-you-tube-video-provider.php` |
 
-## Terminology: sequence → workflow (137)
+## Terminology: sequence → workflow (138)
 
-*108 distinct strings across 137 sites.*
+*108 distinct strings across 138 sites.*
 
 | Before | After | Where |
 |---|---|---|
@@ -225,16 +229,15 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Whether the sequence was updated. | Whether the workflow was updated. | `update-sequence.php` |
 | …or drop a sequence JSON file here. | …or drop a workflow JSON file here. | `SequencesList.js` |
 
-## Capitalization + terminology (23)
+## Capitalization + terminology (22)
 
-*22 distinct strings across 23 sites.*
+*21 distinct strings across 22 sites.*
 
 | Before | After | Where |
 |---|---|---|
 | Create Sequence | New workflow | `create-sequence.php` |
 | Creates a new workflow sequence with its statuses, transitions, and metadata fields. | Creates a new workflow with its statuses, transitions, and metadata fields. | `create-sequence.php` |
 | Editorial Sequences (%d) | Workflows (%d) | `SequencesList.js` |
-| Enter a unique name for this sequence. | Workflows | `SequencesList.js` |
 | Failed to export sequence: | Could not export the workflow. Details:  | `SequencesList.js` |
 | Get Sequences | Workflows | `get-sequences.php` |
 | Imports a workflow sequence from an exported JSON definition. The imported sequence is created as a draft. | Imports a workflow from an exported JSON definition. The imported workflow is created as a draft. | `import-sequence.php` |
@@ -316,7 +319,7 @@ These were hardcoded English inside an inline script and could not be translated
 
 | Before | After | Where |
 |---|---|---|
-| A friendly name to identify this Slack channel | — removed — | `NotificationChannelsTab.js` |
+| A friendly name to identify this Slack channel | *(removed)* | `NotificationChannelsTab.js` |
 | An AI stage routes on what a language model returned, and that model reads the post’s own content, so publishing and going private both wait for a person. Off by default. | Lets an AI stage publish or go private without waiting for a person. It grants no rights the post’s author lacks. | `SequenceSettingsInspector.js` |
 | Analyzes a fetched video transcript. Variables: {title}, {transcript}. | Analyzes a fetched video transcript. | `class-core-prompts.php` |
 | Choosing an agent makes this an AI stage: it runs when a post enters, and routes the post onward by outcome. Drag from the stage’s pass, fail and error handles on the can | Makes this an AI stage: the agent runs when a post enters, and routes it onward by its outcome. | `StageInspector.js` |
@@ -340,11 +343,11 @@ These were hardcoded English inside an inline script and could not be translated
 | Configure workflow settings and preferences. | How workflows behave site-wide: enforcement, permissions, AI and integrations. | `Settings.js` |
 | Configure workflow tools available to your team. | Tools check a post before it moves. A transition can require any of them. | `Tools.js` |
 | Dry-runs a sequence configuration through the write gate without saving it. Reports whether it is valid, what normalization would change, and which stage/region invariant | Dry-runs a workflow configuration through the write gate without saving it. Reports whether it is valid, what normalization would change, and which stage/region invariant | `validate-sequence.php` |
+| Enter a unique name for this sequence. | Must be unique. | `SequencesList.js` |
 | Human-readable description of what the ability does. | Tool description written for a language model. Not for display — use label and meta.summary. | `class-abilities-controller.php` |
 | Must match assignment key from another transition | Must match the key an earlier transition assigned. | `TransitionAssignmentConfig.js` |
 | Restrict this transition to a previously assigned user or role | Only the user or role an earlier transition assigned can make this move. | `TransitionAssignmentConfig.js` |
 | Sequence Type: | Type: | `SequencesList.js` |
-| Sequences | Must be unique. | `SequencesList.js` |
 | The "sequence_json" parameter is required and must be the exported sequence object. | The "sequence_json" parameter is required and must be the exported workflow object. | `import-sequence.php` |
 | View all workflow activity and changes. | Every workflow event on this site — what happened, who did it, and when. | `AuditLog.js` |
 | View Dashboard | Open dashboard | `class-dashboard-widget.php` |
