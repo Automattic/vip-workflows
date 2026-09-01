@@ -69,7 +69,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 			onClose();
 		} catch ( err ) {
 			setError(
-				err.message || __( 'Failed to add source.', 'vip-workflows' )
+				err.message || __( 'Could not add the source.', 'vip-workflows' )
 			);
 		} finally {
 			setUploading( false );
@@ -100,7 +100,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 			} catch ( err ) {
 				setError(
 					err.message ||
-						__( 'Failed to upload file.', 'vip-workflows' )
+						__( 'Could not upload the file.', 'vip-workflows' )
 				);
 			} finally {
 				setUploading( false );

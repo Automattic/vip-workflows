@@ -1312,7 +1312,7 @@ export default function SequenceGraphEditor( {
 						sprintf(
 							/* translators: %s: stage label or key. */
 							__(
-								'The “%s” stage is set to run an AI agent but none is chosen. Please set one.',
+								'The “%s” stage is set to run an AI agent but none is chosen. Choose one.',
 								'vip-workflows'
 							),
 							unfinished[ 0 ].label || unfinished[ 0 ].key

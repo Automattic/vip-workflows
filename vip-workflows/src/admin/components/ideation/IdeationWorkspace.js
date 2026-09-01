@@ -270,7 +270,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			console.error( 'Summary generation failed:', err );
 			createErrorNotice(
 				err.message ||
-					__( 'Failed to generate summary.', 'vip-workflows' ),
+					__( 'Could not generate the summary.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 			return null;
@@ -498,7 +498,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				console.error( 'Delete failed:', err );
 				createErrorNotice(
 					err.message ||
-						__( 'Failed to delete source.', 'vip-workflows' ),
+						__( 'Could not delete the source.', 'vip-workflows' ),
 					{ type: 'snackbar' }
 				);
 			}
@@ -518,7 +518,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			console.error( 'Delete project failed:', err );
 			createErrorNotice(
 				err.message ||
-					__( 'Failed to delete project.', 'vip-workflows' ),
+					__( 'Could not delete the project.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 		}
@@ -599,7 +599,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				console.error( 'Create draft failed:', err );
 				createErrorNotice(
 					err.message ||
-						__( 'Failed to create draft.', 'vip-workflows' ),
+						__( 'Could not create the draft.', 'vip-workflows' ),
 					{ type: 'snackbar' }
 				);
 			}
@@ -919,7 +919,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 
 			{ toolFailures && (
 				<ToolFailuresModal
-					title={ __( 'Transition Blocked', 'vip-workflows' ) }
+					title={ __( 'Transition blocked', 'vip-workflows' ) }
 					message={ toolFailures.message }
 					hardFailures={ toolFailures.hardFailures.map(
 						( failure ) => ( {

@@ -72,7 +72,7 @@ export default function RegionInspector( {
 							__nextHasNoMarginBottom
 							label={ __( 'Stage', 'vip-workflows' ) }
 							help={ __(
-								'Where a post lands when something outside the workflow sets this status — publishing from the editor, a scheduled post going live, a REST write — and where a sequence assigned to a post already in this status seats it. Transitions are not funnelled through it: an edge may cross into any stage. The stage holding it sits astride the boundary line; dragging a stage onto that line sets this, and dragging it off clears it.',
+								'Where a post lands when something outside the sequence gives it this status — an editor publishing, a scheduled post going live, a REST write.',
 								'vip-workflows'
 							) }
 							value={ entryKey || '' }

@@ -41,7 +41,7 @@ const BREADCRUMBS = [
 ];
 const TITLE = __( 'Sequences', 'vip-workflows' );
 const SUBTITLE = __(
-	'Sequences define workflow stages and transitions for your content types.',
+	'A sequence is the set of stages a post moves through, and the routes between them.',
 	'vip-workflows'
 );
 
@@ -128,7 +128,7 @@ export function SequencesList() {
 				URL.revokeObjectURL( url );
 			} catch ( err ) {
 				createErrorNotice(
-					__( 'Failed to export sequence:', 'vip-workflows' ) +
+					__( 'Could not export the sequence. Details: ', 'vip-workflows' ) +
 						err.message,
 					{ type: 'snackbar' }
 				);
@@ -518,14 +518,14 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 	const handleImport = async () => {
 		if ( ! sequenceJson ) {
 			setError(
-				__( 'Please upload a sequence JSON file.', 'vip-workflows' )
+				__( 'Upload a sequence JSON file.', 'vip-workflows' )
 			);
 			return;
 		}
 
 		if ( ! name.trim() ) {
 			setError(
-				__( 'Please enter a name for the sequence.', 'vip-workflows' )
+				__( 'Enter a name for the sequence.', 'vip-workflows' )
 			);
 			return;
 		}
@@ -624,11 +624,11 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 						<TextControl
 							__next40pxDefaultSize
 							__nextHasNoMarginBottom
-							label={ __( 'Sequence Name', 'vip-workflows' ) }
+							label={ __( 'Sequence name', 'vip-workflows' ) }
 							value={ name }
 							onChange={ setName }
 							help={ __(
-								'Enter a unique name for this sequence.',
+								'Must be unique.',
 								'vip-workflows'
 							) }
 						/>

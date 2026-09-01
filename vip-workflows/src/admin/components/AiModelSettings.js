@@ -221,7 +221,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 			<Notice status="error" isDismissible={ false }>
 				{ sprintf(
 					/* translators: %s: error message from the settings request. */
-					__( 'Failed to load AI settings: %s', 'vip-workflows' ),
+					__( 'Could not load AI settings. Reload the page to try again. Details: %s', 'vip-workflows' ),
 					error
 				) }
 			</Notice>

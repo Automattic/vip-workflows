@@ -68,7 +68,7 @@ const SLACK_GROUP = {
 	prefix: 'slack-',
 	label: __( 'Slack', 'vip-workflows' ),
 	addEndpoint: '/vip-workflows/v1/slack-destinations',
-	newName: __( 'Slack (New)', 'vip-workflows' ),
+	newName: __( 'Slack (new)', 'vip-workflows' ),
 	defaultConfig: {
 		webhook_url: '',
 		bot_name: 'Workflow Bot',
@@ -964,10 +964,6 @@ function ChannelSettings( { channel, channelId, settings, onChange } ) {
 						'e.g., Slack (#editorial)',
 						'vip-workflows'
 					) }
-					help={ __(
-						'A friendly name to identify this Slack channel',
-						'vip-workflows'
-					) }
 				/>
 				<TextControl
 					__next40pxDefaultSize
@@ -1007,7 +1003,7 @@ function ChannelSettings( { channel, channelId, settings, onChange } ) {
 						value={ settings.bot_icon || ':newspaper:' }
 						onChange={ ( value ) => onChange( 'bot_icon', value ) }
 						help={ __(
-							'A Slack emoji shortcode, or an https image URL',
+							'A Slack emoji shortcode, or an https image URL.',
 							'vip-workflows'
 						) }
 					/>

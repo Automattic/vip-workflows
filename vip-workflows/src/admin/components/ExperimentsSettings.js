@@ -109,7 +109,7 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 			<Notice status="error" isDismissible={ false }>
 				{ sprintf(
 					/* translators: %s: error message from the experiments request. */
-					__( 'Failed to load experiments: %s', 'vip-workflows' ),
+					__( 'Could not load experiments. Reload the page to try again. Details: %s', 'vip-workflows' ),
 					error
 				) }
 			</Notice>

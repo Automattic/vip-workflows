@@ -288,7 +288,7 @@ export function RequiresAssignmentConfig( { transition, onToggle, onUpdate } ) {
 				checked={ Boolean( transition.requires_assignment ) }
 				onChange={ onToggle }
 				help={ __(
-					'Restrict this transition to a previously assigned user or role',
+					'Only the user or role an earlier transition assigned can make this move.',
 					'vip-workflows'
 				) }
 			/>
@@ -312,7 +312,7 @@ export function RequiresAssignmentConfig( { transition, onToggle, onUpdate } ) {
 							'vip-workflows'
 						) }
 						help={ __(
-							'Must match assignment key from another transition',
+							'Must match the key an earlier transition assigned.',
 							'vip-workflows'
 						) }
 					/>

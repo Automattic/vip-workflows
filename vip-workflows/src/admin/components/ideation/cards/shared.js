@@ -228,7 +228,7 @@ export function CardDetailModal( {
 	meta,
 	excerpt,
 	summary,
-	summaryTitle = __( 'AI Summary', 'vip-workflows' ),
+	summaryTitle = __( 'AI summary', 'vip-workflows' ),
 	actions,
 	notes,
 	setNotes,

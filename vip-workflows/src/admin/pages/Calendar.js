@@ -820,7 +820,7 @@ export default function Calendar() {
 			setEvents( originalEvents );
 			createErrorNotice(
 				err.message ||
-					__( 'Failed to reschedule post.', 'vip-workflows' ),
+					__( 'Could not reschedule the post.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 		}
@@ -1003,11 +1003,11 @@ export default function Calendar() {
 				value={ filter }
 				options={ [
 					{
-						label: __( 'All Posts', 'vip-workflows' ),
+						label: __( 'All posts', 'vip-workflows' ),
 						value: 'all',
 					},
 					{
-						label: __( 'Published Only', 'vip-workflows' ),
+						label: __( 'Published only', 'vip-workflows' ),
 						value: 'published',
 					},
 				] }
