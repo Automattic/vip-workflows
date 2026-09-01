@@ -2,7 +2,7 @@
 /**
  * Execute-path coverage for the sequence modification abilities.
  *
- * Update Sequence, Activate Sequence and Validate Sequence all run against a booted
+ * Update sequence, Activate sequence and Validate sequence all run against a booted
  * WordPress + database so the real SequencesController -> SequenceRepository ->
  * Sequence::prepare_config_for_write() chain is exercised, and so the permission
  * gates can be asserted through `WP_Ability::execute()` — which does not exist in the
@@ -752,7 +752,7 @@ class SequenceWriteAbilitiesTest extends TestCase
 
         // The audit trail renders the ability, not the impersonated human.
         $this->assertSame(
-            'Update Sequence',
+            'Update sequence',
             \VIPWorkflows\Workflow\Actor::name_for(
                 array(
                     'actor_id'    => (int) $event->actor_id,
@@ -822,8 +822,8 @@ class SequenceWriteAbilitiesTest extends TestCase
         $event = $events[0];
 
         $this->assertNull( $event['post'] );
-        $this->assertSame( 'Sequence Activated', $event['event_type_label'] );
+        $this->assertSame( 'Workflow activated', $event['event_type_label'] );
         $this->assertSame( 'agent', $event['actor']['type'] );
-        $this->assertSame( 'Activate Sequence', $event['actor']['display_name'] );
+        $this->assertSame( 'Activate sequence', $event['actor']['display_name'] );
     }
 }

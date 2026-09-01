@@ -215,7 +215,7 @@ class AssistantRegistryAggregationTest extends TestCase
 
         $this->assertCount( 1, $tavily, 'The Tavily image and video providers must share a single requirement row.' );
         $this->assertSame(
-            array( 'Web Images (Tavily)', 'Web Videos (Tavily)' ),
+            array( 'Web images (Tavily)', 'Web videos (Tavily)' ),
             $tavily[0]->get_sources()
         );
     }

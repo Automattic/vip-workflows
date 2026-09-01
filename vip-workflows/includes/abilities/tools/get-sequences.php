@@ -76,8 +76,8 @@ function register_get_sequences(): void {
 	wp_register_ability(
 		'vip-workflows/get-sequences',
 		array(
-			'label'               => __( 'Sequences', 'vip-workflows' ),
-			'description'         => __( 'Lists active workflow sequences with their statuses and configuration.', 'vip-workflows' ),
+			'label'               => __( 'Workflows', 'vip-workflows' ),
+			'description'         => __( 'Lists active workflows with their statuses and configuration.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -96,11 +96,11 @@ function register_get_sequences(): void {
 				'properties'           => array(
 					'count'     => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of sequences returned.', 'vip-workflows' ),
+						'description' => __( 'Number of workflows returned.', 'vip-workflows' ),
 					),
 					'sequences' => array(
 						'type'        => 'array',
-						'description' => __( 'Array of sequence objects with status details.', 'vip-workflows' ),
+						'description' => __( 'Array of workflow objects with status details.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -109,7 +109,7 @@ function register_get_sequences(): void {
 				return current_user_can( 'edit_posts' );
 			},
 			'meta'                => array(
-				'summary'             => __( 'Lists the active sequences and their stages.', 'vip-workflows' ),
+				'summary'             => __( 'Lists the active workflows and their stages.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

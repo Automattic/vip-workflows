@@ -17,7 +17,7 @@ import { render, screen, fireEvent } from './helpers/render-wp-component';
 import Inspector from '../../src/admin/components/graph/Inspector';
 
 const ACTIVE_HELP =
-	'Inactive sequences are saved as drafts and not applied to content.';
+	'Inactive workflows are saved as drafts and not applied to content.';
 const DESCRIPTION_PLACEHOLDER = 'What is this workflow for?';
 
 const STAGES = [
@@ -115,7 +115,7 @@ describe.each( [
 		renderSettings( { isPhase, name: '' } );
 
 		expect(
-			screen.getByRole( 'heading', { name: 'Untitled sequence' } )
+			screen.getByRole( 'heading', { name: 'Untitled workflow' } )
 		).toBeInTheDocument();
 	} );
 } );

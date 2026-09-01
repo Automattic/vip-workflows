@@ -496,7 +496,7 @@ export function KanbanBoard() {
 			value: String( bp.id ),
 		} ) ),
 		{
-			label: __( 'No sequence', 'vip-workflows' ),
+			label: __( 'No workflow', 'vip-workflows' ),
 			value: 'none',
 		},
 	];

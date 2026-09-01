@@ -323,7 +323,7 @@ test.describe( 'VIP Workflows — editorial metadata (UI)', () => {
 	 * stable landmark is the primary "Save" action.
 	 *
 	 * @param {import('@playwright/test').Page} page
-	 * @param {string}                          name Sequence name to match.
+	 * @param {string}                          name Workflow name to match.
 	 */
 	async function openSequenceForEdit( page, name ) {
 		await page
@@ -584,7 +584,7 @@ test.describe( 'VIP Workflows — editorial metadata (UI)', () => {
 			'admin.php',
 			'page=vip-workflows-sequences'
 		);
-		await page.getByRole( 'link', { name: 'New sequence' } ).click();
+		await page.getByRole( 'link', { name: 'New workflow' } ).click();
 		await expect(
 			page.getByRole( 'button', { name: 'Save' } )
 		).toBeVisible();

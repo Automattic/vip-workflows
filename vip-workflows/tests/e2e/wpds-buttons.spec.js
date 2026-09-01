@@ -126,7 +126,7 @@ test.describe( 'VIP Workflows — WPDS buttons (e2e)', () => {
 		// alone would not prove the workflow was recognised as finished.
 		await expect(
 			panel.locator( '.vip-workflows-rail__stage' )
-		).toHaveText( 'Workflow Completed' );
+		).toHaveText( 'Workflow completed' );
 		await expect(
 			panel.locator( '.vip-workflows-rail__ending' )
 		).toHaveText( 'Assigned' );

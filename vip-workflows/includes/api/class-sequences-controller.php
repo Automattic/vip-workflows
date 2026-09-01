@@ -477,7 +477,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflows' ),
+				__( 'Workflow not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -498,7 +498,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflows' ),
+				__( 'Workflow not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -578,7 +578,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflows' ),
+				__( 'Workflow not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -588,7 +588,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $deleted ) {
 			return new WP_Error(
 				'rest_sequence_delete_failed',
-				__( 'Failed to delete sequence.', 'vip-workflows' ),
+				__( 'Failed to delete workflow.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -847,7 +847,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $id ) {
 			return new WP_Error(
 				'rest_sequence_create_failed',
-				__( 'Failed to create sequence.', 'vip-workflows' ),
+				__( 'Failed to create workflow.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -870,7 +870,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $existing ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflows' ),
+				__( 'Workflow not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -933,7 +933,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $new_id ) {
 			return new WP_Error(
 				'rest_sequence_update_failed',
-				__( 'Failed to update sequence.', 'vip-workflows' ),
+				__( 'Failed to update workflow.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -1281,7 +1281,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflows' ),
+				__( 'Workflow not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -1309,7 +1309,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflows' ),
+				__( 'Workflow not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -1349,7 +1349,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( false === $repaired ) {
 			return new WP_Error(
 				'sequence_repair_failed',
-				__( 'The sequence could not be saved.', 'vip-workflows' ),
+				__( 'The workflow could not be saved.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -1359,7 +1359,7 @@ class SequencesController extends WP_REST_Controller {
 			// The row was written a moment ago; its disappearance is a real fault.
 			return new WP_Error(
 				'rest_sequence_not_found',
-				__( 'Sequence not found.', 'vip-workflows' ),
+				__( 'Workflow not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -1402,7 +1402,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( empty( $sequence_json['name'] ) ) {
 			return new WP_Error(
 				'missing_sequence_name',
-				__( 'Sequence name is required.', 'vip-workflows' ),
+				__( 'Workflow name is required.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -1410,7 +1410,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( empty( $sequence_json['config'] ) || ! is_array( $sequence_json['config'] ) ) {
 			return new WP_Error(
 				'invalid_sequence_config',
-				__( 'Sequence config is required and must be an object.', 'vip-workflows' ),
+				__( 'Workflow config is required and must be an object.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -1418,7 +1418,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( empty( $sequence_json['config']['statuses'] ) || ! is_array( $sequence_json['config']['statuses'] ) ) {
 			return new WP_Error(
 				'invalid_sequence_statuses',
-				__( 'Sequence must have at least one stage.', 'vip-workflows' ),
+				__( 'Workflow must have at least one stage.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -1528,7 +1528,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence_id ) {
 			return new WP_Error(
 				'sequence_import_failed',
-				__( 'Failed to import sequence.', 'vip-workflows' ),
+				__( 'Failed to import workflow.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -1541,7 +1541,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence ) {
 			return new WP_Error(
 				'sequence_not_found',
-				__( 'Sequence was created but could not be retrieved.', 'vip-workflows' ),
+				__( 'Workflow was created but could not be retrieved.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}

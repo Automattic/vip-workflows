@@ -58,7 +58,7 @@ export default function SequenceIdentityFields( {
 				__nextHasNoMarginBottom
 				label={ __( 'Active', 'vip-workflows' ) }
 				help={ __(
-					'Inactive sequences are saved as drafts and not applied to content.',
+					'Inactive workflows are saved as drafts and not applied to content.',
 					'vip-workflows'
 				) }
 				checked={ isActive }

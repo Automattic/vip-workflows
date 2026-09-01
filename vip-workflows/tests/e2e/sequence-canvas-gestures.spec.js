@@ -134,7 +134,7 @@ async function dragAnchor( page, end, to ) {
  *
  * @param {import('@wordpress/e2e-test-utils-playwright').Admin} admin
  * @param {import('@playwright/test').Page}                      page
- * @param {string}                                               name  Sequence name.
+ * @param {string}                                               name  Workflow name.
  */
 async function openEditor( admin, page, name ) {
 	await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-sequences' );

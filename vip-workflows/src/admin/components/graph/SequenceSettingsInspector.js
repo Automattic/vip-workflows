@@ -52,8 +52,8 @@ export default function SequenceSettingsInspector( {
 
 	return (
 		<InspectorShell
-			eyebrow={ __( 'Sequence', 'vip-workflows' ) }
-			title={ name || __( 'Untitled sequence', 'vip-workflows' ) }
+			eyebrow={ __( 'Workflow', 'vip-workflows' ) }
+			title={ name || __( 'Untitled workflow', 'vip-workflows' ) }
 		>
 			<Stack direction="column" gap="lg" align="stretch">
 				<SequenceIdentityFields
@@ -131,7 +131,7 @@ export default function SequenceSettingsInspector( {
 				{ /* A sequence that was never saved has nothing to delete. */ }
 				{ ! isNew && (
 					<InspectorDangerZone
-						label={ __( 'Delete sequence', 'vip-workflows' ) }
+						label={ __( 'Delete workflow', 'vip-workflows' ) }
 						onClick={ onDelete }
 						busy={ deleting }
 					/>

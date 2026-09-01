@@ -505,7 +505,7 @@ class AiToolAvailabilityTest extends TestCase
     {
         return array(
             'seed analyst'    => array( '\\VIPWorkflows\\Ideation\\Assistants\\SeedAnalyst', 'Seed Analyst' ),
-            'editorial mentor' => array( '\\VIPWorkflows\\Ideation\\Assistants\\EditorialMentor', 'Editorial Mentor' ),
+            'editorial mentor' => array( '\\VIPWorkflows\\Ideation\\Assistants\\EditorialMentor', 'Editorial mentor' ),
         );
     }
 }

@@ -134,7 +134,7 @@ describe( 'Agents screen shape', () => {
 
 		expect(
 			screen.getByText(
-				'Configure agents that assist with editorial work.'
+				'Agents run when a post enters a stage, and route it onward by what they find.'
 			)
 		).toBeInTheDocument();
 		expect(

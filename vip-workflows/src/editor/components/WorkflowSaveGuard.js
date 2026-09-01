@@ -123,7 +123,7 @@ export function WorkflowSaveGuard() {
 				createErrorNotice(
 					err.message ||
 						__(
-							'Failed to remove this post from its workflow',
+							'Could not remove this post from its workflow.',
 							'vip-workflows'
 						),
 					{ type: 'snackbar' }

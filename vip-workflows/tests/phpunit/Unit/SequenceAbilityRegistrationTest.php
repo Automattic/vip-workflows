@@ -59,7 +59,7 @@ class SequenceAbilityRegistrationTest extends TestCase
         $args = $this->registered['vip-workflows/get-sequences'];
 
         // Agent-facing label/description say "sequence", not "sequence".
-        $this->assertSame( 'Get Sequences', $args['label'] );
+        $this->assertSame( 'Workflows', $args['label'] );
         $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
         $this->assertStringNotContainsStringIgnoringCase( 'blueprint', $args['description'] );
 

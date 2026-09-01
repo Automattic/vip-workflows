@@ -74,7 +74,7 @@ class GuidelineContextProviderTest extends TestCase {
 
 		$context = GuidelineContextProvider::gather_context();
 
-		$this->assertStringContainsString( '=== Content Guidelines ===', $context );
+		$this->assertStringContainsString( '=== Content guidelines ===', $context );
 		$this->assertStringContainsString( "## Site\nDescribe the audience plainly.", $context );
 		$this->assertStringContainsString( "## Copy\nUse precise, practical editorial voice.", $context );
 		$this->assertStringContainsString( "## Additional\nAvoid unsupported claims.", $context );
@@ -252,7 +252,7 @@ class GuidelineContextProviderTest extends TestCase {
 		$this->assertSame(
 			array(
 				array(
-					'name' => 'Content Guidelines',
+					'name' => 'Content guidelines',
 					'rule' => "## Copy\nNever use unsupported superlatives.",
 				),
 			),

@@ -37,11 +37,11 @@ const BREADCRUMBS = [
 		label: __( 'Workflows', 'vip-workflows' ),
 		href: 'admin.php?page=vip-workflows',
 	},
-	{ label: __( 'Sequences', 'vip-workflows' ) },
+	{ label: __( 'Workflows', 'vip-workflows' ) },
 ];
-const TITLE = __( 'Sequences', 'vip-workflows' );
+const TITLE = __( 'Workflows', 'vip-workflows' );
 const SUBTITLE = __(
-	'A sequence is the set of stages a post moves through, and the routes between them.',
+	'A workflow is the set of stages a post moves through, and the routes between them.',
 	'vip-workflows'
 );
 
@@ -128,7 +128,7 @@ export function SequencesList() {
 				URL.revokeObjectURL( url );
 			} catch ( err ) {
 				createErrorNotice(
-					__( 'Could not export the sequence. Details: ', 'vip-workflows' ) +
+					__( 'Could not export the workflow. Details: ', 'vip-workflows' ) +
 						err.message,
 					{ type: 'snackbar' }
 				);
@@ -248,7 +248,7 @@ export function SequencesList() {
 					gap="sm"
 				>
 					<Spinner />
-					{ __( 'Loading sequences…', 'vip-workflows' ) }
+					{ __( 'Loading workflows…', 'vip-workflows' ) }
 				</Stack>
 			</AdminPage>
 		);
@@ -277,8 +277,8 @@ export function SequencesList() {
 		{
 			name: 'workflow',
 			title: sprintf(
-				/* translators: %d: count of workflow sequences */
-				__( 'Workflow Sequences (%d)', 'vip-workflows' ),
+				/* translators: %d: count of workflows */
+				__( 'Workflows (%d)', 'vip-workflows' ),
 				workflowSequences.length
 			),
 		},
@@ -290,13 +290,13 @@ export function SequencesList() {
 			name: 'phase',
 			title: sprintf(
 				/* translators: %d: count of phase sequences */
-				__( 'Phase Sequences (%d)', 'vip-workflows' ),
+				__( 'Phase sequences (%d)', 'vip-workflows' ),
 				phaseSequences.length
 			),
 		} );
 	}
 
-	// The add/import actions belong to the Workflow Sequences tab; the Phase
+	// The add/import actions belong to the Workflows tab; the Phase
 	// tab has none. Surfaced in the AdminPage header and swapped with the tab.
 	// Secondary first, primary last — the standard's order rule holds in the
 	// page header too, so the leading verb sits rightmost in the group.
@@ -307,14 +307,14 @@ export function SequencesList() {
 					variant="secondary"
 					onClick={ () => setShowImportModal( true ) }
 				>
-					{ __( 'Import sequence', 'vip-workflows' ) }
+					{ __( 'Import workflow', 'vip-workflows' ) }
 				</Button>
 				<Button
 					variant="primary"
 					icon={ plus }
 					href="#/new?type=workflow"
 				>
-					{ __( 'New sequence', 'vip-workflows' ) }
+					{ __( 'New workflow', 'vip-workflows' ) }
 				</Button>
 			</>
 		) : null;
@@ -350,7 +350,7 @@ export function SequencesList() {
 												render={ <p /> }
 											>
 												{ __(
-													'No workflow sequences yet.',
+													'No workflows yet.',
 													'vip-workflows'
 												) }
 											</Text>
@@ -359,7 +359,7 @@ export function SequencesList() {
 												href="#/new?type=workflow"
 											>
 												{ __(
-													'New sequence',
+													'New workflow',
 													'vip-workflows'
 												) }
 											</Button>
@@ -420,7 +420,7 @@ function SequencesView( { items, renderCard } ) {
 			items={ items }
 			fields={ SEARCH_FIELDS }
 			renderCard={ renderCard }
-			searchLabel={ __( 'Search sequences', 'vip-workflows' ) }
+			searchLabel={ __( 'Search workflows', 'vip-workflows' ) }
 			perPage={ 12 }
 			sort={ { field: 'name', direction: 'asc' } }
 			getItemId={ ( item ) => String( item.id ) }
@@ -429,7 +429,7 @@ function SequencesView( { items, renderCard } ) {
 			// nothing leaves the panel holding a search box and nothing else.
 			empty={
 				<Text variant="body-md" render={ <p /> }>
-					{ __( 'No sequences match your search.', 'vip-workflows' ) }
+					{ __( 'No workflows match your search.', 'vip-workflows' ) }
 				</Text>
 			}
 		/>
@@ -518,14 +518,14 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 	const handleImport = async () => {
 		if ( ! sequenceJson ) {
 			setError(
-				__( 'Upload a sequence JSON file.', 'vip-workflows' )
+				__( 'Upload a workflow JSON file.', 'vip-workflows' )
 			);
 			return;
 		}
 
 		if ( ! name.trim() ) {
 			setError(
-				__( 'Enter a name for the sequence.', 'vip-workflows' )
+				__( 'Enter a name for the workflow.', 'vip-workflows' )
 			);
 			return;
 		}
@@ -553,14 +553,14 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 
 	return (
 		<Modal
-			title={ __( 'Import sequence', 'vip-workflows' ) }
+			title={ __( 'Import workflow', 'vip-workflows' ) }
 			onRequestClose={ onClose }
 			className="vip-workflows-import-modal"
 			size="medium"
 			headerActions={
 				<DropZone
 					label={ __(
-						'Drop the sequence JSON file to import it',
+						'Drop the workflow JSON file to import it',
 						'vip-workflows'
 					) }
 					onFilesDrop={ handleFilesDrop }
@@ -572,7 +572,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 			     target above covers the part this body target cannot reach. */ }
 			<DropZone
 				label={ __(
-					'Drop the sequence JSON file to import it',
+					'Drop the workflow JSON file to import it',
 					'vip-workflows'
 				) }
 				onFilesDrop={ handleFilesDrop }
@@ -589,7 +589,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 			<Stack direction="column" gap="lg">
 				<Stack direction="column" gap="sm">
 					<label htmlFor="sequence-file-upload">
-						{ __( 'Upload Sequence JSON:', 'vip-workflows' ) }
+						{ __( 'Upload workflow JSON', 'vip-workflows' ) }
 					</label>
 					{ /* Drawn as a box so the place to aim at is legible
 					     before any drag starts. The box is the affordance
@@ -604,7 +604,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 							/>
 							<Text variant="body-sm">
 								{ __(
-									'…or drop a sequence JSON file here.',
+									'…or drop a workflow JSON file here.',
 									'vip-workflows'
 								) }
 							</Text>
@@ -616,7 +616,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 					<>
 						<div className="vip-workflows-import-modal__type-preview">
 							<strong>
-								{ __( 'Sequence Type:', 'vip-workflows' ) }
+								{ __( 'Type:', 'vip-workflows' ) }
 							</strong>{ ' ' }
 							{ sequenceJson.type || 'unknown' }
 						</div>
@@ -624,7 +624,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 						<TextControl
 							__next40pxDefaultSize
 							__nextHasNoMarginBottom
-							label={ __( 'Sequence name', 'vip-workflows' ) }
+							label={ __( 'Workflow name', 'vip-workflows' ) }
 							value={ name }
 							onChange={ setName }
 							help={ __(
@@ -653,7 +653,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 					>
 						{ importing
 							? __( 'Importing…', 'vip-workflows' )
-							: __( 'Import sequence', 'vip-workflows' ) }
+							: __( 'Import workflow', 'vip-workflows' ) }
 					</Button>
 				</ModalActions>
 			) }

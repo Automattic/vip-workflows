@@ -846,7 +846,7 @@ export default function StageInspector( {
 						canDelete
 							? undefined
 							: __(
-									'A sequence needs at least one stage.',
+									'A workflow needs at least one stage.',
 									'vip-workflows'
 							  )
 					}

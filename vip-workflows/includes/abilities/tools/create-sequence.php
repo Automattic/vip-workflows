@@ -59,14 +59,14 @@ function execute_create_sequence( ?array $input = null ) {
 	// no-fallback rule, a response missing required keys is a data-integrity bug —
 	// surface it rather than papering over it with default values.
 	if ( ! is_array( $data ) ) {
-		return new \WP_Error( 'create_response_invalid', __( 'Sequence creation returned an unexpected response.', 'vip-workflows' ) );
+		return new \WP_Error( 'create_response_invalid', __( 'Workflow creation returned an unexpected response.', 'vip-workflows' ) );
 	}
 	foreach ( array( 'id', 'uuid', 'name', 'slug', 'type', 'status', 'statuses_count' ) as $required_key ) {
 		if ( ! array_key_exists( $required_key, $data ) ) {
 			return new \WP_Error(
 				'create_response_incomplete',
 				/* translators: %s: response field name. */
-				sprintf( __( 'Sequence was created but the response is missing the "%s" field.', 'vip-workflows' ), $required_key )
+				sprintf( __( 'Workflow was created but the response is missing the "%s" field.', 'vip-workflows' ), $required_key )
 			);
 		}
 	}
@@ -84,7 +84,7 @@ function execute_create_sequence( ?array $input = null ) {
 		$configured = is_array( $data['post_types'] ?? null ) ? $data['post_types'] : array();
 		$valid      = array_filter( $configured, 'post_type_exists' );
 		if ( empty( $valid ) ) {
-			$warnings[] = __( 'This workflow sequence has no valid post types configured, so it is not attached to any content type and cannot be used yet. Re-create it with a "post_types" array (e.g. ["post"]) or edit the sequence to add at least one registered post type.', 'vip-workflows' );
+			$warnings[] = __( 'This workflow has no valid post types configured, so it is not attached to any content type and cannot be used yet. Re-create it with a "post_types" array (e.g. ["post"]) or edit the workflow to add at least one registered post type.', 'vip-workflows' );
 		}
 	}
 
@@ -110,8 +110,8 @@ function register_create_sequence(): void {
 	wp_register_ability(
 		'vip-workflows/create-sequence',
 		array(
-			'label'               => __( 'New sequence', 'vip-workflows' ),
-			'description'         => __( 'Creates a new workflow sequence with its statuses, transitions, and metadata fields.', 'vip-workflows' ),
+			'label'               => __( 'New workflow', 'vip-workflows' ),
+			'description'         => __( 'Creates a new workflow with its statuses, transitions, and metadata fields.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -120,11 +120,11 @@ function register_create_sequence(): void {
 				'properties'           => array(
 					'name'            => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence name.', 'vip-workflows' ),
+						'description' => __( 'The workflow name.', 'vip-workflows' ),
 					),
 					'description'     => array(
 						'type'        => 'string',
-						'description' => __( 'Optional sequence description.', 'vip-workflows' ),
+						'description' => __( 'Optional workflow description.', 'vip-workflows' ),
 					),
 					'type'            => array(
 						'type'        => 'string',
@@ -134,12 +134,12 @@ function register_create_sequence(): void {
 					),
 					'status'          => array(
 						'type'        => 'string',
-						'description' => __( 'Initial lifecycle state of the sequence. Defaults to "active".', 'vip-workflows' ),
+						'description' => __( 'Initial lifecycle state of the workflow. Defaults to "active".', 'vip-workflows' ),
 						'enum'        => array( 'active', 'draft' ),
 					),
 					'statuses'        => array(
 						'type'        => 'array',
-						'description' => __( 'Array of status configurations defining the sequence stages.', 'vip-workflows' ),
+						'description' => __( 'Array of status configurations defining the workflow stages.', 'vip-workflows' ),
 						'items'       => array(
 							'type'       => 'object',
 							'required'   => array( 'key', 'label' ),
@@ -255,11 +255,11 @@ function register_create_sequence(): void {
 					),
 					'post_types'      => array(
 						'type'        => 'array',
-						'description' => __( 'Post types this sequence applies to (workflow only). A workflow sequence with no valid post types is not attached to any content and cannot be used — pass at least one registered post type such as "post".', 'vip-workflows' ),
+						'description' => __( 'Post types this workflow applies to (workflow only). A workflow with no valid post types is not attached to any content and cannot be used — pass at least one registered post type such as "post".', 'vip-workflows' ),
 					),
 					'settings'        => array(
 						'type'        => 'object',
-						'description' => __( 'Sequence settings.', 'vip-workflows' ),
+						'description' => __( 'Workflow settings.', 'vip-workflows' ),
 					),
 					'metadata_fields' => array(
 						'type'        => 'array',
@@ -304,40 +304,40 @@ function register_create_sequence(): void {
 				'properties'           => array(
 					'sequence_id'    => array(
 						'type'        => 'integer',
-						'description' => __( 'The created sequence ID.', 'vip-workflows' ),
+						'description' => __( 'The created workflow ID.', 'vip-workflows' ),
 					),
 					'uuid'           => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence UUID.', 'vip-workflows' ),
+						'description' => __( 'The workflow UUID.', 'vip-workflows' ),
 					),
 					'name'           => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence name.', 'vip-workflows' ),
+						'description' => __( 'The workflow name.', 'vip-workflows' ),
 					),
 					'slug'           => array(
 						'type'        => 'string',
-						'description' => __( 'The generated sequence slug.', 'vip-workflows' ),
+						'description' => __( 'The generated workflow slug.', 'vip-workflows' ),
 					),
 					'type'           => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence type.', 'vip-workflows' ),
+						'description' => __( 'The workflow type.', 'vip-workflows' ),
 					),
 					'status'         => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence lifecycle state.', 'vip-workflows' ),
+						'description' => __( 'The workflow lifecycle state.', 'vip-workflows' ),
 					),
 					'statuses_count' => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of statuses in the sequence.', 'vip-workflows' ),
+						'description' => __( 'Number of statuses in the workflow.', 'vip-workflows' ),
 					),
 					'warnings'       => array(
 						'type'        => 'array',
-						'description' => __( 'Non-fatal advisories about the created sequence (e.g. no valid post types configured).', 'vip-workflows' ),
+						'description' => __( 'Non-fatal advisories about the created workflow (e.g. no valid post types configured).', 'vip-workflows' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 					'success'        => array(
 						'type'        => 'boolean',
-						'description' => __( 'Whether the sequence was created.', 'vip-workflows' ),
+						'description' => __( 'Whether the workflow was created.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -346,7 +346,7 @@ function register_create_sequence(): void {
 				return current_user_can( 'manage_options' );
 			},
 			'meta'                => array(
-				'summary'             => __( 'Creates a sequence with its stages, transitions and metadata fields.', 'vip-workflows' ),
+				'summary'             => __( 'Creates a workflow with its stages, transitions and metadata fields.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

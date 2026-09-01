@@ -1,6 +1,6 @@
 <?php
 /**
- * Execute-path coverage for the Create Sequence ability.
+ * Execute-path coverage for the New workflow ability.
  *
  * Runs in the integration suite so execute_create_sequence() exercises the real
  * SequencesController::create_item() -> SequenceRepository::create() path
@@ -19,7 +19,7 @@ use VIPWorkflows\Sequences\SequenceRepository;
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/create-sequence.php';
 
 /**
- * Tests the Create Sequence ability execute callback end to end.
+ * Tests the New workflow ability execute callback end to end.
  */
 class CreateSequenceAbilityTest extends TestCase
 {

@@ -125,10 +125,10 @@ test.describe( 'VIP Workflows — Ideation experiment gate', () => {
 			);
 
 			await expect(
-				page.getByRole( 'tab', { name: /Workflow Sequences/ } )
+				page.getByRole( 'tab', { name: /Workflows/ } )
 			).toBeVisible();
 			await expect(
-				page.getByRole( 'tab', { name: /Phase Sequences/ } )
+				page.getByRole( 'tab', { name: /Phase sequences/ } )
 			).toHaveCount( 0 );
 		} );
 
@@ -182,7 +182,7 @@ test.describe( 'VIP Workflows — Ideation experiment gate', () => {
 			const root = page.locator( '#vip-workflows-root' );
 			await expect( root ).toBeAttached();
 			await expect( root ).not.toBeEmpty();
-			await expect( root ).not.toContainText( 'Coming Soon' );
+			await expect( root ).not.toContainText( 'Coming soon' );
 
 			// IdeationAdmin's localized data must reach the admin bundle —
 			// it localizes at admin_enqueue_scripts priority 20 because the
@@ -205,7 +205,7 @@ test.describe( 'VIP Workflows — Ideation experiment gate', () => {
 				'page=vip-workflows-sequences'
 			);
 			const phaseTab = page.getByRole( 'tab', {
-				name: /Phase Sequences/,
+				name: /Phase sequences/,
 			} );
 			await expect( phaseTab ).toBeVisible();
 			await phaseTab.click();

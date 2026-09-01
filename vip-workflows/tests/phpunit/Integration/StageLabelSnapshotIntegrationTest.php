@@ -52,7 +52,7 @@ class StageLabelSnapshotIntegrationTest extends TestCase
 	private const SOFT_CHECK = 'vip-workflows/test-stage-label-soft-check';
 
 	/**
-	 * Sequence name — also the sequence identity the migration resolves by.
+	 * Workflow name — also the sequence identity the migration resolves by.
 	 */
 	private const SEQUENCE_NAME = 'Label Snapshot Flow';
 

@@ -1,6 +1,6 @@
 <?php
 /**
- * Registration-contract tests for the Create Sequence ability.
+ * Registration-contract tests for the New workflow ability.
  *
  * Captures the args passed to wp_register_ability() so we can assert the
  * agent-facing label/description wording, the required input keys, the
@@ -21,7 +21,7 @@ use Brain\Monkey\Functions;
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/create-sequence.php';
 
 /**
- * Tests that the Create Sequence ability registers with the expected contract.
+ * Tests that the New workflow ability registers with the expected contract.
  */
 class CreateSequenceAbilityRegistrationTest extends TestCase
 {
@@ -53,7 +53,7 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
         $args = $this->registered['vip-workflows/create-sequence'];
 
         // Agent-facing wording uses "sequence", never "sequence".
-        $this->assertSame( 'Create Sequence', $args['label'] );
+        $this->assertSame( 'New workflow', $args['label'] );
         $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
         $this->assertStringNotContainsStringIgnoringCase( 'blueprint', $args['description'] );
         $this->assertSame( 'vip-workflows', $args['category'] );

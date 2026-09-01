@@ -711,7 +711,7 @@ describe( 'StageInspector panel structure', () => {
 		// drop out of the tab order along with its description.
 		expect( deleteButton() ).toHaveAttribute( 'aria-disabled', 'true' );
 		expect(
-			screen.getByText( 'A sequence needs at least one stage.' )
+			screen.getByText( 'A workflow needs at least one stage.' )
 		).toBeInTheDocument();
 	} );
 

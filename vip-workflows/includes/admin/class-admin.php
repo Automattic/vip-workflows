@@ -231,8 +231,8 @@ class Admin implements ModuleInterface {
 
 			add_submenu_page(
 				'vip-workflows',
-				__( 'Sequences', 'vip-workflows' ),
-				__( 'Sequences', 'vip-workflows' ),
+				__( 'Workflows', 'vip-workflows' ),
+				__( 'Workflows', 'vip-workflows' ),
 				'manage_options',
 				'vip-workflows-sequences',
 				array( $this, 'render_sequences_page' )
@@ -589,7 +589,7 @@ class Admin implements ModuleInterface {
 		<div class="notice notice-error">
 			<p>
 				<strong><?php esc_html_e( 'VIP Workflows:', 'vip-workflows' ); ?></strong>
-				<?php esc_html_e( 'These sequences could not be upgraded and are not usable until someone fixes them in the Sequence editor. Their stages still have no status region, so any post that reaches one will fail.', 'vip-workflows' ); ?>
+				<?php esc_html_e( 'These workflows could not be upgraded and are not usable until someone fixes them in the Workflow editor. Their stages still have no status region, so any post that reaches one will fail.', 'vip-workflows' ); ?>
 			</p>
 			<ul style="list-style: disc; margin-left: 2em;">
 				<?php foreach ( $failed as $sequence ) : ?>
@@ -608,7 +608,7 @@ class Admin implements ModuleInterface {
 		<div class="notice notice-warning">
 			<p>
 				<strong><?php esc_html_e( 'VIP Workflows:', 'vip-workflows' ); ?></strong>
-					<?php esc_html_e( 'This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These sequences had to be changed to fit. The changes are safe, but they change how the sequences behave — please confirm them in the Sequence editor.', 'vip-workflows' ); ?>
+					<?php esc_html_e( 'This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These workflows had to be changed to fit. The changes are safe, but they change how the workflows behave — please confirm them in the Workflow editor.', 'vip-workflows' ); ?>
 			</p>
 			<ul style="list-style: disc; margin-left: 2em;">
 				<?php foreach ( $changed as $sequence ) : ?>
@@ -636,7 +636,7 @@ class Admin implements ModuleInterface {
 							echo esc_html(
 								sprintf(
 									/* translators: %s: comma-separated transitions. */
-									__( 'Transitions removed, because the sequence was stored with a stage holding two to the same target. Their roles, required tools and notifications went with them: %s.', 'vip-workflows' ),
+									__( 'Transitions removed, because the workflow was stored with a stage holding two to the same target. Their roles, required tools and notifications went with them: %s.', 'vip-workflows' ),
 									implode( ', ', array_map( array( self::class, 'describe_dropped_transition' ), $dropped ) )
 								)
 							);
@@ -644,7 +644,7 @@ class Admin implements ModuleInterface {
 							</strong>
 						<?php endif; ?>
 						<?php if ( empty( $sequence['reaches_publish'] ) ) : ?>
-							<strong><?php esc_html_e( 'This sequence has no stage in the Publish region, so it cannot publish posts until you set one.', 'vip-workflows' ); ?></strong>
+							<strong><?php esc_html_e( 'This workflow has no stage in the Publish region, so it cannot publish posts until you set one.', 'vip-workflows' ); ?></strong>
 						<?php endif; ?>
 					</li>
 				<?php endforeach; ?>

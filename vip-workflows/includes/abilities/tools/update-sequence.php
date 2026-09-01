@@ -75,7 +75,7 @@ function execute_update_sequence( ?array $input = null ) {
 	$existing   = $repository->find( $sequence_id );
 
 	if ( ! $existing ) {
-		return new \WP_Error( 'sequence_not_found', __( 'Sequence not found.', 'vip-workflows' ) );
+		return new \WP_Error( 'sequence_not_found', __( 'Workflow not found.', 'vip-workflows' ) );
 	}
 
 	$previous_status = $existing->status;
@@ -102,14 +102,14 @@ function execute_update_sequence( ?array $input = null ) {
 	// no-fallback rule, a response missing required keys is a data-integrity bug —
 	// surface it rather than papering over it with default values.
 	if ( ! is_array( $data ) ) {
-		return new \WP_Error( 'update_response_invalid', __( 'Sequence update returned an unexpected response.', 'vip-workflows' ) );
+		return new \WP_Error( 'update_response_invalid', __( 'Workflow update returned an unexpected response.', 'vip-workflows' ) );
 	}
 	foreach ( array( 'id', 'name', 'slug', 'type', 'status', 'statuses_count' ) as $required_key ) {
 		if ( ! array_key_exists( $required_key, $data ) ) {
 			return new \WP_Error(
 				'update_response_incomplete',
 				/* translators: %s: response field name. */
-				sprintf( __( 'Sequence was updated but the response is missing the "%s" field.', 'vip-workflows' ), $required_key )
+				sprintf( __( 'Workflow was updated but the response is missing the "%s" field.', 'vip-workflows' ), $required_key )
 			);
 		}
 	}
@@ -123,7 +123,7 @@ function execute_update_sequence( ?array $input = null ) {
 		$configured = is_array( $data['post_types'] ?? null ) ? $data['post_types'] : array();
 		$valid      = array_filter( $configured, 'post_type_exists' );
 		if ( empty( $valid ) ) {
-			$warnings[] = __( 'This workflow sequence now has no valid post types configured, so it is not attached to any content type and cannot be used. An update replaces the whole configuration — pass "post_types" (e.g. ["post"]) to keep the attachment.', 'vip-workflows' );
+			$warnings[] = __( 'This workflow now has no valid post types configured, so it is not attached to any content type and cannot be used. An update replaces the whole configuration — pass "post_types" (e.g. ["post"]) to keep the attachment.', 'vip-workflows' );
 		}
 	}
 
@@ -164,8 +164,8 @@ function register_update_sequence(): void {
 	vip_workflows_register_ability(
 		UPDATE_SEQUENCE_ABILITY_ID,
 		array(
-			'label'               => __( 'Update sequence', 'vip-workflows' ),
-			'description'         => __( 'Replaces the configuration of an existing workflow sequence — its statuses, transitions, required tools, role permissions and metadata fields. This is a full replacement, not a patch: any field you omit is cleared, so read the sequence first (Validate Sequence returns its stored configuration). Cannot change whether the sequence is active; use Activate Sequence for that.', 'vip-workflows' ),
+			'label'               => __( 'Update workflow', 'vip-workflows' ),
+			'description'         => __( 'Replaces the configuration of an existing workflow — its statuses, transitions, required tools, role permissions and metadata fields. This is a full replacement, not a patch: any field you omit is cleared, so read the workflow first (Validate Workflow returns its stored configuration). Cannot change whether the workflow is active; use Activate Workflow for that.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -174,19 +174,19 @@ function register_update_sequence(): void {
 				'properties'           => array(
 					'sequence_id'     => array(
 						'type'        => 'integer',
-						'description' => __( 'The ID of the sequence to update.', 'vip-workflows' ),
+						'description' => __( 'The ID of the workflow to update.', 'vip-workflows' ),
 					),
 					'name'            => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence name.', 'vip-workflows' ),
+						'description' => __( 'The workflow name.', 'vip-workflows' ),
 					),
 					'description'     => array(
 						'type'        => 'string',
-						'description' => __( 'Sequence description. Omitting this clears it.', 'vip-workflows' ),
+						'description' => __( 'Workflow description. Omitting this clears it.', 'vip-workflows' ),
 					),
 					'statuses'        => array(
 						'type'        => 'array',
-						'description' => __( 'The complete array of status configurations defining the sequence stages. Replaces the existing stages entirely.', 'vip-workflows' ),
+						'description' => __( 'The complete array of status configurations defining the workflow stages. Replaces the existing stages entirely.', 'vip-workflows' ),
 						'items'       => array(
 							'type'       => 'object',
 							'required'   => array( 'key', 'label' ),
@@ -302,11 +302,11 @@ function register_update_sequence(): void {
 					),
 					'post_types'      => array(
 						'type'        => 'array',
-						'description' => __( 'Post types this sequence applies to (workflow only). Omitting this detaches the sequence from every post type.', 'vip-workflows' ),
+						'description' => __( 'Post types this workflow applies to (workflow only). Omitting this detaches the workflow from every post type.', 'vip-workflows' ),
 					),
 					'settings'        => array(
 						'type'        => 'object',
-						'description' => __( 'Sequence settings. Omitting this clears them.', 'vip-workflows' ),
+						'description' => __( 'Workflow settings. Omitting this clears them.', 'vip-workflows' ),
 					),
 					'metadata_fields' => array(
 						'type'        => 'array',
@@ -351,23 +351,23 @@ function register_update_sequence(): void {
 				'properties'           => array(
 					'sequence_id'    => array(
 						'type'        => 'integer',
-						'description' => __( 'The updated sequence ID.', 'vip-workflows' ),
+						'description' => __( 'The updated workflow ID.', 'vip-workflows' ),
 					),
 					'name'           => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence name.', 'vip-workflows' ),
+						'description' => __( 'The workflow name.', 'vip-workflows' ),
 					),
 					'slug'           => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence slug.', 'vip-workflows' ),
+						'description' => __( 'The workflow slug.', 'vip-workflows' ),
 					),
 					'type'           => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence type.', 'vip-workflows' ),
+						'description' => __( 'The workflow type.', 'vip-workflows' ),
 					),
 					'status'         => array(
 						'type'        => 'string',
-						'description' => __( 'The sequence lifecycle state, unchanged by this ability.', 'vip-workflows' ),
+						'description' => __( 'The workflow lifecycle state, unchanged by this ability.', 'vip-workflows' ),
 					),
 					'status_changed' => array(
 						'type'        => 'boolean',
@@ -375,16 +375,16 @@ function register_update_sequence(): void {
 					),
 					'statuses_count' => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of statuses in the updated sequence.', 'vip-workflows' ),
+						'description' => __( 'Number of statuses in the updated workflow.', 'vip-workflows' ),
 					),
 					'warnings'       => array(
 						'type'        => 'array',
-						'description' => __( 'Non-fatal advisories about the updated sequence (e.g. no valid post types configured).', 'vip-workflows' ),
+						'description' => __( 'Non-fatal advisories about the updated workflow (e.g. no valid post types configured).', 'vip-workflows' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 					'success'        => array(
 						'type'        => 'boolean',
-						'description' => __( 'Whether the sequence was updated.', 'vip-workflows' ),
+						'description' => __( 'Whether the workflow was updated.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -393,7 +393,7 @@ function register_update_sequence(): void {
 				return current_user_can( 'manage_options' );
 			},
 			'meta'                => array(
-				'summary'             => __( 'Replaces a sequence’s whole configuration. Anything you leave out is cleared.', 'vip-workflows' ),
+				'summary'             => __( 'Replaces a workflow’s whole configuration. Anything you leave out is cleared.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

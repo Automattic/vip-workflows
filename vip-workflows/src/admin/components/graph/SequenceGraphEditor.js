@@ -253,7 +253,7 @@ const serializeSequence = ( isPhase, fields ) =>
  */
 const discardPrompt = () => [
 	__(
-		'This sequence has changes that have not been saved. Leaving now discards them.',
+		'This workflow has changes that have not been saved. Leaving now discards them.',
 		'vip-workflows'
 	),
 	{
@@ -290,7 +290,7 @@ function SaveBlockers( { reasons } ) {
 			{ sprintf(
 				/* translators: %d: number of things standing in the way of the save. */
 				_n(
-					'This sequence cannot be saved yet — %d thing needs fixing:',
+					'This workflow cannot be saved yet — %d thing needs fixing:',
 					'This sequence cannot be saved yet — %d things need fixing:',
 					reasons.length,
 					'vip-workflows'
@@ -495,7 +495,7 @@ export default function SequenceGraphEditor( {
 				) {
 					throw new Error(
 						__(
-							'The server did not say what this sequence can be built from.',
+							'The server did not say what this workflow can be built from.',
 							'vip-workflows'
 						)
 					);
@@ -683,7 +683,7 @@ export default function SequenceGraphEditor( {
 						sprintf(
 							/* translators: %s: comma-separated post type slugs */
 							__(
-								'Warning: this sequence references post types that no longer exist: %s. Select valid post types and save.',
+								'Warning: this workflow references post types that no longer exist: %s. Select valid post types and save.',
 								'vip-workflows'
 							),
 							stale.join( ', ' )
@@ -1466,11 +1466,11 @@ export default function SequenceGraphEditor( {
 		if (
 			! ( await confirm(
 				__(
-					'Are you sure you want to delete this sequence? This cannot be undone.',
+					'Are you sure you want to delete this workflow? This cannot be undone.',
 					'vip-workflows'
 				),
 				{
-					title: __( 'Delete sequence', 'vip-workflows' ),
+					title: __( 'Delete workflow', 'vip-workflows' ),
 					confirmLabel: __( 'Delete', 'vip-workflows' ),
 					isDestructive: true,
 				}
@@ -1508,7 +1508,7 @@ export default function SequenceGraphEditor( {
 			href: 'admin.php?page=vip-workflows',
 		},
 		{
-			label: __( 'Sequences', 'vip-workflows' ),
+			label: __( 'Workflows', 'vip-workflows' ),
 			href: 'admin.php?page=vip-workflows-sequences',
 		},
 		{ label: current },
@@ -1523,7 +1523,7 @@ export default function SequenceGraphEditor( {
 					gap="sm"
 				>
 					<Spinner />
-					{ __( 'Loading sequence…', 'vip-workflows' ) }
+					{ __( 'Loading workflow…', 'vip-workflows' ) }
 				</Stack>
 			</AdminPage>
 		);
