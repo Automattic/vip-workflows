@@ -457,7 +457,7 @@ Measured across the whole monorepo: **2,190 translatable strings in 207 files**,
 of which **1,940 are user-facing** (excluding 250 `input_schema` /
 `output_schema` descriptions, which are model-only by design).
 
-All of it is fixed; the table is the record of what was found, not a queue.
+All of it is fixed; the table is the record of what was found, not a queue. Every changed string is listed in [`copy-audit-before-after.md`](copy-audit-before-after.md).
 
 | # | Finding | Extent |
 |---|---|---|
