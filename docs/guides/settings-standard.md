@@ -302,7 +302,8 @@ list of names before it reads as a wall of forms.
 ```
 
 - **`help` states the effect, not the label again.** If the help text is the
-  label as a sentence, delete it.
+  label as a sentence, delete it. [`copy-standard.md`](copy-standard.md) governs
+  the wording and sets the length ceiling (~120 characters, one sentence).
 - **Never a sibling `<p>`.** The prop wires `aria-describedby`; a loose
   paragraph is invisible to assistive tech and drifts out of the control's
   spacing.

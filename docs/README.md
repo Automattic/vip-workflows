@@ -23,6 +23,7 @@
 ## Guides
 
 - [Action standard](guides/action-standard.md)
+- [Copy standard](guides/copy-standard.md)
 - [Modal standard](guides/modal-standard.md)
 - [Settings standard](guides/settings-standard.md)
 - [WPDS usage audit patterns](guides/wpds-usage-audit-patterns.md)
