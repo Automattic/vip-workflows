@@ -108,7 +108,7 @@ class EditorIntegration implements ModuleInterface {
 		$enforcement_mode = \VIPWorkflows\Admin\Settings::get_workflow_enforcement_mode();
 		$is_new_post      = in_array( $post->post_status, array( 'auto-draft', 'draft' ), true )
 			&& empty( $post->post_content )
-			&& __( 'Auto Draft', 'vip-workflows' ) === $post->post_title;
+			&& __( 'Auto Draft' ) === $post->post_title;
 
 		// Determine if we should show the workflow modal.
 		$show_workflow_modal = $enforcement_mode && $is_new_post && ! $sequence;

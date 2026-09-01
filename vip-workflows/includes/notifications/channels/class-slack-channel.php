@@ -144,7 +144,7 @@ class SlackChannel extends NotificationChannel {
 		$notification           = new Notification();
 		$notification->type     = 'test';
 		$notification->severity = 'success';
-		$notification->title    = __( 'Test Message', 'vip-workflows' );
+		$notification->title    = __( 'Test message', 'vip-workflows' );
 		$notification->message  = sprintf(
 		/* translators: %s: destination name */
 			__( 'VIP Workflows → %s is working!', 'vip-workflows' ),
