@@ -24,7 +24,7 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Discovery;
 
-use VIPWorkflow\Abilities\Availability;
+use VIPWorkflows\Abilities\Availability;
 use WorkflowParsely\ParselyClient;
 use WP_Error;
 
@@ -75,7 +75,7 @@ class ParselyDiscoveryProvider {
 	/**
 	 * Register the provider.
 	 *
-	 * @param \VIPWorkflow\Discovery\DiscoveryProviderRegistry $registry Registry instance.
+	 * @param \VIPWorkflows\Discovery\DiscoveryProviderRegistry $registry Registry instance.
 	 */
 	public static function register( $registry ): void {
 		$registry->register(

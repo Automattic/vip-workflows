@@ -101,7 +101,7 @@ Usage:
   tools/package-plugin.sh <version> [slug...]
 
   tools/package-plugin.sh 1.2.0                  every plugin
-  tools/package-plugin.sh 1.2.0 vip-workflow     just the core plugin
+  tools/package-plugin.sh 1.2.0 vip-workflows     just the core plugin
   tools/package-plugin.sh 1.2.0 --pick           choose extensions interactively
 
 Produces dist/<slug>-<version>.zip for the core plugin and for every
@@ -164,7 +164,7 @@ done
 
 discover_plugins() {
 	local dir slug
-	echo "vip-workflow"
+	echo "vip-workflows"
 	for dir in "$REPO_ROOT"/workflow-*/; do
 		[ -d "$dir" ] || continue
 		slug="$(basename "$dir")"
@@ -201,18 +201,18 @@ if [ "$PICK" -eq 1 ]; then
 
 	extensions=()
 	for slug in "${PLUGINS[@]}"; do
-		[ "$slug" = "vip-workflow" ] && continue
+		[ "$slug" = "vip-workflows" ] && continue
 		extensions+=("$slug")
 	done
 
 	if [ ${#extensions[@]} -gt 0 ]; then
-		info "vip-workflow (core) is always included."
+		info "vip-workflows (core) is always included."
 		selected_default="$(IFS=,; echo "${extensions[*]}")"
 		chosen="$(gum choose --no-limit --selected="$selected_default" \
 			--header="Space to toggle, Enter to confirm, Ctrl+C to quit" \
 			"${extensions[@]}" </dev/tty)" || die "aborted"
 
-		PLUGINS=("vip-workflow")
+		PLUGINS=("vip-workflows")
 		while IFS= read -r line; do
 			[ -n "$line" ] && PLUGINS+=("$line")
 		done <<EOF
@@ -403,4 +403,4 @@ info ""
 info "Done → $(cd "$DIST_DIR" && ls -1 *.zip | wc -l | tr -d ' ') archive(s) in dist/"
 info ""
 info "Each zip installs directly via Plugins → Add New → Upload Plugin."
-info "vip-workflow is required; the workflow-* plugins extend it."
+info "vip-workflows is required; the workflow-* plugins extend it."

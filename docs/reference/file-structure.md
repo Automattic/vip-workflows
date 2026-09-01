@@ -9,17 +9,17 @@ Pair with [architecture.md](architecture.md) for the conceptual model and [code-
 ### Root Plugin Files
 
 ```
-vip-workflow/
-├── vip-workflow.php          # Plugin header, bootstrap, activation hooks
+vip-workflows/
+├── vip-workflows.php          # Plugin header, bootstrap, activation hooks
 ├── autoload-paths.php        # Autoloader path resolver (class_to_relative_path); required before includes/
 ├── uninstall.php             # Cleanup on uninstall
 ├── composer.json             # PHP dependencies (Abilities API, Action Scheduler, php-ai-client)
 ├── package.json              # JS dependencies (React, @wordpress packages)
 ├── webpack.config.js         # Build configuration (admin, editor)
 └── skills/                   # AI agent skill files for extensibility
-    ├── create-vip-workflow-assistant/SKILL.md
-    ├── create-vip-workflow-tool/SKILL.md
-    └── create-vip-workflow-notification-channel/SKILL.md
+    ├── create-vip-workflows-assistant/SKILL.md
+    ├── create-vip-workflows-tool/SKILL.md
+    └── create-vip-workflows-notification-channel/SKILL.md
 ```
 
 ### PHP Code (`includes/`)
@@ -30,7 +30,7 @@ includes/
 ├── class-module-interface.php          # ModuleInterface contract
 │
 ├── abilities/
-│   ├── functions.php                   # vip_workflow_register_ability() wrapper
+│   ├── functions.php                   # vip_workflows_register_ability() wrapper
 │   ├── class-ability.php               # Extends WP_Ability with VIP metadata
 │   ├── class-ability-registry.php      # Tool registration
 │   ├── class-ability-executor.php      # Tool execution engine
@@ -49,7 +49,7 @@ includes/
 │       ├── get-my-assignments.php     # Query user's assignments
 │       ├── get-posts-by-status.php    # Query posts by workflow status
 │       ├── get-recent-activity.php    # Query recent events
-│       ├── get-stale-posts.php        # Query SLA-breaching posts
+│       ├── get-stale-posts.php        # Posts unmodified for N days
 │       ├── get-transition-history.php # Query transition history
 │       └── get-workflow-summary.php   # Dashboard summary data
 │
@@ -60,14 +60,8 @@ includes/
 │   └── class-assistant-registry.php   # Unified assistant registry (research + discovery)
 │
 ├── automation/
-│   ├── class-event-bus.php            # Pub/sub event dispatcher
-│   ├── class-event-registry.php       # Event type definitions
-│   ├── class-condition-evaluator.php  # Flow condition evaluation
-│   ├── class-action-dispatcher.php    # Action execution
-│   ├── class-action-handler-interface.php  # Handler contract
-│   └── handlers/
-│       ├── class-notification-handler.php  # Notification action handler
-│       └── class-stub-handler.php     # Placeholder handler
+│   ├── class-event-bus.php            # Records every event the plugin emits
+│   └── class-event-registry.php       # Event type definitions
 │
 ├── sequences/
 │   ├── class-sequence.php            # Sequence data object
@@ -87,7 +81,7 @@ includes/
 ├── experiments/
 │   ├── class-experiment.php              # Abstract base for toggleable experiments
 │   ├── class-experiment-registry.php     # Tracks experiments, resolves enabled state
-│   ├── class-experiment-cli.php          # WP-CLI: wp vip-workflow experiment
+│   ├── class-experiment-cli.php          # WP-CLI: wp vip-workflows experiment
 │   └── class-ideation-experiment.php     # Ideation experiment declaration
 │
 ├── ideation/
@@ -126,14 +120,8 @@ includes/
 │   ├── class-you-tube-transcript.php  # YouTube transcript extraction
 │   └── class-guideline-context-provider.php  # Read guideline context from Gutenberg/Core for AI
 │
-├── jobs/
-│   ├── class-job-scheduler.php        # ActionScheduler wrapper
-│   ├── class-job.php                  # Abstract job base class
-│   ├── class-cleanup-job.php          # Cleanup old data
-│   └── class-sla-check-job.php        # SLA monitoring
-│
-├── monitoring/
-│   └── class-sla-monitor.php          # SLA tracking
+├── maintenance/
+│   └── class-cleanup.php              # Nightly prune, reported to the audit log
 │
 ├── notifications/
 │   ├── class-notification-dispatcher.php  # Central notification dispatcher
@@ -167,7 +155,6 @@ includes/
     ├── class-general-settings-controller.php  # General settings
     ├── class-ideation-controller.php      # Story ideation
     ├── class-ideation-sources-controller.php  # Research sources CRUD
-    ├── class-jobs-controller.php          # Background jobs
     ├── class-notifications-controller.php # Notification channels
     └── class-utility-controller.php       # Shared utility endpoints
 ```

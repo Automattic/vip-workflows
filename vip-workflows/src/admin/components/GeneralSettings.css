@@ -1,0 +1,37 @@
+/**
+ * Role-checkbox group chrome for the General settings panel.
+ *
+ * Group semantics and the fieldset reset come from `@wordpress/ui`'s `Fieldset`.
+ * This sheet only overrides what that primitive does not supply: section-scale
+ * heading typography on the legend slot, rhythm between the three children, and
+ * the auto-fill role grid.
+ *
+ * The space between one group and the next belongs to the section's Stack; this
+ * stylesheet sets no outer margins.
+ */
+
+.vip-workflows-settings-field {
+	/* wpds-allow R3 -- legend, description, grid; tighter than Fieldset's default xs */
+	gap: var(--wpds-dimension-gap-sm);
+}
+
+/* Fieldset.Legend ships the uppercase field-label chrome; the group name is an h3. */
+.vip-workflows-settings-field__legend {
+	/* wpds-allow R6 -- Fieldset.Legend styles itself as a field label; this slot holds a section heading, and the primitive exposes no variant for that */
+	font: revert-layer; /* wpds-allow R5 -- reverts to DS heading over Fieldset label styles */
+	/* wpds-allow R6 -- same override, same reason */
+	text-transform: none;
+	/* wpds-allow R6 -- same override, same reason */
+	color: inherit;
+}
+
+.vip-workflows-settings-field__description {
+	/* wpds-allow R6 -- muted tone; <Text> exposes `variant` only, with no colour or tone prop */
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflows-settings-field__roles {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: var(--wpds-dimension-gap-sm);
+}

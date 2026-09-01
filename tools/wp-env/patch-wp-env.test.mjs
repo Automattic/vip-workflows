@@ -20,7 +20,7 @@ const ROOT = path.resolve(
 
 test( 'patch-wp-env routes Docker Official Images through the registry mirror', () => {
 	const fixture = mkdtempSync(
-		path.join( tmpdir(), 'vip-workflow-patch-wp-env-' )
+		path.join( tmpdir(), 'vip-workflows-patch-wp-env-' )
 	);
 	const scriptsDir = path.join( fixture, 'scripts' );
 	const dockerDir = path.join(

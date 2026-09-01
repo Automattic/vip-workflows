@@ -1,6 +1,6 @@
 # Database Schema Reference
 
-Generated from `vip-workflow/includes/database/class-schema.php` (v2.14.0).
+Generated from `vip-workflows/includes/database/class-schema.php` (v2.14.0).
 
 ---
 
@@ -30,11 +30,11 @@ CREATE TABLE wp_vip_sequences (
 );
 ```
 
-### `wp_vip_workflow_events`
+### `wp_vip_workflows_events`
 Audit log. Every status transition, tool run, and system event is recorded here.
 
 ```sql
-CREATE TABLE wp_vip_workflow_events (
+CREATE TABLE wp_vip_workflows_events (
     id bigint(20) unsigned AUTO_INCREMENT PRIMARY KEY,
     post_id bigint(20) unsigned DEFAULT NULL,
     event_type varchar(100) NOT NULL,
@@ -50,11 +50,11 @@ CREATE TABLE wp_vip_workflow_events (
 );
 ```
 
-### `wp_vip_workflow_notifications`
+### `wp_vip_workflows_notifications`
 In-app notification inbox per user.
 
 ```sql
-CREATE TABLE wp_vip_workflow_notifications (
+CREATE TABLE wp_vip_workflows_notifications (
     id bigint(20) unsigned AUTO_INCREMENT PRIMARY KEY,
     user_id bigint(20) unsigned NOT NULL,
     post_id bigint(20) unsigned DEFAULT NULL,
@@ -95,63 +95,13 @@ CREATE TABLE wp_vip_ability_results (
 
 ---
 
-## Automation Tables
-
-### `wp_vip_automation_flows`
-Automation rule definitions. Trigger event + conditions + actions, scoped to a sequence.
-
-```sql
-CREATE TABLE wp_vip_automation_flows (
-    id bigint(20) unsigned AUTO_INCREMENT PRIMARY KEY,
-    uuid char(36) NOT NULL UNIQUE,
-    name varchar(255) NOT NULL,
-    description text,
-    sequence_id bigint(20) unsigned DEFAULT NULL,
-    trigger_events longtext NOT NULL,              -- JSON
-    conditions longtext,                           -- JSON
-    actions longtext NOT NULL,                     -- JSON
-    status varchar(20) NOT NULL DEFAULT 'active',
-    priority int(10) unsigned NOT NULL DEFAULT 10,
-    created_by bigint(20) unsigned NOT NULL,
-    created_at datetime NOT NULL,
-    updated_at datetime NOT NULL,
-    KEY sequence_id (sequence_id),
-    KEY status (status),
-    KEY priority (priority),
-    KEY status_sequence_priority (status, sequence_id, priority)
-);
-```
-
-### `wp_vip_automation_executions`
-Execution log for automation runs. One row per flow triggered.
-
-```sql
-CREATE TABLE wp_vip_automation_executions (
-    id bigint(20) unsigned AUTO_INCREMENT PRIMARY KEY,
-    flow_id bigint(20) unsigned NOT NULL,
-    post_id bigint(20) unsigned DEFAULT NULL,
-    trigger_event_id bigint(20) unsigned DEFAULT NULL,
-    status varchar(20) NOT NULL DEFAULT 'pending', -- pending, success, failed, skipped
-    started_at datetime NOT NULL,
-    completed_at datetime DEFAULT NULL,
-    execution_data longtext,                       -- JSON
-    error_data longtext,                           -- JSON
-    KEY flow_id (flow_id),
-    KEY post_id (post_id),
-    KEY status (status),
-    KEY started_at (started_at)
-);
-```
-
----
-
 ## Organization Tables
 
-### `wp_vip_workflow_roles`
+### `wp_vip_workflows_roles`
 Extended role definitions beyond WordPress core roles.
 
 ```sql
-CREATE TABLE wp_vip_workflow_roles (
+CREATE TABLE wp_vip_workflows_roles (
     id bigint(20) unsigned AUTO_INCREMENT PRIMARY KEY,
     role_key varchar(100) NOT NULL UNIQUE,
     display_name varchar(255) NOT NULL,
@@ -161,11 +111,11 @@ CREATE TABLE wp_vip_workflow_roles (
 );
 ```
 
-### `wp_vip_workflow_desks`
+### `wp_vip_workflows_desks`
 Team/desk structure. Supports hierarchy via `parent_id`.
 
 ```sql
-CREATE TABLE wp_vip_workflow_desks (
+CREATE TABLE wp_vip_workflows_desks (
     id bigint(20) unsigned AUTO_INCREMENT PRIMARY KEY,
     name varchar(255) NOT NULL,
     slug varchar(255) NOT NULL UNIQUE,
@@ -176,11 +126,11 @@ CREATE TABLE wp_vip_workflow_desks (
 );
 ```
 
-### `wp_vip_workflow_user_desks`
+### `wp_vip_workflows_user_desks`
 User-to-desk membership with role (lead, member).
 
 ```sql
-CREATE TABLE wp_vip_workflow_user_desks (
+CREATE TABLE wp_vip_workflows_user_desks (
     id bigint(20) unsigned AUTO_INCREMENT PRIMARY KEY,
     user_id bigint(20) unsigned NOT NULL,
     desk_id bigint(20) unsigned NOT NULL,
@@ -323,12 +273,11 @@ Stored in `wp_postmeta`:
 
 | Meta Key | Type | Purpose |
 |----------|------|---------|
-| `_vip_workflow_sequence_id` | integer | Which sequence this post follows |
-| `_vip_workflow_current_stage_key` | string | Current workflow stage (unprefixed) |
-| `_vip_workflow_assigned_to` | integer | Assigned user ID |
-| `_vip_workflow_assigned_desk` | integer | Assigned desk ID |
-| `_vip_workflow_sla_deadline` | datetime | SLA deadline for current status |
-| `_vip_workflow_transition_data` | array | Per-status transition history (serialized) |
+| `_vip_workflows_sequence_id` | integer | Which sequence this post follows |
+| `_vip_workflows_current_stage_key` | string | Current workflow stage (unprefixed) |
+| `_vip_workflows_assigned_to` | integer | Assigned user ID |
+| `_vip_workflows_assigned_desk` | integer | Assigned desk ID |
+| `_vip_workflows_transition_data` | array | Per-status transition history (serialized) |
 | `wfp_{note_id}_{slug}` | mixed | Transition input notes (dynamic keys from sequence config) |
 | `_vip_asset_analysis` | array | AI analysis results (serialized) |
 | `_vip_asset_attached_to` | array | Object IDs this asset is attached to (serialized) |

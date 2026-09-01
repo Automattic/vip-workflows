@@ -1,6 +1,6 @@
-# Running VIP Workflow in WordPress Playground
+# Running VIP Workflows in WordPress Playground
 
-`blueprint.json` boots WordPress 7.0 with the core `vip-workflow` plugin for a local, disposable smoke test. The plugin is mounted from this checkout because generated assets and Composer dependencies are not committed.
+`blueprint.json` boots WordPress trunk (the nightly build) with the core `vip-workflows` plugin for a local, disposable smoke test. The plugin is mounted from this checkout because generated assets and Composer dependencies are not committed.
 
 From the repository root:
 
@@ -8,10 +8,13 @@ From the repository root:
 npm run setup
 npm run build
 npx @wp-playground/cli@latest start \
-  --wp=7.0 --php=8.2 \
   --blueprint=blueprint.json \
-  --mount=./vip-workflow:/wordpress/wp-content/plugins/vip-workflow
+  --mount=./vip-workflows:/wordpress/wp-content/plugins/vip-workflows
 ```
+
+The WordPress and PHP versions come from `preferredVersions` in `blueprint.json`; passing `--wp` or `--php` on the command line overrides them, so leave them off unless you mean to.
+
+Trunk moves daily, so this environment is deliberately not reproducible between runs. Use a pinned version when you need a stable target.
 
 Open the printed URL. Playground logs you in as `admin` and lands on the Workflows dashboard.
 

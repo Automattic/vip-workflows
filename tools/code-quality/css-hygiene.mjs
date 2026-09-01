@@ -1,5 +1,5 @@
 /**
- * css-hygiene.mjs — WPDS-usage / CSS-hygiene analyzer for VIP Workflow.
+ * css-hygiene.mjs — WPDS-usage / CSS-hygiene analyzer for VIP Workflows.
  *
  * Correlates the two sides no single linter can see at once: the JSX that binds
  * a class to a component, and the CSS that styles that class. Detects dead CSS,
@@ -87,7 +87,7 @@ const STYLED_RAW = new Set(['div', 'span']); // → Stack / Text, but only when 
 // Project-authored CSS namespaces. R1 (dead-class, BLOCKING) only judges these —
 // classes we own and could orphan. Bare/utility names are too ambiguous to call
 // dead, so they're left alone.
-const PROJECT_PREFIXES = ['vip-workflow-', 'wf-'];
+const PROJECT_PREFIXES = ['vip-workflows-', 'wf-'];
 const isProject = (cls) => PROJECT_PREFIXES.some((p) => cls.startsWith(p));
 
 // Third-party / design-system-internal class namespaces. We never author these,
@@ -214,8 +214,8 @@ function scanJsx(text, relPath) {
 	// strings, which desyncs on stray apostrophes) over-collects harmlessly and
 	// guarantees R1 never false-flags a live class as dead.
 	for (const t of text.match(/[A-Za-z_][\w-]*/g) || []) referenced.add(t);
-	// Dynamic class stems: `vip-workflow-foo-${x}` → keep the literal prefix, so
-	// every `.vip-workflow-foo-*` rule counts as referenced.
+	// Dynamic class stems: `vip-workflows-foo-${x}` → keep the literal prefix, so
+	// every `.vip-workflows-foo-*` rule counts as referenced.
 	for (const mm of text.matchAll(/([A-Za-z_][\w-]*)\$\{/g)) {
 		if (/-/.test(mm[1])) stems.add(mm[1]);
 	}

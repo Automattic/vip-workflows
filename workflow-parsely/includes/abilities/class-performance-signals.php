@@ -25,7 +25,7 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Abilities;
 
-use VIPWorkflow\Abilities\Availability;
+use VIPWorkflows\Abilities\Availability;
 use WorkflowParsely\PerformanceLens;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -45,20 +45,20 @@ class PerformanceSignals {
 	/**
 	 * Register the ability.
 	 *
-	 * Registered through the VIP Workflow wrapper rather than core's
+	 * Registered through the VIP Workflows wrapper rather than core's
 	 * wp_register_ability(): only the wrapper sets ability_class, and only a
-	 * VIPWorkflow\Abilities\Ability consults availability_callback.
+	 * VIPWorkflows\Abilities\Ability consults availability_callback.
 	 *
 	 * Meta `type` of `research` is the entire contract for contributing to
 	 * ideation — IdeationOrchestrator::get_research_abilities() selects on it,
 	 * so no core change is needed.
 	 */
 	public static function register(): void {
-		if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+		if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
 			return;
 		}
 
-		vip_workflow_register_ability(
+		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
 				'label'               => __( 'Past Performance', 'workflow-parsely' ),

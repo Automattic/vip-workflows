@@ -1,13 +1,13 @@
 {
 	"$schema": "https://raw.githubusercontent.com/WordPress/gutenberg/trunk/schemas/json/wp-env.json",
-	"core": "WordPress/WordPress#7.0",
+	"core": "WordPress/WordPress#master",
 	"phpVersion": "8.2",
 	"port": 8889,
 	"plugins": [
 		"https://downloads.wordpress.org/plugin/gutenberg.zip",
 		"https://github.com/WordPress/mcp-adapter/releases/latest/download/mcp-adapter.zip",
 		"https://downloads.wordpress.org/plugin/wp-parsely.zip",
-		"./vip-workflow",
+		"./vip-workflows",
 		"./workflow-parsely",
 		"./workflow-tool-checklist",
 		"./workflow-assistant-wikipedia",

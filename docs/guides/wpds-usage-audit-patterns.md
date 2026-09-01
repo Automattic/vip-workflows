@@ -5,8 +5,8 @@ WordPress Design System (`@wordpress/components`, `@wordpress/ui`, and the
 `--wpds-*` design tokens). These patterns are intended to seed a future
 **WPDS usage audit skill**.
 
-> Source case study: `vip-workflow/src/admin/components/GeneralSettings.js`
-> + `GeneralSettings.css` (the shared `vip-workflow-settings-*` chrome).
+> Source case study: `vip-workflows/src/admin/components/GeneralSettings.js`
+> + `GeneralSettings.css` (the shared `vip-workflows-settings-*` chrome).
 
 ## Guiding principle
 
@@ -46,11 +46,11 @@ the styling rules stay in the stylesheet:
 
 ```jsx
 // JS only supplies the value…
-<div className="vip-workflow-bar" style={ { '--vip-bar-fill': `${ pct }%` } } />
+<div className="vip-workflows-bar" style={ { '--vip-bar-fill': `${ pct }%` } } />
 ```
 ```css
 /* …CSS owns the actual styling */
-.vip-workflow-bar { width: var( --vip-bar-fill ); }
+.vip-workflows-bar { width: var( --vip-bar-fill ); }
 ```
 
 **Not** legitimate: `style={{ display:'flex', gap:'10px', padding:'20px' }}` —
@@ -169,7 +169,7 @@ the page actually loads). The audit must resolve each class to its owning
 stylesheet — never assume same-file.
 
 *Variant — shared utility re-declared in N files:* a utility class (e.g.
-`vip-workflow-card-surface`) defined identically in many stylesheets instead of
+`vip-workflows-card-surface`) defined identically in many stylesheets instead of
 once. Define it a single time in the shared admin stylesheet and reuse.
 
 ## Genuine overrides to KEEP (the real 1%)
@@ -217,12 +217,12 @@ selector still loses to a bare `p {}`. You can't out-specify it; you have to win
 the *unlayered* contest.
 
 **The fix — canonical implementation: the "wp-admin typography reset" block in
-[`vip-workflow/src/admin/admin-page.css`](../../vip-workflow/src/admin/admin-page.css).**
+[`vip-workflows/src/admin/admin-page.css`](../../vip-workflows/src/admin/admin-page.css).**
 An **unlayered**, canvas-scoped rule that (a) out-specifies wp-admin's globals and
 (b) hands the property back to the DS layer:
 
 ```css
-.wrap:has( .vip-workflow-admin-page )
+.wrap:has( .vip-workflows-admin-page )
 	:where( p, h1, h2, h3, h4, h5, h6 ):where( :not( .description ) ) {
 	font: revert-layer; /* wpds-allow R5 -- defer to @layer wp-ui-components */
 	margin: 0;          /* wpds-allow R2 -- DS is margin-free; Stack owns spacing */
@@ -232,7 +232,7 @@ An **unlayered**, canvas-scoped rule that (a) out-specifies wp-admin's globals a
 Each decision is load-bearing:
 
 - **Unlayered + `.wrap:has( … )` → specificity (0,2,0).** Enough to clear
-  wp-admin's `.wrap h1` / `.wrap p` (0,1,1). A bare `.vip-workflow-admin-page`
+  wp-admin's `.wrap h1` / `.wrap p` (0,1,1). A bare `.vip-workflows-admin-page`
   scope is only (0,1,0) and still loses to `.wrap h1`.
 - **`revert-layer`, not a hardcoded token.** DS classes are hashed CSS-module
   names — no stable hook to target — so you can't re-declare the DS value; you
@@ -253,7 +253,7 @@ Each decision is load-bearing:
 
 **Expect to resolve this again.** It recurs whenever:
 
-- a **new surface** renders WPDS components **outside `.vip-workflow-admin-page`**
+- a **new surface** renders WPDS components **outside `.vip-workflows-admin-page`**
   — modals and the slideout portal elsewhere in the DOM and don't inherit this
   reset, so they need their own equivalent scoped to their root;
 - a **new bare tag** starts colliding — extend the `:where( … )` tag list (kept
@@ -270,11 +270,11 @@ layer" reason.
 
 A CSS linter can't find these — the conflict is a cross-stylesheet cascade
 interaction that only exists against real DOM. The detector is therefore a
-runtime e2e audit: [`tests/e2e/wpds-cascade-audit.spec.js`](../../vip-workflow/tests/e2e/wpds-cascade-audit.spec.js)
-(logic in [`helpers/wpds-cascade-audit.js`](../../vip-workflow/tests/e2e/helpers/wpds-cascade-audit.js)).
+runtime e2e audit: [`tests/e2e/wpds-cascade-audit.spec.js`](../../vip-workflows/tests/e2e/wpds-cascade-audit.spec.js)
+(logic in [`helpers/wpds-cascade-audit.js`](../../vip-workflows/tests/e2e/helpers/wpds-cascade-audit.js)).
 
 ```bash
-npm run test:e2e -- wpds-cascade-audit      # from vip-workflow/
+npm run test:e2e -- wpds-cascade-audit      # from vip-workflows/
 ```
 
 It visits each DS admin surface (plus the AI slideout portal) and flags every
@@ -286,7 +286,7 @@ regression guard once a surface is clean. Add new screens to the spec's `SCREENS
 list. The two finding shapes it surfaces map to the recurrence cases above:
 
 - **Portal surfaces** (the slideout, modals) — a DS element outside
-  `.vip-workflow-admin-page` that the canvas reset never reaches → give that root
+  `.vip-workflows-admin-page` that the canvas reset never reaches → give that root
   its own scoped reset.
 - **`.description`-carrying DS elements** — a `<Text>` that also has
   `className="description"`. Our reset excludes `.description` by design, so

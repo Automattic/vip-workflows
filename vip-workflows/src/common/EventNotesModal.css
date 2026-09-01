@@ -1,0 +1,29 @@
+/**
+ * Event notes modal styles (see EventNotesModal.js).
+ *
+ * The list is a <Stack> and its text is <Text>, so spacing between notes and
+ * every font choice are component props. What is left is the separator, the
+ * value's surface, and the one inset the modal header does not supply.
+ */
+
+.vip-workflows-event-notes-content {
+	margin-top: var(--wpds-dimension-gap-lg); /* wpds-allow R3 -- clears the modal header, which leaves only 4px of content padding above; no parent Stack */
+}
+
+/* The divider sits between items, so it is scoped away from the last one
+   rather than declared and then unset. */
+.vip-workflows-event-note-item:not(:last-child) {
+	padding-bottom: var(--wpds-dimension-gap-lg);
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral); /* wpds-allow R6 -- separator between notes; Stack has no divider prop */
+}
+
+.vip-workflows-event-note-item__value {
+	color: var(--wpds-color-foreground-content-neutral);
+	white-space: pre-wrap;
+	word-break: break-word;
+	padding: var(--wpds-dimension-gap-lg);
+	background: var(--wpds-color-background-surface-neutral-weak);
+	border-radius: var(--wpds-border-radius-md);
+	border-left: var(--wpds-dimension-size-5xs) solid
+		var(--wpds-color-stroke-interactive-brand);
+}

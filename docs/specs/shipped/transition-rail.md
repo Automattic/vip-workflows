@@ -366,7 +366,7 @@ at 9px, not as green or red. `ToolsPanel.js:26-30`'s hardcoded
 The flash in agent beat 2 needs the **resolved outcome**, and the payload
 cannot currently supply it. `StageAgentRunner::finish()` clears the job
 marker before transitioning (`class-stage-agent-runner.php:633`) and the
-outcome survives only as an argument to the `vip_workflow_agent_completed`
+outcome survives only as an argument to the `vip_workflows_agent_completed`
 action (`:659`); `get_agent_job_state()` returns only `status` and `error`,
 filtered to the *current* stage (`class-workflow-controller.php:588-598`) —
 after the route fires, the current stage is the destination and the state is
@@ -415,7 +415,7 @@ this field; only the flash degrades (straight to beat 3) when it is absent.
   (`:55`, `:141`), so it is unaffected by the panel's removal. Keep the
   `VISIBLE_ISSUE_COUNT` disclosure behaviour inside the rail's details area.
 - **Edit** `src/editor/index.js` — drop the `<ToolsPanel>` mount at `:160`.
-- **Edit** `src/editor/style.css` — the `vip-workflow-panel__progress-*`
+- **Edit** `src/editor/style.css` — the `vip-workflows-panel__progress-*`
   rules (`:112-190`) mostly survive; they belong to the progress list, which
   `non-linear-progress.md` owns, not to this component.
 - **Shared tokens.** The rail needs `--wf-outcome-*` in the editor bundle;

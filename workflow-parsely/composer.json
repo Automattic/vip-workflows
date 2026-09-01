@@ -1,6 +1,6 @@
 {
 	"name": "automattic/workflow-parsely",
-	"description": "Bridges wp-parsely capabilities into VIP Workflow's extension points.",
+	"description": "Bridges wp-parsely capabilities into VIP Workflows' extension points.",
 	"type": "wordpress-plugin",
 	"license": "GPL-2.0-or-later",
 	"require": {

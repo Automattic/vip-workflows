@@ -1,6 +1,6 @@
 # Security Sweep Rubric
 
-Use this rubric when reviewing `vip-workflow/` for security regressions. It is based on the June 2026 VIP security review and the July 8, 2026 follow-up catalog.
+Use this rubric when reviewing `vip-workflows/` for security regressions. It is based on the June 2026 VIP security review and the July 8, 2026 follow-up catalog.
 
 ## Authorization And IDOR
 

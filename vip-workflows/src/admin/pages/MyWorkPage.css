@@ -1,0 +1,18 @@
+/**
+ * My Work page — intro, empty state, and the work-item title link. The table
+ * itself is a `@wordpress/dataviews` DataView (styled by the enqueued
+ * `vip-workflows-dataviews` stylesheet) wrapped in `.vip-workflows-card-surface`.
+ */
+
+/* The column and its 8px gap come from the empty state's <Stack>; the padding
+   and muted tone stay here because Stack exposes props for neither. */
+.vip-workflows-my-work__empty {
+	text-align: center;
+	padding: 48px 24px; /* wpds-allow R2 -- intentional large section padding beyond token scale */
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted empty-state tone; Stack has no color prop */
+}
+
+/* Muted empty-state text now uses the shared `vip-workflows-description` helper
+   (see admin-page.css) rather than wp-admin's `.description`. */
+
+/* The title uses the shared `TitleLink` cell (see DataViewCells.js). */

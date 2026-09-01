@@ -1,0 +1,20 @@
+/**
+ * Event notes preview (see EventNotes.js).
+ *
+ * <Text> sets the type and <Button variant="link"> the whole of the link's
+ * treatment, so the only thing left here is the clamp, which no component prop
+ * expresses. The link's class carries no styles; it is a selector hook.
+ */
+
+/* Two lines, then cut. `-webkit-line-clamp` is the form every current browser
+   implements and it only takes effect inside a `-webkit-box`; the unprefixed
+   `line-clamp` beside it is the standard property the same browsers are moving
+   to, so this rule keeps working once the prefixed one is dropped. `overflow`
+   is what actually hides the rest. */
+.vip-workflows-event-notes {
+	display: -webkit-box; /* wpds-allow R4,R6 -- required by line-clamp; <Text> exposes no prop for truncating to a line count */
+	-webkit-box-orient: vertical;
+	-webkit-line-clamp: 2;
+	line-clamp: 2;
+	overflow: hidden;
+}

@@ -27,7 +27,7 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Tests;
 
-use VIPWorkflow\Abilities\Availability;
+use VIPWorkflows\Abilities\Availability;
 use WorkflowParsely\Entitlement;
 use WorkflowParsely\ParselyClient;
 use WP_Error;
@@ -244,7 +244,7 @@ class SuggestionsEntitlementTest extends TestCase {
 	 */
 	private function serialized_reason(): string {
 		return (string) wp_json_encode(
-			\VIPWorkflow\API\AvailabilitySerializer::serialize(
+			\VIPWorkflows\API\AvailabilitySerializer::serialize(
 				\WorkflowParsely\check_suggestions_availability()
 			)
 		);

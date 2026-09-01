@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<!-- Synthetic development content for VIP Workflow's local wp-env site. -->
+<!-- Synthetic development content for VIP Workflows' local wp-env site. -->
 <rss version="2.0"
 	xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
 	xmlns:content="http://purl.org/rss/1.0/modules/content/"
@@ -7,7 +7,7 @@
 	xmlns:wp="http://wordpress.org/export/1.2/"
 >
 	<channel>
-		<title>VIP Workflow Demo</title>
+		<title>VIP Workflows Demo</title>
 		<link>http://localhost:8888</link>
 		<description>Synthetic editorial workflow fixtures</description>
 		<pubDate>Thu, 15 Jan 2026 12:00:00 +0000</pubDate>
@@ -37,7 +37,7 @@
 			<link>http://localhost:8888/?p=101</link>
 			<pubDate>Mon, 05 Jan 2026 14:00:00 +0000</pubDate>
 			<dc:creator><![CDATA[admin]]></dc:creator>
-			<guid isPermaLink="false">vip-workflow-demo-post-101</guid>
+			<guid isPermaLink="false">vip-workflows-demo-post-101</guid>
 			<description></description>
 			<content:encoded><![CDATA[This synthetic article gives local development environments a safe editorial fixture. It describes a fictional city council opening a public garden after a community planning process.]]></content:encoded>
 			<excerpt:encoded><![CDATA[A fictional local-news fixture for workflow testing.]]></excerpt:encoded>
@@ -61,7 +61,7 @@
 			<link>http://localhost:8888/?p=102</link>
 			<pubDate>Thu, 08 Jan 2026 16:30:00 +0000</pubDate>
 			<dc:creator><![CDATA[admin]]></dc:creator>
-			<guid isPermaLink="false">vip-workflow-demo-post-102</guid>
+			<guid isPermaLink="false">vip-workflows-demo-post-102</guid>
 			<description></description>
 			<content:encoded><![CDATA[This entirely fictional story outlines a library pilot that offers evening workshops in basic electronics, sewing, and digital fabrication.]]></content:encoded>
 			<excerpt:encoded><![CDATA[A synthetic culture-desk fixture.]]></excerpt:encoded>
@@ -85,7 +85,7 @@
 			<link>http://localhost:8888/?p=103</link>
 			<pubDate>Mon, 12 Jan 2026 09:15:00 +0000</pubDate>
 			<dc:creator><![CDATA[admin]]></dc:creator>
-			<guid isPermaLink="false">vip-workflow-demo-post-103</guid>
+			<guid isPermaLink="false">vip-workflows-demo-post-103</guid>
 			<description></description>
 			<content:encoded><![CDATA[This synthetic report follows a fictional transit agency as it evaluates electric buses on two neighborhood routes. All names and details are invented.]]></content:encoded>
 			<excerpt:encoded><![CDATA[A synthetic transportation fixture.]]></excerpt:encoded>
@@ -109,7 +109,7 @@
 			<link>http://localhost:8888/?p=104</link>
 			<pubDate>Thu, 15 Jan 2026 11:45:00 +0000</pubDate>
 			<dc:creator><![CDATA[admin]]></dc:creator>
-			<guid isPermaLink="false">vip-workflow-demo-post-104</guid>
+			<guid isPermaLink="false">vip-workflows-demo-post-104</guid>
 			<description></description>
 			<content:encoded><![CDATA[This fictional arts brief provides a neutral fixture for editing, assignment, and transition testing in a local WordPress site.]]></content:encoded>
 			<excerpt:encoded><![CDATA[A synthetic arts-desk fixture.]]></excerpt:encoded>
