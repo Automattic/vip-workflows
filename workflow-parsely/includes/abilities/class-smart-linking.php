@@ -58,7 +58,7 @@ class SmartLinking {
 		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
-				'label'               => __( 'Smart Linking', 'workflow-parsely' ),
+				'label'               => __( 'Smart linking', 'workflow-parsely' ),
 				'description'         => __( 'Suggest internal links for a post using Parse.ly Smart Linking.', 'workflow-parsely' ),
 				'category'            => 'vip-workflows',
 				'input_schema'        => array(

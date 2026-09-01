@@ -169,6 +169,26 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 									setDraft( prompt.id, value )
 								}
 							/>
+							{ /* The placeholders this template accepts, read
+							     from the registry's own `variables` rather than
+							     spelled out again in the description prose. A
+							     list of tokens is reference material, not a
+							     sentence, so it sits beside the field instead
+							     of inside `help`. */ }
+							{ !! prompt.variables?.length && (
+								<Text variant="body-sm">
+									{ sprintf(
+										/* translators: %s: comma-separated list of template placeholders. */
+										__(
+											'Placeholders: %s',
+											'vip-workflows'
+										),
+										prompt.variables
+											.map( ( v ) => `{${ v }}` )
+											.join( ', ' )
+									) }
+								</Text>
+							) }
 							{ /* A field-scoped utility, so it sits under its own
 							     field and stays left-aligned with it rather than
 							     joining the screen's action row. */ }

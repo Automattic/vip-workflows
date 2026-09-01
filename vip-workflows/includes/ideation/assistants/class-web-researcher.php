@@ -60,7 +60,7 @@ class WebResearcher {
 					'show_in_commands'      => false,
 					'transition_eligible'   => false,
 					'icon'                  => 'search',
-					'thinking_message'      => __( 'Searching the web...', 'vip-workflows' ),
+					'thinking_message'      => __( 'Searching the web…', 'vip-workflows' ),
 					'success_message'       => __( 'Web research complete.', 'vip-workflows' ),
 					'availability_callback' => array( self::class, 'check_availability' ),
 				),

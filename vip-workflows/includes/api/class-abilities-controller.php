@@ -548,7 +548,7 @@ class AbilitiesController extends WP_REST_Controller {
 		if ( $object_id && ! current_user_can( 'edit_post', $object_id ) ) {
 			return new WP_Error(
 				'rest_forbidden',
-				__( 'You do not have permission to analyze this post.', 'vip-workflows' ),
+				__( 'Sorry, you are not allowed to analyze this post.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -576,7 +576,7 @@ class AbilitiesController extends WP_REST_Controller {
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return new WP_Error(
 				'rest_forbidden',
-				__( 'You do not have permission to view results for this post.', 'vip-workflows' ),
+				__( 'Sorry, you are not allowed to view results for this post.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}

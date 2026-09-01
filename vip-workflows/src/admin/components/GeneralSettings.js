@@ -314,7 +314,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				<RoleCheckboxGroup
 					label={ __( 'All activity', 'vip-workflows' ) }
 					description={ __(
-						"Selected roles can see every user's activity in the audit log.",
+						'Selected roles can see every user’s activity in the audit log.',
 						'vip-workflows'
 					) }
 					roles={ roles }

@@ -53,7 +53,7 @@ class HeadlineSuggestions {
 		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
-				'label'               => __( 'Headline Suggestions', 'workflow-parsely' ),
+				'label'               => __( 'Headline suggestions', 'workflow-parsely' ),
 				'description'         => __( 'Suggest alternative headlines for a post using Parse.ly.', 'workflow-parsely' ),
 				'category'            => 'vip-workflows',
 				'input_schema'        => array(

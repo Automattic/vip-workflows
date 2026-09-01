@@ -86,7 +86,7 @@ add_action( 'wp_abilities_api_init', function() {
                 'type'             => 'research',
                 'display_order'    => 50,
                 'icon'             => 'search',
-                'thinking_message' => 'Searching...',
+                'thinking_message' => 'Searching…',
                 'success_message'  => 'Search complete.',
                 'settings_schema'  => [
                     'api_key' => [

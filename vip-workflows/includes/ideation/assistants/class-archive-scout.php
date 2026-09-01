@@ -55,7 +55,7 @@ class ArchiveScout {
 					'show_in_commands'      => false,
 					'transition_eligible'   => false,
 					'icon'                  => 'archive',
-					'thinking_message'      => __( 'Searching your archive...', 'vip-workflows' ),
+					'thinking_message'      => __( 'Searching your archive…', 'vip-workflows' ),
 					'success_message'       => __( 'Archive search complete.', 'vip-workflows' ),
 				),
 			)
@@ -111,8 +111,7 @@ class ArchiveScout {
 		$count   = count( $cards );
 		$summary = sprintf(
 			/* translators: %d: number of articles */
-			_n(
-				'Found %d related article in your archive.',
+			_n( 'Found %d related article in your archive.',
 				'Found %d related articles in your archive.',
 				$count,
 				'vip-workflows'

@@ -59,7 +59,7 @@ class MediaScout {
 					'show_in_commands'      => false,
 					'transition_eligible'   => false,
 					'icon'                  => 'camera',
-					'thinking_message'      => __( 'Searching for media...', 'vip-workflows' ),
+					'thinking_message'      => __( 'Searching for media…', 'vip-workflows' ),
 					'success_message'       => __( 'Media search complete.', 'vip-workflows' ),
 					'availability_callback' => array( self::class, 'check_availability' ),
 				),

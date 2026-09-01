@@ -255,7 +255,7 @@ class PerformanceCheck {
 					'show_in_commands'      => true,
 					'transition_eligible'   => true,
 					'icon'                  => 'chart-bar',
-					'thinking_message'      => __( 'Comparing with past performance...', 'workflow-parsely' ),
+					'thinking_message'      => __( 'Comparing with past performance…', 'workflow-parsely' ),
 					'annotations'           => array(
 						'readonly'    => true,
 						'destructive' => false,
@@ -334,7 +334,7 @@ class PerformanceCheck {
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return new WP_Error(
 				'workflow_parsely_permission_denied',
-				__( 'You do not have permission to compare this post.', 'workflow-parsely' )
+				__( 'Sorry, you are not allowed to compare this post.', 'workflow-parsely' )
 			);
 		}
 
@@ -789,8 +789,7 @@ class PerformanceCheck {
 	private static function evidence_summary( array $signal ): string {
 		return sprintf(
 			/* translators: 1: article count, 2: median value, 3: metric name, 4: window in days. */
-			_n(
-				'Based on %1$d comparable article, %2$s %3$s in its first %4$d days.',
+			_n( 'Based on %1$d comparable article, %2$s %3$s in its first %4$d days.',
 				'Based on %1$d comparable articles, typically %2$s %3$s in their first %4$d days.',
 				$signal['count'],
 				'workflow-parsely'

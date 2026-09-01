@@ -81,7 +81,7 @@ class ParselyDiscoveryProvider {
 		$registry->register(
 			self::SLUG,
 			array(
-				'label'                 => __( 'Parse.ly Trending', 'workflow-parsely' ),
+				'label'                 => __( 'Parse.ly trending', 'workflow-parsely' ),
 				'description'           => __( 'Your best-performing published stories right now, as starting points for a follow-up.', 'workflow-parsely' ),
 				'icon'                  => 'chart-line',
 				'features'              => array( 'recommend' ),
@@ -322,8 +322,7 @@ class ParselyDiscoveryProvider {
 		if ( '' !== $section && $views > 0 ) {
 			$parts[] = sprintf(
 				/* translators: 1: formatted view count, 2: section name. */
-				_n(
-					'It has drawn %1$s view in %2$s.',
+				_n( 'It has drawn %1$s view in %2$s.',
 					'It has drawn %1$s views in %2$s.',
 					$views,
 					'workflow-parsely'

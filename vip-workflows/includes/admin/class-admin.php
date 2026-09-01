@@ -716,7 +716,7 @@ class Admin implements ModuleInterface {
 	public function render_audit_log_page(): void {
 		// Check access.
 		if ( ! Settings::can_user_view_audit_log() ) {
-			wp_die( esc_html__( 'You do not have permission to view the audit log.', 'vip-workflows' ) );
+			wp_die( esc_html__( 'Sorry, you are not allowed to view the audit log.', 'vip-workflows' ) );
 		}
 
 		self::render_app_root();

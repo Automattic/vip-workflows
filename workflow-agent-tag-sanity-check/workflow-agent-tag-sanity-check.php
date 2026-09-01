@@ -39,7 +39,7 @@ function register(): void {
 	vip_workflows_register_ability(
 		'workflow-agent-tag-sanity-check/tag-sanity-check',
 		array(
-			'label'               => __( 'Tag Sanity Check', 'workflow-agent-tag-sanity-check' ),
+			'label'               => __( 'Tag sanity check', 'workflow-agent-tag-sanity-check' ),
 			'description'         => __( "Checks that a post's tags make sense for its content. Does not modify tags.", 'workflow-agent-tag-sanity-check' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
@@ -101,7 +101,7 @@ function register_agent_meta( $registry ): void {
 	$registry->register(
 		'workflow-agent-tag-sanity-check',
 		array(
-			'label'        => __( 'Tag Sanity Check', 'workflow-agent-tag-sanity-check' ),
+			'label'        => __( 'Tag sanity check', 'workflow-agent-tag-sanity-check' ),
 			'description'  => __( "Checks that a post's tags make sense for its content. Does not modify tags.", 'workflow-agent-tag-sanity-check' ),
 			'icon'         => 'tag',
 			'ability_ids'  => array( 'workflow-agent-tag-sanity-check/tag-sanity-check' ),
@@ -202,7 +202,7 @@ function execute( ?array $input = null ) {
  * @return bool|Availability True when generation is configured, otherwise the unmet requirements.
  */
 function check_availability(): bool|Availability {
-	return AiAvailability::for_selected_provider( array( __( 'Tag Sanity Check', 'workflow-agent-tag-sanity-check' ) ) );
+	return AiAvailability::for_selected_provider( array( __( 'Tag sanity check', 'workflow-agent-tag-sanity-check' ) ) );
 }
 
 /**

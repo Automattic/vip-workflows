@@ -729,7 +729,7 @@ class StatusManager {
 			if ( ! current_user_can( 'edit_post', $post_id ) ) {
 				return new \WP_Error(
 					'cannot_edit_post',
-					__( 'You are not allowed to edit this post.', 'vip-workflows' ),
+					__( 'Sorry, you are not allowed to edit this post.', 'vip-workflows' ),
 					array( 'status' => 403 )
 				);
 			}
@@ -739,7 +739,7 @@ class StatusManager {
 			if ( $from_region !== $to_region && ! $this->current_user_can_cross_region( $post, $from_region, $to_region ) ) {
 				return new \WP_Error(
 					'forbidden_region_crossing',
-					__( 'You do not have permission to change this post to that status.', 'vip-workflows' ),
+					__( 'Sorry, you are not allowed to change this post to that status.', 'vip-workflows' ),
 					array( 'status' => 403 )
 				);
 			}
@@ -752,7 +752,7 @@ class StatusManager {
 		if ( ! $is_agent_actor && ! $is_revert && ! $sequence->can_user_transition( $current_stage, $to_status ) ) {
 			return new \WP_Error(
 				'forbidden_transition',
-				__( 'You do not have permission to perform this transition.', 'vip-workflows' ),
+				__( 'Sorry, you are not allowed to make this transition.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -2038,7 +2038,7 @@ class StatusManager {
 				'unmodeled_post_status',
 				sprintf(
 					/* translators: 1: sequence name. 2: post status label, e.g. "Pending Review". */
-					__( 'The "%1$s" workflow has no stage with the %2$s status, so it cannot be started on this post. Change the post\'s status, or choose a workflow that covers it.', 'vip-workflows' ),
+					__( 'The "%1$s" workflow has no stage with the %2$s status, so it cannot be started on this post. Change the post’s status, or choose a workflow that covers it.', 'vip-workflows' ),
 					$sequence->name,
 					$region_label
 				),

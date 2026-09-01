@@ -39,7 +39,7 @@ function register(): void {
 	vip_workflows_register_ability(
 		'workflow-agent-copy-edit/copy-edit',
 		array(
-			'label'               => __( 'Copy Edit', 'workflow-agent-copy-edit' ),
+			'label'               => __( 'Copy edit', 'workflow-agent-copy-edit' ),
 			'description'         => __( 'Copy-edits a post body for grammar, spelling, and style, saving changes as a revision.', 'workflow-agent-copy-edit' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
@@ -109,7 +109,7 @@ function register_agent_meta( $registry ): void {
 	$registry->register(
 		'workflow-agent-copy-edit',
 		array(
-			'label'        => __( 'Copy Edit', 'workflow-agent-copy-edit' ),
+			'label'        => __( 'Copy edit', 'workflow-agent-copy-edit' ),
 			'description'  => __( 'Copy-edits a post body for grammar, spelling, and style, saving changes as a revision.', 'workflow-agent-copy-edit' ),
 			'icon'         => 'pencil',
 			'ability_ids'  => array( 'workflow-agent-copy-edit/copy-edit' ),
@@ -204,7 +204,7 @@ function execute( ?array $input = null ) {
  * @return bool|Availability True when generation is configured, otherwise the unmet requirements.
  */
 function check_availability(): bool|Availability {
-	return AiAvailability::for_selected_provider( array( __( 'Copy Edit', 'workflow-agent-copy-edit' ) ) );
+	return AiAvailability::for_selected_provider( array( __( 'Copy edit', 'workflow-agent-copy-edit' ) ) );
 }
 
 /**

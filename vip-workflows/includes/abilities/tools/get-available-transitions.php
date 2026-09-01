@@ -145,7 +145,7 @@ function register_get_available_transitions(): void {
 					),
 					'guard'          => array(
 						'type'        => 'object',
-						'description' => __( 'What performing one of these transitions would set off. `current_region` is the editorial region (draft/pending/private/publish) of the post\'s stage, or null when it cannot be resolved; a move whose target region differs, with either side being publish, is refused for a user whose `can_bypass` is false. `agent_pending` is true when an AI agent is mid-run on this post, in which case any transition out of the stage stops it and must be confirmed with transition-post\'s acknowledge_warnings.', 'vip-workflows' ),
+						'description' => __( 'What performing one of these transitions would set off. `current_region` is the editorial region (draft/pending/private/publish) of the post’s stage, or null when it cannot be resolved; a move whose target region differs, with either side being publish, is refused for a user whose `can_bypass` is false. `agent_pending` is true when an AI agent is mid-run on this post, in which case any transition out of the stage stops it and must be confirmed with transition-post’s acknowledge_warnings.', 'vip-workflows' ),
 					),
 				),
 			),

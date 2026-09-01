@@ -61,8 +61,8 @@ class PerformanceSignals {
 		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
-				'label'               => __( 'Past Performance', 'workflow-parsely' ),
-				'description'         => __( 'How this newsroom\'s comparable past coverage performed, and which angles did best.', 'workflow-parsely' ),
+				'label'               => __( 'Past performance', 'workflow-parsely' ),
+				'description'         => __( 'How this newsroom’s comparable past coverage performed, and which angles did best.', 'workflow-parsely' ),
 				'category'            => 'research',
 				'input_schema'        => array(
 					'type'       => 'object',
@@ -98,7 +98,7 @@ class PerformanceSignals {
 					'show_in_commands'      => false,
 					'transition_eligible'   => false,
 					'icon'                  => 'chart-bar',
-					'thinking_message'      => __( 'Checking how similar stories performed...', 'workflow-parsely' ),
+					'thinking_message'      => __( 'Checking how similar stories performed…', 'workflow-parsely' ),
 					'success_message'       => __( 'Found comparable coverage.', 'workflow-parsely' ),
 					'annotations'           => array(
 						'readonly'    => true,
@@ -170,8 +170,7 @@ class PerformanceSignals {
 			'cards'   => $cards,
 			'summary' => sprintf(
 				/* translators: %d: number of comparable articles found. */
-				_n(
-					'Found %d comparable article in your archive.',
+				_n( 'Found %d comparable article in your archive.',
 					'Found %d comparable articles in your archive.',
 					$signal['count'],
 					'workflow-parsely'
@@ -281,8 +280,7 @@ class PerformanceSignals {
 
 		$lines[] = sprintf(
 			/* translators: 1: number of articles, 2: metric name, 3: typical value, 4: window in days. */
-			_n(
-				'%1$d comparable article, %3$s %2$s in its first %4$d days.',
+			_n( '%1$d comparable article, %3$s %2$s in its first %4$d days.',
 				'%1$d comparable articles, typically %3$s %2$s in their first %4$d days.',
 				$signal['count'],
 				'workflow-parsely'

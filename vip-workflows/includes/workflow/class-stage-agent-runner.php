@@ -403,7 +403,7 @@ class StageAgentRunner implements ModuleInterface {
 				$post_id,
 				$stage_key,
 				$ability_id,
-				__( 'This post\'s author cannot edit posts, so the AI agent was not run. Reassign the post to a user who can edit it, or move it back to the previous stage.', 'vip-workflows' ),
+				__( 'This post’s author cannot edit posts, so the AI agent was not run. Reassign the post to a user who can edit it, or move it back to the previous stage.', 'vip-workflows' ),
 				$from_stage
 			);
 			return;

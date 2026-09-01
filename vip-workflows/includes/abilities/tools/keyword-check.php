@@ -139,8 +139,7 @@ function execute_keyword_check( ?array $input = null ) {
 				'check_key' => 'flagged_words',
 				'message'   => sprintf(
 				/* translators: 1: The flagged word, 2: Number of occurrences */
-					_n(
-						'Found flagged word "%1$s" (%2$d occurrence).',
+					_n( 'Found flagged word "%1$s" (%2$d occurrence).',
 						'Found flagged word "%1$s" (%2$d occurrences).',
 						$count,
 						'vip-workflows'
@@ -176,8 +175,7 @@ function execute_keyword_check( ?array $input = null ) {
 	} else {
 		$summary = sprintf(
 		/* translators: %d: Number of flagged words found */
-			_n(
-				'Found %d flagged word in content.',
+			_n( 'Found %d flagged word in content.',
 				'Found %d flagged words in content.',
 				$matches_found,
 				'vip-workflows'
@@ -216,7 +214,7 @@ function can_execute_keyword_check() {
 
 	return new \WP_Error(
 		'rest_forbidden',
-		__( 'You do not have permission to execute this ability.', 'vip-workflows' ),
+		__( 'Sorry, you are not allowed to run this tool.', 'vip-workflows' ),
 		array( 'status' => 403 )
 	);
 }

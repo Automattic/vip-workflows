@@ -88,7 +88,7 @@ function execute_update_post_fields( ?array $input = null ) {
 				if ( $author_id !== $current_author && ! current_user_can( 'edit_others_posts' ) ) {
 					return new \WP_Error(
 						'forbidden_author_reassign',
-						__( 'You do not have permission to change the post author.', 'vip-workflows' ),
+						__( 'Sorry, you are not allowed to change the post author.', 'vip-workflows' ),
 						array( 'status' => 403 )
 					);
 				}
@@ -146,7 +146,7 @@ function register_update_post_fields(): void {
 		'vip-workflows/update-post-fields',
 		array(
 			'label'               => __( 'Update post fields', 'vip-workflows' ),
-			'description'         => __( 'Updates a post\'s title, excerpt, date, or author. Only include the fields you want to change. Requires confirmation before executing.', 'vip-workflows' ),
+			'description'         => __( 'Updates a post’s title, excerpt, date, or author. Only include the fields you want to change. Requires confirmation before executing.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',

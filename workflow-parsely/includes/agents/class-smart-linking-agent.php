@@ -71,7 +71,7 @@ class SmartLinkingAgent {
 		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
-				'label'               => __( 'Smart Linking Check', 'workflow-parsely' ),
+				'label'               => __( 'Smart linking check', 'workflow-parsely' ),
 				'description'         => __( 'Flags internal links this post could carry, as editorial notes on the blocks where they belong.', 'workflow-parsely' ),
 				'category'            => 'vip-workflows',
 				'input_schema'        => array(
@@ -282,8 +282,7 @@ class SmartLinkingAgent {
 			'fail',
 			sprintf(
 				/* translators: %d: number of suggested links. */
-				_n(
-					'%d suggested internal link left as a note for review.',
+				_n( '%d suggested internal link left as a note for review.',
 					'%d suggested internal links left as notes for review.',
 					$count,
 					'workflow-parsely'

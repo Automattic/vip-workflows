@@ -150,7 +150,7 @@ function ChecklistSettings( { disabled, onSaveRef, onHasChangesChange } ) {
 		<div className="vip-checklist-settings">
 			<div className="vip-checklist-settings__header">
 				<span>
-					{ __( 'Checklist Items', 'workflow-tool-checklist' ) }
+					{ __( 'Checklist items', 'workflow-tool-checklist' ) }
 				</span>
 				{ /*
 				 * Why everything below is grey. The card states this for the
@@ -254,7 +254,7 @@ function ChecklistSettings( { disabled, onSaveRef, onHasChangesChange } ) {
 					onClick={ addItem }
 					disabled={ disabled || ! newItemLabel.trim() }
 				>
-					{ __( 'Add Item', 'workflow-tool-checklist' ) }
+					{ __( 'Add item', 'workflow-tool-checklist' ) }
 				</Button>
 			</div>
 		</div>

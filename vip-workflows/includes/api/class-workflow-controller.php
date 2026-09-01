@@ -969,7 +969,7 @@ class WorkflowController extends WP_REST_Controller {
 				'success'     => true,
 				'post_id'     => $post_id,
 				'assigned_to' => $current_user_id,
-				'message'     => __( 'Post claimed successfully.', 'vip-workflows' ),
+				'message'     => __( 'Post claimed.', 'vip-workflows' ),
 			)
 		);
 	}
@@ -1021,7 +1021,7 @@ class WorkflowController extends WP_REST_Controller {
 			array(
 				'success' => true,
 				'post_id' => $post_id,
-				'message' => __( 'Post released successfully.', 'vip-workflows' ),
+				'message' => __( 'Post released.', 'vip-workflows' ),
 			)
 		);
 	}
