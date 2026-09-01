@@ -180,14 +180,14 @@ describe( 'Agents screen shape', () => {
 		await renderAgents( [ agent() ] );
 
 		expect(
-			screen.getByText( 'No agent plugins are installed.' )
+			screen.getByText( 'No agent plugins installed. Agents arrive as separate plugins.' )
 		).not.toBeVisible();
 
 		fireEvent.click( screen.getByRole( 'tab', { name: 'From plugins' } ) );
 
 		await waitFor( () =>
 			expect(
-				screen.getByText( 'No agent plugins are installed.' )
+				screen.getByText( 'No agent plugins installed. Agents arrive as separate plugins.' )
 			).toBeVisible()
 		);
 	} );
@@ -209,7 +209,7 @@ describe( 'Agents screen shape', () => {
 		await renderAgents( [ agent() ] );
 
 		expect(
-			screen.getByText( 'No agent plugins are installed.' )
+			screen.getByText( 'No agent plugins installed. Agents arrive as separate plugins.' )
 		).toBeVisible();
 	} );
 

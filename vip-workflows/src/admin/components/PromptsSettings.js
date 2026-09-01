@@ -132,7 +132,7 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 		return (
 			<Text variant="body-md" render={ <p /> }>
 				{ __(
-					'No configurable prompts are registered.',
+					'No configurable prompts on this site. A plugin registers them.',
 					'vip-workflows'
 				) }
 			</Text>

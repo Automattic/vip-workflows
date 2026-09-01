@@ -448,7 +448,7 @@ export function useToolsSettings() {
 		{
 			name: 'check',
 			title: __( 'Checks', 'vip-workflows' ),
-			empty: __( 'No check tools are registered.', 'vip-workflows' ),
+			empty: __( 'No check tools yet. Add one with the Abilities API — see Add custom tools.', 'vip-workflows' ),
 		},
 		{
 			name: 'validator',
@@ -458,7 +458,7 @@ export function useToolsSettings() {
 		{
 			name: 'helper',
 			title: __( 'Helpers', 'vip-workflows' ),
-			empty: __( 'No helper tools are registered.', 'vip-workflows' ),
+			empty: __( 'No helper tools yet. Add one with the Abilities API — see Add custom tools.', 'vip-workflows' ),
 		},
 	];
 

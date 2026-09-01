@@ -119,7 +119,7 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 	if ( experiments.length === 0 ) {
 		return (
 			<Text variant="body-md" render={ <p /> }>
-				{ __( 'No experiments are available.', 'vip-workflows' ) }
+				{ __( 'No experiments on this site. They arrive with plugin releases.', 'vip-workflows' ) }
 			</Text>
 		);
 	}
