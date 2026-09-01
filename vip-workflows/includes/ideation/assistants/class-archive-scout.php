@@ -24,7 +24,7 @@ class ArchiveScout {
 		vip_workflows_register_ability(
 			'vip-workflows/archive-scout',
 			array(
-				'label'               => __( 'Archive Scout', 'vip-workflows' ),
+				'label'               => __( 'Archive scout', 'vip-workflows' ),
 				'description'         => __( 'Searches your published archive for related past coverage.', 'vip-workflows' ),
 				'category'            => 'research',
 				'input_schema'        => array(

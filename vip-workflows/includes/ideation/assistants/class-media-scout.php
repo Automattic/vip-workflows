@@ -28,7 +28,7 @@ class MediaScout {
 		vip_workflows_register_ability(
 			'vip-workflows/media-scout',
 			array(
-				'label'               => __( 'Media Scout', 'vip-workflows' ),
+				'label'               => __( 'Media scout', 'vip-workflows' ),
 				'description'         => __( 'Finds relevant images and videos from the web.', 'vip-workflows' ),
 				'category'            => 'research',
 				'input_schema'        => array(

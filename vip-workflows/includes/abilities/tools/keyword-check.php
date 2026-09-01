@@ -230,7 +230,7 @@ function register_keyword_check(): void {
 	wp_register_ability(
 		'vip-workflows/keyword-check',
 		array(
-			'label'               => __( 'Keyword Check', 'vip-workflows' ),
+			'label'               => __( 'Keyword check', 'vip-workflows' ),
 			'description'         => __( 'Flag content containing specified keywords (e.g., banned words, competitor names, sensitive terms).', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(

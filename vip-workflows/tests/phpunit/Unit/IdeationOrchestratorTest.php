@@ -255,7 +255,7 @@ class IdeationOrchestratorTest extends TestCase {
 
 		$assistants = $this->read_assistant_meta();
 
-		$this->assertSame( 'Seed Analyst', $assistants['vip-workflows/seed-analyst']['label'] );
+		$this->assertSame( 'Seed analyst', $assistants['vip-workflows/seed-analyst']['label'] );
 	}
 
 	public function test_every_stored_assistant_carries_a_label(): void {

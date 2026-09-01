@@ -71,11 +71,12 @@ it's for the user to decide."* On voice: *"Any time text or instructions use 'we
 a lot, it means the focus of the text is on the people behind the software and
 not the people using the software."* On errors: always offer a path forward.
 
-**5. Core exempts two things from sentence case, and only two.** Admin menu
-items (`Available Tools`, `Site Health`, `Export Personal Data`) and post-type
-labels (`Edit Post`, `Search Posts`, `No posts found` — note: no period) are
-Title Case by core convention. Everything else core writes is sentence case.
-These are the carve-outs below, and they are the whole list.
+**5. Core exempts its own chrome from sentence case, and nothing else.** Admin
+menu items (`Available Tools`, `Site Health`), dashboard widget titles (`At a
+Glance`, `Quick Draft`), post-type labels (`Edit Post`, `Search Posts`, `No
+posts found` — note: no period) and post-status labels (`Pending Review`) are
+Title Case by core convention. Everything a plugin writes in its own voice is
+sentence case. These are the carve-outs below, and they are the whole list.
 
 ---
 
@@ -86,9 +87,9 @@ proper nouns. Nothing else.
 
 | Retire | Use |
 |---|---|
-| `Sequence Name`, `Project Name` | `Sequence name`, `Project name` |
+| `Sequence Name`, `Project Name` | `Workflow name`, `Project name` |
 | `Stage Changed`, `Tool Failed`, `Workflow Assigned` | `Stage changed`, `Tool failed`, `Workflow assigned` |
-| `Pending Review`, `Published Only`, `All Posts` | `Pending review`, `Published only`, `All posts` |
+| `Published Only`, `All Posts`, `In Pipeline` | `Published only`, `All posts`, `In pipeline` |
 | `AI Summary`, `AI Analysis`, `Key Points` | `AI summary`, `AI analysis`, `Key points` |
 | `Select a Workflow`, `Workflow History` | `Select a workflow`, `Workflow history` |
 | `Transition Blocked`, `Warnings Detected` | `Transition blocked`, `Warnings detected` |
@@ -100,22 +101,31 @@ proper nouns. Nothing else.
 Title Case is correct **only** here. This list is exhaustive; anything not on it
 is sentence case.
 
-1. **Admin menu and submenu items** — `My Dashboard`, `Audit Log`. Core's own
-   menu is Title Case (`Available Tools`, `Site Health`) and ours sits in the
-   same sidebar.
+1. **Admin chrome that sits beside core's own** — menu and submenu items
+   (`My Dashboard`, `Audit Log`) and dashboard widget titles (`My Workflow`).
+   Core's menu is Title Case (`Available Tools`, `Site Health`) and so are its
+   widget titles (`At a Glance`, `Quick Draft`); ours sit in the same chrome.
 2. **Post-type and taxonomy labels** — core's defaults are Title Case
    (`Edit Post`, `Search Posts`) and `not_found` carries **no** terminal period
    (`No ideation projects found`). Match core's shape exactly; do not "fix" these
    to sentence case.
-3. **Proper nouns and product names** — `VIP Workflows`, `Parse.ly`, `YouTube`,
-   `Slack`, `Tavily`, `OpenAI`, `Wikipedia`.
-4. **Named features** — an agent, tool or provider that is *a thing with a name*,
-   the way a core block is: `Archive Scout`, `Web Researcher`, `SEO Check`,
-   `Smart Linking`, `Pre-publish Checklist`. The test is whether it names an
-   entity a user could point at, not whether it is important.
+3. **Core's own post-status labels** — `Pending Review` beside `Draft`,
+   `Scheduled`, `Private` and `Published`. Core writes that one in Title Case
+   in wp-admin, and a status filter that half-matches core reads as a bug.
+4. **Proper nouns and product names** — `VIP Workflows`, `Parse.ly`, `YouTube`,
+   `Slack`, `Tavily`, `OpenAI`, `Wikipedia`. The vendor keeps its capitals; the
+   words around it do not — `Web images (Tavily)`, `Parse.ly trending`.
 
 Acronyms keep their casing inside a sentence-case string: `Add source URL`,
 `Analyze with AI`, `Webhook URL`, `AI summary`.
+
+**There is no carve-out for our own feature names.** An agent, tool or provider
+is sentence case like everything else: `SEO check`, `Smart linking`, `Archive
+scout`, `Web researcher`, `Pre-publish checklist`. A "is this a named thing?"
+test sounds reasonable and is not: applied across 30 tools and agents it splits
+almost at random, and the first sweep under it produced `Smart linking` beside
+`SEO Check`. The style guide already answers it — *"If in doubt, don't
+capitalize the term."*
 
 ### Ability labels are names, not function signatures
 
@@ -134,7 +144,7 @@ An ability label names **what the thing is**, from the reader's side:
 | `Get My Assignments` | `My assignments` |
 | `Get Workflow Summary` | `Workflow summary` |
 | `Remove From Workflow` | `Remove from workflow` |
-| `Update Sequence`, `Create Sequence` | `Update sequence`, `New sequence` |
+| `Update Sequence`, `Create Sequence` | `Update workflow`, `New workflow` |
 
 Read-only abilities take a noun phrase (they *are* a report). Abilities that
 mutate take the verb from the [action vocabulary
@@ -147,28 +157,38 @@ table](action-standard.md#vocabulary).
 **The same object must not have two names.** This is the most damaging pattern in
 the plugin's copy, and it is invisible to any per-file review.
 
-A workflow definition is called a **sequence** in the admin and the graph editor
+The definition a post follows was a **sequence** in the admin and graph editor
 (52 strings) and a **workflow** in the editor sidebar (24 strings, against 1 use
-of "sequence"). A user who configures a sequence under *Sequences*, then opens a
-post, is asked to `Select a Workflow`. Sixteen strings use both words in one
-sentence, several as the compound `workflow sequence` — which is neither name and
-teaches the reader that they are two things.
+of "sequence"). A user configured a sequence under *Sequences*, opened a post,
+and was asked to `Select a Workflow`. Sixteen strings used both words in one
+sentence, several as the compound `workflow sequence` — which is neither name,
+and teaches the reader that they are two things.
 
-**Rule: pick the name the user meets first, and use it everywhere.**
+**Rule: one name per concept, and it is the plainer word.**
 
 | Concept | Name it | Never |
 |---|---|---|
-| The configured definition a post follows | **sequence** | `workflow` as a countable noun, `workflow sequence`, `editorial sequence` |
-| The product / the practice | **workflow** | — (uncountable: "a post in workflow", "VIP Workflows") |
-| One step within a sequence | **stage** | `status`, `step` |
+| The definition a post follows | **workflow** | `sequence`, `workflow sequence`, `editorial sequence` |
+| One step within a workflow | **stage** | `status`, `step` |
 | The core publishing state a stage maps to | **status** | `state` |
 | The AI actor | **agent** | `assistant`, `bot` (the code namespace says `assistant`; the UI must not) |
 | A check that runs at a transition | **tool** | `ability` (an ability is the registration mechanism, not a user-facing noun) |
 
+`sequence` survives in exactly three places, and nowhere else a person reads:
+
+1. **Phase sequences.** In the data model `sequence` is the supertype and
+   `workflow` and `phase` are its two types, listed as two tabs on one screen.
+   Renaming the supertype would have collapsed a real distinction, so a phase
+   sequence keeps its name.
+2. **Parameter and type names** — `sequence_id`, `sequence_json`, and the wire
+   values in `Sequence type must be "workflow" or "phase"`.
+3. **Identifiers** — post types, REST routes, table and meta keys, class and
+   file names. Renaming those is a data migration, not a copy change.
+
 `phase` is a **real and distinct concept** (the Ideation → editorial hand-off),
 not drift. Keep it, and keep it away from `stage`.
 
-`ability` currently reaches users in 35 strings. It is the Abilities API's word
+`ability` still reaches users in some strings. It is the Abilities API's word
 for the registration, not the user's word for the thing — the settings screen
 already calls them **Tools**.
 
@@ -186,12 +206,14 @@ already calls them **Tools**.
   setting's name, not a place to append a keyboard hint or a count — the
   settings migration already retired `Show in Command Palette (⌘K)` in favour of
   `Show in command palette` for exactly this reason.
-- **Never let a description become a label.** `SchemaSettings.js:102` falls back
-  to `field.description` when `field.label` is missing
-  (`const label = field.label || field.description || key`), which renders a
-  full sentence where a noun phrase belongs — and then suppresses the help text
-  entirely on the next line. Every `settings_schema` field declares an explicit
-  `label`. Only 8 of them do today.
+- **Never let a description become a label.** `SchemaSettings` used to fall
+  back to `field.description` when `field.label` was missing
+  (`field.label || field.description || key`), rendering a full sentence where a
+  noun phrase belongs and suppressing the help text on the next line. No
+  first-party field relied on it, which is exactly what made it dangerous: the
+  trap was armed and invisible. The fallback is now `field.label || key`, so a
+  field with no label shows its key and reads as the bug it is. Every
+  `settings_schema` field declares an explicit `label`.
 
 ---
 
@@ -298,11 +320,15 @@ and, on another card, prose containing `` `current_region` `` and
 **Rule: an ability declares both, or the card shows neither.**
 
 - `description` — the model's. Long, precise, edge cases, identifiers. Unbounded.
+  Never rendered.
 - `meta.summary` — the reader's. One sentence, under ~120 characters, no
-  identifiers, no Markdown. This is what the tool card renders.
+  identifiers, no Markdown. This is what the tool card and the graph editor's
+  tool picker render.
 
-Until `meta.summary` exists, the tool card shows the label alone. A 373-character
-model prompt is not a card description.
+There is **no fallback to `description`**. An ability that declares no summary
+shows its label alone — per AGENTS.md, missing data is a data-integrity error,
+not something to paper over, and a 373-character model prompt is not a card
+description. Every first-party ability declares one.
 
 The same split applies to `input_schema` / `output_schema` descriptions (250
 strings): those are **model-only** and must never reach a rendered surface.
@@ -428,55 +454,73 @@ is not.
 ## Appendix A — audit findings (2026-09-01)
 
 Measured across the whole monorepo: **2,190 translatable strings in 207 files**,
-of which **1,940 are user-facing** (excluding 250 `input_schema` / `output_schema`
-descriptions, which are model-only by design).
+of which **1,940 are user-facing** (excluding 250 `input_schema` /
+`output_schema` descriptions, which are model-only by design).
 
-Ordered by reach, which matches the migration order.
+All of it is fixed; the table is the record of what was found, not a queue.
 
 | # | Finding | Extent |
 |---|---|---|
-| 1 | Title Case where sentence case is required | **80 strings** (64 labels/headings/event names + 16 ability labels). A further 55 Title Case strings are correct under the four carve-outs. |
-| 2 | One concept, two names (`sequence` / `workflow`) | 128 vs 150 strings; editor sidebar 24:1 toward `workflow`, admin + graph 52:34 toward `sequence`; **16 strings use both**, several as `workflow sequence` |
-| 3 | Model-facing `description` rendered as UI card copy | `ToolsSettings.js:280`; worst offenders 373, 367, 268, 211 characters, some containing backticked identifiers |
+| 1 | Title Case where sentence case is required | **94 strings**, plus the 16 ability labels below. The first count was 80: it spared 7 tool and agent names under a "named feature" exemption that did not survive contact with the code, and it missed the bundled workflow and its exported JSON, which are not translatable strings and so never entered the corpus. A further 41 Title Case strings are correct under the four carve-outs. |
+| 2 | One concept, two names (`sequence` / `workflow`) | 128 vs 150 strings; editor sidebar 24:1 toward `workflow`, admin + graph 52:34 toward `sequence`; **16 strings used both**, several as `workflow sequence` |
+| 3 | Model-facing `description` rendered as UI copy | 2 render sites (tool card, graph tool picker); worst offenders 373, 367, 268, 211 characters, some carrying backticked identifiers |
 | 4 | Helper text absent | **40 `help` props across 93 controls** (43%); core's Preferences modal is 15/15 |
 | 5 | Helper text far over length | 3 strings at 421, 266 and 206 characters, all in `src/admin/components/graph/` |
-| 6 | Helper text restates its label | 6 of 15 literal `label`+`help` pairs |
-| 7 | `settings_schema` fields with no `label` | 4 of 8 fields fall through to `SchemaSettings.js:102`, which renders the *description* as the label and drops the help |
+| 6 | Helper text restating its label | 6 of 15 literal `label`+`help` pairs |
+| 7 | `SchemaSettings` rendered a `description` as a label when `label` was missing | 1 latent path; no first-party field relied on it, which is what made it dangerous |
 | 8 | Bare `Failed to …` errors with no next step | 27 |
-| 9 | `You do not have permission …` instead of core's `Sorry, you are not allowed to …` | 12, plus 1 third variant (`You are not allowed to edit this post.`) |
+| 9 | `You do not have permission …` instead of core's `Sorry, you are not allowed to …` | 15 sites across 3 different phrasings |
 | 10 | Error strings with no terminal period | 17 of 253 |
 | 11 | `Please` | 11 |
-| 12 | Straight apostrophe where `’` belongs | 17 |
-| 13 | `...` instead of `…` | 7 (all PHP; JS is consistently `…`) |
-| 14 | Template-variable dumps as helper text | 12 prompt descriptions in `class-core-prompts.php` |
+| 12 | Straight apostrophe where `’` belongs | 16 |
+| 13 | `...` instead of `…` | 7 (all PHP; JS was already consistent) |
+| 14 | Template-variable dumps as helper text | 9 prompt descriptions, duplicating a `variables` array the registry already models and REST already returns |
 | 15 | `successfully` in success messages | 4 |
-| 16 | Bundled default sequence entirely Title Case | 6 transition/stage labels in `class-seeder.php` + `editorial-review-sequence.json` |
-| 17 | Emoji in a label | 1 (`workflow-tool-checklist/src/editor.js:206`) |
-| 18 | Action-vocabulary violations | **1** (`Start over` → `Discard`, `AssistantPanel.js:261`) |
+| 16 | Bundled default workflow entirely Title Case | 6 labels in `class-seeder.php` + `editorial-review-sequence.json` |
+| 17 | Emoji in a label | 1 |
+| 18 | Action-vocabulary violations | **1** (`Start over` → `Discard`) |
+| 19 | Vacuous page subtitles restating the page title | 5 |
+| 20 | Empty states naming what is missing with no way out | 5 |
 
-### What is already good
+### Two bugs found while auditing
+
+Neither is a copy defect; both were found by reading the strings.
+
+- **`Auto Draft` was looked up in the wrong text domain.**
+  `EditorIntegration` compared `__( 'Auto Draft', 'vip-workflows' )` against
+  `$post->post_title`, but core sets that title with `__( 'Auto Draft' )` in the
+  **default** domain. On any translated site the comparison never matched, so
+  the workflow-required modal never appeared for new posts.
+- **Four Quick Edit strings could not be translated.** `Working...`,
+  `No transitions available`, `Error loading transitions` and
+  `Transition failed` were hardcoded English inside the inline script, beside a
+  localized `strings` object carrying everything else.
+
+### What was already good
 
 Worth recording, because the sweeps that produced it should not be undone:
 
 - **The action vocabulary held.** One violation in 299 action labels. The
   [`action-standard.md`](action-standard.md) table is working.
-- **Emoji are gone.** One survivor across the whole monorepo.
+- **Emoji were already gone.** One survivor across the whole monorepo.
 - **No hedging.** Zero uses of `allows you to`, `can be used to`, `helps you`,
   `enables you to` — the exact constructions core's copy guide tells you to scan
   for. Zero marketing `simply` / `just` / `easy` (the two `easy` hits are Flesch
   reading-ease labels, which is the term of art).
-- **Error prose is specific and consequence-first** where it has been written
+- **Error prose is specific and consequence-first** where it was written
   deliberately: *"This post's author cannot edit posts, so the AI agent was not
   run. Reassign the post to a user who can edit it, or move it back to the
   previous stage."* That is the model for every error in this plugin — cause,
   effect, and two ways out.
-- **Empty states mostly follow `No X yet.` + a way forward**, and the JS
-  progress strings are uniformly `…`-terminated.
-- **Model-facing and human-facing strings are already separated** in
-  `input_schema` / `output_schema`. Finding 3 is the one place the wall is
+- **Model-facing and human-facing strings were already separated** in
+  `input_schema` / `output_schema`. Finding 3 was the one place the wall was
   missing, not a systemic failure.
 
-The plugin's copy problem is **not** careless prose. It is three structural
-gaps — capitalization drift that the settings and action sweeps never covered,
-one object with two names, and one field serving two audiences — plus helper
-text that is scarce and, where present, occasionally enormous.
+The plugin's copy problem was **not** careless prose. It was three structural
+gaps — capitalization drift the settings and action sweeps never covered, one
+object with two names, and one field serving two audiences — plus helper text
+that is scarce and, where present, occasionally enormous.
+
+Finding 4 is the one this pass did not close: helper text is still absent on
+more than half the controls. Adding it is a per-screen design question, not a
+sweep.

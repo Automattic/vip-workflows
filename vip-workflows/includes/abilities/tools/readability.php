@@ -245,7 +245,7 @@ function register_readability(): void {
 	wp_register_ability(
 		'vip-workflows/readability',
 		array(
-			'label'               => __( 'Readability Analysis', 'vip-workflows' ),
+			'label'               => __( 'Readability analysis', 'vip-workflows' ),
 			'description'         => __( 'Analyze content readability using Flesch-Kincaid score, sentence length, and complexity metrics.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(

@@ -29,7 +29,7 @@ class WebResearcher {
 		vip_workflows_register_ability(
 			'vip-workflows/web-researcher',
 			array(
-				'label'               => __( 'Web Researcher', 'vip-workflows' ),
+				'label'               => __( 'Web researcher', 'vip-workflows' ),
 				'description'         => __( 'Searches the open web for external context, background, and competing coverage.', 'vip-workflows' ),
 				'category'            => 'research',
 				'input_schema'        => array(
@@ -82,7 +82,7 @@ class WebResearcher {
 	 * @return bool|Availability True when a provider is configured, otherwise the unmet requirements.
 	 */
 	public static function check_availability(): bool|Availability {
-		$source   = array( __( 'Web Researcher', 'vip-workflows' ) );
+		$source   = array( __( 'Web researcher', 'vip-workflows' ) );
 		$provider = SearchProviderRegistry::get_instance()->get_selected();
 
 		if ( null === $provider ) {

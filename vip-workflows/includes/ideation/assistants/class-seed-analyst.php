@@ -49,7 +49,7 @@ class SeedAnalyst {
 	 * @return string
 	 */
 	public function get_label(): string {
-		return __( 'Seed Analyst', 'vip-workflows' );
+		return __( 'Seed analyst', 'vip-workflows' );
 	}
 
 	/**

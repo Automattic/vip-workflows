@@ -504,7 +504,7 @@ class AiToolAvailabilityTest extends TestCase
     public static function provide_assistants(): array
     {
         return array(
-            'seed analyst'    => array( '\\VIPWorkflows\\Ideation\\Assistants\\SeedAnalyst', 'Seed Analyst' ),
+            'seed analyst'    => array( '\\VIPWorkflows\\Ideation\\Assistants\\SeedAnalyst', 'Seed analyst' ),
             'editorial mentor' => array( '\\VIPWorkflows\\Ideation\\Assistants\\EditorialMentor', 'Editorial mentor' ),
         );
     }
