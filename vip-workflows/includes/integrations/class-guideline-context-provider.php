@@ -111,7 +111,7 @@ class GuidelineContextProvider {
 			? array()
 			: array(
 				array(
-					'name' => __( 'Content Guidelines', 'vip-workflows' ),
+					'name' => __( 'Content guidelines', 'vip-workflows' ),
 					'rule' => $packet_text,
 				),
 			);
