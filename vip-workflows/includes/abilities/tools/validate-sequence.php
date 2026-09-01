@@ -258,7 +258,7 @@ function register_validate_sequence(): void {
 	vip_workflows_register_ability(
 		VALIDATE_SEQUENCE_ABILITY_ID,
 		array(
-			'label'               => __( 'Validate Sequence', 'vip-workflows' ),
+			'label'               => __( 'Validate sequence', 'vip-workflows' ),
 			'description'         => __( 'Dry-runs a sequence configuration through the write gate without saving it. Reports whether it is valid, what normalization would change, and which stage/region invariants it breaks. Pass "sequence_id" to inspect a stored sequence, or "config" to check a proposed one.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
@@ -335,6 +335,7 @@ function register_validate_sequence(): void {
 				return current_user_can( 'manage_options' );
 			},
 			'meta'                => array(
+				'summary'             => __( 'Checks a sequence configuration for problems without saving it.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

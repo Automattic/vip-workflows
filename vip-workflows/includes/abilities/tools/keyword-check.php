@@ -300,6 +300,7 @@ function register_keyword_check(): void {
 			'execute_callback'    => __NAMESPACE__ . '\\execute_keyword_check',
 			'permission_callback' => __NAMESPACE__ . '\\can_execute_keyword_check',
 			'meta'                => array(
+				'summary'             => __( 'Flags banned words, competitor names and other terms you list.', 'vip-workflows' ),
 				'show_in_rest'        => true,
 				'show_in_commands'    => true,
 				'icon'                => 'tag',

@@ -217,6 +217,7 @@ class PerformanceCheck {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
+					'summary'             => __( 'Compares this post with how similar stories performed, using Parse.ly.', 'workflow-parsely' ),
 					'type'                  => 'check',
 
 					/* Comparable articles and what each of them did. */

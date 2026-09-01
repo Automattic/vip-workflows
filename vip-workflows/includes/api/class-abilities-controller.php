@@ -641,7 +641,7 @@ class AbilitiesController extends WP_REST_Controller {
 					'readonly'    => true,
 				),
 				'description'      => array(
-					'description' => __( 'Human-readable description of what the ability does.', 'vip-workflows' ),
+					'description' => __( 'Tool description written for a language model. Not for display — use label and meta.summary.', 'vip-workflows' ),
 					'type'        => 'string',
 					'context'     => array( 'view' ),
 					'readonly'    => true,
@@ -659,7 +659,7 @@ class AbilitiesController extends WP_REST_Controller {
 					'readonly'    => true,
 				),
 				'meta'             => array(
-					'description' => __( 'Ability meta, including supports, stage_eligible and transition_eligible.', 'vip-workflows' ),
+					'description' => __( 'Ability meta, including summary, supports, stage_eligible and transition_eligible.', 'vip-workflows' ),
 					'type'        => 'object',
 					'context'     => array( 'view' ),
 					'readonly'    => true,

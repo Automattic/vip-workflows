@@ -91,6 +91,7 @@ class PerformanceSignals {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
+					'summary'               => __( 'Shows how comparable past coverage performed, and which angles did best.', 'workflow-parsely' ),
 					'type'                  => 'research',
 					'display_order'         => 20,
 					'show_in_rest'          => true,

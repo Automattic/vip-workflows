@@ -96,6 +96,7 @@ class SmartLinking {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
+					'summary'             => __( 'Suggests internal links for the post, using Parse.ly.', 'workflow-parsely' ),
 					'show_in_rest'          => true,
 					'show_in_commands'      => true,
 					'icon'                  => 'link',

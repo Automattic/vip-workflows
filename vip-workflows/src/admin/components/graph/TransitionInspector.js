@@ -277,7 +277,7 @@ export default function TransitionInspector( {
 		.map( ( tool ) => ( {
 			value: tool.id,
 			label: tool.label || tool.id,
-			description: tool.description,
+			description: tool.meta?.summary,
 		} ) );
 
 	const addTool = ( id ) =>
@@ -312,7 +312,7 @@ export default function TransitionInspector( {
 		return {
 			label: tool ? tool.label || tool.id : id,
 			value: problem ? problem.short : '',
-			tip: problem ? problem.full : tool.description,
+			tip: problem ? problem.full : tool.meta?.summary,
 			invalid: Boolean( problem ),
 		};
 	};

@@ -72,6 +72,7 @@ function register(): void {
 			'execute_callback'    => __NAMESPACE__ . '\execute',
 			'permission_callback' => __NAMESPACE__ . '\can_execute',
 			'meta'                => array(
+				'summary'             => __( 'Checks the post’s tags for typos, duplicates and off-topic terms.', 'workflow-agent-tag-sanity-check' ),
 				'show_in_rest'          => true,
 				'show_in_commands'      => false,
 				'transition_eligible'   => false,

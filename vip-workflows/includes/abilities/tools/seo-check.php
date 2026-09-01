@@ -388,6 +388,7 @@ function register_seo_check(): void {
 			'execute_callback'    => __NAMESPACE__ . '\\execute_seo_check',
 			'permission_callback' => __NAMESPACE__ . '\\can_execute_seo_check',
 			'meta'                => array(
+				'summary'             => __( 'Checks the post against SEO basics: meta description, headings, keywords and images.', 'vip-workflows' ),
 				'show_in_rest'        => true,
 				'show_in_commands'    => true,
 				'icon'                => 'search',

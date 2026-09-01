@@ -78,6 +78,7 @@ class ChecklistTool {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
+					'summary'             => __( 'Requires every item on your pre-publish checklist to be ticked.', 'workflow-tool-checklist' ),
 					'show_in_rest'        => true,
 					'show_in_commands'    => false,
 					'icon'                => 'list-view',

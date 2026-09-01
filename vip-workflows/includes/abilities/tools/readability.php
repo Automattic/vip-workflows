@@ -301,6 +301,7 @@ function register_readability(): void {
 			'execute_callback'    => __NAMESPACE__ . '\\execute_readability',
 			'permission_callback' => __NAMESPACE__ . '\\can_execute_readability',
 			'meta'                => array(
+				'summary'             => __( 'Scores how easy the post is to read, using Flesch-Kincaid.', 'vip-workflows' ),
 				'show_in_rest'        => true,
 				'show_in_commands'    => true,
 				'icon'                => 'typography',

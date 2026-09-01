@@ -145,7 +145,7 @@ function register_update_post_fields(): void {
 	wp_register_ability(
 		'vip-workflows/update-post-fields',
 		array(
-			'label'               => __( 'Update Post Fields', 'vip-workflows' ),
+			'label'               => __( 'Update post fields', 'vip-workflows' ),
 			'description'         => __( 'Updates a post\'s title, excerpt, date, or author. Only include the fields you want to change. Requires confirmation before executing.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
@@ -209,6 +209,7 @@ function register_update_post_fields(): void {
 				return current_user_can( 'edit_posts' );
 			},
 			'meta'                => array(
+				'summary'             => __( 'Changes a post’s title, excerpt, date or author.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

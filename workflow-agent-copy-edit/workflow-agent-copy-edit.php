@@ -72,6 +72,7 @@ function register(): void {
 			'execute_callback'    => __NAMESPACE__ . '\execute',
 			'permission_callback' => __NAMESPACE__ . '\can_execute',
 			'meta'                => array(
+				'summary'             => __( 'Copy-edits the post for grammar, spelling and style, saving the result as a revision.', 'workflow-agent-copy-edit' ),
 				'show_in_rest'          => true,
 				'show_in_commands'      => false,
 				'transition_eligible'   => false,

@@ -107,7 +107,7 @@ function register_get_available_transitions(): void {
 	wp_register_ability(
 		'vip-workflows/get-available-transitions',
 		array(
-			'label'               => __( 'Get Available Transitions', 'vip-workflows' ),
+			'label'               => __( 'Available transitions', 'vip-workflows' ),
 			'description'         => __( 'Returns what workflow status transitions are available for a given post and user.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
@@ -154,6 +154,7 @@ function register_get_available_transitions(): void {
 				return current_user_can( 'edit_posts' );
 			},
 			'meta'                => array(
+				'summary'             => __( 'Lists the moves a given post and user can make right now.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(
