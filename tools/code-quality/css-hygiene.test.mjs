@@ -72,7 +72,7 @@ const rules = (findings) => findings.map((f) => f.rule);
 after(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })));
 
 describe('component bindings', { skip }, () => {
-	const css = `.vip-workflow-tabs {
+	const css = `.vip-workflows-tabs {
 	display: flex;
 	gap: var(--wpds-dimension-gap-lg);
 	border: 1px solid var(--wpds-color-stroke-surface-neutral);
@@ -83,7 +83,7 @@ describe('component bindings', { skip }, () => {
 		const root = fixture(
 			`import { Tabs } from '@wordpress/ui';
 export default function C() {
-	return <Tabs.Root className="vip-workflow-tabs" />;
+	return <Tabs.Root className="vip-workflows-tabs" />;
 }
 `,
 			css
@@ -103,7 +103,7 @@ export default function C() {
 		const root = fixture(
 			`import { Tabs } from './local-tabs';
 export default function C() {
-	return <Tabs.Root className="vip-workflow-tabs" />;
+	return <Tabs.Root className="vip-workflows-tabs" />;
 }
 `,
 			css

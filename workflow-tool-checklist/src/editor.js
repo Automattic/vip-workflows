@@ -15,7 +15,7 @@ import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 
 const TOOL_ID = 'workflow-tool-checklist/checklist';
-const WORKFLOW_STORE = 'vip-workflow/editor';
+const WORKFLOW_STORE = 'vip-workflows/editor';
 
 /**
  * Check if any transition in the sequence references this tool.

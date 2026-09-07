@@ -1,6 +1,6 @@
 # Code-quality gate
 
-Monorepo-wide lint + fast-test runner for VIP Workflow. Harness-agnostic: the
+Monorepo-wide lint + fast-test runner for VIP Workflows. Harness-agnostic: the
 same entrypoint backs the `npm run` scripts, editor/agent hooks, and CI. It
 reads the repo and runs the project's own linters/tests — it does **not** own
 git hooks or CI config.
@@ -104,7 +104,7 @@ runs inside `lint`; it only analyzes, never edits.
 | Rule | Flags | Severity |
 |---|---|---|
 | **R0** | blanket / whole-file suppression attempts | **blocking** |
-| **R1** | dead project CSS class (`vip-workflow-*` / `wf-*`, referenced in no JS/JSX/PHP) | **blocking** |
+| **R1** | dead project CSS class (`vip-workflows-*` / `wf-*`, referenced in no JS/JSX/PHP) | **blocking** |
 | **R2** | hardcoded value where a `--wpds-*` token exists (color/spacing/radius, incl. `0`) | advisory |
 | **R3** | any `margin` — spacing belongs to the parent Stack/`gap`, not margins | advisory |
 | **R4** | layout declared in CSS (`gap`, `display:flex/grid`, flex props) — use a `<Stack>`/`<HStack>` + its `gap` prop | advisory |
@@ -127,8 +127,8 @@ A false "dead class" would block a commit, so R1 is deliberately narrow:
   hyphenated and an identifier can't contain a hyphen, the reference scan reads
   raw tokens (no fragile string parsing) — it over-collects, so a live class is
   never mistaken for dead.
-- **Dynamic classes are honored:** `` `vip-workflow-foo-${x}` `` keeps every
-  `.vip-workflow-foo-*` rule alive via its stem.
+- **Dynamic classes are honored:** `` `vip-workflows-foo-${x}` `` keeps every
+  `.vip-workflows-foo-*` rule alive via its stem.
 
 Library-owned classes (`.components-*`, `.react-flow*`, `.rbc-*`, …) are never
 R1 — styling them is an R6 override instead, which is the purer signal.
@@ -147,7 +147,7 @@ wpds-allow <ruleId>[,<ruleId>…] -- <reason>
 Placed on the offending line, or the line directly above it.
 
 ```css
-.vip-workflow-toast {
+.vip-workflows-toast {
 	/* wpds-allow R3 -- must bleed into the parent's padding; no gap equivalent */
 	margin-top: -4px;
 }

@@ -1,0 +1,187 @@
+/**
+ * Ideation mood board (grouped sections) styles.
+ */
+
+.vip-workflows-ideation-board {
+	min-height: 200px;
+}
+
+/* Populated board is a <Stack direction="column" gap="xl">; the --empty variant
+   is its own centered Stack. Only the box-model below stays in CSS. */
+
+.vip-workflows-ideation-board--empty {
+	padding: 60px 20px; /* wpds-allow R2 -- intentional large section padding beyond token scale */
+}
+
+.vip-workflows-ideation-board__empty-text {
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted empty-state text; Text has no tone/color prop */
+}
+
+/* Board Sections */
+
+/* Header is a <Stack> inside a <Stack direction="column" gap="md"> section; the
+   parent gap owns header→body spacing. Only the divider + its padding stay. */
+.vip-workflows-ideation-section__header {
+	padding: 0 0 var(--wpds-dimension-padding-sm);
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak); /* wpds-allow R6 -- section header divider; Stack has no border prop */
+}
+
+.vip-workflows-ideation-section__icon {
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- icon tint; Stack has no color prop */
+}
+
+.vip-workflows-ideation-section__count {
+	font: var(--vip-workflows-text-body-sm);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+.vip-workflows-ideation-section__add {
+	margin-left: auto !important; /* wpds-allow R3 -- pushes action to header end; mixed-content row, no Stack justify */
+}
+
+.vip-workflows-ideation-section__empty {
+	font-style: italic;
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted empty-state text; Text has no color prop */
+	padding: var(--wpds-dimension-padding-sm) 0;
+}
+
+/* Default grid: multi-column for articles */
+
+.vip-workflows-ideation-section__grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+	gap: 10px;
+}
+
+/* Media grid: smaller, tighter */
+
+.vip-workflows-ideation-section--vip-workflows-media-scout .vip-workflows-ideation-section__grid {
+	grid-template-columns: repeat(auto-fill, minmax(100px, 150px));
+	gap: 6px;
+}
+
+/* Subheader is a <Stack> inside a <Stack direction="column" gap="xs"> subgroup;
+   the parent gap owns subheader→grid spacing. Divider + padding stay. */
+.vip-workflows-ideation-section__subheader {
+	padding-bottom: var(--wpds-dimension-padding-xs);
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak); /* wpds-allow R6 -- subheader divider; Stack has no border prop */
+}
+
+.vip-workflows-ideation-section__subheader-icon {
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- icon tint; Stack has no color prop */
+}
+
+
+.vip-workflows-ideation-section__subheader-count {
+	font: var(--vip-workflows-text-body-sm);
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+/* Analysis section: flex row (tags, entities, angle side by side) */
+
+.vip-workflows-ideation-section--analysis .vip-workflows-ideation-section__grid {
+	display: flex; /* wpds-allow R4 -- analysis-section flex override of the shared .__grid class; same element renders grid elsewhere */
+	flex-wrap: wrap; /* wpds-allow R4 -- analysis-section flex override of the shared .__grid class; same element renders grid elsewhere */
+	gap: 10px; /* wpds-allow R4 -- analysis-section flex override of the shared .__grid class; same element renders grid elsewhere */
+}
+
+/* Custom-content button (spinner/svg + label): the flex row lives on the button
+   itself since Button exposes no gap prop for non-icon children. */
+.vip-workflows-ideation-section__generate {
+	display: inline-flex !important;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-xs);
+}
+
+.vip-workflows-ideation-section__generate svg {
+	flex-shrink: 0;
+}
+
+.vip-workflows-ideation-generate-modal__hint {
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted hint text; Text has no color prop */
+}
+
+/* Dismissed Section */
+
+.vip-workflows-ideation-section--dismissed {
+	border-top: 1px dashed var(--wpds-color-stroke-surface-neutral); /* wpds-allow R6 -- Collapsible.Root is an unstyled Base UI <div> with no border prop, so the dashed rule that sets the dismissed pile apart is drawn here */
+	padding-top: var(--wpds-dimension-padding-sm);
+}
+
+/* Collapsible.Trigger renders a bare <button> (no default flex); style it as the
+   subtle inline disclosure toggle it replaces. */
+.vip-workflows-ideation-section__dismissed-toggle {
+	font: var(--vip-workflows-text-body-sm); /* wpds-allow R6 -- Collapsible.Trigger exposes no typography prop, so the UA button font is replaced here */
+	display: flex;
+	align-items: center;
+	gap: var(--wpds-dimension-gap-sm);
+	width: 100%;
+	padding: var(--wpds-dimension-padding-sm) 0;
+	background: none; /* wpds-allow R6 -- Collapsible.Trigger has no unstyled/plain variant, so the UA button surface is taken away here */
+	border: none; /* wpds-allow R6 -- the same UA button box (see above) */
+	cursor: pointer;
+	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- Collapsible.Trigger exposes no tone prop, so the muted row colour is set here */
+}
+
+/* The glyph is a ▶ character, so its size is a font-size; xs is the smallest
+   step on the type scale. */
+.vip-workflows-ideation-section__dismissed-chevron {
+	display: inline-block;
+	font-size: var(--wpds-typography-font-size-xs);
+	transition: transform 0.15s ease;
+}
+
+.vip-workflows-ideation-section__dismissed-chevron.is-open {
+	transform: rotate(90deg);
+}
+
+.vip-workflows-ideation-section__dismissed-label {
+	font-weight: var(--wpds-typography-font-weight-emphasis);
+}
+
+.vip-workflows-ideation-section__grid--dismissed {
+	opacity: 0.6;
+}
+
+.vip-workflows-ideation-section__grid--dismissed:hover {
+	opacity: 0.85;
+}
+
+.vip-workflows-ideation-skeleton {
+	padding: var(--wpds-dimension-padding-lg);
+	min-height: 90px;
+}
+
+.vip-workflows-ideation-skeleton--media {
+	min-height: 160px;
+}
+
+.vip-workflows-ideation-skeleton__image {
+	width: 100%;
+	height: 80px;
+	border-radius: var(--wpds-border-radius-md);
+	background: linear-gradient(90deg, var(--wpds-color-background-surface-neutral-weak) 25%, var(--wpds-color-background-interactive-neutral-weak-active) 37%, var(--wpds-color-background-surface-neutral-weak) 63%);
+	background-size: 800px 100%;
+	animation: vip-workflows-ideation-shimmer 1.4s ease-in-out infinite;
+}
+
+.vip-workflows-ideation-skeleton__line {
+	height: 12px;
+	border-radius: var(--wpds-border-radius-md);
+	background: linear-gradient(90deg, var(--wpds-color-background-surface-neutral-weak) 25%, var(--wpds-color-background-interactive-neutral-weak-active) 37%, var(--wpds-color-background-surface-neutral-weak) 63%);
+	background-size: 800px 100%;
+	animation: vip-workflows-ideation-shimmer 1.4s ease-in-out infinite;
+}
+
+.vip-workflows-ideation-skeleton__line--title {
+	width: 70%;
+	height: 14px;
+}
+
+.vip-workflows-ideation-skeleton__line--text {
+	width: 100%;
+}
+
+.vip-workflows-ideation-skeleton__line--short {
+	width: 45%;
+}

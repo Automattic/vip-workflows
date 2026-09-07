@@ -30,18 +30,18 @@ jobs:
           coverage: none
 
       - name: Install coding standards
-        working-directory: vip-workflow
+        working-directory: vip-workflows
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Lint core plugin
-        run: vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=vip-workflow/.phpcs.xml.dist vip-workflow
+        run: vip-workflows/vendor/bin/phpcs --extensions=php --no-colors --standard=vip-workflows/.phpcs.xml.dist vip-workflows
 
       - name: Lint Parse.ly integration
-        run: vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=workflow-parsely/.phpcs.xml.dist workflow-parsely
+        run: vip-workflows/vendor/bin/phpcs --extensions=php --no-colors --standard=workflow-parsely/.phpcs.xml.dist workflow-parsely
 
       - name: Lint extension plugins
         run: |
-          vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-agent-copy-edit
-          vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-agent-tag-sanity-check
-          vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-assistant-wikipedia
-          vip-workflow/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-tool-checklist
+          vip-workflows/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-agent-copy-edit
+          vip-workflows/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-agent-tag-sanity-check
+          vip-workflows/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-assistant-wikipedia
+          vip-workflows/vendor/bin/phpcs --extensions=php --no-colors --standard=tools/code-quality/phpcs-extensions.xml workflow-tool-checklist

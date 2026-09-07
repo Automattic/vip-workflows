@@ -14,7 +14,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** The core plugin. Always first; every extension depends on it. */
-export const CORE = 'vip-workflow';
+export const CORE = 'vip-workflows';
 
 /**
  * Every plugin directory in the monorepo: core, then `workflow-*` sorted.
@@ -32,7 +32,7 @@ export function plugins(root) {
 /**
  * The plugin's PHPUnit config, whichever name it uses.
  *
- * vip-workflow ships phpunit.xml.dist, workflow-parsely ships phpunit.xml. Both
+ * vip-workflows ships phpunit.xml.dist, workflow-parsely ships phpunit.xml. Both
  * are legitimate; a probe that knows only one silently skips the other.
  */
 export function phpunitConfig(root, plugin) {

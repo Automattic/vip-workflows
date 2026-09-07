@@ -12,7 +12,7 @@ Pair with [code-patterns.md](code-patterns.md) for full examples and [architectu
 
 ```php
 // Get plugin instance
-$plugin = \VIPWorkflow\Plugin::get_instance();
+$plugin = \VIPWorkflows\Plugin::get_instance();
 
 // Get managers
 $status_manager = $plugin->get_status_manager();
@@ -24,12 +24,12 @@ $job_scheduler = $plugin->get_job_scheduler();
 $status_manager->transition($post_id, 'review');
 
 // Get sequence
-$repository = new \VIPWorkflow\Sequences\SequenceRepository();
+$repository = new \VIPWorkflows\Sequences\SequenceRepository();
 $sequence = $repository->get($sequence_id);
 
 // Execute tool
-$executor = new \VIPWorkflow\Abilities\AbilityExecutor();
-$result = $executor->execute('vip-workflow/seo-check', $post_id);
+$executor = new \VIPWorkflows\Abilities\AbilityExecutor();
+$result = $executor->execute('vip-workflows/seo-check', $post_id);
 ```
 
 ### Key Hooks
@@ -37,78 +37,78 @@ $result = $executor->execute('vip-workflow/seo-check', $post_id);
 ```php
 // Workflow events — $context = ['cause' => 'workflow'|'core', 'committed_status' => ...]
 // ('workflow' = edge traversal; 'core' = checkpoint reseat after a core status change)
-do_action('vip_workflow_status_transition', $post_id, $new, $old, $sequence, $context);
-do_action('vip_workflow_entered_{stage}', $post_id, $old_stage, $sequence, $context);
-do_action('vip_workflow_exited_{stage}', $post_id, $new_stage, $sequence, $context);
+do_action('vip_workflows_status_transition', $post_id, $new, $old, $sequence, $context);
+do_action('vip_workflows_entered_{stage}', $post_id, $old_stage, $sequence, $context);
+do_action('vip_workflows_exited_{stage}', $post_id, $new_stage, $sequence, $context);
 
 // Tool events
-do_action('vip_workflow_ability_executed', $ability_id, $post_id, $result);
-do_action('vip_workflow_ability_failed', $ability_id, $post_id, $error);
+do_action('vip_workflows_ability_executed', $ability_id, $post_id, $result);
+do_action('vip_workflows_ability_failed', $ability_id, $post_id, $error);
 
 // Registration
-do_action('vip_workflow_register_abilities');
-apply_filters('vip_workflow_notification_channels', $channels);
-apply_filters('vip_workflow_media_providers', $providers);
-// Note: vip_workflow_api_key_fields was removed. Keys live on
-// core's Settings → Connectors; read them via VIPWorkflow\AI\Credentials.
+do_action('vip_workflows_register_abilities');
+apply_filters('vip_workflows_notification_channels', $channels);
+apply_filters('vip_workflows_media_providers', $providers);
+// Note: vip_workflows_api_key_fields was removed. Keys live on
+// core's Settings → Connectors; read them via VIPWorkflows\AI\Credentials.
 ```
 
 ### Key REST Endpoints
 
 ```
 # Sequences (type: workflow/editorial, phase)
-GET/POST    /vip-workflow/v1/sequences
-GET/PUT/DEL /vip-workflow/v1/sequences/{id}
+GET/POST    /vip-workflows/v1/sequences
+GET/PUT/DEL /vip-workflows/v1/sequences/{id}
 
 # Workflow
-GET         /vip-workflow/v1/workflow/post/{id}/status
-POST        /vip-workflow/v1/workflow/post/{id}/transition
-GET         /vip-workflow/v1/workflow/post/{id}/history
+GET         /vip-workflows/v1/workflow/post/{id}/status
+POST        /vip-workflows/v1/workflow/post/{id}/transition
+GET         /vip-workflows/v1/workflow/post/{id}/history
 
 # Abilities (Tools)
-GET         /vip-workflow/v1/abilities
-POST        /vip-workflow/v1/abilities/{id}/execute
-GET         /vip-workflow/v1/tools
-POST        /vip-workflow/v1/tools/{id}/settings
+GET         /vip-workflows/v1/abilities
+POST        /vip-workflows/v1/abilities/{id}/execute
+GET         /vip-workflows/v1/tools
+POST        /vip-workflows/v1/tools/{id}/settings
 
 # Settings
-GET/POST    /vip-workflow/v1/settings/general
-GET         /vip-workflow/v1/settings/general/roles
+GET/POST    /vip-workflows/v1/settings/general
+GET         /vip-workflows/v1/settings/general/roles
 # API keys are configured under Settings → Connectors.
 
 # Notifications
-GET/POST    /vip-workflow/v1/notifications/{channel}/settings
+GET/POST    /vip-workflows/v1/notifications/{channel}/settings
 
 # Story Ideation
-POST        /vip-workflow/v1/ideation/seed
-GET         /vip-workflow/v1/ideation/{id}
-POST        /vip-workflow/v1/ideation/{id}/pin
-POST        /vip-workflow/v1/ideation/{id}/dismiss
-POST        /vip-workflow/v1/ideation/{id}/mentor
-POST        /vip-workflow/v1/ideation/{id}/generate-image
+POST        /vip-workflows/v1/ideation/seed
+GET         /vip-workflows/v1/ideation/{id}
+POST        /vip-workflows/v1/ideation/{id}/pin
+POST        /vip-workflows/v1/ideation/{id}/dismiss
+POST        /vip-workflows/v1/ideation/{id}/mentor
+POST        /vip-workflows/v1/ideation/{id}/generate-image
 
 # Story Discovery
-GET         /vip-workflow/v1/discovery/providers
-GET         /vip-workflow/v1/discovery/recommend
-GET         /vip-workflow/v1/discovery/search?provider={slug}&text={query}&filters={json}
-GET         /vip-workflow/v1/discovery/filters?provider={slug}
-POST        /vip-workflow/v1/discovery/select
+GET         /vip-workflows/v1/discovery/providers
+GET         /vip-workflows/v1/discovery/recommend
+GET         /vip-workflows/v1/discovery/search?provider={slug}&text={query}&filters={json}
+GET         /vip-workflows/v1/discovery/filters?provider={slug}
+POST        /vip-workflows/v1/discovery/select
 
 # Unified Assistants (Integrations page)
-GET         /vip-workflow/v1/assistants
-GET         /vip-workflow/v1/assistants/{slug}
-POST        /vip-workflow/v1/assistants/{slug}/settings
+GET         /vip-workflows/v1/assistants
+GET         /vip-workflows/v1/assistants/{slug}
+POST        /vip-workflows/v1/assistants/{slug}/settings
 
 # AI Agent
-POST        /vip-workflow/v1/ai-agent/chat
-GET         /vip-workflow/v1/ai-agent/conversations
-GET/DEL     /vip-workflow/v1/ai-agent/conversations/{id}
+POST        /vip-workflows/v1/ai-agent/chat
+GET         /vip-workflows/v1/ai-agent/conversations
+GET/DEL     /vip-workflows/v1/ai-agent/conversations/{id}
 
 # Jobs
-GET         /vip-workflow/v1/jobs
-GET         /vip-workflow/v1/jobs/history
-GET/POST    /vip-workflow/v1/jobs/{id}/settings
-POST        /vip-workflow/v1/jobs/{id}/run
+GET         /vip-workflows/v1/jobs
+GET         /vip-workflows/v1/jobs/history
+GET/POST    /vip-workflows/v1/jobs/{id}/settings
+POST        /vip-workflows/v1/jobs/{id}/run
 ```
 
 ---
@@ -118,7 +118,7 @@ POST        /vip-workflow/v1/jobs/{id}/run
 ### WordPress VIP Patterns
 
 **Workflow Stages vs post_status**:
-- No custom post statuses — the stage lives in `_vip_workflow_current_stage_key` post meta ; `post_status` only ever takes core values
+- No custom post statuses — the stage lives in `_vip_workflows_current_stage_key` post meta ; `post_status` only ever takes core values
 - Every stage declares a `status` region (`draft`/`pending`/`private`/`publish`); `post_status` is written only when a transition crosses a region boundary
 - Core-driven status changes re-seat the post at the target region's entry stage (`region_entry`)
 - Query stages via the `StageQuery` seam, never by `post_status`
@@ -135,7 +135,7 @@ POST        /vip-workflow/v1/jobs/{id}/run
 - Checks `AbilitySettings::is_hard_check($ability_id, $check_key)` for each issue
 - Also respects issue `severity` field ('error' or 'hard' = blocking)
 - Returns `WP_Error` with code `hard_check_failed` if any hard failures found
-- Blocked transitions logged to `wp_vip_workflow_events` via `log_blocked_transition()`
+- Blocked transitions logged to `wp_vip_workflows_events` via `log_blocked_transition()`
 
 **Bypass Permissions**:
 - `Settings::can_user_bypass_workflow()` - Skip assignment requirements
@@ -147,8 +147,8 @@ POST        /vip-workflow/v1/jobs/{id}/run
 - Sequence defines `input` object with `note_id`, `note_name`, `meta_key`
 - Frontend sends `inputData` object with notes array during transition
 - Backend stores in TWO places:
-  1. `_vip_workflow_transition_data` meta (per-status history)
-  2. `wp_vip_workflow_events` table (audit log with notes column)
+  1. `_vip_workflows_transition_data` meta (per-status history)
+  2. `wp_vip_workflows_events` table (audit log with notes column)
 - Meta keys generated as `wfp_{note_id}_{sanitized_slug}`
 
 **Assignment Requirements**:
@@ -202,7 +202,7 @@ POST        /vip-workflow/v1/jobs/{id}/run
 - `graph-model.js` is the pure model: stages ↔ nodes/edges projection, mutations, `validateSequence()`
 - `GraphCanvas.js` wraps `@xyflow/react`; inspectors (`StageInspector.js`, `TransitionInspector.js`, `SequenceSettingsInspector.js`, `PhaseStageInspector.js`) edit the current selection
 - `TransitionInspector.js` generates `note_id` as random string (e.g., `n123abc`) and auto-generates `meta_key` as `wfp_{note_id}_{slug}`
-- Assignment input type pre-fills `meta_key: "_vip_workflow_assigned_to"`
+- Assignment input type pre-fills `meta_key: "_vip_workflows_assigned_to"`
 
 **Build System**:
 - Webpack builds multiple entry points (admin, editor, ideation, notifications)
@@ -221,14 +221,14 @@ POST        /vip-workflow/v1/jobs/{id}/run
 Generic utilities live in `includes/integrations/`:
 - `MediaProcessor` - AI processing for images, audio, video, PDFs (used by research sources, assets)
 - `UrlMetaExtractor` - Fetch Open Graph/meta tags from URLs (used by research, etc.)
-- `AIMediaAnalyzer` - Thin event-driven adapter; hooks `vip_workflow_asset_file_uploaded` and dispatches to `MediaProcessor`. No longer contains its own AI logic.
+- `AIMediaAnalyzer` - Thin event-driven adapter; hooks `vip_workflows_asset_file_uploaded` and dispatches to `MediaProcessor`. No longer contains its own AI logic.
 
 Shared REST endpoints live in `includes/api/class-utility-controller.php`:
-- `GET /vip-workflow/v1/url-meta?url=...` - URL metadata extraction
+- `GET /vip-workflows/v1/url-meta?url=...` - URL metadata extraction
 
 **Decision criteria:**
 1. Is this specific to ONE feature? → Put in feature controller
-2. Could this be used by MULTIPLE features? → Extract to `includes/integrations/` (`VIPWorkflow\Integrations`)
+2. Could this be used by MULTIPLE features? → Extract to `includes/integrations/` (`VIPWorkflows\Integrations`)
 3. Is this a REST endpoint for generic functionality? → Put in `UtilityController`
 
 ### Extension Plugin Patterns
@@ -236,7 +236,7 @@ Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 **All tools** must set `meta.type` (`check`, `helper`, `validator`, `agent`) to appear in Integrations > Tools. Tools without `meta.type` are hidden from the admin UI. Ability IDs use `vendor/name` slash format (e.g., `my-plugin/my-check`). Never use `sanitize_key()` on ability IDs.
 
 **Check Tools** (e.g., editorial-alignment, checklist):
-- Register on `wp_abilities_api_init` hook via `vip_workflow_register_ability()`
+- Register on `wp_abilities_api_init` hook via `vip_workflows_register_ability()`
 - Set `meta.type` to `'check'` or `'validator'`
 - Return `AbilityResult` with `issues[]` array
 - Each issue has `check_key`, `message`, `severity` ('error', 'warning', 'info')
@@ -258,21 +258,15 @@ Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 **Notification Channels** (e.g., ntfy):
 - Extend `NotificationChannel` base class
 - Implement `get_id()`, `get_name()`, `send()`
-- Register via `vip_workflow_notification_channels` filter
+- Register via `vip_workflows_notification_channels` filter
 - Provide settings page for API keys/config
-
-**Background Jobs** (e.g., airtable-daily-stats):
-- Extend `Job` base class
-- Implement `execute()` method
-- Schedule via `JobScheduler::schedule_recurring()`
-- Provide settings page for external service configuration
 
 **Media Providers** (image/video sources for ideation):
 - Implement `MediaProviderInterface` (get_id, get_name, is_configured, is_generative, search_media)
-- Register via `vip_workflow_media_providers` filter
+- Register via `vip_workflows_media_providers` filter
 - Return standardized result arrays with `url`, `title`, `media_type`, `thumbnail`, `provider`, etc.
 - Non-generative providers run automatically; generative run on-demand
-- Built-in provider keys come from `VIPWorkflow\AI\Credentials` (core Settings → Connectors, or a `VIP_WORKFLOW_*_KEY` constant). Third-party providers read their own key from a `wp-config.php` constant.
+- Built-in provider keys come from `VIPWorkflows\AI\Credentials` (core Settings → Connectors, or a `VIP_WORKFLOWS_*_KEY` constant). Third-party providers read their own key from a `wp-config.php` constant.
 - Optionally implement `MediaProviderRequirements::get_unmet_requirement()` (built with `RequirementFactory`) so an unconfigured provider can explain why, instead of Media Scout reporting a bare "unavailable"
 - Any provider can be turned off by removing from filter, or moved between core and external plugins
 
@@ -281,13 +275,13 @@ Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 **Browser Testing**:
 1. Navigate to post editor (`/wp-admin/post.php?post=123&action=edit`)
 2. Open browser console to see API calls
-3. Check Network tab for `/vip-workflow/v1/workflow/post/{id}/transition`
+3. Check Network tab for `/vip-workflows/v1/workflow/post/{id}/transition`
 4. Look for WP_Error responses with `hard_check_failed` code
 
 **Database Queries**:
 ```sql
 -- Check blocked transitions
-SELECT * FROM wp_vip_workflow_events
+SELECT * FROM wp_vip_workflows_events
 WHERE event_type = 'blocked_transition'
 ORDER BY created_at DESC LIMIT 10;
 
@@ -297,14 +291,14 @@ WHERE post_id = 123
 ORDER BY created_at DESC;
 
 -- Check transition history with notes
-SELECT * FROM wp_vip_workflow_events
+SELECT * FROM wp_vip_workflows_events
 WHERE post_id = 123 AND event_type = 'status_transition'
 ORDER BY created_at DESC;
 ```
 
 **Common Debug Steps**:
-1. Check if sequence is assigned: `get_post_meta($post_id, '_vip_workflow_sequence_id')`
-2. Check current stage: `get_post_meta($post_id, '_vip_workflow_current_stage_key')`
+1. Check if sequence is assigned: `get_post_meta($post_id, '_vip_workflows_sequence_id')`
+2. Check current stage: `get_post_meta($post_id, '_vip_workflows_current_stage_key')`
 3. Check ability settings: `AbilitySettings::get_instance()->get_options($ability_id)`
 4. Check user permissions: `Settings::can_user_bypass_tool_checks()`
-5. Check recent events: Query `wp_vip_workflow_events` for `post_id`
+5. Check recent events: Query `wp_vip_workflows_events` for `post_id`

@@ -20,7 +20,7 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Tests;
 
-use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 use WorkflowParsely\Discovery\ParselyDiscoveryProvider;
 use WP_Error;
 use Yoast\WPTestUtils\WPIntegration\TestCase;
@@ -149,7 +149,7 @@ class ParselyDiscoveryProviderTest extends TestCase {
 	public function test_provider_is_registered(): void {
 		$this->assertNotNull(
 			DiscoveryProviderRegistry::get_instance()->get( self::SLUG ),
-			'The provider must register on vip_workflow_register_discovery_providers.'
+			'The provider must register on vip_workflows_register_discovery_providers.'
 		);
 	}
 
@@ -179,7 +179,7 @@ class ParselyDiscoveryProviderTest extends TestCase {
 
 	public function test_is_claimed_by_the_parsely_assistant_card(): void {
 		// get_all() returns a list of entries, not a slug-keyed map.
-		$entries = \VIPWorkflow\Assistants\AssistantRegistry::get_instance()->get_all();
+		$entries = \VIPWorkflows\Assistants\AssistantRegistry::get_instance()->get_all();
 
 		$parsely = array_values(
 			array_filter( $entries, static fn( array $e ) => 'parsely' === $e['slug'] )
@@ -198,7 +198,7 @@ class ParselyDiscoveryProviderTest extends TestCase {
 	 * auto-generated twin.
 	 */
 	public function test_does_not_also_appear_as_its_own_card(): void {
-		$entries = \VIPWorkflow\Assistants\AssistantRegistry::get_instance()->get_all();
+		$entries = \VIPWorkflows\Assistants\AssistantRegistry::get_instance()->get_all();
 
 		$slugs = array_column( $entries, 'slug' );
 

@@ -103,7 +103,7 @@ Story Status          What stage is this content in its lifecycle?
 
 Editorial Status      Where is this content in its review process?
                       Defined by editorial sequences (type: 'workflow', e.g., draft -> review -> ready -> publish -> promote)
-                      Lives on the article as the `_vip_workflow_current_stage_key` post meta
+                      Lives on the article as the `_vip_workflows_current_stage_key` post meta
                       (the sole authority). Queried via the StageQuery seam.
                       Managed by StatusManager. NOT stored in post_status.
 

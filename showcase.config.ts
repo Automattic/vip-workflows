@@ -9,7 +9,7 @@
  */
 
 const WP = 'http://localhost:8888';
-const EDITOR = '/wp-admin/admin.php?page=vip-workflow-sequences#/edit/7';
+const EDITOR = '/wp-admin/admin.php?page=vip-workflows-sequences#/edit/7';
 
 /** Log in as admin, then open the Multimedia Production sequence. */
 const openEditor = [
@@ -28,7 +28,7 @@ const fitView = [
 ];
 
 export default {
-	project: 'VIP Workflow',
+	project: 'VIP Workflows',
 	defaults: {
 		// Determinism contract: two runs must produce byte-identical PNGs.
 		// Wait actions advance this frozen clock in step with real time, so

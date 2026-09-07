@@ -19,7 +19,7 @@ happens — see [`settings-standard.md`](settings-standard.md).
 | Header title | A plain localized **string** in `title`. Never JSX/markup. |
 | Header actions | Buttons beside the close button go in the `headerActions` prop, never inside `title`. |
 | Header icon | None. Modal headers carry no `icon`. |
-| Long titles | Dynamic/user-supplied titles add `vip-workflow-modal--truncate-title` (single-line ellipsis). |
+| Long titles | Dynamic/user-supplied titles add `vip-workflows-modal--truncate-title` (single-line ellipsis). |
 | Width | `size` prop only — `small` / `medium` / `large` / `fill`. Never CSS `max-width`/`min-width`, never inline `minWidth`. |
 | Footer | `<ModalActions>` (`src/common/ModalActions.js`). Never a raw `<div>` or ad-hoc `Stack`. |
 | Button order | Cancel (left) → primary action (right). Primary is always rightmost. |
@@ -55,7 +55,7 @@ The Modal renders its own header from props — never hand-build one in the body
   the purple AI accent, stays in the body, not the header.)
 - **Long titles truncate.** The WPDS header is a fixed-height bar, so a long
   title clips. Modals whose title is dynamic or user-supplied (post titles,
-  source titles, tool labels…) add the `vip-workflow-modal--truncate-title`
+  source titles, tool labels…) add the `vip-workflows-modal--truncate-title`
   class (defined in `src/styles/modal-header.css`, shared across bundles)
   alongside their own modal className for consistent single-line ellipsis.
   Static, hand-authored titles are short and don't need it.
@@ -75,7 +75,7 @@ WPDS exposes width as a first-class prop. Use it. Map by content:
 <Modal title={ … } onRequestClose={ onClose } size="medium">
 ```
 
-**Banned:** `.vip-workflow-x .components-modal__content { max-width: … }`,
+**Banned:** `.vip-workflows-x .components-modal__content { max-width: … }`,
 `style={ { maxWidth: … } }` on the Modal, and `<div style={ { minWidth: … } }>`
 wrappers. If a preset width is wrong for a case, that is a conversation about
 which `size` to use — not a CSS override. (The one tolerated `__content`
@@ -89,10 +89,10 @@ import { ModalActions } from '../../components/ModalActions';
 
 <ModalActions>
 	<Button variant="tertiary" onClick={ onClose } disabled={ saving }>
-		{ __( 'Cancel', 'vip-workflow' ) }
+		{ __( 'Cancel', 'vip-workflows' ) }
 	</Button>
 	<Button variant="primary" onClick={ onSave } isBusy={ saving } disabled={ saving }>
-		{ saving ? __( 'Saving…', 'vip-workflow' ) : __( 'Save', 'vip-workflow' ) }
+		{ saving ? __( 'Saving…', 'vip-workflows' ) : __( 'Save', 'vip-workflows' ) }
 	</Button>
 </ModalActions>
 ```
@@ -188,7 +188,7 @@ docs modal is `HowToModal`. A new blocked-transition modal is `ToolFailuresModal
 ## Migration checklist (per modal)
 
 - [ ] `title` is a plain string; header buttons use `headerActions`; no header `icon`.
-- [ ] Dynamic/user-supplied title carries `vip-workflow-modal--truncate-title`.
+- [ ] Dynamic/user-supplied title carries `vip-workflows-modal--truncate-title`.
 - [ ] Width is a `size` prop; CSS/inline width overrides deleted.
 - [ ] Footer is `<ModalActions>`; cancel `tertiary` first, primary last.
 - [ ] Action button uses `isBusy` + `disabled`; no spinner-as-label.

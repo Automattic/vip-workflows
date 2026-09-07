@@ -5,7 +5,7 @@
  * Version: 1.0.0
  * Author: WordPress VIP
  * Author URI: https://wpvip.com
- * Requires Plugins: vip-workflow
+ * Requires Plugins: vip-workflows
  * Text Domain: workflow-agent-copy-edit
  *
  * @package WorkflowAgentCopyEdit
@@ -15,16 +15,16 @@ declare( strict_types=1 );
 
 namespace WorkflowAgentCopyEdit;
 
-use VIPWorkflow\Abilities\Agents\StageAgent;
-use VIPWorkflow\Abilities\AiAvailability;
-use VIPWorkflow\Abilities\Availability;
+use VIPWorkflows\Abilities\Agents\StageAgent;
+use VIPWorkflows\Abilities\AiAvailability;
+use VIPWorkflows\Abilities\Availability;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-add_action( 'vip_workflow_register_abilities', __NAMESPACE__ . '\register' );
-add_action( 'vip_workflow_register_assistant_meta', __NAMESPACE__ . '\register_agent_meta' );
+add_action( 'vip_workflows_register_abilities', __NAMESPACE__ . '\register' );
+add_action( 'vip_workflows_register_assistant_meta', __NAMESPACE__ . '\register_agent_meta' );
 
 /**
  * Register the copy-edit stage agent ability.
@@ -32,16 +32,16 @@ add_action( 'vip_workflow_register_assistant_meta', __NAMESPACE__ . '\register_a
  * @return void
  */
 function register(): void {
-	if ( ! function_exists( 'vip_workflow_register_ability' ) || ! class_exists( StageAgent::class ) ) {
+	if ( ! function_exists( 'vip_workflows_register_ability' ) || ! class_exists( StageAgent::class ) ) {
 		return;
 	}
 
-	vip_workflow_register_ability(
+	vip_workflows_register_ability(
 		'workflow-agent-copy-edit/copy-edit',
 		array(
 			'label'               => __( 'Copy Edit', 'workflow-agent-copy-edit' ),
 			'description'         => __( 'Copy-edits a post body for grammar, spelling, and style, saving changes as a revision.', 'workflow-agent-copy-edit' ),
-			'category'            => 'vip-workflow',
+			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
 				'additionalProperties' => false,
@@ -225,7 +225,7 @@ function can_execute( array $input ): bool|\WP_Error {
 		);
 	}
 
-	$permission_error = \VIPWorkflow\Abilities\Tools\require_post_edit_permission( (int) $input['post_id'] );
+	$permission_error = \VIPWorkflows\Abilities\Tools\require_post_edit_permission( (int) $input['post_id'] );
 	if ( $permission_error ) {
 		return $permission_error;
 	}
