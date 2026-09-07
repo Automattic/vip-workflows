@@ -1,0 +1,117 @@
+/**
+ * Seed Input Component.
+ *
+ * The primary entry point for story ideation. A prominent freeform
+ * text input where the journalist types their ~20-word story idea.
+ */
+
+import { useState, useRef, useEffect } from '@wordpress/element';
+import { __ } from '@wordpress/i18n';
+import { Button, Spinner } from '@wordpress/components';
+import { Stack, Text } from '@wordpress/ui';
+import { arrowRight } from '@wordpress/icons';
+
+import './SeedInput.css';
+
+/**
+ * @param {Object}   props              Component props.
+ * @param {Function} props.onSubmit     Called with the seed text.
+ * @param {boolean}  props.isSubmitting Whether a submission is in progress.
+ * @return {JSX.Element} Seed input component.
+ */
+export default function SeedInput( { onSubmit, isSubmitting } ) {
+	const [ seed, setSeed ] = useState( '' );
+	const textareaRef = useRef( null );
+
+	useEffect( () => {
+		textareaRef.current?.focus();
+	}, [] );
+
+	const handleSubmit = () => {
+		const trimmed = seed.trim();
+		if ( trimmed && ! isSubmitting ) {
+			onSubmit( trimmed );
+		}
+	};
+
+	const handleKeyDown = ( e ) => {
+		if ( e.key === 'Enter' && ! e.shiftKey ) {
+			e.preventDefault();
+			handleSubmit();
+		}
+	};
+
+	return (
+		<Stack
+			direction="column"
+			gap="2xl"
+			className="vip-workflows-ideation-seed"
+		>
+			<Stack
+				direction="column"
+				gap="sm"
+				className="vip-workflows-ideation-seed__header"
+			>
+				<Text
+					variant="heading-2xl"
+					render={ <h1 /> }
+					className="vip-workflows-ideation-seed__title"
+				>
+					{ __( "What's the story?", 'vip-workflows' ) }
+				</Text>
+				<Text
+					variant="body-md"
+					render={ <p /> }
+					className="vip-workflows-ideation-seed__subtitle"
+				>
+					{ __(
+						'Describe your idea in a sentence or two. Our agents will find related articles, external sources, and context to help you develop it.',
+						'vip-workflows'
+					) }
+				</Text>
+			</Stack>
+
+			<div className="vip-workflows-ideation-seed__input-wrap vip-workflows-panel-surface">
+				<textarea
+					ref={ textareaRef }
+					className="vip-workflows-ideation-seed__textarea"
+					value={ seed }
+					onChange={ ( e ) => setSeed( e.target.value ) }
+					onKeyDown={ handleKeyDown }
+					placeholder={ __(
+						'e.g., Global coffee prices surge after severe frost damages Brazilian crops…',
+						'vip-workflows'
+					) }
+					rows={ 3 }
+					disabled={ isSubmitting }
+				/>
+				<Stack
+					align="center"
+					justify="space-between"
+					className="vip-workflows-ideation-seed__actions"
+				>
+					{ /* wpds-allow R7 -- keyboard hint (body-sm, muted); no Text variant for hint */ }
+					<span className="vip-workflows-ideation-seed__hint">
+						{ __( 'Press Enter to submit', 'vip-workflows' ) }
+					</span>
+					<Button
+						variant="primary"
+						onClick={ handleSubmit }
+						disabled={ ! seed.trim() || isSubmitting }
+						icon={ isSubmitting ? undefined : arrowRight }
+						className="vip-workflows-ideation-seed__submit"
+					>
+						{ isSubmitting ? (
+							<Stack direction="row" align="center" gap="sm">
+								<Spinner />
+								{ __( 'Starting agents…', 'vip-workflows' ) }
+							</Stack>
+						) : (
+							__( 'Start ideation', 'vip-workflows' )
+						) }
+					</Button>
+				</Stack>
+			</div>
+		</Stack>
+	);
+}

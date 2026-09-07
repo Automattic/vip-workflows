@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
-<ruleset name="WordPress Coding Standards for VIP Workflow extensions">
+<ruleset name="WordPress Coding Standards for VIP Workflows extensions">
 	<description>
 		Shared PHPCS baseline for the workflow-* extension plugins, which ship no
 		ruleset of their own. Single-sources the core plugin's ruleset so the two
 		can't silently diverge (bump the WP floor or add a sniff exclusion once,
-		in vip-workflow/.phpcs.xml.dist, and both follow). The ONLY difference is
+		in vip-workflows/.phpcs.xml.dist, and both follow). The ONLY difference is
 		the text-domain pin: each extension owns a different text domain, so the
-		vip-workflow-pinned i18n sniff is dropped and re-added without a domain.
+		vip-workflows-pinned i18n sniff is dropped and re-added without a domain.
 
 		Invoked per file/dir by tools/code-quality/quality.mjs, which always passes
 		explicit targets — so the inherited `&lt;file&gt;.&lt;/file&gt;` and basepath
@@ -14,12 +14,12 @@
 	</description>
 
 	<!-- Inherit everything from the core plugin's ruleset… -->
-	<rule ref="../../vip-workflow/.phpcs.xml.dist">
-		<!-- …except its vip-workflow-pinned text-domain check. -->
+	<rule ref="../../vip-workflows/.phpcs.xml.dist">
+		<!-- …except its vip-workflows-pinned text-domain check. -->
 		<exclude name="WordPress.WP.I18n"/>
 	</rule>
 
 	<!-- Re-add i18n checks without a text-domain pin: extension __() calls are
-		still validated, just not flagged against the 'vip-workflow' domain. -->
+		still validated, just not flagged against the 'vip-workflows' domain. -->
 	<rule ref="WordPress.WP.I18n"/>
 </ruleset>

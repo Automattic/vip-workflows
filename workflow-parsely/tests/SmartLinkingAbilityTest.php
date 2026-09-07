@@ -169,7 +169,7 @@ class SmartLinkingAbilityTest extends TestCase {
 	 */
 	public function test_capabilities_group_into_exactly_one_integrations_card(): void {
 		$parsely = array_filter(
-			\VIPWorkflow\Assistants\AssistantRegistry::get_instance()->get_all(),
+			\VIPWorkflows\Assistants\AssistantRegistry::get_instance()->get_all(),
 			static fn( $entry ) => 'parsely' === ( $entry['slug'] ?? '' )
 		);
 

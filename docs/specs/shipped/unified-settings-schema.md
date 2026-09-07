@@ -11,9 +11,9 @@ related: [phase-sequence, extensible-research-agents, story-discovery]
 
 Four different patterns exist for plugin-configurable settings:
 
-- **Tools** (built-in + most extensions): Settings hidden inside `input_schema` properties (any field with a `default`). Custom rendering in `ToolsSettings.js`. Saved to `vip_workflow_ability_settings[id].options`.
-- **Assistants/Discovery**: `meta.settings_schema`. Rendered by `SchemaSettings.js`. Saved via dual-write to `vip_workflow_ability_settings` + `vip_discovery_provider_{slug}`.
-- **Channels**: `get_settings_schema()` PHP method. Rendered by `SchemaSettings.js` (when schema present) or hardcoded UI (email/slack). Saved to `vip_workflow_channel_{id}`.
+- **Tools** (built-in + most extensions): Settings hidden inside `input_schema` properties (any field with a `default`). Custom rendering in `ToolsSettings.js`. Saved to `vip_workflows_ability_settings[id].options`.
+- **Assistants/Discovery**: `meta.settings_schema`. Rendered by `SchemaSettings.js`. Saved via dual-write to `vip_workflows_ability_settings` + `vip_discovery_provider_{slug}`.
+- **Channels**: `get_settings_schema()` PHP method. Rendered by `SchemaSettings.js` (when schema present) or hardcoded UI (email/slack). Saved to `vip_workflows_channel_{id}`.
 - **Editorial Alignment** (extension): Previously owned a private `workflow_editorial_alignment_settings` option and custom `class-settings-page.php`; current Guidelines work removes that rule store so the checker reads Gutenberg/Core Guidelines instead.
 
 This also exposes a **pre-existing bug**: when tools run during transitions (workflow or phase), only `post_id`/`project_id` is passed as input. Saved settings like `min_words: 500` are never merged into `$input`, so tools fall back to hardcoded defaults. Moving settings out of `input_schema` and into `AbilitySettings::get_options()` fixes this.
@@ -63,7 +63,7 @@ Field properties (superset of what exists today):
 
 Plugins can bypass schema-driven rendering entirely by injecting custom React components via JS filters. This takes precedence over auto-rendered settings.
 
-For tools: `vip_workflow_tool_settings_{slug}` filter.
+For tools: `vip_workflows_tool_settings_{slug}` filter.
 
 Use cases: the checklist tool (complex list editor), or any plugin needing UI that cannot be expressed as simple form fields.
 
@@ -81,15 +81,15 @@ Currently renders: ToggleControl (boolean), SelectControl (enum), TextControl (s
 
 ### 2. Backend: expose `settings_schema` on tool ability responses
 
-In [`class-tools-controller.php`](../../../vip-workflow/includes/api/class-tools-controller.php), expose `settings_schema` from `$meta['settings_schema']` on each response item.
+In [`class-tools-controller.php`](../../../vip-workflows/includes/api/class-tools-controller.php), expose `settings_schema` from `$meta['settings_schema']` on each response item.
 
 ### 3. Move built-in tool settings from `input_schema` to `meta.settings_schema`
 
 **Files to change:**
 
-- [`readability.php`](../../../vip-workflow/includes/abilities/tools/readability.php) -- move `target_grade` (integer, default 8, enforceable)
-- [`seo-check.php`](../../../vip-workflow/includes/abilities/tools/seo-check.php) -- move `min_words` (integer, default 300, enforceable), `min_paragraphs` (integer, default 3, enforceable), `min_images` (integer, default 1, enforceable), `check_meta` (boolean, default true, enforceable)
-- [`keyword-check.php`](../../../vip-workflow/includes/abilities/tools/keyword-check.php) -- move `flagged_words` (string, default ''), `case_sensitive` (boolean, default false), `match_partial` (boolean, default false)
+- [`readability.php`](../../../vip-workflows/includes/abilities/tools/readability.php) -- move `target_grade` (integer, default 8, enforceable)
+- [`seo-check.php`](../../../vip-workflows/includes/abilities/tools/seo-check.php) -- move `min_words` (integer, default 300, enforceable), `min_paragraphs` (integer, default 3, enforceable), `min_images` (integer, default 1, enforceable), `check_meta` (boolean, default true, enforceable)
+- [`keyword-check.php`](../../../vip-workflows/includes/abilities/tools/keyword-check.php) -- move `flagged_words` (string, default ''), `case_sensitive` (boolean, default false), `match_partial` (boolean, default false)
 - The built-in AI agent -- move its model selection from execution input to the settings schema.
 
 Each tool's `execute()` callback changes from `$input['key'] ?? default` to reading from `AbilitySettings::get_options()`. This fixes the transition-time bug where saved settings were ignored.
@@ -109,14 +109,14 @@ Channels that override `get_settings_schema()` already use `SchemaSettings.js`. 
 
 ### 7. Update skill docs
 
-- [`vip-workflow/skills/create-tool/SKILL.md`](../../../vip-workflow/skills/create-tool/SKILL.md) -- show `meta.settings_schema` instead of `input_schema` defaults
+- [`vip-workflows/skills/create-tool/SKILL.md`](../../../vip-workflows/skills/create-tool/SKILL.md) -- show `meta.settings_schema` instead of `input_schema` defaults
 - Update the "How to Add Custom Tools" modal in `ToolsSettings.js`
 
 ### 8. Update reference docs
 
 - [`docs/reference/architecture.md`](../../reference/architecture.md) -- document unified settings pattern
 - [`docs/reference/quick-reference.md`](../../reference/quick-reference.md) -- add `settings_schema` to known patterns
-- [`docs/guides/extending-vip-workflow.md`](../../guides/extending-vip-workflow.md) -- update settings section
+- [`docs/guides/extending-vip-workflows.md`](../../guides/extending-vip-workflows.md) -- update settings section
 
 ## Migration summary
 

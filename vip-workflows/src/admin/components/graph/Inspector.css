@@ -1,0 +1,604 @@
+/**
+ * Inspector — the docked options panel of the sequence editor.
+ *
+ * The sidebar zone's own stylesheet. Split out of SequenceGraphEditor.css so the
+ * canvas (nodes, handles, edges) and the panel evolve without sharing a file.
+ * The two-zone layout itself — `.wf-sequence-editor__inspector`, the aside that
+ * frames this panel — stays with the parent, since that is the split, not the
+ * panel.
+ */
+
+/* The panel is a <Card> floating over the canvas; the editor's `__inspector`
+   wrapper places it. Fills that wrapper and clips its own corners, so a long
+   options list scrolls inside the card instead of past its rounded edge.
+   <Card.Root> is already a flex column, so only the sizing and the clipping
+   are set here.
+
+   The elevation is set here rather than inherited: <Card> rests flat (the
+   Sequences list only raises it on hover), which reads as a panel welded to the
+   page. A resting shadow is what makes this one look like it's above the
+   canvas. `md` — enough to lift it off the dotted background without the
+   drama of a modal. */
+.wf-inspector {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: hidden;
+	box-shadow: var( --vip-workflows-elevation-md );
+	/* The wrapper turns pointer events off so the empty space it spans below a
+	   collapsed panel doesn't swallow canvas clicks; the card takes them back. */
+	pointer-events: auto;
+}
+
+/* Collapsed: the body is `hidden`, so the card has only its header left. The
+   wrapper is a row, so the cross axis is the vertical one — `align-self` alone
+   drops the default `stretch` and lets the card shrink to that header. `flex`
+   stays untouched on purpose: changing it here would shrink the card's *width*
+   to its content and the bar would no longer line up with the open panel. */
+.wf-inspector--collapsed {
+	align-self: flex-start;
+}
+
+/* Pinned: the title stays put while the body scrolls. `flex-shrink: 0` stops a
+   long title from squeezing the header. */
+.wf-inspector__head {
+	flex-shrink: 0;
+	padding: var( --wpds-dimension-padding-lg );
+	/* wpds-allow R6 -- <Stack> exposes no border prop and @wordpress/ui 0.9 ships no <Divider>, so the rule under the header is drawn here */
+	border-bottom: 1px solid var( --wpds-color-stroke-surface-neutral );
+}
+
+/* The eyebrow + title column. `min-width: 0` lets a long title ellipsize
+   instead of shoving the collapse toggle off the panel. */
+.wf-inspector__heading {
+	min-width: 0;
+}
+
+/* The header's only control. `flex-shrink: 0` keeps it at its natural size no
+   matter how long the title runs. */
+.wf-inspector__collapse {
+	flex-shrink: 0;
+}
+
+/* <Text variant="heading-sm"> carries the type and the small caps; what is left
+   is the block box that puts the title on its own line, the tracking that keeps
+   uppercase at this size readable, and the muted tone. */
+.wf-inspector__eyebrow {
+	display: block;
+	/* wpds-allow R6,R8 -- @wordpress/theme ships no letter-spacing token and <Text> exposes no tracking prop */
+	letter-spacing: 0.4px;
+	/* wpds-allow R6 -- <Text> exposes no color prop, so the eyebrow's muted tone is set here */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* <Text variant="heading-lg"> carries the type; the admin page's typography
+   reset zeroes the margin on every heading it renders. */
+.wf-inspector__title {
+	/* wpds-allow R6 -- <Text> exposes no color prop, so the title's tone is set here */
+	color: var( --wpds-color-foreground-content-neutral );
+	/* Transition titles are "Source → Target" and stage labels are free text —
+	   both wrap rather than overflow the 320px panel. */
+	overflow-wrap: anywhere;
+}
+
+/* The only scrolling region in the panel. `min-height: 0` is load-bearing: a
+   flex item defaults to min-height:auto, which refuses to shrink below its
+   content, so without it a long options list overflows the fixed-height card
+   and gets clipped by the corner-rounding `overflow: hidden` above — visible
+   but unreachable. */
+.wf-inspector__body {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	padding: var( --wpds-dimension-padding-lg );
+}
+
+/* A panel whose whole body is one explanation, with no option group under it to
+   belong to — a Start / End connection, a phase node. Distinct from a section's
+   help line because there is no section here: only the muted tone is shared, and
+   <Text variant="body-sm"> carries the type. */
+.wf-inspector__help {
+	/* wpds-allow R6 -- <Text> exposes no color prop, so the tone is set here */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* Option groups, in every inspector. The group is its own
+   `<Stack direction="column">`, and sibling spacing comes from the parent
+   `<Stack direction="column" gap="lg">`; each section adds only the divider rule
+   above it (border + padding), zeroed on the first section. */
+.wf-inspector-section {
+	padding-top: var( --wpds-dimension-padding-lg );
+	/* wpds-allow R6 -- <Stack> exposes no border prop and @wordpress/ui 0.9 ships no <Divider>, so the rule between groups is drawn here */
+	border-top: 1px solid var( --wpds-color-stroke-surface-neutral-weak );
+}
+
+.wf-inspector-section:first-of-type {
+	/* wpds-allow R6 -- same border, dropped: the first group has nothing above it to be separated from, and <Stack> exposes no border prop */
+	border-top: 0;
+	padding-top: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* Neutral, not brand: a section title is a heading, and the brand tone made
+   static ones ("Post status") read as links. On a collapsible section the
+   chevron and hover state carry the affordance instead. Type comes from
+   <Text variant="heading-md">. */
+.wf-inspector-section__title {
+	/* wpds-allow R6 -- <Text> exposes no color prop, so the title's tone is set here */
+	color: var( --wpds-color-foreground-content-neutral );
+}
+
+/* The unlayered admin-page heading reset (admin-page.css:
+   `.wrap:has(.vip-workflows-admin-page) :where(p,h1..h6)…`, specificity (0,2,0))
+   zeroes the margin on every heading inside the admin page, and the title is an
+   <h3>, so the gap between a section title and its controls collapses. This is
+   the only place that gap is declared — a single-class rule cannot assert it,
+   which is why the declaration does not sit alongside the color above.
+
+   Excludes the collapsible variant: there the title sits inside
+   Collapsible.Trigger (`.wf-inspector-section__toggle`), a flex row with
+   `align-items: center`, not as a child of the section <Stack>. Restoring the
+   margin there would grow the row by the margin with nothing filling the gap,
+   and centre the title's *margin box* instead of its text — pushing the label
+   up and out of line with the chevron. That row's own layout owns its
+   spacing (`gap: xs`), so this rule has nothing to add there. */
+.vip-workflows-admin-page
+	.wf-inspector-section:not( .wf-inspector-section--collapsible )
+	.wf-inspector-section__title {
+	/* wpds-allow R3 -- not sibling spacing: this restores the margin WPDS's heading reset zeroes on the <h3> inside <Text>, which no Stack gap replaces */
+	margin-block-end: var( --wpds-dimension-gap-sm );
+}
+
+/* --- Collapsible sections ----------------------------------------------- */
+
+/* A section's heading row: its title (or disclosure trigger) and whatever
+   control the section hangs off that heading — the Add button over a list of
+   fields. The <Stack> owns the row; this only has to let the trigger claim the
+   width the actions do not, so the whole strip stays the disclosure's hit
+   target rather than shrinking to its text. */
+.wf-inspector-section__header > .wf-inspector-section__toggle {
+	flex: 1; /* wpds-allow R4 -- the trigger takes what the header's actions leave; <Stack> has no per-child grow prop */
+	min-width: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* A disclosure section's actions are wrapped so the wrapper can open the section
+   when one of them is pressed (`InspectorSection`). The wrapper is bookkeeping,
+   never a box: `contents` takes it out of the layout entirely, so the control
+   inside stays a direct flex item of the heading row and the row measures
+   exactly as it did before the wrapper existed. */
+.wf-inspector-section__actions {
+	display: contents;
+}
+
+/* An open section's title carries a restored block margin (see the rule above
+   the collapsible group). Inside a heading row it is a centred flex item, where
+   that margin would grow the row and push the title out of line with whatever
+   sits beside it — the same reason the disclosure trigger never gets it.
+
+   Carries the same `:not()` the restore rule does, and not for symmetry: the
+   restore rule is four classes, so a three-class exception loses to it whatever
+   the source order, and the one place both rules match is exactly the one this
+   is for — a NON-collapsible section with `actions` (the Tools list). A
+   collapsible section's title never had the margin to cancel. */
+.vip-workflows-admin-page
+	.wf-inspector-section:not( .wf-inspector-section--collapsible )
+	.wf-inspector-section__header
+	.wf-inspector-section__title {
+	margin-block-end: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* The disclosure row. A full-width reset button so the whole strip is the hit
+   target, not just the title text. The class exists to take a native button's
+   box away — border, background, padding, inherited color — which no layout
+   primitive has props for, so the row lays itself out alongside that reset. */
+.wf-inspector-section__toggle {
+	display: flex;
+	align-items: center;
+	gap: var( --wpds-dimension-gap-xs );
+	width: 100%;
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+	border: 0; /* wpds-allow R6 -- Collapsible.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
+	background: none; /* wpds-allow R6 -- the same UA button box; the section supplies the surface */
+	cursor: pointer;
+	text-align: start;
+	color: inherit; /* wpds-allow R6 -- same: `buttontext` would cut the title and chevron off from the row's own tone, and the trigger exposes no color prop */
+}
+
+/* The disclosure's affordance: the row responds, so the neutral title doesn't
+   have to advertise itself in brand color. */
+.wf-inspector-section__toggle:hover .wf-inspector-section__title,
+.wf-inspector-section__toggle:hover .wf-inspector-section__chevron {
+	/* wpds-allow R6 -- <Text> exposes no color prop, so the title's hover tone is set here */
+	color: var( --wpds-color-foreground-interactive-brand );
+	/* wpds-allow R6 -- <Icon> renders a raw SVG and exposes no color prop; `fill` is the only way to tint the chevron */
+	fill: var( --wpds-color-foreground-interactive-brand );
+}
+
+.wf-inspector-section__toggle:focus-visible {
+	outline: var( --wpds-border-width-focus ) solid
+		var( --wpds-color-stroke-interactive-brand );
+	outline-offset: 2px;
+	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds the focus ring to the trigger's own corners; Collapsible.Trigger exposes no radius prop */
+}
+
+/* Points right when shut, down when open. Base UI sets `aria-expanded` on the
+   trigger, so the open state needs no JS to style. */
+.wf-inspector-section__chevron {
+	flex-shrink: 0;
+	/* wpds-allow R6 -- <Icon> renders the raw SVG and exposes no color prop; `fill` is the only way to tint it from a stylesheet */
+	fill: var( --wpds-color-foreground-content-neutral-weak );
+	transition: transform 0.15s ease;
+}
+
+.wf-inspector-section__toggle[aria-expanded='true']
+	.wf-inspector-section__chevron {
+	transform: rotate( 90deg );
+}
+
+@media ( prefers-reduced-motion: reduce ) {
+	.wf-inspector-section__chevron {
+		transition: none;
+	}
+}
+
+/* The collapsed-state gist, e.g. "Off" / "3 fields". Pushed to the far end;
+   type comes from <Text variant="body-sm">, so only placement and tone are set
+   here. */
+.wf-inspector-section__summary {
+	/* wpds-allow R3 -- `auto` pushes this one child to the end of the trigger row; a <Stack> justifies the whole row and has no per-child prop */
+	margin-inline-start: auto;
+	/* wpds-allow R6 -- <Text> exposes no color prop, so the summary's muted tone is set here */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* The gap between a disclosure's trigger and what it discloses, set on the
+   content rather than on the panel that holds it.
+
+   `Collapsible.Panel` is shut with `hidden="until-found"` so find-in-page can
+   still reach inside it, and the HTML rendering spec gives that
+   `content-visibility: hidden` rather than `display: none`. The element still
+   generates a box: its contents are skipped, but its own padding and border are
+   laid out. Padding on the panel therefore survives the collapse as a strip of
+   empty space under the header — which is what it was doing here.
+
+   Contents are skipped, so spacing that lives on them collapses with them. */
+.wf-inspector-section__panel > .wf-inspector-section__disclosed {
+	padding-top: var( --wpds-dimension-padding-md );
+}
+
+/* Type comes from <Text variant="body-sm"> and the column it sits in owns the
+   spacing, so only the muted tone is left. */
+.wf-inspector-section__help {
+	/* wpds-allow R6 -- <Text> exposes no color prop, so the help line's tone is set here */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* --- Info tips ----------------------------------------------------------- */
+
+/* The trigger that carries a read-out row's explanation. A bare button reset:
+   it sits inline in the row, so it must not bring a button's box with it. Muted
+   until it is hovered or focused, because it is an offer rather than a
+   statement — every row would otherwise shout at the same volume as its value.
+   Its size is the icon's. */
+.wf-inspector-infotip {
+	display: inline-flex;
+	align-items: center;
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+	border: 0; /* wpds-allow R6 -- Tooltip.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
+	background: none; /* wpds-allow R6 -- the same UA button box; the row supplies the surface */
+	cursor: help;
+	color: var( --wpds-color-foreground-content-neutral-weak ); /* wpds-allow R6 -- Tooltip.Trigger exposes no tone prop, so the muted resting colour is set here */
+}
+
+.wf-inspector-infotip:hover,
+.wf-inspector-infotip:focus-visible {
+	/* wpds-allow R6 -- Tooltip.Trigger exposes no tone prop, so the hover/focus colour is set here too */
+	color: var( --wpds-color-foreground-interactive-brand );
+}
+
+/* <Icon> renders the raw SVG and exposes no color prop, so `fill` is the only
+   way to tint it — and following `currentcolor` is what makes the hover state
+   above reach the glyph. */
+.wf-inspector-infotip svg {
+	fill: currentcolor; /* wpds-allow R6 -- <Icon> exposes no color prop (see above) */
+}
+
+.wf-inspector-infotip:focus-visible {
+	outline: var( --wpds-border-width-focus ) solid
+		var( --wpds-color-stroke-interactive-brand );
+	outline-offset: 2px;
+	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds the focus ring to the trigger's own corners; Tooltip.Trigger exposes no radius prop */
+}
+
+/* Narrower than the tooltip's default: these are sentences, and a popup as wide
+   as the viewport turns two lines into one very long one. */
+.wf-inspector-infotip__popup {
+	max-width: var( --wpds-dimension-surface-width-xs );
+}
+
+/* --- Danger zone --------------------------------------------------------- */
+
+/* The panel's destructive control, ending its body. Set off by a heavier rule
+   than the one between option groups — `stroke-surface-neutral`, the weight the
+   header uses, against the groups' `-weak` — which is what stops a button at
+   the end of a scroll reading as one more option. Spacing is the parent Stack's
+   `gap="lg"` plus this padding; the button spans the panel from the
+   <Stack align="stretch"> inside it. Nothing here does layout. */
+.wf-inspector-danger {
+	padding-top: var( --wpds-dimension-padding-lg );
+	border-top: 1px solid var( --wpds-color-stroke-surface-neutral );
+}
+
+/* Why the action is unavailable, or what it costs. Said in place, so it reads
+   without hovering and is reachable without a pointer. Only the tone is set —
+   <Text variant="body-sm"> carries the type. */
+.wf-inspector-danger__help {
+	/* wpds-allow R6 -- <Text> exposes no color prop, so the muted tone is set here */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* Key field flagged because the key in it cannot be saved — it belongs to
+   another stage, an earlier metadata field already claims it, or it is blank on
+   a row that has been filled in. The field's own help text says which; only the
+   tone is set here. One rule for both inspectors, so the flag reads the same
+   wherever a key is typed. */
+.wf-stage-inspector__key--collides .components-base-control__help,
+.wf-metadata-field__key--invalid .components-base-control__help {
+	/* wpds-allow R6 -- TextControl exposes no validity or tone prop, so the caution colour has to land on the help element it renders */
+	color: var( --wpds-color-foreground-content-caution );
+}
+
+/* Stage read-outs. Everything the canvas sets about the selected stage — the
+   status section it sits in, its region's entry checkpoint, where its
+   transitions go, where an agent's outcomes lead — is reported as one of these
+   lists, because all of it is set by dragging and none of it is a control here.
+   One row per setting: its name at the start, its current value at the far end.
+
+   Kept to one visual grammar so the panel doesn't invent a second one for each
+   thing it reports.
+
+   The list is a `<Stack direction="column" gap="xs">` rendered as a <ul>, so
+   all that is left here is undoing the browser's own list box. */
+.wf-inspector__facts {
+	list-style: none;
+	/* wpds-allow R3 -- the browser's default <ul> margin has to be reset; <Stack> owns the gap, not the UA box */
+	margin: 0;
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+}
+
+/* Each row is a `<Stack align="center" gap="sm">` rendered as an <li>; only its
+   tone is set here. */
+.wf-inspector__fact {
+	/* wpds-allow R6 -- <Stack> exposes no color prop, so the row's tone is set here */
+	color: var( --wpds-color-foreground-content-neutral );
+}
+
+/* A transition an agent has taken over: still configured and still drawn on the
+   canvas, but nobody can use it while the agent runs the stage. Dimmed to match
+   how the canvas draws that edge. */
+.wf-inspector__fact.is-disabled {
+	/* wpds-allow R6 -- <Stack> exposes no color prop */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+	/* wpds-allow R6 -- <Stack> exposes no opacity prop */
+	opacity: 0.7;
+}
+
+/* The row being dragged. Half-opacity is dnd-kit's convention for the original
+   while its placeholder moves under the pointer. */
+.wf-inspector__fact.is-dragging {
+	/* wpds-allow R6 -- <Stack> exposes no opacity prop */
+	opacity: 0.5;
+}
+
+/* The reorder grip. A button rather than the row itself, so the row's tooltip
+   trigger — or its remove button — is not nested inside a control, and so the
+   KeyboardSensor has a tab stop, which is the only way to reorder without a
+   pointer in a panel this narrow.
+
+   In flow by default: in a list where every row is draggable, the grips form
+   the list's leading edge and nothing is indented relative to anything else. */
+.wf-inspector__grip {
+	display: flex; /* wpds-allow R4 -- the grip stays a <button> so the KeyboardSensor has a tab stop, and this class exists to take that button's box away */
+	align-items: center; /* wpds-allow R4 -- centres the glyph inside that <button> */
+	flex: 0 0 auto; /* wpds-allow R4 -- the grip keeps its width while the row's body takes the rest; <Stack> has no per-child grow prop */
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+	border: none;
+	background: none;
+	color: var( --wpds-color-foreground-content-neutral-weak );
+	cursor: grab;
+}
+
+.wf-inspector__grip:focus-visible {
+	outline: 2px solid var( --wpds-color-stroke-surface-brand-strong );
+	outline-offset: 1px;
+}
+
+/* A list that mixes draggable rows with fixed ones — the stage read-out, where
+   an agent's three outcomes are a fixed trio sitting among sortable transitions.
+   There the grip cannot take space: in flow it indented every sortable row by
+   its own width, so the transition rows sat deeper than the outcome rows in what
+   is one list, and the leading dots have to line up for the list to read flat.
+
+   So it is lifted out of the flow and laid over the row's leading dot, and
+   hidden until the row is hovered or the grip itself is focused — the order is
+   worth changing far less often than it is worth reading, and a column of grips
+   at full strength would read as the most important thing in the list. */
+.wf-inspector__facts--overlaid-grip .wf-inspector__fact.is-sortable {
+	position: relative; /* wpds-allow R4 -- anchors the overlaid grip <button>; <Stack> has no positioning prop */
+}
+
+.wf-inspector__facts--overlaid-grip .wf-inspector__grip {
+	position: absolute; /* wpds-allow R4 -- overlays the row's dot slot instead of indenting the row (see above) */
+	inset-inline-start: 0; /* wpds-allow R2 -- zero needs no token */
+	top: 50%; /* wpds-allow R4 -- centres the overlaid grip on the row's own line */
+	transform: translateY( -50% ); /* wpds-allow R4 -- the other half of that centring */
+	opacity: 0;
+	transition: opacity 120ms ease;
+}
+
+.wf-inspector__facts--overlaid-grip
+	.wf-inspector__fact:hover
+	.wf-inspector__grip,
+.wf-inspector__facts--overlaid-grip .wf-inspector__grip:focus-visible {
+	/* wpds-allow R6 -- reveals the grip <button>, hung off the hovered row; that row is a <Stack>, which exposes no opacity prop */
+	opacity: 1;
+}
+
+/* While the grip is up it sits exactly where the row's dot is, and the drag
+   glyph over a colored dot reads as neither — so the dot stands aside for the
+   grip's moment. `:has()` mirrors the grip's own focus reveal, which no
+   ancestor combinator can express. */
+.wf-inspector__facts--overlaid-grip
+	.wf-inspector__fact.is-sortable:hover
+	.wf-stage-inspector__route-dot,
+.wf-inspector__facts--overlaid-grip
+	.wf-inspector__fact.is-sortable:has( .wf-inspector__grip:focus-visible )
+	.wf-stage-inspector__route-dot {
+	visibility: hidden;
+}
+
+/* Never animate the reveal, and never hide the grip outright, for anyone who
+   has asked for less motion or navigates by keyboard alone.
+
+   The dot goes with it. The grip is up for good here rather than for a hover's
+   moment, and the rule above stands the dot aside only while it is hovered or
+   focused — so without this the drag glyph sits on top of a coloured route dot
+   on every row, at rest, which is the "reads as neither" that rule exists to
+   prevent. The two are one decision and have to move together. */
+@media ( prefers-reduced-motion: reduce ) {
+	.wf-inspector__facts--overlaid-grip .wf-inspector__grip {
+		transition: none;
+		opacity: 1;
+	}
+
+	.wf-inspector__facts--overlaid-grip
+		.wf-inspector__fact.is-sortable
+		.wf-stage-inspector__route-dot {
+		visibility: hidden;
+	}
+}
+
+/* An exit row that opens what it reports. The button takes the whole row (a
+   sortable row's grip floats over its leading edge, claiming only its own
+   pixels), so the transition's name and its destination are one target
+   rather than a small hotspot someone has to find — and so `fact-value`'s
+   `auto` start margin still pushes the destination to the end of the line,
+   which it only does if the button is the row's remaining width.
+
+   Everything here is undoing the UA's button box; the tone has to be inherited
+   rather than left at `buttontext`, or the row's own states (a transition an
+   agent has disabled, dimmed above) would stop reaching the text inside it. */
+.wf-inspector__fact-open {
+	flex: 1; /* wpds-allow R4 -- the button has to fill what the grip leaves so the row still reads as one line; <Stack> has no per-child grow prop */
+	min-width: 0; /* wpds-allow R2 -- zero needs no token */
+	padding: 0; /* wpds-allow R2 -- zero needs no token */
+	border: none; /* wpds-allow R6 -- the <Stack> renders a <button>, and this class exists to take that button's UA box away; <Stack> exposes no border prop */
+	background: none; /* wpds-allow R6 -- same: the UA button surface, which the row supplies instead */
+	color: inherit; /* wpds-allow R6 -- <Stack> exposes no color prop, and `buttontext` would cut the row's own tone off from the text inside it */
+	text-align: start;
+	cursor: pointer;
+}
+
+/* Says it is a target, without giving three or four rows the weight of buttons
+   in a panel where nothing else in the list is one. */
+.wf-inspector__fact-open:hover {
+	text-decoration: underline; /* wpds-allow R6 -- <Stack> exposes no text-decoration prop */
+}
+
+.wf-inspector__fact-open:focus-visible {
+	outline: 2px solid var( --wpds-color-stroke-surface-brand-strong );
+	outline-offset: 1px;
+	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds the focus ring to match the grip's; <Stack> exposes no radius prop */
+}
+
+/* The second half of the stage read-out: not what the stage is, but every way
+   out of it. Both kinds of exit — the transitions an author drew and the routes
+   an agent's outcomes take — share one list, because to a post travelling them
+   they are the same thing. The rule is what keeps "Send to editor: Review" from
+   reading as one more fact about the stage now that neither list has a heading
+   over it. */
+.wf-stage-inspector__exits {
+	padding-top: var( --wpds-dimension-padding-md );
+	border-top: 1px solid var( --wpds-color-stroke-surface-neutral-weak );
+}
+
+/* Every exit row carries a leading dot — the second thing that tells the two
+   lists apart, and the one that survives a screenshot at a glance. An agent's
+   outcome overrides the tone below; a plain transition keeps this neutral one,
+   since it has no outcome to be colored by. The tones come from
+   `src/common/outcome-tones.css`, which declares them on `:root` so the
+   canvas handles, the edges, these dots, and the editor sidebar's transition
+   rail all agree. */
+.wf-stage-inspector__route {
+	--wf-outcome-tone: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+.wf-stage-inspector__route-dot {
+	flex: 0 0 auto;
+	width: 9px;
+	height: 9px;
+	border-radius: var( --vip-workflows-border-radius-full );
+	background: var( --wf-outcome-tone );
+}
+
+.wf-stage-inspector__route.is-pass {
+	--wf-outcome-tone: var( --wf-outcome-pass );
+}
+
+.wf-stage-inspector__route.is-fail {
+	--wf-outcome-tone: var( --wf-outcome-fail );
+}
+
+.wf-stage-inspector__route.is-error {
+	--wf-outcome-tone: var( --wf-outcome-error );
+}
+
+.wf-inspector__fact-value {
+	/* wpds-allow R3 -- `auto` pushes the value past however many items lead the row; a <Stack> justifies the whole row and has no per-child prop */
+	margin-inline-start: auto;
+	text-align: end;
+	/* wpds-allow R6 -- <Text> exposes no color prop, so the value's muted tone is set here */
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* A setting nothing has been set to — an outcome with nowhere to go. Italic so
+   the placeholder standing in for it can't be mistaken for the setting itself.
+   Only the value half of a row is ever this: a transition nobody labelled still
+   has the name the runtime derives for it, so its name half is a real name. */
+.wf-inspector__fact .is-empty {
+	font-style: italic;
+}
+
+/* --- Field lists -------------------------------------------------------- */
+
+/* A list of field definitions — a sequence's metadata fields, a transition's
+   capture inputs. The rows are the same read-out row the stage's exits use
+   (`.wf-inspector__fact`), so the two lists read as one grammar. What differs is
+   that every row here is draggable, which is why the grip stays in the flow
+   rather than overlaying a leading dot there is none of. */
+
+/* A field whose storage key would have the save refused. The row reports the
+   problem in place of the value it would otherwise show, so the tone has to
+   reach that text too — `fact-value` sets its own muted color, which would
+   otherwise win on the half of the row that carries the message. */
+.wf-inspector-field-list .wf-inspector__fact.is-invalid,
+.wf-inspector-field-list
+	.wf-inspector__fact.is-invalid
+	.wf-inspector__fact-value {
+	/* wpds-allow R6 -- <Stack> and <Text> expose no color prop */
+	color: var( --wpds-color-foreground-content-error );
+}
+
+/* The options a row opens, in a popover anchored to the row that opens it — a
+   field's own settings, or the checkboxes behind a choice row's value. Sized
+   like the editor sidebar's input dialogs (see TransitionInputPopover.css), so
+   every side-anchored dialog in this product reads as one pattern: wide enough
+   for a labelled text control, capped before a long field name can stretch it
+   past the widest core meta popover. */
+.wf-inspector-field-list__popover .components-popover__content,
+.wf-inspector-choice__popover .components-popover__content {
+	/* wpds-allow R6 -- Popover exposes no width/padding props; its content box must be sized here. */
+	/* wpds-allow R2 -- 260-320px brackets core's 248-320px meta dialogs; no token holds a popover width. */
+	min-width: 260px;
+	max-width: 320px;
+	padding: var( --wpds-dimension-padding-md );
+}

@@ -53,7 +53,7 @@ if (process.argv.includes('--list')) {
 // and reporting that as a pass is how a green board stops meaning anything.
 if (suites.length === 0) {
 	process.stderr.write(
-		'No plugin declares an `integration` PHPUnit suite. Expected at least vip-workflow.\n'
+		'No plugin declares an `integration` PHPUnit suite. Expected at least vip-workflows.\n'
 	);
 	process.exit(2);
 }

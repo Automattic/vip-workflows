@@ -14,7 +14,7 @@ else
 	exit 1
 fi
 
-# On a fresh install against the WordPress/WordPress#7.0 build, core can write
+# On a fresh install against the WordPress/WordPress#master build, core can write
 # the active theme as the bare 'default' fallback if the bundled themes aren't
 # resolvable at install time — leaving a blank front end. Pin a real theme so a
 # clean recreate always renders. Idempotent: re-activating the active theme is a

@@ -1,0 +1,12 @@
+/**
+ * Standard modal footer spacing. Rendered by ModalActions.js.
+ *
+ * Colocated with the component (not in a bundle-specific style.css) so every
+ * webpack entry that uses ModalActions picks up the spacing. The flex row,
+ * right-alignment, and inter-button gap come from the underlying <Stack>; this
+ * rule only owns the gap between the modal body and the footer. No border-top —
+ * the footer is a plain right-aligned button row, matching WPDS dialogs.
+ */
+.vip-workflows-modal-actions {
+	margin-top: var( --wpds-dimension-gap-xl ); /* wpds-allow R3 -- the gap between a @wordpress/components <Modal> body and its footer; a Modal body is not a Stack, and this footer is shared by every modal that uses it */
+}

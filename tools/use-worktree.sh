@@ -19,7 +19,7 @@ else
 		"https://downloads.wordpress.org/plugin/gutenberg.23.3.2.zip",
 		"https://github.com/WordPress/mcp-adapter/releases/latest/download/mcp-adapter.zip",
 		"https://downloads.wordpress.org/plugin/wp-parsely.zip",
-		"$WORKTREE/vip-workflow",
+		"$WORKTREE/vip-workflows",
 		"$WORKTREE/workflow-parsely",
 		"$WORKTREE/workflow-tool-checklist",
 		"$WORKTREE/workflow-assistant-wikipedia",

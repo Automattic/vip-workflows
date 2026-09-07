@@ -1,0 +1,64 @@
+/**
+ * Transition input popover styles.
+ *
+ * Sizing mirrors the metadata rows' popover dialogs so every side-anchored
+ * input dialog in the sidebar reads as one pattern. The error treatment is
+ * carried over from the retired TextInputModal, and the role-row treatment
+ * from the retired role-select modal, scoped to the popover's own classes.
+ */
+
+/* Same reasoning as the metadata row dialog: core's meta dialogs range from
+   248px (author) to 320px (schedule); 260px keeps a text input comfortable
+   beside the 280px sidebar. The max stops a long role name or transition
+   label from stretching the dialog past the widest core meta popover. */
+.vip-workflows-transition-popover .components-popover__content {
+	/* wpds-allow R6 -- Popover exposes no width/padding props; its content box must be sized here. */
+	/* wpds-allow R2 -- 260-320px brackets core's 248-320px meta dialogs; no token holds a popover width. */
+	min-width: 260px;
+	max-width: 320px;
+	padding: var( --wpds-dimension-padding-md );
+}
+
+/* TextControl/TextareaControl have no invalid/error prop, so the error state
+   is painted onto the control's own markup. Their @wordpress/components CSS is
+   unlayered, which no layered @wordpress/ui rule could outrank anyway. */
+.vip-workflows-transition-popover .components-text-control.has-error input,
+.vip-workflows-transition-popover .components-textarea-control.has-error textarea {
+	border-color: var(--wpds-color-stroke-surface-error-strong); /* wpds-allow R6 -- error outline on the field; TextControl exposes no invalid state */
+}
+
+.vip-workflows-transition-popover .components-text-control.has-error .components-base-control__help,
+.vip-workflows-transition-popover .components-textarea-control.has-error .components-base-control__help {
+	color: var(--wpds-color-foreground-content-error-weak); /* wpds-allow R6 -- error tone on the control's own help text, which it renders itself from the `help` prop */
+}
+
+/* Each role is a Button reshaped into a full-width list row. Every declaration
+   below undoes a Button style, and the `.components-button` half of the
+   selector is what makes them stick. */
+/* wpds-allow R6 -- the Button's own surface can only be undone by out-specifying it; @wordpress/components exposes no prop for a list-row button. */
+.vip-workflows-transition-popover__role.components-button {
+	display: flex;
+	align-items: center;
+	height: auto;
+	padding: var(--wpds-dimension-padding-md) var(--wpds-dimension-padding-lg);
+	/* wpds-allow R6 -- <Button> exposes no surface-color prop. */
+	background: var(--wpds-color-background-surface-neutral-weak);
+	/* wpds-allow R6 -- <Button> exposes no border prop. */
+	border: 1px solid var(--wpds-color-stroke-surface-neutral);
+	/* wpds-allow R6 -- <Button> exposes no border-radius prop. */
+	border-radius: var( --wpds-border-radius-md );
+	cursor: pointer;
+	/* wpds-allow R6 -- <Button> exposes no type-scale prop; its size variants change height and padding too. */
+	font: var(--vip-workflows-text-body-md);
+	text-align: left;
+	transition: all 0.15s ease;
+}
+
+.vip-workflows-transition-popover__role.components-button:hover {
+	/* wpds-allow R6 -- hover tone for the reshaped row; <Button> exposes no surface-color prop. */
+	background: var(--wpds-color-background-interactive-brand-strong);
+	/* wpds-allow R6 -- hover tone for the reshaped row; <Button> exposes no color prop. */
+	color: var(--wpds-color-foreground-interactive-brand-strong);
+	/* wpds-allow R6 -- hover tone for the reshaped row; <Button> exposes no border prop. */
+	border-color: var(--wpds-color-stroke-interactive-brand);
+}

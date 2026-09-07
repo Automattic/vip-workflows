@@ -33,7 +33,7 @@ Story Discovery fills the gap before the seed. It surfaces story prompts from ex
 
 **Story Prompt**: A normalized object that any provider returns. Contains enough information to (a) display a meaningful card on the landing page and (b) generate a rich seed when selected. Prompts are not stored persistently; they're fetched on demand and cached transiently.
 
-**Seed Generation**: When an editor selects a prompt, the system composes a seed string from the prompt's data (headline, context, dates, source-specific metadata) and submits it through the existing `POST /vip-workflow/v1/ideation/seed` flow. The prompt's structured metadata can optionally be passed as supplementary context alongside the seed text.
+**Seed Generation**: When an editor selects a prompt, the system composes a seed string from the prompt's data (headline, context, dates, source-specific metadata) and submits it through the existing `POST /vip-workflows/v1/ideation/seed` flow. The prompt's structured metadata can optionally be passed as supplementary context alongside the seed text.
 
 ---
 
@@ -79,7 +79,7 @@ The `importance` field is provider-defined. The UI can use it for visual treatme
 Providers register via a WordPress action, similar to how notification channels and research agents register. Core provides the hook; extension plugins implement providers.
 
 ```php
-add_action( 'vip_workflow_register_discovery_providers', function( $registry ) {
+add_action( 'vip_workflows_register_discovery_providers', function( $registry ) {
     $registry->register( 'foresight-news', array(
         'label'       => __( 'Foresight News', 'workflow-discovery-foresight' ),
         'description' => __( 'Upcoming events, diary dates, and scheduled announcements.', 'workflow-discovery-foresight' ),
@@ -165,16 +165,16 @@ Composes a seed string from a selected story prompt. Providers control how their
 **`availability_callback(): bool|Availability`**
 Returns whether the provider is configured and operational (API key set, service reachable). Mirrors the pattern from research agents. If a provider is unavailable, its section is hidden from the landing page and its option is grayed out in the modal.
 
-**Amended:** the bool return is unchanged and still valid — a callback returning `true`/`false` keeps working with no diagnostic. Additionally, a callback may return a `VIPWorkflow\Abilities\Availability` naming the unmet requirements, so the Agents card can say *what* is missing instead of only *that* something is. `DiscoveryProviderRegistry` mirrors `Ability` exactly: `is_available( string $slug ): bool` keeps its signature and its permissive default, and `get_availability( string $slug ): Availability` returns the structured result. Aggregation on the Agents card can therefore fold a provider and an ability uniformly, deduplicating a requirement that arrives from both.
+**Amended:** the bool return is unchanged and still valid — a callback returning `true`/`false` keeps working with no diagnostic. Additionally, a callback may return a `VIPWorkflows\Abilities\Availability` naming the unmet requirements, so the Agents card can say *what* is missing instead of only *that* something is. `DiscoveryProviderRegistry` mirrors `Ability` exactly: `is_available( string $slug ): bool` keeps its signature and its permissive default, and `get_availability( string $slug ): Availability` returns the structured result. Aggregation on the Agents card can therefore fold a provider and an ability uniformly, deduplicating a requirement that arrives from both.
 
 **The callback owns satisfaction.** It returns bare `true` when its dependencies are met — including when an `any` group has one satisfied member — so a requirement group only ever contains unmet members and no consumer re-derives availability.
 
-Build requirements with `VIPWorkflow\Abilities\RequirementFactory` rather than by hand: it derives the id, kind, both message registers, and the destination from a service slug. A provider whose credentials are entered in its own card fields uses `RequirementFactory::in_card()`, optionally passing a `credentials_url` so the card can also link to where those credentials are obtained; one backed by a credential the plugin reads through `VIPWorkflow\AI\Credentials` uses `missing_credential()`, whose destination resolves against the active credential backend so it never renders a link to a screen this install does not have.
+Build requirements with `VIPWorkflows\Abilities\RequirementFactory` rather than by hand: it derives the id, kind, both message registers, and the destination from a service slug. A provider whose credentials are entered in its own card fields uses `RequirementFactory::in_card()`, optionally passing a `credentials_url` so the card can also link to where those credentials are obtained; one backed by a credential the plugin reads through `VIPWorkflows\AI\Credentials` uses `missing_credential()`, whose destination resolves against the active credential backend so it never renders a link to a screen this install does not have.
 
 ```php
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Abilities\RequirementGroup;
 
 function check_availability(): bool|Availability {
     if ( is_configured() ) {
@@ -203,20 +203,20 @@ Registering the same callback on both the provider and the plugin's research abi
 
 Core exposes REST endpoints that proxy to registered providers. The frontend never calls external APIs directly.
 
-**`GET /vip-workflow/v1/discovery/providers`**
+**`GET /vip-workflows/v1/discovery/providers`**
 Lists registered providers with their label, icon, features, and availability status.
 
-**`GET /vip-workflow/v1/discovery/recommend`**
+**`GET /vip-workflows/v1/discovery/recommend`**
 Returns recommended prompts. Optional `provider` param to request from a specific provider. If no provider specified, returns results from all available providers that support `recommend`, grouped by provider and capped at 6 per provider. The landing page renders each provider as its own section (e.g., "From Foresight News", "Trending on Parse.ly"), each with up to 6 cards. Results are cached server-side (transient, 15-30 min TTL).
 
-**`GET /vip-workflow/v1/discovery/search?provider={slug}&text={query}&filters={json}`**
+**`GET /vip-workflows/v1/discovery/search?provider={slug}&text={query}&filters={json}`**
 Searches a specific provider. Returns prompts matching the query and filters. The `filters` param is a JSON object whose keys match the provider's filter definitions.
 
-**`GET /vip-workflow/v1/discovery/filters?provider={slug}`**
+**`GET /vip-workflows/v1/discovery/filters?provider={slug}`**
 Returns the search filter definitions for a provider. For providers with `dynamic` options (like Foresight's categories), this endpoint fetches from the external API and caches the results.
 
-**`POST /vip-workflow/v1/discovery/select`**
-Called when an editor selects a prompt. Body: `{ provider, prompt_id, prompt_data }`. Calls the provider's `seed` callback to generate a seed string, then delegates to the existing ideation seed flow (`IdeationOrchestrator::create_from_seed()`). Returns the new project state, same as `POST /vip-workflow/v1/ideation/seed`. Additionally stores the full prompt data as project meta (`_vip_discovery_prompt`) before delegating, so the structured context is available to research assistants and the mentor downstream. This storage happens in the select handler, not in `create_from_seed()`, keeping the core seed flow unaware of discovery.
+**`POST /vip-workflows/v1/discovery/select`**
+Called when an editor selects a prompt. Body: `{ provider, prompt_id, prompt_data }`. Calls the provider's `seed` callback to generate a seed string, then delegates to the existing ideation seed flow (`IdeationOrchestrator::create_from_seed()`). Returns the new project state, same as `POST /vip-workflows/v1/ideation/seed`. Additionally stores the full prompt data as project meta (`_vip_discovery_prompt`) before delegating, so the structured context is available to research assistants and the mentor downstream. This storage happens in the select handler, not in `create_from_seed()`, keeping the core seed flow unaware of discovery.
 
 ---
 
@@ -251,10 +251,10 @@ The discovery section sits between `SeedInput` and `RecentProjects` in the `.ide
 
 ### Behavior
 
-- On mount, fetches `GET /vip-workflow/v1/discovery/recommend`.
+- On mount, fetches `GET /vip-workflows/v1/discovery/recommend`.
 - Renders up to 6 prompt cards in a grid matching the `RecentProjects` visual style.
 - Each card shows: title, primary date (formatted with time awareness from `startDateHasTime`), tags (from categories/topics), importance badge if applicable.
-- Clicking a card calls `POST /vip-workflow/v1/discovery/select` with the prompt data, then navigates to the workspace exactly like a manual seed submission.
+- Clicking a card calls `POST /vip-workflows/v1/discovery/select` with the prompt data, then navigates to the workspace exactly like a manual seed submission.
 - "Browse more..." button opens the search modal.
 - If no providers are available or configured, the section is hidden entirely (same pattern as `RecentProjects` when empty).
 - Loading and error states are independent of the rest of the page. `SeedInput` and `RecentProjects` render immediately; the discovery section shows a subtle loading skeleton while fetching and silently hides if the fetch fails. Never blocks the page.
@@ -352,7 +352,7 @@ The prompt's full structured data is also stored as project meta (`_vip_discover
 
 ### Settings
 
-Providers appear on the unified Integrations → Assistants tab as individual cards (or grouped with a research ability when a plugin registers both, via `vip_workflow_register_assistant_meta`). Settings fields are either auto-rendered from the provider's `settings_schema` or injected by the plugin via the `vipWorkflow.assistantSettings` JS filter (with legacy `vip_workflow_discovery_provider_settings` still supported for backward compatibility). See `docs/specs/unified-assistants-tab.md` for the unified tab architecture.
+Providers appear on the unified Integrations → Assistants tab as individual cards (or grouped with a research ability when a plugin registers both, via `vip_workflows_register_assistant_meta`). Settings fields are either auto-rendered from the provider's `settings_schema` or injected by the plugin via the `vipWorkflows.assistantSettings` JS filter (with legacy `vip_workflows_discovery_provider_settings` still supported for backward compatibility). See `docs/specs/unified-assistants-tab.md` for the unified tab architecture.
 
 For the Foresight News provider specifically:
 
@@ -388,13 +388,13 @@ This is a standard research assistant, not a discovery provider. The Foresight e
 
 ```php
 // Discovery provider (landing page)
-add_action( 'vip_workflow_register_discovery_providers', function( $registry ) {
+add_action( 'vip_workflows_register_discovery_providers', function( $registry ) {
     $registry->register( 'foresight-news', array( /* ... */ ) );
 } );
 
 // Research assistant (inside projects)
 add_action( 'wp_abilities_api_init', function() {
-    vip_workflow_register_ability( 'workflow-discovery-foresight/research', array(
+    vip_workflows_register_ability( 'workflow-discovery-foresight/research', array(
         'label'            => __( 'Foresight News', 'workflow-discovery-foresight' ),
         'description'      => __( 'Finds upcoming events relevant to this story.', 'workflow-discovery-foresight' ),
         'category'         => 'research',

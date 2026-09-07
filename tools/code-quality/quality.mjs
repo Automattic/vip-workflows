@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * quality.mjs — monorepo-wide lint + fast-test runner for VIP Workflow.
+ * quality.mjs — monorepo-wide lint + fast-test runner for VIP Workflows.
  *
  * Harness-agnostic: it knows how to lint and unit-test every plugin in the
  * monorepo and is callable from anything — `npm run lint`, a Claude Code hook,
@@ -20,7 +20,7 @@
  *      a "couldn't determine the diff" signal, never reported as success.
  *
  * Routing:
- *   PHP   → phpcs (vip-workflow/vendor/bin). Each plugin uses its own
+ *   PHP   → phpcs (vip-workflows/vendor/bin). Each plugin uses its own
  *           .phpcs.xml.dist if present, else the shared extension ruleset.
  *           BLOCKING.
  *   JS/CSS→ each plugin's own wp-scripts (lint-js / lint-style). ADVISORY only —

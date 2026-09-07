@@ -15,7 +15,7 @@ related:
 > bool to an *additive* structured return. Everything this spec says about the
 > bool contract is still true — a callback returning `true`/`false` keeps working
 > unchanged, with no diagnostic. What is new is that a callback may instead
-> return a `VIPWorkflow\Abilities\Availability`, which names each unmet
+> return a `VIPWorkflows\Abilities\Availability`, which names each unmet
 > requirement and where to satisfy it. See
 > [Availability Callback](#availability-callback) below; the sections on the
 > `Ability` class, the agent card badge, and Resolved Decision 3 carry the same
@@ -31,7 +31,7 @@ Ideation research agents (Web Researcher, Media Scout, Archive Scout) are hardco
 
 ## Principles
 
-1. **One registration API.** Research agents register via `wp_register_ability()` / `vip_workflow_register_ability()`, the same way editorial tools (SEO check, readability, keyword check) do today.
+1. **One registration API.** Research agents register via `wp_register_ability()` / `vip_workflows_register_ability()`, the same way editorial tools (SEO check, readability, keyword check) do today.
 2. **The ability is the contract.** Input schema, execute callback, output schema. The Abilities API does not have opinions about what data an ability returns. An SEO check returns `{ score, issues, suggestions }`. A research agent returns `{ cards, summary }`. Both are just JSON matching their declared `output_schema`.
 3. **`AbilityResult` carries raw output.** The result object stores the callback's return data in a generic `output` property. Consumers interpret it per the ability's schema. No typed fields like `score` or `issues` on the result class.
 4. **Discovery via meta flags.** The `meta` key on ability registration already carries arbitrary metadata (`type`, `supports`, `annotations`). Research agents declare `'type' => 'research'` so consumers (the ideation orchestrator) can filter for them.
@@ -92,7 +92,7 @@ All consumers that currently read `$result->score` or `$result->issues` change t
 
 **Amended:** `is_available(): bool` keeps its exact signature and behavior. A second accessor, `get_availability(): Availability`, was added alongside it and returns the structured result; `is_available()` is now a thin wrapper over `get_availability()->is_available()`. A callback that returns anything other than an `Availability` instance is coerced to bool exactly as before. Because the structured shape is a type rather than an array convention, a legacy callback returning an array cannot be mistaken for it — the array stays truthy-coerced.
 
-This is a VIP Workflow extension to the Abilities API, not a Core WP concept. The `availability_callback` key passes through harmlessly when delegating to `wp_register_ability()` (Core ignores unknown keys). If Core adds something similar later, we migrate.
+This is a VIP Workflows extension to the Abilities API, not a Core WP concept. The `availability_callback` key passes through harmlessly when delegating to `wp_register_ability()` (Core ignores unknown keys). If Core adds something similar later, we migrate.
 
 **`AbilityExecutor`** (`includes/abilities/class-ability-executor.php`):
 
@@ -163,7 +163,7 @@ A bare bool says an agent cannot run but not why, so the card could only ever re
 |---|---|---|
 | `true` (or any truthy value) | Dependencies are met | Available. Unchanged. |
 | `false` (or any falsy value) | Dependencies are not met, reason unknown | Unavailable, empty requirement set. Unchanged, and no diagnostic. |
-| `VIPWorkflow\Abilities\Availability` | The structured shape | Unavailable, carrying the unmet requirements. |
+| `VIPWorkflows\Abilities\Availability` | The structured shape | Unavailable, carrying the unmet requirements. |
 
 **The callback owns satisfaction.** It is the only layer with credential access, so it evaluates its own dependencies and returns bare `true` when they are met — including when an `any` group has at least one satisfied member. An `Availability` therefore carries *only unmet* requirements: `Ability`, `DiscoveryProviderRegistry`, and `AssistantRegistry` aggregate what arrives and never re-derive satisfaction.
 
@@ -175,9 +175,9 @@ The value objects live in `includes/abilities/`:
 - `RequirementFactory` — **the intended authoring path.** It derives the id, kind, both registers, and the backend-resolved destination from a service slug, so the structured return is shorter than the bool it replaces.
 
 ```php
-use VIPWorkflow\Abilities\Availability;
-use VIPWorkflow\Abilities\RequirementFactory;
-use VIPWorkflow\Abilities\RequirementGroup;
+use VIPWorkflows\Abilities\Availability;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Abilities\RequirementGroup;
 
 'availability_callback' => function(): bool|Availability {
     $provider = SearchProviderRegistry::get_instance()->get_selected();
@@ -191,8 +191,8 @@ use VIPWorkflow\Abilities\RequirementGroup;
             RequirementGroup::all(
                 RequirementFactory::dependency(
                     'dependency:search-provider',
-                    __( 'No web search provider is registered, so there is nothing to search with.', 'vip-workflow' ),
-                    __( 'Web search is not available on this site.', 'vip-workflow' )
+                    __( 'No web search provider is registered, so there is nothing to search with.', 'vip-workflows' ),
+                    __( 'Web search is not available on this site.', 'vip-workflows' )
                 )
             )
         );
@@ -205,14 +205,14 @@ use VIPWorkflow\Abilities\RequirementGroup;
             RequirementFactory::missing_credential(
                 $provider->get_id(),
                 $provider->get_name(),
-                array( __( 'Web Researcher', 'vip-workflow' ) )
+                array( __( 'Web Researcher', 'vip-workflows' ) )
             )
         )
     );
 },
 ```
 
-Two message registers exist because agent execution is gated on `edit_posts` while both the Agents screen and Settings → Connectors require `manage_options`. The admin register carries `reason` + `destination`; the user register carries `message` only, never a destination or any `/wp-admin/` URL. The register is chosen at the read boundary by `VIPWorkflow\API\AvailabilitySerializer` — one place in the plugin maps a capability to a register, so no controller can leak an admin URL to an editor.
+Two message registers exist because agent execution is gated on `edit_posts` while both the Agents screen and Settings → Connectors require `manage_options`. The admin register carries `reason` + `destination`; the user register carries `message` only, never a destination or any `/wp-admin/` URL. The register is chosen at the read boundary by `VIPWorkflows\API\AvailabilitySerializer` — one place in the plugin maps a capability to a register, so no controller can leak an admin URL to an editor.
 
 Credentials for the built-in services (Tavily, YouTube) live on WordPress core's **Settings → Connectors** (`options-connectors.php`), not in this plugin. On an install without that screen there is no credential UI at all, so the requirement's destination resolves to `none` and names the `wp-config.php` constant instead of linking somewhere dead. A third-party agent whose key lives in its own card `settings_schema` should use `RequirementFactory::in_card()`.
 
@@ -309,12 +309,12 @@ card per run, the second collapses genuinely different cards into one. See
 
 ```php
 function register_web_researcher(): void {
-    vip_workflow_register_ability(
-        'vip-workflow/web-researcher',
+    vip_workflows_register_ability(
+        'vip-workflows/web-researcher',
         array(
-            'label'               => __( 'Web Researcher', 'vip-workflow' ),
-            'description'         => __( 'Searches the open web for articles, analysis, and background material.', 'vip-workflow' ),
-            'category'            => 'vip-workflow',
+            'label'               => __( 'Web Researcher', 'vip-workflows' ),
+            'description'         => __( 'Searches the open web for articles, analysis, and background material.', 'vip-workflows' ),
+            'category'            => 'vip-workflows',
             'input_schema'        => /* common research input schema */,
             'output_schema'       => /* common research output schema */,
             'execute_callback'    => __NAMESPACE__ . '\\execute_web_researcher',
@@ -337,15 +337,15 @@ function register_web_researcher(): void {
 
 The `execute_web_researcher( $input )` function contains the same logic currently in `WebResearcher::run()`, returning `array( 'cards' => [...], 'summary' => '...' )`. Each card includes `source_type` and `origin`.
 
-Same pattern for `vip-workflow/media-scout` (display_order: 30) and `vip-workflow/archive-scout` (display_order: 20).
+Same pattern for `vip-workflows/media-scout` (display_order: 30) and `vip-workflows/archive-scout` (display_order: 20).
 
 ### Extension Plugin Example
 
 A customer builds `workflow-agent-ap-wire/`:
 
 ```php
-add_action( 'vip_workflow_register_abilities', function() {
-    vip_workflow_register_ability(
+add_action( 'vip_workflows_register_abilities', function() {
+    vip_workflows_register_ability(
         'my-org/ap-wire-researcher',
         array(
             'label'            => 'AP Wire',
@@ -434,16 +434,16 @@ The orchestrator handles research ability execution directly rather than going t
 private function run_single_assistant( int $project_id, string $ability_id, ?string $query = null ): AbilityResult {
     $ability = $this->resolve_research_ability( $ability_id );
     if ( ! $ability ) {
-        return AbilityResult::failure( $ability_id, __( 'Unknown research agent.', 'vip-workflow' ) );
+        return AbilityResult::failure( $ability_id, __( 'Unknown research agent.', 'vip-workflows' ) );
     }
 
     $settings = AbilitySettings::get_instance();
     if ( ! $settings->is_enabled( $ability_id ) ) {
-        return AbilityResult::failure( $ability_id, __( 'Agent is disabled.', 'vip-workflow' ) );
+        return AbilityResult::failure( $ability_id, __( 'Agent is disabled.', 'vip-workflows' ) );
     }
 
     if ( ! $ability->is_available() ) {
-        return AbilityResult::failure( $ability_id, __( 'Agent is not configured.', 'vip-workflow' ) );
+        return AbilityResult::failure( $ability_id, __( 'Agent is not configured.', 'vip-workflows' ) );
     }
 
     $seed          = get_post_meta( $project_id, '_vip_research_query', true );
@@ -533,7 +533,7 @@ The Seed Analyst is not a research agent and not an ability. It runs synchronous
 
 ### Frontend Impact
 
-- `IdeationWorkspace.js` currently loops over pending assistant IDs from state. This continues to work: the state returns ability IDs (`vip-workflow/web-researcher`, `my-org/ap-wire-researcher`) instead of assistant IDs (`web-researcher`). The REST endpoint remains `POST /ideation/{id}/run-assistant`.
+- `IdeationWorkspace.js` currently loops over pending assistant IDs from state. This continues to work: the state returns ability IDs (`vip-workflows/web-researcher`, `my-org/ap-wire-researcher`) instead of assistant IDs (`web-researcher`). The REST endpoint remains `POST /ideation/{id}/run-assistant`.
 - The TopBar assistant badges render dynamically based on the research abilities present in the project state, sorted by `display_order`, rather than a hardcoded list.
 - New card types from custom agents (`ap-wire-article`, `instagram-post`) render via a generic card component that reads `type`, `title`, `url`, `image`, `excerpt`. Custom card renderers can be registered via a JS filter (see Part 5).
 
@@ -576,7 +576,7 @@ All extension plugins (research agents, notification channels, tools) use `@word
 import { applyFilters } from '@wordpress/hooks';
 
 const AgentSettings = applyFilters(
-    'vip_workflow_research_agent_settings',
+    'vip_workflows_research_agent_settings',
     null,
     ability.name
 );
@@ -592,7 +592,7 @@ import { addFilter } from '@wordpress/hooks';
 import { APWireSettings } from './APWireSettings';
 
 addFilter(
-    'vip_workflow_research_agent_settings',
+    'vip_workflows_research_agent_settings',
     'my-org/ap-wire',
     ( component, abilityName ) => {
         if ( abilityName === 'my-org/ap-wire-researcher' ) {
@@ -603,15 +603,15 @@ addFilter(
 );
 ```
 
-No DOM timing issues, no mount point fragility, WordPress-idiomatic. The extension enqueues its JS with `vip-workflow-admin` as a dependency and the filter system handles the rest.
+No DOM timing issues, no mount point fragility, WordPress-idiomatic. The extension enqueues its JS with `vip-workflows-admin` as a dependency and the filter system handles the rest.
 
 ### Migrate Existing Extensions
 
 The `workflow-channel-ntfy` plugin (and any future notification channel or tool extension) migrates to this pattern as part of this work. Core adds equivalent filter hooks for the Notification Channels and Tools tabs:
 
-- `vip_workflow_notification_channel_settings` (for channel cards)
-- `vip_workflow_tool_settings` (for tool cards)
-- `vip_workflow_research_agent_settings` (new, for research agent cards)
+- `vip_workflows_notification_channel_settings` (for channel cards)
+- `vip_workflows_tool_settings` (for tool cards)
+- `vip_workflows_research_agent_settings` (new, for research agent cards)
 
 This gives all extension types a consistent, reliable pattern.
 
@@ -622,7 +622,7 @@ The Integrations page (`Integrations.js`) adds a fourth tab: **Research Agents**
 ```js
 {
     name: 'research-agents',
-    title: __( 'Research Agents', 'vip-workflow' ),
+    title: __( 'Research Agents', 'vip-workflows' ),
     className: 'vip-integrations-tab',
 },
 ```
@@ -634,7 +634,7 @@ The core plugin renders a card for each registered ability where `meta.type === 
 - **Label, icon, description** from the ability registration
 - **Enabled/disabled toggle** (writes to `AbilitySettings`)
 - **Availability status** from `availability_callback`: green "Ready" badge or amber "Not configured" badge. **Amended:** where the callback returns structured requirements, the card additionally names each unmet requirement, lists which capabilities need it, and renders its destination per kind — a link for `admin_url`, a "complete the fields below" hint for `in_card`, plain text naming the constant for `none`. A bool `false` still renders the generic line. **Amended:** an `in_card` destination may additionally carry a `credentials_url` — where the user obtains the credential, as distinct from where they enter it — rendered as an external link beneath the hint. The field name is borrowed from core's connector API (`wp-includes/connectors.php`), which declares the same thing for `api_key` connectors, so the two converge if core grows an auth method beyond `api_key`/`none`. It rides inside the `destination` payload and is therefore admin-only, like every other destination: obtaining a credential means opening an account, and the card's settings fields are `manage_options`.
-- **Extension settings component** via the `vip_workflow_research_agent_settings` filter
+- **Extension settings component** via the `vip_workflows_research_agent_settings` filter
 
 Cards are sorted by `meta.display_order`.
 
@@ -644,14 +644,14 @@ Extension plugins enqueue their JS on the Integrations page:
 
 ```php
 add_action( 'admin_enqueue_scripts', function( $hook ) {
-    if ( 'workflow_page_vip-workflow-integrations' !== $hook ) {
+    if ( 'workflow_page_vip-workflows-integrations' !== $hook ) {
         return;
     }
 
     wp_enqueue_script(
         'workflow-agent-ap-wire-admin',
         WORKFLOW_AP_WIRE_URL . 'build/admin.js',
-        array( 'vip-workflow-admin', 'wp-hooks' ),
+        array( 'vip-workflows-admin', 'wp-hooks' ),
         '1.0.0',
         true
     );
@@ -685,11 +685,11 @@ Built-in agents (Web Researcher, Media Scout, Archive Scout) use the same filter
 
 2. **Execution is parallel, display is ordered.** All research agents fire in parallel with no execution ordering. Display order in the UI is controlled by `meta.display_order` (integer). Built-ins ship with low values (10, 20, 30). Third-party agents default to 100 if unset.
 
-3. **Formal `availability_callback`.** Added to the `Ability` class (all ability types, not just research). Returns `true`/`false` for runtime dependency checks. Separate from `AbilitySettings::is_enabled()` (admin toggle). This is a VIP Workflow extension, not a Core WP API concept.
+3. **Formal `availability_callback`.** Added to the `Ability` class (all ability types, not just research). Returns `true`/`false` for runtime dependency checks. Separate from `AbilitySettings::is_enabled()` (admin toggle). This is a VIP Workflows extension, not a Core WP API concept.
 
    **Amended:** the callback may also return an `Availability` describing the unmet requirements. The bool return stays valid and silent; because the contract is ours rather than Core's, widening it was ours to do. The callback owns satisfaction and returns bare `true` when its dependencies are met, so requirement groups only ever contain unmet members. See [Availability Callback](#availability-callback).
 
-4. **Media provider sub-extensibility coexists.** `MediaScout`'s `vip_workflow_media_providers` filter remains as an internal implementation detail of the Media Scout ability's execute callback. A customer adding a new image source to the existing Media Scout uses the filter. A customer adding a completely new agent registers a new ability. Both patterns coexist.
+4. **Media provider sub-extensibility coexists.** `MediaScout`'s `vip_workflows_media_providers` filter remains as an internal implementation detail of the Media Scout ability's execute callback. A customer adding a new image source to the existing Media Scout uses the filter. A customer adding a completely new agent registers a new ability. Both patterns coexist.
 
 5. **No double storage.** Research agents persist lightweight execution metadata (card count, summary, duration) to `wp_vip_ability_results`. Full card data goes only to `wp_vip_ideation_sources`. The orchestrator handles this split.
 

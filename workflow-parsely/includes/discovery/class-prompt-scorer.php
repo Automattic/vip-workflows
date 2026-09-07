@@ -116,7 +116,7 @@ class PromptScorer {
 	 * Register the decorator and its warmer.
 	 */
 	public static function register(): void {
-		add_filter( 'vip_workflow_discovery_prompts', array( self::class, 'decorate' ) );
+		add_filter( 'vip_workflows_discovery_prompts', array( self::class, 'decorate' ) );
 		add_action( self::WARM_HOOK, array( self::class, 'warm' ) );
 	}
 

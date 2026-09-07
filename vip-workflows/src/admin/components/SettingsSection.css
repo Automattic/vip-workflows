@@ -1,0 +1,32 @@
+/**
+ * The default grouping device for settings screens (see SettingsSection.js).
+ *
+ * Group semantics and the fieldset reset come from `@wordpress/ui`'s `Fieldset`.
+ * This sheet only overrides what that primitive does not supply: section-scale
+ * heading typography on the legend slot, and the distance from the group's name
+ * to its controls.
+ *
+ * The legend, the description and the controls are three siblings of the
+ * `Fieldset.Root` flex column, so the primitive's own `xs` gap spaces the name
+ * from its description, and the controls add the rest of the way. Written as a
+ * margin on the controls rather than on the legend so the distance is the same
+ * whether or not the section has a description.
+ */
+
+/* Fieldset.Legend ships the uppercase field-label chrome; the section name is an h2. */
+.vip-workflows-settings-section__legend {
+	font: revert-layer; /* wpds-allow R5 -- reverts to DS heading over Fieldset label styles */
+	text-transform: none;
+	color: inherit;
+}
+
+.vip-workflows-settings-section__description {
+	/* wpds-allow R6 -- muted tone for the group's context line; <Text> exposes `variant` only, with no colour or tone prop */
+	color: var(--wpds-color-foreground-content-neutral-weak);
+}
+
+/* wpds-allow R3 -- name-to-controls distance; the three are Fieldset.Root's own
+   flex children, so this rides on top of its `xs` gap to reach `lg`. */
+.vip-workflows-settings-section__controls {
+	margin-block-start: var(--wpds-dimension-gap-md);
+}

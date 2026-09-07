@@ -27,8 +27,8 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Agents;
 
-use VIPWorkflow\Abilities\Agents\StageAgent;
-use VIPWorkflow\Abilities\Availability;
+use VIPWorkflows\Abilities\Agents\StageAgent;
+use VIPWorkflows\Abilities\Availability;
 use WorkflowParsely\Abilities\SmartLinking;
 use WorkflowParsely\ParselyClient;
 use WP_Error;
@@ -64,16 +64,16 @@ class SmartLinkingAgent {
 	 * Register the agent.
 	 */
 	public static function register(): void {
-		if ( ! function_exists( 'vip_workflow_register_ability' ) || ! class_exists( StageAgent::class ) ) {
+		if ( ! function_exists( 'vip_workflows_register_ability' ) || ! class_exists( StageAgent::class ) ) {
 			return;
 		}
 
-		vip_workflow_register_ability(
+		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
 				'label'               => __( 'Smart Linking Check', 'workflow-parsely' ),
 				'description'         => __( 'Flags internal links this post could carry, as editorial notes on the blocks where they belong.', 'workflow-parsely' ),
-				'category'            => 'vip-workflow',
+				'category'            => 'vip-workflows',
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'additionalProperties' => false,
@@ -167,7 +167,7 @@ class SmartLinkingAgent {
 			);
 		}
 
-		$permission_error = \VIPWorkflow\Abilities\Tools\require_post_edit_permission( (int) $input['post_id'] );
+		$permission_error = \VIPWorkflows\Abilities\Tools\require_post_edit_permission( (int) $input['post_id'] );
 		if ( $permission_error ) {
 			return $permission_error;
 		}

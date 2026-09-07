@@ -5,7 +5,7 @@
 		"description": "Boots WordPress, installs the MCP Adapter companion plugin, activates VIP Workflow, and lands on the Workflows dashboard. The VIP Workflow plugin is supplied by mounting it from this monorepo; see PLAYGROUND.md for the run command.",
 		"author": "vip-workflow"
 	},
-	"landingPage": "/wp-admin/admin.php?page=vip-workflow",
+	"landingPage": "/wp-admin/admin.php?page=vip-workflows",
 	"preferredVersions": {
 		"php": "latest",
 		"wp": "latest"

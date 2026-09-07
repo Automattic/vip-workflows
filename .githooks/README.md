@@ -14,13 +14,13 @@ Running `npm install` / `npm run setup` at the repo root does this automatically
 
 ## `pre-commit`
 
-Two incremental-convergence passes over **staged** `vip-workflow` files, plus a
+Two incremental-convergence passes over **staged** `vip-workflows` files, plus a
 generated-config sync pass:
 
-1. **JS/JSX** (`vip-workflow/src/**`, `vip-workflow/js/**`): auto-formats with
+1. **JS/JSX** (`vip-workflows/src/**`, `vip-workflows/js/**`): auto-formats with
    the project's WordPress Prettier config (`wp-scripts format`) and re-stages.
-2. **PHP** (`vip-workflow/**/*.php`): auto-fixes the incrementally-enforced
-   phpcs sniffs in `vip-workflow/.phpcs-incremental.xml` (currently long array
+2. **PHP** (`vip-workflows/**/*.php`): auto-fixes the incrementally-enforced
+   phpcs sniffs in `vip-workflows/.phpcs-incremental.xml` (currently long array
    syntax, `[] → array()`) with `phpcbf` and re-stages. These sniffs are
    excluded from the main `.phpcs.xml.dist` so `composer cs` stays green while
    the codebase converges; once a full
@@ -47,5 +47,5 @@ Notes:
 - A file that has both staged and unstaged changes is **skipped** (and a message
   is printed), so the hook never sweeps unstaged work into your commit.
 - Bypass a single commit with `git commit --no-verify`.
-- If `vip-workflow` deps aren't installed (npm for JS, composer for PHP), the
+- If `vip-workflows` deps aren't installed (npm for JS, composer for PHP), the
   hook no-ops instead of blocking.

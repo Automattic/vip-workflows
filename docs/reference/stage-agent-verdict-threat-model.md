@@ -4,7 +4,7 @@
 
 ## What a stage agent decides
 
-An AI-owned workflow stage runs an agent that reads a post and returns a verdict. The verdict routes the post: a *pass* (or the agent's clean/conforms equivalent) advances it past the gate; anything else routes to human review or a corrective branch. The verdict agents are standalone plugins built on the shared toolkit `vip-workflow/includes/abilities/agents/class-stage-agent.php`. This repository includes `workflow-agent-tag-sanity-check` and `workflow-agent-copy-edit` as working examples.
+An AI-owned workflow stage runs an agent that reads a post and returns a verdict. The verdict routes the post: a *pass* (or the agent's clean/conforms equivalent) advances it past the gate; anything else routes to human review or a corrective branch. The verdict agents are standalone plugins built on the shared toolkit `vip-workflows/includes/abilities/agents/class-stage-agent.php`. This repository includes `workflow-agent-tag-sanity-check` and `workflow-agent-copy-edit` as working examples.
 
 ## Trust boundary
 
@@ -49,5 +49,5 @@ These were scoped out of the initial implementation. Revisit if the nonce proves
 
 ## References
 
-- Code: `vip-workflow/includes/abilities/agents/class-stage-agent.php` (`verdict_token`, `is_verdict`, `wrap_untrusted`, `is_sentinel`); `vip-workflow/includes/workflow/class-stage-agent-runner.php` (routing / fail-safe)
+- Code: `vip-workflows/includes/abilities/agents/class-stage-agent.php` (`verdict_token`, `is_verdict`, `wrap_untrusted`, `is_sentinel`); `vip-workflows/includes/workflow/class-stage-agent-runner.php` (routing / fail-safe)
 - OWASP LLM01 — Prompt Injection

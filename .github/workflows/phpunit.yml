@@ -34,9 +34,9 @@ jobs:
           coverage: none
 
       - name: Install dependencies
-        working-directory: vip-workflow
+        working-directory: vip-workflows
         run: composer install --no-interaction --prefer-dist --no-progress
 
       - name: Run unit tests
-        working-directory: vip-workflow
+        working-directory: vip-workflows
         run: composer test:unit

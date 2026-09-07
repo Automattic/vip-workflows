@@ -1,7 +1,7 @@
 /**
  * PostCSS configuration.
  *
- * Mirrors vip-workflow/postcss.config.js: extends the @wordpress/scripts
+ * Mirrors vip-workflows/postcss.config.js: extends the @wordpress/scripts
  * defaults with the WPDS token-fallbacks plugin so every --wpds-* token in
  * the compiled CSS carries its canonical value as a var() fallback. Required
  * until WordPress core ships the design token definitions (`wp-theme`

@@ -21,7 +21,7 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Tests;
 
-use VIPWorkflow\Abilities\AbilityExecutor;
+use VIPWorkflows\Abilities\AbilityExecutor;
 use WorkflowParsely\Abilities\PerformanceCheck;
 use Yoast\WPTestUtils\WPIntegration\TestCase;
 

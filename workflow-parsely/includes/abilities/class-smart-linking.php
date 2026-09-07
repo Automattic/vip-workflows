@@ -13,7 +13,7 @@ declare( strict_types=1 );
 
 namespace WorkflowParsely\Abilities;
 
-use VIPWorkflow\Abilities\Availability;
+use VIPWorkflows\Abilities\Availability;
 use WorkflowParsely\ParselyClient;
 use WP_Error;
 
@@ -44,23 +44,23 @@ class SmartLinking {
 	/**
 	 * Register the ability.
 	 *
-	 * Registered through the VIP Workflow wrapper rather than core's
+	 * Registered through the VIP Workflows wrapper rather than core's
 	 * wp_register_ability(): only the wrapper sets ability_class, and only a
-	 * VIPWorkflow\Abilities\Ability consults availability_callback. Registering
+	 * VIPWorkflows\Abilities\Ability consults availability_callback. Registering
 	 * through core would leave this ability presenting as usable with no
 	 * Parse.ly credentials configured.
 	 */
 	public static function register(): void {
-		if ( ! function_exists( 'vip_workflow_register_ability' ) ) {
+		if ( ! function_exists( 'vip_workflows_register_ability' ) ) {
 			return;
 		}
 
-		vip_workflow_register_ability(
+		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
 				'label'               => __( 'Smart Linking', 'workflow-parsely' ),
 				'description'         => __( 'Suggest internal links for a post using Parse.ly Smart Linking.', 'workflow-parsely' ),
-				'category'            => 'vip-workflow',
+				'category'            => 'vip-workflows',
 				'input_schema'        => array(
 					'type'                 => 'object',
 					'additionalProperties' => false,
@@ -197,7 +197,7 @@ class SmartLinking {
 			);
 		}
 
-		$permission_error = \VIPWorkflow\Abilities\Tools\require_post_edit_permission( (int) $input['post_id'] );
+		$permission_error = \VIPWorkflows\Abilities\Tools\require_post_edit_permission( (int) $input['post_id'] );
 		if ( $permission_error ) {
 			return $permission_error;
 		}

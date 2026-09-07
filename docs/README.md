@@ -1,11 +1,11 @@
-# VIP Workflow documentation
+# VIP Workflows documentation
 
 ## Start here
 
 - [AI context index](AI_CONTEXT.md) — architecture and subsystem reference map.
 - [Local development](local-development.md) — install, build, and run the project.
-- [Testing](../vip-workflow/docs/TESTING.md) — unit, integration, and end-to-end test environments.
-- [Extending VIP Workflow](guides/extending-vip-workflow.md) — supported extension points and examples.
+- [Testing](../vip-workflows/docs/TESTING.md) — unit, integration, and end-to-end test environments.
+- [Extending VIP Workflows](guides/extending-vip-workflows.md) — supported extension points and examples.
 
 ## Reference
 
@@ -32,4 +32,4 @@
 
 - [Shipped feature specifications](specs/README.md)
 - [Multimedia sequence demo](demos/multimedia-sequence.json)
-- [Plugin integration](../vip-workflow/docs/PLUGIN-INTEGRATION.md)
+- [Plugin integration](../vip-workflows/docs/PLUGIN-INTEGRATION.md)

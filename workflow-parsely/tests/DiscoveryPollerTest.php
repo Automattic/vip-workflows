@@ -21,7 +21,7 @@ declare( strict_types=1 );
 namespace WorkflowParsely\Tests;
 
 use ReflectionProperty;
-use VIPWorkflow\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 use WorkflowParsely\Discovery\DiscoveryPoller;
 use Yoast\WPTestUtils\WPIntegration\TestCase;
 
