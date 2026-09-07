@@ -32,7 +32,7 @@ See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarc
 1. **WordPress-native** - Content is posts, domain objects are CPTs, leveraging core APIs
 2. **Block Editor native** - Sidebar integrates with Gutenberg
 3. **Story as universal grouping** - One ID connects ideation, article, and post-publish monitoring
-4. **Three independent status layers** - Story status, editorial status (editorial sequence, `type: 'workflow'` internally), WordPress status
+4. **Three independent status layers** - Story status, editorial status (workflow sequence, `type: 'workflow'`), WordPress status
 5. **Plugin compatibility** - Other plugins work automatically
 6. **Workflow operations** - One plugin for editorial workflow, ideation, quality, and automation
 
@@ -42,9 +42,9 @@ See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarc
 
 ### 1. Sequences
 
-**Sequences** define workflows. They are JSON configurations stored in `wp_vip_sequences` table. Two types exist: **workflow** (editorial statuses for posts, labeled **"Editorial Sequences"** in the admin UI) and **phase** (transitions between content lifecycle phases: Ideation, Editorial).
+**Sequences** define workflows. They are JSON configurations stored in `wp_vip_sequences` table. Two types exist: **workflow** (editorial statuses for posts, labeled **"Workflow Sequences"** in the admin UI) and **phase** (transitions between content lifecycle phases: Ideation, Editorial).
 
-> **Naming note:** The database `type` column and all PHP/JS variable names use `workflow` (e.g., `Sequence::TYPE_WORKFLOW`, `workflowSequences`). The user-facing tab label is "Editorial Sequences" to better describe their purpose. When reading code, `type: 'workflow'` = Editorial Sequence.
+> **Naming note:** The database `type` column, the PHP/JS variable names (e.g. `Sequence::TYPE_WORKFLOW`, `workflowSequences`) and the user-facing tab label all use `workflow`. A sequence of this type is not necessarily editorial — it drives whatever post types it is configured for.
 
 ```json
 {

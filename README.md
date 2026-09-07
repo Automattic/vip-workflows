@@ -30,7 +30,7 @@ For the complete local setup, see [Local development](docs/local-development.md)
 
 ## Core capabilities
 
-- **Editorial sequences** define stages, transitions, required tools, role permissions, assignment requirements, inputs, and notifications in JSON.
+- **Workflow sequences** define stages, transitions, required tools, role permissions, assignment requirements, inputs, and notifications in JSON.
 - **WordPress-native publishing state** keeps workflow stage in post meta while WordPress continues to own `post_status`; stages declare the core status region they occupy.
 - **Story ideation** combines seed-first research, pluggable assistants, media discovery, source pinning, and draft creation.
 - **Tools and agents** use the WordPress Abilities API for editor-invoked checks and automated AI-owned stages.

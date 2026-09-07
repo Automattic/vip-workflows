@@ -277,8 +277,8 @@ export function SequencesList() {
 		{
 			name: 'workflow',
 			title: sprintf(
-				/* translators: %d: count of editorial sequences */
-				__( 'Editorial Sequences (%d)', 'vip-workflows' ),
+				/* translators: %d: count of workflow sequences */
+				__( 'Workflow Sequences (%d)', 'vip-workflows' ),
 				workflowSequences.length
 			),
 		},
@@ -296,7 +296,7 @@ export function SequencesList() {
 		} );
 	}
 
-	// The add/import actions belong to the Editorial Sequences tab; the Phase
+	// The add/import actions belong to the Workflow Sequences tab; the Phase
 	// tab has none. Surfaced in the AdminPage header and swapped with the tab.
 	// Secondary first, primary last — the standard's order rule holds in the
 	// page header too, so the leading verb sits rightmost in the group.
@@ -314,7 +314,7 @@ export function SequencesList() {
 					icon={ plus }
 					href="#/new?type=workflow"
 				>
-					{ __( 'New editorial sequence', 'vip-workflows' ) }
+					{ __( 'New sequence', 'vip-workflows' ) }
 				</Button>
 			</>
 		) : null;
@@ -350,7 +350,7 @@ export function SequencesList() {
 												render={ <p /> }
 											>
 												{ __(
-													'No editorial sequences yet.',
+													'No workflow sequences yet.',
 													'vip-workflows'
 												) }
 											</Text>
