@@ -1,9 +1,9 @@
 {
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"meta": {
-		"title": "VIP Workflow — Playground",
-		"description": "Boots WordPress, installs the MCP Adapter companion plugin, activates VIP Workflow, and lands on the Workflows dashboard. The VIP Workflow plugin is supplied by mounting it from this monorepo; see PLAYGROUND.md for the run command.",
-		"author": "vip-workflow"
+		"title": "VIP Workflows — Playground",
+		"description": "Boots WordPress, installs the MCP Adapter companion plugin, activates VIP Workflows, and lands on the Workflows dashboard. The VIP Workflows plugin is supplied by mounting it from this monorepo; see PLAYGROUND.md for the run command.",
+		"author": "vip-workflows"
 	},
 	"landingPage": "/wp-admin/admin.php?page=vip-workflows",
 	"preferredVersions": {
@@ -37,7 +37,7 @@
 			"step": "installPlugin",
 			"pluginData": {
 				"resource": "url",
-				"url": "https://github.com/Automattic/vip-workflows/releases/latest/download/vip-workflow.zip"
+				"url": "https://github.com/Automattic/vip-workflows/releases/latest/download/vip-workflows.zip"
 			},
 			"options": { "activate": true }
 		}
