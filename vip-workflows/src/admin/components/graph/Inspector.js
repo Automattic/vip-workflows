@@ -35,6 +35,7 @@ import {
 	stageLabel,
 	isTransitionDisabled,
 	outcomesRoutedTo,
+	canReconnect,
 	START_ID,
 	END_ID,
 } from './graph-model';
@@ -118,12 +119,17 @@ function renderPanel( {
 	availableTools,
 	toolsLoaded,
 	availableChannels,
+	regions = [],
 	onUpdateStage,
 	onDeleteStage,
 	onUpdateTransition,
 	onDeleteTransition,
+	onConnectTransition,
+	onReconnectTransition,
 	onSelectEdge,
+	onSelectRegion,
 	onSetRegionEntry,
+	onSetStageStatus,
 	onRemoveRegion,
 	// Everything the sequence-level panel edits, passed through whole — see
 	// SequenceSettingsInspector for the shape.
@@ -157,9 +163,45 @@ function renderPanel( {
 		if ( isPhase ) {
 			return <PhaseStageInspector stage={ selectedStage } />;
 		}
+
+		// Where a new exit could go: every other stage this one does not
+		// already reach, and the flow's exit when it isn't already final. A
+		// stage holds at most one transition per target — a server invariant —
+		// so a destination already connected is not a second exit to add, it is
+		// the one listed in the rows below.
+		const connected = new Set(
+			( selectedStage.transitions || [] ).map( ( t ) => t.to )
+		);
+		const others = stages.filter( ( s ) => s.key !== selectedStage.key );
+		const nameOf = ( key ) => ( {
+			label: stageLabel( stages, key ),
+			value: key,
+		} );
+		const exitOptions = [
+			...others
+				.filter( ( s ) => ! connected.has( s.key ) )
+				.map( ( s ) => nameOf( s.key ) ),
+			...( selectedStage.is_terminal
+				? []
+				: [
+						{
+							label: __( 'End of workflow', 'vip-workflows' ),
+							value: END_ID,
+						},
+				  ] ),
+		];
+		// An outcome routes to a stage and nothing else, and two of them may
+		// share one — so every other stage is a candidate here, including the
+		// ones this stage already reaches.
+		const outcomeOptions = others.map( ( s ) => nameOf( s.key ) );
+		const routing = selectedStage.agent?.routing || {};
+
 		return (
 			<StageInspector
 				stage={ selectedStage }
+				regions={ regions }
+				exitOptions={ exitOptions }
+				outcomeOptions={ outcomeOptions }
 				availableAgents={ availableAgents }
 				resolveStageLabel={ ( key ) => stageLabel( stages, key ) }
 				stageExists={ ( key ) => stages.some( ( s ) => s.key === key ) }
@@ -175,6 +217,29 @@ function renderPanel( {
 				// own panel, so it hands the selection back to the editor
 				// exactly as the canvas does — same function, same edge ids.
 				onSelectEdge={ onSelectEdge }
+				// And the checkpoint row is a way into the region's panel,
+				// which is where that one setting lives.
+				onSelectRegion={ onSelectRegion }
+				onSetStatus={ ( region ) =>
+					onSetStageStatus( selectedStage.key, region )
+				}
+				// Adding an exit and routing an outcome are the same mutation
+				// the canvas runs when a connection is dropped — the model
+				// knows what a drop on End means, and what a source handle
+				// carrying an outcome means, so neither is restated here.
+				onAddExit={ ( target ) =>
+					onConnectTransition( selectedStage.key, target, null )
+				}
+				onRouteOutcome={ ( outcome, target ) =>
+					onConnectTransition( selectedStage.key, target, outcome )
+				}
+				onClearOutcome={ ( outcome ) =>
+					onDeleteTransition(
+						selectedStage.key,
+						routing[ outcome ],
+						outcome
+					)
+				}
 				canDelete={ stages.length > 1 }
 			/>
 		);
@@ -224,12 +289,85 @@ function renderPanel( {
 		// editing both of them — which it has to say, since the canvas draws one
 		// edge per outcome and each looks like a transition of its own.
 		const sharing = outcomesRoutedTo( sourceStage, selection.to );
+		const edgeOutcome = selection.outcome || null;
+		const sourceLabel = stageLabel( stages, selection.from );
+		const targetLabel = stageLabel( stages, selection.to );
+
+		// Where this edge's ends could move to, asked of the model one
+		// candidate at a time. `canReconnect` is the same predicate the canvas
+		// paints its held-endpoint verdict with, so a destination missing from
+		// this list is one a drag would have refused too — and the current end
+		// leads each list, because a select has to be able to show what it is
+		// set to.
+		//
+		// Phase sequences are left out: their hand-offs are fixed pairs the
+		// server decides (`isValidConnection`), not something this panel may
+		// re-point.
+		const endLabel = ( key ) =>
+			key === END_ID
+				? __( 'End of workflow', 'vip-workflows' )
+				: stageLabel( stages, key );
+		const movesTo = ( end ) =>
+			[
+				...stages.map( ( s ) => s.key ),
+				...( 'target' === end ? [ END_ID ] : [] ),
+			]
+				.filter( ( key ) => {
+					const newFrom = 'source' === end ? key : selection.from;
+					const newTo = 'source' === end ? selection.to : key;
+					if (
+						newFrom === selection.from &&
+						newTo === selection.to
+					) {
+						return false;
+					}
+					return canReconnect(
+						stages,
+						selection.from,
+						selection.to,
+						newFrom,
+						newTo,
+						edgeOutcome
+					);
+				} )
+				.map( ( key ) => ( { label: endLabel( key ), value: key } ) );
+
 		return (
 			<TransitionInspector
 				transition={ selectedTransition }
-				sourceLabel={ stageLabel( stages, selection.from ) }
-				targetLabel={ stageLabel( stages, selection.to ) }
-				outcome={ selection.outcome || null }
+				from={ selection.from }
+				to={ selection.to }
+				fromOptions={
+					isPhase
+						? []
+						: [
+								{ label: sourceLabel, value: selection.from },
+								...movesTo( 'source' ),
+						  ]
+				}
+				toOptions={
+					isPhase
+						? []
+						: [
+								{ label: targetLabel, value: selection.to },
+								...movesTo( 'target' ),
+						  ]
+				}
+				onRepoint={
+					isPhase
+						? undefined
+						: ( newFrom, newTo ) =>
+								onReconnectTransition(
+									selection.from,
+									selection.to,
+									newFrom,
+									newTo,
+									edgeOutcome
+								)
+				}
+				sourceLabel={ sourceLabel }
+				targetLabel={ targetLabel }
+				outcome={ edgeOutcome }
 				sharedOutcomes={ sharing.length > 1 ? sharing : null }
 				disabled={
 					!! sourceStage &&

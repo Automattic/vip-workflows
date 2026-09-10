@@ -32,9 +32,10 @@
  * The bands are geometry, not drop zones in the pointer-events sense — the node
  * spanning a band takes no pointer events at all (see `RegionNode`), so panning
  * still works over the whole canvas. (Selection does not follow: this canvas
- * derives `selected` from the editor's selection props, and drops React Flow's
- * `select` changes on the floor — see `handleNodesChange`. Shift-drag draws a
- * marquee that selects nothing.) What a region *looks*
+ * derives `selected` from the editor's selection props and drops React Flow's
+ * `select` changes, reading what the keyboard picked out of its store instead —
+ * see `handleSelectionChange`, which takes one thing or nothing, so a shift-drag
+ * marquee over several stages still selects none of them.) What a region *looks*
  * like isn't in that node either: the boundary line and the label that names it
  * are screen-space chrome drawn by `RegionBands`, so the line runs the width of
  * the viewport however far the graph is panned and the label stays pinned to its
@@ -103,7 +104,9 @@ import {
 	parseEdgeId,
 	canReconnect,
 	canReconnectToNewStage,
+	isAgentStage,
 	START_ID,
+	END_ID,
 	STAGE_WIDTH,
 	STAGE_HEIGHT,
 } from './graph-model';
@@ -116,7 +119,7 @@ import {
 import { EdgePlanProvider } from './EdgePlanProvider';
 import EdgeOverlay from './EdgeOverlay';
 import EdgeAnchors from './EdgeAnchors';
-import { regionLabel, REGION_ORDER } from './regions';
+import { regionLabel, stageRegion, REGION_ORDER } from './regions';
 
 // Note: React Flow's base stylesheet (`@xyflow/react/dist/style.css`) is imported
 // from the admin entry (`src/admin/index.js`), not here. Its filename matches
@@ -289,6 +292,7 @@ function Flow( {
 	onAddStageFromNode,
 	onInsertStageOnEdge,
 	onPlaceStage,
+	onSetStageStatus,
 	onAddRegion,
 	onRemoveRegion,
 	connectable = true,
@@ -729,8 +733,9 @@ function Flow( {
 
 	// Nodes are draggable, so React Flow's position changes are the one kind of
 	// node change worth keeping. Structure (add/remove) still flows through
-	// `stages`; `select` changes are dropped, which is A11Y-001 (see the note at
-	// the top of the file).
+	// `stages`; `select` changes are dropped here and read from React Flow's own
+	// store instead, by `handleSelectionChange` below — a selection is a fact
+	// about the editor, not about the node array.
 	//
 	// The in-flight position is released here rather than in `onNodeDragStop`,
 	// which a drag isn't guaranteed to reach: a second touch point, or the node
@@ -770,6 +775,50 @@ function Flow( {
 			);
 		},
 		[ commitStagePlacement ]
+	);
+
+	// What the keyboard selects, handed to the editor.
+	//
+	// React Flow's own keyboard activation — Enter or Space on a focused node
+	// or edge — selects in its store and nowhere else: it never calls
+	// `onNodeClick`, and the matching `select` change is dropped above. So a
+	// keyboard author could reach every card on this canvas and open none of
+	// them, which left every control in the inspector pointer-only — including
+	// the ones that exist precisely so a setting has a path that isn't a drag.
+	//
+	// Only a selection is reported, never an empty one. Clearing stays what it
+	// always was, a click on the pane: React Flow empties its store selection
+	// whenever it reconciles a rebuilt `nodes` array, and a clear reported from
+	// that would shut the panel out from under an author part-way through
+	// typing in it.
+	//
+	// Guarded against what the editor just said, because the selection travels
+	// back down as `selected` on the derived nodes and arrives here again as a
+	// change. Reporting it a second time is a fresh selection object for the
+	// same node, and a render of the whole editor to hold it.
+	//
+	// One, or nothing. The inspector shows the options of a single thing, and
+	// the editor's selection is shaped to match — so a shift-drag marquee over
+	// half the graph still selects nothing rather than picking whichever of
+	// them React Flow happened to list first.
+	const handleSelectionChange = useCallback(
+		( { nodes: picked, edges: pickedEdges } ) => {
+			const stageNodes = picked.filter(
+				( item ) => item.type === NODE_TYPE
+			);
+			if ( stageNodes.length > 0 ) {
+				const [ node ] = stageNodes;
+				if ( stageNodes.length === 1 && node.id !== selectedNodeKey ) {
+					onSelectNode( node.id );
+				}
+				return;
+			}
+			const [ edge ] = pickedEdges;
+			if ( pickedEdges.length === 1 && edge.id !== selectedEdgeId ) {
+				onSelectEdge( edge.id );
+			}
+		},
+		[ onSelectNode, onSelectEdge, selectedNodeKey, selectedEdgeId ]
 	);
 
 	// `getNodesBounds` comes off the instance rather than the package export.
@@ -1293,12 +1342,13 @@ function Flow( {
 
 	// --- Right-click menu --------------------------------------------------
 
-	// `{ x, y }` in viewport-relative px, plus the region the menu was opened
-	// on (null on empty canvas).
+	// `{ x, y }` in viewport-relative px, plus what the menu was opened on: a
+	// region band (`region`), a stage card (`stageKey`), a transition (`edge`),
+	// or none of the three, which is the canvas itself.
 	const [ menu, setMenu ] = useState( null );
 	const closeMenu = useCallback( () => setMenu( null ), [] );
 
-	const openMenu = useCallback( ( event, region = null ) => {
+	const openMenuAt = useCallback( ( event, target ) => {
 		event.preventDefault();
 		const rect = viewportRef.current?.getBoundingClientRect();
 		if ( ! rect ) {
@@ -1307,14 +1357,155 @@ function Flow( {
 		setMenu( {
 			x: event.clientX - rect.left,
 			y: event.clientY - rect.top,
-			region,
+			region: null,
+			stageKey: null,
+			edge: null,
+			...target,
 		} );
 	}, [] );
 
+	// The pane, and a region band's label. Both open the canvas's own menu; the
+	// band names the region it was opened on, so the menu can offer to remove
+	// that one.
+	const openMenu = useCallback(
+		( event, region = null ) => openMenuAt( event, { region } ),
+		[ openMenuAt ]
+	);
+
+	// A stage card. Right-clicking selects it exactly as a left-click does: the
+	// menu carries the stage settings that need no second node to name, and the
+	// inspector it opens behind them is where the rest of them are.
+	const openNodeMenu = useCallback(
+		( event, node ) => {
+			// Start, End and the region bands are not things you operate — they
+			// are `selectable: false` for the same reason — so a right-click on
+			// one gets the canvas's menu, not an empty menu of its own.
+			if ( node.type !== NODE_TYPE ) {
+				openMenuAt( event, {} );
+				return;
+			}
+			onSelectNode( node.id );
+			openMenuAt( event, { stageKey: node.id } );
+		},
+		[ onSelectNode, openMenuAt ]
+	);
+
+	// A transition. The Start edge is not one: it has nothing to delete
+	// (`disconnectEdge` refuses it), and where it points follows the Draft
+	// region's entry checkpoint, which is set on that region. So it opens the
+	// canvas's menu rather than one offering nothing.
+	const openEdgeMenu = useCallback(
+		( event, edge ) => {
+			const parsed = parseEdgeId( edge.id );
+			if ( parsed.from === START_ID ) {
+				openMenuAt( event, {} );
+				return;
+			}
+			onSelectEdge( edge.id );
+			openMenuAt( event, { edge: parsed } );
+		},
+		[ onSelectEdge, openMenuAt ]
+	);
+
+	// What the menu offers, decided by what it was opened on.
+	//
+	// Every item here is a verb that needs no *second* node to name it: a status
+	// to move into, a flag to set, something to delete. The verbs that do need
+	// one — where a new transition goes, which stage an outcome routes to, where
+	// an existing transition is re-pointed — are controls in the inspector,
+	// sitting against the read-out of the same setting. A menu item cannot ask
+	// "which stage?" without a submenu, and `role="menu"` is a promise about the
+	// keyboard that this menu keeps for one level only.
 	const menuItems = useMemo( () => {
 		if ( ! menu ) {
 			return [];
 		}
+
+		if ( menu.stageKey ) {
+			const stage = stages.find( ( s ) => s.key === menu.stageKey );
+			if ( ! stage ) {
+				return [];
+			}
+			const current = stageRegion( stage );
+			const items = regions
+				.filter( ( region ) => region !== current )
+				.map( ( region ) => ( {
+					id: `status-${ region }`,
+					label: sprintf(
+						/* translators: %s: post status label (e.g. Pending Review) */
+						__( 'Set post status to “%s”', 'vip-workflows' ),
+						regionLabel( region )
+					),
+					onSelect: () => onSetStageStatus?.( stage.key, region ),
+				} ) );
+
+			// Final means an edge to End, so it is offered where End exists: a
+			// phase sequence draws no endpoints at all, and an AI stage leaves
+			// only by its outcomes — `isValidConnection` refuses an outcome
+			// aimed at End, and clearing the agent is what makes the stage
+			// eligible again.
+			if ( ! isPhase && ! isAgentStage( stage ) ) {
+				items.push(
+					stage.is_terminal
+						? {
+								id: 'clear-terminal',
+								label: __(
+									'Not a final stage',
+									'vip-workflows'
+								),
+								onSelect: () =>
+									onDeleteEdge( stage.key, END_ID, null ),
+						  }
+						: {
+								id: 'set-terminal',
+								label: __(
+									'Make this a final stage',
+									'vip-workflows'
+								),
+								onSelect: () =>
+									onConnectTransition(
+										stage.key,
+										END_ID,
+										null
+									),
+						  }
+				);
+			}
+
+			items.push( {
+				id: 'delete-stage',
+				icon: trash,
+				label: __( 'Delete stage', 'vip-workflows' ),
+				// The same floor the inspector's delete keeps: a sequence needs
+				// somewhere for content to be.
+				disabled: stages.length <= 1,
+				onSelect: () => onDeleteNode( stage.key ),
+			} );
+
+			return items;
+		}
+
+		if ( menu.edge ) {
+			const { from, to, outcome } = menu.edge;
+			// The edge to End *is* the terminal flag, so deleting it is said in
+			// the words of the thing it changes rather than as the deletion of a
+			// transition nobody drew.
+			return [
+				to === END_ID
+					? {
+							id: 'clear-terminal',
+							label: __( 'Not a final stage', 'vip-workflows' ),
+							onSelect: () => onDeleteEdge( from, END_ID, null ),
+					  }
+					: {
+							id: 'delete-transition',
+							icon: trash,
+							label: __( 'Delete transition', 'vip-workflows' ),
+							onSelect: () => onDeleteEdge( from, to, outcome ),
+					  },
+			];
+		}
+
 		const remaining = REGION_ORDER.filter(
 			( r ) => ! regions.includes( r )
 		);
@@ -1342,7 +1533,29 @@ function Flow( {
 		}
 
 		return items;
-	}, [ menu, regionMeta, regions, onAddRegion, onRemoveRegion ] );
+	}, [
+		menu,
+		stages,
+		isPhase,
+		regionMeta,
+		regions,
+		onAddRegion,
+		onRemoveRegion,
+		onSetStageStatus,
+		onConnectTransition,
+		onDeleteEdge,
+		onDeleteNode,
+	] );
+
+	const menuLabel = useMemo( () => {
+		if ( menu?.stageKey ) {
+			return __( 'Stage actions', 'vip-workflows' );
+		}
+		if ( menu?.edge ) {
+			return __( 'Transition actions', 'vip-workflows' );
+		}
+		return __( 'Canvas actions', 'vip-workflows' );
+	}, [ menu ] );
 
 	return (
 		<div
@@ -1366,6 +1579,7 @@ function Flow( {
 				edges={ edgesWithHover }
 				onNodesChange={ handleNodesChange }
 				onEdgesChange={ noop }
+				onSelectionChange={ handleSelectionChange }
 				nodeTypes={ nodeTypes }
 				edgeTypes={ edgeTypes }
 				nodesDraggable
@@ -1406,6 +1620,8 @@ function Flow( {
 				onEdgeClick={ ( _e, edge ) => onSelectEdge( edge.id ) }
 				onPaneClick={ onClearSelection }
 				onPaneContextMenu={ openMenu }
+				onNodeContextMenu={ openNodeMenu }
+				onEdgeContextMenu={ openEdgeMenu }
 				onMove={ closeMenu }
 				onNodesDelete={ ( deleted ) =>
 					deleted.forEach( ( n ) => onDeleteNode( n.id ) )
@@ -1474,10 +1690,13 @@ function Flow( {
 					x={ menu.x }
 					y={ menu.y }
 					items={ menuItems }
-					// One name for the menu however it was opened. Which
-					// region it was opened on is already carried by the item
-					// that names it ("Remove “Pending Review”").
-					label={ __( 'Canvas actions', 'vip-workflows' ) }
+					// Named for what it acts on, since that is the one thing
+					// the items themselves don't say: "Set post status to
+					// “Draft”" is the same sentence whichever stage it was
+					// opened over. Which region a canvas menu was opened on is
+					// carried by the item that names it ("Remove “Pending
+					// Review”"), so all three canvas cases share one name.
+					label={ menuLabel }
 					onClose={ closeMenu }
 				/>
 			) }

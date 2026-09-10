@@ -43,6 +43,7 @@ import GraphCanvas from './GraphCanvas';
 import Inspector from './Inspector';
 import AddPostStatusModal from './AddPostStatusModal';
 import {
+	addStage,
 	addStageFromNode,
 	insertStageOnEdge,
 	removeStage,
@@ -1024,7 +1025,27 @@ export default function SequenceGraphEditor( {
 		} );
 	}, [] );
 
+	// Move a stage to another post status without dragging it there — the
+	// region half of `handlePlaceStage`, on its own. The checkpoint half is
+	// deliberately not repeated: `setStageStatus` frees the checkpoint of the
+	// region the stage leaves, because a checkpoint is a position on that
+	// region's border and the stage is no longer in it, and which stage takes
+	// it next is the region's own control (`handleSetRegionEntry`).
+	const handleSetStageStatus = useCallback( ( key, region ) => {
+		setStages( ( current ) => setStageStatus( current, key, region ) );
+	}, [] );
+
 	// --- Stage mutations ---------------------------------------------------
+
+	// Add a stage that flows out of nothing yet — the canvas's own verb, as
+	// against `handleAddStageFromNode`, which grows one off a source handle. It
+	// lands in Draft (where content is created) and takes the selection, because
+	// what the author needs next is to name it and say where it leads.
+	const handleAddStage = useCallback( () => {
+		const result = addStage( stages );
+		setStages( result.stages );
+		setSelection( { type: 'node', key: result.key } );
+	}, [ stages ] );
 
 	// Add a stage flowing out of an existing node — what dropping a connection on
 	// empty canvas does. Returns the new stage's key so the canvas can put the
@@ -1069,9 +1090,12 @@ export default function SequenceGraphEditor( {
 		// Picking an agent routes through its own mutation rather than a plain
 		// field merge, because clearing it drops the whole agent. Where a stage
 		// sits — its status region and whether it holds that region's
-		// checkpoint — never arrives here: both are set by dragging on the
-		// canvas (`handlePlaceStage`) or from the region's side
-		// (`handleSetRegionEntry`), and `StageInspector` only reads them back.
+		// checkpoint — never arrives here either, and no longer because only a
+		// drag can say it: the status is its own mutation
+		// (`handleSetStageStatus`, which frees the checkpoint of the region
+		// being left), and the checkpoint is the region's
+		// (`handleSetRegionEntry`). A drag on the canvas runs both of those
+		// through `handlePlaceStage`.
 		const { agent_ability_id: agentAbilityId, ...rest } = changes;
 		let next = stages;
 		if ( agentAbilityId !== undefined ) {
@@ -1588,6 +1612,16 @@ export default function SequenceGraphEditor( {
 		onSettingsChange: setSettings,
 		metadataFields,
 		onMetadataChange: setMetadataFields,
+		// The canvas's own two verbs, given a home that isn't a right-click.
+		// Nothing on the canvas says that right-clicking is how a post status
+		// gets added, and until now nothing anywhere said how a stage does.
+		onAddStage: isPhase ? undefined : handleAddStage,
+		onAddPostStatus: () => setAddingRegion( true ),
+		// The same rule the menu item is gated on: every status the server
+		// allows is already drawn.
+		canAddPostStatus: REGION_ORDER.some(
+			( region ) => ! regions.includes( region )
+		),
 		// Whether there is a row to delete, which a new sequence gains the
 		// moment it is first saved.
 		isNew: ! savedId,
@@ -1718,6 +1752,7 @@ export default function SequenceGraphEditor( {
 							isPhase ? undefined : handleInsertStageOnEdge
 						}
 						onPlaceStage={ handlePlaceStage }
+						onSetStageStatus={ handleSetStageStatus }
 						onAddRegion={ () => setAddingRegion( true ) }
 						onRemoveRegion={ handleRemoveRegion }
 						connectable
@@ -1734,7 +1769,9 @@ export default function SequenceGraphEditor( {
 						stages={ stages }
 						selectedStage={ selectedStage }
 						selectedTransition={ selectedTransition }
+						regions={ regions }
 						onSetRegionEntry={ handleSetRegionEntry }
+						onSetStageStatus={ handleSetStageStatus }
 						onRemoveRegion={ handleRemoveRegion }
 						availableAgents={ availableAgents }
 						availableRoles={ availableRoles }
@@ -1745,7 +1782,10 @@ export default function SequenceGraphEditor( {
 						onDeleteStage={ handleDeleteStage }
 						onUpdateTransition={ handleUpdateTransition }
 						onDeleteTransition={ handleDeleteTransition }
+						onConnectTransition={ handleConnect }
+						onReconnectTransition={ handleReconnect }
 						onSelectEdge={ selectEdge }
+						onSelectRegion={ selectRegion }
 						sequenceSettings={ sequenceSettings }
 					/>
 				</Stack>

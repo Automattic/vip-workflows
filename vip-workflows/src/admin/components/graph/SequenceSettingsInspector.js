@@ -9,12 +9,28 @@
  * only metadata fields collapse, since that group opens into an editor of its
  * own. Delete ends the body, in the danger zone every inspector shares.
  *
+ * **Two things the canvas owns are started from here**: adding a stage, and
+ * adding a post status. Both make something on the canvas rather than editing
+ * the sequence, so on the face of it neither belongs in this panel — but both
+ * are about the sequence rather than about anything selected in it, and this is
+ * the panel that shows when nothing is. The alternative was where they were:
+ * one buried in a right-click menu, the other with no affordance at all, since
+ * "drag off a handle and release over empty canvas" is not something a surface
+ * can say to you.
+ *
  * @package
  */
 
-import { CheckboxControl, Spinner, ToggleControl } from '@wordpress/components';
+import {
+	Button,
+	CheckboxControl,
+	Spinner,
+	ToggleControl,
+} from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
+import { plus } from '@wordpress/icons';
 import { __, sprintf, _n } from '@wordpress/i18n';
+import { ActionRow } from '../../../common/ActionRow';
 import InspectorShell from './InspectorShell';
 import InspectorSection from './InspectorSection';
 import InspectorDangerZone from './InspectorDangerZone';
@@ -40,6 +56,9 @@ export default function SequenceSettingsInspector( {
 	isNew,
 	onDelete,
 	deleting,
+	onAddStage,
+	onAddPostStatus,
+	canAddPostStatus,
 } ) {
 	const fieldCount = ( metadataFields || [] ).length;
 	const metadataSummary = fieldCount
@@ -68,6 +87,47 @@ export default function SequenceSettingsInspector( {
 					isActive={ isActive }
 					onActiveChange={ onActiveChange }
 				/>
+
+				{ /* The canvas's two creation verbs. They are sequence-level
+				     rather than stage-level — neither one is about the stage
+				     that happens to be selected — and this is the panel that
+				     shows when nothing is. Until now the only home either had
+				     was a right-click on the canvas, which nothing announces:
+				     the status one was a menu item, and the stage one was
+				     "drag off a handle and let go over empty space". */ }
+				{ onAddStage && (
+					<InspectorSection
+						title={ __( 'Structure', 'vip-workflows' ) }
+						help={ __(
+							'Everything content moves through is drawn on the canvas. A stage added here lands in Draft with nothing leading to it yet, and opens its own panel — where its post status and the ways out of it are set.',
+							'vip-workflows'
+						) }
+					>
+						<ActionRow>
+							<Button
+								__next40pxDefaultSize
+								variant="secondary"
+								icon={ plus }
+								onClick={ onAddStage }
+							>
+								{ __( 'Add stage', 'vip-workflows' ) }
+							</Button>
+							<Button
+								__next40pxDefaultSize
+								variant="secondary"
+								icon={ plus }
+								onClick={ onAddPostStatus }
+								// Every status the server allows is already
+								// drawn — the same gate the canvas menu's item
+								// carries.
+								disabled={ ! canAddPostStatus }
+								accessibleWhenDisabled
+							>
+								{ __( 'Add post status…', 'vip-workflows' ) }
+							</Button>
+						</ActionRow>
+					</InspectorSection>
+				) }
 
 				<InspectorSection title={ __( 'Post types', 'vip-workflows' ) }>
 					{ postTypes.length === 0 && <Spinner /> }
