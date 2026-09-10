@@ -322,7 +322,8 @@ class ParselyDiscoveryProvider {
 		if ( '' !== $section && $views > 0 ) {
 			$parts[] = sprintf(
 				/* translators: 1: formatted view count, 2: section name. */
-				_n( 'It has drawn %1$s view in %2$s.',
+				_n(
+					'It has drawn %1$s view in %2$s.',
 					'It has drawn %1$s views in %2$s.',
 					$views,
 					'workflow-parsely'

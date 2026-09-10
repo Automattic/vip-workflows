@@ -217,7 +217,7 @@ class PerformanceCheck {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
-					'summary'             => __( 'Compares this post with how similar stories performed, using Parse.ly.', 'workflow-parsely' ),
+					'summary'               => __( 'Compares this post with how similar stories performed, using Parse.ly.', 'workflow-parsely' ),
 					'type'                  => 'check',
 
 					/* Comparable articles and what each of them did. */
@@ -789,7 +789,8 @@ class PerformanceCheck {
 	private static function evidence_summary( array $signal ): string {
 		return sprintf(
 			/* translators: 1: article count, 2: median value, 3: metric name, 4: window in days. */
-			_n( 'Based on %1$d comparable article, %2$s %3$s in its first %4$d days.',
+			_n(
+				'Based on %1$d comparable article, %2$s %3$s in its first %4$d days.',
 				'Based on %1$d comparable articles, typically %2$s %3$s in their first %4$d days.',
 				$signal['count'],
 				'workflow-parsely'

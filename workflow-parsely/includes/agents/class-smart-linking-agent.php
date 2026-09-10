@@ -282,7 +282,8 @@ class SmartLinkingAgent {
 			'fail',
 			sprintf(
 				/* translators: %d: number of suggested links. */
-				_n( '%d suggested internal link left as a note for review.',
+				_n(
+					'%d suggested internal link left as a note for review.',
 					'%d suggested internal links left as notes for review.',
 					$count,
 					'workflow-parsely'

@@ -99,7 +99,7 @@ class HeadlineSuggestions {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
-					'summary'             => __( 'Suggests alternative headlines, using Parse.ly.', 'workflow-parsely' ),
+					'summary'               => __( 'Suggests alternative headlines, using Parse.ly.', 'workflow-parsely' ),
 					'show_in_rest'          => true,
 
 					/*
