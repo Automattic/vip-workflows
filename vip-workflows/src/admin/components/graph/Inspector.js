@@ -48,6 +48,7 @@ import {
 	stageRegion,
 	stageLabel,
 	isTransitionDisabled,
+	missingHandOffs,
 	outcomesRoutedTo,
 	publishSettingFixesRoute,
 	START_ID,
@@ -162,6 +163,13 @@ function renderPanel( {
 	onDeleteStage,
 	onUpdateTransition,
 	onDeleteTransition,
+	onConnectTransition,
+	// Phase-only. The hand-offs the sequence owes, from `/sequences/options`,
+	// and whether one particular pair is among them — the same predicate the
+	// editor guards its delete with, passed rather than re-derived so the panel
+	// cannot offer a removal the handler would refuse.
+	requiredTransitions,
+	isRequiredHandOff,
 	onSelectEdge,
 	exitProblems,
 	onSetRegionEntry,
@@ -200,7 +208,23 @@ function renderPanel( {
 
 	if ( selection?.type === 'node' && selectedStage ) {
 		if ( isPhase ) {
-			return <PhaseStageInspector stage={ selectedStage } />;
+			return (
+				<PhaseStageInspector
+					stage={ selectedStage }
+					// Only the hand-offs owed by THIS phase. The panel names
+					// the phase it opened on, so offering a hand-off out of
+					// the other one would be a button that fixes something
+					// this panel isn't about.
+					missing={ missingHandOffs(
+						stages,
+						requiredTransitions
+					).filter( ( { from } ) => from === selectedStage.key ) }
+					resolveStageLabel={ ( key ) => stageLabel( stages, key ) }
+					onAddHandOff={ ( to ) =>
+						onConnectTransition( selectedStage.key, to )
+					}
+				/>
+			);
 		}
 		return (
 			<StageInspector
@@ -323,6 +347,12 @@ function renderPanel( {
 						selection.to,
 						selection.outcome || null
 					)
+				}
+				// Absent on a workflow sequence, which owes no hand-offs at
+				// all — "nobody asked" and "nothing is required" are the same
+				// answer here, so no predicate means every transition removes.
+				canRemove={
+					! isRequiredHandOff?.( selection.from, selection.to )
 				}
 			/>
 		);
