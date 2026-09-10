@@ -148,8 +148,11 @@ export default function AppShell() {
 			return <Kanban />;
 		}
 
-		// Calendar page
-		if ( page === 'vip-workflows-calendar' ) {
+		// Calendar page (only routed while the Calendar experiment is enabled).
+		if (
+			page === 'vip-workflows-calendar' &&
+			window.vipWorkflowsAdmin?.experiments?.calendar
+		) {
 			return <Calendar />;
 		}
 
