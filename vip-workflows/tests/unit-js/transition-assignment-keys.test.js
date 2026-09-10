@@ -1,199 +1,31 @@
 /**
- * Assignment slot keys, as typed in the transition inspector.
+ * The assignment input's configuration, as the transition inspector shows it.
  *
- * Two fields name the same thing: the Assignment key on an assignment input
- * (which declares the slot) and the Assignment key under "Restrict to an
- * assignee" (which points at one). Both are stored through `sanitize_key()`,
- * which STRIPS a space rather than converting it — so an author who typed
- * "Legal Reviewer" on one side and `legal_reviewer` on the other got two values
- * that read as the same slot and silently never matched, leaving the gated
- * transition impossible to take.
- *
- * The fields sanitize as they are typed, on the same rule the stage Key field
- * uses, so what the author sees is what gets stored on both sides.
+ * The slot key is not one of its fields. It is minted when the input is added,
+ * and nothing an author does reads it, so there is nothing to type or to match.
  *
  * @package
  */
 
-import { render, screen, fireEvent } from './helpers/render-wp-component';
+import { render, screen } from './helpers/render-wp-component';
 
-import {
-	AssignmentInputConfig,
-	RequiresAssignmentConfig,
-	expandRequiresAssignment,
-	sanitizeAssignmentKey,
-} from '../../src/admin/components/TransitionAssignmentConfig';
+import { AssignmentInputConfig } from '../../src/admin/components/TransitionAssignmentConfig';
 
-const keyField = () =>
-	screen.getByRole( 'textbox', { name: 'Assignment key' } );
-
-describe( 'sanitizeAssignmentKey', () => {
-	it( 'turns a space into a separator instead of dropping it', () => {
-		expect( sanitizeAssignmentKey( 'Legal Reviewer' ) ).toBe(
-			'legal-reviewer'
-		);
-	} );
-
-	it( 'keeps the characters the stored key may contain', () => {
-		expect( sanitizeAssignmentKey( 'legal_reviewer' ) ).toBe(
-			'legal_reviewer'
-		);
-		expect( sanitizeAssignmentKey( 'legal-reviewer2' ) ).toBe(
-			'legal-reviewer2'
-		);
-	} );
-
-	it( 'collapses a run of separators rather than stacking them', () => {
-		expect( sanitizeAssignmentKey( 'legal // reviewer' ) ).toBe(
-			'legal-reviewer'
-		);
-	} );
-} );
-
-describe( 'Assignment input key field', () => {
-	it( 'reports the sanitized key, not the raw keystrokes', () => {
-		const onUpdateInput = jest.fn();
-
+describe( 'Assignment input key', () => {
+	it( 'is not a field the author is asked to fill in', () => {
 		render(
 			<AssignmentInputConfig
-				input={ { type: 'assignment' } }
+				input={ { type: 'assignment', meta_key: 'wfp_n1abcde' } }
 				availableRoles={ [] }
-				onUpdateInput={ onUpdateInput }
+				onUpdateInput={ () => {} }
 				onToggleRoleFilter={ () => {} }
 			/>
 		);
 
-		fireEvent.change( keyField(), {
-			target: { value: 'Legal Reviewer' },
-		} );
-
-		expect( onUpdateInput ).toHaveBeenCalledWith(
-			'meta_key',
-			'legal-reviewer'
-		);
-	} );
-} );
-
-describe( 'Requires-assignment key field', () => {
-	it( 'sanitizes the pointer the same way the slot is sanitized', () => {
-		const onUpdate = jest.fn();
-
-		render(
-			<RequiresAssignmentConfig
-				transition={ {
-					requires_assignment: {
-						meta_key: '',
-						match: 'current_user',
-					},
-				} }
-				onToggle={ () => {} }
-				onUpdate={ onUpdate }
-			/>
-		);
-
-		fireEvent.change( keyField(), {
-			target: { value: 'Legal Reviewer' },
-		} );
-
-		expect( onUpdate ).toHaveBeenCalledWith( 'meta_key', 'legal-reviewer' );
-	} );
-} );
-
-/*
- * The gate is stored two ways.
- *
- * `requires_assignment` is either `{ meta_key, match }` or the bare slot key as
- * a string — the shorthand `AssignmentManager::normalize_requirement()` accepts
- * and `build_config()` writes back verbatim, so a stored sequence really does
- * carry it. Read straight off, the string answers `undefined` for `.meta_key`:
- * the form drew an empty Key box over a gate that names one, and the update
- * spread the string into `{ 0: 'l', 1: 'e', … }` with no key left at all —
- * severing the gate as a side effect of touching the match mode.
- */
-describe( 'expandRequiresAssignment', () => {
-	it( 'reads the bare key a stored sequence may carry', () => {
-		expect( expandRequiresAssignment( 'legal_reviewer' ) ).toEqual( {
-			meta_key: 'legal_reviewer',
-			match: 'current_user',
-		} );
-	} );
-
-	it( 'leaves the full shape alone', () => {
 		expect(
-			expandRequiresAssignment( {
-				meta_key: 'legal_reviewer',
-				match: 'completed',
-			} )
-		).toEqual( { meta_key: 'legal_reviewer', match: 'completed' } );
-	} );
-
-	it( 'answers an empty gate for a value that names nothing', () => {
-		expect( expandRequiresAssignment( undefined ) ).toEqual( {
-			meta_key: '',
-			match: 'current_user',
-		} );
-	} );
-
-	it( 'shows the key a shorthand gate names', () => {
-		render(
-			<RequiresAssignmentConfig
-				transition={ { requires_assignment: 'legal_reviewer' } }
-				onToggle={ () => {} }
-				onUpdate={ () => {} }
-			/>
-		);
-
-		expect( keyField() ).toHaveValue( 'legal_reviewer' );
-	} );
-} );
-
-/*
- * The match mode does not choose the check.
- *
- * `AssignmentManager::user_satisfies_requirement()` picks the validator from the
- * stored assignment's TYPE — user, role, or agent — and only then hands the mode
- * to it. So `current_user_role` runs the same role-membership test as
- * `current_user` on a role assignment, and makes `validate_user_assignment()`
- * return false for everyone on a user assignment: a gate nobody can satisfy.
- * The dropdown offered it and `build_config()`'s whitelist then rewrote it to
- * `current_user` on save, which is the only reason it never reached disk.
- */
-describe( 'Match mode options', () => {
-	const modeSelect = () =>
-		screen.getByRole( 'combobox', { name: 'Match mode' } );
-
-	const renderGate = () =>
-		render(
-			<RequiresAssignmentConfig
-				transition={ {
-					requires_assignment: {
-						meta_key: 'legal_reviewer',
-						match: 'current_user',
-					},
-				} }
-				onToggle={ () => {} }
-				onUpdate={ () => {} }
-			/>
-		);
-
-	it( 'does not offer a mode the server refuses to store', () => {
-		renderGate();
-
-		const values = Array.from( modeSelect().options ).map(
-			( option ) => option.value
-		);
-
-		expect( values ).not.toContain( 'current_user_role' );
-	} );
-
-	it( 'offers the two modes that mean something', () => {
-		renderGate();
-
-		const values = Array.from( modeSelect().options ).map(
-			( option ) => option.value
-		);
-
-		expect( values ).toEqual( [ 'current_user', 'completed' ] );
+			screen.queryByRole( 'textbox', { name: 'Assignment key' } )
+		).toBeNull();
+		expect( screen.queryByDisplayValue( 'wfp_n1abcde' ) ).toBeNull();
 	} );
 } );
 

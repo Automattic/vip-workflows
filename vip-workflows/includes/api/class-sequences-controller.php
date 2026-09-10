@@ -700,7 +700,6 @@ class SequencesController extends WP_REST_Controller {
 									'notifications'       => array( 'type' => 'array' ),
 									'show_in_queue'       => array( 'type' => 'boolean' ),
 									'inputs'              => array( 'type' => 'array' ),
-									'requires_assignment' => array( 'type' => array( 'string', 'object' ) ),
 								),
 							),
 						),
@@ -1089,19 +1088,6 @@ class SequencesController extends WP_REST_Controller {
 						}
 					}
 
-					// Requires assignment config.
-					if ( ! empty( $transition['requires_assignment'] ) ) {
-						if ( is_string( $transition['requires_assignment'] ) ) {
-							$processed_transition['requires_assignment'] = sanitize_key( $transition['requires_assignment'] );
-						} elseif ( is_array( $transition['requires_assignment'] ) ) {
-							$raw_match = sanitize_key( $transition['requires_assignment']['match'] ?? 'current_user' );
-							$processed_transition['requires_assignment'] = array(
-								'meta_key' => sanitize_key( $transition['requires_assignment']['meta_key'] ?? '' ),
-								'match'    => in_array( $raw_match, array( 'current_user', 'completed' ), true ) ? $raw_match : 'current_user',
-							);
-						}
-					}
-
 					$processed_status['transitions'][] = $processed_transition;
 				}
 			}
@@ -1444,9 +1430,9 @@ class SequencesController extends WP_REST_Controller {
 			);
 		}
 
-		// Assignment slots and the gates that point at them, same gate as
-		// create/update. Checked before the keys are regenerated below, so the
-		// error names the key the author exported rather than a freshly minted one.
+		// Assignment slots, same gate as create/update. Checked before the keys
+		// are regenerated below, so the error names the key the author exported
+		// rather than a freshly minted one.
 		$assignment_validation = $this->validate_assignment_keys( $sequence_json['config']['statuses'] );
 		if ( is_wp_error( $assignment_validation ) ) {
 			return $assignment_validation;
@@ -1480,19 +1466,10 @@ class SequencesController extends WP_REST_Controller {
 		// Process config - regenerate assignment slot keys and map workflow references.
 		$config = $sequence_json['config'];
 
-		// Regenerate assignment slot keys for transitions — gates included, so an
-		// import cannot sever them — and sanitize agent configs the same way
-		// build_config() does on create/update.
+		// Regenerate assignment slot keys for transitions and sanitize agent
+		// configs the same way build_config() does on create/update.
 		if ( ! empty( $config['statuses'] ) ) {
-			try {
-				$config['statuses'] = $this->regenerate_assignment_keys( $config['statuses'] );
-			} catch ( \InvalidArgumentException $e ) {
-				return new WP_Error(
-					'unknown_assignment_key',
-					$e->getMessage(),
-					array( 'status' => 400 )
-				);
-			}
+			$config['statuses'] = $this->regenerate_assignment_keys( $config['statuses'] );
 
 			foreach ( $config['statuses'] as &$status ) {
 				// Validated up front by validate_status_agents(); here we only sanitize.
@@ -1840,27 +1817,21 @@ class SequencesController extends WP_REST_Controller {
 	}
 
 	/**
-	 * Validate assignment slot keys and the gates that point at them.
+	 * Validate assignment slot keys.
 	 *
 	 * A transition input of type `assignment` declares a slot: taking that
 	 * transition writes an assignment into `_vip_workflows_assignment_{key}` on the
-	 * post. A transition's `requires_assignment` is a pointer at one of those
-	 * slots — the gate reads the slot back and refuses the transition to anyone
-	 * the assignment does not name.
+	 * post.
 	 *
-	 * Three rules keep that pair honest:
-	 *   - a slot names a key. An empty one assigns nothing and gates nothing.
-	 *   - a slot is declared once. Two transitions sharing a key write and read
-	 *     the same post meta, so the second assignment silently overwrites the
-	 *     first.
-	 *   - a gate points at a slot that exists. A dangling pointer reads an empty
-	 *     slot, so the transition becomes un-passable — it fails closed, with
-	 *     nothing on screen saying why.
+	 * Two rules keep a slot honest:
+	 *   - a slot names a key. An empty one assigns nothing.
+	 *   - a slot is declared once. Two transitions sharing a key write the same
+	 *     post meta, so the second assignment silently overwrites the first.
 	 *
 	 * Keys are compared after sanitize_key(), the normalization build_config()
 	 * stores them under, so a pair that differs only in what sanitize_key strips
 	 * ("Legal Reviewer" against "legal_reviewer") is caught here instead of
-	 * splitting into two slots on write.
+	 * landing on one slot on write.
 	 *
 	 * Follows the fail-loud contract: broken assignment wiring is a
 	 * data-integrity error, not something to silently persist.
@@ -1911,74 +1882,17 @@ class SequencesController extends WP_REST_Controller {
 			}
 		}
 
-		// Every gate points at one of them.
-		foreach ( $statuses as $status ) {
-			$stage_key = $this->status_key( $status );
-
-			foreach ( $this->status_transitions( $status ) as $transition ) {
-				if ( empty( $transition['requires_assignment'] ) ) {
-					continue;
-				}
-
-				$requirement = $transition['requires_assignment'];
-
-				// Shorthand: the value itself is the slot key (AssignmentManager::normalize_requirement).
-				$referenced = is_array( $requirement )
-					? ( $requirement['meta_key'] ?? '' )
-					: $requirement;
-				$referenced = is_scalar( $referenced ) ? sanitize_key( (string) $referenced ) : '';
-
-				if ( '' === $referenced ) {
-					return new WP_Error(
-						'invalid_requires_assignment',
-						sprintf(
-							/* translators: %s: stage key */
-							__( 'Stage "%s" has a transition restricted to an assignee but names no assignment key, so nobody can take it.', 'vip-workflows' ),
-							$stage_key
-						),
-						array( 'status' => 400 )
-					);
-				}
-
-				if ( ! isset( $slot_keys[ $referenced ] ) ) {
-					return new WP_Error(
-						'unknown_assignment_key',
-						sprintf(
-							/* translators: 1: stage key, 2: assignment key */
-							__( 'Stage "%1$s" has a transition restricted to assignment key "%2$s", which no transition assigns. Nobody could take that transition.', 'vip-workflows' ),
-							$stage_key,
-							$referenced
-						),
-						array( 'status' => 400 )
-					);
-				}
-			}
-		}
-
 		return true;
 	}
 
 	/**
-	 * Regenerate assignment slot keys on import, keeping their gates attached.
+	 * Regenerate assignment slot keys on import.
 	 *
 	 * An imported sequence gets its own assignment slots rather than sharing the
-	 * ones the source sequence writes, so every declared key is minted fresh. The
-	 * gates point at those keys by value, though, so the rename runs as one pass
-	 * that records old => new and a second that re-points every `requires_assignment`
-	 * at the same slot: renaming the slot alone leaves a gate reading
-	 * `_vip_workflows_assignment_{old_key}`, which nothing writes any more, and the
-	 * transition then fails closed for good.
-	 *
-	 * The wiring is validated before this runs ({@see validate_assignment_keys()}),
-	 * so a gate reaching the second pass with no entry in the map is unreachable
-	 * today. Skipping it would not stay harmless if that ever changed — a
-	 * reordered caller, or a second one — because the gate would be left
-	 * pointing at a key nothing writes: exactly the severed-gate bug this method
-	 * exists to prevent, reintroduced without a word. It throws instead.
+	 * ones the source sequence writes, so every declared key is minted fresh.
 	 *
 	 * @param  array $statuses Imported statuses.
-	 * @return array Statuses with fresh slot keys and gates pointing at them.
-	 * @throws \InvalidArgumentException If a gate names an assignment key no transition assigns.
+	 * @return array Statuses with fresh slot keys.
 	 */
 	private function regenerate_assignment_keys( array $statuses ): array {
 		$key_map = array();
@@ -2003,41 +1917,6 @@ class SequencesController extends WP_REST_Controller {
 					}
 
 					$statuses[ $status_index ]['transitions'][ $transition_index ]['inputs'][ $input_index ]['meta_key'] = $key_map[ $old_key ];
-				}
-			}
-		}
-
-		if ( empty( $key_map ) ) {
-			return $statuses;
-		}
-
-		foreach ( $statuses as $status_index => $status ) {
-			foreach ( $this->status_transitions( $status ) as $transition_index => $transition ) {
-				if ( empty( $transition['requires_assignment'] ) ) {
-					continue;
-				}
-
-				$requirement = $transition['requires_assignment'];
-				$referenced  = is_array( $requirement ) ? ( $requirement['meta_key'] ?? '' ) : $requirement;
-				$referenced  = is_scalar( $referenced ) ? sanitize_key( (string) $referenced ) : '';
-
-				if ( ! isset( $key_map[ $referenced ] ) ) {
-					throw new \InvalidArgumentException(
-						esc_html(
-							sprintf(
-								/* translators: 1: stage key, 2: assignment key */
-								__( 'Stage "%1$s" has a transition restricted to assignment key "%2$s", which no transition assigns, so the gate cannot be re-pointed at the imported slot.', 'vip-workflows' ),
-								$this->status_key( $status ),
-								$referenced
-							)
-						)
-					);
-				}
-
-				if ( is_array( $requirement ) ) {
-					$statuses[ $status_index ]['transitions'][ $transition_index ]['requires_assignment']['meta_key'] = $key_map[ $referenced ];
-				} else {
-					$statuses[ $status_index ]['transitions'][ $transition_index ]['requires_assignment'] = $key_map[ $referenced ];
 				}
 			}
 		}

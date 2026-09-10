@@ -2,9 +2,9 @@
 /**
  * A rule that blocks a move has to say so before the move is attempted.
  *
- * Every other blocking rule in the sequence advertises itself: an unsatisfied
- * `requires_assignment` comes back on the transition as `_locked` plus a reason,
- * and the board, My Queue and the editor rail all read it. The required-field
+ * Every other blocking rule in the sequence advertises itself: a disabled
+ * required tool comes back on the transition as `_locked` plus a reason, and
+ * the board, My Queue and the editor rail all read it. The required-field
  * gate was the one that stayed silent until the 422, so the board computed a
  * card as a legal drop target, the drop was refused, the card snapped back and
  * an audit row was written for a move the board had just shown as permitted.
@@ -333,8 +333,8 @@ class RequiredMetadataLockProjectionTest extends TestCase
      * code, and the block editor needs it. Fields typed into the sidebar are
      * editor-store edits until the post is saved, so the editor holds meta this
      * projection has not seen — it re-judges THIS lock against what the author
-     * has actually filled in, and takes every other lock (role, assignment,
-     * capability) on trust. Without a name on the lock it cannot tell them
+     * has actually filled in, and takes every other lock (role, capability,
+     * disabled tool) on trust. Without a name on the lock it cannot tell them
      * apart, and either re-judges all of them or none.
      */
     public function test_the_metadata_lock_names_the_rule_holding_it(): void

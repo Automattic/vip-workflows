@@ -28,7 +28,7 @@ import {
 } from '../../src/admin/components/graph/graph-model';
 
 // A two-stage workflow whose first transition captures an assignment. The key is
-// left blank per-test, which is one of the four faults the server refuses
+// left blank per-test, which is one of the two faults the server refuses
 // (`invalid_assignment_key`).
 const withAssignment = ( input, extra = {} ) => [
 	{
@@ -66,37 +66,6 @@ describe( 'a blocking error names what is at fault', () => {
 			type: 'edge',
 			from: 'draft',
 			to: 'legal',
-			outcome: null,
-		} );
-	} );
-
-	it( 'points a gate with no key at the transition holding the gate', () => {
-		const stages = withAssignment( {
-			type: 'assignment',
-			meta_key: 'legal-reviewer',
-		} );
-		// The shape the "Restrict to an assignee" toggle creates: a gate that
-		// exists and names nothing yet. A falsy `requires_assignment` is no
-		// gate at all, and is rightly not reported.
-		stages[ 1 ].transitions = [
-			{
-				to: 'draft',
-				label: 'Send back',
-				requires_assignment: { meta_key: '', match: 'current_user' },
-			},
-		];
-		stages[ 1 ].is_terminal = false;
-		stages[ 0 ].is_terminal = true;
-
-		const found = blockers( stages ).find( ( e ) =>
-			e.message.includes( 'Send back' )
-		);
-
-		expect( found ).toBeDefined();
-		expect( found.target ).toEqual( {
-			type: 'edge',
-			from: 'legal',
-			to: 'draft',
 			outcome: null,
 		} );
 	} );
@@ -314,13 +283,13 @@ describe( 'the stage panel flags the exit at fault', () => {
 			} ),
 			{
 				[ edgeId( 'review', 'done' ) ]: [
-					'The “Approve” transition assigns to a key another transition already assigns.',
+					'The “Approve” transition assigns to the same slot as another transition.',
 				],
 			}
 		);
 
 		const row = screen.getByRole( 'button', {
-			name: /a key another transition already assigns/,
+			name: /the same slot as another transition/,
 		} );
 		expect( row ).toHaveTextContent( 'Needs attention' );
 	} );
@@ -394,13 +363,13 @@ describe( 'the stage panel flags the exit at fault', () => {
 			} ),
 			{
 				[ edgeId( 'review', 'spike' ) ]: [
-					'The “Spike” transition is restricted to an assignee but names no assignment key.',
+					'The “Spike” transition assigns work but names no assignment key.',
 				],
 			}
 		);
 
 		const row = screen.getByRole( 'button', {
-			name: /restricted to an assignee but names no assignment key/,
+			name: /“Spike” transition assigns work but names no assignment key/,
 		} );
 		expect( row ).toHaveTextContent( 'Needs attention' );
 		expect( row ).not.toHaveTextContent( '(disabled)' );

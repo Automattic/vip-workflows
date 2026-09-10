@@ -249,29 +249,29 @@ describe( 'a reveal opens the panel it selects into', () => {
 	// the field the fault names sits in a section the last transition shut.
 	it( 'opens the arriving transition’s sections, not the last one’s', () => {
 		const plain = { to: 'review', label: 'Submit' };
-		const gated = {
+		const capturing = {
 			to: 'draft',
 			label: 'Send back',
-			requires_assignment: { meta_key: '' },
+			inputs: [ { type: 'assignment', meta_key: '' } ],
 		};
 		const { update } = renderInspector( {
 			selection: { type: 'edge', from: 'draft', to: 'review' },
 			selectedStage: null,
 			selectedTransition: plain,
 		} );
-		const restrict = () =>
-			screen.getByRole( 'button', { name: /Restrict to an assignee/ } );
-		expect( restrict() ).toHaveAttribute( 'aria-expanded', 'false' );
+		const capture = () =>
+			screen.getByRole( 'button', { name: /What to capture/ } );
+		expect( capture() ).toHaveAttribute( 'aria-expanded', 'false' );
 
 		update( {
 			selection: { type: 'edge', from: 'review', to: 'draft' },
-			selectedTransition: gated,
+			selectedTransition: capturing,
 			reveal: {
 				target: { type: 'edge', from: 'review', to: 'draft' },
 			},
 		} );
 
-		expect( restrict() ).toHaveAttribute( 'aria-expanded', 'true' );
+		expect( capture() ).toHaveAttribute( 'aria-expanded', 'true' );
 	} );
 
 	it( 'reveals again when the same fault is asked for twice', () => {
