@@ -16,14 +16,26 @@
  * time the selection swaps one panel for another, so the flag would reset on
  * every click. This component stays mounted across those swaps.
  *
+ * Which is also what lets a `reveal` — a selection made *for* the author, by
+ * the blocked-save notice's "Show transition" — open a panel that is closed.
+ * Swapping the contents of a hidden panel is no answer to "show me": the panel
+ * starts collapsed on mobile and stays that way for anyone who closed it, so
+ * without this the button changed nothing on screen at all.
+ *
  * @package
  */
 
-import { useState, useMemo, useCallback, useEffect } from '@wordpress/element';
+import {
+	useState,
+	useMemo,
+	useCallback,
+	useEffect,
+	useRef,
+} from '@wordpress/element';
 import { Stack, Text } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
 
-import InspectorShell, { InspectorCollapseContext } from './InspectorShell';
+import InspectorShell, { InspectorPanelContext } from './InspectorShell';
 import StageInspector from './StageInspector';
 import PhaseStageInspector from './PhaseStageInspector';
 import TransitionInspector from './TransitionInspector';
@@ -78,7 +90,7 @@ function useIsMobileLayout() {
 	return isMobile;
 }
 
-export default function Inspector( props ) {
+export default function Inspector( { reveal, ...props } ) {
 	const isMobile = useIsMobileLayout();
 
 	// Open on desktop, collapsed on mobile — where the panel spans the bottom
@@ -95,15 +107,38 @@ export default function Inspector( props ) {
 		setCollapsed( isMobile );
 	}, [ isMobile ] );
 
-	const collapse = useMemo(
-		() => ( { collapsed, toggle } ),
+	// Where a reveal sends focus: the panel's heading, which is the eyebrow and
+	// the title together — "Transition", "Send to legal". `InspectorShell`
+	// attaches it, and does so again each time the selection swaps one panel
+	// for another, so it always points at the heading now on screen.
+	const headingRef = useRef( null );
+
+	// Acted on by nonce, so only a reveal does this: an ordinary click on the
+	// canvas must not re-open a panel that was deliberately collapsed, nor take
+	// focus off the canvas it was made on.
+	const revealedNonce = useRef( 0 );
+	useEffect( () => {
+		if ( ! reveal || reveal.nonce === revealedNonce.current ) {
+			return;
+		}
+		revealedNonce.current = reveal.nonce;
+		setCollapsed( false );
+		// The only feedback the press gives that isn't visual. Focus lands on
+		// the heading of the panel that just mounted, which is both what a
+		// screen reader reads out and where a keyboard is left — on the fix,
+		// rather than on a button in a notice several tab stops away from it.
+		headingRef.current?.focus();
+	}, [ reveal ] );
+
+	const panel = useMemo(
+		() => ( { collapsed, toggle, headingRef } ),
 		[ collapsed, toggle ]
 	);
 
 	return (
-		<InspectorCollapseContext.Provider value={ collapse }>
+		<InspectorPanelContext.Provider value={ panel }>
 			{ renderPanel( props ) }
-		</InspectorCollapseContext.Provider>
+		</InspectorPanelContext.Provider>
 	);
 }
 

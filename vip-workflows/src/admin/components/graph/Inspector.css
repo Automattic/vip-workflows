@@ -53,6 +53,22 @@
 	min-width: 0;
 }
 
+/* A reveal — the blocked-save notice's "Show transition" — moves focus here so
+   the panel that just opened announces itself. It is a destination, not a
+   control, so it gets a ring only when focus is being followed by eye:
+   :focus-visible answers that, and the plain :focus that a click on the title
+   would otherwise draw is turned off. */
+.wf-inspector__heading:focus {
+	outline: none;
+}
+
+.wf-inspector__heading:focus-visible {
+	outline: var( --wpds-border-width-focus ) solid
+		var( --wpds-color-stroke-interactive-brand );
+	outline-offset: 2px;
+	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds the focus ring to the heading's own corners; this is a layout <div>, not a component with a radius prop */
+}
+
 /* The header's only control. `flex-shrink: 0` keeps it at its natural size no
    matter how long the title runs. */
 .wf-inspector__collapse {

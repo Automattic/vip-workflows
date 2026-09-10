@@ -37,22 +37,26 @@ import { Card, Stack, Text } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
 
 /**
- * Collapsed state for the panel, provided by `Inspector`.
+ * What the panel above the shell owns, provided by `Inspector`: whether the
+ * body is collapsed, how to toggle it, and where to send focus when a panel is
+ * opened on the author's behalf.
  *
  * It lives above the shell on purpose: the shell unmounts whenever the
  * selection swaps one panel for another, so state held here would spring back
  * open every time you clicked a different node. `Inspector` stays mounted, so
  * it owns the flag and passes it down through context — which keeps the five
- * panel components from having to thread two props they don't care about.
+ * panel components from having to thread props they don't care about.
  *
- * `null` means no provider (the panel simply isn't collapsible).
+ * `null` means no provider (the panel simply isn't collapsible, and nothing
+ * reveals it).
  */
-export const InspectorCollapseContext = createContext( null );
+export const InspectorPanelContext = createContext( null );
 
 export default function InspectorShell( { eyebrow, title, children } ) {
-	const collapse = useContext( InspectorCollapseContext );
+	const panel = useContext( InspectorPanelContext );
 	const bodyId = useId();
-	const collapsed = Boolean( collapse?.collapsed );
+	const collapsed = Boolean( panel?.collapsed );
+	const headingRef = panel?.headingRef;
 
 	return (
 		<Card.Root
@@ -66,7 +70,16 @@ export default function InspectorShell( { eyebrow, title, children } ) {
 				align="flex-start"
 				justify="space-between"
 			>
-				<div className="wf-inspector__heading">
+				{ /* A reveal lands focus here, so the panel it just opened says
+				     what it now holds: the eyebrow and the title together read
+				     "Transition, Send to legal". Focusable only as a
+				     destination — `tabindex="-1"` is never a tab stop — and
+				     only when something can send focus to it. */ }
+				<div
+					className="wf-inspector__heading"
+					ref={ headingRef }
+					tabIndex={ headingRef ? -1 : undefined }
+				>
 					{ eyebrow && (
 						// heading-sm is the uppercase label variant, so the
 						// small caps come from the variant rather than the
@@ -91,11 +104,11 @@ export default function InspectorShell( { eyebrow, title, children } ) {
 						</Text>
 					) }
 				</div>
-				{ collapse && (
+				{ panel && (
 					<Button
 						className="wf-inspector__collapse"
 						icon={ collapsed ? chevronDown : chevronUp }
-						onClick={ collapse.toggle }
+						onClick={ panel.toggle }
 						label={
 							collapsed
 								? __( 'Expand panel', 'vip-workflows' )
