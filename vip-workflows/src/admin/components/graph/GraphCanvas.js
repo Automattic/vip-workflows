@@ -116,6 +116,7 @@ import {
 import { EdgePlanProvider } from './EdgePlanProvider';
 import EdgeOverlay from './EdgeOverlay';
 import EdgeAnchors from './EdgeAnchors';
+import { revealNodeIds, revealViewport } from './canvas-reveal';
 import { regionLabel, REGION_ORDER } from './regions';
 
 // Note: React Flow's base stylesheet (`@xyflow/react/dist/style.css`) is imported
@@ -143,6 +144,13 @@ const noop = () => {};
 // long sequence can be read end to end.
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
+
+// How long the canvas takes to travel to a revealed fault, and the preference
+// that cuts the journey to nothing. The pan is not something the author aimed —
+// they asked to see one transition, not to move the graph — so it is the kind
+// of motion the preference exists for.
+const REVEAL_MS = 200;
+const REDUCED_MOTION = '( prefers-reduced-motion: reduce )';
 
 /**
  * Width the floating inspector takes out of the canvas, in pixels.
@@ -172,6 +180,50 @@ function inspectorReserve( el ) {
 		return 0;
 	}
 	return width + inset * 2;
+}
+
+/**
+ * The part of the canvas the floating panel leaves visible, in pane pixels.
+ *
+ * Which side the panel takes its room from is the layout: above wp-admin's
+ * breakpoint it is a column down the right, and `inspectorReserve` is its
+ * width. Below it the panel docks across the bottom instead — that layout sets
+ * `--wf-inspector-width` to zero, which is how the reserve above answers 0 —
+ * and the room it takes has to be measured rather than computed, because a
+ * docked panel is as tall as whatever is open inside it (at most half the
+ * viewport, `SequenceGraphEditor.css`), and a collapsed one is a title bar.
+ *
+ * @param {HTMLElement} el The canvas pane.
+ * @return {Object} `{ x, y, width, height }` relative to the pane.
+ */
+function visibleCanvas( el ) {
+	const reserve = inspectorReserve( el );
+	if ( reserve > 0 ) {
+		return {
+			x: 0,
+			y: 0,
+			width: Math.max( 0, el.clientWidth - reserve ),
+			height: el.clientHeight,
+		};
+	}
+
+	const panelTop = el
+		.closest( '.wf-sequence-editor' )
+		?.querySelector( '.wf-inspector' )
+		?.getBoundingClientRect().top;
+	const paneTop = el.getBoundingClientRect().top;
+	return {
+		x: 0,
+		y: 0,
+		width: el.clientWidth,
+		// No panel to clear (nothing has rendered one), or one measured at the
+		// origin (jsdom lays nothing out): the whole pane is visible. A reveal
+		// that trusted a zero here would pan every target off the top.
+		height:
+			Number.isFinite( panelTop ) && panelTop > paneTop
+				? Math.min( el.clientHeight, panelTop - paneTop )
+				: el.clientHeight,
+	};
 }
 
 /**
@@ -292,6 +344,10 @@ function Flow( {
 	onPlaceStage,
 	onAddRegion,
 	onRemoveRegion,
+	// A selection made *for* the author rather than by them — the blocked-save
+	// notice's "Show transition". `{ target, nonce }`; see `showTarget` in
+	// `SequenceGraphEditor`.
+	reveal,
 	connectable = true,
 	isValidConnection,
 } ) {
@@ -1005,6 +1061,65 @@ function Flow( {
 		pendingRecenter.current = false;
 		centerOn( layout.nodes, { duration: 200 } );
 	}, [ layout, centerOn ] );
+
+	// --- Showing a fault ----------------------------------------------------
+
+	// A reveal is a selection the author asked to be *taken to* — the
+	// blocked-save notice's "Show transition". The canvas already follows the
+	// selection, so an ordinary click needs nothing more; but a selection made
+	// on their behalf can land anywhere, including well outside the viewport,
+	// where highlighting it says nothing.
+	//
+	// Acted on by nonce rather than by target, for two reasons: an ordinary
+	// click must never move the canvas out from under the author, and pressing
+	// the same button twice — after panning away in between — is two reveals of
+	// one target. The effect still lists everything it reads, so it re-runs on
+	// every node change and the nonce is what makes those runs no-ops.
+	const revealFrame = useRef( 0 );
+	const revealedNonce = useRef( 0 );
+	useEffect( () => () => cancelAnimationFrame( revealFrame.current ), [] );
+
+	useEffect( () => {
+		if ( ! reveal || reveal.nonce === revealedNonce.current ) {
+			return;
+		}
+		revealedNonce.current = reveal.nonce;
+
+		const ids = revealNodeIds( reveal.target );
+		const framed = nodes.filter( ( node ) => ids.includes( node.id ) );
+		// A target naming nothing the canvas holds — a stage deleted since the
+		// save was refused. The notice's button is gone by then; a reveal in
+		// flight when it went is not worth a guess at where to look.
+		if ( framed.length === 0 ) {
+			return;
+		}
+
+		// Next frame, because the same press also expands the panel: the room
+		// the panel leaves is what the pan is measured against, and this
+		// effect runs before that expansion has been laid out.
+		cancelAnimationFrame( revealFrame.current );
+		revealFrame.current = requestAnimationFrame( () => {
+			const el = viewportRef.current;
+			if ( ! el ) {
+				return;
+			}
+			const next = revealViewport( getNodesBounds( framed ), {
+				viewport: getViewport(),
+				visible: visibleCanvas( el ),
+			} );
+			if ( next ) {
+				// Animated, so the canvas is seen to travel and the fault is
+				// read as the place it arrived at rather than as a graph that
+				// changed while nobody was looking — unless the whole canvas
+				// sliding is exactly what has been asked not to happen.
+				setViewport( next, {
+					duration: window.matchMedia( REDUCED_MOTION ).matches
+						? 0
+						: REVEAL_MS,
+				} );
+			}
+		} );
+	}, [ reveal, nodes, getNodesBounds, getViewport, setViewport ] );
 
 	// --- Dropping on empty canvas -------------------------------------------
 

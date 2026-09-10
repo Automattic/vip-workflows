@@ -79,8 +79,9 @@ import './SequenceGraphEditor.css';
  * Named for the thing, not for the gesture: “Show transition” tells an author
  * what they are about to be taken to, where a bare “Show” or “Fix” leaves them
  * to guess whether the canvas is about to move, the panel is about to change,
- * or something is about to be edited on their behalf. Nothing is edited — the
- * button selects, and the panel that opens is where the fix is made.
+ * or something is about to be edited on their behalf. Nothing is edited: the
+ * press selects the thing, brings it into view on the canvas, and opens the
+ * panel where the fix is made with focus in it (`showTarget`).
  *
  * A node is a stage or a phase depending on the sequence, and the two are not
  * interchangeable words: the phase editor calls its nodes phases everywhere
@@ -1059,6 +1060,28 @@ export default function SequenceGraphEditor( {
 	);
 	const clearSelection = useCallback( () => setSelection( null ), [] );
 
+	// "Show transition" is one gesture with three parts, and selecting is only
+	// the first: the panel that fixes the fault has to be open and hold focus,
+	// and the canvas has to bring the fault into view. Left at the selection
+	// alone the press could change nothing anyone could see — the panel starts
+	// collapsed on mobile and stays collapsed for anyone who closed it, focus
+	// stayed on the button in the notice, and a fault outside the viewport was
+	// highlighted where nobody was looking.
+	//
+	// The nonce is what tells `Inspector` and `GraphCanvas` this selection was
+	// asked for. Without it they could only watch the selection, and would
+	// expand a deliberately collapsed panel and pan the canvas on every click;
+	// with it, pressing the same button twice is also two reveals, which is
+	// what makes it work again after panning away in between.
+	const [ reveal, setReveal ] = useState( null );
+	const showTarget = useCallback( ( target ) => {
+		setSelection( target );
+		setReveal( ( previous ) => ( {
+			target,
+			nonce: ( previous?.nonce || 0 ) + 1,
+		} ) );
+	}, [] );
+
 	// --- Status regions ----------------------------------------------------
 
 	// Which groups the canvas draws: every region a stage lives in, plus the
@@ -1743,7 +1766,7 @@ export default function SequenceGraphEditor( {
 														isPhase
 													),
 													onClick: () =>
-														setSelection(
+														showTarget(
 															saveBlockers[ 0 ]
 																.target
 														),
@@ -1759,7 +1782,7 @@ export default function SequenceGraphEditor( {
 									<SaveBlockers
 										reasons={ saveBlockers }
 										isPhase={ isPhase }
-										onShow={ setSelection }
+										onShow={ showTarget }
 									/>
 								) }
 							</Notice>
@@ -1854,6 +1877,9 @@ export default function SequenceGraphEditor( {
 						onPlaceStage={ handlePlaceStage }
 						onAddRegion={ () => setAddingRegion( true ) }
 						onRemoveRegion={ handleRemoveRegion }
+						// A fault the notice offered to show has to end up
+						// somewhere the author can see it, not just selected.
+						reveal={ reveal }
 						connectable
 						isValidConnection={ isValidConnection }
 					/>
@@ -1864,6 +1890,9 @@ export default function SequenceGraphEditor( {
 				>
 					<Inspector
 						selection={ selection }
+						// …and the panel holding the fix has to be open, with
+						// focus in it, however the panel was left.
+						reveal={ reveal }
 						isPhase={ isPhase }
 						stages={ stages }
 						selectedStage={ selectedStage }
