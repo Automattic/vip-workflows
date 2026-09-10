@@ -57,7 +57,10 @@ export default function Ideation( { route, onNavigate } ) {
 			} catch ( err ) {
 				setError(
 					err.message ||
-						__( 'Could not load the project. Reload the page to try again.', 'vip-workflows' )
+						__(
+							'Could not load the project. Reload the page to try again.',
+							'vip-workflows'
+						)
 				);
 			} finally {
 				setLoading( false );

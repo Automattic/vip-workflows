@@ -1203,7 +1203,7 @@ class StageAgentRunnerExecuteTest extends TestCase
 
         $this->assertSame( 'failed', $job['status'] );
         $this->assertStringContainsString( 'fail', $job['error'], 'The failure names the unrouted outcome.' );
-        $this->assertStringContainsString( 'sequence editor', $job['error'], 'The failure points at the sequence config.' );
+        $this->assertStringContainsString( 'workflow editor', $job['error'], 'The failure points at the workflow config.' );
     }
 
     /**

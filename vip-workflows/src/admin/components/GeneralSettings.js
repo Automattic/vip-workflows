@@ -176,7 +176,10 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 			<Notice status="error" isDismissible={ false }>
 				{ sprintf(
 					/* translators: %s: error message from the settings request. */
-					__( 'Could not load settings. Reload the page to try again. Details: %s', 'vip-workflows' ),
+					__(
+						'Could not load settings. Reload the page to try again. Details: %s',
+						'vip-workflows'
+					),
 					error
 				) }
 			</Notice>

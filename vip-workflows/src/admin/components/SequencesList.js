@@ -128,8 +128,14 @@ export function SequencesList() {
 				URL.revokeObjectURL( url );
 			} catch ( err ) {
 				createErrorNotice(
-					__( 'Could not export the workflow. Details: ', 'vip-workflows' ) +
-						err.message,
+					sprintf(
+						/* translators: %s: error message from the export. */
+						__(
+							'Could not export the workflow. Details: %s',
+							'vip-workflows'
+						),
+						err.message
+					),
 					{ type: 'snackbar' }
 				);
 			}
@@ -517,16 +523,12 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 
 	const handleImport = async () => {
 		if ( ! sequenceJson ) {
-			setError(
-				__( 'Upload a workflow JSON file.', 'vip-workflows' )
-			);
+			setError( __( 'Upload a workflow JSON file.', 'vip-workflows' ) );
 			return;
 		}
 
 		if ( ! name.trim() ) {
-			setError(
-				__( 'Enter a name for the workflow.', 'vip-workflows' )
-			);
+			setError( __( 'Enter a name for the workflow.', 'vip-workflows' ) );
 			return;
 		}
 
@@ -615,9 +617,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 				{ sequenceJson && (
 					<>
 						<div className="vip-workflows-import-modal__type-preview">
-							<strong>
-								{ __( 'Type:', 'vip-workflows' ) }
-							</strong>{ ' ' }
+							<strong>{ __( 'Type:', 'vip-workflows' ) }</strong>{ ' ' }
 							{ sequenceJson.type || 'unknown' }
 						</div>
 
@@ -627,10 +627,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 							label={ __( 'Workflow name', 'vip-workflows' ) }
 							value={ name }
 							onChange={ setName }
-							help={ __(
-								'Must be unique.',
-								'vip-workflows'
-							) }
+							help={ __( 'Must be unique.', 'vip-workflows' ) }
 						/>
 					</>
 				) }

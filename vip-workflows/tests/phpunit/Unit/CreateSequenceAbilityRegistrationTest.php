@@ -45,16 +45,16 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
         );
     }
 
-    public function test_registers_under_stable_slug_with_sequence_terminology(): void
+    public function test_registers_under_stable_slug_with_workflow_terminology(): void
     {
         \VIPWorkflows\Abilities\Tools\register_create_sequence();
 
         $this->assertArrayHasKey( 'vip-workflows/create-sequence', $this->registered );
         $args = $this->registered['vip-workflows/create-sequence'];
 
-        // Agent-facing wording uses "sequence", never "sequence".
+        // Reader-facing wording says "workflow"; the slug keeps "sequence".
         $this->assertSame( 'New workflow', $args['label'] );
-        $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
+        $this->assertStringContainsStringIgnoringCase( 'workflow', $args['description'] );
         $this->assertStringNotContainsStringIgnoringCase( 'blueprint', $args['description'] );
         $this->assertSame( 'vip-workflows', $args['category'] );
     }

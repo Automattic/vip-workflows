@@ -50,7 +50,7 @@ class SequenceAbilityRegistrationTest extends TestCase
         );
     }
 
-    public function test_get_sequences_keeps_slug_and_uses_sequence_terminology(): void
+    public function test_get_sequences_keeps_slug_and_uses_workflow_terminology(): void
     {
         \VIPWorkflows\Abilities\Tools\register_get_sequences();
 
@@ -58,9 +58,9 @@ class SequenceAbilityRegistrationTest extends TestCase
         $this->assertArrayHasKey( 'vip-workflows/get-sequences', $this->registered );
         $args = $this->registered['vip-workflows/get-sequences'];
 
-        // Agent-facing label/description say "sequence", not "sequence".
+        // Reader-facing label and description say "workflow".
         $this->assertSame( 'Workflows', $args['label'] );
-        $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
+        $this->assertStringContainsStringIgnoringCase( 'workflow', $args['description'] );
         $this->assertStringNotContainsStringIgnoringCase( 'blueprint', $args['description'] );
 
         // Output key renamed.

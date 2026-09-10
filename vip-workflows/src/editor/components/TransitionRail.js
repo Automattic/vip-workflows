@@ -768,7 +768,8 @@ export function TransitionRail( {
 			setHelperModal( null );
 		} catch ( err ) {
 			createErrorNotice(
-				err.message || __( 'Could not apply the result.', 'vip-workflows' ),
+				err.message ||
+					__( 'Could not apply the result.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 		} finally {

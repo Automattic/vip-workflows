@@ -38,7 +38,7 @@ class ImportSequenceAbilityRegistrationTest extends TestCase
         );
     }
 
-    public function test_registers_with_sequence_terminology_and_required_input(): void
+    public function test_registers_with_workflow_terminology_and_required_input(): void
     {
         \VIPWorkflows\Abilities\Tools\register_import_sequence();
 
@@ -46,7 +46,7 @@ class ImportSequenceAbilityRegistrationTest extends TestCase
         $args = $this->registered['vip-workflows/import-sequence'];
 
         $this->assertSame( 'Import workflow', $args['label'] );
-        $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
+        $this->assertStringContainsStringIgnoringCase( 'workflow', $args['description'] );
         $this->assertStringNotContainsStringIgnoringCase( 'blueprint', $args['description'] );
         $this->assertSame( array( 'sequence_json' ), $args['input_schema']['required'] );
         $this->assertArrayHasKey( 'sequence_id', $args['output_schema']['properties'] );

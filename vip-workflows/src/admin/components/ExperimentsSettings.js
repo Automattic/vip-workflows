@@ -109,7 +109,10 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 			<Notice status="error" isDismissible={ false }>
 				{ sprintf(
 					/* translators: %s: error message from the experiments request. */
-					__( 'Could not load experiments. Reload the page to try again. Details: %s', 'vip-workflows' ),
+					__(
+						'Could not load experiments. Reload the page to try again. Details: %s',
+						'vip-workflows'
+					),
 					error
 				) }
 			</Notice>
@@ -119,7 +122,10 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 	if ( experiments.length === 0 ) {
 		return (
 			<Text variant="body-md" render={ <p /> }>
-				{ __( 'No experiments on this site. They arrive with plugin releases.', 'vip-workflows' ) }
+				{ __(
+					'No experiments on this site. They arrive with plugin releases.',
+					'vip-workflows'
+				) }
 			</Text>
 		);
 	}

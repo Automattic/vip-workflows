@@ -167,7 +167,7 @@ describe( 'eventDescription scope', () => {
 		).toBe( 'Ran acme/excerpt (score: 7)' );
 		expect(
 			describeEvent( 'sequence.updated', { statuses_count: 5 } )
-		).toBe( 'Sequence updated, now 5 stages' );
+		).toBe( 'Workflow updated, now 5 stages' );
 		// The lifecycle slugs on the payload (`draft`/`active`) are machine
 		// vocabulary, so the sentence names the direction and stops.
 		expect(

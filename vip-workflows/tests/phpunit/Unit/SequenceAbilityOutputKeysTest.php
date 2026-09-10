@@ -152,8 +152,8 @@ namespace VIPWorkflows\Tests\Unit {
 			$this->assertInstanceOf( WP_Error::class, $result );
 			// Error CODE is a protected identifier and must not change.
 			$this->assertSame( 'not_found', $result->get_error_code() );
-			// Error MESSAGE is agent-facing and must read "Sequence".
-			$this->assertStringContainsStringIgnoringCase( 'sequence', $result->get_error_message() );
+			// Error MESSAGE is reader-facing and must read "workflow".
+			$this->assertStringContainsStringIgnoringCase( 'workflow', $result->get_error_message() );
 			$this->assertStringNotContainsStringIgnoringCase( 'blueprint', $result->get_error_message() );
 		}
 

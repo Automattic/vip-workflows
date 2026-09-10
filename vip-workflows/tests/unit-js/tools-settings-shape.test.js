@@ -162,7 +162,9 @@ describe( 'Tools screen shape', () => {
 		fireEvent.click( screen.getByRole( 'tab', { name: 'Helpers' } ) );
 
 		expect(
-			await screen.findByText( 'No helper tools yet. Add one with the Abilities API — see Add custom tools.' )
+			await screen.findByText(
+				'No helper tools yet. Add one with the Abilities API — see Add custom tools.'
+			)
 		).toBeInTheDocument();
 	} );
 

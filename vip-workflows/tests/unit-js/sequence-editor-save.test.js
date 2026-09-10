@@ -1227,7 +1227,7 @@ describe( 'A save the editor refuses', () => {
 		fireEvent.click( saveButton() );
 
 		expect( writes ).toHaveLength( 0 );
-		expect( refusal() ).toContain( 'fill in Name in the Sequence panel' );
+		expect( refusal() ).toContain( 'fill in Name in the Workflow panel' );
 	} );
 
 	it( 'lists every reason at once, rather than the first of them', async () => {
@@ -1239,7 +1239,7 @@ describe( 'A save the editor refuses', () => {
 
 		expect( writes ).toHaveLength( 0 );
 		expect( refusal() ).toContain( '2 things need fixing' );
-		expect( refusal() ).toContain( 'fill in Name in the Sequence panel' );
+		expect( refusal() ).toContain( 'fill in Name in the Workflow panel' );
 		expect( refusal() ).toContain( 'attached to no post type' );
 	} );
 
@@ -1254,7 +1254,7 @@ describe( 'A save the editor refuses', () => {
 		// One fixed: the notice stands, now saying the one thing that is left.
 		fireEvent.click( screen.getByRole( 'checkbox', { name: 'Posts' } ) );
 		expect( refusal() ).not.toContain( 'things need fixing' );
-		expect( refusal() ).toContain( 'fill in Name in the Sequence panel' );
+		expect( refusal() ).toContain( 'fill in Name in the Workflow panel' );
 
 		// And the last: nothing stands in the way, so nothing says it does.
 		fireEvent.change( nameField(), { target: { value: 'Named again' } } );
@@ -1285,6 +1285,6 @@ describe( 'A save the editor refuses', () => {
 		fireEvent.click( saveButton() );
 
 		expect( refusal() ).not.toContain( 'Internal server error' );
-		expect( refusal() ).toContain( 'fill in Name in the Sequence panel' );
+		expect( refusal() ).toContain( 'fill in Name in the Workflow panel' );
 	} );
 } );

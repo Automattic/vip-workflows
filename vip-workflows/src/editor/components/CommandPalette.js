@@ -100,7 +100,8 @@ export function CommandPalette() {
 			setModalTool( null );
 		} catch ( error ) {
 			createErrorNotice(
-				error.message || __( 'Could not apply the result.', 'vip-workflows' ),
+				error.message ||
+					__( 'Could not apply the result.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 		} finally {

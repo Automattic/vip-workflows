@@ -81,7 +81,7 @@ class GuidelineContextProvider {
 		$guidelines = self::get_guidelines_text();
 		$context    = ( '' === $guidelines )
 			? 'No guideline context available.'
-			: "=== Content Guidelines ===\n{$guidelines}";
+			: "=== Content guidelines ===\n{$guidelines}";
 
 		/**
 		 * Filters the editorial guideline context injected into AI prompts.

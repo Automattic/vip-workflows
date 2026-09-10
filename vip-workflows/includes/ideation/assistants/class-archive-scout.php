@@ -111,7 +111,8 @@ class ArchiveScout {
 		$count   = count( $cards );
 		$summary = sprintf(
 			/* translators: %d: number of articles */
-			_n( 'Found %d related article in your archive.',
+			_n(
+				'Found %d related article in your archive.',
 				'Found %d related articles in your archive.',
 				$count,
 				'vip-workflows'
