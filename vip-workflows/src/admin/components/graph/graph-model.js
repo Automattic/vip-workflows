@@ -1832,12 +1832,11 @@ export function disconnectEdge( stages, from, to, outcome = null ) {
  * Normalize an assignment slot key the way the server normalizes it, so the two
  * sides agree on which keys are the same key.
  *
- * Slot keys and the gates pointing at them are stored through PHP's
- * `sanitize_key()` — lowercase, then everything outside `[a-z0-9_-]` stripped —
- * and `SequencesController::validate_assignment_keys()` compares them after
- * that. Comparing the raw strings here would read a slot and a gate that differ
- * only in what sanitize_key strips as two different slots, and block a Save the
- * server would have accepted.
+ * Slot keys are stored through PHP's `sanitize_key()` — lowercase, then
+ * everything outside `[a-z0-9_-]` stripped — and
+ * `SequencesController::validate_assignment_keys()` compares them after that.
+ * Comparing the raw strings here would miss two slots that differ only in what
+ * sanitize_key strips, and pass a Save the server would refuse as a duplicate.
  *
  * @param {*} value Key as stored on the transition.
  * @return {string} The key as the server will compare it, empty when there is none.
@@ -1849,24 +1848,6 @@ function normalizeSlotKey( value ) {
 	return String( value )
 		.toLowerCase()
 		.replace( /[^a-z0-9_-]/g, '' );
-}
-
-/**
- * The slot key a transition's assignment gate points at.
- *
- * `requires_assignment` is either `{ meta_key, match }` or the bare key as a
- * string — the shorthand `AssignmentManager::normalize_requirement()` accepts
- * and stored sequences still carry.
- *
- * @param {Object|string} requirement A transition's `requires_assignment`.
- * @return {string} The normalized key it names, empty when it names none.
- */
-function gateSlotKey( requirement ) {
-	return normalizeSlotKey(
-		requirement && 'object' === typeof requirement
-			? requirement.meta_key
-			: requirement
-	);
 }
 
 /**
@@ -2304,27 +2285,21 @@ export function validateSequence( {
 	}
 
 	/*
-	 * Assignment slots and the gates that point at them.
+	 * Assignment slots.
 	 *
 	 * A transition whose input is an assignment declares a slot; taking it
-	 * writes the assignment into that slot. A transition's `requires_assignment`
-	 * is a pointer at one of those slots, and refuses the transition to anyone
-	 * the assignment does not name. Three things break that pair, and the server
-	 * refuses the save for each one — `invalid_assignment_key`,
-	 * `duplicate_assignment_key`, `invalid_requires_assignment` /
-	 * `unknown_assignment_key`. So all three block Save here rather than warn:
-	 * every one of them is a 400 waiting to happen, and the editor reaches two
-	 * of them on its own — flipping "Restrict to an assignee" on opens a gate
-	 * with no key yet, and picking the Assignment input type opens a slot with
-	 * no key yet.
+	 * writes the assignment into that slot. Two things break a slot, and the
+	 * server refuses the save for each — `invalid_assignment_key` and
+	 * `duplicate_assignment_key` — so both block Save here rather than warn.
+	 * The editor mints a key when it adds an assignment, so neither is typed
+	 * into being: a blank key arrives with a stored config, and a duplicate with
+	 * a gesture that carries a transition's configuration to a second
+	 * transition. Neither has a field to fix, so each names the fix that is
+	 * there — adding the assignment again mints it a key of its own.
 	 *
-	 * Not gated on `isPhase`: the server validates this wiring on every sequence
-	 * type, and a phase sequence can carry it in from an import even though the
-	 * phase inspector doesn't offer the controls.
-	 *
-	 * Two passes, the way the server walks it — every slot the sequence declares
-	 * first, then every gate against that set — because a gate may point at a
-	 * slot declared by a transition on any stage, not just its own.
+	 * Not gated on `isPhase`: the server validates slots on every sequence type,
+	 * and a phase sequence can carry one in from an import even though the phase
+	 * inspector doesn't offer the controls.
 	 */
 	const declaredSlots = new Set();
 
@@ -2351,7 +2326,7 @@ export function validateSequence( {
 						sprintf(
 							/* translators: %s: transition button label */
 							__(
-								'The “%s” transition assigns work but names no assignment key, so there is nowhere to record the assignment. Fill in its Assignment key.',
+								'The “%s” transition assigns work but names no assignment key, so there is nowhere to record the assignment. Remove its assignment and add it again.',
 								'vip-workflows'
 							),
 							transitionName
@@ -2364,13 +2339,12 @@ export function validateSequence( {
 				if ( declaredSlots.has( key ) ) {
 					addBlocker(
 						sprintf(
-							/* translators: 1: transition button label, 2: assignment key */
+							/* translators: %s: transition button label */
 							__(
-								'The “%1$s” transition assigns to “%2$s”, a key another transition already assigns — the second assignment would overwrite the first. Give this one a key of its own.',
+								'The “%s” transition assigns to the same slot as another transition — the second assignment would overwrite the first. Remove its assignment and add it again.',
 								'vip-workflows'
 							),
-							transitionName,
-							key
+							transitionName
 						),
 						edgeTarget( stage, transition, drawnAs )
 					);
@@ -2378,47 +2352,6 @@ export function validateSequence( {
 				}
 
 				declaredSlots.add( key );
-			}
-		}
-	}
-
-	for ( const stage of stages ) {
-		for ( const transition of stage.transitions || [] ) {
-			if ( ! transition.requires_assignment ) {
-				continue;
-			}
-
-			const transitionName = transition.label || transition.to;
-			const key = gateSlotKey( transition.requires_assignment );
-
-			if ( '' === key ) {
-				addBlocker(
-					sprintf(
-						/* translators: %s: transition button label */
-						__(
-							'The “%s” transition is restricted to an assignee but names no assignment key, so nobody could take it. Name the slot it should read, or turn the restriction off.',
-							'vip-workflows'
-						),
-						transitionName
-					),
-					edgeTarget( stage, transition, drawnAs )
-				);
-				continue;
-			}
-
-			if ( ! declaredSlots.has( key ) ) {
-				addBlocker(
-					sprintf(
-						/* translators: 1: transition button label, 2: assignment key */
-						__(
-							'The “%1$s” transition is restricted to assignment key “%2$s”, which no transition assigns — nobody could take it. Point it at a key another transition assigns.',
-							'vip-workflows'
-						),
-						transitionName,
-						key
-					),
-					edgeTarget( stage, transition, drawnAs )
-				);
 			}
 		}
 	}

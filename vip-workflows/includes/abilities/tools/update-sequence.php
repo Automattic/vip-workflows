@@ -267,10 +267,6 @@ function register_update_sequence(): void {
 												'type'        => 'array',
 												'description' => __( 'Inputs collected during this transition, in the order they are asked for. At most one may be an assignment.', 'vip-workflows' ),
 											),
-											'requires_assignment' => array(
-												'type'        => array( 'string', 'object' ),
-												'description' => __( 'Assignment requirement for this transition.', 'vip-workflows' ),
-											),
 										),
 									),
 								),

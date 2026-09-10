@@ -9,8 +9,8 @@
  * capability gates, so nothing evaluates a capability anywhere in the request.
  *
  * These tests pin the contract at the enforcement point: `agent_actor` may
- * waive the workflow's own configuration rules (sequence role table,
- * requires_assignment), but never core capabilities.
+ * waive the workflow's own configuration rules (the sequence role table), but
+ * never core capabilities.
  *
  * @package VIPWorkflows\Tests\Unit
  */

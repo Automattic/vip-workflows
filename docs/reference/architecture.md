@@ -71,11 +71,7 @@ See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarc
         {
           "to": "approved",
           "label": "Approve",
-          "allowed_roles": ["editor", "administrator"],
-          "requires_assignment": {
-            "meta_key": "_vip_workflows_assigned_to",
-            "match": "current_user"
-          }
+          "allowed_roles": ["editor", "administrator"]
         },
         {
           "to": "draft",
@@ -101,7 +97,7 @@ See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarc
 - Define workflow stages (stored in post meta), each mapped to a core status region
 - Specify allowed transitions between statuses
 - Require tools to pass before transitions
-- Require assignments before transitions (with role filtering)
+- Assign work to a user or role as a transition is taken (with role filtering)
 - Request input/notes on specific transitions
 - Restrict transitions by user role
 

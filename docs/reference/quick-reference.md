@@ -142,7 +142,7 @@ GET         /vip-workflows/v1/audit-log/users
 - Blocked transitions logged to `wp_vip_workflows_events` via `log_blocked_transition()`
 
 **Bypass Permissions**:
-- `Settings::can_user_bypass_workflow()` - Skip assignment requirements
+- `Settings::can_user_bypass_workflow()` - Skip role restrictions and required fields
 - `Settings::can_user_bypass_tool_checks()` - Skip hard check enforcement
 - Checked in `StatusManager::transition()` before enforcement
 - Default: Administrators can bypass both (configurable in Settings → General)
@@ -155,17 +155,11 @@ GET         /vip-workflows/v1/audit-log/users
   2. `wp_vip_workflows_events` table (audit log with notes column)
 - Meta keys generated as `wfp_{note_id}_{sanitized_slug}`
 
-**Assignment Requirements**:
-- Sequence defines `requires_assignment` with `meta_key` and `match` rule
-- Match types: `current_user`, `current_user_role`, `completed` (agent-driven, status-based rather than identity-based)
-- Validated via `AssignmentManager::user_satisfies_requirement()`
-- Transitions locked/unlocked in frontend via `_locked` and `_locked_reason` props
-- Can be bypassed if user has `can_user_bypass_workflow()` permission
-
 **Held Transitions (`_locked` / `_locked_reason` / `_locked_code`)**:
 - A transition the user may see but not take carries `_locked: true` plus
-  `_locked_reason` (a finished sentence for the reader). Assignment, role and
-  capability locks are all projected this way, as is the required-metadata gate
+  `_locked_reason` (a finished sentence for the reader). Role and capability
+  locks and disabled required tools are all projected this way, as is the
+  required-metadata gate
 - `_locked_code` names the RULE holding it, for code rather than for a reader.
   Only the required-metadata gate sets one today
   (`Sequence::CODE_REQUIRED_METADATA`, the same string
@@ -206,7 +200,7 @@ GET         /vip-workflows/v1/audit-log/users
 - `graph-model.js` is the pure model: stages ↔ nodes/edges projection, mutations, `validateSequence()`
 - `GraphCanvas.js` wraps `@xyflow/react`; inspectors (`StageInspector.js`, `TransitionInspector.js`, `SequenceSettingsInspector.js`, `PhaseStageInspector.js`) edit the current selection
 - `TransitionInspector.js` generates `note_id` as random string (e.g., `n123abc`) and auto-generates `meta_key` as `wfp_{note_id}_{slug}`
-- Assignment input type pre-fills `meta_key: "_vip_workflows_assigned_to"`
+- An assignment input gets its `meta_key` minted when it is added (`wfp_{id}`); authors never type it
 
 **Build System**:
 - Webpack builds multiple entry points (admin, editor, ideation, notifications)
