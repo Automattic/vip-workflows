@@ -147,13 +147,16 @@ GET         /vip-workflows/v1/audit-log/users
 - Checked in `StatusManager::transition()` before enforcement (and, for the first, in `Sequence::get_role_permitted_transitions()` and `PublishBoundaryGuard`)
 - Default: Administrators can bypass both (configurable in Settings → General)
 
-**Transition Input Notes**:
-- Sequence defines `input` object with `note_id`, `note_name`, `meta_key`
-- Frontend sends `inputData` object with notes array during transition
+**Transition Inputs**:
+- A transition's `inputs` list carries at most one `assignment` (`meta_key`,
+  `assignee_type`, `label`, `required`, `filter`)
+- Frontend sends `inputData` — the assignee under the assignment's `meta_key`,
+  plus optional `{meta_key}_notes` — during the transition
 - Backend stores in TWO places:
   1. `_vip_workflows_transition_data` meta (per-status history)
   2. `wp_vip_workflows_events` table (audit log with notes column)
-- Meta keys generated as `wfp_{note_id}_{sanitized_slug}`
+- Free-text note inputs (`textarea`, `text`) are no longer collected; a stored
+  one is passed over by the sidebar and listed for removal in the sequence editor
 
 **Held Transitions (`_locked` / `_locked_reason` / `_locked_code`)**:
 - A transition the user may see but not take carries `_locked: true` plus
@@ -199,7 +202,6 @@ GET         /vip-workflows/v1/audit-log/users
 - `SequenceGraphEditor.js` serves both editorial (`type: 'workflow'`) and phase sequences via a `mode` prop
 - `graph-model.js` is the pure model: stages ↔ nodes/edges projection, mutations, `validateSequence()`
 - `GraphCanvas.js` wraps `@xyflow/react`; inspectors (`StageInspector.js`, `TransitionInspector.js`, `SequenceSettingsInspector.js`, `PhaseStageInspector.js`) edit the current selection
-- `TransitionInspector.js` generates `note_id` as random string (e.g., `n123abc`) and auto-generates `meta_key` as `wfp_{note_id}_{slug}`
 - An assignment input gets its `meta_key` minted when it is added (`wfp_{id}`); authors never type it
 
 **Build System**:

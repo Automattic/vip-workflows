@@ -218,7 +218,7 @@ function register_create_sequence(): void {
 											),
 											'inputs'              => array(
 												'type'        => 'array',
-												'description' => __( 'Inputs collected during this transition, in the order they are asked for. At most one may be an assignment.', 'vip-workflows' ),
+												'description' => __( 'Inputs collected during this transition. Only "assignment" inputs are collected, at most one per transition.', 'vip-workflows' ),
 											),
 										),
 									),
