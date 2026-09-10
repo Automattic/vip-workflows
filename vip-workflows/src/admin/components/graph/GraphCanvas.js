@@ -356,6 +356,10 @@ function Flow( {
 	onClearSelection,
 	onDeleteNode,
 	onDeleteEdge,
+	// Whether a pair is a hand-off a phase sequence owes. The editor's own
+	// predicate, passed rather than re-derived, so the context menu cannot offer
+	// a deletion `handleDeleteTransition` refuses.
+	isRequiredHandOff,
 	onAddStageFromNode,
 	onPlaceStage,
 	onSetStageStatus,
@@ -1576,17 +1580,26 @@ function Flow( {
 	// (`disconnectEdge` refuses it), and where it points follows the Draft
 	// region's entry checkpoint, which is set on that region. So it opens the
 	// canvas's menu rather than one offering nothing.
+	//
+	// Neither is a hand-off a phase sequence owes: deletion is the only verb
+	// this menu has for an edge, and `handleDeleteTransition` refuses that pair.
+	// Left in, the item would promise a removal and do nothing — so it is absent
+	// here, the treatment the transition panel's Remove and the phases at either
+	// end already get.
 	const openEdgeMenu = useCallback(
 		( event, edge ) => {
 			const parsed = parseEdgeId( edge.id );
-			if ( parsed.from === START_ID ) {
+			if (
+				parsed.from === START_ID ||
+				isRequiredHandOff?.( parsed.from, parsed.to )
+			) {
 				openMenuAt( event, {} );
 				return;
 			}
 			onSelectEdge( edge.id );
 			openMenuAt( event, { edge: parsed } );
 		},
-		[ onSelectEdge, openMenuAt ]
+		[ isRequiredHandOff, onSelectEdge, openMenuAt ]
 	);
 
 	// What the menu offers, decided by what it was opened on.

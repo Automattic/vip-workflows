@@ -161,6 +161,7 @@ export default function TransitionInspector( {
 	availableChannels,
 	onChange,
 	onRemove,
+	canRemove = true,
 	simplified = false,
 } ) {
 	const inputs = transition.inputs || [];
@@ -760,14 +761,22 @@ export default function TransitionInspector( {
 				     and correctly so: `clearOutcome` un-routes the one
 				     outcome that was selected and leaves the transition
 				     standing for whoever else was on it. */ }
-				<InspectorDangerZone
-					label={
-						outcome
-							? __( 'Remove this route', 'vip-workflows' )
-							: __( 'Remove transition', 'vip-workflows' )
-					}
-					onClick={ onRemove }
-				/>
+				{ /* A hand-off a phase sequence owes has no removal to offer:
+				     the sequence is invalid without it and the save says so, so
+				     the control could only ever hand the author a fault to undo.
+				     Absent rather than disabled — the phases either end of it
+				     aren't deletable and don't carry a greyed-out Delete
+				     explaining that, and this is the same fixture. */ }
+				{ canRemove && (
+					<InspectorDangerZone
+						label={
+							outcome
+								? __( 'Remove this route', 'vip-workflows' )
+								: __( 'Remove transition', 'vip-workflows' )
+						}
+						onClick={ onRemove }
+					/>
+				) }
 			</Stack>
 		</InspectorShell>
 	);

@@ -1920,6 +1920,38 @@ function normalizeSlotKey( value ) {
 }
 
 /**
+ * The hand-offs a phase sequence owes but has not drawn.
+ *
+ * Both the rule that refuses the save and the panel offering to draw one read
+ * this, so the two can never come to different answers about what is missing —
+ * a save blocked on a hand-off the phase panel does not offer, or a panel
+ * offering one the save is not waiting on, are the same bug facing two ways.
+ *
+ * A hand-off whose phases are not both on the canvas is not reported. That
+ * sequence is missing a phase, which is its own error with its own fix; naming
+ * the line that would have joined them as well adds nothing to do, and there is
+ * no node to hang the offer on either.
+ *
+ * @param {Array} stages                Stage objects.
+ * @param {Array} [requiredTransitions] `{ from, to }` pairs, from
+ *                                      `/sequences/options`.
+ * @return {Array} The `{ from, to }` pairs that are owed and not drawn.
+ */
+export function missingHandOffs( stages, requiredTransitions = [] ) {
+	const present = new Set( ( stages || [] ).map( ( s ) => s.key ) );
+
+	return requiredTransitions.filter( ( { from, to } ) => {
+		if ( ! present.has( from ) || ! present.has( to ) ) {
+			return false;
+		}
+
+		const source = stages.find( ( s ) => s.key === from );
+
+		return ! ( source.transitions || [] ).some( ( t ) => t.to === to );
+	} );
+}
+
+/**
  * Validate a sequence.
  *
  * @param {Object}  params                       Validation input.
@@ -2092,29 +2124,22 @@ export function validateSequence( {
 		);
 	}
 
-	for ( const { from, to } of required ) {
-		// A hand-off between phases that are not both there is already reported
-		// as the missing phase; saying it a second way adds nothing to fix.
-		if ( missingPhases.has( from ) || missingPhases.has( to ) ) {
-			continue;
-		}
-
-		const source = stages.find( ( s ) => s.key === from );
-
-		if ( ! ( source.transitions || [] ).some( ( t ) => t.to === to ) ) {
-			addBlocker(
-				sprintf(
-					/* translators: 1: source phase key, 2: target phase key */
-					__(
-						'Phase sequences must hand off from “%1$s” to “%2$s”. Drag from this phase to draw it.',
-						'vip-workflows'
-					),
-					from,
-					to
+	// A hand-off between phases that are not both there is already reported as
+	// the missing phase, and `missingHandOffs` leaves it out for that reason;
+	// saying it a second way adds nothing to fix.
+	for ( const { from, to } of missingHandOffs( stages, required ) ) {
+		addBlocker(
+			sprintf(
+				/* translators: 1: source phase key, 2: target phase key */
+				__(
+					'Phase sequences must hand off from “%1$s” to “%2$s”. Open the phase to add it, or drag from it on the canvas.',
+					'vip-workflows'
 				),
-				nodeTarget( from )
-			);
-		}
+				from,
+				to
+			),
+			nodeTarget( from )
+		);
 	}
 
 	/*

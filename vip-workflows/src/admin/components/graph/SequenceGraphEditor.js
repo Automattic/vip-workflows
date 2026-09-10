@@ -1350,9 +1350,32 @@ export default function SequenceGraphEditor( {
 		);
 	};
 
+	// Whether this pair is a hand-off the sequence owes. Phase-only, and read
+	// from the server's answer rather than from a pair of keys written here —
+	// the same list `validateSequence` refuses the save against, so what cannot
+	// be deleted and what the save insists on are one fact.
+	const isRequiredHandOff = useCallback(
+		( from, to ) =>
+			isPhase &&
+			requiredPhaseTransitions.some(
+				( t ) => t.from === from && t.to === to
+			),
+		[ isPhase, requiredPhaseTransitions ]
+	);
+
 	const handleDeleteTransition = ( from, to, outcome = null ) => {
 		// The Start edge is structural and can't be deleted.
 		if ( from === START_ID ) {
+			return;
+		}
+		// Neither is a hand-off a phase sequence owes. Deleting one can only
+		// ever produce a sequence the server refuses — there is no valid state
+		// on the far side of the gesture — so it is refused here rather than
+		// reported afterwards. The transition panel drops its Remove control
+		// for the same pair; this guard is what also closes the canvas's
+		// keyboard-delete path, which reaches this handler without passing any
+		// control that could have been hidden.
+		if ( isRequiredHandOff( from, to ) ) {
 			return;
 		}
 		setStages( ( current ) =>
@@ -1925,6 +1948,7 @@ export default function SequenceGraphEditor( {
 						onClearSelection={ clearSelection }
 						onDeleteNode={ handleDeleteStage }
 						onDeleteEdge={ handleDeleteTransition }
+						isRequiredHandOff={ isRequiredHandOff }
 						onAddStageFromNode={
 							isPhase ? undefined : handleAddStageFromNode
 						}
@@ -1965,9 +1989,15 @@ export default function SequenceGraphEditor( {
 						onDeleteStage={ handleDeleteStage }
 						onUpdateTransition={ handleUpdateTransition }
 						onDeleteTransition={ handleDeleteTransition }
+						// The same gesture the canvas connects with, so a
+						// hand-off drawn from the phase panel and one dragged
+						// between the nodes make the identical edit and land on
+						// the identical selection.
 						onConnectTransition={ handleConnect }
 						onReconnectTransition={ handleReconnect }
 						onSelectNode={ selectNode }
+						requiredTransitions={ requiredPhaseTransitions }
+						isRequiredHandOff={ isRequiredHandOff }
 						onSelectEdge={ selectEdge }
 						onSelectRegion={ selectRegion }
 						exitProblems={ exitProblems }
