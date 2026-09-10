@@ -1,28 +1,14 @@
 /**
- * Transition Rail — the current stage, every way out of it, and the checks
- * each way out depends on, as one drawing.
+ * Transition Rail — the current stage and every way out of it, as one drawing.
  *
- * The rail replaces two things that described one relationship from opposite
- * ends: the panel's flat stack of transition buttons, and a separate Tools
- * card that grouped the same transitions' required checks under "→
- * Destination" headings. A transition's checks are attributes of the
- * transition, so they hang under its button — with no edge and no arrowhead,
- * because an edge in this graph means the post travels along it, and a check
- * is not somewhere the post goes.
- *
- * Three rules the data forces, verified rather than assumed:
- *
- * - Checks are pre-flight, not a checklist. The server re-runs every required
- *   check when a transition fires (StatusManager::transition), so a cached
- *   failure never disables a button here — the server may disagree with the
- *   cache, and a button that refuses a move the server would allow is worse
- *   than one that fires and returns the block message.
- * - Results are shared per post + ability (vip_ability_results has no
- *   transition column). A check required by two exits renders under both and
- *   one run updates both.
- * - A disabled required tool blocks at transition time. It stays visible here,
- *   disabled with the same remedy, while the transition payload carries the
- *   lock that prevents the impossible move from being offered.
+ * The rail offers moves, not the tools behind them. A transition's required
+ * tools run on the server when it fires (StatusManager::run_transition_tools)
+ * and a refusal comes back to the panel as the blocked-transition dialog, so
+ * the writer's one decision is which way the post goes — a row per tool
+ * beside the move read as a second button that did the same thing. A required
+ * tool switched off site-wide still reaches the rail, as a `_locked`
+ * transition carrying its reason (Sequence::lock_disabled_required_tools), and
+ * renders like any other lock.
  *
  * @package
  */
@@ -33,28 +19,14 @@ import {
 	useLayoutEffect,
 	useRef,
 	useCallback,
-	useMemo,
-	Fragment,
 } from '@wordpress/element';
 import { Button, Icon, Spinner } from '@wordpress/components';
-import {
-	check,
-	close,
-	error as errorTriangle,
-	lineSolid,
-} from '@wordpress/icons';
-import { Badge, Collapsible, Stack, Text } from '@wordpress/ui';
-import { useSelect, useDispatch } from '@wordpress/data';
-import { store as editorStore } from '@wordpress/editor';
-import { store as noticesStore } from '@wordpress/notices';
-import apiFetch from '@wordpress/api-fetch';
+import { check, close, error as errorTriangle } from '@wordpress/icons';
+import { Badge, Stack, Text } from '@wordpress/ui';
 import { speak } from '@wordpress/a11y';
 import { useInstanceId } from '@wordpress/compose';
 import { __, sprintf } from '@wordpress/i18n';
-import { isBefore } from '../../common/datetime';
 import { transitionLabel } from '../../common/transition-label';
-import { settleAppliedField } from '../../common/settle-applied-field';
-import { CheckResultsModal, HelperResultModal } from './ToolResultModals';
 import { railGeometry, ARROW_PATH, RAIL } from './transition-rail-geometry';
 import '../../common/outcome-tones.css';
 import '../../common/terminal-pill.css';
@@ -70,118 +42,12 @@ import './TransitionRail.css';
 const AGENT_OUTCOMES = [ 'pass', 'fail', 'error' ];
 
 /**
- * How many of a check result's issues stay on screen before the rest go
- * behind a disclosure.
- *
- * @type {number}
- */
-const VISIBLE_ISSUE_COUNT = 3;
-
-/**
  * How long the taken agent outcome holds its pressed state before the panel
  * re-renders on the new stage, in ms.
  *
  * @type {number}
  */
 const FLASH_MS = 700;
-
-/**
- * Whether the post has been edited since this result was recorded. A pass
- * from before the last edit is a promise the component can't keep, so it must
- * not wear the same mark as a current one.
- *
- * Both operands are site-local wall clock — `created_at` is written by
- * `current_time( 'mysql' )`, `modified` is the editor's own attribute — so
- * both are read on the site's clock, by the module that owns every clock in
- * this plugin.
- *
- * @param {?Object} result   A stored ability result.
- * @param {?string} modified The post's `modified` attribute.
- * @return {boolean} True when the result predates the last edit.
- */
-function isStaleResult( result, modified ) {
-	return isBefore( result?.created_at, modified );
-}
-
-/**
- * One issue's effective severity — the mirror of
- * `StatusManager::run_transition_tools()`: hard when the site's `check_modes`
- * grades the issue's check key hard, or when the tool itself declared the
- * issue `error`/`hard`.
- *
- * @param {Object}  issue      One issue from a check result's output.
- * @param {?Object} checkModes The ability's per-check enforcement modes.
- * @return {string} 'hard' or 'soft'.
- */
-function issueSeverity( issue, checkModes ) {
-	const checkKey = issue.check_key ?? issue.type ?? 'general';
-	const declared = issue.severity ?? 'warning';
-
-	return checkModes?.[ checkKey ] === 'hard' ||
-		'error' === declared ||
-		'hard' === declared
-		? 'hard'
-		: 'soft';
-}
-
-/**
- * The indicator state for a stored result.
- *
- * @param {?Object} result A stored ability result.
- * @return {string} 'none' | 'pass' | 'fail' | 'error'.
- */
-function indicatorState( result ) {
-	if ( ! result ) {
-		return 'none';
-	}
-	// A run that could not complete has not passed; the amber tone is the
-	// server's own treatment of an execution error (a soft warning).
-	if ( result.success === false || result.error ) {
-		return 'error';
-	}
-
-	switch ( result.output?.status ) {
-		case 'pass':
-			return 'pass';
-		case 'fail':
-			return 'fail';
-		case 'warning':
-			return 'error';
-		default:
-			// A result that reports no status (a helper's stored row) has not
-			// reported a verdict; hollow, not invented.
-			return 'none';
-	}
-}
-
-/**
- * What the indicator's state is called — its tooltip, and (when stale) the
- * visible note under the check row. One phrasing for both, because they are
- * the same fact told twice: once for hover, once on screen.
- *
- * @param {string}  state 'none' | 'pass' | 'fail' | 'error'.
- * @param {boolean} stale Whether the result predates the last edit.
- * @return {string} A short label.
- */
-function indicatorTitle( state, stale ) {
-	if ( 'none' === state ) {
-		return __( 'Not run yet', 'vip-workflows' );
-	}
-
-	const base = {
-		pass: __( 'Passed', 'vip-workflows' ),
-		fail: __( 'Failing', 'vip-workflows' ),
-		error: __( 'Warning', 'vip-workflows' ),
-	}[ state ];
-
-	return stale
-		? sprintf(
-				/* translators: %s: the check's last outcome (Passed / Failing / Warning). */
-				__( '%s — before the latest edit', 'vip-workflows' ),
-				base
-		  )
-		: base;
-}
 
 /**
  * The routed outcomes of an agent stage, labelled.
@@ -221,167 +87,29 @@ function agentOutcomes( stageConfig, allStatuses ) {
  * One fixed glyph per outcome — the sequence editor's grammar (StageNode's
  * OUTCOME_ICONS): pass is the check, fail the cross, error the triangle. The
  * round `caution` stays off this map for the same reason it stays off the
- * canvas: one warning shape per surface. `none` is not an outcome, so it gets
- * the dash a blank value gets, not a glyph pretending to be a verdict.
+ * canvas: one warning shape per surface.
  */
 const OUTCOME_ICONS = {
-	none: lineSolid,
 	pass: check,
 	fail: close,
 	error: errorTriangle,
 };
 
 /**
- * The outcome mark: the outcome's glyph, painted in its tone — always at full
- * tone, stale or not. The drawn dot wore age as a ring of its tone; a glyph
- * has no hollow variant, and fading the tone instead put every outcome color
- * under the 3:1 non-text contrast floor. So the mark states only the verdict,
- * and age is carried entirely in words: the indicator's title and the visible
- * stale note name both facts. The `stale` class stays on the element as the
- * state hook, drawing nothing. The neutral dash means "never asked".
+ * The outcome mark: the outcome's glyph, painted in its tone. It rides the
+ * agent outcome button's icon slot, which owns the icon–label spacing.
  *
- * @param {Object}  props       Component props.
- * @param {string}  props.state 'none' | 'pass' | 'fail' | 'error'.
- * @param {boolean} props.stale Whether the result predates the last edit.
+ * @param {Object} props         Component props.
+ * @param {string} props.outcome 'pass' | 'fail' | 'error'.
  * @return {JSX.Element} The mark.
  */
-function OutcomeMark( { state, stale } ) {
-	const classes = [
-		'vip-workflows-rail__outcome',
-		`vip-workflows-rail__outcome--${ state }`,
-		stale && 'vip-workflows-rail__outcome--stale',
-	]
-		.filter( Boolean )
-		.join( ' ' );
-
+function OutcomeMark( { outcome } ) {
 	return (
 		<Icon
-			className={ classes }
-			icon={ OUTCOME_ICONS[ state ] }
+			className={ `vip-workflows-rail__outcome vip-workflows-rail__outcome--${ outcome }` }
+			icon={ OUTCOME_ICONS[ outcome ] }
 			size={ 14 }
 		/>
-	);
-}
-
-/**
- * The issue list under a check result: one severity roll-up, then the issues,
- * with everything past the first few behind a disclosure so one noisy tool
- * cannot push every other row off the sidebar.
- *
- * Severity is graded per issue (site `check_modes` plus the tool's own
- * declaration), so one run can return a mix: the roll-up states the dominant
- * grade and individual lines are marked only when they differ from it.
- *
- * @param {Object}   props            Component props.
- * @param {Array}    props.issues     Issues from the result's output.
- * @param {?Object}  props.checkModes The ability's per-check modes.
- * @param {Function} props.onOpenFull Opens the full result dialog.
- * @return {JSX.Element} The list.
- */
-function CheckIssues( { issues, checkModes, onOpenFull } ) {
-	const [ open, setOpen ] = useState( false );
-
-	const graded = issues.map( ( issue ) => ( {
-		issue,
-		severity: issueSeverity( issue, checkModes ),
-	} ) );
-	const rollup = graded.some( ( g ) => 'hard' === g.severity )
-		? 'hard'
-		: 'soft';
-
-	const line = ( { issue, severity }, idx ) => (
-		<Text
-			key={ idx }
-			variant="body-sm"
-			render={ <div /> }
-			className={ `vip-workflows-rail__issue ${
-				severity !== rollup
-					? `vip-workflows-rail__issue--${ severity }`
-					: ''
-			}` }
-		>
-			{ severity !== rollup && (
-				<span className="vip-workflows-rail__issue-grade">
-					{ 'hard' === severity
-						? __( 'Blocks:', 'vip-workflows' )
-						: __( 'Warns:', 'vip-workflows' ) }
-				</span>
-			) }
-			{ issue.message || issue.description || '' }
-		</Text>
-	);
-
-	const rest = graded.slice( VISIBLE_ISSUE_COUNT );
-
-	const footer = (
-		<Button
-			variant="link"
-			size="small"
-			className="vip-workflows-rail__full-result"
-			onClick={ onOpenFull }
-		>
-			{ __( 'Open full result', 'vip-workflows' ) }
-		</Button>
-	);
-
-	const rollupLine = (
-		<Text
-			variant="body-sm"
-			render={ <div /> }
-			className={ `vip-workflows-rail__rollup vip-workflows-rail__rollup--${ rollup }` }
-		>
-			{ 'hard' === rollup
-				? __( 'Blocks this move.', 'vip-workflows' )
-				: __( 'Warns before moving.', 'vip-workflows' ) }
-		</Text>
-	);
-
-	if ( rest.length === 0 ) {
-		return (
-			<Stack
-				className="vip-workflows-rail__issues"
-				direction="column"
-				gap="xs"
-			>
-				{ rollupLine }
-				{ graded.map( line ) }
-				{ footer }
-			</Stack>
-		);
-	}
-
-	return (
-		<Collapsible.Root open={ open } onOpenChange={ setOpen }>
-			<Stack
-				className="vip-workflows-rail__issues"
-				direction="column"
-				gap="xs"
-			>
-				{ rollupLine }
-				{ graded.slice( 0, VISIBLE_ISSUE_COUNT ).map( line ) }
-				{ /* The panel stays a plain block, never a <Stack>: a
-				     `display: flex` of its own would out-rank the `hidden`
-				     attribute Base UI shuts it with. The column inside it
-				     carries the flex. */ }
-				<Collapsible.Panel>
-					<Stack direction="column" gap="xs">
-						{ rest.map( ( g, idx ) =>
-							line( g, VISIBLE_ISSUE_COUNT + idx )
-						) }
-					</Stack>
-				</Collapsible.Panel>
-				<Collapsible.Trigger className="vip-workflows-rail__more">
-					{ open
-						? __( 'Show less', 'vip-workflows' )
-						: sprintf(
-								// translators: %d: how many further issues the tool reported.
-								__( '+ %d more', 'vip-workflows' ),
-								rest.length
-						  ) }
-				</Collapsible.Trigger>
-				{ footer }
-			</Stack>
-		</Collapsible.Root>
 	);
 }
 
@@ -389,7 +117,6 @@ function CheckIssues( { issues, checkModes, onOpenFull } ) {
  * The transition rail.
  *
  * @param {Object}   props                 Component props.
- * @param {number}   props.postId          Post ID.
  * @param {?Object}  props.current         The current stage's raw config.
  * @param {Array}    props.transitions     Permitted transitions (payload).
  * @param {Array}    props.allStatuses     Every stage's raw config.
@@ -415,10 +142,6 @@ function CheckIssues( { issues, checkModes, onOpenFull } ) {
  *                                         and input popovers included. The
  *                                         element anchors any input popover
  *                                         beside the row that asked for it.
- * @param {number}   props.resultsVersion  Bumped by the panel after every
- *                                         transition attempt, so the rail
- *                                         re-reads the results the server
- *                                         just wrote.
  * @param {?string}  props.postStatus      The post's live core status, for
  *                                         the visibility badge — decoupled
  *                                         from the stage, since a post can
@@ -427,7 +150,6 @@ function CheckIssues( { issues, checkModes, onOpenFull } ) {
  * @return {JSX.Element} The rail.
  */
 export function TransitionRail( {
-	postId,
 	current,
 	transitions,
 	allStatuses,
@@ -437,111 +159,15 @@ export function TransitionRail( {
 	transitioning,
 	transitioningTo,
 	onTransition,
-	resultsVersion,
 	postStatus,
 } ) {
-	const [ abilities, setAbilities ] = useState( [] );
-	const [ results, setResults ] = useState( {} );
-	const [ runningCheck, setRunningCheck ] = useState( null );
 	const [ flash, setFlash ] = useState( null ); // { stage, outcome }
 	const [ paths, setPaths ] = useState( null );
-	const [ fullResult, setFullResult ] = useState( null ); // { ability, result }
-	const [ helperModal, setHelperModal ] = useState( null ); // { ability, result }
-	const [ applying, setApplying ] = useState( false );
-	const [ regenerating, setRegenerating ] = useState( false );
 
 	const containerRef = useRef( null );
 	const prevRef = useRef( null );
 	const pathsSignatureRef = useRef( '' );
 	const labelId = useInstanceId( TransitionRail, 'vip-workflows-rail-stage' );
-
-	const { editPost } = useDispatch( editorStore );
-	const { createSuccessNotice, createErrorNotice } =
-		useDispatch( noticesStore );
-
-	const modified = useSelect(
-		( select ) =>
-			select( editorStore ).getEditedPostAttribute( 'modified' ),
-		[]
-	);
-
-	const currentKey = current?.key;
-
-	// The sidebar-eligible checks, by id. Disabled required tools stay in this
-	// list because they are hard blockers; their row explains why neither the
-	// check nor its transition can run.
-	useEffect( () => {
-		if ( ! postId ) {
-			return;
-		}
-
-		let cancelled = false;
-
-		apiFetch( { path: `/vip-workflows/v1/abilities?post_id=${ postId }` } )
-			.then( ( data ) => {
-				if ( cancelled ) {
-					return;
-				}
-				setAbilities(
-					( data || [] ).filter(
-						( ability ) => ! ability.meta?.has_sidebar_panel
-					)
-				);
-			} )
-			.catch( () => {
-				if ( ! cancelled ) {
-					setAbilities( [] );
-				}
-			} );
-
-		return () => {
-			cancelled = true;
-		};
-	}, [ postId, currentKey ] );
-
-	const abilitiesById = useMemo( () => {
-		const map = {};
-		for ( const ability of abilities ) {
-			map[ ability.id ] = ability;
-		}
-		return map;
-	}, [ abilities ] );
-
-	// The latest stored result per required ability — one request each,
-	// because "latest per ability" is what the rail shows and the results
-	// route pages the whole post's history otherwise.
-	useEffect( () => {
-		if ( ! postId || abilities.length === 0 ) {
-			return;
-		}
-
-		let cancelled = false;
-
-		Promise.all(
-			abilities.map( ( ability ) =>
-				apiFetch( {
-					path: `/vip-workflows/v1/posts/${ postId }/ability-results?ability_id=${ encodeURIComponent(
-						ability.id
-					) }&limit=1`,
-				} ).catch( () => [] )
-			)
-		).then( ( lists ) => {
-			if ( cancelled ) {
-				return;
-			}
-			const byAbility = {};
-			lists.forEach( ( list, index ) => {
-				if ( list?.[ 0 ] ) {
-					byAbility[ abilities[ index ].id ] = list[ 0 ];
-				}
-			} );
-			setResults( byAbility );
-		} );
-
-		return () => {
-			cancelled = true;
-		};
-	}, [ postId, abilities, resultsVersion ] );
 
 	// Announce every move, and play the agent flash. The flash needs the
 	// resolved outcome, which only `agent_last_run` can supply — matching on
@@ -648,9 +274,6 @@ export function TransitionRail( {
 		current,
 		agentPending,
 		flash,
-		abilities,
-		results,
-		runningCheck,
 		transitioningTo,
 	] );
 
@@ -667,127 +290,6 @@ export function TransitionRail( {
 
 		return () => observer.disconnect();
 	}, [ measure ] );
-
-	const runCheck = async ( ability ) => {
-		if ( runningCheck || ! postId ) {
-			return null;
-		}
-
-		setRunningCheck( ability.id );
-
-		try {
-			const result = await apiFetch( {
-				path: `/vip-workflows/v1/abilities/${ ability.id }/run`,
-				method: 'POST',
-				data: { post_id: postId },
-			} );
-
-			if ( ability.meta?.type === 'helper' ) {
-				setHelperModal( { ability, result } );
-			} else {
-				setResults( ( prev ) => ( {
-					...prev,
-					[ ability.id ]: result,
-				} ) );
-				speak(
-					result?.output?.status === 'pass'
-						? sprintf(
-								/* translators: %s: the check's name. */
-								__( '%s passed.', 'vip-workflows' ),
-								ability.label || ability.name
-						  )
-						: sprintf(
-								/* translators: %s: the check's name. */
-								__(
-									'%s finished with issues.',
-									'vip-workflows'
-								),
-								ability.label || ability.name
-						  ),
-					'polite'
-				);
-			}
-
-			return result;
-		} catch ( err ) {
-			if ( ability.meta?.type === 'helper' ) {
-				setHelperModal( { ability, result: { error: err.message } } );
-			} else {
-				// The same treatment the server gives a tool that could not
-				// run at transition time: not passed, reported, amber.
-				setResults( ( prev ) => ( {
-					...prev,
-					[ ability.id ]: {
-						success: false,
-						error:
-							err.message ||
-							__(
-								'Check could not be completed',
-								'vip-workflows'
-							),
-					},
-				} ) );
-				speak(
-					sprintf(
-						/* translators: %s: the check's name. */
-						__( '%s could not be completed.', 'vip-workflows' ),
-						ability.label || ability.name
-					),
-					'polite'
-				);
-			}
-			return null;
-		} finally {
-			setRunningCheck( null );
-		}
-	};
-
-	const handleApply = async ( value ) => {
-		const field = helperModal?.ability?.meta?.apply_field;
-		if ( ! value || ! field ) {
-			return;
-		}
-
-		setApplying( true );
-
-		try {
-			await editPost( { [ field ]: value } );
-			// Best-effort flourish; see settleAppliedField for why it cannot throw.
-			settleAppliedField( field );
-			createSuccessNotice(
-				sprintf(
-					// translators: %s: the post field name that was applied (e.g. Excerpt, Title).
-					__(
-						'%s applied! Save the post to keep it.',
-						'vip-workflows'
-					),
-					field.charAt( 0 ).toUpperCase() + field.slice( 1 )
-				),
-				{ type: 'snackbar' }
-			);
-			setHelperModal( null );
-		} catch ( err ) {
-			createErrorNotice(
-				err.message || __( 'Failed to apply.', 'vip-workflows' ),
-				{ type: 'snackbar' }
-			);
-		} finally {
-			setApplying( false );
-		}
-	};
-
-	const handleRegenerate = async () => {
-		if ( ! helperModal ) {
-			return;
-		}
-
-		setRegenerating( true );
-		const result = await runCheck( helperModal.ability );
-		if ( result ) {
-			setHelperModal( { ability: helperModal.ability, result } );
-		}
-		setRegenerating( false );
-	};
 
 	if ( ! current ) {
 		return null;
@@ -834,123 +336,6 @@ export function TransitionRail( {
 
 	const showHere = ! isEnd && ! showAgent;
 
-	/**
-	 * One check dependency row plus its details: the state indicator sits
-	 * outside the control, because the state belongs to a shared, timestamped
-	 * result row and the button acts on the tool — two objects with two
-	 * lifetimes.
-	 *
-	 * @param {string} abilityId A required tool id.
-	 * @return {?JSX.Element} The row, or null for a tool the rail must omit.
-	 */
-	const renderCheck = ( abilityId ) => {
-		const ability = abilitiesById[ abilityId ];
-		if ( ! ability ) {
-			// Unregistered or panel-owned abilities have no row this rail can run.
-			return null;
-		}
-
-		const isDisabled = ability.enabled === false;
-		const result = isDisabled ? null : results[ ability.id ];
-		const isRunning = runningCheck === ability.id;
-		const state = indicatorState( result );
-		const stale = ! isRunning && isStaleResult( result, modified );
-		const issues =
-			! isRunning && Array.isArray( result?.output?.issues )
-				? result.output.issues
-				: [];
-		const runError =
-			! isRunning &&
-			result &&
-			( result.success === false || result.error );
-
-		return (
-			<Fragment key={ ability.id }>
-				<Stack
-					className="vip-workflows-rail__dep"
-					direction="row"
-					align="center"
-					gap="sm"
-				>
-					<span
-						className="vip-workflows-rail__dep-indicator"
-						title={
-							isRunning
-								? __( 'Running', 'vip-workflows' )
-								: indicatorTitle( state, stale )
-						}
-					>
-						{ isRunning ? (
-							<Spinner className="vip-workflows-rail__dep-spinner" />
-						) : (
-							<OutcomeMark state={ state } stale={ stale } />
-						) }
-					</span>
-					<Button
-						variant="secondary"
-						size="compact"
-						className="vip-workflows-rail__check"
-						onClick={ () => runCheck( ability ) }
-						isBusy={ isRunning }
-						disabled={
-							isDisabled || Boolean( runningCheck ) || ! postId
-						}
-						accessibleWhenDisabled
-					>
-						{ ability.label || ability.name }
-					</Button>
-				</Stack>
-				{ isDisabled && (
-					<Text
-						variant="body-sm"
-						render={ <div /> }
-						className="vip-workflows-rail__issues vip-workflows-rail__rollup--hard"
-					>
-						{ __(
-							'This required check is switched off. Re-enable it, or remove it from this transition.',
-							'vip-workflows'
-						) }
-					</Text>
-				) }
-				{ /* The note carries the verdict AND the age: the mark stays
-				     full-tone (fading it failed non-text contrast) and the
-				     indicator's title is hover-only, so this line is where
-				     both facts are actually readable. */ }
-				{ stale && (
-					<Text
-						variant="body-sm"
-						render={ <div /> }
-						className="vip-workflows-rail__stale-note"
-					>
-						{ indicatorTitle( state, true ) }
-					</Text>
-				) }
-				{ runError && (
-					<Text
-						variant="body-sm"
-						render={ <div /> }
-						className="vip-workflows-rail__issues vip-workflows-rail__rollup--soft"
-					>
-						{ result.error ||
-							__(
-								'Check could not be completed',
-								'vip-workflows'
-							) }
-					</Text>
-				) }
-				{ ! runError && issues.length > 0 && (
-					<CheckIssues
-						issues={ issues }
-						checkModes={ ability.check_modes }
-						onOpenFull={ () =>
-							setFullResult( { ability, result } )
-						}
-					/>
-				) }
-			</Fragment>
-		);
-	};
-
 	let actions = null;
 
 	if ( showAgent || holdFailedOutcomes ) {
@@ -980,9 +365,7 @@ export function TransitionRail( {
 						disabled
 						accessibleWhenDisabled
 						isPressed={ flash?.outcome === outcome }
-						icon={
-							<OutcomeMark state={ outcome } stale={ false } />
-						}
+						icon={ <OutcomeMark outcome={ outcome } /> }
 					>
 						{ label }
 					</Button>
@@ -1077,11 +460,7 @@ export function TransitionRail( {
 							onTransition( t, event.currentTarget )
 						}
 						isBusy={ isBusy }
-						disabled={
-							isLocked ||
-							( transitioning && ! isBusy ) ||
-							Boolean( runningCheck )
-						}
+						disabled={ isLocked || ( transitioning && ! isBusy ) }
 						accessibleWhenDisabled
 					>
 						{ t.label }
@@ -1095,7 +474,6 @@ export function TransitionRail( {
 							{ t._locked_reason }
 						</Text>
 					) }
-					{ ( t.required_tools || [] ).map( renderCheck ) }
 				</div>
 			);
 		} );
@@ -1222,41 +600,6 @@ export function TransitionRail( {
 				>
 					{ actions }
 				</Stack>
-			) }
-
-			{ helperModal && (
-				<HelperResultModal
-					result={ helperModal.result }
-					toolLabel={
-						helperModal.ability.label || helperModal.ability.name
-					}
-					onClose={ () => setHelperModal( null ) }
-					onApply={
-						helperModal.ability.meta?.apply_field
-							? handleApply
-							: null
-					}
-					onRegenerate={ handleRegenerate }
-					applying={ applying }
-					regenerating={ regenerating }
-					requirementGroups={
-						helperModal.ability.availability?.groups || []
-					}
-					resultType={ helperModal.ability.meta?.result_type }
-				/>
-			) }
-
-			{ fullResult && (
-				<CheckResultsModal
-					result={ fullResult.result }
-					toolLabel={
-						fullResult.ability.label || fullResult.ability.name
-					}
-					onClose={ () => setFullResult( null ) }
-					requirementGroups={
-						fullResult.ability.availability?.groups || []
-					}
-				/>
 			) }
 		</div>
 	);

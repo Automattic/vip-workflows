@@ -245,7 +245,7 @@ src/
 │       ├── WorkflowHistoryModal.js           # Transition trail (DataViews, code-split)
 │       ├── WorkflowSaveGuard.js              # editor.preSavePost guard — no chrome
 │       ├── MetadataPanel.js                  # Editorial metadata fields
-│       ├── ToolsPanel.js                     # Tools + results
+│       ├── TransitionRail.js                 # Current stage and its transitions
 │       ├── WorkflowRequiredModal.js          # Required workflow prompt
 │       ├── TransitionInputPopover.js         # Transition input (note, or assignee + notes)
 │       ├── ToolResultModals.js               # Tool result display modals
