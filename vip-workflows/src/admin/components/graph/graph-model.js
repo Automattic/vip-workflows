@@ -250,6 +250,11 @@ export function buildGraph( stages, options = {} ) {
 
 	const keys = new Set( stages.map( ( s ) => s.key ) );
 
+	// The projection options `drawnOutcomes` answers under, so the edge ids
+	// drawn here and the edge ids an error's target names are built from one
+	// rule rather than two that agree by coincidence.
+	const drawnAs = { isPhase, stageExists: ( key ) => keys.has( key ) };
+
 	// Stages with at least one incoming transition; the rest are entry points.
 	const hasIncoming = new Set();
 	stages.forEach( ( stage ) => {
@@ -364,9 +369,7 @@ export function buildGraph( stages, options = {} ) {
 			// and disabled, because the agent owns every way out of the stage.
 			// A routed one whose route publishes is disabled too
 			// (`isTransitionDisabled`), and keeps its per-outcome edges.
-			const claimed = routing
-				? outcomesRoutedTo( stage, transition.to )
-				: [];
+			const claimed = drawnOutcomes( stage, transition.to, drawnAs );
 			const disabled =
 				Boolean( routing ) &&
 				isTransitionDisabled(
@@ -1167,6 +1170,115 @@ export function publishSettingFixesRoute( stage, targetKey ) {
 }
 
 /**
+ * Every outcome an edge from `stage` to `targetKey` is drawn under.
+ *
+ * The one home of the canvas's edge-naming rule. `buildGraph` draws a
+ * transition once per outcome routed along it, once unattributed when no
+ * outcome claims it, and not at all when its target stage is gone — so anything
+ * that has to *name* the same edge (a validation error's target, the stage
+ * panel's exit rows) asks here rather than re-deriving it. Re-derived, the rule
+ * drifts silently: a name built from a routing the drawing ignored points at an
+ * edge id nothing on the canvas holds, and selecting it highlights nothing.
+ *
+ * The routing itself is `outcomesRoutedTo`; this adds only what the drawing
+ * ignores — a phase sequence routes nothing by outcome, and an edge to a stage
+ * that is gone is not drawn.
+ *
+ * An empty answer means the edge carries no outcome, or is not drawn at all.
+ * The two are one answer for a caller that only wants a name — `edgeId` spells
+ * both `from->to`.
+ *
+ * `stageExists` absent reads as "exists", matching `describeTarget` and
+ * `claimedExits` in `StageInspector`: a caller that has no stage list to check
+ * against is asking about the routing alone.
+ *
+ * @param {Object}    stage                 The stage the transition leaves.
+ * @param {string}    targetKey             The transition's target stage key.
+ * @param {Object}    [options]             Projection options, as `buildGraph` takes them.
+ * @param {boolean}   [options.isPhase]     Phase sequence — no stage routes by outcome.
+ * @param {?Function} [options.stageExists] Whether a stage key is still on the canvas.
+ * @return {string[]} The outcomes, in `AGENT_OUTCOMES` order.
+ */
+export function drawnOutcomes(
+	stage,
+	targetKey,
+	{ isPhase = false, stageExists = null } = {}
+) {
+	if ( isPhase ) {
+		return [];
+	}
+	if ( stageExists && ! stageExists( targetKey ) ) {
+		return [];
+	}
+	return outcomesRoutedTo( stage, targetKey );
+}
+
+/**
+ * The one outcome an edge to `targetKey` is *named* by.
+ *
+ * The FIRST of `drawnOutcomes`, matching `variants[ 0 ]` in `buildGraph`: two
+ * outcomes sharing a destination draw two edges, and the fault belongs to the
+ * transition both travel, so either one leads to the same panel. Every caller
+ * that names this edge asks this same question, so the two rows the canvas drew
+ * agree about which of them is at fault.
+ *
+ * @param {Object} stage     The stage the transition leaves.
+ * @param {string} targetKey The transition's target stage key.
+ * @param {Object} [options] Projection options — see `drawnOutcomes`.
+ * @return {?string} The outcome, or null when the edge carries none.
+ */
+export function drawnOutcome( stage, targetKey, options ) {
+	return drawnOutcomes( stage, targetKey, options )[ 0 ] || null;
+}
+
+/**
+ * A fault's location, as the editor's selection spells one.
+ *
+ * @param {string} key Stage key.
+ * @return {Object} A node target.
+ */
+const nodeTarget = ( key ) => ( { type: 'node', key } );
+
+/**
+ * @param {Object} stage      The stage the transition leaves.
+ * @param {Object} transition The transition itself.
+ * @param {Object} [options]  Projection options — see `drawnOutcomes`.
+ * @return {Object} An edge target, drawn the way the canvas draws it.
+ */
+const edgeTarget = ( stage, transition, options ) => ( {
+	type: 'edge',
+	from: stage.key,
+	to: transition.to,
+	outcome: drawnOutcome( stage, transition.to, options ),
+} );
+
+/**
+ * @param {string} region Status region.
+ * @return {Object} A region target.
+ */
+const regionTarget = ( region ) => ( { type: 'region', region } );
+
+/**
+ * The stage a target belongs to, for the node badge that has to paint it.
+ *
+ * A region target answers `''`: a status group is not a node, and the group's
+ * own fault — no entry checkpoint, or two — is about the group rather than
+ * about any one stage in it.
+ *
+ * @param {?Object} target A validation target.
+ * @return {string} Stage key, or `''`.
+ */
+function targetStageKey( target ) {
+	if ( target?.type === 'node' ) {
+		return target.key || '';
+	}
+	if ( target?.type === 'edge' ) {
+		return target.from || '';
+	}
+	return '';
+}
+
+/**
  * Point one of a stage agent's outcomes at a destination stage — what dragging
  * from an outcome handle onto another stage does.
  *
@@ -1771,13 +1883,16 @@ function gateSlotKey( requirement ) {
  *                                               `allow_agent_publish`, used to
  *                                               warn on agent routes the
  *                                               runtime will hold.
- * @return {{ valid: boolean, errors: string[], warnings: Object }} Result.
- *         `errors` block Save; `warnings` is `{ stageKey: string[] }` for nodes.
- *         A rule the server would refuse the save for appears in both, so the
- *         author is stopped *and* shown which stage to open. `valid` is
- *         `errors.length === 0`, kept as part of this function's contract for
- *         callers that only need the yes/no — the editor is not one of them,
- *         since it gathers `errors` into the reasons it shows the author.
+ * @return {{ valid: boolean, errors: Array<Object>, warnings: Object }} Result.
+ *         `errors` block Save, each `{ message, target }` — `target` naming the
+ *         node, edge or region whose panel fixes it, or null for a fault that
+ *         belongs to the sequence rather than to anything on the canvas.
+ *         `warnings` is `{ stageKey: string[] }` for nodes. A rule the server
+ *         would refuse the save for appears in both, so the author is stopped
+ *         *and* shown which stage to open. `valid` is `errors.length === 0`,
+ *         kept as part of this function's contract for callers that only need
+ *         the yes/no — the editor is not one of them, since it gathers `errors`
+ *         into the reasons it shows the author.
  */
 export function validateSequence( {
 	name,
@@ -1790,6 +1905,14 @@ export function validateSequence( {
 	const errors = [];
 	const warnings = {};
 
+	// What an error is about, in the vocabulary the editor's selection already
+	// speaks (`{ type: 'node' | 'edge' | 'region', … }`), so reporting a fault
+	// and opening the panel that fixes it are the same value. A fault of the
+	// sequence itself — an unnamed sequence, no final stage — targets nothing,
+	// and says so by carrying null rather than by naming a stage at random.
+	const addError = ( message, target = null ) =>
+		errors.push( { message, target } );
+
 	const addWarning = ( key, message ) => {
 		warnings[ key ] = warnings[ key ] || [];
 		warnings[ key ].push( message );
@@ -1800,13 +1923,27 @@ export function validateSequence( {
 	// which node to open. A warning alone would let the author press Save into a
 	// 400 they cannot act on; an error alone would tell them what is wrong
 	// without saying where.
-	const addBlocker = ( key, message ) => {
-		errors.push( message );
-		addWarning( key || '', message );
+	//
+	// The node badge is keyed by stage either way: an edge's fault marks the
+	// stage it leaves, because that is the node the canvas can paint. Which
+	// transition it was stays on the error's target, where the stage panel's
+	// exit list reads it — the badge says a stage needs attention, the list says
+	// which way out of it does.
+	//
+	// Message first, matching `addError` rather than the `addWarning` above it.
+	// Nothing here is typed, and a target and a message are both objects-or-
+	// strings to a reader skimming three closures in twenty lines: passed the
+	// wrong way round, `addError` builds a well-formed `{ message, target }`
+	// with the halves swapped, every count-the-errors test still passes, and the
+	// editor crashes on Save rendering an object as a React child. One order for
+	// both is what keeps that from ever being a plausible slip.
+	const addBlocker = ( message, target ) => {
+		addError( message, target );
+		addWarning( targetStageKey( target ), message );
 	};
 
 	if ( ! ( name || '' ).trim() ) {
-		errors.push(
+		addError(
 			__(
 				'This sequence has no name. Click an empty part of the canvas and fill in Name in the Sequence panel.',
 				'vip-workflows'
@@ -1815,7 +1952,7 @@ export function validateSequence( {
 	}
 
 	if ( ! stages || stages.length === 0 ) {
-		errors.push(
+		addError(
 			__(
 				'This sequence has no stages, so there is nothing for a post to be in. Right-click the canvas to add one.',
 				'vip-workflows'
@@ -1825,6 +1962,14 @@ export function validateSequence( {
 	}
 
 	const keys = new Set( stages.map( ( s ) => s.key ) );
+
+	// The same projection options the canvas is drawn under, so an edge target
+	// names the edge `buildGraph` actually holds. A phase sequence routes no
+	// outcomes and a transition to a deleted stage draws no line at all — both
+	// answers have to come from `drawnOutcomes` rather than from the routing
+	// alone, or a fault targets an edge id nothing on the canvas or in the
+	// stage panel can match.
+	const drawnAs = { isPhase, stageExists: ( key ) => keys.has( key ) };
 
 	// Two stages sharing a key collapse to one status on save (and collide as
 	// React Flow node ids), silently dropping the second stage's transitions.
@@ -1842,7 +1987,6 @@ export function validateSequence( {
 	];
 	duplicateKeys.forEach( ( key ) => {
 		addBlocker(
-			key,
 			sprintf(
 				/* translators: %s: the stage key two stages share. */
 				__(
@@ -1850,7 +1994,8 @@ export function validateSequence( {
 					'vip-workflows'
 				),
 				key
-			)
+			),
+			nodeTarget( key )
 		);
 	} );
 
@@ -1875,7 +2020,7 @@ export function validateSequence( {
 	);
 
 	for ( const key of missingPhases ) {
-		errors.push(
+		addError(
 			sprintf(
 				/* translators: %s: required phase key */
 				__(
@@ -1898,7 +2043,6 @@ export function validateSequence( {
 
 		if ( ! ( source.transitions || [] ).some( ( t ) => t.to === to ) ) {
 			addBlocker(
-				from,
 				sprintf(
 					/* translators: 1: source phase key, 2: target phase key */
 					__(
@@ -1907,7 +2051,8 @@ export function validateSequence( {
 					),
 					from,
 					to
-				)
+				),
+				nodeTarget( from )
 			);
 		}
 	}
@@ -1982,16 +2127,17 @@ export function validateSequence( {
 		// breaks: a stage with no name is one writers meet as a blank on the
 		// board, a stage with no key is one the server refuses to store.
 		if ( ! stage.key && ! stage.label ) {
+			// No key is no address: nothing on the canvas can be selected by it,
+			// so the fault carries no target and the notice offers no way to it.
 			addBlocker(
-				'',
 				__(
 					'A stage on the canvas has neither a name nor a key. Open it and fill in both — the name is what writers see, the key is what the stage is stored under.',
 					'vip-workflows'
-				)
+				),
+				null
 			);
 		} else if ( ! stage.label ) {
 			addBlocker(
-				stage.key,
 				sprintf(
 					/* translators: %s: the stage's key, e.g. "in_review". */
 					__(
@@ -1999,11 +2145,11 @@ export function validateSequence( {
 						'vip-workflows'
 					),
 					stage.key
-				)
+				),
+				nodeTarget( stage.key )
 			);
 		} else if ( ! stage.key ) {
 			addBlocker(
-				'',
 				sprintf(
 					/* translators: %s: the stage's name, e.g. "In Review". */
 					__(
@@ -2011,7 +2157,8 @@ export function validateSequence( {
 						'vip-workflows'
 					),
 					stage.label
-				)
+				),
+				null
 			);
 		}
 
@@ -2191,7 +2338,6 @@ export function validateSequence( {
 
 				if ( '' === key ) {
 					addBlocker(
-						stage.key,
 						sprintf(
 							/* translators: %s: transition button label */
 							__(
@@ -2199,14 +2345,14 @@ export function validateSequence( {
 								'vip-workflows'
 							),
 							transitionName
-						)
+						),
+						edgeTarget( stage, transition, drawnAs )
 					);
 					continue;
 				}
 
 				if ( declaredSlots.has( key ) ) {
 					addBlocker(
-						stage.key,
 						sprintf(
 							/* translators: 1: transition button label, 2: assignment key */
 							__(
@@ -2215,7 +2361,8 @@ export function validateSequence( {
 							),
 							transitionName,
 							key
-						)
+						),
+						edgeTarget( stage, transition, drawnAs )
 					);
 					continue;
 				}
@@ -2236,7 +2383,6 @@ export function validateSequence( {
 
 			if ( '' === key ) {
 				addBlocker(
-					stage.key,
 					sprintf(
 						/* translators: %s: transition button label */
 						__(
@@ -2244,14 +2390,14 @@ export function validateSequence( {
 							'vip-workflows'
 						),
 						transitionName
-					)
+					),
+					edgeTarget( stage, transition, drawnAs )
 				);
 				continue;
 			}
 
 			if ( ! declaredSlots.has( key ) ) {
 				addBlocker(
-					stage.key,
 					sprintf(
 						/* translators: 1: transition button label, 2: assignment key */
 						__(
@@ -2260,7 +2406,8 @@ export function validateSequence( {
 						),
 						transitionName,
 						key
-					)
+					),
+					edgeTarget( stage, transition, drawnAs )
 				);
 			}
 		}
@@ -2272,7 +2419,7 @@ export function validateSequence( {
 	// the stages content would pile up in are named, since those are the
 	// candidates, and the gesture that ends the flow is spelled out.
 	if ( ! isPhase && ! stages.some( ( s ) => s.is_terminal ) ) {
-		errors.push(
+		addError(
 			deadEnds.length > 0
 				? sprintf(
 						/* translators: %s: comma-separated stage names. */
@@ -2321,7 +2468,7 @@ export function validateSequence( {
 				Boolean( s.region_entry )
 			);
 			if ( entries.length === 0 ) {
-				errors.push(
+				addError(
 					sprintf(
 						/* translators: %s: status region name (e.g. Draft, Published) */
 						__(
@@ -2329,12 +2476,13 @@ export function validateSequence( {
 							'vip-workflows'
 						),
 						regionLabel( region )
-					)
+					),
+					regionTarget( region )
 				);
 				return;
 			}
 			if ( entries.length > 1 ) {
-				errors.push(
+				addError(
 					sprintf(
 						/* translators: 1: status region name, 2: comma-separated stage labels */
 						__(
@@ -2343,7 +2491,8 @@ export function validateSequence( {
 						),
 						regionLabel( region ),
 						entries.map( ( s ) => s.label || s.key ).join( ', ' )
-					)
+					),
+					regionTarget( region )
 				);
 			}
 		} );

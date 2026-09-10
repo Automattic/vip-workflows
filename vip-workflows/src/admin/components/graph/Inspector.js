@@ -124,6 +124,7 @@ function renderPanel( {
 	onUpdateTransition,
 	onDeleteTransition,
 	onSelectEdge,
+	exitProblems,
 	onSetRegionEntry,
 	onRemoveRegion,
 	// Everything the sequence-level panel edits, passed through whole — see
@@ -188,6 +189,9 @@ function renderPanel( {
 				// own panel, so it hands the selection back to the editor
 				// exactly as the canvas does — same function, same edge ids.
 				onSelectEdge={ onSelectEdge }
+				// Which of those exits would have the save refused, keyed by
+				// those same edge ids.
+				exitProblems={ exitProblems }
 				canDelete={ stages.length > 1 }
 			/>
 		);

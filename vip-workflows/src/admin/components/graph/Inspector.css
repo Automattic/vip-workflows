@@ -389,6 +389,37 @@
 	opacity: 0.5;
 }
 
+/* A row whose setting would have the save refused — a field's duplicate storage
+   key, a stage exit whose assignment wiring the server would reject. The row
+   reports the problem in place of the value it would otherwise show, so the tone
+   has to reach that text too: `fact-value` (below) sets its own muted color,
+   which this out-specifies on the half of the row that carries the message.
+
+   Not scoped to a list, and so it lives here with the row's other states rather
+   than inside one list's section. Every inspector read-out is the same row
+   (`Fact` / `SortableFact`), and a fault looks the same wherever one appears —
+   the field list found this first, the stage's exits are the second list to
+   need it, and scoping it to whichever list got there first is how two lists
+   end up flagging the same thing two different ways.
+
+   After `is-disabled` on purpose: a row can be both, and at equal specificity
+   the later rule takes the tone. */
+.wf-inspector__fact.is-invalid,
+.wf-inspector__fact.is-invalid .wf-inspector__fact-value {
+	/* wpds-allow R6 -- <Stack> and <Text> expose no color prop */
+	color: var( --wpds-color-foreground-content-error );
+}
+
+/* That both-at-once row again: `is-disabled` dims the whole thing, which would
+   mute the one tone in the list that has to carry. The fault outranks the
+   dimming for the same reason it outranks "(disabled)" in the value column —
+   being unusable is a state someone chose, refusing to save is not. Only that
+   pairing is undimmed; a row being dragged still fades. */
+.wf-inspector__fact.is-disabled.is-invalid {
+	/* wpds-allow R6 -- <Stack> exposes no opacity prop */
+	opacity: 1;
+}
+
 /* The reorder grip. A button rather than the row itself, so the row's tooltip
    trigger — or its remove button — is not nested inside a control, and so the
    KeyboardSensor has a tab stop, which is the only way to reorder without a
@@ -575,18 +606,6 @@
    (`.wf-inspector__fact`), so the two lists read as one grammar. What differs is
    that every row here is draggable, which is why the grip stays in the flow
    rather than overlaying a leading dot there is none of. */
-
-/* A field whose storage key would have the save refused. The row reports the
-   problem in place of the value it would otherwise show, so the tone has to
-   reach that text too — `fact-value` sets its own muted color, which would
-   otherwise win on the half of the row that carries the message. */
-.wf-inspector-field-list .wf-inspector__fact.is-invalid,
-.wf-inspector-field-list
-	.wf-inspector__fact.is-invalid
-	.wf-inspector__fact-value {
-	/* wpds-allow R6 -- <Stack> and <Text> expose no color prop */
-	color: var( --wpds-color-foreground-content-error );
-}
 
 /* The options a row opens, in a popover anchored to the row that opens it — a
    field's own settings, or the checkboxes behind a choice row's value. Sized

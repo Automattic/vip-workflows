@@ -115,8 +115,15 @@ const OPTIONS = {
 /** Every write the editor made, in order. */
 let writes;
 
+/**
+ * What a read of the sequence answers with. A test that needs the editor to
+ * open on a sequence the validator refuses replaces this before rendering.
+ */
+let served;
+
 beforeEach( () => {
 	writes = [];
+	served = sequence();
 	window.location.hash = '';
 	apiFetch.mockImplementation( ( { path, method, data } ) => {
 		if ( path === '/vip-workflows/v1/sequences/options' ) {
@@ -149,7 +156,7 @@ beforeEach( () => {
 				} )
 			);
 		}
-		return Promise.resolve( sequence() );
+		return Promise.resolve( served );
 	} );
 } );
 
@@ -1286,5 +1293,91 @@ describe( 'A save the editor refuses', () => {
 
 		expect( refusal() ).not.toContain( 'Internal server error' );
 		expect( refusal() ).toContain( 'fill in Name in the Sequence panel' );
+	} );
+} );
+
+/**
+ * The way a refused Save offers to the fault.
+ *
+ * A blocking error carries a target — the node, edge or status group whose panel
+ * fixes it — and the notice turns that into a button, because naming the
+ * transition at fault is not the same as finding it. A lone reason carries the
+ * button as the notice's own action; a listed one carries it on its row, so no
+ * button can be read as belonging to the reason beside it.
+ */
+describe( 'A refused Save that knows where its fault is', () => {
+	// The one transition captures an assignment and names no key, which the
+	// server refuses as `invalid_assignment_key`. The fault belongs to the
+	// transition, so the error targets the edge rather than the stage.
+	const FAULTED = [
+		{
+			key: 'draft',
+			label: 'Draft',
+			color: '#C36EFF',
+			status: 'draft',
+			region_entry: true,
+			is_terminal: false,
+			transitions: [
+				{
+					to: 'legal',
+					label: 'Send to legal',
+					inputs: [ { type: 'assignment', meta_key: '' } ],
+				},
+			],
+		},
+		{
+			key: 'legal',
+			label: 'Legal',
+			color: '#C36EFF',
+			status: 'draft',
+			region_entry: false,
+			is_terminal: true,
+			transitions: [],
+		},
+	];
+
+	const serveFaulted = () => {
+		served = sequence( {
+			config: { ...sequence().config, statuses: FAULTED },
+		} );
+	};
+
+	// Save is disabled until there is unsaved work, so every test here has to
+	// make some before it can be refused any.
+	const pressSave = () => {
+		fireEvent.change( nameField(), { target: { value: 'Renamed' } } );
+		fireEvent.click( saveButton() );
+	};
+
+	it( 'offers a way to the transition it names', async () => {
+		serveFaulted();
+		await renderEditor( { sequenceId: 7 } );
+
+		pressSave();
+
+		await screen.findAllByText( /names no assignment key/ );
+		expect(
+			screen.getByRole( 'button', { name: 'Show transition' } )
+		).toBeInTheDocument();
+		expect( writes ).toHaveLength( 0 );
+	} );
+
+	// Read live, not pinned when Save was pressed: a second fault joins the
+	// list, and the transition's way there moves onto its own row, where it
+	// cannot be read as belonging to the fault beside it. The sequence's own
+	// fault has nothing on the canvas to open, so its row offers nothing.
+	it( 'offers each listed fault its own way there', async () => {
+		serveFaulted();
+		await renderEditor( { sequenceId: 7 } );
+
+		pressSave();
+		await screen.findAllByText( /names no assignment key/ );
+
+		fireEvent.change( nameField(), { target: { value: '' } } );
+
+		await screen.findAllByText( /2 things need fixing/ );
+		expect(
+			screen.getAllByRole( 'button', { name: 'Show transition' } )
+		).toHaveLength( 1 );
 	} );
 } );

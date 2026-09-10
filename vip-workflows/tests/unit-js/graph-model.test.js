@@ -81,6 +81,11 @@ const stages = () => [
 	},
 ];
 
+// A validation error is `{ message, target }` — the target is what lets the
+// editor's blocked-save notice open the thing at fault. The assertions below are
+// about wording, so they read the messages.
+const messages = ( errors ) => errors.map( ( e ) => e.message );
+
 // A phase sequence and the hand-off the server requires of it. The list is the
 // server's answer, not a constant the editor keeps — it is passed in here the
 // same way `/sequences/options` passes it to the canvas.
@@ -1140,7 +1145,7 @@ describe( 'validateSequence', () => {
 			name: 'Flow',
 			stages: noTerminal,
 		} );
-		const message = errors.join( ' ' );
+		const message = messages( errors ).join( ' ' );
 		// The stage content would pile up in, by name, and the drag that fixes it.
 		expect( message ).toContain( '“Done”' );
 		expect( message ).toContain( 'End node' );
@@ -1158,7 +1163,7 @@ describe( 'validateSequence', () => {
 				},
 			],
 		} );
-		const message = errors.join( ' ' );
+		const message = messages( errors ).join( ' ' );
 
 		expect( message ).toContain( 'an unnamed stage' );
 		expect( message ).not.toContain( 'undefined' );
@@ -1189,7 +1194,7 @@ describe( 'validateSequence', () => {
 			stages: loop,
 		} );
 		expect( valid ).toBe( false );
-		expect( errors.join( ' ' ) ).toContain( 'End node' );
+		expect( messages( errors ).join( ' ' ) ).toContain( 'End node' );
 	} );
 
 	it( 'warns about a non-terminal dead-end stage', () => {
@@ -1228,7 +1233,7 @@ describe( 'validateSequence', () => {
 		expect( result.valid ).toBe( false );
 		// The key is the one thing the two stages have in common, so it is what
 		// identifies them; the node wears it too, so the canvas says which.
-		expect( result.errors.join( ' ' ) ).toContain( '“a”' );
+		expect( messages( result.errors ).join( ' ' ) ).toContain( '“a”' );
 		expect( result.warnings.a.join( ' ' ) ).toContain( '“a”' );
 	} );
 
@@ -1241,7 +1246,7 @@ describe( 'validateSequence', () => {
 			stages: unnamed,
 		} );
 		expect( valid ).toBe( false );
-		expect( errors.join( ' ' ) ).toContain( '“review”' );
+		expect( messages( errors ).join( ' ' ) ).toContain( '“review”' );
 		expect( warnings.review.join( ' ' ) ).toContain( '“review”' );
 	} );
 
@@ -1254,7 +1259,7 @@ describe( 'validateSequence', () => {
 			stages: unkeyed,
 		} );
 		expect( valid ).toBe( false );
-		expect( errors.join( ' ' ) ).toContain( '“Review”' );
+		expect( messages( errors ).join( ' ' ) ).toContain( '“Review”' );
 	} );
 
 	it( 'skips the terminal requirement in phase mode', () => {
@@ -1281,9 +1286,9 @@ describe( 'validateSequence', () => {
 			requiredTransitions: IDEATION_TO_EDITORIAL,
 		} );
 		expect( result.valid ).toBe( false );
-		expect( result.errors.some( ( e ) => e.includes( 'editorial' ) ) ).toBe(
-			true
-		);
+		expect(
+			messages( result.errors ).some( ( m ) => m.includes( 'editorial' ) )
+		).toBe( true );
 	} );
 
 	// The rule counted nodes, and the "no way out" check that would have caught
@@ -1301,7 +1306,7 @@ describe( 'validateSequence', () => {
 			requiredTransitions: IDEATION_TO_EDITORIAL,
 		} );
 		expect( result.valid ).toBe( false );
-		const message = result.errors.join( ' ' );
+		const message = messages( result.errors ).join( ' ' );
 		expect( message ).toContain( 'ideation' );
 		expect( message ).toContain( 'editorial' );
 		// And on the node the missing hand-off leaves from, so the canvas says
@@ -1326,9 +1331,9 @@ describe( 'validateSequence', () => {
 			requiredTransitions: throughTriage,
 		} );
 		expect( result.valid ).toBe( false );
-		expect( result.errors.some( ( e ) => e.includes( 'triage' ) ) ).toBe(
-			true
-		);
+		expect(
+			messages( result.errors ).some( ( m ) => m.includes( 'triage' ) )
+		).toBe( true );
 	} );
 
 	it( 'does not require phase keys for workflow sequences', () => {
@@ -1337,9 +1342,9 @@ describe( 'validateSequence', () => {
 			stages: stages(),
 			requiredTransitions: IDEATION_TO_EDITORIAL,
 		} );
-		expect( result.errors.some( ( e ) => e.includes( 'phase' ) ) ).toBe(
-			false
-		);
+		expect(
+			messages( result.errors ).some( ( m ) => m.includes( 'phase' ) )
+		).toBe( false );
 	} );
 
 	it( 'rejects a region with more than one entry checkpoint, naming them', () => {
@@ -1347,7 +1352,7 @@ describe( 'validateSequence', () => {
 		input[ 1 ].region_entry = true; // draft AND review both claim draft
 		const result = validateSequence( { name: 'Flow', stages: input } );
 		expect( result.valid ).toBe( false );
-		const message = result.errors.join( ' ' );
+		const message = messages( result.errors ).join( ' ' );
 		expect( message ).toContain( 'Draft' );
 		expect( message ).toContain( 'Review' );
 	} );
@@ -1360,7 +1365,7 @@ describe( 'validateSequence', () => {
 		const result = validateSequence( { name: 'Flow', stages: input } );
 		expect( result.valid ).toBe( false );
 		// One per region left without one, each naming the status.
-		const message = result.errors.join( ' ' );
+		const message = messages( result.errors ).join( ' ' );
 		expect( message ).toContain( 'Draft' );
 		expect( message ).toContain( 'Published' );
 	} );
@@ -1434,7 +1439,7 @@ describe( 'validateSequence', () => {
 		);
 		const result = validateSequence( { name: 'Flow', stages: noInbound } );
 
-		expect( result.errors.join( ' ' ) ).not.toContain(
+		expect( messages( result.errors ).join( ' ' ) ).not.toContain(
 			'Nothing can reach'
 		);
 	} );
@@ -2221,7 +2226,7 @@ describe( 'validateSequence agent availability', () => {
 		expect( found[ 0 ] ).toContain( 'error' );
 
 		// A warning, never an error: Save must stay available.
-		expect( errors.join( ' ' ) ).not.toContain( 'Copy Edit' );
+		expect( messages( errors ).join( ' ' ) ).not.toContain( 'Copy Edit' );
 	} );
 
 	it( 'warns when the stage references an agent that is gone', () => {
@@ -2235,7 +2240,9 @@ describe( 'validateSequence agent availability', () => {
 
 		expect( found ).toHaveLength( 1 );
 		expect( found[ 0 ] ).toContain( 'deactivated/agent' );
-		expect( errors.join( ' ' ) ).not.toContain( 'deactivated/agent' );
+		expect( messages( errors ).join( ' ' ) ).not.toContain(
+			'deactivated/agent'
+		);
 	} );
 
 	it( 'stays quiet when the agent can run', () => {
