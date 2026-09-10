@@ -6,11 +6,10 @@
  * of a choice. It now captures any number, held in `inputs`, added from the
  * section's own header and configured one at a time.
  *
- * Notes are unbounded. Assignments are capped at one, because the assignment is
- * the slot `requires_assignment` gates on and the one AssignmentManager fills,
- * so a second names nothing distinguishable. The write gate refuses a config
- * carrying two; these cover the half of that promise the author actually meets —
- * an add menu that will not let them reach it.
+ * Notes are unbounded. Assignments are capped at one, the one slot the editor
+ * collects an assignee for when the transition is taken. The write gate refuses
+ * a config carrying two; these cover the half of that promise the author
+ * actually meets — an add menu that will not let them reach it.
  *
  * @package
  */
@@ -106,6 +105,35 @@ describe( 'Transition capture inputs', () => {
 		expect( next[ 1 ].type ).toBe( 'textarea' );
 		expect( next[ 1 ].note_id ).toEqual( expect.any( String ) );
 		expect( next[ 1 ].note_id ).not.toBe( next[ 0 ].note_id );
+	} );
+
+	it( 'mints a new assignment its key, so nobody is asked to type one', async () => {
+		const onChange = jest.fn();
+		renderInspector( { to: 'review' }, onChange );
+
+		await openAddMenu();
+		await act( async () => {
+			fireEvent.click(
+				screen.getByRole( 'menuitem', { name: 'Assignment' } )
+			);
+		} );
+
+		const [ assignment ] = onChange.mock.calls[ 0 ][ 0 ].inputs;
+
+		expect( assignment.type ).toBe( 'assignment' );
+		expect( assignment.meta_key ).toMatch( /^wfp_n\d+[a-z0-9]+$/ );
+	} );
+
+	it( 'offers no way to restrict the transition to an assignee', () => {
+		renderInspector( {
+			to: 'review',
+			inputs: [ { type: 'assignment', meta_key: 'legal_reviewer' } ],
+		} );
+
+		expect( screen.queryByText( 'Restrict to an assignee' ) ).toBeNull();
+		expect(
+			screen.queryByRole( 'checkbox', { name: 'Requires assignment' } )
+		).toBeNull();
 	} );
 
 	it( 'offers an assignment while the transition has none', async () => {
@@ -209,11 +237,11 @@ describe( 'Transition capture inputs', () => {
 		expect( input.meta_key ).not.toContain( 'undefined' );
 	} );
 
-	it( 'flags a fresh assignment as needing a key, since Save is already blocked', async () => {
-		// An assignment's key is typed rather than derived, and
-		// `validateSequence` refuses the save the moment one exists without a
-		// key. A row that stayed quiet would leave Save switched off with
-		// nothing on the list to point at.
+	it( 'flags a stored assignment with no key, since Save is already blocked', async () => {
+		// The editor mints a key with every assignment it adds, so one without
+		// a key arrived with a stored config — and `validateSequence` refuses
+		// the save while it is there. A row that stayed quiet would leave Save
+		// switched off with nothing on the list to point at.
 		renderInspector( {
 			to: 'review',
 			inputs: [ { type: 'assignment', assignee_type: 'user' } ],

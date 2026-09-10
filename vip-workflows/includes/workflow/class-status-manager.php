@@ -523,7 +523,7 @@ class StatusManager {
 		// board acting on a stuck post) can still transition and gets asked
 		// first.
 		//
-		// Get transitions filtered by user role and assignment.
+		// Get transitions filtered by user role.
 		$transitions = $sequence->get_transitions_for_user( $current_stage, $user_id, $post_id );
 
 		// On an AI stage, only the agent's routed destinations are anyone's to
@@ -559,8 +559,8 @@ class StatusManager {
 					$mapped['inputs'] = $transition['inputs'];
 				}
 
-				// Preserve the lock the sequence projected — assignment or
-				// required metadata. `_locked_code` names the rule and is only
+				// Preserve the lock the sequence projected — required metadata
+				// or a disabled tool. `_locked_code` names the rule and is only
 				// set by the gates that have one; the editor reads it to tell
 				// the lock it may re-judge against unsaved meta from the ones
 				// it must take on trust (see Sequence::CODE_REQUIRED_METADATA).
@@ -631,8 +631,8 @@ class StatusManager {
 		}
 
 		// An agent-driven exit transition (from StageAgentRunner) runs in a
-		// user-less cron context and is trusted: it bypasses the assignment, role,
-		// and capability checks that apply to human callers (but never the trash
+		// user-less cron context and is trusted: it bypasses the role and
+		// capability checks that apply to human callers (but never the trash
 		// rejection above). This flag is only ever set by the in-process runner —
 		// WorkflowController builds $options explicitly and never forwards it, so
 		// it cannot be injected via REST.
@@ -735,10 +735,9 @@ class StatusManager {
 		}
 
 		// Null for a revert — a go-back has no authored edge, so it carries no
-		// label, tools, inputs or assignment requirement.
-		$transition_config      = $sequence->get_transition( $current_stage, $to_status );
-		$assignment_manager     = new AssignmentManager();
-		$assignment_requirement = null;
+		// label, tools or inputs.
+		$transition_config  = $sequence->get_transition( $current_stage, $to_status );
+		$assignment_manager = new AssignmentManager();
 
 		/*
 		 * An agent run executes at uid 0 under cron, so it names the identity it
@@ -746,8 +745,8 @@ class StatusManager {
 		 * rather than against whoever is current.
 		 *
 		 * `agent_actor` waives the workflow's own configuration rules — the role
-		 * table and requires_assignment — because those describe which *human* may
-		 * push a button. It was never entitled to waive core capabilities.
+		 * table — because those describe which *human* may push a button. It was
+		 * never entitled to waive core capabilities.
 		 */
 		if ( $is_agent_actor ) {
 			$actor_id = (int) ( $options['agent_actor_user'] ?? 0 );
@@ -801,21 +800,6 @@ class StatusManager {
 				__( 'Sorry, you are not allowed to make this transition.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
-		}
-
-		// Check requires_assignment.
-		if ( ! $is_agent_actor && ! empty( $transition_config['requires_assignment'] ) ) {
-			$assignment_requirement = $assignment_manager->normalize_requirement( $transition_config['requires_assignment'] );
-
-			if ( ! $assignment_manager->user_satisfies_requirement( $post_id, get_current_user_id(), $assignment_requirement ) ) {
-				if ( ! \VIPWorkflows\Admin\Settings::can_user_bypass_workflow() ) {
-					return new \WP_Error(
-						'assignment_required',
-						$assignment_manager->get_error_message( $post_id, $assignment_requirement ),
-						array( 'status' => 403 )
-					);
-				}
-			}
 		}
 
 		$acknowledge_warnings = ! empty( $options['acknowledge_warnings'] );
@@ -903,12 +887,10 @@ class StatusManager {
 		// the transition: the answer is to type it into the panel that is already
 		// open.
 		//
-		// `bypass_workflow_roles` DOES apply, for the same reason it applies to
-		// requires_assignment a dozen lines above: both are workflow rules about
-		// the person performing the move, and a role that is trusted to move a
-		// post without satisfying its assignment requirement is trusted to move
-		// one without every field filled in. Exempting one and not the other was
-		// an inconsistency, not a decision.
+		// `bypass_workflow_roles` DOES apply: this is a workflow rule about the
+		// person performing the move, and a role trusted to move a post past the
+		// sequence's own rules is trusted to move one without every field filled
+		// in.
 		//
 		// The agent actor and the go-back are exempt for the reason they are exempt
 		// everywhere else: an AI stage's own exit transition IS its run finishing,
@@ -964,8 +946,8 @@ class StatusManager {
 		// the stage this transition validated against.
 		//
 		// Everything above — is_transition_allowed(), the region math, the
-		// capability and assignment checks — was decided from $current_stage, read
-		// at the top of this method. Two concurrent transitions on the same post
+		// capability checks — was decided from $current_stage, read at the top
+		// of this method. Two concurrent transitions on the same post
 		// both read it, both validate, and both write; the second silently
 		// overwrites the first, having validated an edge that no longer starts
 		// where it thought. Passing $current_stage as update_post_meta()'s
@@ -981,11 +963,6 @@ class StatusManager {
 			if ( ! $swapped ) {
 				return $this->abort_lost_transition( $post_id, $current_stage, $to_status, $crossed_region, $previous_status );
 			}
-		}
-
-		// Mark required assignment as completed (keeps audit trail).
-		if ( $assignment_requirement ) {
-			$assignment_manager->mark_completed( $post_id, $assignment_requirement['meta_key'] );
 		}
 
 		// Process new assignment input if present. A revert has no transition

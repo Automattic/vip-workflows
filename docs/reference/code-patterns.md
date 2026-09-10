@@ -338,9 +338,9 @@ $settings->update_tool_settings('seo-check', [
 ```php
 use VIPWorkflows\Admin\Settings;
 
-// Check if current user can bypass workflow assignment checks
+// Check if current user can bypass workflow rules (role restrictions, required fields)
 if (Settings::can_user_bypass_workflow()) {
-    // User can transition without being assigned
+    // User can transition past the sequence's own rules
 }
 
 // Check if current user can bypass tool checks
@@ -356,10 +356,11 @@ if (Settings::can_user_bypass_tool_checks()) {
 
 A transition captures any number of inputs, in the order the author arranged
 them, and the editor asks for them in that order before the post moves. At most
-one of them may be an `assignment` — it is the slot `requires_assignment` gates
-on and the one `AssignmentManager` fills, so a second names nothing
-distinguishable, and `Sequence::prepare_config_for_write()` refuses a config
-carrying two. A transition that captures nothing declares no `inputs` key at all.
+one of them may be an `assignment` — the one slot the editor collects an
+assignee for — and `Sequence::prepare_config_for_write()` refuses a config
+carrying two. The sequence editor mints an assignment's `meta_key` when the input
+is added; authors never type it. A transition that captures nothing declares no
+`inputs` key at all.
 
 ```php
 // In sequence config:
