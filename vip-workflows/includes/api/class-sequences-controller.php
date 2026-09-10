@@ -1064,6 +1064,9 @@ class SequencesController extends WP_REST_Controller {
 							if ( ! empty( $input['meta_key'] ) ) {
 								$processed_input['meta_key'] = sanitize_key( $input['meta_key'] );
 							}
+							// A note is no longer collected, but one a stored
+							// sequence still carries keeps its name and id, so
+							// the editor can list it for the author to remove.
 							if ( ! empty( $input['note_name'] ) ) {
 								$processed_input['note_name'] = sanitize_text_field( $input['note_name'] );
 							}

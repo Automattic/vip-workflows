@@ -259,9 +259,9 @@ describe( 'a reveal opens the panel it selects into', () => {
 			selectedStage: null,
 			selectedTransition: plain,
 		} );
-		const capture = () =>
-			screen.getByRole( 'button', { name: /What to capture/ } );
-		expect( capture() ).toHaveAttribute( 'aria-expanded', 'false' );
+		const assignments = () =>
+			screen.getByRole( 'button', { name: /Assignments/ } );
+		expect( assignments() ).toHaveAttribute( 'aria-expanded', 'false' );
 
 		update( {
 			selection: { type: 'edge', from: 'review', to: 'draft' },
@@ -271,7 +271,7 @@ describe( 'a reveal opens the panel it selects into', () => {
 			},
 		} );
 
-		expect( capture() ).toHaveAttribute( 'aria-expanded', 'true' );
+		expect( assignments() ).toHaveAttribute( 'aria-expanded', 'true' );
 	} );
 
 	it( 'reveals again when the same fault is asked for twice', () => {

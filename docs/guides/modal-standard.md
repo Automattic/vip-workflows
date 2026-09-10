@@ -178,7 +178,7 @@ Reach for these before hand-rolling; they encode the rules above.
 | `ModalBody` | `src/common/ModalBody.js` | every modal body container |
 | `ModalActions` | `src/common/ModalActions.js` | every modal footer |
 | `useConfirm` | `src/common/use-confirm.js` | confirm / acknowledge dialogs; accepts a rich `message` (string or node) |
-| `TransitionTextInputPopover` / `TransitionAssignmentPopover` | `src/editor/components/TransitionInputPopover.js` | collecting one text/textarea value, or an assignee plus notes, for a transition that requires input — side-anchored beside the rail, not a modal over the screen |
+| `TransitionAssignmentPopover` | `src/editor/components/TransitionInputPopover.js` | collecting an assignee plus notes for a transition that requires one — side-anchored beside the rail, not a modal over the screen |
 | `HowToModal` | `src/admin/components/HowToModal.js` | "Creating Custom X" documentation modals (admin-only; wraps `InstallSkillButton`) |
 | `ToolFailuresModal` | `src/common/ToolFailuresModal.js` | transition-blocked / soft-warning lists (editor + admin) |
 
