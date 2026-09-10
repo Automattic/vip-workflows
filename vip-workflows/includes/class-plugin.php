@@ -25,6 +25,7 @@ use VIPWorkflows\Notifications\NotificationDispatcher;
 use VIPWorkflows\Experiments\ExperimentCLI;
 use VIPWorkflows\Experiments\ExperimentRegistry;
 use VIPWorkflows\Experiments\IdeationExperiment;
+use VIPWorkflows\Experiments\KanbanExperiment;
 use VIPWorkflows\Sequences\SequenceRepository;
 use VIPWorkflows\Story\Story;
 
@@ -168,6 +169,7 @@ final class Plugin {
 
 		$this->experiment_registry = new ExperimentRegistry();
 		$this->experiment_registry->register( new IdeationExperiment() );
+		$this->experiment_registry->register( new KanbanExperiment() );
 
 		/**
 		 * Fires when experiments should be registered.
