@@ -116,7 +116,7 @@ import {
 import { EdgePlanProvider } from './EdgePlanProvider';
 import EdgeOverlay from './EdgeOverlay';
 import EdgeAnchors from './EdgeAnchors';
-import { regionLabel, REGION_ORDER } from './regions';
+import { addableRegions, regionLabel } from './regions';
 
 // Note: React Flow's base stylesheet (`@xyflow/react/dist/style.css`) is imported
 // from the admin entry (`src/admin/index.js`), not here. Its filename matches
@@ -1315,15 +1315,12 @@ function Flow( {
 		if ( ! menu ) {
 			return [];
 		}
-		const remaining = REGION_ORDER.filter(
-			( r ) => ! regions.includes( r )
-		);
 		const items = [
 			{
 				id: 'add-region',
 				icon: plus,
 				label: __( 'Add post status…', 'vip-workflows' ),
-				disabled: remaining.length === 0,
+				disabled: addableRegions( regions ).length === 0,
 				onSelect: () => onAddRegion?.(),
 			},
 		];

@@ -8,11 +8,12 @@
  * four — a group for anything else would be a boundary the runtime can't
  * commit.
  *
- * `available` is never empty. The canvas menu item that opens this modal is
- * disabled once every region already has a group (`GraphCanvas.js`), which is
- * where that case belongs: an author is told there is nothing to add before the
- * dialog opens, not after. So there is always a first status to preselect, and
- * always something to add.
+ * `available` is never empty. Both affordances that open this dialog — the
+ * canvas menu item and the sequence panel's Add — go dead once every region
+ * already has a group, off the one `addableRegions` gate, which is where that
+ * case belongs: an author is told there is nothing to add before the dialog
+ * opens, not after. So there is always a first status to preselect, and always
+ * something to add.
  *
  * @package
  */

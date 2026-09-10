@@ -98,6 +98,27 @@ export function regionOptions( slugs = REGION_ORDER ) {
 }
 
 /**
+ * The regions a sequence could still be given a group for.
+ *
+ * The complement of what is already on the canvas, in `REGION_ORDER`. Every
+ * affordance that adds a region asks this one question — the canvas menu to
+ * know whether its item is live, the inspector to know whether its Add button
+ * is, and the dialog to know what to offer — so they cannot disagree about
+ * whether there is anything left to add.
+ *
+ * A region outside `REGION_ORDER` can be *shown* (`visibleRegions` keeps one a
+ * stage carries rather than stranding it), but it is never *offered*: the set
+ * an author may add from is the four core statuses the workflow is allowed to
+ * write, and nothing else.
+ *
+ * @param {string[]} [visible] Regions already drawn on the canvas.
+ * @return {string[]} Regions that may still be added, in `REGION_ORDER`.
+ */
+export function addableRegions( visible = [] ) {
+	return REGION_ORDER.filter( ( region ) => ! visible.includes( region ) );
+}
+
+/**
  * The status region a stage lives in. Mirrors the server's write-time
  * normalization (a missing `status` is persisted as `'draft'`), so the model
  * reasons about unsaved/legacy stages the same way the write gate will store
@@ -147,9 +168,9 @@ export function regionEntryStage( stages, region ) {
  * Which regions the canvas should draw a section for.
  *
  * A region shows when something puts it there: a stage lives in it, or the
- * author added it explicitly from the canvas menu (an empty section waiting for
- * a stage to be dragged in). Draft is always shown — it's where new content
- * starts, so a sequence without it has nowhere to begin.
+ * author added it explicitly (an empty section waiting for a stage to be
+ * dragged in). Draft is always shown — it's where new content starts, so a
+ * sequence without it has nowhere to begin.
  *
  * A region carried by a stage but missing from `REGION_ORDER` is still
  * returned, at the end. It shouldn't happen (the server validates the enum on

@@ -67,7 +67,7 @@ import {
 	START_ID,
 	END_ID,
 } from './graph-model';
-import { REGION_ORDER, stageRegion } from './regions';
+import { addableRegions, stageRegion } from './regions';
 import { paletteColorAt, snapToPalette } from '../../utils/stage-palette';
 
 import '../../../common/outcome-tones.css';
@@ -974,6 +974,26 @@ export default function SequenceGraphEditor( {
 		[ isPhase, stages, addedRegions ]
 	);
 
+	// What the sequence panel reports: the sections the canvas is divided into,
+	// each with how many stages it holds. The count is the part worth reading —
+	// a section holding none is scaffolding the author opened and has not filled
+	// yet, and `addedRegions` above is editor state, so it is also the one a
+	// reload forgets.
+	const regionFacts = useMemo(
+		() =>
+			regions.map( ( region ) => ( {
+				region,
+				stageCount: stages.filter(
+					( stage ) => stageRegion( stage ) === region
+				).length,
+			} ) ),
+		[ regions, stages ]
+	);
+
+	// One opener for the dialog, so the canvas menu and the inspector's Add are
+	// the same gesture rather than two that have to be kept in step.
+	const openAddRegion = useCallback( () => setAddingRegion( true ), [] );
+
 	const handleAddRegion = useCallback( ( region ) => {
 		setAddedRegions( ( current ) =>
 			current.includes( region ) ? current : [ ...current, region ]
@@ -1584,6 +1604,9 @@ export default function SequenceGraphEditor( {
 		postTypes,
 		selectedPostTypes,
 		onTogglePostType: togglePostType,
+		regions: regionFacts,
+		canAddRegion: addableRegions( regions ).length > 0,
+		onAddRegion: openAddRegion,
 		settings,
 		onSettingsChange: setSettings,
 		metadataFields,
@@ -1718,7 +1741,7 @@ export default function SequenceGraphEditor( {
 							isPhase ? undefined : handleInsertStageOnEdge
 						}
 						onPlaceStage={ handlePlaceStage }
-						onAddRegion={ () => setAddingRegion( true ) }
+						onAddRegion={ openAddRegion }
 						onRemoveRegion={ handleRemoveRegion }
 						connectable
 						isValidConnection={ isValidConnection }
@@ -1752,9 +1775,7 @@ export default function SequenceGraphEditor( {
 			</div>
 			{ addingRegion && (
 				<AddPostStatusModal
-					available={ REGION_ORDER.filter(
-						( region ) => ! regions.includes( region )
-					) }
+					available={ addableRegions( regions ) }
 					onAdd={ handleAddRegion }
 					onClose={ () => setAddingRegion( false ) }
 				/>

@@ -3,22 +3,34 @@
  * inspector state for workflow sequences).
  *
  * The canvas owns stages and transitions; everything else about the sequence —
- * name, description, post types, AI stage settings, metadata fields, delete —
- * lives here, shown when no node or edge is selected. Grouped with
- * `InspectorSection`, the same primitive the stage and transition panels use;
- * only metadata fields collapse, since that group opens into an editor of its
- * own. Delete ends the body, in the danger zone every inspector shares.
+ * name, description, post types, post statuses, AI stage settings, metadata
+ * fields, delete — lives here, shown when no node or edge is selected. Grouped
+ * with `InspectorSection`, the same primitive the stage and transition panels
+ * use; only metadata fields collapse, since that group opens into an editor of
+ * its own. Delete ends the body, in the danger zone every inspector shares.
+ *
+ * Post statuses is the odd one out: the thing it edits lives on the canvas, not
+ * in this panel. It is here because adding one had no home but the canvas's
+ * right-click menu, which nothing advertises — see the group itself.
  *
  * @package
  */
 
-import { CheckboxControl, Spinner, ToggleControl } from '@wordpress/components';
+import {
+	Button,
+	CheckboxControl,
+	Spinner,
+	ToggleControl,
+} from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
+import { plus } from '@wordpress/icons';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import InspectorShell from './InspectorShell';
 import InspectorSection from './InspectorSection';
 import InspectorDangerZone from './InspectorDangerZone';
 import SequenceIdentityFields from './SequenceIdentityFields';
+import { Fact } from './InspectorFacts';
+import { regionDescription, regionLabel } from './regions';
 import MetadataFieldsEditor, {
 	MetadataFieldsAdd,
 } from './MetadataFieldsEditor';
@@ -33,6 +45,9 @@ export default function SequenceSettingsInspector( {
 	postTypes,
 	selectedPostTypes,
 	onTogglePostType,
+	regions,
+	canAddRegion,
+	onAddRegion,
 	settings,
 	onSettingsChange,
 	metadataFields,
@@ -88,6 +103,74 @@ export default function SequenceSettingsInspector( {
 							) ) }
 						</Stack>
 					) }
+				</InspectorSection>
+
+				{ /* Which sections the canvas is divided into, and the one
+				     affordance that opens a new one. The canvas has a second
+				     way in — right-click the pane — but nothing out there says
+				     so, so this is where an author who has not been told finds
+				     it: a named group listing what the sequence writes, with an
+				     Add beside it. Removing one stays on the region's own panel
+				     (`RegionInspector`), reached by clicking its label on the
+				     canvas, because that panel is what a single status is. */ }
+				<InspectorSection
+					title={ __( 'Post statuses', 'vip-workflows' ) }
+					help={ __(
+						'The statuses this sequence moves posts through, each drawn as a section of the canvas. Adding one opens an empty section to drag stages into — it is scaffolding until a stage lives there, and a status still holding none is not saved with the sequence.',
+						'vip-workflows'
+					) }
+					actions={
+						<Button
+							icon={ plus }
+							// The name carries the reason when there is no
+							// move left to make, and the button stays focusable
+							// while disabled so that reason can be reached —
+							// the same bargain `InspectorDangerZone` strikes
+							// with its own explanation.
+							label={
+								canAddRegion
+									? __( 'Add post status', 'vip-workflows' )
+									: __(
+											'Every post status is already on the canvas',
+											'vip-workflows'
+									  )
+							}
+							showTooltip
+							size="small"
+							disabled={ ! canAddRegion }
+							accessibleWhenDisabled
+							onClick={ onAddRegion }
+						/>
+					}
+				>
+					<Stack
+						render={ <ul /> }
+						direction="column"
+						gap="xs"
+						className="wf-inspector__facts"
+					>
+						{ regions.map( ( { region, stageCount } ) => (
+							<Fact
+								key={ region }
+								label={ regionLabel( region ) }
+								// The count is what tells a scaffolded status
+								// from a real one: the empty ones are exactly
+								// the ones a reload forgets.
+								value={ sprintf(
+									/* translators: %d: number of stages in this post status. */
+									_n(
+										'%d stage',
+										'%d stages',
+										stageCount,
+										'vip-workflows'
+									),
+									stageCount
+								) }
+								empty={ stageCount === 0 }
+								tip={ regionDescription( region ) }
+							/>
+						) ) }
+					</Stack>
 				</InspectorSection>
 
 				<InspectorSection title={ __( 'AI stages', 'vip-workflows' ) }>
