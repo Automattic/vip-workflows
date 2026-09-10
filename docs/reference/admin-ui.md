@@ -134,7 +134,7 @@ the sidebar's own readouts and split one feature across two places.
 1. **Dashboard** - Workflow overview and stats
 2. **My Dashboard** - Current user's assignments
 3. **Kanban** - Visual board view of work items
-4. **Sequences** - Create/edit workflow and phase sequences (two tabs: "Workflow Sequences", "Phase Sequences").
+4. **Sequences** - Create/edit workflow and phase sequences (two tabs: "Workflows", "Phase sequences").
 5. **Queue** - Items awaiting review
 6. **Audit Log** - Search and filter workflow events
 
