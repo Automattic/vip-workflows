@@ -74,6 +74,39 @@ import '../../../common/outcome-tones.css';
 import './SequenceGraphEditor.css';
 
 /**
+ * What the blocked-save notice's button offers to open.
+ *
+ * Named for the thing, not for the gesture: “Show transition” tells an author
+ * what they are about to be taken to, where a bare “Show” or “Fix” leaves them
+ * to guess whether the canvas is about to move, the panel is about to change,
+ * or something is about to be edited on their behalf. Nothing is edited — the
+ * button selects, and the panel that opens is where the fix is made.
+ *
+ * A node is a stage or a phase depending on the sequence, and the two are not
+ * interchangeable words: the phase editor calls its nodes phases everywhere
+ * else it names one, so a button offering to “Show stage” there names a thing
+ * that surface has no word for. Both reach a node: a phase sequence through
+ * its required hand-offs, a workflow through a stage left without a name or
+ * sharing another's key.
+ *
+ * @param {Object}  target  A validation error's target.
+ * @param {boolean} isPhase Whether this is a phase sequence.
+ * @return {string} Button label.
+ */
+function blockedTargetLabel( target, isPhase ) {
+	switch ( target.type ) {
+		case 'edge':
+			return __( 'Show transition', 'vip-workflows' );
+		case 'region':
+			return __( 'Show status group', 'vip-workflows' );
+		default:
+			return isPhase
+				? __( 'Show phase', 'vip-workflows' )
+				: __( 'Show stage', 'vip-workflows' );
+	}
+}
+
+/**
  * What the server's region repair changed, said out loud.
  *
  * Replaying a stored config through the write gate can cost the author a
@@ -276,13 +309,20 @@ const discardPrompt = () => [
  * two post-type checks the editor makes itself — and each one names what is
  * wrong and the gesture that fixes it. Nothing is composed here.
  *
- * @param {Object} props         Component props.
- * @param {Array}  props.reasons The sentences, one per reason.
+ * A listed reason that knows where its fault is carries a button that opens
+ * it. A lone reason carries none here: the notice offers it as its own
+ * action, where one button beside one sentence cannot be misread as belonging
+ * to another.
+ *
+ * @param {Object}   props         Component props.
+ * @param {Array}    props.reasons `{ message, target }`, one per reason.
+ * @param {boolean}  props.isPhase Whether this is a phase sequence.
+ * @param {Function} props.onShow  Selects a reason's target.
  * @return {JSX.Element} The notice body.
  */
-function SaveBlockers( { reasons } ) {
+function SaveBlockers( { reasons, isPhase, onShow } ) {
 	if ( reasons.length === 1 ) {
-		return reasons[ 0 ];
+		return reasons[ 0 ].message;
 	}
 
 	return (
@@ -298,8 +338,21 @@ function SaveBlockers( { reasons } ) {
 				reasons.length
 			) }
 			<Stack render={ <ul /> } direction="column" gap="xs">
-				{ reasons.map( ( reason ) => (
-					<li key={ reason }>{ reason }</li>
+				{ reasons.map( ( { message, target } ) => (
+					<li key={ message }>
+						{ message }
+						{ target && (
+							<>
+								{ ' ' }
+								<Button
+									variant="link"
+									onClick={ () => onShow( target ) }
+								>
+									{ blockedTargetLabel( target, isPhase ) }
+								</Button>
+							</>
+						) }
+					</li>
 				) ) }
 			</Stack>
 		</>
@@ -810,22 +863,32 @@ export default function SequenceGraphEditor( {
 	 * them here is what keeps that inert row out of the database, so they belong
 	 * in the same list as the rest.
 	 */
+	//
+	// Each reason is `{ message, target }`, as `validateSequence` reports one;
+	// the editor's own post-type rule is about the sequence rather than
+	// anything on the canvas, so its target is null.
 	const saveBlockers = useMemo( () => {
 		const reasons = [ ...validation.errors ];
 
 		if ( ! isPhase && selectedPostTypes.length === 0 ) {
-			reasons.push(
-				__(
+			reasons.push( {
+				message: __(
 					'This sequence is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types.',
 					'vip-workflows'
-				)
-			);
+				),
+				target: null,
+			} );
 		}
 
 		// Two stages can be wrong in the identical way — two of them left
 		// unnamed, say — and the same sentence twice is noise, not a second
 		// thing to fix.
-		return [ ...new Set( reasons ) ];
+		return reasons.filter(
+			( reason, index ) =>
+				reasons.findIndex(
+					( other ) => other.message === reason.message
+				) === index
+		);
 	}, [ validation.errors, isPhase, selectedPostTypes ] );
 
 	// The refusal stands down once the last reason for it is gone, so it cannot
@@ -835,6 +898,27 @@ export default function SequenceGraphEditor( {
 			setSaveRefused( false );
 		}
 	}, [ saveBlockers.length ] );
+
+	// The blocking faults that belong to one way out of a stage, keyed by the
+	// edge the canvas draws for it.
+	//
+	// The stage panel's exit list reads this: a node badge says a stage needs
+	// attention, and without this the author has to open every transition it
+	// holds to find out which one the message meant. Keyed by edge id rather
+	// than by position, because that id is the one name the canvas, the
+	// selection and the inspector all already agree on.
+	const exitProblems = useMemo( () => {
+		const byEdge = {};
+		validation.errors.forEach( ( { message, target } ) => {
+			if ( target?.type !== 'edge' ) {
+				return;
+			}
+			const id = edgeId( target.from, target.to, target.outcome );
+			byEdge[ id ] = byEdge[ id ] || [];
+			byEdge[ id ].push( message );
+		} );
+		return byEdge;
+	}, [ validation.errors ] );
 
 	// --- Unsaved work ------------------------------------------------------
 
@@ -1666,13 +1750,51 @@ export default function SequenceGraphEditor( {
 								// call, and React refuses the next render. A
 								// string is read as given and renders nothing.
 								spokenMessage={
-									error || saveBlockers.join( ' ' )
+									error ||
+									saveBlockers
+										.map( ( { message } ) => message )
+										.join( ' ' )
+								}
+								// Naming the stage or transition at fault is not
+								// the same as finding it: an author reading
+								// “the ‘Send to legal’ transition…” still has to
+								// scan the canvas for a line whose label matches.
+								// A lone reason that knows where it is offers
+								// to open it here; a list offers it row by row
+								// (see SaveBlockers). Absent for a server error
+								// and for a fault of the sequence itself,
+								// neither of which has anything on the canvas
+								// to open.
+								actions={
+									! error &&
+									saveBlockers.length === 1 &&
+									saveBlockers[ 0 ].target
+										? [
+												{
+													label: blockedTargetLabel(
+														saveBlockers[ 0 ]
+															.target,
+														isPhase
+													),
+													onClick: () =>
+														setSelection(
+															saveBlockers[ 0 ]
+																.target
+														),
+													variant: 'primary',
+												},
+										  ]
+										: undefined
 								}
 							>
 								{ error ? (
 									error
 								) : (
-									<SaveBlockers reasons={ saveBlockers } />
+									<SaveBlockers
+										reasons={ saveBlockers }
+										isPhase={ isPhase }
+										onShow={ setSelection }
+									/>
 								) }
 							</Notice>
 						</div>
@@ -1796,6 +1918,7 @@ export default function SequenceGraphEditor( {
 						onSelectNode={ selectNode }
 						onSelectEdge={ selectEdge }
 						onSelectRegion={ selectRegion }
+						exitProblems={ exitProblems }
 						sequenceSettings={ sequenceSettings }
 					/>
 				</Stack>

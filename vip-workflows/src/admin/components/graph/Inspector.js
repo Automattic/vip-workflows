@@ -130,6 +130,7 @@ function renderPanel( {
 	onSelectNode,
 	onSelectEdge,
 	onSelectRegion,
+	exitProblems,
 	onSetRegionEntry,
 	onSetStageStatus,
 	onRemoveRegion,
@@ -277,6 +278,9 @@ function renderPanel( {
 				onClearOutcome={ onStage( ( outcome ) =>
 					onDeleteTransition( selectedStage.key, null, outcome )
 				) }
+				// Which of those exits would have the save refused, keyed by
+				// those same edge ids.
+				exitProblems={ exitProblems }
 				canDelete={ stages.length > 1 }
 			/>
 		);
