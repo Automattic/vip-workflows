@@ -65,10 +65,7 @@ import {
 	REQUIRED_METADATA_LOCK,
 	useRequiredMetadataGate,
 } from '../required-metadata';
-import {
-	TransitionAssignmentPopover,
-	TransitionTextInputPopover,
-} from './TransitionInputPopover';
+import { TransitionAssignmentPopover } from './TransitionInputPopover';
 import { ToolFailuresModal } from '../../common/ToolFailuresModal';
 import { TransitionRail } from './TransitionRail';
 import { WorkflowRow } from './WorkflowRow';
@@ -83,13 +80,13 @@ const WorkflowHistoryModal = lazy( () => import( './WorkflowHistoryModal' ) );
 /**
  * The kinds of capture input this sidebar can ask a writer for.
  *
- * `text` is here alongside `textarea` because sequences stored before the editor
- * settled on one name still carry it, and both are collected by the same
- * popover. Anything else — a kind added by a newer version, or by an extension
- * that ships its own authoring UI — has nothing here to render it, and is passed
- * over rather than allowed to block the move.
+ * An assignment, and nothing else. A note (`textarea`, or the older `text`) a
+ * stored sequence may still carry is no longer collected. It, and any kind
+ * added by a newer version or by an extension that ships its own authoring UI,
+ * has nothing here to render it, and is passed over rather than allowed to
+ * block the move.
  */
-const COLLECTABLE_INPUT_TYPES = [ 'textarea', 'text', 'assignment' ];
+const COLLECTABLE_INPUT_TYPES = [ 'assignment' ];
 
 /**
  * The post's workflow state, and everything that acts on it.
@@ -602,38 +599,6 @@ export function WorkflowPanel( { children } ) {
 		}
 
 		setInputQueue( { ...inputQueue, pending, collected } );
-	};
-
-	// Handle text input submission.
-	const handleTextInput = ( value ) => {
-		const input = inputQueue?.pending[ 0 ];
-
-		if ( ! input ) {
-			return;
-		}
-
-		const noteName = input.note_name || 'Note';
-		const noteId = input.note_id;
-
-		if ( ! noteId ) {
-			console.error(
-				'Missing note_id in transition input configuration',
-				input
-			);
-			return;
-		}
-
-		// Generate meta key: wfp_{note_id}_{slugified_note_name}
-		const slug = noteName
-			.toLowerCase()
-			.replace( /[^a-z0-9]+/g, '_' )
-			.replace( /(^_|_$)/g, '' );
-		const metaKey = `wfp_${ noteId }_${ slug }`;
-
-		advanceInputQueue( {
-			[ metaKey ]: value,
-			[ `${ metaKey }__name` ]: noteName,
-		} );
 	};
 
 	// Handle assignment selection (user, role, etc.)
@@ -1302,7 +1267,7 @@ export function WorkflowPanel( { children } ) {
 			     any of them (Close, Escape, click-outside) abandons the whole
 			     transition, answers already given included: nothing is written
 			     until the move happens. */ }
-			{ currentInput?.type === 'assignment' ? (
+			{ currentInput && (
 				<TransitionAssignmentPopover
 					title={
 						currentInput.label ||
@@ -1317,30 +1282,6 @@ export function WorkflowPanel( { children } ) {
 					onSubmit={ handleAssignmentSelect }
 					onClose={ () => setInputQueue( null ) }
 				/>
-			) : (
-				currentInput && (
-					<TransitionTextInputPopover
-						// Keyed by where we are in the queue, so moving to the
-						// next input remounts the popover instead of
-						// re-labelling the one on screen — which would leave
-						// the previous answer sitting in the box as though it
-						// were this question's. The position rather than the
-						// input's own id: `note_id` is optional in stored
-						// config, and two id-less notes in one queue would
-						// share `undefined` and so share the box.
-						key={ inputQueue.pending.length }
-						title={ inputQueue.transitionLabel }
-						anchor={ inputQueue.anchor }
-						label={
-							currentInput.note_name ||
-							__( 'Note', 'vip-workflows' )
-						}
-						inputType="textarea"
-						required={ currentInput.required || false }
-						onSubmit={ handleTextInput }
-						onClose={ () => setInputQueue( null ) }
-					/>
-				)
 			) }
 
 			{ confirmDialog }

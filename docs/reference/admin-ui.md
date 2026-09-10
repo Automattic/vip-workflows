@@ -53,8 +53,8 @@ the sidebar's own readouts and split one feature across two places.
   trigger whose popover holds the control), rebuilt once because neither
   `PostPanelRow` nor `InspectorPopoverHeader` is exported. `WorkflowRow.js` and
   `MetadataRow.js` are its two users
-- `TransitionInputPopover.js` — the text and assignment inputs a transition can
-  require, asked for at the button that needs them
+- `TransitionInputPopover.js` — the assignment a transition can require, asked
+  for at the button that needs it
 - `ToolResultModals.js` — tool result display modals
 - `CommandPalette.js` — command palette (Cmd+K)
 - `WorkflowRequiredModal.js` — the "pick a workflow" prompt for a new post

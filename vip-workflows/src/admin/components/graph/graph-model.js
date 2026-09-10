@@ -1391,13 +1391,12 @@ export function clearOutcome( stages, from, outcome ) {
  *
  * Timestamp plus randomness rather than the counter `uniqueStageKey` uses: a
  * stage key only has to be unique within its sequence, while these ids end up
- * inside meta keys — a note's `wfp_{note_id}_{slug}`, an assignment's slot —
- * that have to stay distinct from every other sequence's on the same site,
- * including ones arriving later by import.
+ * inside an assignment's slot key, which has to stay distinct from every other
+ * sequence's on the same site, including ones arriving later by import.
  *
  * @return {string} A fresh input id.
  */
-export function inputId() {
+function inputId() {
 	return 'n' + Date.now() + Math.random().toString( 36 ).slice( 2, 7 );
 }
 
