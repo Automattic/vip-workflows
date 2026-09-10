@@ -4,18 +4,18 @@
  * The geometry is not decided here. Ports, spreads, bundles and underpass
  * breaks are cross-edge decisions, so every edge on the canvas is planned
  * together (`edge-pipeline.js`, run by `EdgePlanProvider`) and this component
- * reads its finished plan from context: a path `d`, the midpoint for the
- * insert "+", and — where the line passes behind a stage — a dash pattern
- * that breaks the stroke short of the card, with a small cup closing each end.
+ * reads its finished plan from context: a path `d`, the midpoint its marks
+ * stand on, and — where the line passes behind a stage — a dash pattern that
+ * breaks the stroke short of the card, with a small cup closing each end.
  *
  * On top of that path it adds three things:
  *
  * - a halo drawn under the line, which the stylesheet fades in on hover and
  *   selection — the edge's answer to the focus ring a stage node gets, since an
  *   SVG path can take neither `outline` nor `box-shadow`;
- * - an insert-stage "+" at the path midpoint, shown while the edge is hovered
- *   or selected;
- * - a shared-transition mark beside that midpoint, on every one of a set of
+ * - a label pill at the path midpoint, shown while the edge is hovered or
+ *   selected, which is what selects the transition;
+ * - a shared-transition mark on that midpoint, on every one of a set of
  *   outcome edges backed by one transition record, painted at rest.
  *
  * That last one is not decoration. An AI stage can route two outcomes to the
@@ -31,20 +31,51 @@
  * That is what fixes its size. It is a disc one lane pitch across — the same
  * `PORT_SPREAD` `EdgeOverlay` sizes an outcome's departure mark by, and the gap
  * a bundle of co-travelling edges closes to (`edge-bundle.js`) — so the marks on
- * a bundled pair sit rim to rim instead of piling up. A wider pill could be
- * afforded on one line of a pair and not on both.
+ * a bundled pair sit rim to rim instead of piling up. It carries no tooltip and
+ * takes no pointer events: it sits on the line permanently, and a
+ * control-shaped thing that swallows a click without answering it would cost
+ * the edge its own midpoint.
  *
- * It carries no tooltip and takes no pointer events: it sits on the line
- * permanently, and a control-shaped thing that swallows a click without
- * answering it would cost the edge its own midpoint. It sits beside that
- * midpoint rather than on it because the "+" owns the point itself — that is
- * where the "+" inserts, so that is where it has to be drawn. What it means at
- * length is said by the panel it opens (`TransitionInspector`), which names
- * every outcome on the record; to assistive technology, by its own label.
+ * It sits *on* the midpoint. It used to sit beside it, because the insert "+"
+ * owned the point itself — that was where the "+" inserted, so that was where
+ * it had to be drawn. With the "+" gone nothing else claims the point, and a
+ * mark that reports a fact about the line belongs on the middle of it.
  *
- * What it does *not* draw is either end mark, or the faint continuation across a
- * card it passes behind. All three have to sit above the stages — see
- * `EdgeOverlay`, which is where they are.
+ * ## The pill
+ *
+ * What replaced the "+", and not as a like-for-like swap: it is a target
+ * before it is a label. A 16px circle on a 1px line is a hard thing to hit, and
+ * the line was harder: selecting a transition meant getting the pointer almost
+ * exactly onto a 1px stroke. Two changes answer that together: the
+ * invisible stroke React Flow lays over the line is now `EDGE_HIT_WIDTH` in
+ * screen px rather than flow px, so hovering the edge no longer gets harder the
+ * further out the canvas is zoomed, and the pill that hover reveals is a target
+ * many times the size of the line for the click that follows.
+ *
+ * It carries the label a writer will see on the button, derived — most
+ * transitions store none, deliberately (`addTransition`), so `buildGraph` runs
+ * the same `Move to {destination}` rule the server does and hands the result
+ * down in `data.label`. An authored label wins there exactly as it does at
+ * runtime, so what the pill says is what the writer's button will say.
+ *
+ * On a shared set the pill takes the link glyph as its leading mark. That is
+ * the same fact the disc under it reports, said again at the moment the reader
+ * is about to act on it — and it is what lets the disc keep the midpoint: the
+ * pill covers it while shown, and would otherwise take the answer away exactly
+ * when the question is being asked.
+ *
+ * Shown on hover and selection only. A pill on every edge at rest would be the
+ * canvas restating what its own geometry already says — "Move to Review" on a
+ * line that visibly lands on Review — and at bundle pitch several of them would
+ * overlap. Hover-gated, at most two are ever on screen.
+ *
+ * A disabled transition keeps its pill, muted. Suppressing it would take the
+ * enlarged target away from precisely the edges most likely to be selected and
+ * deleted.
+ *
+ * What this component does *not* draw is either end mark, or the faint
+ * continuation across a card it passes behind. All three have to sit above the
+ * stages — see `EdgeOverlay`, which is where they are.
  *
  * Two textures can want the same stroke, and both are set here rather than in
  * the stylesheet so the precedence is a conditional and not a cascade race. A
@@ -58,23 +89,29 @@
  * the line does, since it is that line's outline; a dotted hover ring is just a
  * dotted hover ring.
  *
- * Selection comes from React Flow's own edge click handling. Endpoints *are*
- * draggable, but not by React Flow — its anchors sit where it thinks the edge
- * ends rather than where this one does, so the grab handles are drawn on the
- * planned ports by `EdgeAnchors` instead.
+ * Selection comes from React Flow's own edge click handling on the line, and
+ * from the pill's own handler off it: `EdgeLabelRenderer` portals the pill out
+ * of the SVG edge group, so none of React Flow's edge events reach it and both
+ * the click and the hover it needs are handed down in `data` (`GraphCanvas`).
+ * Endpoints *are* draggable, but not by React Flow — its anchors sit where it
+ * thinks the edge ends rather than where this one does, so the grab handles are
+ * drawn on the planned ports by `EdgeAnchors` instead.
  *
  * @package
  */
-
 import { memo } from '@wordpress/element';
 import { BaseEdge, EdgeLabelRenderer } from '@xyflow/react';
 import { Icon } from '@wordpress/components';
-import { Stack } from '@wordpress/ui';
-import { plus, link } from '@wordpress/icons';
+import { link } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import { useEdgePlan } from './EdgePlanProvider';
 import { agentOutcomeNames } from './graph-model';
-import { PORT_SPREAD, TUNNEL_DOT, TUNNEL_DOT_GAP } from './edge-constants';
+import {
+	EDGE_HIT_WIDTH,
+	PORT_SPREAD,
+	TUNNEL_DOT,
+	TUNNEL_DOT_GAP,
+} from './edge-constants';
 
 /**
  * The shared mark's diameter, and the glyph inside it — sized here rather than
@@ -109,24 +146,30 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 			? { strokeDasharray: `${ TUNNEL_DOT } ${ TUNNEL_DOT_GAP }` }
 			: undefined );
 
-	// The midpoint goes with the click: it is where the "+" sits, so it is where
-	// the stage the "+" makes should appear.
-	const onInsertClick = ( e ) => {
+	// The pill is off the line, in a layer of its own, so a click on it is not a
+	// click on the edge — React Flow never sees one. Stop it here and answer it
+	// with the selection it was meant to be.
+	const onPillClick = ( e ) => {
 		e.stopPropagation();
-		data?.onInsertStage?.( mid );
+		data?.onSelect?.();
 	};
 
 	// One line, one mark: the set is carried by every edge drawn from the
 	// transition, and every one of them wears it — a reader following the fail
 	// line is owed the same answer as one following the pass line. It goes with
 	// the line while either end of this edge is being dragged, for the reason
-	// the "+" beside it does: the line the mark stands on is hidden for the
+	// the pill over it does: the line the mark stands on is hidden for the
 	// length of the gesture (`GraphCanvas`), and a mark left floating over empty
 	// canvas points at a midpoint that is about to move.
 	const shared =
 		data?.sharedOutcomes && ! data?.reconnecting
 			? data.sharedOutcomes
 			: null;
+
+	// What the pill says: the label `buildGraph` derived for this transition,
+	// which is the string the writer's button will carry. Absent on the
+	// synthetic Start/End edges, which are not transitions and get no pill.
+	const pill = data?.label || null;
 
 	return (
 		<>
@@ -137,11 +180,17 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 				d={ d }
 				style={ dashed }
 			/>
+			{ /* `interactionWidth` is the invisible stroke React Flow lays
+			     over the line for the pointer. The stylesheet takes it out of
+			     flow space (`vector-effect: non-scaling-stroke`), so this is
+			     screen px and the target no longer thins as the canvas is
+			     zoomed out. */ }
 			<BaseEdge
 				id={ id }
 				path={ d }
 				className="wf-transition-edge"
 				style={ stroked }
+				interactionWidth={ EDGE_HIT_WIDTH }
 			/>
 			{ /* The mouths of the underpasses: a semicircular cup closing each
 			     end of every break, its chord square to the line and its dome
@@ -154,29 +203,27 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 				/>
 			) ) }
 			{ /* Synthetic Start/End edges are structural: they carry no
-			     `onInsertStage` and no outcomes, so they render nothing
-			     here. */ }
-			{ ( data?.onInsertStage || shared ) && (
+			     transition record and so no pill, and no outcomes and so no
+			     mark. They render nothing here. */ }
+			{ ( pill || shared ) && (
 				<EdgeLabelRenderer>
-					{ /* The "+" is the only child in flow, so the row
-					     shrink-wraps to it and the -50%/-50% centres *the
-					     button* on the midpoint — which is the point it inserts
-					     a stage at, and so the point it has to be drawn over.
-					     The shared mark hangs off its left edge out of flow
-					     (`.wf-transition-edge__shared`); sharing the row, it
-					     pushed the button half a mark clear of the midpoint the
-					     click still used. */ }
-					<Stack
-						align="center"
+					{ /* Both children are out of flow and centred on the
+					     midpoint by the -50%/-50% (`.wf-transition-edge__mark`,
+					     `.wf-transition-edge__pill`), so the pill's width —
+					     which is a stage name's, and so anything — moves
+					     neither of them. The mark holds the point at rest; the
+					     pill covers it while shown, and carries the same link
+					     glyph so nothing is lost for that moment. */ }
+					<div
 						className="wf-transition-edge__controls nodrag nopan"
 						style={ {
-							transform: `translate(-50%, -50%) translate(${ mid.x }px, ${ mid.y }px)`,
+							transform: `translate(${ mid.x }px, ${ mid.y }px)`,
 						} }
 					>
 						{ shared && (
 							/* wpds-allow R7 -- a filled disc one lane pitch across, the mark `EdgeOverlay` draws an outcome's departure as, in the neutral tone: surface, radius and a knocked-out glyph, none of which a <Stack> carries, so binding the class to one restates each of those declarations as a library override and buys only the flex box. */
 							<span
-								className="wf-transition-edge__shared"
+								className="wf-transition-edge__mark"
 								style={ {
 									width: SHARED_MARK,
 									height: SHARED_MARK,
@@ -194,31 +241,51 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 								<Icon icon={ link } size={ SHARED_GLYPH } />
 							</span>
 						) }
-						{ data?.onInsertStage && (
+						{ pill && (
+							/* wpds-allow R7 -- the pill is surface, border, radius, elevation and a truncating label, none of which a <Button> or a <Stack> carries at this size; binding it to one would restate every declaration below as a library override to gain a flex box. */
 							<button
 								type="button"
 								className={ [
-									'wf-add-button',
-									'wf-transition-edge__add',
+									'wf-transition-edge__pill',
 									// Hidden while one of the edge's ends is
-									// being dragged: the line it marks the
+									// being dragged: the line it stands on the
 									// middle of is itself hidden for the length
-									// of that gesture (`GraphCanvas`), and a "+"
-									// floating with no line under it invites a
-									// click on a midpoint that is about to move.
+									// of that gesture (`GraphCanvas`), and a
+									// pill floating with no line under it
+									// invites a click on a transition whose
+									// midpoint is about to move.
 									( data?.hovered || selected ) &&
 										! data?.reconnecting &&
 										'is-visible',
+									data?.disabled && 'is-disabled',
 								]
 									.filter( Boolean )
 									.join( ' ' ) }
-								title={ __( 'Insert stage', 'vip-workflows' ) }
-								onClick={ onInsertClick }
+								// The pointer is what this is sized for, but
+								// the hover it answers is React Flow's, set
+								// from the line. Moving off the line and onto
+								// the pill fires `onEdgeMouseLeave`, which
+								// would take the pill away as it was reached
+								// for — so it holds the state open itself.
+								onMouseEnter={ () => data?.onHover?.( true ) }
+								onMouseLeave={ () => data?.onHover?.( false ) }
+								onClick={ onPillClick }
+								// The pill elides a long destination name
+								// rather than growing to the width of the
+								// canvas. The accessible name is the full
+								// string either way — this is what gets it
+								// back for a pointer.
+								title={ pill }
 							>
-								<Icon icon={ plus } size={ 16 } />
+								{ shared && (
+									<Icon icon={ link } size={ SHARED_GLYPH } />
+								) }
+								<span className="wf-transition-edge__pill-text">
+									{ pill }
+								</span>
 							</button>
 						) }
-					</Stack>
+					</div>
 				</EdgeLabelRenderer>
 			) }
 		</>

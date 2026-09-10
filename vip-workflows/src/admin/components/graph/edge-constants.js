@@ -226,3 +226,21 @@ export const TUNNEL_GHOST = 0.3;
  */
 export const TUNNEL_DOT = 1;
 export const TUNNEL_DOT_GAP = 2.1;
+
+/**
+ * How wide an edge is to point at, in *screen* px — the invisible stroke React
+ * Flow lays over the line to catch the pointer.
+ *
+ * The odd unit is the point. Every other number in this file is flow px, which
+ * the viewport transform scales; a hit target measured that way is generous
+ * zoomed in and, at the zoom a whole sequence fits on screen at, thinner than
+ * the pointer can reliably be aimed, so the same edge is easy to select at one
+ * zoom and fiddly at another. `vector-effect: non-scaling-stroke` on
+ * the interaction path (`SequenceGraphEditor.css`) takes it out of flow space,
+ * so this is what the pointer actually gets at every zoom.
+ *
+ * 24 is the pointer-target floor rather than a tuned width: past it the strokes
+ * of two bundled lanes — `EDGE_PITCH` apart — overlap so far that which edge a
+ * click lands on stops being something the reader can aim at.
+ */
+export const EDGE_HIT_WIDTH = 24;

@@ -27,7 +27,6 @@ import {
 	addStage,
 	addTransition,
 	connectEdge,
-	insertStageOnEdge,
 	reconnectEdge,
 	routeOutcome,
 	regionEntryStage,
@@ -281,17 +280,6 @@ describe( 'creating a stage inside a region', () => {
 			false
 		);
 		expect( regionEntryStage( next, 'pending' ).key ).toBe( 'review' );
-	} );
-
-	it( 'inserts into the middle of an edge in the source’s region', () => {
-		// review (pending) → live (publish): the inserted stage is a step in the
-		// pending run of work, not a new status boundary.
-		const { stages: next, key } = insertStageOnEdge(
-			stages(),
-			'review',
-			'live'
-		);
-		expect( next.find( ( s ) => s.key === key ).status ).toBe( 'pending' );
 	} );
 } );
 

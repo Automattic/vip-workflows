@@ -17,7 +17,6 @@ import {
 	removeTransition,
 	findTransition,
 	addStageFromNode,
-	insertStageOnEdge,
 	setEntryStage,
 	setRegionEntry,
 	setStageStatus,
@@ -150,6 +149,37 @@ describe( 'buildGraph', () => {
 		const done = nodes.find( ( n ) => n.id === 'done' );
 		expect( done.data.isTerminal ).toBe( true );
 		expect( done.data.publishes ).toBe( true );
+	} );
+
+	it( 'labels an edge with what the writer’s button will say', () => {
+		// Authored wins; unauthored derives from the destination’s *current*
+		// name. Both come from the one rule the server applies at read time,
+		// because the pill is showing the author the string a writer presses.
+		const { edges } = buildGraph( [
+			...stages().slice( 0, 2 ),
+			{ ...stages()[ 2 ], transitions: [ { to: 'draft' } ] },
+		] );
+		const byId = Object.fromEntries( edges.map( ( e ) => [ e.id, e ] ) );
+		expect( byId[ 'draft->review' ].data.label ).toBe( 'Submit' );
+		expect( byId[ 'done->draft' ].data.label ).toBe( 'Move to Draft' );
+	} );
+
+	it( 'derives that label afresh, so renaming a stage renames it', () => {
+		// The bug a stored label was: a transition drawn before its
+		// destination was named froze the default. Nothing is stored, so
+		// there is nothing to go stale.
+		const renamed = [
+			...stages().slice( 0, 2 ),
+			{ ...stages()[ 2 ], label: 'Published', transitions: [] },
+		];
+		renamed[ 1 ] = {
+			...renamed[ 1 ],
+			transitions: [ { to: 'done' } ],
+		};
+		const { edges } = buildGraph( renamed );
+		expect(
+			edges.find( ( e ) => e.id === 'review->done' ).data.label
+		).toBe( 'Move to Published' );
 	} );
 
 	it( 'skips edges to a missing target', () => {
@@ -566,35 +596,6 @@ describe( 'addStageFromNode', () => {
 
 		expect( key ).toBeNull();
 		expect( next ).toBe( before );
-	} );
-} );
-
-describe( 'insertStageOnEdge', () => {
-	it( 'splits an edge into from -> new -> to', () => {
-		const { stages: next, key } = insertStageOnEdge(
-			stages(),
-			'review',
-			'done'
-		);
-		expect( findTransition( next, 'review', 'done' ) ).toBeNull();
-		expect( findTransition( next, 'review', key ) ).toBeTruthy();
-		expect( findTransition( next, key, 'done' ) ).toBeTruthy();
-	} );
-
-	it( 'keeps the original transition config on the first hop', () => {
-		const { stages: next, key } = insertStageOnEdge(
-			stages(),
-			'review',
-			'done'
-		);
-		// review -> done carried allowed_roles/required_tools; they ride to
-		// review -> new, while new -> done is a fresh basic transition.
-		expect( findTransition( next, 'review', key ).allowed_roles ).toEqual( [
-			'editor',
-		] );
-		expect(
-			findTransition( next, key, 'done' ).allowed_roles
-		).toBeUndefined();
 	} );
 } );
 
@@ -1871,21 +1872,6 @@ describe( 'outcome edge gestures', () => {
 			next.find( ( s ) => s.key === 'review' ).agent.routing.error
 		).toBe( key );
 		expect( findTransition( next, 'review', key ) ).toBeTruthy();
-	} );
-
-	it( 'insertStageOnEdge re-points only the outcome it split', () => {
-		const { stages: next, key } = insertStageOnEdge(
-			agentStages( { pass: 'done', fail: 'done' } ),
-			'review',
-			'done',
-			{ outcome: 'pass' }
-		);
-		const routing = next.find( ( s ) => s.key === 'review' ).agent.routing;
-		expect( routing.pass ).toBe( key );
-		// fail keeps going straight to done, so that transition stays.
-		expect( routing.fail ).toBe( 'done' );
-		expect( findTransition( next, 'review', 'done' ) ).toBeTruthy();
-		expect( findTransition( next, key, 'done' ) ).toBeTruthy();
 	} );
 } );
 

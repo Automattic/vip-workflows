@@ -219,51 +219,29 @@
 
 /* React Flow gives every edge layer its own `<svg>` at `z-index: 1` and every
    node `z-index: 0` or more, but leaves the label layer — where `<EdgeLabelRenderer>`
-   puts the "+" — at `auto`. Painting order is by z-index before DOM order, so the
-   affordance loses to both the line it belongs to and any status band it crosses,
-   and the edge's own wide interaction stroke swallows the click. Lift the layer
-   over them. It takes no pointer events itself (React Flow sets `none`, and only
-   the controls inside switch them back on), so nothing else becomes unclickable. */
+   puts the transition pill — at `auto`. Painting order is by z-index before DOM
+   order, so the pill loses to both the line it belongs to and any status band it
+   crosses, and the edge's own wide interaction stroke swallows the click. Lift
+   the layer over them. It takes no pointer events itself (React Flow sets
+   `none`, and only the pill inside switches them back on), so nothing else
+   becomes unclickable. */
 .wf-sequence-editor .react-flow__edgelabel-renderer { /* wpds-allow R6 -- third-party chrome (React Flow); no theming API */
 	z-index: 5;
 }
 
-/* Circular "+" affordance — the insert-stage control at an edge's midpoint.
-   Positioning is set on `.wf-transition-edge__add`; the look lives here. */
-.wf-add-button {
-	display: inline-flex; /* wpds-allow R4 -- a <Stack> is always display:flex, and it carries none of this pill (surface, border, radius, elevation), so binding the class to one would only turn all of that into overrides */
-	align-items: center; /* wpds-allow R4 -- centres the glyph inside that inline-flex <button> */
-	justify-content: center; /* wpds-allow R4 -- centres the glyph inside that inline-flex <button> */
-	width: 22px;
-	height: 22px;
-	padding: 0; /* wpds-allow R2 -- zero needs no token */
-	color: var( --wpds-color-foreground-content-neutral-weak );
-	background: var( --wpds-color-background-surface-neutral );
-	border: 1px solid var( --wpds-color-stroke-surface-neutral );
-	border-radius: var( --vip-workflows-border-radius-full );
-	box-shadow: var( --vip-workflows-elevation-xs );
-	cursor: pointer;
-	opacity: 0;
-	pointer-events: none;
-	z-index: 1;
-	transition: opacity 0.1s ease;
-}
+/* The invisible stroke React Flow lays over each line to catch the pointer. Its
+   width is set per edge (`EDGE_HIT_WIDTH`, `TransitionEdge`); what this does is
+   take it out of flow space, so the number is screen px at every zoom.
 
-.wf-add-button svg {
-	fill: currentColor;
-}
-
-.wf-add-button:hover {
-	color: var( --wpds-color-foreground-interactive-brand );
-	border-color: var( --wpds-color-stroke-interactive-brand );
-}
-
-/* The "+" lives in React Flow's label layer, which can't inherit the SVG line's
-   hover, so GraphCanvas flags the hovered/selected edge instead. */
-.wf-add-button.is-visible,
-.wf-add-button:focus-visible {
-	opacity: 1;
-	pointer-events: auto;
+   Without it the target is scaled by the viewport transform like everything
+   else, which makes an edge generous to click zoomed in and — at the zoom a
+   whole sequence fits on screen at — thinner than the pointer can reliably be
+   aimed — the same edge easy to select at one zoom and fiddly at another. The
+   line itself is deliberately *not* given this treatment;
+   a 1px stroke that refused to thin with the canvas would read as the sequence
+   getting heavier the further out you zoomed. */
+.wf-sequence-editor .react-flow__edge-interaction { /* wpds-allow R6 -- third-party chrome (React Flow); the hit target is not a themeable surface */
+	vector-effect: non-scaling-stroke;
 }
 
 /* --- Stage node --------------------------------------------------------- */
@@ -1172,22 +1150,15 @@
 	color: var( --wpds-color-stroke-surface-error-strong );
 }
 
-/* Carries the insert "+" and, on a shared outcome edge, the mark saying its
-   transition record is not its own. Only the button itself takes pointer
-   events, so the wrapper never shadows the line beneath it.
+/* Both of the midpoint's occupants are absolutely positioned and centred on it,
+   rather than laid out in a row. The pill's width is a stage name's, so it is
+   anything at all; in a row it would decide where the mark beside it landed,
+   and the mark would move from edge to edge for reasons that have nothing to do
+   with it. Out of flow, neither one can move the other.
 
-   The "+" is the row's only child in flow, so the row shrink-wraps to it and
-   the -50%/-50% transform in `TransitionEdge` centers *the button* on the edge
-   midpoint. That is not a nicety: the midpoint is the point the "+" inserts a
-   stage at, so it has to be the point the "+" is drawn over. The mark is taken
-   out of flow and hung off the button's left edge below, which is what keeps
-   that true whatever the mark's width; in the row it pushed the button half a
-   mark clear of the midpoint the click still used.
-
-   The "+" keeps its box while hidden (it fades rather than unmounts, see
-   `.wf-add-button`), so the mark beside it does not shift when the pointer
-   arrives. The row itself is a `<Stack>` (`TransitionEdge`); only the
-   positioning is here, because it is what the inline transform anchors on. */
+   The wrapper is the midpoint itself — a zero-size point the two hang off. It
+   is `pointer-events: none`; only the pill switches them back on, and only once
+   it is visible. */
 .wf-transition-edge__controls {
 	position: absolute;
 	pointer-events: none;
@@ -1208,24 +1179,24 @@
    set is exactly what the router gathers into a bundle, whose lanes close to
    that same pitch, so two of these sit rim to rim instead of burying each other.
 
-   Unlike the "+" it is not a control, so it inherits the wrapper's
+   It sits on the midpoint, which it used to sit beside because the insert "+"
+   owned the point. Nothing owns it now — the pill covers it on hover and
+   carries the same glyph for that moment, so the answer is never taken away.
+
+   Unlike the pill it is not a control, so it inherits the wrapper's
    `pointer-events: none` and stays click-through — the line keeps its own
    midpoint, which a permanent mark that answered a click with nothing would
    have taken.
 
-   Kept in CSS on a plain element rather than bound to a `<Stack>`, for the
-   reason `.wf-add-button` is: the disc is surface, radius and a knocked-out
-   glyph, none of which a `<Stack>` carries, so binding it would restate every
-   one of them as a library override to gain a flex box. */
-.wf-transition-edge__shared {
-	/* Out of the row and hung off the button's left edge: `right: 100%` is the
-	   wrapper's left edge, and the wrapper is the button. Anything else and the
-	   mark's own width decides where the "+" lands. */
+   Kept in CSS on a plain element rather than bound to a `<Stack>`: the disc is
+   surface, radius and a knocked-out glyph, none of which a `<Stack>` carries,
+   so binding it would restate every one of them as a library override to gain a
+   flex box. */
+.wf-transition-edge__mark {
 	position: absolute;
-	top: 50%;
-	right: 100%;
-	margin-right: var( --wpds-dimension-gap-xs ); /* wpds-allow R3 -- the mark is deliberately out of the row, so the <Stack>'s gap cannot reach it; this is that gap restated as the clearance of an absolutely positioned sibling, and putting it back in the row is the defect this fixes */
-	transform: translateY( -50% );
+	top: 0; /* wpds-allow R2 -- zero needs no token */
+	left: 0; /* wpds-allow R2 -- zero needs no token */
+	transform: translate( -50%, -50% );
 	display: inline-flex; /* wpds-allow R4 -- see above: a <Stack> is always display:flex and carries none of this disc, so binding the class to one would only turn all of it into overrides */
 	align-items: center; /* wpds-allow R4 -- centres the glyph inside that inline-flex disc */
 	justify-content: center; /* wpds-allow R4 -- centres the glyph inside that inline-flex disc */
@@ -1234,18 +1205,94 @@
 	border-radius: var( --vip-workflows-border-radius-full );
 }
 
-.wf-transition-edge__shared svg {
+.wf-transition-edge__mark svg {
 	fill: currentColor;
 }
 
-/* Sits on the line, so it needs an opaque center to read against it. It re-enables
-   pointer events for itself (via `.wf-add-button.is-visible`) inside the
-   pointer-transparent wrapper — while hidden it stays click-through. */
-.wf-transition-edge__add {
+/* The transition's label, and the thing that selects it. It replaced a 16px "+"
+   at this midpoint, and the size is the point rather than a side effect: a 1px
+   line is a hard thing to aim at, so the wide invisible stroke over the line
+   (`EDGE_HIT_WIDTH`, below) makes it easy to *reach*, and this makes it easy to
+   *click* once reached.
+
+   Shown on hover and selection only. Every edge carrying a permanent label
+   would have the canvas restating what its own geometry already says — "Move to
+   Review" on a line that visibly ends at Review — and at bundle pitch the
+   labels of neighbouring edges would overlap. Gated on hover, at most two are
+   ever on screen at once.
+
+   Opaque, because it sits on the line it names. Capped in width and truncating,
+   because a stage name is arbitrarily long and a pill the width of the canvas
+   would be a worse answer than an elided one; the full string is in the title.
+
+   A plain element rather than a `<Button>` for the reason the mark is not a
+   `<Stack>`: the surface, border, radius, elevation and truncation below are
+   the whole of it, and binding it to the library control would restate every
+   one of them as an override. */
+.wf-transition-edge__pill {
+	position: absolute;
+	top: 0; /* wpds-allow R2 -- zero needs no token */
+	left: 0; /* wpds-allow R2 -- zero needs no token */
+	transform: translate( -50%, -50% );
+	display: inline-flex; /* wpds-allow R4 -- as above: a <Stack> carries none of this pill, so binding the class to one would only turn all of it into overrides */
+	align-items: center; /* wpds-allow R4 -- centres the glyph and the label on one baseline inside that inline-flex button */
+	gap: var( --wpds-dimension-gap-xs );
+	max-width: 160px;
+	padding: var( --wpds-dimension-padding-xs );
+	color: var( --wpds-color-foreground-content-neutral );
+	font-size: var( --wpds-typography-font-size-xs );
+	line-height: var( --wpds-typography-line-height-xs );
+	white-space: nowrap;
 	background: var( --wpds-color-background-surface-neutral );
+	border: 1px solid var( --wpds-color-stroke-surface-neutral );
+	border-radius: var( --vip-workflows-border-radius-full );
+	box-shadow: var( --vip-workflows-elevation-xs );
+	cursor: pointer;
+	opacity: 0;
+	pointer-events: none;
+	z-index: 1;
+	transition: opacity 0.1s ease;
 }
 
-.wf-transition-edge__add:focus-visible {
+.wf-transition-edge__pill svg {
+	flex: none;
+	fill: currentColor;
+}
+
+/* The label itself, which is what gives way when the name is too long.
+
+   `min-width: 0` is what makes that happen at all: a flex item's default
+   `min-width: auto` refuses to shrink below its content, so without it the
+   button overruns its own `max-width` and the ellipsis never appears. */
+.wf-transition-edge__pill-text {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.wf-transition-edge__pill:hover {
+	color: var( --wpds-color-foreground-interactive-brand );
+	border-color: var( --wpds-color-stroke-interactive-brand );
+}
+
+/* A transition an agent stage holds but no longer lets anyone use. Muted to
+   match the dotted line, not suppressed: this is the enlarged target, and these
+   are the edges most likely to be selected in order to be deleted. */
+.wf-transition-edge__pill.is-disabled {
+	color: var( --wpds-color-foreground-content-neutral-weak );
+}
+
+/* The pill lives in React Flow's label layer, which can't inherit the SVG
+   line's hover, so GraphCanvas flags the hovered/selected edge instead — and
+   the pill holds that flag open itself once the pointer is on it
+   (`TransitionEdge`), since moving off the line fires React Flow's mouse-leave. */
+.wf-transition-edge__pill.is-visible,
+.wf-transition-edge__pill:focus-visible {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+.wf-transition-edge__pill:focus-visible {
 	outline: var( --wpds-border-width-focus ) solid
 		var( --wpds-color-stroke-interactive-brand );
 	outline-offset: 1px;
