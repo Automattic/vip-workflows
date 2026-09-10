@@ -2129,7 +2129,7 @@ export function validateSequence( {
 						/* translators: %s: comma-separated stage names. */
 						_n(
 							'Nothing ends this workflow: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there.',
-							'Nothing ends this sequence: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the End node.',
+							'Nothing ends this workflow: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the End node.',
 							deadEnds.length,
 							'vip-workflows'
 						),

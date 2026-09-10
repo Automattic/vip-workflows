@@ -1,13 +1,13 @@
 # UX copy audit — before / after
 
-Every user-facing string that changed. Derived from the diff between the audit commit and HEAD rather than from an edit log, so a string renamed twice shows only its **net** result. **411 strings** across the plugin and its five extension plugins.
+Every user-facing string that changed. Derived from the diff between the audit commit and HEAD rather than from an edit log, so a string renamed twice shows only its **net** result. **415 strings** across the plugin and its five extension plugins.
 
 Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes are excluded.
 
 | Group | Strings |
 |---|---|
 | [Capitalization](#capitalization) | 100 |
-| [Terminology: sequence → workflow](#terminology-sequence-workflow) | 138 |
+| [Terminology: sequence → workflow](#terminology-sequence-workflow) | 142 |
 | [Capitalization + terminology](#capitalization-terminology) | 22 |
 | [Ability labels](#ability-labels) | 8 |
 | [New: reader-facing tool summaries](#new-reader-facing-tool-summaries) | 26 |
@@ -21,7 +21,7 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | [Removed “successfully”](#removed-successfully) | 4 |
 | [Typography](#typography) | 22 |
 | [Terminal periods](#terminal-periods) | 6 |
-| **Total** | **411** |
+| **Total** | **415** |
 
 ---
 
@@ -114,9 +114,9 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Workflow: Pre-publish Checklist | Workflow: Pre-publish checklist | `editor.js` |
 | YouTube Videos | YouTube videos | `class-you-tube-video-provider.php` |
 
-## Terminology: sequence → workflow (138)
+## Terminology: sequence → workflow (142)
 
-*108 distinct strings across 138 sites.*
+*112 distinct strings across 142 sites.*
 
 | Before | After | Where |
 |---|---|---|
@@ -146,6 +146,7 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Non-fatal advisories about the created sequence (e.g. no valid post types configured). | Non-fatal advisories about the created workflow (e.g. no valid post types configured). | `create-sequence.php` |
 | Non-fatal advisories about the updated sequence (e.g. no valid post types configured). | Non-fatal advisories about the updated workflow (e.g. no valid post types configured). | `update-sequence.php` |
 | Nothing ends this sequence: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there | Nothing ends this workflow: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there | `graph-model.js` |
+| Nothing ends this sequence: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the  | Nothing ends this workflow: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the  | `graph-model.js` |
 | Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to th | Nothing ends this workflow: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to th | `graph-model.js` |
 | Number of sequences returned. | Number of workflows returned. | `get-sequences.php` |
 | Number of statuses in the imported sequence. | Number of statuses in the imported workflow. | `import-sequence.php` |
@@ -208,13 +209,16 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | This sequence cannot be activated: these status regions hold stages but designate no entry checkpoint, so any status change into them fails — %s. Repair the sequence firs | This workflow cannot be activated: these status regions hold stages but designate no entry checkpoint, so any status change into them fails — %s. Repair the workflow firs | `activate-sequence.php` |
 | This sequence cannot be applied because its configuration is invalid: %s | This workflow cannot be applied because its configuration is invalid: %s | `class-workflow-controller.php` |
 | This sequence cannot be saved yet — %d thing needs fixing: | This workflow cannot be saved yet — %d thing needs fixing: | `SequenceGraphEditor.js` |
+| This sequence cannot be saved yet — %d things need fixing: | This workflow cannot be saved yet — %d things need fixing: | `SequenceGraphEditor.js` |
 | This sequence has changes that have not been saved. Leaving now discards them. | This workflow has changes that have not been saved. Leaving now discards them. | `SequenceGraphEditor.js` |
 | This sequence has no metadata fields. Add one to collect a value alongside every post that travels it. | This workflow has no metadata fields. Add one to collect a value alongside every post that travels it. | `MetadataFieldsEditor.js` |
 | This sequence has no name. Click an empty part of the canvas and fill in Name in the Sequence panel. | This workflow has no name. Click an empty part of the canvas and fill in Name in the Workflow panel. | `graph-model.js` |
 | This sequence has no stage in the Publish region, so it cannot publish posts until you set one. | This workflow has no stage in the Publish region, so it cannot publish posts until you set one. | `class-admin.php` |
 | This sequence has no stages, so there is nothing for a post to be in. Right-click the canvas to add one. | This workflow has no stages, so there is nothing for a post to be in. Right-click the canvas to add one. | `graph-model.js` |
+| This sequence is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types. | This workflow is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types. | `SequenceGraphEditor.js` |
 | This sequence needs a change only you can make before it can be repaired: %s | This workflow needs a change only you can make before it can be repaired: %s | `class-sequence-repository.php` |
 | This stage routes no destination for the "%s" outcome, so the post stopped here. Route it in the sequence editor, or move the post back. | This stage routes no destination for the "%s" outcome, so the post stopped here. Route it in the workflow editor, or move the post back. | `class-stage-agent-runner.php` |
+| This transition asks for an assignee of type “%s”, which cannot be chosen here. Nothing has been assigned and the post has not moved — the sequence needs a user or role a | This transition asks for an assignee of type “%s”, which cannot be chosen here. Nothing has been assigned and the post has not moved — the workflow needs a user or role a | `TransitionInputPopover.js` |
 | This workflow cannot be used until its stages have status regions: %s Open the sequence and assign the missing ones. | This workflow cannot be used until its stages have status regions: %s Open the workflow and assign the missing ones. | `class-status-manager.php` |
 | Transitions removed, because the sequence was stored with a stage holding two to the same target. Their roles, required tools and notifications went with them: %s. | Transitions removed, because the workflow was stored with a stage holding two to the same target. Their roles, required tools and notifications went with them: %s. | `class-admin.php` |
 | True to put the sequence live, false to return it to draft. Required: there is no default. | True to put the workflow live, false to return it to draft. Required: there is no default. | `activate-sequence.php` |
@@ -238,7 +242,7 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Create Sequence | New workflow | `create-sequence.php` |
 | Creates a new workflow sequence with its statuses, transitions, and metadata fields. | Creates a new workflow with its statuses, transitions, and metadata fields. | `create-sequence.php` |
 | Editorial Sequences (%d) | Workflows (%d) | `SequencesList.js` |
-| Failed to export sequence: | Could not export the workflow. Details:  | `SequencesList.js` |
+| Failed to export sequence: | Could not export the workflow. Details: %s | `SequencesList.js` |
 | Get Sequences | Workflows | `get-sequences.php` |
 | Imports a workflow sequence from an exported JSON definition. The imported sequence is created as a draft. | Imports a workflow from an exported JSON definition. The imported workflow is created as a draft. | `import-sequence.php` |
 | Lists active workflow sequences with their statuses and configuration. | Lists active workflows with their statuses and configuration. | `get-sequences.php` |

@@ -291,7 +291,7 @@ function SaveBlockers( { reasons } ) {
 				/* translators: %d: number of things standing in the way of the save. */
 				_n(
 					'This workflow cannot be saved yet — %d thing needs fixing:',
-					'This sequence cannot be saved yet — %d things need fixing:',
+					'This workflow cannot be saved yet — %d things need fixing:',
 					reasons.length,
 					'vip-workflows'
 				),
@@ -805,7 +805,7 @@ export default function SequenceGraphEditor( {
 		if ( ! isPhase && selectedPostTypes.length === 0 ) {
 			reasons.push(
 				__(
-					'This sequence is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types.',
+					'This workflow is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types.',
 					'vip-workflows'
 				)
 			);
