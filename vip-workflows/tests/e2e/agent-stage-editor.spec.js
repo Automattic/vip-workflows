@@ -135,7 +135,7 @@ async function routeOutcome( page, from, outcome, to ) {
  * the spec does not care which of the two it got.
  *
  * @param {import('@playwright/test').Page} page
- * @param {string}                          name Agent label, e.g. `Copy Edit`.
+ * @param {string}                          name Agent label, e.g. `Copy edit`.
  */
 async function selectAgent( page, name ) {
 	const combobox = page.getByRole( 'combobox', { name: 'Agent' } );
@@ -187,7 +187,7 @@ test.describe( 'VIP Workflows — graph editor AI stage config', () => {
 		await expect(
 			page.getByRole( 'checkbox', { name: 'Run an agent on entry' } )
 		).toHaveCount( 0 );
-		await selectAgent( page, 'Copy Edit' );
+		await selectAgent( page, 'Copy edit' );
 
 		// The node becomes an AI stage: purple, and carrying three outcome
 		// handles in place of its single drag-out grip.
@@ -278,7 +278,7 @@ test.describe( 'VIP Workflows — graph editor AI stage config', () => {
 		// asserted above, straight off the REST record.
 		await expect(
 			page.getByRole( 'combobox', { name: 'Agent' } )
-		).toHaveValue( /^Copy Edit/ );
+		).toHaveValue( /^Copy edit/ );
 		await expect( routeRow( page, 'pass' ) ).toContainText( 'Review' );
 		await expect( routeRow( page, 'fail' ) ).toContainText( 'Draft' );
 		await expect( routeRow( page, 'error' ) ).toContainText( 'Review' );
