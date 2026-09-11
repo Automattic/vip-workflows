@@ -1,6 +1,6 @@
 # Data Flows
 
-End-to-end sequence diagrams for the key runtime flows: status transitions with enforcement, sequence registration, tool execution, asset upload with AI analysis, notification dispatch, and background job runs.
+End-to-end sequence diagrams for the key runtime flows: status transitions with enforcement, sequence registration, tool execution, asset upload with AI analysis, notification dispatch, and the nightly cleanup routine.
 
 Cross-references: see [architecture.md](architecture.md) for component context, [database-schema.md](database-schema.md) for the tables touched, and [code-patterns.md](code-patterns.md) for the API calls each flow exercises.
 
@@ -39,9 +39,9 @@ StatusManager::transition($post_id, 'review', $options)
     (unless Settings::can_user_bypass_workflow())
 6. Run required tools (if not bypassed)
     ↓
-    AbilityExecutor::execute('readability', $post_id)
+    AbilityExecutor::execute('readability', ['post_id' => $post_id], 'transition')
         ↓
-        Execute tool → get AbilityResult
+        Execute tool → get AbilityResult (issues live in $result->output['issues'])
         ↓
         Check each issue against AbilitySettings
         ↓
@@ -101,11 +101,11 @@ map onto core statuses via each stage's `status` region
 ```
 User clicks "Run SEO Check" in Tools Panel
     ↓
-JavaScript: POST /vip-workflows/v1/abilities/vip-workflows/seo-check/execute
+JavaScript: POST /vip-workflows/v1/abilities/vip-workflows/seo-check/run
     ↓
-AbilitiesController::execute_ability()
+AbilitiesController::run_ability()
     ↓
-AbilityExecutor::execute('vip-workflows/seo-check', $post_id, $options)
+AbilityExecutor::execute('vip-workflows/seo-check', ['post_id' => $post_id, 'options' => $options])
     ↓
 1. Validate ability exists
 2. Get post content
@@ -119,8 +119,9 @@ AbilityExecutor::execute('vip-workflows/seo-check', $post_id, $options)
         - Title tags
         - Keyword density
         ↓
-        Return result array
-4. Create AbilityResult object
+        Return result array (becomes AbilityResult::$output)
+4. Create AbilityResult object — success/summary/error/duration_ms are its own
+   properties; score/status/issues live in $result->output
 5. Store in wp_vip_ability_results
 6. Fire action: do_action('vip_workflows_ability_executed', ...)
     ↓
@@ -129,82 +130,80 @@ Return result to client
 Tools Panel displays results with pass/warning/fail status
 ```
 
-### Flow 4: Asset Upload with AI Analysis
+### Flow 4: Ideation Document Upload with AI Analysis
+
+There is no standalone asset library (`AssetsController`, `WorkflowNote`, `AIMediaAnalyzer`) — that subsystem was removed in schema `2.16.0`. Uploaded-file AI analysis today happens only inside a Story Ideation project, as one more `wp_vip_ideation_sources` row.
 
 ```
-User uploads image to a story
+User uploads a file (document/image/audio/video) into an ideation project
     ↓
-JavaScript: POST /vip-workflows/v1/assets/upload (multipart/form-data)
+JavaScript: POST /vip-workflows/v1/ideation/{project_id}/sources (multipart/form-data)
     ↓
-AssetsController::upload()
+IdeationSourcesController::upload_source()
     ↓
-1. Validate file type and size
-2. Upload to WordPress media library (wp_handle_upload)
-3. Create WorkflowNote CPT with attachment ID
-4. Fire action: do_action('vip_workflows_asset_uploaded', $asset_id, $attachment_id)
+1. Validate file type and size, upload to the WordPress media library (wp_handle_upload)
+2. Insert a wp_vip_ideation_sources row: origin 'upload', attachment_id set,
+   source_id a random id (uploads are the one source type not deduplicated by
+   the content-derived source_id hash), processing_status 'pending'
+3. as_enqueue_async_action('vip_workflows_process_source', [project_id, source_id])
     ↓
-AIMediaAnalyzer listening on hook (thin adapter)
+SourceProcessingJob::process() (hooked on vip_workflows_process_source)
     ↓
-Checks settings (auto_process, enable_image_analysis, etc.)
+1. Mark the row 'processing'
+2. new MediaProcessor(); $processor->process_file($file_path, $mime_type) —
+   one entry point dispatching internally by mime type (image → Vision API,
+   audio/video → Whisper + optional summary, PDF → PDF analysis)
     ↓
-Delegates to MediaProcessor (core AI logic, shared with research/ideation paths)
+On success: mark 'complete'; write content/excerpt (Markdown::to_plain_text()
+of the summary) and a JSON ai_analysis blob (type, processed_at, summary,
+key_points) back onto the same wp_vip_ideation_sources row
+On failure (exception or WP_Error): mark_error() — processing_status 'error'
+with the message, not a silent retry
     ↓
-If image:
-    MediaProcessor::analyze_image() → Vision API
-        → Returns ['content' => '...'] or WP_Error
-        → AIMediaAnalyzer writes result to post meta: _vip_asset_analysis
-If audio/video:
-    Check file size ≤ 25 MB (AIMediaAnalyzer writes the UI-string error if oversized)
-    MediaProcessor::transcribe_audio_video() → Whisper API → optional GPT summary
-        → Returns ['content' => transcript, 'summary' => '...'] or WP_Error
-        → AIMediaAnalyzer writes formatted result to post meta: _vip_asset_analysis
-    ↓
-Return asset with analysis to client
-    ↓
-Asset displayed with AI-generated metadata
+Card re-renders on the mood board with the analyzed content once processing_status is 'complete'
 ```
 
 ### Flow 5: Notification Dispatch
 
+There is no in-app notification inbox and no per-user "notification preferences" — `wp_vip_workflows_notifications` is created by the schema but nothing reads or writes it. Delivery is Email and Slack only, decided by one shared routing option (or a transition's own `notifications` list), not per-user targeting.
+
 ```
-Status transition occurs (e.g., post enters "review")
+StatusManager commits a transition
     ↓
-StatusManager fires: do_action('vip_workflows_entered_review', $post_id, ...)
+do_action('vip_workflows_status_transition', $post_id, $new, $old, $sequence, $context)
     ↓
-NotificationDispatcher listening on hook
+NotificationDispatcher::handle_status_transition() (hooked at priority 10)
     ↓
-1. Check the routing option for channels subscribed to this event
-2. If any are, create the Notification object
+1. Is this a go-live? (cause === 'workflow' AND committed_status === 'publish'
+   AND previous_status !== 'publish') — a core-driven publish (cron, quick
+   edit, REST, CLI) is instead caught by handle_go_live() on
+   transition_post_status, suppressed while a workflow transition is mid-commit
+   so go-live fires exactly once
     ↓
-NotificationDispatcher::dispatch($notification)
+2. If go-live: dispatch('published', $data) — routed through the shared matrix
+3. Always: look up $sequence->get_transition($old, $new)['notifications'] — a
+   transition's own configured channel list, independent of the matrix
     ↓
-1. Determine target users (role:editor, user:123, desk:5)
-2. For each user:
+NotificationDispatcher::dispatch($event_type, $data)
     ↓
-    3. Store in wp_vip_workflows_notifications (in-app)
-    4. Get user's notification preferences
-    5. For each enabled channel:
+For each registered, configured channel:
+    ↓
+    1. should_notify_channel(): debug/mirror-everything ON for this channel,
+       OR the routing option lists this channel under $event_type
+    2. is_rate_limited(): a transient keyed on channel+event+post_id — skip
+       if still within the debounce window (default 60s, filterable via
+       vip_workflows_notification_rate_limit_ttl)
+    3. If Action Scheduler is available: as_enqueue_async_action('vip_workflows_send_notification', ...)
+       Otherwise: send synchronously
         ↓
-        EmailChannel::send($notification)
-            ↓
-            wp_mail($to, $subject, $message)
+        build_notification() — fills in a templated title/message for known
+        event types ('published', 'transition'), a generic one otherwise
         ↓
-        SlackChannel::send($notification)
-            ↓
-            POST to Slack webhook URL
-        ↓
-        CustomChannel::send($notification)
-            ↓
-            Plugin-specific delivery
-    ↓
-6. Log delivery status
-7. Fire action: do_action('vip_workflows_notification_sent', ...)
-    ↓
-User sees:
-- Bell icon in admin bar updates (unread count++)
-- Email in inbox
-- Slack message in channel
+        EmailChannel::send($notification) → wp_mail()
+        SlackChannel::send($notification) → POST to the channel's webhook URL
 ```
+
+A transition's own `notifications` list is sent separately via `send_transition_notifications()`, using the Published template if the transition was a go-live (legacy parity) or a generic "stage changed" template otherwise — a channel already notified by the matrix dispatch above is deduplicated by the same rate limit, not sent twice.
 
 ### Flow 6: Nightly Cleanup
 

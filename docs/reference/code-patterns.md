@@ -1,6 +1,6 @@
 # Code Patterns
 
-Copy-pasteable PHP and JavaScript snippets for the most common operations: reading sequences, transitioning statuses, executing tools, registering custom tools, sending notifications, scheduling jobs, and calling the REST API from the editor.
+Copy-pasteable PHP and JavaScript snippets for the most common operations: reading sequences, transitioning statuses, executing tools, registering custom tools, sending notifications, and calling the REST API from the editor.
 
 For subsystem context see [architecture.md](architecture.md); for extension-plugin patterns see [extension-points.md](extension-points.md).
 
@@ -15,7 +15,7 @@ $repository = new SequenceRepository();
 $sequence_id = get_post_meta($post_id, '_vip_workflows_sequence_id', true);
 
 if ($sequence_id) {
-    $sequence = $repository->get($sequence_id);
+    $sequence = $repository->find((int) $sequence_id);
 }
 ```
 
@@ -42,14 +42,17 @@ if (is_wp_error($result)) {
 use VIPWorkflows\Abilities\AbilityExecutor;
 
 $executor = new AbilityExecutor();
-$result = $executor->execute('vip-workflows/seo-check', $post_id, [
+$result = $executor->execute('vip-workflows/seo-check', [
+    'post_id'   => $post_id,
     'min_words' => 300,
 ]);
 
-// $result is AbilityResult object
-if ($result->is_success()) {
-    $score = $result->get_score();
-    $issues = $result->get_data()['issues'] ?? [];
+// $result is an AbilityResult object. `success`, `summary`, `error`, and
+// `duration_ms` are its own properties; the ability's actual payload lives in
+// `output`, shaped per that ability's output_schema.
+if ($result->success) {
+    $score = $result->output['score'] ?? null;
+    $issues = $result->output['issues'] ?? [];
 }
 ```
 
@@ -143,49 +146,53 @@ use VIPWorkflows\Sequences\SequenceRepository;
 
 $repository = new SequenceRepository();
 
-$sequence_id = $repository->create([
-    'name' => 'Custom Workflow',
-    'slug' => 'custom-workflow',
-    'description' => 'Custom workflow for special content',
-    'status' => 'active',
-    'config' => [
-        'version' => '2.0',
-        'post_types' => ['post'],
-        'statuses' => [
-            [
-                'key' => 'draft',
-                'label' => 'Draft',
-                'color' => '#3498db',
-                'status' => 'draft',
-                'region_entry' => true,
-                'transitions' => [
-                    [
-                        'to' => 'review',
-                        'label' => 'Submit',
-                    ],
+$config = [
+    'version' => '2.0',
+    'post_types' => ['post'],
+    'statuses' => [
+        [
+            'key' => 'draft',
+            'label' => 'Draft',
+            'color' => '#3498db',
+            'status' => 'draft',
+            'region_entry' => true,
+            'transitions' => [
+                [
+                    'to' => 'review',
+                    'label' => 'Submit',
                 ],
-            ],
-            [
-                'key' => 'review',
-                'label' => 'Review',
-                'color' => '#f39c12',
-                'status' => 'draft',
-                'transitions' => [
-                    ['to' => 'publish', 'label' => 'Publish'],
-                    ['to' => 'draft', 'label' => 'Back to Draft'],
-                ],
-            ],
-            [
-                'key' => 'publish',
-                'label' => 'Published',
-                'color' => '#27ae60',
-                'status' => 'publish',
-                'region_entry' => true,
-                'transitions' => [],
             ],
         ],
+        [
+            'key' => 'review',
+            'label' => 'Review',
+            'color' => '#f39c12',
+            'status' => 'draft',
+            'transitions' => [
+                ['to' => 'publish', 'label' => 'Publish'],
+                ['to' => 'draft', 'label' => 'Back to Draft'],
+            ],
+        ],
+        [
+            'key' => 'publish',
+            'label' => 'Published',
+            'color' => '#27ae60',
+            'status' => 'publish',
+            'region_entry' => true,
+            'transitions' => [],
+        ],
     ],
-]);
+];
+
+// create() takes positional args, not an assoc array: name, slug,
+// description, config, created_by, and an optional type (default 'workflow').
+$sequence_id = $repository->create(
+    'Custom Workflow',
+    'custom-workflow',
+    'Custom workflow for special content',
+    $config,
+    get_current_user_id()
+);
 ```
 
 ### 7. REST API Usage (JavaScript)
@@ -203,9 +210,9 @@ const result = await apiFetch({
     },
 });
 
-// Execute a tool
+// Execute a tool (the route is /run, not /execute)
 const toolResult = await apiFetch({
-    path: `/vip-workflows/v1/abilities/vip-workflows/seo-check/execute`,
+    path: `/vip-workflows/v1/abilities/vip-workflows/seo-check/run`,
     method: 'POST',
     data: {
         post_id: postId,
@@ -215,76 +222,52 @@ const toolResult = await apiFetch({
     },
 });
 
-// Get notifications
-const notifications = await apiFetch({
-    path: '/vip-workflows/v1/notifications',
+// List notification channels
+const channels = await apiFetch({
+    path: '/vip-workflows/v1/notifications/channels',
 });
 
-// Mark notification as read
+// Save a channel's settings (there is no in-app notification inbox — only
+// the Email/Slack channels and the event-routing matrix)
 await apiFetch({
-    path: `/vip-workflows/v1/notifications/${notificationId}/read`,
+    path: `/vip-workflows/v1/notifications/${channelId}/settings`,
     method: 'POST',
+    data: channelSettings,
 });
 
-// Upload asset
-const formData = new FormData();
-formData.append('file', file);
-
-const asset = await apiFetch({
-    path: '/vip-workflows/v1/assets/upload',
-    method: 'POST',
-    body: formData,
-});
+// Note: there is no `/vip-workflows/v1/assets/upload` route. The standalone
+// asset library (AssetsController, the Workflow Notes CPT) was removed in
+// schema 2.16.0 — see architecture.md § Ideation System. Ideation-project
+// research sources go through `/vip-workflows/v1/ideation/{id}` and
+// IdeationSourcesController instead.
 ```
 
 ### 8. Sending Notifications Programmatically
 
+`NotificationDispatcher` has no `send_to_user()` / `send_to_role()` / `send_to_desk()` API and there is no `'in-app'` channel — routing is entirely event-driven, through the event-to-channel matrix (Workflows → Notifications → Routing) or a transition's own `notifications` config.
+
 ```php
 use VIPWorkflows\Notifications\NotificationDispatcher;
-use VIPWorkflows\Notifications\Notification;
 
 $dispatcher = new NotificationDispatcher();
 
-$notification = new Notification([
-    'type' => 'assignment',
-    'title' => 'New Assignment',
-    'message' => 'You have been assigned to: ' . get_the_title($post_id),
-    'post_id' => $post_id,
-    'action_url' => get_edit_post_link($post_id),
+// Fires the same path a real workflow transition takes: checks the routing
+// option (and debug mirror), then sends to every configured, matching
+// channel. $event_type must be one registered via NotificationDispatcher::get_event_types()
+// (filterable with `vip_workflows_notification_events`) or a transition's own
+// notifications list — an unrecognized type reaches no one.
+$dispatcher->dispatch('published', [
+    'post_id'     => $post_id,
+    'post_title'  => get_the_title($post_id),
+    'author_name' => get_the_author_meta('display_name', get_post_field('post_author', $post_id)),
+    'edit_url'    => get_edit_post_link($post_id, 'raw'),
+    'view_url'    => get_permalink($post_id),
 ]);
-
-// Send to specific user
-$dispatcher->send_to_user($user_id, $notification, ['email', 'slack']);
-
-// Send to role
-$dispatcher->send_to_role('editor', $notification, ['in-app']);
-
-// Send to desk
-$dispatcher->send_to_desk($desk_id, $notification);
 ```
 
-### 9. Scheduling Background Jobs
+For a per-transition notification (e.g. "notify Slack when this transition fires"), configure it on the transition's `notifications` array in the sequence — see [Working with Transition Inputs](#12-working-with-transition-inputs) and [architecture.md § Notifications System](architecture.md#6-notifications-system). There is no standalone job scheduler in this plugin — see [architecture.md §7](architecture.md#7-scheduled-cleanup); background work runs directly on Action Scheduler (`as_enqueue_async_action()`) or WP-Cron, as `NotificationDispatcher::dispatch()` and `Maintenance\Cleanup` do.
 
-```php
-use VIPWorkflows\Plugin;
-
-$scheduler = Plugin::get_instance()->get_job_scheduler();
-
-// Schedule one-time job
-$scheduler->schedule_once('my-task', time() + 3600, [
-    'param1' => 'value1',
-]);
-
-// Schedule recurring job
-$scheduler->schedule_recurring('my-task', time(), 'daily', [
-    'param1' => 'value1',
-]);
-
-// Cancel scheduled job
-$scheduler->cancel('my-task');
-```
-
-### 10. AI Asset Analysis
+### 9. AI Asset Analysis
 
 ```php
 use VIPWorkflows\Integrations\MediaProcessor;
@@ -311,17 +294,17 @@ if ( ! is_wp_error( $result ) ) {
     $summary    = $result['summary'] ?? null;  // AI summary, or null if summarization failed.
 }
 
-// For asset uploads, AIMediaAnalyzer runs automatically via
-// vip_workflows_asset_file_uploaded and writes results to post meta.
-$analysis = get_post_meta( $asset_id, '_vip_asset_analysis', true );
+// For an uploaded ideation source, MediaProcessor::process_file() is the
+// entry point SourceProcessingJob::process() actually calls — it dispatches
+// internally by mime type instead of the caller choosing analyze_image() vs.
+// transcribe_audio_video(). The result is written onto the wp_vip_ideation_sources
+// row (content/excerpt/ai_analysis columns), not to post meta — there is no
+// AIMediaAnalyzer and no _vip_asset_analysis meta any more (removed with the
+// standalone asset library in schema 2.16.0).
+$result = $processor->process_file( $file_path, $mime_type );
 ```
 
-> **Note:** `AIMediaAnalyzer::analyze_image(int $asset_id, int $attachment_id)` /
-> `transcribe_audio` / `transcribe_video` remain public but are thin wrappers
-> that write directly to post meta. Prefer `MediaProcessor` for custom call
-> sites that need the analysis value rather than the side-effect.
-
-### 11. Configuring Tool Check Modes
+### 10. Configuring Tool Check Modes
 
 ```php
 use VIPWorkflows\Abilities\AbilitySettings;
@@ -350,7 +333,7 @@ $settings->update_tool_settings('seo-check', [
 ]);
 ```
 
-### 12. Using Bypass Permissions
+### 11. Using Bypass Permissions
 
 ```php
 use VIPWorkflows\Admin\Settings;
@@ -369,7 +352,7 @@ if (Settings::can_user_bypass_tool_checks()) {
 // Default: Administrators can bypass both
 ```
 
-### 13. Working with Transition Inputs
+### 12. Working with Transition Inputs
 
 A transition captures any number of inputs, in the order the author arranged
 them, and the editor asks for them in that order before the post moves. At most

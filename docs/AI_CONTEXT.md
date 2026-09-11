@@ -4,10 +4,10 @@ Use the smallest reference that covers the task:
 
 | Reference | Scope |
 | --- | --- |
-| [Architecture](reference/architecture.md) | Core concepts, modules, sequences, ideation, tools, agents, notifications, jobs, and events |
+| [Architecture](reference/architecture.md) | Core concepts, modules, sequences, ideation, tools, agents, notifications, experiments, and events |
 | [File structure](reference/file-structure.md) | Directory and subsystem map |
 | [Database schema](reference/database-schema.md) | Custom tables and post-meta keys |
-| [Data flows](reference/data-flows.md) | Runtime sequences for transitions, tools, media, notifications, and jobs |
+| [Data flows](reference/data-flows.md) | Runtime sequences for transitions, tools, media, and notifications |
 | [Code patterns](reference/code-patterns.md) | PHP and JavaScript implementation examples |
 | [Admin UI](reference/admin-ui.md) | React applications and admin surfaces |
 | [Extension points](reference/extension-points.md) | Hooks, registries, modules, tools, providers, and REST extensions |
