@@ -22,6 +22,7 @@ use VIPWorkflows\Workflow\StatusManager;
 use VIPWorkflows\Workflow\WorkflowEvents;
 use VIPWorkflows\Maintenance\Cleanup;
 use VIPWorkflows\Notifications\NotificationDispatcher;
+use VIPWorkflows\Experiments\CalendarExperiment;
 use VIPWorkflows\Experiments\ExperimentCLI;
 use VIPWorkflows\Experiments\ExperimentRegistry;
 use VIPWorkflows\Experiments\IdeationExperiment;
@@ -173,6 +174,7 @@ final class Plugin {
 
 		$this->experiment_registry = new ExperimentRegistry();
 		$this->experiment_registry->register( new IdeationExperiment() );
+		$this->experiment_registry->register( new CalendarExperiment() );
 
 		/**
 		 * Fires when experiments should be registered.

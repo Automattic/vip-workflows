@@ -16,7 +16,7 @@ Experiments are in-development features that ship **disabled by default** and ca
 
 The system replaced the standalone "Content OS" admin page. The toggle UI now lives in **Settings → Experiments**.
 
-Currently the only registered experiment is **Ideation** (`ideation`), which gates the research/discovery/source-processing subsystem.
+Registered experiments: **Ideation** (`ideation`), which gates the research/discovery/source-processing subsystem, and **Calendar** (`calendar`), which gates the Calendar admin page and its REST endpoint.
 
 ---
 
@@ -29,6 +29,7 @@ Currently the only registered experiment is **Ideation** (`ideation`), which gat
 | `Experiment` (abstract) | `class-experiment.php` | Declares an experiment: `get_id()`, `get_name()`, `get_description()`, `get_icon()`, `get_modules()`, `get_admin_modules()`, `is_available()`, `activate()`, `deactivate()`. |
 | `ExperimentRegistry` | `class-experiment-registry.php` | Tracks experiments and resolves enabled state. `register()`, `is_enabled()`, `enable()`, `disable()`, `get_all()`, `get_enabled()`, `to_array()`, `register_modules( Plugin )`. |
 | `IdeationExperiment` | `class-ideation-experiment.php` | The Ideation experiment. Registers `IdeationPostTypes`, `SourceProcessingJob`, `DiscoveryModule` (+ `IdeationAdmin` in admin); seeds the default phase sequence on activate and unschedules source-processing jobs on deactivate. |
+| `CalendarExperiment` | `class-calendar-experiment.php` | The Calendar experiment. Declares no modules — it gates a single admin page and REST endpoint directly at their call sites in `class-admin.php` / `class-workflow-controller.php`. |
 | `ExperimentCLI` | `class-experiment-cli.php` | `wp vip-workflows experiment list|enable|disable`. |
 
 ### Storage & resolution
