@@ -1,6 +1,6 @@
 # UX copy audit — before / after
 
-Every user-facing string that changed. Derived from the diff between the audit commit and HEAD rather than from an edit log, so a string renamed twice shows only its **net** result. **266 distinct strings** across the plugin and its five extension plugins.
+Every user-facing string that changed. Derived from the diff between the audit commit and HEAD rather than from an edit log, so a string renamed twice shows only its **net** result. **273 distinct strings** across the plugin and its five extension plugins.
 
 Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes are excluded.
 
@@ -11,7 +11,7 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | [Ability labels](#ability-labels) | 10 |
 | [New: reader-facing tool summaries](#new-reader-facing-tool-summaries) | 26 |
 | [New: Quick Edit strings, now translatable](#new-quick-edit-strings-now-translatable) | 5 |
-| [Helper text](#helper-text) | 38 |
+| [Helper text](#helper-text) | 45 |
 | [Rewritten for clarity](#rewritten-for-clarity) | 13 |
 | [Errors](#errors) | 20 |
 | [Permission errors](#permission-errors) | 12 |
@@ -20,7 +20,7 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | [Removed “successfully”](#removed-successfully) | 4 |
 | [Typography](#typography) | 22 |
 | [Terminal periods](#terminal-periods) | 6 |
-| **Total** | **266** |
+| **Total** | **273** |
 
 ---
 
@@ -189,7 +189,7 @@ These were hardcoded English inside an inline script and could not be translated
 | Placeholders: %s | `PromptsSettings.js` |
 | Working… | `class-posts-columns.php` |
 
-## Helper text (38)
+## Helper text (45)
 
 | Before | After | Where |
 |---|---|---|
@@ -210,8 +210,14 @@ These were hardcoded English inside an inline script and could not be translated
 | No models could be discovered for this provider, so AI features cannot generate through it. Check its connection in Settings → Connectors, or choose a provider whose mode | No models found. Check Settings → Connectors. | `AiModelSettings.js` |
 | No models were discovered for this provider; the default will be used. | No models found. The default model will be used. | `AiModelSettings.js` |
 | No role with this slug exists on this site — its plugin may be inactive. Nobody matches it, so it allows nobody while it keeps the restriction on. | Role not found, so it matches no one. | `TransitionInspector.js` |
+| Only a status with no stages can be removed, and Draft always stays — it’s where new content is created. | Draft can’t be removed. | `RegionInspector.js` |
+| Only a status with no stages can be removed, and Draft always stays — it’s where new content is created. | Move or delete its stages first. | `RegionInspector.js` |
 | Only providers with a configured API key appear here. | *(removed)* | `AiModelSettings.js` |
 | Only these roles can use this transition. With none checked, everyone can. | Leave all unchecked to allow everyone. | `TransitionInspector.js` |
+| Posts hold the “%s” status while they sit in any stage in this section of the canvas. Moving between stages inside it leaves the status alone; a transition that crosses i | Stages here are drafts. A post set to draft outside the sequence starts at the entry checkpoint. | `regions.js` |
+| Posts hold the “%s” status while they sit in any stage in this section of the canvas. Moving between stages inside it leaves the status alone; a transition that crosses i | Stages here are pending review. A post set to pending review outside the sequence starts at the entry checkpoint. | `regions.js` |
+| Posts hold the “%s” status while they sit in any stage in this section of the canvas. Moving between stages inside it leaves the status alone; a transition that crosses i | Stages here are private. A post made private outside the sequence starts at the entry checkpoint. | `regions.js` |
+| Posts hold the “%s” status while they sit in any stage in this section of the canvas. Moving between stages inside it leaves the status alone; a transition that crosses i | Stages here are published. A post published outside the sequence starts at the entry checkpoint. | `regions.js` |
 | Prompt for summarizing and extracting text from uploaded PDFs. | Summarizes and extracts text from uploaded PDFs. | `class-core-prompts.php` |
 | Ranks candidate archive articles by relevance to the seed. Variables: {limit}, {seed}, {candidate_text}. | Ranks archive results by relevance to the seed. | `class-core-prompts.php` |
 | Research, discovery, and source management for ideation projects. | Research and source tools for ideation. | `class-ideation-experiment.php` |
@@ -227,10 +233,11 @@ These were hardcoded English inside an inline script and could not be translated
 | System instruction for editorial draft generation. Variables: {guideline_context}, {word_count}, {image_placement}. | System instruction for editorial draft generation. | `class-core-prompts.php` |
 | This channel is not set up, so nothing is sent on it. Finish it under Workflows → Notifications, or untick it here. | Not set up. See Workflows → Notifications. | `TransitionInspector.js` |
 | This field needs a key. Saving is refused until it has one. | A key is required. | `InspectorFieldList.js` |
+| This status has no stages yet. Drag a stage into its section of the canvas, or drop a new connection there. | No stages yet. Drag one into this section. | `RegionInspector.js` |
 | User prompt for editorial draft generation. Variables: {project_name}, {research_context}, {image_instructions}. | User prompt for editorial draft generation. | `class-core-prompts.php` |
 | Visible only to logged-in users who can read private posts. | Only users with access can see it. | `regions.js` |
 | Vision prompt for analyzing uploaded images during research. | Analyzes images uploaded during research. | `class-core-prompts.php` |
-| Where a post lands when something outside the workflow sets this status — publishing from the editor, a scheduled post going live, a REST write — and where a sequence ass | Used when the status is set outside the sequence. | `RegionInspector.js` |
+| Where a post lands when something outside the workflow sets this status — publishing from the editor, a scheduled post going live, a REST write — and where a sequence ass | *(removed)* | `RegionInspector.js` |
 
 ## Rewritten for clarity (13)
 
