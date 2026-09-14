@@ -50,6 +50,16 @@ class FactCheckAgentNotesTest extends TestCase
      *
      * @return array<int, int>
      */
+    private function top_level_agent_notes( int $post_id ): array
+    {
+        return array_values(
+            array_filter(
+                $this->agent_notes( $post_id ),
+                static fn( $note ) => 0 === (int) $note->comment_parent
+            )
+        );
+    }
+
     private function anchored_note_ids( int $post_id ): array
     {
         $blocks = parse_blocks( (string) get_post_field( 'post_content', $post_id ) );
@@ -57,7 +67,10 @@ class FactCheckAgentNotesTest extends TestCase
 
         foreach ( $blocks as $block ) {
             if ( isset( $block['attrs']['metadata']['noteId'] ) ) {
-                $ids[] = (int) $block['attrs']['metadata']['noteId'];
+                // A block carries one note as a scalar and several as an array.
+                foreach ( (array) $block['attrs']['metadata']['noteId'] as $note_id ) {
+                    $ids[] = (int) $note_id;
+                }
             }
         }
 
@@ -254,7 +267,7 @@ class FactCheckAgentNotesTest extends TestCase
         $this->assertSame( $before, (string) get_post_field( 'post_content', $post_id ) );
     }
 
-    public function test_fresh_finding_on_a_replied_block_becomes_an_agent_reply(): void
+    public function test_a_different_finding_on_a_replied_block_gets_its_own_note(): void
     {
         $post_id = $this->create_block_post();
 
@@ -278,7 +291,10 @@ class FactCheckAgentNotesTest extends TestCase
             )
         );
 
-        // A new run flags a different problem on the SAME block.
+        // A new run flags a different problem on the SAME block. A block carries
+        // several notes, so this is its own note rather than a reply appended to
+        // a conversation about something else — which is what lets an editor
+        // answer one finding and resolve another independently.
         StageAgent::write_block_notes(
             $post_id,
             array( 1 => array( 'The date is also wrong.' ) ),
@@ -288,15 +304,63 @@ class FactCheckAgentNotesTest extends TestCase
             self::LABEL
         );
 
-        // The preserved note survives and the fresh finding is surfaced as a
-        // marked agent reply rather than dropped.
+        $this->assertNotNull( get_comment( $anchor_id ) );
+        $this->assertSame( 0, $this->agent_reply_count( $anchor_id ) );
+
+        $this->assertCount( 2, $this->top_level_agent_notes( $post_id ) );
+
+        // Both notes anchor to the same block.
+        $anchored = $this->anchored_note_ids( $post_id );
+        $this->assertCount( 2, $anchored );
+        $this->assertContains( $anchor_id, $anchored );
+    }
+
+    public function test_a_repeated_finding_on_a_replied_block_becomes_an_agent_reply(): void
+    {
+        $post_id = $this->create_block_post();
+
+        StageAgent::write_block_notes(
+            $post_id,
+            array( 1 => array( 'The population figure is unsourced.' ) ),
+            null,
+            null,
+            self::MARKER,
+            self::LABEL
+        );
+        $anchor_id = (int) $this->agent_notes( $post_id )[0]->comment_ID;
+        wp_insert_comment(
+            array(
+                'comment_post_ID'  => $post_id,
+                'comment_type'     => 'note',
+                'comment_parent'   => $anchor_id,
+                'comment_content'  => 'I have a source for this.',
+                'comment_approved' => '0',
+            )
+        );
+
+        // A finding that is still true is the same conversation, so it lands in
+        // that thread rather than duplicating the note beside itself. It reaches
+        // this path alongside a second, new finding: a repeat on its own leaves
+        // the note set unchanged, which the write recognises as a no-op.
+        StageAgent::write_block_notes(
+            $post_id,
+            array( 1 => array( 'The population figure is unsourced.', 'The date is also wrong.' ) ),
+            null,
+            null,
+            self::MARKER,
+            self::LABEL
+        );
+
         $this->assertNotNull( get_comment( $anchor_id ) );
         $this->assertSame( 1, $this->agent_reply_count( $anchor_id ) );
 
-        // Idempotent: the same finding again adds no second reply.
+        // The new finding is its own note beside the preserved one.
+        $this->assertCount( 2, $this->top_level_agent_notes( $post_id ) );
+
+        // Idempotent: running the same pair again adds no second reply.
         StageAgent::write_block_notes(
             $post_id,
-            array( 1 => array( 'The date is also wrong.' ) ),
+            array( 1 => array( 'The population figure is unsourced.', 'The date is also wrong.' ) ),
             null,
             null,
             self::MARKER,
