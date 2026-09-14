@@ -1380,4 +1380,67 @@ describe( 'A refused Save that knows where its fault is', () => {
 			screen.getAllByRole( 'button', { name: 'Show transition' } )
 		).toHaveLength( 1 );
 	} );
+
+	// Two transitions nobody labelled, leaving two stages for the same place.
+	// The runtime names an unlabelled transition by its destination, so both
+	// faults word themselves identically — and they are still two transitions,
+	// in two stages, each needing its own fix and its own way there.
+	const TWICE_FAULTED = [
+		{
+			key: 'draft',
+			label: 'Draft',
+			color: '#C36EFF',
+			status: 'draft',
+			region_entry: true,
+			is_terminal: false,
+			transitions: [
+				{
+					to: 'legal',
+					inputs: [ { type: 'assignment', meta_key: '' } ],
+				},
+			],
+		},
+		{
+			key: 'revise',
+			label: 'Revise',
+			color: '#C36EFF',
+			status: 'draft',
+			region_entry: false,
+			is_terminal: false,
+			transitions: [
+				{
+					to: 'legal',
+					inputs: [ { type: 'assignment', meta_key: '' } ],
+				},
+			],
+		},
+		{
+			key: 'legal',
+			label: 'Legal',
+			color: '#C36EFF',
+			status: 'draft',
+			region_entry: false,
+			is_terminal: true,
+			transitions: [],
+		},
+	];
+
+	// Deduped on the sentence alone, the notice kept one of the pair and
+	// dropped the other: one reason where there were two, and a way there that
+	// reached only the first — so fixing what it opened earned the same
+	// refusal, word for word, with nothing to say the second fault existed.
+	it( 'keeps two faults that word themselves the same', async () => {
+		served = sequence( {
+			config: { ...sequence().config, statuses: TWICE_FAULTED },
+		} );
+		await renderEditor( { sequenceId: 7 } );
+
+		pressSave();
+
+		await screen.findAllByText( /2 things need fixing/ );
+		expect(
+			screen.getAllByRole( 'button', { name: 'Show transition' } )
+		).toHaveLength( 2 );
+		expect( writes ).toHaveLength( 0 );
+	} );
 } );
