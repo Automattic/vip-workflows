@@ -197,15 +197,17 @@ class Admin implements ModuleInterface {
 				array( $this, 'render_my_dashboard_page' )
 			);
 
-			// Kanban board - available to all who can edit posts.
-			add_submenu_page(
-				'vip-workflows',
-				__( 'Kanban', 'vip-workflows' ),
-				__( 'Kanban', 'vip-workflows' ),
-				'edit_posts',
-				'vip-workflows-kanban',
-				array( $this, 'render_kanban_page' )
-			);
+			// Kanban board - available to all who can edit posts, while enabled.
+			if ( Plugin::experiment_enabled( 'kanban' ) ) {
+				add_submenu_page(
+					'vip-workflows',
+					__( 'Kanban', 'vip-workflows' ),
+					__( 'Kanban', 'vip-workflows' ),
+					'edit_posts',
+					'vip-workflows-kanban',
+					array( $this, 'render_kanban_page' )
+				);
+			}
 
 			// Calendar - available to all who can edit posts, while enabled.
 			if ( Plugin::experiment_enabled( 'calendar' ) ) {

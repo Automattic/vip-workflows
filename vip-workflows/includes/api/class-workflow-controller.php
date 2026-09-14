@@ -297,29 +297,32 @@ class WorkflowController extends WP_REST_Controller {
 		);
 
 		// GET /workflow/kanban - Get Kanban board data for all active sequences.
-		register_rest_route(
-			$this->namespace,
-			'/' . $this->rest_base . '/kanban',
-			array(
+		// Kanban-only surface: the board is gated behind the 'kanban' experiment.
+		if ( Plugin::experiment_enabled( 'kanban' ) ) {
+			register_rest_route(
+				$this->namespace,
+				'/' . $this->rest_base . '/kanban',
 				array(
-					'methods'             => WP_REST_Server::READABLE,
-					'callback'            => array( $this, 'get_kanban_data' ),
-					'permission_callback' => array( $this, 'get_my_queue_permissions_check' ),
-					'args'                => array(
-						'sequence_id' => array(
-							'description' => 'Filter by sequence ID, or "none" for posts outside any workflow.',
-							'type'        => 'string',
-							'required'    => false,
-						),
-						'include_hidden' => array(
-							'description' => 'Include hidden statuses (terminal, etc.).',
-							'type'        => 'boolean',
-							'default'     => false,
+					array(
+						'methods'             => WP_REST_Server::READABLE,
+						'callback'            => array( $this, 'get_kanban_data' ),
+						'permission_callback' => array( $this, 'get_my_queue_permissions_check' ),
+						'args'                => array(
+							'sequence_id' => array(
+								'description' => 'Filter by sequence ID, or "none" for posts outside any workflow.',
+								'type'        => 'string',
+								'required'    => false,
+							),
+							'include_hidden' => array(
+								'description' => 'Include hidden statuses (terminal, etc.).',
+								'type'        => 'boolean',
+								'default'     => false,
+							),
 						),
 					),
-				),
-			)
-		);
+				)
+			);
+		}
 
 		// GET /workflow/calendar - Get posts for calendar view.
 		// Calendar-only surface: the view is gated behind the 'calendar' experiment.

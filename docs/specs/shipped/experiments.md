@@ -16,7 +16,7 @@ Experiments are in-development features that ship **disabled by default** and ca
 
 The system replaced the standalone "Content OS" admin page. The toggle UI now lives in **Settings → Experiments**.
 
-Registered experiments: **Ideation** (`ideation`), which gates the research/discovery/source-processing subsystem, and **Calendar** (`calendar`), which gates the Calendar admin page and its REST endpoint.
+Registered experiments: **Ideation** (`ideation`), which gates the research/discovery/source-processing subsystem, **Kanban Board** (`kanban`), which gates the Kanban board admin page and its REST endpoint, and **Calendar** (`calendar`), which gates the Calendar admin page and its REST endpoint.
 
 ---
 
@@ -29,6 +29,7 @@ Registered experiments: **Ideation** (`ideation`), which gates the research/disc
 | `Experiment` (abstract) | `class-experiment.php` | Declares an experiment: `get_id()`, `get_name()`, `get_description()`, `get_icon()`, `get_modules()`, `get_admin_modules()`, `is_available()`, `activate()`, `deactivate()`. |
 | `ExperimentRegistry` | `class-experiment-registry.php` | Tracks experiments and resolves enabled state. `register()`, `is_enabled()`, `enable()`, `disable()`, `get_all()`, `get_enabled()`, `to_array()`, `register_modules( Plugin )`. |
 | `IdeationExperiment` | `class-ideation-experiment.php` | The Ideation experiment. Registers `IdeationPostTypes`, `SourceProcessingJob`, `DiscoveryModule` (+ `IdeationAdmin` in admin); seeds the default phase sequence on activate and unschedules source-processing jobs on deactivate. |
+| `KanbanExperiment` | `class-kanban-experiment.php` | The Kanban board experiment. Declares no modules — it gates a single admin page and REST endpoint directly at their call sites in `class-admin.php` / `class-workflow-controller.php`. |
 | `CalendarExperiment` | `class-calendar-experiment.php` | The Calendar experiment. Declares no modules — it gates a single admin page and REST endpoint directly at their call sites in `class-admin.php` / `class-workflow-controller.php`. |
 | `ExperimentCLI` | `class-experiment-cli.php` | `wp vip-workflows experiment list|enable|disable`. |
 
@@ -45,7 +46,7 @@ Registered experiments: **Ideation** (`ideation`), which gates the research/disc
 
 ### Plugin wiring (`includes/class-plugin.php`)
 
-The registry is built in `init_components()`, the `IdeationExperiment` is registered, the `vip_workflows_register_experiments` hook fires, then `register_modules( $this )` loads the modules of every enabled experiment. Accessors:
+The registry is built in `init_components()`, the built-in experiments are registered, the `vip_workflows_register_experiments` hook fires, then `register_modules( $this )` loads the modules of every enabled experiment. Accessors:
 
 - `Plugin::get_experiment_registry(): ExperimentRegistry`
 - `Plugin::experiment_enabled( string $id ): bool` — convenience wrapper used at gating call sites.
