@@ -1228,6 +1228,86 @@ class WorkflowControllerTest extends TestCase
     // =========================================================================
 
     /**
+     * Run a callback with the Plugin singleton's experiment registry replaced.
+     *
+     * Mirrors with_status_manager() below — same swap-and-restore shape, a
+     * different property, so `Plugin::experiment_enabled()` resolves against
+     * a controlled double instead of a real registry.
+     *
+     * @param object   $registry Experiment registry double.
+     * @param callable $callback Code to run with the double installed.
+     * @return mixed The callback's return value.
+     */
+    private function with_experiment_registry( object $registry, callable $callback )
+    {
+        $plugin   = \VIPWorkflows\Plugin::get_instance();
+        $property = new \ReflectionProperty( \VIPWorkflows\Plugin::class, 'experiment_registry' );
+        $previous = $property->getValue( $plugin );
+        $property->setValue( $plugin, $registry );
+
+        try {
+            return $callback();
+        } finally {
+            $property->setValue( $plugin, $previous );
+        }
+    }
+
+    /**
+     * The my-queue route registers only while the 'my_queue' experiment is enabled.
+     */
+    public function test_register_routes_registers_my_queue_when_experiment_enabled(): void
+    {
+        $registry = Mockery::mock( \VIPWorkflows\Experiments\ExperimentRegistry::class );
+        $registry->shouldReceive( 'is_enabled' )->with( 'my_queue' )->andReturn( true );
+        // register_routes() also gates the Calendar route on the same
+        // registry; stub it so that unrelated check doesn't fail the test.
+        $registry->shouldReceive( 'is_enabled' )->with( 'calendar' )->andReturn( false );
+
+        $routes = $this->with_experiment_registry(
+            $registry,
+            function () {
+                $routes = array();
+                Functions\when( 'register_rest_route' )->alias(
+                    function ( $namespace, $route, $args ) use ( &$routes ) {
+                        $routes[ $route ] = $args;
+                    }
+                );
+                $this->controller->register_routes();
+                return $routes;
+            }
+        );
+
+        $this->assertArrayHasKey( '/workflow/my-queue', $routes );
+    }
+
+    /**
+     * The my-queue route is absent from REST discovery while the experiment
+     * is off — this is what actually hides the surface, not just the tab.
+     */
+    public function test_register_routes_omits_my_queue_when_experiment_disabled(): void
+    {
+        $registry = Mockery::mock( \VIPWorkflows\Experiments\ExperimentRegistry::class );
+        $registry->shouldReceive( 'is_enabled' )->with( 'my_queue' )->andReturn( false );
+        $registry->shouldReceive( 'is_enabled' )->with( 'calendar' )->andReturn( false );
+
+        $routes = $this->with_experiment_registry(
+            $registry,
+            function () {
+                $routes = array();
+                Functions\when( 'register_rest_route' )->alias(
+                    function ( $namespace, $route, $args ) use ( &$routes ) {
+                        $routes[ $route ] = $args;
+                    }
+                );
+                $this->controller->register_routes();
+                return $routes;
+            }
+        );
+
+        $this->assertArrayNotHasKey( '/workflow/my-queue', $routes );
+    }
+
+    /**
      * Test get_my_queue returns empty for unauthenticated users.
      */
     public function test_get_my_queue_empty_for_guest(): void

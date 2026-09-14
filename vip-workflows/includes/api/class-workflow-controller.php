@@ -268,17 +268,20 @@ class WorkflowController extends WP_REST_Controller {
 		);
 
 		// GET /workflow/my-queue - Get posts in queue for current user.
-		register_rest_route(
-			$this->namespace,
-			'/' . $this->rest_base . '/my-queue',
-			array(
+		// My Queue-only surface: the tab is gated behind the 'my_queue' experiment.
+		if ( Plugin::experiment_enabled( 'my_queue' ) ) {
+			register_rest_route(
+				$this->namespace,
+				'/' . $this->rest_base . '/my-queue',
 				array(
-					'methods'             => WP_REST_Server::READABLE,
-					'callback'            => array( $this, 'get_my_queue' ),
-					'permission_callback' => array( $this, 'get_my_queue_permissions_check' ),
-				),
-			)
-		);
+					array(
+						'methods'             => WP_REST_Server::READABLE,
+						'callback'            => array( $this, 'get_my_queue' ),
+						'permission_callback' => array( $this, 'get_my_queue_permissions_check' ),
+					),
+				)
+			);
+		}
 
 		// GET /workflow/my-work - Get all active work items for current user.
 		register_rest_route(
