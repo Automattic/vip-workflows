@@ -46,6 +46,16 @@ related:
 > whole-graph reading the list gestured at (inaccurately, on any branching
 > sequence) is `planned/non-linear-progress.md`'s job.
 
+> **On the citations below (2026-09-14 line-citation pass).** `ToolsPanel.js`
+> and `WorkflowPanel.js`'s `renderTransitionButton`/`groupTransitions` — the
+> code this spec replaces — no longer exist; that logic now lives in
+> `TransitionRail.js`. The **What Changes** and **Why** sections cite that
+> pre-shipped code as historical rationale for the change and are left as
+> written. From **The Model** onward, citations have been corrected to point
+> at current `main` — where the described behavior actually lives today —
+> with a few spots flagged where the shipped behavior itself diverged from
+> what this spec proposed.
+
 ## What Changes
 
 The block editor sidebar currently answers "how do I move this post" in two
@@ -153,49 +163,54 @@ reference for layout, geometry, and the interaction beats below.
 
 Every transition renders as `variant="secondary"`, and **nothing sits inside
 the button but its `label`** — no lock glyph, no terminal marker, no badge.
-This deletes the terminal→primary / bypass→tertiary precedence at
-`WorkflowPanel.js:497-502`. (The shipped rail kept one exception, added
-after this spec: when a stage offers exactly one transition and it is not
-locked, that transition renders `primary` — see
+This deletes the terminal→primary / bypass→tertiary precedence that used to
+live in `WorkflowPanel.js`'s `renderTransitionButton` (removed; see the note
+above). (The shipped rail kept one exception, added after this spec: when a
+stage offers exactly one transition and it is not locked, that transition
+renders `primary` — `TransitionRail.js:1056-1074`; see
 `docs/guides/action-standard.md`.) Labels arrive already derived
-(`StatusManager::transition_label()`, `class-status-manager.php:314-326`), so
+(`StatusManager::transition_label()`, `class-status-manager.php:438-450`), so
 the rail renders what it is given.
 
-Clicking a transition calls the existing `handleTransitionClick`
-(`WorkflowPanel.js:533-583`) — the warning, text-input, and assignment modals,
-and the agent-interrupt confirm, all stay where they are. While one transition
-is in flight (`transitioningTo`, `WorkflowPanel.js:133`) its button shows the
-busy state and every other button is `aria-disabled`, so a second move cannot
-queue behind the first.
+Clicking a transition calls `onTransition`, wired to `WorkflowPanel`'s
+`handleTransitionClick` (`WorkflowPanel.js:684`, now considerably longer than
+the ~50 lines this spec sized it at) — the warning, text-input, and
+assignment modals, and the agent-interrupt confirm, all stay where they are.
+While one transition is in flight (`transitioningTo`, passed down from
+`WorkflowPanel.js:184` and compared per-button at `TransitionRail.js:1066`,
+disabling the rest at `:1082`) its button shows the busy state and every
+other button is `aria-disabled`, so a second move cannot queue behind the
+first.
 
 ### Blocked transitions
 
 A locked transition (`_locked`, set by the assignment check at
-`class-sequence.php:493-494` and passed through at
-`class-status-manager.php:426-429`) renders as a disabled-styled button with
-`_locked_reason` as **plain helper text directly below it** — no icon, no
-tooltip, no colour. The reason is the actionable half of the state, so it is
-always visible. This replaces the `🔒` span and `<Tooltip>` at
-`WorkflowPanel.js:514-530`.
+`class-sequence.php:508-509` and passed through at
+`class-status-manager.php:531-535`) renders as a disabled-styled button
+(`TransitionRail.js:1065-1085`) with `_locked_reason` as **plain helper text
+directly below it** (`TransitionRail.js:1089-1096`) — no icon, no tooltip, no
+colour. The reason is the actionable half of the state, so it is always
+visible. This replaces the old `🔒` span and `<Tooltip>` that used to live in
+`WorkflowPanel.js`'s removed `renderTransitionButton`.
 
-The button uses `accessibleWhenDisabled`, so it renders `aria-disabled` and
-stays in the tab order beside its explanation, rather than the `disabled`
-attribute that currently removes it (`WorkflowPanel.js:511`).
+The button uses `accessibleWhenDisabled` (`TransitionRail.js:1085`), so it
+renders `aria-disabled` and stays in the tab order beside its explanation,
+rather than the `disabled` attribute the old, removed button used.
 
 **A failing cached check does not disable a transition.** `transition()` runs
 `run_transition_tools()` fresh on every attempt
-(`class-status-manager.php:642`) — the cached result may predate the last
+(`class-status-manager.php:888`) — the cached result may predate the last
 edit, and the server re-runs it regardless. A button that refuses a move the
 server would allow is worse than one that fires and returns the block message.
 The transition stays live; the failing check is visible directly beneath it;
 and if the server does block, the `tool_check_failed` error already carries
-`hard_failures` and `soft_warnings` (`class-status-manager.php:1924-1932`,
-handled at `WorkflowPanel.js:402-408`) — the rail updates its check rows from
-that payload, so the indicator and the refusal agree.
+`hard_failures` and `soft_warnings` (`class-status-manager.php:2279-2284`) —
+the rail updates its check rows from that payload, so the indicator and the
+refusal agree.
 
 One asymmetry worth naming: a user who passes
 `Settings::can_user_bypass_tool_checks()` never runs the tools at all
-(`class-status-manager.php:641`). For them the check rows are pure disclosure
+(`class-status-manager.php:887`). For them the check rows are pure disclosure
 — accurate about the sequence, silent about their own next click. The rail
 does not vary its rendering by bypass capability; the checks describe the
 move, not the mover.
@@ -223,7 +238,7 @@ A stage with `is_terminal` ends the rail with the sequence editor's **END
 pill** (`TerminalNode.js`, styled at `SequenceGraphEditor.css:406-425`): the
 trunk runs from the stage mark to a single spur whose arrowhead meets the
 pill. The stage mark becomes a green check. A dead end
-(`is_dead_end`, `class-sequence.php:718`) gets the same pill under a neutral
+(`is_dead_end`, `class-sequence.php:902-904`) gets the same pill under a neutral
 dot — stopped is not done, and the mark is the difference.
 
 A stage that is neither flagged but offers the user no transitions is a third
@@ -237,21 +252,22 @@ rather than impersonating a dead end.
 ### Agent stages
 
 While an agent owns the stage, `get_available_transitions()` returns
-`array()` on purpose (`class-status-manager.php:387-389`), so the rail's
+`array()` on purpose (`class-status-manager.php:480-481`), so the rail's
 outcome rows come from the sequence: the current stage's own config in the
 payload (`current`, the raw stage config from
 `Sequence::get_status()`) carries `agent.routing`, the map from
 `pass` / `fail` / `error` to destination stage keys
-(`graph-model.js:156-159`) — matched against the stage's authored transitions
-for their labels. The run plays in three beats:
+(`AGENT_OUTCOMES`, `graph-model.js:119-126`; read into the rail's own
+`agentOutcomes()`, `TransitionRail.js:199-218`) — matched against the stage's
+authored transitions for their labels. The run plays in three beats:
 
 1. **Running.** A spinner replaces the stage dot. Each routed outcome renders
    as a disabled button with its real transition label and the outcome's
    9–10px dot in its own tone — the one place a mark sits inside a button,
    because these are not controls; they are the routing table drawn in the
    rail's grammar. Never clickable.
-2. **Resolve.** When polling (`WorkflowPanel.js:193-201`, on
-   `workflow.agent_pending`) observes the run finish, the taken outcome's
+2. **Resolve.** When polling (`WorkflowPanel.js`'s `agentIsPending` check at
+   `:246`, on `workflow.agent_pending`) observes the run finish, the taken outcome's
    button flashes its **pressed state for ~700 ms**.
 3. **Re-render.** The panel re-renders on the new stage, and a
    visually-hidden `role="status"` region announces the move — nobody
@@ -279,36 +295,45 @@ Each transition's `required_tools` render as rows nested under its button —
    otherwise, with a check result's `output.status` of `warning` mapping to
    the error (amber) tone.
 2. An ordinary `size="compact"` **secondary button** naming the tool, which
-   runs it (`POST /abilities/{id}/run`, as `ToolsPanel.js:243-247` does now).
+   runs it (`POST /abilities/{id}/run`, `TransitionRail.js:677-680`, in the
+   `runCheck` helper that replaced `ToolsPanel.js`'s equivalent).
    A helper-type tool (`meta.type === 'helper'`) opens `HelperResultModal`
-   exactly as today (`ToolsPanel.js:249-257`); a check-type result renders
-   inline, with `CheckResultsModal` available from the details for the full
-   report.
+   (`TransitionRail.js:683-684`, rendered at `:1228-1246`); a check-type
+   result renders inline, with `CheckResultsModal` available from the
+   details for the full report (`TransitionRail.js:1250-1260`).
 3. **Details underneath**: one severity roll-up line, then the issues, with
-   the `VISIBLE_ISSUE_COUNT` disclosure (`ToolsPanel.js:44`) keeping a noisy
-   tool from pushing everything else off the sidebar.
+   the `VISIBLE_ISSUE_COUNT` disclosure (`TransitionRail.js:78`) keeping a
+   noisy tool from pushing everything else off the sidebar.
 
 **Results are shared, per post + ability.** `vip_ability_results` is keyed
 `ability_id` + `post_id` with no transition column
-(`class-schema.php:983-997`). A check required by two exits has one result:
+(`class-schema.php:1485-1497`). A check required by two exits has one result:
 the rail lists it under both and running it anywhere updates every listing.
 The corollary is a rule the component must hold: two transitions requiring
 the same check are always both blocked or both fine.
 
-**A disabled tool is omitted, not greyed.** `run_transition_tools()` skips a
-tool whose `is_enabled()` is false and the transition proceeds as though the
-check ran (`class-status-manager.php:1845-1847`). Greying it out would imply
-a gate that isn't there. The abilities endpoint annotates `enabled`
-(`class-abilities-controller.php:219`) without filtering on it; the rail
-filters. The sidebar and the sequence will disagree about the count, and the
-sidebar is the one telling the truth.
+> **Shipped behavior diverged here.** This spec's "omitted, not greyed"
+> principle did not ship as written. `run_transition_tools()` no longer
+> silently skips a disabled required tool — it now adds a `tool_disabled`
+> **hard failure** that blocks the transition
+> (`class-status-manager.php:2195-2203`), the opposite of "the transition
+> proceeds as though the check ran." On the frontend, `TransitionRail.js`
+> also does not omit a disabled tool's row: `abilitiesById` includes it
+> (built from the unfiltered ability list, `TransitionRail.js:502-508`), so
+> `renderCheck` renders it with a disabled, `accessibleWhenDisabled` button
+> rather than skipping it (`TransitionRail.js:846-854`). The abilities
+> endpoint still just annotates `enabled` without filtering
+> (`class-abilities-controller.php:219`, unchanged) — but nothing downstream
+> filters on it either, so a disabled required tool is now visibly blocking
+> rather than invisible. Worth a deliberate decision on whether to revisit,
+> not treated as settled by this note.
 
 **Severity is per issue, and its site-wide half is only half.** `check_modes`
 is a site option keyed ability → check key → `soft`|`hard`
 (`class-ability-settings.php:86-89`): the sequence picks *which* checks gate
 a move, Settings picks how hard each bites, everywhere at once. But a tool
 can also declare an issue `error`/`hard` itself, and the server honours that
-(`class-status-manager.php:1887-1890`) — so one run can return a mix. The
+(`class-status-manager.php:2239-2243`) — so one run can return a mix. The
 details render one roll-up line above the issues ("Blocks this move." /
 "Warns before moving.") and mark individual lines only when they differ from
 it. The roll-up is a statement about site configuration plus the tool's own
@@ -316,11 +341,14 @@ grading, never about this transition specifically.
 
 ### Check state, staleness included
 
+> **Shipped, and the under-fetch it warns about is resolved.** `TransitionRail.js`
+> issues one `GET /posts/{id}/ability-results?ability_id=...&limit=1` request
+> per required ability (`TransitionRail.js:522-525`) — the "N per-ability
+> requests" option this doc's own Open Questions section below left
+> undecided. `ToolsPanel.js`'s single `limit=5`-total fetch no longer exists.
+
 The rail fetches the latest stored result per required ability
-(`GET /posts/{id}/ability-results` — note `ToolsPanel.js:216-229` fetches
-`limit=5` *total* and keeps first-per-ability, which under-fetches once a post
-has more than five recent rows across its tools; the rail should request
-per-ability or raise the limit to cover the required set).
+(`GET /posts/{id}/ability-results`, one request per ability as above).
 
 When the post has been edited since the check ran — the result's `created_at`
 (`class-ability-result.php:167`) is older than the post's `post_modified`,
@@ -333,7 +361,7 @@ same mark as a current one.
 
 During an agent run the abilities endpoint returns an empty list — its
 transitions filter reads `get_available_transitions()`, which is withholding
-(`class-abilities-controller.php:315-317`) — consistent with the rail, which
+(`class-abilities-controller.php:279-284`) — consistent with the rail, which
 draws no check rows under the outcome buttons.
 
 ### The rail drawing
@@ -349,40 +377,59 @@ The marks are the sequence editor's, exactly:
 | Mark | Rule | Source |
 | --- | --- | --- |
 | Line | 1px, `--wpds-color-stroke-surface-neutral-strong`. 2px and the brand tone are the editor's hover / selection / `is-outbound` states (`SequenceGraphEditor.css:828-849`), which this surface doesn't have. | `SequenceGraphEditor.css:821-826` |
-| Arrowhead | Open chevron `M -3.54,-3.54 L 0,0 L -3.54,3.54`, stroked at the line's own width, round cap and join. | `EdgeOverlay.js:76` |
+| Arrowhead | Open chevron `M -3.54,-3.54 L 0,0 L -3.54,3.54`, stroked at the line's own width, round cap and join. | `EdgeOverlay.js:115` |
 | Standoff | `MARK_STANDOFF` (1.5) short of the button border — a gap, not an overlap. | `edge-constants.js:202` |
 | Branch | An 8px fillet where each spur peels off the trunk. **The trunk ends at the last fillet** — the final spur's curve is the end of the trunk, so nothing overruns past the last button. | — |
-| No socket | The trunk starts at the stage mark's centre and is painted over by it, so the line leaves the dot's edge. `EdgeOverlay` suppresses the socket on a node's own source handle for the same reason. | `EdgeOverlay.js:75`, rationale at `:27-52` |
+| No socket | The trunk starts at the stage mark's centre and is painted over by it, so the line leaves the dot's edge. `EdgeOverlay` suppresses the socket on a node's own source handle for the same reason. | Rationale at `EdgeOverlay.js:60-90` (grown considerably from this spec's estimate as more edge cases were documented in place) |
 
 Colours reference the CSS variables, never literal hex. That matters most for
-the outcome tones: the comment above their declarations
-(`SequenceGraphEditor.css:47-59`) explains they are deliberately *stroke*
+the outcome tones: the comment above their declarations, now in the shared
+stylesheet this spec's Implementation pointers proposed
+(`src/common/outcome-tones.css`), explains they are deliberately *stroke*
 tones rather than `fg-content-*` — the near-black content tints read as black
-at 9px, not as green or red. `ToolsPanel.js:26-30`'s hardcoded
-`STATUS_COLORS` become `--wf-outcome-*` as part of this work.
+at 9px, not as green or red. `ToolsPanel.js`'s hardcoded `STATUS_COLORS`
+constant is gone along with the file; `TransitionRail.js`'s `OutcomeMark`
+component (`:248-264`) reads `--wf-outcome-*` directly (via the
+`vip-workflows-rail__outcome--*` classes it assigns), with no hardcoded hex
+left anywhere in the rail.
 
 ## The one server change
 
-The flash in agent beat 2 needs the **resolved outcome**, and the payload
-cannot currently supply it. `StageAgentRunner::finish()` clears the job
-marker before transitioning (`class-stage-agent-runner.php:633`) and the
-outcome survives only as an argument to the `vip_workflows_agent_completed`
-action (`:659`); `get_agent_job_state()` returns only `status` and `error`,
-filtered to the *current* stage (`class-workflow-controller.php:588-598`) —
-after the route fires, the current stage is the destination and the state is
-`null`.
+> **Shipped, essentially as proposed below.** `StageAgentRunner::LAST_RUN_META`
+> (`class-stage-agent-runner.php:99`, `_vip_workflows_agent_last_run`) is
+> exactly the compact last-run marker this section proposed, written by
+> `finish()` (`class-stage-agent-runner.php:809-906`, the meta write itself
+> at `:894-903`; the job marker is cleared via the separate
+> `clear_job_for_stage()` compare-and-delete helper at `:1023-1038`) and
+> surfaced by `WorkflowController::get_agent_last_run()`
+> (`class-workflow-controller.php:725-737`), added to the status payload
+> alongside `agent_job` (`class-workflow-controller.php:536-537`). One
+> deliberate refinement over the plan: the record is **not** filtered to the
+> current stage the way `get_agent_job_state()` is — the doc comment at
+> `class-workflow-controller.php:716-720` explains why: by the time the
+> client checks it, the post has already left the stage the run belonged to,
+> so filtering it out would defeat the point.
 
-Reverse-mapping the new stage through `agent.routing` is not a substitute:
+The flash in agent beat 2 needed the **resolved outcome**, and the payload
+could not previously supply it. `StageAgentRunner::finish()` cleared the job
+marker before transitioning and the outcome survived only as an argument to
+the `vip_workflows_agent_completed` action
+(`class-stage-agent-runner.php:905`); `get_agent_job_state()` returned only
+`status` and `error`, filtered to the *current* stage
+(`class-workflow-controller.php:672-676`) — after the route fired, the
+current stage was the destination and the state was `null`.
+
+Reverse-mapping the new stage through `agent.routing` was not a substitute:
 two outcomes may legally route to the same stage, and the graph editor
-already accounts for exactly that (`graph-model.js:372-377`).
+already accounted for exactly that (`graph-model.js:347-357`).
 
-Proposed shape, smallest that works: `finish()` writes a compact last-run
-marker (`stage_key`, `outcome`, `to`, `finished_at`) to post meta before the
-transition, and the status payload (`class-workflow-controller.php:488-515`)
-gains an `agent_last_run` field carrying it. The client flashes only when it
-observes the pending → not-pending edge and the marker's `stage_key` matches
-the stage it was just watching. Everything else in this spec ships without
-this field; only the flash degrades (straight to beat 3) when it is absent.
+Shipped shape, matching the smallest-that-works proposal: `finish()` writes
+the last-run marker (`stage_key`, `outcome`, `to`, plus a timestamp) to post
+meta before the transition, and the status payload gains the `agent_last_run`
+field carrying it. The client flashes when it observes the pending →
+not-pending edge and the marker's `stage_key` matches the stage it was just
+watching; the flash degrades gracefully (straight to beat 3) when the field
+is absent.
 
 ## Accessibility
 
@@ -401,37 +448,48 @@ this field; only the flash degrades (straight to beat 3) when it is absent.
 
 ## Implementation pointers
 
+All of the following shipped; each bullet is left as the plan, with a note
+where the shipped result is verified.
+
 - **New** `src/editor/components/TransitionRail.js` + `.css` — the component,
   its geometry helper (a pure function from measured rows to path data, so it
-  can be unit-tested against fixtures), and its styles.
+  can be unit-tested against fixtures), and its styles. Shipped at 1263 and
+  365 lines respectively.
 - **Edit** `src/editor/components/WorkflowPanel.js` — remove
   `renderTransitionButton` and the transitions render block; mount the rail.
   `handleTransitionClick`, the warnings/input/assignment modals, the
   agent-interrupt confirm, and the polling stay put; the rail calls into
-  them. `groupTransitions` moves with the rail.
+  them. `groupTransitions` moves with the rail. Confirmed: both functions are
+  gone from `WorkflowPanel.js`; `<TransitionRail` mounts at `:1169`.
 - **Remove** `src/editor/components/ToolsPanel.js` — its job moves into the
-  rail. **Keep** `ToolResultModals.js`: `CommandPalette.js` imports it
-  (`CommandPalette.js:19`) and runs abilities through its own fetch
-  (`:55`, `:141`), so it is unaffected by the panel's removal. Keep the
-  `VISIBLE_ISSUE_COUNT` disclosure behaviour inside the rail's details area.
+  rail. Confirmed removed. **Keep** `ToolResultModals.js`: `CommandPalette.js`
+  imports it (`CommandPalette.js:19`, unchanged) and runs abilities through
+  its own fetch (`:54`, `:141`), so it is unaffected by the panel's removal.
+  Keep the `VISIBLE_ISSUE_COUNT` disclosure behaviour inside the rail's
+  details area (shipped at `TransitionRail.js:78`).
 - **Edit** `src/editor/index.js` — drop the `<ToolsPanel>` mount at `:160`.
+  Confirmed: no `ToolsPanel` reference remains in `index.js`.
 - **Edit** `src/editor/style.css` — the `vip-workflows-panel__progress-*`
-  rules (`:112-190`) mostly survive; they belong to the progress list, which
+  rules mostly survive; they belong to the progress list, which
   `non-linear-progress.md` owns, not to this component.
 - **Shared tokens.** The rail needs `--wf-outcome-*` in the editor bundle;
-  they are currently scoped to the graph editor's root
-  (`SequenceGraphEditor.css:57-59`). Extract the three declarations (and
-  their load-bearing comment) into a shared stylesheet under
-  `src/common/` that both surfaces import, rather than redeclaring. The
-  END pill's visual rules (`SequenceGraphEditor.css:406-425`) are worth the
-  same treatment; `TerminalNode.js` itself is React-Flow-bound and stays
-  where it is. Prefer relocation to `src/common/` over cross-importing
-  from `src/admin/` throughout, per `non-linear-progress.md`'s bundle-boundary
-  note.
+  they were scoped to the graph editor's root. Extract the three
+  declarations (and their load-bearing comment) into a shared stylesheet
+  under `src/common/` that both surfaces import, rather than redeclaring.
+  Shipped as `src/common/outcome-tones.css`, imported by both
+  `TransitionRail.css` and the graph editor's stylesheets. The END pill's
+  visual rules (`SequenceGraphEditor.css:406-425`) were not given the same
+  treatment — `TerminalNode.js` and its styling stay in `src/admin/`, cited
+  directly rather than relocated; that's a smaller gap against the plan than
+  it looks, since the rail only reuses the pill's rendered output via
+  `TerminalNode.js`, not its CSS.
 - **Label derivation.** The agent outcome buttons need
-  `transition_label()`'s derivation client-side; `graph-model.js:144-148`
-  already mirrors it. Relocate the mirror to `src/common/` rather than
-  writing a third copy.
+  `transition_label()`'s derivation client-side. Shipped exactly as
+  proposed, and further than `graph-model.js:144-148` (the mirror this spec
+  pointed at) suggested: the derivation now lives in
+  `src/common/transition-label.js:52` (`transitionLabel()`), and
+  `graph-model.js:108-116` re-exports it rather than keeping its own copy —
+  no third copy was written.
 
 ## Tests
 
@@ -443,7 +501,10 @@ this field; only the flash degrades (straight to beat 3) when it is absent.
   end". Add the sixth: edges declared but role-filtered away.
 - A check required by two transitions renders twice and both rows update when
   it runs once.
-- A disabled tool is omitted rather than greyed.
+- A disabled tool is omitted rather than greyed. **Did not ship this way** —
+  see the shipped-behavior note under "Checks are dependencies, not nodes"
+  above; a disabled required tool now renders greyed/disabled and blocks the
+  transition server-side, the opposite of this test's premise.
 - A stale pass renders as stale, not passed.
 - Existing suites per `docs/TESTING.md` (PHPCS, PHPUnit, and Jest on GitHub
   Actions). Playwright coverage for the agent three-beat sequence
@@ -471,11 +532,9 @@ this field; only the flash degrades (straight to beat 3) when it is absent.
   expanding only rows with something to say. Failures are why the component
   exists; passes can be one line. Deferred until the full-height version is
   seen on real sequences.
-- **The results fetch shape.** Latest-per-ability is what the rail needs;
-  whether that is N per-ability requests, a raised limit, or a small endpoint
-  addition (`ability_id` already filters; a `latest_per_ability` flag would
-  be honest) is an implementation call — but the `limit=5` under-fetch noted
-  above should not be inherited.
+- **The results fetch shape.** *Resolved.* Shipped as N per-ability requests
+  (`TransitionRail.js:522-525`, `limit=1` per ability) — see the shipped-note
+  under "Check state, staleness included" above.
 - **Should running a check mark the post's other surfaces?** The Kanban board
   and Quick Edit reach `transition()` without this panel; a check run here
   updates a shared result they may also read. Nothing breaks — results were
