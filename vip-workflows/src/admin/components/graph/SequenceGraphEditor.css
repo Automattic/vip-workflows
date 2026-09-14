@@ -869,16 +869,18 @@
    tone: still there, still selectable (deleting it is a deliberate act), but
    reading as inert rather than as a path content can take.
 
-   Last of the tone rules so it wins over hover and selection. It never competes
-   with the outcome hues: an edge is disabled precisely because no outcome claims
-   it, so the two are mutually exclusive by construction (`buildGraph`). Hover
-   and selection still add their halo and weight, which is what keeps a dotted
-   grey line findable enough to click.
+   Last of the tone rules so it wins over hover and selection. It wins over the
+   outcome hues too: a routed edge is disabled when its route publishes and the
+   sequence has not opted in (`isTransitionDisabled`), so the `.is-outcome`
+   form matches their specificity and, declared after, beats them. Hover and
+   selection still add their halo and weight, which is what keeps a dotted grey
+   line findable enough to click.
 
    The dots themselves are set inline by `TransitionEdge`, from the same two
    constants the underpass ghost uses — one texture for "this line is not the
    thing it looks like", and one place it is measured. */
-.wf-sequence-editor .react-flow__edge.is-disabled {
+.wf-sequence-editor .react-flow__edge.is-disabled,
+.wf-sequence-editor .react-flow__edge.is-outcome.is-disabled {
 	color: var( --wpds-color-stroke-surface-neutral );
 }
 
@@ -1057,7 +1059,8 @@
 	color: var( --wf-outcome-error );
 }
 
-.wf-edge-overlay .is-disabled {
+.wf-edge-overlay .is-disabled,
+.wf-edge-overlay .is-outcome.is-disabled {
 	color: var( --wpds-color-stroke-surface-neutral );
 }
 
@@ -1155,7 +1158,8 @@
 	color: var( --wf-outcome-error );
 }
 
-.wf-edge-anchors > g.is-disabled {
+.wf-edge-anchors > g.is-disabled,
+.wf-edge-anchors > g.is-outcome.is-disabled {
 	color: var( --wpds-color-stroke-surface-neutral );
 }
 

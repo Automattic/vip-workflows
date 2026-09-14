@@ -20,7 +20,10 @@
  */
 
 import { render, screen } from './helpers/render-wp-component';
-import { reorderList } from '../../src/admin/components/graph/graph-model';
+import {
+	isTransitionDisabled,
+	reorderList,
+} from '../../src/admin/components/graph/graph-model';
 import StageInspector from '../../src/admin/components/graph/StageInspector';
 
 const TRANSITIONS = [
@@ -114,6 +117,10 @@ describe( 'StageInspector outgoing transitions list', () => {
 				stage={ stage }
 				onChange={ onChange }
 				onRemove={ () => {} }
+				// No publish hold in play here: the stages are all unpublished.
+				isTransitionDisabled={ ( to ) =>
+					isTransitionDisabled( stage, to, [], true )
+				}
 				availableAgents={ [] }
 				resolveStageLabel={ ( key ) =>
 					( {

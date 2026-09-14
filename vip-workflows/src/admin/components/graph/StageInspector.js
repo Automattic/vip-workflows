@@ -98,7 +98,6 @@ import {
 	agentOutcomeLabel,
 	edgeId,
 	isAgentStage,
-	isTransitionDisabled,
 	stageRegion,
 	reorderList,
 	transitionLabel,
@@ -245,6 +244,9 @@ export default function StageInspector( {
 	availableAgents = [],
 	resolveStageLabel,
 	stageExists,
+	// ( targetKey ) => boolean. Needs the whole sequence and its settings
+	// (`isTransitionDisabled`), which this panel is not handed.
+	isTransitionDisabled,
 } ) {
 	// The Key field edits a local draft so a rename onto another stage's key
 	// can be refused (updateStage rejects it — two stages sharing a key would
@@ -693,7 +695,6 @@ export default function StageInspector( {
 												// brings it back.
 												const disabled =
 													isTransitionDisabled(
-														stage,
 														transition.to
 													);
 												const destination =

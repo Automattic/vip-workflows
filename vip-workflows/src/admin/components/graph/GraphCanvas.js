@@ -272,6 +272,7 @@ function endsAfterMove( edge, end, candidate ) {
 function Flow( {
 	stages,
 	isPhase,
+	allowAgentPublish = false,
 	warnings,
 	regions: regionsProp = [],
 	selectedNodeKey,
@@ -318,8 +319,8 @@ function Flow( {
 	// anything the canvas *draws* changes — a label being typed in the
 	// inspector, a colour, a stage count.
 	const graph = useMemo(
-		() => buildGraph( stages, { isPhase, regions } ),
-		[ stages, isPhase, regions ]
+		() => buildGraph( stages, { isPhase, regions, allowAgentPublish } ),
+		[ stages, isPhase, regions, allowAgentPublish ]
 	);
 
 	// What the dagre pass actually reads out of that projection: which nodes

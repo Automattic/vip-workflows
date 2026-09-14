@@ -45,6 +45,7 @@ import {
 	within,
 } from './helpers/render-wp-component';
 
+import { isTransitionDisabled } from '../../src/admin/components/graph/graph-model';
 import StageInspector from '../../src/admin/components/graph/StageInspector';
 
 const AGENTS = [
@@ -67,6 +68,9 @@ function renderInspector( stageProps, onChange = jest.fn(), extraProps = {} ) {
 			availableAgents={ AGENTS }
 			resolveStageLabel={ ( key ) => ( key === 'done' ? 'Done' : key ) }
 			stageExists={ ( key ) => key === 'done' }
+			isTransitionDisabled={ ( to ) =>
+				isTransitionDisabled( stageProps, to, [], true )
+			}
 			onChange={ onChange }
 			onDelete={ () => {} }
 			canDelete={ true }

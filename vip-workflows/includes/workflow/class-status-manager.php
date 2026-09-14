@@ -405,17 +405,31 @@ class StatusManager {
 	 * filter (the editor payload does via get_available_transitions(); My Queue
 	 * builds its quick actions from Sequence::get_transitions_for_user directly).
 	 *
-	 * @param  ?array $status The stage's sequence config.
+	 * A route the runner holds because it publishes
+	 * (StageAgentRunner::holds_publication) is left out too: the agent cannot
+	 * take it, and the editor draws it disabled, so nobody else may either.
+	 *
+	 * @param  Sequence $sequence The sequence the stage belongs to.
+	 * @param  ?array   $status   The stage's sequence config.
 	 * @return array|null Routed destination keys, or null when the stage has no agent.
 	 */
-	public function agent_routed_targets( ?array $status ): ?array {
+	public function agent_routed_targets( Sequence $sequence, ?array $status ): ?array {
 		if ( ! is_array( $status ) || empty( $status['agent']['ability_id'] ) ) {
 			return null;
 		}
 
 		$routing = is_array( $status['agent']['routing'] ?? null ) ? $status['agent']['routing'] : array();
+		$targets = array_unique( array_filter( array_map( 'strval', $routing ) ) );
 
-		return array_values( array_filter( array_map( 'strval', $routing ) ) );
+		return array_values(
+			array_filter(
+				$targets,
+				// A target the sequence does not define is refused downstream as
+				// an invalid transition; only a defined one has a region to hold on.
+				fn( $to ) => null === $sequence->get_status( $to )
+					|| ! StageAgentRunner::holds_publication( $sequence, (string) $status['key'], $to )
+			)
+		);
 	}
 
 	/**
@@ -494,7 +508,7 @@ class StatusManager {
 		// take — see agent_routed_targets(). Applied whenever the stage offers
 		// anything at all, so an unrouted transition never appears here in any
 		// job state.
-		$routed_targets = $this->agent_routed_targets( is_array( $stage_config ) ? $stage_config : null );
+		$routed_targets = $this->agent_routed_targets( $sequence, is_array( $stage_config ) ? $stage_config : null );
 
 		// Map transitions to include full status info.
 		$result = array();
@@ -631,7 +645,7 @@ class StatusManager {
 		// a hand-built REST call cannot take an edge no surface shows. The agent
 		// itself and the go-back are the two sanctioned exceptions.
 		if ( ! $is_agent_actor && ! $is_revert ) {
-			$routed_targets = $this->agent_routed_targets( $sequence->get_status( $current_stage ) );
+			$routed_targets = $this->agent_routed_targets( $sequence, $sequence->get_status( $current_stage ) );
 			if ( null !== $routed_targets && ! in_array( $to_status, $routed_targets, true ) ) {
 				return new \WP_Error(
 					'unrouted_agent_exit',

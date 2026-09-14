@@ -453,6 +453,8 @@ class StatusManagerAgentGatingTest extends TestCase
         $sequence->shouldReceive( 'get_status' )
             ->with( 'review' )
             ->andReturn( array( 'key' => 'review', 'label' => 'Review' ) );
+        $sequence->shouldReceive( 'get_settings' )->andReturn( array() );
+        $sequence->shouldReceive( 'get_stage_status' )->andReturn( 'draft' );
         return $sequence;
     }
 
@@ -569,9 +571,11 @@ class StatusManagerAgentGatingTest extends TestCase
      * Sequence mock for an AI stage with two authored edges (review, approve)
      * of which only `review` is routed, plus a defined `draft` origin stage.
      *
+     * @param  string $review_region Region the routed `review` stage sits in.
+     * @param  array  $settings      The sequence's settings bag.
      * @return object
      */
-    private function sequence_with_unrouted_edge(): object
+    private function sequence_with_unrouted_edge( string $review_region = 'pending', array $settings = array() ): object
     {
         $ai_desk = array(
             'key'   => 'ai_desk',
@@ -593,6 +597,10 @@ class StatusManagerAgentGatingTest extends TestCase
         $sequence->shouldReceive( 'get_status' )->with( 'review' )->andReturn( array( 'key' => 'review', 'label' => 'Review' ) );
         $sequence->shouldReceive( 'get_status' )->with( 'approve' )->andReturn( array( 'key' => 'approve', 'label' => 'Approve' ) );
         $sequence->shouldReceive( 'get_status' )->with( 'draft' )->andReturn( array( 'key' => 'draft', 'label' => 'Draft' ) );
+        $sequence->shouldReceive( 'get_settings' )->andReturn( $settings );
+        $sequence->shouldReceive( 'get_stage_status' )->andReturnUsing(
+            static fn( string $stage ): string => 'review' === $stage ? $review_region : 'draft'
+        );
         return $sequence;
     }
 
@@ -655,6 +663,46 @@ class StatusManagerAgentGatingTest extends TestCase
 
         $this->assertInstanceOf( 'WP_Error', $result );
         $this->assertSame( 'unrouted_agent_exit', $result->get_error_code() );
+    }
+
+    /**
+     * A route into a publishing stage the sequence has not opted into is held
+     * for the agent (StageAgentRunner::holds_publication), and the editor draws
+     * it disabled. It is withheld from people too — offered nowhere, refused by
+     * transition() — so the three surfaces agree.
+     */
+    public function test_publish_held_route_is_neither_offered_nor_taken(): void
+    {
+        $this->stub_post_in_ai_stage( '' );
+        $this->stub_current_user_roles( array( 'editor' ) );
+        $this->stub_granted_caps();
+
+        $sequence = $this->sequence_with_unrouted_edge( 'publish' );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
+        $manager = $this->gated_status_manager( $sequence );
+
+        $this->assertSame( array(), $manager->get_available_transitions( 42 ) );
+
+        $result = $manager->transition( 42, 'review' );
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'unrouted_agent_exit', $result->get_error_code() );
+    }
+
+    /**
+     * An opted-in sequence releases the route: it is an ordinary routed exit.
+     */
+    public function test_publish_route_is_offered_when_the_sequence_opts_in(): void
+    {
+        $this->stub_post_in_ai_stage( '' );
+        $this->stub_current_user_roles( array( 'editor' ) );
+
+        $manager     = $this->gated_status_manager(
+            $this->sequence_with_unrouted_edge( 'publish', array( 'allow_agent_publish' => true ) )
+        );
+        $transitions = $manager->get_available_transitions( 42 );
+
+        $this->assertCount( 1, $transitions );
+        $this->assertSame( 'review', $transitions[0]['to'] );
     }
 
     /**

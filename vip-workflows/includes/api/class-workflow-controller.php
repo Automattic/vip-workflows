@@ -1399,7 +1399,7 @@ class WorkflowController extends WP_REST_Controller {
 					// On an AI stage only the agent's routed destinations are
 					// anyone's to take — the same filter the editor payload
 					// applies, and the rule transition() enforces.
-					$routed_targets = Plugin::get_instance()->get_status_manager()->agent_routed_targets( $status );
+					$routed_targets = Plugin::get_instance()->get_status_manager()->agent_routed_targets( $sequence, $status );
 					if ( null !== $routed_targets ) {
 						$post_transitions = array_values(
 							array_filter(
