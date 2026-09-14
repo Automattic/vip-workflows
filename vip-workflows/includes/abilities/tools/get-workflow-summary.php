@@ -27,7 +27,7 @@ function execute_get_workflow_summary( ?array $input = null ) {
 	if ( $sequence_id ) {
 		$sequence = $repository->find( (int) $sequence_id );
 		if ( ! $sequence ) {
-			return new \WP_Error( 'not_found', __( 'Workflow not found.', 'vip-workflows' ) );
+			return new \WP_Error( 'not_found', __( 'Sequence not found.', 'vip-workflows' ) );
 		}
 		$sequences = array( $sequence );
 	} else {
@@ -76,7 +76,7 @@ function register_get_workflow_summary(): void {
 		'vip-workflows/get-workflow-summary',
 		array(
 			'label'               => __( 'Workflow summary', 'vip-workflows' ),
-			'description'         => __( 'Returns post counts grouped by workflow status for each active workflow.', 'vip-workflows' ),
+			'description'         => __( 'Returns post counts grouped by workflow status for each active sequence.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -84,7 +84,7 @@ function register_get_workflow_summary(): void {
 				'properties'           => array(
 					'sequence_id' => array(
 						'type'        => 'integer',
-						'description' => __( 'Optional workflow ID to filter by. Omit for all active workflows.', 'vip-workflows' ),
+						'description' => __( 'Optional sequence ID to filter by. Omit for all active sequences.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -94,7 +94,7 @@ function register_get_workflow_summary(): void {
 				'properties'           => array(
 					'sequences' => array(
 						'type'        => 'array',
-						'description' => __( 'Array of workflows with their status counts.', 'vip-workflows' ),
+						'description' => __( 'Array of sequences with their status counts.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -103,7 +103,7 @@ function register_get_workflow_summary(): void {
 				return current_user_can( 'edit_posts' );
 			},
 			'meta'                => array(
-				'summary'             => __( 'Counts posts at each status, for every active workflow.', 'vip-workflows' ),
+				'summary'             => __( 'Counts posts at each status, for every active sequence.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

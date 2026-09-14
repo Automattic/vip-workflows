@@ -1,5 +1,5 @@
 /**
- * Import workflow — the drop path.
+ * Import sequence — the drop path.
  *
  * The modal used to be click-to-browse only: a file dragged onto it landed on
  * the page behind and the browser navigated away from wp-admin to render it.
@@ -46,7 +46,7 @@ register(
 	} )
 );
 
-const DROP_HINT = '…or drop a workflow JSON file here.';
+const DROP_HINT = '…or drop a sequence JSON file here.';
 
 // One stored sequence, so a file carrying the same name has something to
 // collide with and the offered name has to move off it.
@@ -99,7 +99,7 @@ const jsonFile = ( contents, name ) =>
 async function openImportModal() {
 	render( <SequencesList /> );
 	fireEvent.click(
-		await screen.findByRole( 'button', { name: 'Import workflow' } )
+		await screen.findByRole( 'button', { name: 'Import sequence' } )
 	);
 
 	// Located from the hint a reader sees, so the box under test is the one
@@ -147,7 +147,7 @@ function dropOnHeader( file ) {
 const modal = () => within( screen.getByRole( 'dialog' ) );
 
 const nameField = () =>
-	screen.queryByRole( 'textbox', { name: /Workflow name/ } );
+	screen.queryByRole( 'textbox', { name: /Sequence name/ } );
 
 describe( 'A sequence file dropped on the import modal', () => {
 	it( 'is taken anywhere in the dialog body, not only over the box', async () => {
@@ -167,7 +167,7 @@ describe( 'A sequence file dropped on the import modal', () => {
 		dropOn( jsonFile( JSON.stringify( SEQUENCE ), 'editorial.json' ) );
 		await waitFor( () => expect( nameField() ).toBeInTheDocument() );
 		expect( zone.parentElement ).toContainElement(
-			modal().getByRole( 'button', { name: 'Import workflow' } )
+			modal().getByRole( 'button', { name: 'Import sequence' } )
 		);
 	} );
 
@@ -187,7 +187,7 @@ describe( 'A sequence file dropped on the import modal', () => {
 		).toHaveTextContent( 'workflow' );
 
 		fireEvent.click(
-			modal().getByRole( 'button', { name: 'Import workflow' } )
+			modal().getByRole( 'button', { name: 'Import sequence' } )
 		);
 
 		await waitFor( () => expect( imports ).toHaveLength( 1 ) );
@@ -248,7 +248,7 @@ describe( 'A sequence file dropped on the import modal', () => {
 		// cannot go on offering to import a file the notice says was refused.
 		await waitFor( () => expect( nameField() ).not.toBeInTheDocument() );
 		expect(
-			modal().queryByRole( 'button', { name: 'Import workflow' } )
+			modal().queryByRole( 'button', { name: 'Import sequence' } )
 		).not.toBeInTheDocument();
 		expect( imports ).toHaveLength( 0 );
 	} );

@@ -10,7 +10,6 @@
  *
  * What is checked is what has no exceptions:
  *
- * - `workflow sequence`, the compound that is neither of the two names.
  * - `Please`, which the plugin does not say.
  * - `...` where `…` belongs, the one typography rule that drifted by language.
  * - `You do not have permission`, where core says `Sorry, you are not allowed`.
@@ -132,19 +131,6 @@ class CopyStandardTest extends PHPUnitTestCase
         }
 
         return $found;
-    }
-
-    public function test_no_workflow_sequence_compound(): void
-    {
-        $offenders = $this->offenders( '/\bworkflow\s+sequences?\b/i' );
-
-        $this->assertSame(
-            array(),
-            $offenders,
-            "The definition a post follows is a workflow. `sequence` survives only for "
-                . "phase sequences, parameter names and identifiers — never as a compound.\n"
-                . print_r( $offenders, true )
-        );
     }
 
     public function test_no_please(): void

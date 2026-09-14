@@ -310,8 +310,8 @@ export function eventDescription( event ) {
 				: sprintf(
 						/* translators: %d: number of stages in the sequence. */
 						_n(
-							'Workflow updated, now %d stage',
-							'Workflow updated, now %d stages',
+							'Sequence updated, now %d stage',
+							'Sequence updated, now %d stages',
 							eventData.statuses_count,
 							'vip-workflows'
 						),
@@ -324,10 +324,10 @@ export function eventDescription( event ) {
 		// header calls printing a raw key a bug). Anyone inspecting the event
 		// still finds both states on its payload.
 		case 'sequence.activated':
-			return __( 'Workflow activated', 'vip-workflows' );
+			return __( 'Sequence activated', 'vip-workflows' );
 
 		case 'sequence.deactivated':
-			return __( 'Workflow deactivated', 'vip-workflows' );
+			return __( 'Sequence deactivated', 'vip-workflows' );
 
 		// The nightly prune. Counts are the whole story when it worked; when a
 		// DELETE failed the count is null and the error is what a reader needs,

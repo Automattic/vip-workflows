@@ -125,7 +125,7 @@ test.describe( 'VIP Workflows — Ideation experiment gate', () => {
 			);
 
 			await expect(
-				page.getByRole( 'tab', { name: /Workflows/ } )
+				page.getByRole( 'tab', { name: /Workflow sequences/ } )
 			).toBeVisible();
 			await expect(
 				page.getByRole( 'tab', { name: /Phase sequences/ } )

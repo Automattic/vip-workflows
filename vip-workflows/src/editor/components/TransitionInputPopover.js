@@ -436,7 +436,7 @@ export function TransitionAssignmentPopover( {
 				{ sprintf(
 					/* translators: %s: the assignee type stored on the transition, e.g. "agent". */
 					__(
-						'This transition asks for an assignee of type “%s”, which cannot be chosen here. Nothing has been assigned and the post has not moved — the workflow needs a user or role assignment instead.',
+						'This transition asks for an assignee of type “%s”, which cannot be chosen here. Nothing has been assigned and the post has not moved — the sequence needs a user or role assignment instead.',
 						'vip-workflows'
 					),
 					assigneeType

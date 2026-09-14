@@ -863,7 +863,7 @@ class WorkflowController extends WP_REST_Controller {
 				'rest_sequence_invalid_config',
 				sprintf(
 					/* translators: %s: data-integrity error from the sequence read path. */
-					__( 'This workflow cannot be applied because its configuration is invalid: %s', 'vip-workflows' ),
+					__( 'This sequence cannot be applied because its configuration is invalid: %s', 'vip-workflows' ),
 					$e->getMessage()
 				),
 				array( 'status' => 500 )
@@ -882,7 +882,7 @@ class WorkflowController extends WP_REST_Controller {
 		if ( false === $result ) {
 			return new WP_Error(
 				'rest_sequence_assign_failed',
-				__( 'Failed to assign workflow.', 'vip-workflows' ),
+				__( 'Failed to assign sequence.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}

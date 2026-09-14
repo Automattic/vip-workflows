@@ -115,7 +115,7 @@ function register_get_transition_history(): void {
 				return current_user_can( 'edit_posts' );
 			},
 			'meta'                => array(
-				'summary'             => __( 'Shows a post’s trail through its workflow.', 'vip-workflows' ),
+				'summary'             => __( 'Shows a post’s trail through its sequence.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

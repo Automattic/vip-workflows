@@ -68,9 +68,9 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
     public function data_abilities(): array
     {
         return array(
-            'update'   => array( 'vip-workflows/update-sequence', 'Update workflow' ),
-            'activate' => array( 'vip-workflows/activate-sequence', 'Activate workflow' ),
-            'validate' => array( 'vip-workflows/validate-sequence', 'Validate workflow' ),
+            'update'   => array( 'vip-workflows/update-sequence', 'Update sequence' ),
+            'activate' => array( 'vip-workflows/activate-sequence', 'Activate sequence' ),
+            'validate' => array( 'vip-workflows/validate-sequence', 'Validate sequence' ),
         );
     }
 
@@ -86,7 +86,7 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
         $args = $this->registered[ $slug ];
 
         $this->assertSame( $label, $args['label'] );
-        $this->assertStringContainsStringIgnoringCase( 'workflow', $args['description'] );
+        $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
         $this->assertStringNotContainsStringIgnoringCase( 'blueprint', $args['description'] );
         $this->assertSame( 'vip-workflows', $args['category'] );
 

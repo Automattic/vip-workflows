@@ -67,7 +67,7 @@ function execute_validate_sequence( ?array $input = null ) {
 		if ( ! $sequence ) {
 			return new \WP_Error(
 				'sequence_not_found',
-				__( 'Workflow not found.', 'vip-workflows' )
+				__( 'Sequence not found.', 'vip-workflows' )
 			);
 		}
 
@@ -258,8 +258,8 @@ function register_validate_sequence(): void {
 	vip_workflows_register_ability(
 		VALIDATE_SEQUENCE_ABILITY_ID,
 		array(
-			'label'               => __( 'Validate workflow', 'vip-workflows' ),
-			'description'         => __( 'Dry-runs a workflow configuration through the write gate without saving it. Reports whether it is valid, what normalization would change, and which stage/region invariants it breaks. Pass "sequence_id" to inspect a stored workflow, or "config" to check a proposed one.', 'vip-workflows' ),
+			'label'               => __( 'Validate sequence', 'vip-workflows' ),
+			'description'         => __( 'Dry-runs a sequence configuration through the write gate without saving it. Reports whether it is valid, what normalization would change, and which stage/region invariants it breaks. Pass "sequence_id" to inspect a stored sequence, or "config" to check a proposed one.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -267,7 +267,7 @@ function register_validate_sequence(): void {
 				'properties'           => array(
 					'sequence_id' => array(
 						'type'        => 'integer',
-						'description' => __( 'Validate the stored configuration of this workflow. Mutually exclusive with "config".', 'vip-workflows' ),
+						'description' => __( 'Validate the stored configuration of this sequence. Mutually exclusive with "config".', 'vip-workflows' ),
 					),
 					'config'      => array(
 						'type'        => 'object',
@@ -275,7 +275,7 @@ function register_validate_sequence(): void {
 					),
 					'type'        => array(
 						'type'        => 'string',
-						'description' => __( 'Workflow type the proposed config is for. Only meaningful with "config"; a stored workflow uses its own type. Defaults to "workflow".', 'vip-workflows' ),
+						'description' => __( 'Sequence type the proposed config is for. Only meaningful with "config"; a stored sequence uses its own type. Defaults to "workflow".', 'vip-workflows' ),
 						'enum'        => array( Sequence::TYPE_WORKFLOW, Sequence::TYPE_PHASE ),
 						'default'     => Sequence::TYPE_WORKFLOW,
 					),
@@ -287,11 +287,11 @@ function register_validate_sequence(): void {
 				'properties'           => array(
 					'sequence_id'           => array(
 						'type'        => array( 'integer', 'null' ),
-						'description' => __( 'The validated workflow ID, or null when a proposed config was validated.', 'vip-workflows' ),
+						'description' => __( 'The validated sequence ID, or null when a proposed config was validated.', 'vip-workflows' ),
 					),
 					'type'                  => array(
 						'type'        => 'string',
-						'description' => __( 'The workflow type the config was validated as.', 'vip-workflows' ),
+						'description' => __( 'The sequence type the config was validated as.', 'vip-workflows' ),
 					),
 					'valid'                 => array(
 						'type'        => 'boolean',
@@ -335,7 +335,7 @@ function register_validate_sequence(): void {
 				return current_user_can( 'manage_options' );
 			},
 			'meta'                => array(
-				'summary'             => __( 'Checks a workflow configuration for problems without saving it.', 'vip-workflows' ),
+				'summary'             => __( 'Checks a sequence configuration for problems without saving it.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

@@ -579,7 +579,7 @@ class StatusManager {
 		if ( ! $sequence ) {
 			return new \WP_Error(
 				'no_sequence',
-				__( 'No workflow for this post.', 'vip-workflows' ),
+				__( 'No workflow sequence for this post.', 'vip-workflows' ),
 				array( 'status' => 409 )
 			);
 		}
@@ -681,7 +681,7 @@ class StatusManager {
 				'stage_region_missing',
 				sprintf(
 					/* translators: %s: the underlying reason, naming the stage. */
-					__( 'This workflow cannot be used until its stages have status regions: %s Open the workflow and assign the missing ones.', 'vip-workflows' ),
+					__( 'This workflow cannot be used until its stages have status regions: %s Open the sequence and assign the missing ones.', 'vip-workflows' ),
 					$e->getMessage()
 				),
 				array( 'status' => 409 )
@@ -1543,7 +1543,7 @@ class StatusManager {
 			// no-op: the caller believed the post was managed.
 			return new \WP_Error(
 				'no_sequence',
-				__( 'No workflow for this post.', 'vip-workflows' ),
+				__( 'No workflow sequence for this post.', 'vip-workflows' ),
 				array( 'status' => 409 )
 			);
 		}
@@ -1951,9 +1951,9 @@ class StatusManager {
 			'ability.failed'        => __( 'Tool failed', 'vip-workflows' ),
 			// Configuration events. These carry no post, which the response shape
 			// already allows (`post_id` is a nullable column and `post` is null here).
-			'sequence.updated'     => __( 'Workflow updated', 'vip-workflows' ),
-			'sequence.activated'   => __( 'Workflow activated', 'vip-workflows' ),
-			'sequence.deactivated' => __( 'Workflow deactivated', 'vip-workflows' ),
+			'sequence.updated'     => __( 'Sequence updated', 'vip-workflows' ),
+			'sequence.activated'   => __( 'Sequence activated', 'vip-workflows' ),
+			'sequence.deactivated' => __( 'Sequence deactivated', 'vip-workflows' ),
 			// Maintenance. Carries no post and no actor: the nightly prune runs
 			// on cron and belongs to no one.
 			'maintenance.cleanup'  => __( 'Cleanup run', 'vip-workflows' ),
@@ -2038,7 +2038,7 @@ class StatusManager {
 				'unmodeled_post_status',
 				sprintf(
 					/* translators: 1: sequence name. 2: post status label, e.g. "Pending Review". */
-					__( 'The "%1$s" workflow has no stage with the %2$s status, so it cannot be started on this post. Change the post’s status, or choose a workflow that covers it.', 'vip-workflows' ),
+					__( 'The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post’s status, or choose a sequence that covers it.', 'vip-workflows' ),
 					$sequence->name,
 					$region_label
 				),

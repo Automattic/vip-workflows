@@ -87,7 +87,7 @@ proper nouns. Nothing else.
 
 | Retire | Use |
 |---|---|
-| `Sequence Name`, `Project Name` | `Workflow name`, `Project name` |
+| `Sequence Name`, `Project Name` | `Sequence name`, `Project name` |
 | `Stage Changed`, `Tool Failed`, `Workflow Assigned` | `Stage changed`, `Tool failed`, `Workflow assigned` |
 | `Published Only`, `All Posts`, `In Pipeline` | `Published only`, `All posts`, `In pipeline` |
 | `AI Summary`, `AI Analysis`, `Key Points` | `AI summary`, `AI analysis`, `Key points` |
@@ -144,7 +144,7 @@ An ability label names **what the thing is**, from the reader's side:
 | `Get My Assignments` | `My assignments` |
 | `Get Workflow Summary` | `Workflow summary` |
 | `Remove From Workflow` | `Remove from workflow` |
-| `Update Sequence`, `Create Sequence` | `Update workflow`, `New workflow` |
+| `Update Sequence`, `Create Sequence` | `Update sequence`, `New sequence` |
 
 Read-only abilities take a noun phrase (they *are* a report). Abilities that
 mutate take the verb from the [action vocabulary
@@ -157,33 +157,32 @@ table](action-standard.md#vocabulary).
 **The same object must not have two names.** This is the most damaging pattern in
 the plugin's copy, and it is invisible to any per-file review.
 
-The definition a post follows was a **sequence** in the admin and graph editor
+The definition a post follows is a **sequence** in the admin and graph editor
 (52 strings) and a **workflow** in the editor sidebar (24 strings, against 1 use
-of "sequence"). A user configured a sequence under *Sequences*, opened a post,
-and was asked to `Select a Workflow`. Sixteen strings used both words in one
-sentence, several as the compound `workflow sequence` — which is neither name,
-and teaches the reader that they are two things.
+of "sequence"). A user configures a sequence under *Sequences*, opens a post,
+and is asked to `Select a workflow`. Sixteen strings use both words in one
+sentence, several as the compound `workflow sequence`.
 
-**Rule: one name per concept, and it is the plainer word.**
+**This finding is open.** A pass that renamed every reader-facing `sequence` to
+`workflow` was reverted: the team is keeping **sequence** for now. Until that
+decision is revisited, do not rename in either direction — write `sequence`
+where the surrounding surface already does, and `workflow` in the editor
+sidebar, where it already does.
 
 | Concept | Name it | Never |
 |---|---|---|
-| The definition a post follows | **workflow** | `sequence`, `workflow sequence`, `editorial sequence` |
-| One step within a workflow | **stage** | `status`, `step` |
+| The definition a post follows | **sequence** (undecided, see above) | `editorial sequence` |
+| The product / the practice | **workflow** | — (uncountable: "a post in workflow", "VIP Workflows") |
+| One step within a sequence | **stage** | `status`, `step` |
 | The core publishing state a stage maps to | **status** | `state` |
 | The AI actor | **agent** | `assistant`, `bot` (the code namespace says `assistant`; the UI must not) |
 | A check that runs at a transition | **tool** | `ability` (an ability is the registration mechanism, not a user-facing noun) |
 
-`sequence` survives in exactly three places, and nowhere else a person reads:
-
-1. **Phase sequences.** In the data model `sequence` is the supertype and
-   `workflow` and `phase` are its two types, listed as two tabs on one screen.
-   Renaming the supertype would have collapsed a real distinction, so a phase
-   sequence keeps its name.
-2. **Parameter and type names** — `sequence_id`, `sequence_json`, and the wire
-   values in `Sequence type must be "workflow" or "phase"`.
-3. **Identifiers** — post types, REST routes, table and meta keys, class and
-   file names. Renaming those is a data migration, not a copy change.
+In the data model `sequence` is the supertype and `workflow` and `phase` are its
+two types, listed as two tabs on one screen: *Workflow sequences* and *Phase
+sequences*. Identifiers — post types, REST routes, table and meta keys, class and
+file names — say `sequence` regardless; renaming those is a data migration, not a
+copy change.
 
 `phase` is a **real and distinct concept** (the Ideation → editorial hand-off),
 not drift. Keep it, and keep it away from `stage`.
@@ -435,7 +434,7 @@ is not.
 ## Migration checklist (per surface)
 
 - [ ] Sentence case throughout; Title Case only under one of the four carve-outs.
-- [ ] One name per concept; `sequence`/`workflow` not used interchangeably; no `workflow sequence`.
+- [ ] One name per concept; `sequence`/`workflow` not newly used interchangeably (the rename is open).
 - [ ] `ability` does not reach the user; the word is `tool`.
 - [ ] Labels are noun phrases (settings) or vocabulary-table verbs (actions); no terminal period, no colon, no shortcut hints.
 - [ ] Every `settings_schema` field declares an explicit `label`.
@@ -457,12 +456,12 @@ Measured across the whole monorepo: **2,190 translatable strings in 207 files**,
 of which **1,940 are user-facing** (excluding 250 `input_schema` /
 `output_schema` descriptions, which are model-only by design).
 
-All of it is fixed; the table is the record of what was found, not a queue. Every changed string is listed in [`copy-audit-before-after.md`](copy-audit-before-after.md).
+All of it is fixed except finding 2, which is deferred, and finding 4 (below); the table is the record of what was found, not a queue. Every changed string is listed in [`copy-audit-before-after.md`](copy-audit-before-after.md).
 
 | # | Finding | Extent |
 |---|---|---|
 | 1 | Title Case where sentence case is required | **94 strings**, plus the 16 ability labels below. The first count was 80: it spared 7 tool and agent names under a "named feature" exemption that did not survive contact with the code, and it missed the bundled workflow and its exported JSON, which are not translatable strings and so never entered the corpus. A further 41 Title Case strings are correct under the four carve-outs. |
-| 2 | One concept, two names (`sequence` / `workflow`) | 128 vs 150 strings; editor sidebar 24:1 toward `workflow`, admin + graph 52:34 toward `sequence`; **16 strings used both**, several as `workflow sequence` |
+| 2 | One concept, two names (`sequence` / `workflow`) | 128 vs 150 strings; editor sidebar 24:1 toward `workflow`, admin + graph 52:34 toward `sequence`; **16 strings use both**, several as `workflow sequence` |
 | 3 | Model-facing `description` rendered as UI copy | 2 render sites (tool card, graph tool picker); worst offenders 373, 367, 268, 211 characters, some carrying backticked identifiers |
 | 4 | Helper text absent | **40 `help` props across 93 controls** (43%); core's Preferences modal is 15/15 |
 | 5 | Helper text far over length | 3 strings at 421, 266 and 206 characters, all in `src/admin/components/graph/` |
@@ -476,7 +475,7 @@ All of it is fixed; the table is the record of what was found, not a queue. Ever
 | 13 | `...` instead of `…` | 7 (all PHP; JS was already consistent) |
 | 14 | Template-variable dumps as helper text | 9 prompt descriptions, duplicating a `variables` array the registry already models and REST already returns |
 | 15 | `successfully` in success messages | 4 |
-| 16 | Bundled default workflow entirely Title Case | 6 labels in `class-seeder.php` + `editorial-review-sequence.json` |
+| 16 | Bundled default sequence entirely Title Case | 6 labels in `class-seeder.php` + `editorial-review-sequence.json` |
 | 17 | Emoji in a label | 1 |
 | 18 | Action-vocabulary violations | **1** (`Start over` → `Discard`) |
 | 19 | Vacuous page subtitles restating the page title | 5 |

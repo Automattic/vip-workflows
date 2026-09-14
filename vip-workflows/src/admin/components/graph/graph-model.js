@@ -1704,7 +1704,7 @@ export function validateSequence( {
 	if ( ! ( name || '' ).trim() ) {
 		errors.push(
 			__(
-				'This workflow has no name. Click an empty part of the canvas and fill in Name in the Workflow panel.',
+				'This sequence has no name. Click an empty part of the canvas and fill in Name in the Sequence panel.',
 				'vip-workflows'
 			)
 		);
@@ -1713,7 +1713,7 @@ export function validateSequence( {
 	if ( ! stages || stages.length === 0 ) {
 		errors.push(
 			__(
-				'This workflow has no stages, so there is nothing for a post to be in. Right-click the canvas to add one.',
+				'This sequence has no stages, so there is nothing for a post to be in. Right-click the canvas to add one.',
 				'vip-workflows'
 			)
 		);
@@ -2128,8 +2128,8 @@ export function validateSequence( {
 				? sprintf(
 						/* translators: %s: comma-separated stage names. */
 						_n(
-							'Nothing ends this workflow: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there.',
-							'Nothing ends this workflow: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the End node.',
+							'Nothing ends this sequence: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there.',
+							'Nothing ends this sequence: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the End node.',
 							deadEnds.length,
 							'vip-workflows'
 						),
@@ -2144,7 +2144,7 @@ export function validateSequence( {
 							.join( ', ' )
 				  )
 				: __(
-						'Nothing ends this workflow: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to the End node.',
+						'Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to the End node.',
 						'vip-workflows'
 				  )
 		);

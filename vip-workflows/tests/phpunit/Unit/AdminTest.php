@@ -64,7 +64,7 @@ class AdminTest extends TestCase
             array( 'My Dashboard', 'edit_posts', 'vip-workflows-my-dashboard' ),
             array( 'Settings', 'manage_options', 'vip-workflows-settings' ),
             array( 'Kanban', 'edit_posts', 'vip-workflows-kanban' ),
-            array( 'Workflows', 'manage_options', 'vip-workflows-sequences' ),
+            array( 'Sequences', 'manage_options', 'vip-workflows-sequences' ),
         );
 
         ( new Admin() )->cleanup_menu();

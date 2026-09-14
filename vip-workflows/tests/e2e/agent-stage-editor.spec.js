@@ -68,7 +68,7 @@ async function createAgentlessSequence( requestUtils ) {
  *
  * @param {import('@wordpress/e2e-test-utils-playwright').Admin} admin
  * @param {import('@playwright/test').Page}                      page
- * @param {string}                                               name  Workflow name.
+ * @param {string}                                               name  Sequence name.
  */
 async function openEditor( admin, page, name ) {
 	await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-sequences' );

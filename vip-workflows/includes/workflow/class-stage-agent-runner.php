@@ -469,7 +469,7 @@ class StageAgentRunner implements ModuleInterface {
 				$ability_id,
 				sprintf(
 					/* translators: %s: agent outcome key (pass or fail). */
-					__( 'This stage routes no destination for the "%s" outcome, so the post stopped here. Route it in the workflow editor, or move the post back.', 'vip-workflows' ),
+					__( 'This stage routes no destination for the "%s" outcome, so the post stopped here. Route it in the sequence editor, or move the post back.', 'vip-workflows' ),
 					$outcome
 				),
 				$from_stage
@@ -747,7 +747,7 @@ class StageAgentRunner implements ModuleInterface {
 
 			return sprintf(
 				/* translators: %s: destination stage key. */
-				__( 'The agent routed this post to "%s", a stage the workflow does not define a region for, so it stopped here. Fix the stage in the workflow editor, or move the post back.', 'vip-workflows' ),
+				__( 'The agent routed this post to "%s", a stage the sequence does not define a region for, so it stopped here. Fix the stage in the sequence editor, or move the post back.', 'vip-workflows' ),
 				$to_key
 			);
 		}

@@ -267,8 +267,8 @@ function renderPanel( {
 		} = sequenceSettings;
 		return (
 			<InspectorShell
-				eyebrow={ __( 'Workflow', 'vip-workflows' ) }
-				title={ name || __( 'Untitled workflow', 'vip-workflows' ) }
+				eyebrow={ __( 'Sequence', 'vip-workflows' ) }
+				title={ name || __( 'Untitled sequence', 'vip-workflows' ) }
 			>
 				<Stack direction="column" gap="lg" align="stretch">
 					<SequenceIdentityFields

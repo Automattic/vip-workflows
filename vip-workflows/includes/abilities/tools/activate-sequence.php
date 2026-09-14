@@ -52,7 +52,7 @@ function execute_activate_sequence( ?array $input = null ) {
 	$sequence  = $repository->find( $sequence_id );
 
 	if ( ! $sequence ) {
-		return new \WP_Error( 'sequence_not_found', __( 'Workflow not found.', 'vip-workflows' ) );
+		return new \WP_Error( 'sequence_not_found', __( 'Sequence not found.', 'vip-workflows' ) );
 	}
 
 	$previous_status = $sequence->status;
@@ -86,7 +86,7 @@ function execute_activate_sequence( ?array $input = null ) {
 	$result = $repository->update( $sequence_id, array( 'status' => $target_status ) );
 
 	if ( ! $result ) {
-		return new \WP_Error( 'activation_failed', __( 'Failed to change the workflow lifecycle state.', 'vip-workflows' ) );
+		return new \WP_Error( 'activation_failed', __( 'Failed to change the sequence lifecycle state.', 'vip-workflows' ) );
 	}
 
 	log_configuration_event(
@@ -131,7 +131,7 @@ function describe_activation_blocker( Sequence $sequence ): ?string {
 	if ( ! empty( $missing_region ) ) {
 		return sprintf(
 			/* translators: %s: comma-separated list of stage keys. */
-			__( 'This workflow cannot be activated: these stages have no status region, and every read of them fails — %s. Repair the workflow first.', 'vip-workflows' ),
+			__( 'This sequence cannot be activated: these stages have no status region, and every read of them fails — %s. Repair the sequence first.', 'vip-workflows' ),
 			implode( ', ', $missing_region )
 		);
 	}
@@ -141,7 +141,7 @@ function describe_activation_blocker( Sequence $sequence ): ?string {
 	if ( ! empty( $missing_entry ) ) {
 		return sprintf(
 			/* translators: %s: comma-separated list of status regions. */
-			__( 'This workflow cannot be activated: these status regions hold stages but designate no entry checkpoint, so any status change into them fails — %s. Repair the workflow first.', 'vip-workflows' ),
+			__( 'This sequence cannot be activated: these status regions hold stages but designate no entry checkpoint, so any status change into them fails — %s. Repair the sequence first.', 'vip-workflows' ),
 			implode( ', ', $missing_entry )
 		);
 	}
@@ -151,7 +151,7 @@ function describe_activation_blocker( Sequence $sequence ): ?string {
 	} catch ( \InvalidArgumentException $e ) {
 		return sprintf(
 			/* translators: %s: validation error from the sequence write gate. */
-			__( 'This workflow cannot be activated because its stored configuration is invalid: %s', 'vip-workflows' ),
+			__( 'This sequence cannot be activated because its stored configuration is invalid: %s', 'vip-workflows' ),
 			$e->getMessage()
 		);
 	}
@@ -170,8 +170,8 @@ function register_activate_sequence(): void {
 	vip_workflows_register_ability(
 		ACTIVATE_SEQUENCE_ABILITY_ID,
 		array(
-			'label'               => __( 'Activate workflow', 'vip-workflows' ),
-			'description'         => __( 'Puts a workflow live, or takes it back to draft. This is the only ability that changes a workflow lifecycle state; Update Workflow cannot. Activation is refused when the stored configuration is invalid.', 'vip-workflows' ),
+			'label'               => __( 'Activate sequence', 'vip-workflows' ),
+			'description'         => __( 'Puts a workflow sequence live, or takes it back to draft. This is the only ability that changes a sequence lifecycle state; Update Sequence cannot. Activation is refused when the stored configuration is invalid.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -180,11 +180,11 @@ function register_activate_sequence(): void {
 				'properties'           => array(
 					'sequence_id' => array(
 						'type'        => 'integer',
-						'description' => __( 'The ID of the workflow whose lifecycle state should change.', 'vip-workflows' ),
+						'description' => __( 'The ID of the sequence whose lifecycle state should change.', 'vip-workflows' ),
 					),
 					'active'      => array(
 						'type'        => 'boolean',
-						'description' => __( 'True to put the workflow live, false to return it to draft. Required: there is no default.', 'vip-workflows' ),
+						'description' => __( 'True to put the sequence live, false to return it to draft. Required: there is no default.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -194,11 +194,11 @@ function register_activate_sequence(): void {
 				'properties'           => array(
 					'sequence_id'     => array(
 						'type'        => 'integer',
-						'description' => __( 'The workflow ID.', 'vip-workflows' ),
+						'description' => __( 'The sequence ID.', 'vip-workflows' ),
 					),
 					'name'            => array(
 						'type'        => 'string',
-						'description' => __( 'The workflow name.', 'vip-workflows' ),
+						'description' => __( 'The sequence name.', 'vip-workflows' ),
 					),
 					'previous_status' => array(
 						'type'        => 'string',
@@ -210,7 +210,7 @@ function register_activate_sequence(): void {
 					),
 					'changed'         => array(
 						'type'        => 'boolean',
-						'description' => __( 'Whether the call changed anything. False when the workflow was already in the requested state.', 'vip-workflows' ),
+						'description' => __( 'Whether the call changed anything. False when the sequence was already in the requested state.', 'vip-workflows' ),
 					),
 					'success'         => array(
 						'type'        => 'boolean',
@@ -223,7 +223,7 @@ function register_activate_sequence(): void {
 				return current_user_can( 'manage_options' );
 			},
 			'meta'                => array(
-				'summary'             => __( 'Puts a workflow live, or takes it back to draft.', 'vip-workflows' ),
+				'summary'             => __( 'Puts a sequence live, or takes it back to draft.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

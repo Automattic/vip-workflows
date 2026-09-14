@@ -509,7 +509,7 @@ class SequenceRepository {
 		if ( ! $sequence ) {
 			return new \WP_Error(
 				'sequence_not_found',
-				__( 'Workflow not found.', 'vip-workflows' ),
+				__( 'Sequence not found.', 'vip-workflows' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -519,7 +519,7 @@ class SequenceRepository {
 			// only offers this action when stages are actually missing regions.
 			return new \WP_Error(
 				'nothing_to_repair',
-				__( 'Every stage in this workflow already has a status region.', 'vip-workflows' ),
+				__( 'Every stage in this sequence already has a status region.', 'vip-workflows' ),
 				array( 'status' => 409 )
 			);
 		}
@@ -546,7 +546,7 @@ class SequenceRepository {
 				'sequence_invalid',
 				sprintf(
 					/* translators: %s: validation error from the sequence write gate. */
-					__( 'This workflow needs a change only you can make before it can be repaired: %s', 'vip-workflows' ),
+					__( 'This sequence needs a change only you can make before it can be repaired: %s', 'vip-workflows' ),
 					$e->getMessage()
 				),
 				array( 'status' => 400 )

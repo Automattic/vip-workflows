@@ -1,36 +1,34 @@
 # UX copy audit — before / after
 
-Every user-facing string that changed. Derived from the diff between the audit commit and HEAD rather than from an edit log, so a string renamed twice shows only its **net** result. **415 strings** across the plugin and its five extension plugins.
+Every user-facing string that changed. Derived from the diff between the audit commit and HEAD rather than from an edit log, so a string renamed twice shows only its **net** result. **243 distinct strings** across the plugin and its five extension plugins.
 
 Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes are excluded.
 
 | Group | Strings |
 |---|---|
-| [Capitalization](#capitalization) | 100 |
-| [Terminology: sequence → workflow](#terminology-sequence-workflow) | 142 |
-| [Capitalization + terminology](#capitalization-terminology) | 22 |
-| [Ability labels](#ability-labels) | 8 |
+| [Capitalization](#capitalization) | 92 |
+| [Capitalization + wording](#capitalization--wording) | 3 |
+| [Ability labels](#ability-labels) | 10 |
 | [New: reader-facing tool summaries](#new-reader-facing-tool-summaries) | 26 |
 | [New: Quick Edit strings, now translatable](#new-quick-edit-strings-now-translatable) | 5 |
 | [Helper text](#helper-text) | 13 |
-| [Rewritten for clarity](#rewritten-for-clarity) | 16 |
-| [Errors](#errors) | 23 |
-| [Permission errors](#permission-errors) | 15 |
+| [Rewritten for clarity](#rewritten-for-clarity) | 14 |
+| [Errors](#errors) | 20 |
+| [Permission errors](#permission-errors) | 12 |
 | [Empty states](#empty-states) | 5 |
-| [Removed “Please”](#removed-please) | 8 |
+| [Removed “Please”](#removed-please) | 10 |
 | [Removed “successfully”](#removed-successfully) | 4 |
-| [Typography](#typography) | 22 |
+| [Typography](#typography) | 23 |
 | [Terminal periods](#terminal-periods) | 6 |
-| **Total** | **415** |
+| **Total** | **243** |
 
 ---
 
-## Capitalization (100)
-
-*82 distinct strings across 100 sites.*
+## Capitalization (92)
 
 | Before | After | Where |
 |---|---|---|
+| Activate Sequence | Activate sequence | `activate-sequence.php` |
 | Add Item | Add item | `admin.js` |
 | Add Source URL | Add source URL | `AddSourceModal.js` |
 | Added by You | Added by you | `MoodBoard.js` |
@@ -52,6 +50,7 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Editorial Mentor | Editorial mentor | `AssistantPanel.js` |
 | Follow-up Queries | Follow-up queries | `AssistantPanel.js` |
 | Headline Suggestions | Headline suggestions | `class-headline-suggestions.php` |
+| Import Sequence | Import sequence | `import-sequence.php` |
 | In Pipeline | In pipeline | `RecentProjects.js` |
 | In Review | In review | `editorial-review-sequence.json` |
 | Kanban Board | Kanban board | `KanbanBoard.js` |
@@ -66,7 +65,7 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | My Queue | My queue | `MyDashboardPage.js` |
 | My Work | My work | `MyDashboardPage.js` |
 | News Angle | News angle | `class-seed-analyst.php` |
-| No Workflow | No workflow | `KanbanBoard.js` |
+| No Workflow | No sequence | `KanbanBoard.js` |
 | Parse.ly Trending | Parse.ly trending | `class-parsely-discovery-provider.php` |
 | Past Performance | Past performance | `class-performance-signals.php` |
 | Phase Sequences (%d) | Phase sequences (%d) | `SequencesList.js` |
@@ -85,6 +84,11 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Select a Workflow | Select a workflow | `WorkflowRequiredModal.js` |
 | Send Back for Review | Send back for review | `editorial-review-sequence.json` |
 | SEO Check | SEO check | `seo-check.php` |
+| Sequence Activated | Sequence activated | `class-status-manager.php` |
+| Sequence Deactivated | Sequence deactivated | `class-status-manager.php` |
+| Sequence Name | Sequence name | `SequencesList.js` |
+| Sequence Type: | Sequence type: | `SequencesList.js` |
+| Sequence Updated | Sequence updated | `class-status-manager.php` |
 | Slack (Default) | Slack (default) | `class-slack-channel.php` |
 | Slack (New) | Slack (new) | `NotificationChannelsTab.js` |
 | Smart Linking | Smart linking | `class-smart-linking.php` |
@@ -102,6 +106,9 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Transition Blocked | Transition blocked | `class-status-manager.php` |
 | Transition Notes | Transition notes | `EventNotes.js` |
 | Update Post Fields | Update post fields | `update-post-fields.php` |
+| Update Sequence | Update sequence | `update-sequence.php` |
+| Upload Sequence JSON: | Upload sequence JSON | `SequencesList.js` |
+| Validate Sequence | Validate sequence | `validate-sequence.php` |
 | Warnings Detected | Warnings detected | `WorkflowPanel.js` |
 | Web Images (Tavily) | Web images (Tavily) | `class-tavily-image-provider.php` |
 | Web Researcher | Web researcher | `class-web-researcher.php` |
@@ -114,161 +121,24 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Workflow: Pre-publish Checklist | Workflow: Pre-publish checklist | `editor.js` |
 | YouTube Videos | YouTube videos | `class-you-tube-video-provider.php` |
 
-## Terminology: sequence → workflow (142)
-
-*112 distinct strings across 142 sites.*
+## Capitalization + wording (3)
 
 | Before | After | Where |
 |---|---|---|
-| A sequence needs at least one stage. | A workflow needs at least one stage. | `StageInspector.js` |
-| Activate Sequence | Activate workflow | `activate-sequence.php` |
-| Are you sure you want to delete this sequence? This cannot be undone. | Are you sure you want to delete this workflow? This cannot be undone. | `SequenceGraphEditor.js` |
-| Array of sequence objects with status details. | Array of workflow objects with status details. | `get-sequences.php` |
-| Array of sequences with their status counts. | Array of workflows with their status counts. | `get-workflow-summary.php` |
-| Array of status configurations defining the sequence stages. | Array of status configurations defining the workflow stages. | `create-sequence.php` |
-| Delete sequence | Delete workflow | `SequenceGraphEditor.js` |
-| Drop the sequence JSON file to import it | Drop the workflow JSON file to import it | `SequencesList.js` |
-| Every stage in this sequence already has a status region. | Every stage in this workflow already has a status region. | `class-sequence-repository.php` |
-| Failed to assign sequence. | Failed to assign workflow. | `class-workflow-controller.php` |
-| Failed to change the sequence lifecycle state. | Failed to change the workflow lifecycle state. | `activate-sequence.php` |
-| Failed to create sequence. | Failed to create workflow. | `class-sequences-controller.php` |
-| Failed to delete sequence. | Failed to delete workflow. | `class-sequences-controller.php` |
-| Failed to import sequence. | Failed to import workflow. | `class-sequences-controller.php` |
-| Failed to update sequence. | Failed to update workflow. | `class-sequences-controller.php` |
-| Import Sequence | Import workflow | `import-sequence.php` |
-| Import sequence | Import workflow | `SequencesList.js` |
-| Inactive sequences are saved as drafts and not applied to content. | Inactive workflows are saved as drafts and not applied to content. | `SequenceIdentityFields.js` |
-| Initial lifecycle state of the sequence. Defaults to "active". | Initial lifecycle state of the workflow. Defaults to "active". | `create-sequence.php` |
-| Loading sequences… | Loading workflows… | `SequencesList.js` |
-| Loading sequence… | Loading workflow… | `SequenceGraphEditor.js` |
-| New sequence | New workflow | `SequencesList.js` |
-| No sequences match your search. | No workflows match your search. | `SequencesList.js` |
-| Non-fatal advisories about the created sequence (e.g. no valid post types configured). | Non-fatal advisories about the created workflow (e.g. no valid post types configured). | `create-sequence.php` |
-| Non-fatal advisories about the updated sequence (e.g. no valid post types configured). | Non-fatal advisories about the updated workflow (e.g. no valid post types configured). | `update-sequence.php` |
-| Nothing ends this sequence: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there | Nothing ends this workflow: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there | `graph-model.js` |
-| Nothing ends this sequence: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the  | Nothing ends this workflow: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the  | `graph-model.js` |
-| Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to th | Nothing ends this workflow: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to th | `graph-model.js` |
-| Number of sequences returned. | Number of workflows returned. | `get-sequences.php` |
-| Number of statuses in the imported sequence. | Number of statuses in the imported workflow. | `import-sequence.php` |
-| Number of statuses in the sequence. | Number of statuses in the workflow. | `create-sequence.php` |
-| Number of statuses in the updated sequence. | Number of statuses in the updated workflow. | `update-sequence.php` |
-| Optional name override for the imported sequence. Defaults to the name in the JSON. | Optional name override for the imported workflow. Defaults to the name in the JSON. | `import-sequence.php` |
-| Optional sequence description. | Optional workflow description. | `create-sequence.php` |
-| Optional sequence ID to filter by. Omit for all active sequences. | Optional workflow ID to filter by. Omit for all active workflows. | `get-workflow-summary.php` |
-| Post types this sequence applies to (workflow only). Omitting this detaches the sequence from every post type. | Post types this workflow applies to (workflow only). Omitting this detaches the workflow from every post type. | `update-sequence.php` |
-| Returns post counts grouped by workflow status for each active sequence. | Returns post counts grouped by workflow status for each active workflow. | `get-workflow-summary.php` |
-| Search sequences | Search workflows | `SequencesList.js` |
-| Sequence | Workflow | `Inspector.js` |
-| Sequence Activated | Workflow activated | `class-status-manager.php` |
-| Sequence activated | Workflow activated | `event-description.js` |
-| Sequence config is required and must be an object. | Workflow config is required and must be an object. | `class-sequences-controller.php` |
-| Sequence creation returned an unexpected response. | Workflow creation returned an unexpected response. | `create-sequence.php` |
-| Sequence Deactivated | Workflow deactivated | `class-status-manager.php` |
-| Sequence deactivated | Workflow deactivated | `event-description.js` |
-| Sequence description. Omitting this clears it. | Workflow description. Omitting this clears it. | `update-sequence.php` |
-| Sequence must have at least one stage. | Workflow must have at least one stage. | `class-sequences-controller.php` |
-| Sequence Name | Workflow name | `SequencesList.js` |
-| Sequence name is required. | Workflow name is required. | `class-sequences-controller.php` |
-| Sequence not found. | Workflow not found. | `activate-sequence.php` |
-| Sequence settings. | Workflow settings. | `create-sequence.php` |
-| Sequence settings. Omitting this clears them. | Workflow settings. Omitting this clears them. | `update-sequence.php` |
-| Sequence type the proposed config is for. Only meaningful with "config"; a stored sequence uses its own type. Defaults to "workflow". | Workflow type the proposed config is for. Only meaningful with "config"; a stored workflow uses its own type. Defaults to "workflow". | `validate-sequence.php` |
-| Sequence update returned an unexpected response. | Workflow update returned an unexpected response. | `update-sequence.php` |
-| Sequence Updated | Workflow updated | `class-status-manager.php` |
-| Sequence updated, now %d stage | Workflow updated, now %d stage | `event-description.js` |
-| Sequence was created but could not be retrieved. | Workflow was created but could not be retrieved. | `class-sequences-controller.php` |
-| Sequence was created but the response is missing the "%s" field. | Workflow was created but the response is missing the "%s" field. | `create-sequence.php` |
-| Sequence was imported but the response did not include the created sequence. | Workflow was imported but the response did not include the created workflow. | `import-sequence.php` |
-| Sequence was updated but the response is missing the "%s" field. | Workflow was updated but the response is missing the "%s" field. | `update-sequence.php` |
-| Sequences | Workflows | `class-admin.php` |
-| The agent routed this post to "%s", a stage the sequence does not define a region for, so it stopped here. Fix the stage in the sequence editor, or move the post back. | The agent routed this post to "%s", a stage the workflow does not define a region for, so it stopped here. Fix the stage in the workflow editor, or move the post back. | `class-stage-agent-runner.php` |
-| The complete array of status configurations defining the sequence stages. Replaces the existing stages entirely. | The complete array of status configurations defining the workflow stages. Replaces the existing stages entirely. | `update-sequence.php` |
-| The created sequence ID. | The created workflow ID. | `create-sequence.php` |
-| The exported sequence object (as produced by the export endpoint): must include type, name, and config.statuses. | The exported workflow object (as produced by the export endpoint): must include type, name, and config.statuses. | `import-sequence.php` |
-| The generated sequence slug. | The generated workflow slug. | `create-sequence.php` |
-| The ID of the sequence to update. | The ID of the workflow to update. | `update-sequence.php` |
-| The ID of the sequence whose lifecycle state should change. | The ID of the workflow whose lifecycle state should change. | `activate-sequence.php` |
-| The imported sequence ID. | The imported workflow ID. | `import-sequence.php` |
-| The sequence could not be saved. | The workflow could not be saved. | `class-sequences-controller.php` |
-| The sequence ID. | The workflow ID. | `activate-sequence.php` |
-| The sequence lifecycle state (imported sequences are created as draft). | The workflow lifecycle state (imported workflows are created as draft). | `import-sequence.php` |
-| The sequence lifecycle state, unchanged by this ability. | The workflow lifecycle state, unchanged by this ability. | `update-sequence.php` |
-| The sequence lifecycle state. | The workflow lifecycle state. | `create-sequence.php` |
-| The sequence name. | The workflow name. | `activate-sequence.php` |
-| The sequence slug. | The workflow slug. | `update-sequence.php` |
-| The sequence type the config was validated as. | The workflow type the config was validated as. | `validate-sequence.php` |
-| The sequence type. | The workflow type. | `create-sequence.php` |
-| The sequence UUID. | The workflow UUID. | `create-sequence.php` |
-| The server did not say what this sequence can be built from. | The server did not say what this workflow can be built from. | `SequenceGraphEditor.js` |
-| The updated sequence ID. | The updated workflow ID. | `update-sequence.php` |
-| The validated sequence ID, or null when a proposed config was validated. | The validated workflow ID, or null when a proposed config was validated. | `validate-sequence.php` |
-| The workflow the post was removed from. Empty when its sequence no longer exists. | The workflow the post was removed from. Empty when its workflow no longer exists. | `remove-from-workflow.php` |
-| These sequences could not be upgraded and are not usable until someone fixes them in the Sequence editor. Their stages still have no status region, so any post that reach | These workflows could not be upgraded and are not usable until someone fixes them in the Workflow editor. Their stages still have no status region, so any post that reach | `class-admin.php` |
-| This sequence cannot be activated because its stored configuration is invalid: %s | This workflow cannot be activated because its stored configuration is invalid: %s | `activate-sequence.php` |
-| This sequence cannot be activated: these stages have no status region, and every read of them fails — %s. Repair the sequence first. | This workflow cannot be activated: these stages have no status region, and every read of them fails — %s. Repair the workflow first. | `activate-sequence.php` |
-| This sequence cannot be activated: these status regions hold stages but designate no entry checkpoint, so any status change into them fails — %s. Repair the sequence firs | This workflow cannot be activated: these status regions hold stages but designate no entry checkpoint, so any status change into them fails — %s. Repair the workflow firs | `activate-sequence.php` |
-| This sequence cannot be applied because its configuration is invalid: %s | This workflow cannot be applied because its configuration is invalid: %s | `class-workflow-controller.php` |
-| This sequence cannot be saved yet — %d thing needs fixing: | This workflow cannot be saved yet — %d thing needs fixing: | `SequenceGraphEditor.js` |
-| This sequence cannot be saved yet — %d things need fixing: | This workflow cannot be saved yet — %d things need fixing: | `SequenceGraphEditor.js` |
-| This sequence has changes that have not been saved. Leaving now discards them. | This workflow has changes that have not been saved. Leaving now discards them. | `SequenceGraphEditor.js` |
-| This sequence has no metadata fields. Add one to collect a value alongside every post that travels it. | This workflow has no metadata fields. Add one to collect a value alongside every post that travels it. | `MetadataFieldsEditor.js` |
-| This sequence has no name. Click an empty part of the canvas and fill in Name in the Sequence panel. | This workflow has no name. Click an empty part of the canvas and fill in Name in the Workflow panel. | `graph-model.js` |
-| This sequence has no stage in the Publish region, so it cannot publish posts until you set one. | This workflow has no stage in the Publish region, so it cannot publish posts until you set one. | `class-admin.php` |
-| This sequence has no stages, so there is nothing for a post to be in. Right-click the canvas to add one. | This workflow has no stages, so there is nothing for a post to be in. Right-click the canvas to add one. | `graph-model.js` |
-| This sequence is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types. | This workflow is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types. | `SequenceGraphEditor.js` |
-| This sequence needs a change only you can make before it can be repaired: %s | This workflow needs a change only you can make before it can be repaired: %s | `class-sequence-repository.php` |
-| This stage routes no destination for the "%s" outcome, so the post stopped here. Route it in the sequence editor, or move the post back. | This stage routes no destination for the "%s" outcome, so the post stopped here. Route it in the workflow editor, or move the post back. | `class-stage-agent-runner.php` |
-| This transition asks for an assignee of type “%s”, which cannot be chosen here. Nothing has been assigned and the post has not moved — the sequence needs a user or role a | This transition asks for an assignee of type “%s”, which cannot be chosen here. Nothing has been assigned and the post has not moved — the workflow needs a user or role a | `TransitionInputPopover.js` |
-| This workflow cannot be used until its stages have status regions: %s Open the sequence and assign the missing ones. | This workflow cannot be used until its stages have status regions: %s Open the workflow and assign the missing ones. | `class-status-manager.php` |
-| Transitions removed, because the sequence was stored with a stage holding two to the same target. Their roles, required tools and notifications went with them: %s. | Transitions removed, because the workflow was stored with a stage holding two to the same target. Their roles, required tools and notifications went with them: %s. | `class-admin.php` |
-| True to put the sequence live, false to return it to draft. Required: there is no default. | True to put the workflow live, false to return it to draft. Required: there is no default. | `activate-sequence.php` |
-| Untitled sequence | Untitled workflow | `Inspector.js` |
-| Update Sequence | Update workflow | `update-sequence.php` |
-| Validate Sequence | Validate workflow | `validate-sequence.php` |
-| Validate the stored configuration of this sequence. Mutually exclusive with "config". | Validate the stored configuration of this workflow. Mutually exclusive with "config". | `validate-sequence.php` |
-| Warning: this sequence references post types that no longer exist: %s. Select valid post types and save. | Warning: this workflow references post types that no longer exist: %s. Select valid post types and save. | `SequenceGraphEditor.js` |
-| Whether the call changed anything. False when the sequence was already in the requested state. | Whether the call changed anything. False when the workflow was already in the requested state. | `activate-sequence.php` |
-| Whether the sequence was created. | Whether the workflow was created. | `create-sequence.php` |
-| Whether the sequence was imported. | Whether the workflow was imported. | `import-sequence.php` |
-| Whether the sequence was updated. | Whether the workflow was updated. | `update-sequence.php` |
-| …or drop a sequence JSON file here. | …or drop a workflow JSON file here. | `SequencesList.js` |
+| Editorial Sequences (%d) | Workflow sequences (%d) | `SequencesList.js` |
+| New editorial sequence | New sequence | `SequencesList.js` |
+| No editorial sequences yet. | No workflow sequences yet. | `SequencesList.js` |
 
-## Capitalization + terminology (22)
-
-*21 distinct strings across 22 sites.*
+## Ability labels (10)
 
 | Before | After | Where |
 |---|---|---|
-| Create Sequence | New workflow | `create-sequence.php` |
-| Creates a new workflow sequence with its statuses, transitions, and metadata fields. | Creates a new workflow with its statuses, transitions, and metadata fields. | `create-sequence.php` |
-| Editorial Sequences (%d) | Workflows (%d) | `SequencesList.js` |
-| Failed to export sequence: | Could not export the workflow. Details: %s | `SequencesList.js` |
-| Get Sequences | Workflows | `get-sequences.php` |
-| Imports a workflow sequence from an exported JSON definition. The imported sequence is created as a draft. | Imports a workflow from an exported JSON definition. The imported workflow is created as a draft. | `import-sequence.php` |
-| Lists active workflow sequences with their statuses and configuration. | Lists active workflows with their statuses and configuration. | `get-sequences.php` |
-| New editorial sequence | New workflow | `SequencesList.js` |
-| No editorial sequences yet. | No workflows yet. | `SequencesList.js` |
-| No workflow sequence for this post. | No workflow for this post. | `class-status-manager.php` |
-| Please enter a name for the sequence. | Enter a name for the workflow. | `SequencesList.js` |
-| Please upload a sequence JSON file. | Upload a workflow JSON file. | `SequencesList.js` |
-| Post types this sequence applies to (workflow only). A workflow sequence with no valid post types is not attached to any content and cannot be used — pass at least one re | Post types this workflow applies to (workflow only). A workflow with no valid post types is not attached to any content and cannot be used — pass at least one registered  | `create-sequence.php` |
-| Puts a workflow sequence live, or takes it back to draft. This is the only ability that changes a sequence lifecycle state; Update Sequence cannot. Activation is refused  | Puts a workflow live, or takes it back to draft. This is the only ability that changes a workflow lifecycle state; Update Workflow cannot. Activation is refused when the  | `activate-sequence.php` |
-| Replaces the configuration of an existing workflow sequence — its statuses, transitions, required tools, role permissions and metadata fields. This is a full replacement, | Replaces the configuration of an existing workflow — its statuses, transitions, required tools, role permissions and metadata fields. This is a full replacement, not a pa | `update-sequence.php` |
-| Sequences define workflow stages and transitions for your content types. | A workflow is the set of stages a post moves through, and the routes between them. | `SequencesList.js` |
-| The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post\'s status, or choose a sequence that covers it. | The "%1$s" workflow has no stage with the %2$s status, so it cannot be started on this post. Change the post’s status, or choose a workflow that covers it. | `class-status-manager.php` |
-| This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These sequences had to be changed to fit. The changes are | This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These workflows had to be changed to fit. The changes are | `class-admin.php` |
-| This workflow sequence has no valid post types configured, so it is not attached to any content type and cannot be used yet. Re-create it with a "post_types" array (e.g.  | This workflow has no valid post types configured, so it is not attached to any content type and cannot be used yet. Re-create it with a "post_types" array (e.g. ["post"]) | `create-sequence.php` |
-| This workflow sequence now has no valid post types configured, so it is not attached to any content type and cannot be used. An update replaces the whole configuration —  | This workflow now has no valid post types configured, so it is not attached to any content type and cannot be used. An update replaces the whole configuration — pass "pos | `update-sequence.php` |
-| Upload Sequence JSON: | Upload workflow JSON | `SequencesList.js` |
-
-## Ability labels (8)
-
-| Before | After | Where |
-|---|---|---|
+| Create Sequence | New sequence | `create-sequence.php` |
 | Get Available Transitions | Available transitions | `get-available-transitions.php` |
 | Get My Assignments | My assignments | `get-my-assignments.php` |
 | Get Posts By Status | Posts by status | `get-posts-by-status.php` |
 | Get Recent Activity | Recent activity | `get-recent-activity.php` |
+| Get Sequences | Sequences | `get-sequences.php` |
 | Get Stale Posts | Stale posts | `get-stale-posts.php` |
 | Get Transition History | Transition history | `get-transition-history.php` |
 | Get Workflow Summary | Workflow summary | `get-workflow-summary.php` |
@@ -281,31 +151,31 @@ Added as `meta.summary` — the sentence the tool card and the graph editor's to
 | String | Where |
 |---|---|
 | Changes a post’s title, excerpt, date or author. | `update-post-fields.php` |
-| Checks a workflow configuration for problems without saving it. | `validate-sequence.php` |
+| Checks a sequence configuration for problems without saving it. | `validate-sequence.php` |
 | Checks the post against SEO basics: meta description, headings, keywords and images. | `seo-check.php` |
 | Checks the post’s tags for typos, duplicates and off-topic terms. | `workflow-agent-tag-sanity-check.php` |
 | Compares this post with how similar stories performed, using Parse.ly. | `class-performance-check.php` |
 | Copy-edits the post for grammar, spelling and style, saving the result as a revision. | `workflow-agent-copy-edit.php` |
-| Counts posts at each status, for every active workflow. | `get-workflow-summary.php` |
-| Creates a draft workflow from an exported JSON definition. | `import-sequence.php` |
-| Creates a workflow with its stages, transitions and metadata fields. | `create-sequence.php` |
+| Counts posts at each status, for every active sequence. | `get-workflow-summary.php` |
+| Creates a draft sequence from an exported JSON definition. | `import-sequence.php` |
+| Creates a sequence with its stages, transitions and metadata fields. | `create-sequence.php` |
 | Flags banned words, competitor names and other terms you list. | `keyword-check.php` |
 | Lists posts sitting at a given workflow status. | `get-posts-by-status.php` |
 | Lists posts stuck at one status for longer than a set number of days. | `get-stale-posts.php` |
 | Lists recent editorial activity across the site. | `get-recent-activity.php` |
-| Lists the active workflows and their stages. | `get-sequences.php` |
+| Lists the active sequences and their stages. | `get-sequences.php` |
 | Lists the moves a given post and user can make right now. | `get-available-transitions.php` |
 | Lists the posts assigned to you. | `get-my-assignments.php` |
 | Moves a post to another status, respecting who is allowed to make the move. | `transition-post.php` |
-| Puts a workflow live, or takes it back to draft. | `activate-sequence.php` |
-| Replaces a workflow’s whole configuration. Anything you leave out is cleared. | `update-sequence.php` |
+| Puts a sequence live, or takes it back to draft. | `activate-sequence.php` |
+| Replaces a sequence’s whole configuration. Anything you leave out is cleared. | `update-sequence.php` |
 | Requires every item on your pre-publish checklist to be ticked. | `class-checklist-tool.php` |
 | Scores how easy the post is to read, using Flesch-Kincaid. | `readability.php` |
-| Shows a post’s trail through its workflow. | `get-transition-history.php` |
+| Shows a post’s trail through its sequence. | `get-transition-history.php` |
 | Shows how comparable past coverage performed, and which angles did best. | `class-performance-signals.php` |
 | Suggests alternative headlines, using Parse.ly. | `class-headline-suggestions.php` |
 | Suggests internal links for the post, using Parse.ly. | `class-smart-linking.php` |
-| Takes a post out of its workflow, leaving its published status alone. Cannot be undone. | `remove-from-workflow.php` |
+| Takes a post out of its sequence, leaving its published status alone. Cannot be undone. | `remove-from-workflow.php` |
 
 ## New: Quick Edit strings, now translatable (5)
 
@@ -337,7 +207,7 @@ These were hardcoded English inside an inline script and could not be translated
 | User prompt for editorial draft generation. Variables: {project_name}, {research_context}, {image_instructions}. | User prompt for editorial draft generation. | `class-core-prompts.php` |
 | Where a post lands when something outside the workflow sets this status — publishing from the editor, a scheduled post going live, a REST write — and where a sequence ass | Where a post lands when something outside the sequence gives it this status — an editor publishing, a scheduled post going live, a REST write. | `RegionInspector.js` |
 
-## Rewritten for clarity (16)
+## Rewritten for clarity (14)
 
 | Before | After | Where |
 |---|---|---|
@@ -346,21 +216,17 @@ These were hardcoded English inside an inline script and could not be translated
 | Configure agents that assist with editorial work. | Agents run when a post enters a stage, and route it onward by what they find. | `Agents.js` |
 | Configure workflow settings and preferences. | How workflows behave site-wide: enforcement, permissions, AI and integrations. | `Settings.js` |
 | Configure workflow tools available to your team. | Tools check a post before it moves. A transition can require any of them. | `Tools.js` |
-| Dry-runs a sequence configuration through the write gate without saving it. Reports whether it is valid, what normalization would change, and which stage/region invariant | Dry-runs a workflow configuration through the write gate without saving it. Reports whether it is valid, what normalization would change, and which stage/region invariant | `validate-sequence.php` |
 | Enter a unique name for this sequence. | Must be unique. | `SequencesList.js` |
 | Human-readable description of what the ability does. | Tool description written for a language model. Not for display — use label and meta.summary. | `class-abilities-controller.php` |
 | Must match assignment key from another transition | Must match the key an earlier transition assigned. | `TransitionAssignmentConfig.js` |
 | Restrict this transition to a previously assigned user or role | Only the user or role an earlier transition assigned can make this move. | `TransitionAssignmentConfig.js` |
-| Sequence Type: | Type: | `SequencesList.js` |
-| The "sequence_json" parameter is required and must be the exported sequence object. | The "sequence_json" parameter is required and must be the exported workflow object. | `import-sequence.php` |
+| Sequences define workflow stages and transitions for your content types. | A sequence is the set of stages a post moves through, and the routes between them. | `SequencesList.js` |
 | View all workflow activity and changes. | Every workflow event on this site — what happened, who did it, and when. | `AuditLog.js` |
 | View Dashboard | Open dashboard | `class-dashboard-widget.php` |
 | Your personal workspace for work and ideation. | The posts assigned to you, your review queue, and your ideation projects. | `MyDashboard.js` |
 | ✓ All required items complete | All required items complete | `editor.js` |
 
-## Errors (23)
-
-*19 distinct strings across 23 sites.*
+## Errors (20)
 
 | Before | After | Where |
 |---|---|---|
@@ -371,6 +237,7 @@ These were hardcoded English inside an inline script and could not be translated
 | Failed to create ideation project. | Could not create the ideation project. | `Ideation.js` |
 | Failed to delete project. | Could not delete the project. | `IdeationWorkspace.js` |
 | Failed to delete source. | Could not delete the source. | `IdeationWorkspace.js` |
+| Failed to export sequence: | Could not export the sequence. Details: %s | `SequencesList.js` |
 | Failed to generate summary. | Could not generate the summary. | `IdeationWorkspace.js` |
 | Failed to load AI settings: %s | Could not load AI settings. Reload the page to try again. Details: %s | `AiModelSettings.js` |
 | Failed to load board | Could not load the board. Reload the page to try again. | `KanbanBoard.js` |
@@ -384,9 +251,7 @@ These were hardcoded English inside an inline script and could not be translated
 | Failed to reschedule post. | Could not reschedule the post. | `Calendar.js` |
 | Failed to upload file. | Could not upload the file. | `AddSourceModal.js` |
 
-## Permission errors (15)
-
-*12 distinct strings across 15 sites.*
+## Permission errors (12)
 
 | Before | After | Where |
 |---|---|---|
@@ -413,7 +278,7 @@ These were hardcoded English inside an inline script and could not be translated
 | No experiments are available. | No experiments on this site. They arrive with plugin releases. | `ExperimentsSettings.js` |
 | No helper tools are registered. | No helper tools yet. Add one with the Abilities API — see Add custom tools. | `ToolsSettings.js` |
 
-## Removed “Please” (8)
+## Removed “Please” (10)
 
 | Before | After | Where |
 |---|---|---|
@@ -421,7 +286,9 @@ These were hardcoded English inside an inline script and could not be translated
 | Could not save the post before the transition. Please try again. | Could not save the post before the transition. Try again. | `WorkflowPanel.js` |
 | No checklist items have been configured. Please add items in the Integrations settings. | No checklist items yet. Add them in Integrations settings. | `class-checklist-tool.php` |
 | Please confirm | Confirm | `use-confirm.js` |
+| Please enter a name for the sequence. | Enter a name for the sequence. | `SequencesList.js` |
 | Please enter a valid URL. | Enter a valid URL. | `AddSourceModal.js` |
+| Please upload a sequence JSON file. | Upload a sequence JSON file. | `SequencesList.js` |
 | Please wait, this may take a moment. | This may take a moment. | `CommandPalette.js` |
 | The “%s” stage is set to run an AI agent but none is chosen. Please set one. | The “%s” stage is set to run an AI agent but none is chosen. Choose one. | `SequenceGraphEditor.js` |
 | Your organization requires a workflow for new posts. Please select one to continue: | Your organization requires a workflow for new posts. Choose one to continue. | `WorkflowRequiredModal.js` |
@@ -435,7 +302,7 @@ These were hardcoded English inside an inline script and could not be translated
 | Post claimed successfully. | Post claimed. | `class-workflow-controller.php` |
 | Post released successfully. | Post released. | `class-workflow-controller.php` |
 
-## Typography (22)
+## Typography (23)
 
 | Before | After | Where |
 |---|---|---|
@@ -453,6 +320,7 @@ These were hardcoded English inside an inline script and could not be translated
 | Searching Wikipedia... | Searching Wikipedia… | `workflow-assistant-wikipedia.php` |
 | Searching your archive... | Searching your archive… | `class-archive-scout.php` |
 | Selected roles can see every user's activity in the audit log. | Selected roles can see every user’s activity in the audit log. | `GeneralSettings.js` |
+| The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post\'s status, or choose a sequence that covers it. | The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post’s status, or choose a sequence that covers it. | `class-status-manager.php` |
 | The %s provider is not registered with this site\'s WordPress AI Client, so text generation cannot run through it. | The %s provider is not registered with this site’s WordPress AI Client, so text generation cannot run through it. | `class-ai-availability.php` |
 | The %s was stopped by the AI provider\'s content filter, so it returned nothing. Re-running it will not help until the wording that triggered the filter changes. | The %s was stopped by the AI provider’s content filter, so it returned nothing. Re-running it will not help until the wording that triggered the filter changes. | `class-llm-text-generator.php` |
 | This post\'s author cannot edit posts, so the AI agent was not run. Reassign the post to a user who can edit it, or move it back to the previous stage. | This post’s author cannot edit posts, so the AI agent was not run. Reassign the post to a user who can edit it, or move it back to the previous stage. | `class-stage-agent-runner.php` |

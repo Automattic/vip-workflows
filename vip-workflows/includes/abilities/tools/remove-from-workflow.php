@@ -110,7 +110,7 @@ function register_remove_from_workflow(): void {
 					),
 					'workflow_name' => array(
 						'type'        => 'string',
-						'description' => __( 'The workflow the post was removed from. Empty when its workflow no longer exists.', 'vip-workflows' ),
+						'description' => __( 'The workflow the post was removed from. Empty when its sequence no longer exists.', 'vip-workflows' ),
 					),
 					'removed_stage' => array(
 						'type'        => 'string',
@@ -131,7 +131,7 @@ function register_remove_from_workflow(): void {
 				return current_user_can( 'edit_posts' );
 			},
 			'meta'                => array(
-				'summary'             => __( 'Takes a post out of its workflow, leaving its published status alone. Cannot be undone.', 'vip-workflows' ),
+				'summary'             => __( 'Takes a post out of its sequence, leaving its published status alone. Cannot be undone.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

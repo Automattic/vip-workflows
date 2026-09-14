@@ -42,7 +42,7 @@ See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarc
 
 ### 1. Sequences
 
-**Sequences** define workflows. They are JSON configurations stored in `wp_vip_sequences` table. Two types exist: **workflow** (editorial statuses for posts, labeled **"Workflows"** in the admin UI) and **phase** (transitions between content lifecycle phases: Ideation, Editorial).
+**Sequences** define workflows. They are JSON configurations stored in `wp_vip_sequences` table. Two types exist: **workflow** (editorial statuses for posts, labeled **"Workflow sequences"** in the admin UI) and **phase** (transitions between content lifecycle phases: Ideation, Editorial).
 
 > **Naming note:** The database `type` column, the PHP/JS variable names (e.g. `Sequence::TYPE_WORKFLOW`, `workflowSequences`) and the user-facing tab label all use `workflow`. A sequence of this type is not necessarily editorial — it drives whatever post types it is configured for.
 

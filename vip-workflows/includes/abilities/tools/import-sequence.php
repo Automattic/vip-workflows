@@ -24,7 +24,7 @@ function execute_import_sequence( ?array $input = null ) {
 	$sequence_json = $input['sequence_json'] ?? null;
 
 	if ( ! is_array( $sequence_json ) ) {
-		return new \WP_Error( 'missing_sequence_json', __( 'The "sequence_json" parameter is required and must be the exported workflow object.', 'vip-workflows' ) );
+		return new \WP_Error( 'missing_sequence_json', __( 'The "sequence_json" parameter is required and must be the exported sequence object.', 'vip-workflows' ) );
 	}
 
 	$request = new \WP_REST_Request( 'POST', '/vip-workflows/v1/sequences/import' );
@@ -45,7 +45,7 @@ function execute_import_sequence( ?array $input = null ) {
 	// Per the no-fallback rule, a success response missing the prepared sequence
 	// is a data-integrity bug — surface it rather than coalescing.
 	if ( ! is_array( $sequence ) || ! array_key_exists( 'id', $sequence ) ) {
-		return new \WP_Error( 'import_response_incomplete', __( 'Workflow was imported but the response did not include the created workflow.', 'vip-workflows' ) );
+		return new \WP_Error( 'import_response_incomplete', __( 'Sequence was imported but the response did not include the created sequence.', 'vip-workflows' ) );
 	}
 
 	return array(
@@ -69,8 +69,8 @@ function register_import_sequence(): void {
 	wp_register_ability(
 		'vip-workflows/import-sequence',
 		array(
-			'label'               => __( 'Import workflow', 'vip-workflows' ),
-			'description'         => __( 'Imports a workflow from an exported JSON definition. The imported workflow is created as a draft.', 'vip-workflows' ),
+			'label'               => __( 'Import sequence', 'vip-workflows' ),
+			'description'         => __( 'Imports a workflow sequence from an exported JSON definition. The imported sequence is created as a draft.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -79,11 +79,11 @@ function register_import_sequence(): void {
 				'properties'           => array(
 					'sequence_json' => array(
 						'type'        => 'object',
-						'description' => __( 'The exported workflow object (as produced by the export endpoint): must include type, name, and config.statuses.', 'vip-workflows' ),
+						'description' => __( 'The exported sequence object (as produced by the export endpoint): must include type, name, and config.statuses.', 'vip-workflows' ),
 					),
 					'name'           => array(
 						'type'        => 'string',
-						'description' => __( 'Optional name override for the imported workflow. Defaults to the name in the JSON.', 'vip-workflows' ),
+						'description' => __( 'Optional name override for the imported sequence. Defaults to the name in the JSON.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -93,35 +93,35 @@ function register_import_sequence(): void {
 				'properties'           => array(
 					'sequence_id'    => array(
 						'type'        => 'integer',
-						'description' => __( 'The imported workflow ID.', 'vip-workflows' ),
+						'description' => __( 'The imported sequence ID.', 'vip-workflows' ),
 					),
 					'uuid'           => array(
 						'type'        => 'string',
-						'description' => __( 'The workflow UUID.', 'vip-workflows' ),
+						'description' => __( 'The sequence UUID.', 'vip-workflows' ),
 					),
 					'name'           => array(
 						'type'        => 'string',
-						'description' => __( 'The workflow name.', 'vip-workflows' ),
+						'description' => __( 'The sequence name.', 'vip-workflows' ),
 					),
 					'slug'           => array(
 						'type'        => 'string',
-						'description' => __( 'The generated workflow slug.', 'vip-workflows' ),
+						'description' => __( 'The generated sequence slug.', 'vip-workflows' ),
 					),
 					'type'           => array(
 						'type'        => 'string',
-						'description' => __( 'The workflow type.', 'vip-workflows' ),
+						'description' => __( 'The sequence type.', 'vip-workflows' ),
 					),
 					'status'         => array(
 						'type'        => 'string',
-						'description' => __( 'The workflow lifecycle state (imported workflows are created as draft).', 'vip-workflows' ),
+						'description' => __( 'The sequence lifecycle state (imported sequences are created as draft).', 'vip-workflows' ),
 					),
 					'statuses_count' => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of statuses in the imported workflow.', 'vip-workflows' ),
+						'description' => __( 'Number of statuses in the imported sequence.', 'vip-workflows' ),
 					),
 					'success'        => array(
 						'type'        => 'boolean',
-						'description' => __( 'Whether the workflow was imported.', 'vip-workflows' ),
+						'description' => __( 'Whether the sequence was imported.', 'vip-workflows' ),
 					),
 				),
 			),
@@ -130,7 +130,7 @@ function register_import_sequence(): void {
 				return current_user_can( 'manage_options' );
 			},
 			'meta'                => array(
-				'summary'             => __( 'Creates a draft workflow from an exported JSON definition.', 'vip-workflows' ),
+				'summary'             => __( 'Creates a draft sequence from an exported JSON definition.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

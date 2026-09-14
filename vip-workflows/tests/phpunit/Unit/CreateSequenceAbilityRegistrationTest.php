@@ -1,6 +1,6 @@
 <?php
 /**
- * Registration-contract tests for the New workflow ability.
+ * Registration-contract tests for the New sequence ability.
  *
  * Captures the args passed to wp_register_ability() so we can assert the
  * agent-facing label/description wording, the required input keys, the
@@ -21,7 +21,7 @@ use Brain\Monkey\Functions;
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/create-sequence.php';
 
 /**
- * Tests that the New workflow ability registers with the expected contract.
+ * Tests that the New sequence ability registers with the expected contract.
  */
 class CreateSequenceAbilityRegistrationTest extends TestCase
 {
@@ -45,16 +45,16 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
         );
     }
 
-    public function test_registers_under_stable_slug_with_workflow_terminology(): void
+    public function test_registers_under_stable_slug_with_sequence_terminology(): void
     {
         \VIPWorkflows\Abilities\Tools\register_create_sequence();
 
         $this->assertArrayHasKey( 'vip-workflows/create-sequence', $this->registered );
         $args = $this->registered['vip-workflows/create-sequence'];
 
-        // Reader-facing wording says "workflow"; the slug keeps "sequence".
-        $this->assertSame( 'New workflow', $args['label'] );
-        $this->assertStringContainsStringIgnoringCase( 'workflow', $args['description'] );
+        // Reader-facing wording says "sequence".
+        $this->assertSame( 'New sequence', $args['label'] );
+        $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
         $this->assertStringNotContainsStringIgnoringCase( 'blueprint', $args['description'] );
         $this->assertSame( 'vip-workflows', $args['category'] );
     }
