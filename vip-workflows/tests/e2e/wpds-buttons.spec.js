@@ -15,19 +15,7 @@ const {
 	openWorkflowPanel,
 } = require( './helpers/workflow' );
 
-/**
- * Set the Kanban experiment toggle via the experiments REST endpoint.
- *
- * @param {Object}  requestUtils Authenticated request utils fixture.
- * @param {boolean} enabled      Desired state.
- */
-async function setKanbanExperiment( requestUtils, enabled ) {
-	await requestUtils.rest( {
-		path: '/vip-workflows/v1/settings/experiments',
-		method: 'POST',
-		data: { id: 'kanban', enabled },
-	} );
-}
+const { withEnabledExperiment } = require( './helpers/experiments' );
 
 test.describe( 'VIP Workflows — WPDS buttons (e2e)', () => {
 	let postId;
@@ -74,9 +62,7 @@ test.describe( 'VIP Workflows — WPDS buttons (e2e)', () => {
 		requestUtils,
 	} ) => {
 		// Kanban ships disabled by default behind the 'kanban' experiment.
-		await setKanbanExperiment( requestUtils, true );
-
-		try {
+		await withEnabledExperiment( requestUtils, 'kanban', async () => {
 			await admin.visitAdminPage(
 				'admin.php',
 				'page=vip-workflows-kanban'
@@ -103,10 +89,7 @@ test.describe( 'VIP Workflows — WPDS buttons (e2e)', () => {
 			await expect(
 				page.getByRole( 'button', { name: 'Hide column' } )
 			).toHaveCount( initialCount );
-		} finally {
-			// Best-effort restore of the default (disabled) state for other specs.
-			await setKanbanExperiment( requestUtils, false ).catch( () => {} );
-		}
+		} );
 	} );
 
 	test( 'role-gated transition opens the role-select popover', async ( {

@@ -325,35 +325,38 @@ class WorkflowController extends WP_REST_Controller {
 		}
 
 		// GET /workflow/calendar - Get posts for calendar view.
-		register_rest_route(
-			$this->namespace,
-			'/' . $this->rest_base . '/calendar',
-			array(
+		// Calendar-only surface: the view is gated behind the 'calendar' experiment.
+		if ( Plugin::experiment_enabled( 'calendar' ) ) {
+			register_rest_route(
+				$this->namespace,
+				'/' . $this->rest_base . '/calendar',
 				array(
-					'methods'             => WP_REST_Server::READABLE,
-					'callback'            => array( $this, 'get_calendar_data' ),
-					'permission_callback' => array( $this, 'get_my_queue_permissions_check' ),
-					'args'                => array(
-						'start'          => array(
-							'description' => 'Start date (Y-m-d format).',
-							'type'        => 'string',
-							'required'    => true,
-						),
-						'end'            => array(
-							'description' => 'End date (Y-m-d format).',
-							'type'        => 'string',
-							'required'    => true,
-						),
-						'filter'         => array(
-							'description' => 'Filter type: all or published.',
-							'type'        => 'string',
-							'default'     => 'all',
-							'enum'        => array( 'all', 'published' ),
+					array(
+						'methods'             => WP_REST_Server::READABLE,
+						'callback'            => array( $this, 'get_calendar_data' ),
+						'permission_callback' => array( $this, 'get_my_queue_permissions_check' ),
+						'args'                => array(
+							'start'          => array(
+								'description' => 'Start date (Y-m-d format).',
+								'type'        => 'string',
+								'required'    => true,
+							),
+							'end'            => array(
+								'description' => 'End date (Y-m-d format).',
+								'type'        => 'string',
+								'required'    => true,
+							),
+							'filter'         => array(
+								'description' => 'Filter type: all or published.',
+								'type'        => 'string',
+								'default'     => 'all',
+								'enum'        => array( 'all', 'published' ),
+							),
 						),
 					),
-				),
-			)
-		);
+				)
+			);
+		}
 	}
 
 	/**

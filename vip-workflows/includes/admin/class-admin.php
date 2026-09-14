@@ -209,15 +209,17 @@ class Admin implements ModuleInterface {
 				);
 			}
 
-			// Calendar - available to all who can edit posts.
-			add_submenu_page(
-				'vip-workflows',
-				__( 'Calendar', 'vip-workflows' ),
-				__( 'Calendar', 'vip-workflows' ),
-				'edit_posts',
-				'vip-workflows-calendar',
-				array( $this, 'render_calendar_page' )
-			);
+			// Calendar - available to all who can edit posts, while enabled.
+			if ( Plugin::experiment_enabled( 'calendar' ) ) {
+				add_submenu_page(
+					'vip-workflows',
+					__( 'Calendar', 'vip-workflows' ),
+					__( 'Calendar', 'vip-workflows' ),
+					'edit_posts',
+					'vip-workflows-calendar',
+					array( $this, 'render_calendar_page' )
+				);
+			}
 
 			// Ideation page - the creative workspace for story ideas.
 			if ( Plugin::experiment_enabled( 'ideation' ) ) {

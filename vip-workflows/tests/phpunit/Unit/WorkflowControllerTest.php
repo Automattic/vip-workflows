@@ -74,6 +74,48 @@ class WorkflowControllerTest extends TestCase
     }
 
     /**
+     * Kanban and Calendar each gate their own surface, including when only the
+     * other experiment is enabled.
+     *
+     * @dataProvider view_experiment_states
+     */
+    public function test_view_routes_follow_independent_experiments( array $enabled, bool $kanban, bool $calendar ): void
+    {
+        Functions\when( 'get_option' )->justReturn( $enabled );
+        $registry = new \VIPWorkflows\Experiments\ExperimentRegistry();
+        $registry->register( new \VIPWorkflows\Experiments\KanbanExperiment() );
+        $registry->register( new \VIPWorkflows\Experiments\CalendarExperiment() );
+        ( new \ReflectionProperty( \VIPWorkflows\Plugin::class, 'experiment_registry' ) )
+            ->setValue( \VIPWorkflows\Plugin::get_instance(), $registry );
+
+        $routes = array();
+        Functions\when( 'register_rest_route' )->alias(
+            static function ( $namespace, $route, $args ) use ( &$routes ) {
+                $routes[ $route ] = $args;
+            }
+        );
+
+        $this->controller->register_routes();
+
+        $this->assertSame( $kanban, isset( $routes['/workflow/kanban'] ) );
+        $this->assertSame( $calendar, isset( $routes['/workflow/calendar'] ) );
+        $this->assertArrayHasKey( '/workflow/my-queue', $routes );
+    }
+
+    /**
+     * @return array<string, array{0: string[], 1: bool, 2: bool}>
+     */
+    public static function view_experiment_states(): array
+    {
+        return array(
+            'disabled by default' => array( array(), false, false ),
+            'Kanban only'         => array( array( 'kanban' ), true, false ),
+            'Calendar only'       => array( array( 'calendar' ), false, true ),
+            'both enabled'        => array( array( 'kanban', 'calendar' ), true, true ),
+        );
+    }
+
+    /**
      * Create a mock WP_REST_Request.
      *
      * @param array $params Request parameters.
