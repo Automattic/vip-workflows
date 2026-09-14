@@ -1298,6 +1298,35 @@ function targetStageKey( target ) {
 }
 
 /**
+ * A target's identity, for telling apart two faults that read the same.
+ *
+ * A message is not a fault's name. An unlabelled transition is named by its
+ * destination (`transition.label || transition.to`), so two stages each holding
+ * an unlabelled transition to the same place word their faults identically
+ * while pointing at two different transitions — two things to fix, in two
+ * places, each with its own way to it.
+ *
+ * A fault of the sequence itself answers `''`, as does one with nothing on the
+ * canvas to select: those have no place to point at, so the sentence is all
+ * they are, and two of them saying the same thing really are one thing to say.
+ *
+ * @param {?Object} target A validation target.
+ * @return {string} A stable id for the target, or `''` for a placeless fault.
+ */
+export function targetId( target ) {
+	if ( target?.type === 'node' ) {
+		return target.key ? `node:${ target.key }` : '';
+	}
+	if ( target?.type === 'edge' ) {
+		return `edge:${ edgeId( target.from, target.to, target.outcome ) }`;
+	}
+	if ( target?.type === 'region' ) {
+		return target.region ? `region:${ target.region }` : '';
+	}
+	return '';
+}
+
+/**
  * Point one of a stage agent's outcomes at a destination stage — what dragging
  * from an outcome handle onto another stage does.
  *

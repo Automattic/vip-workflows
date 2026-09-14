@@ -61,6 +61,7 @@ import {
 	parseEdgeId,
 	visibleRegions,
 	edgeId,
+	targetId,
 	isAgentOutcome,
 	isAgentStage,
 	stageLabel,
@@ -339,8 +340,12 @@ function SaveBlockers( { reasons, isPhase, onShow } ) {
 				reasons.length
 			) }
 			<Stack render={ <ul /> } direction="column" gap="xs">
+				{ /* Keyed by where the fault is as well as what it says, for
+				     the reason `saveBlockers` dedupes on both: two stages can
+				     hold the identically-worded fault, and the message alone
+				     is then one key for two rows. */ }
 				{ reasons.map( ( { message, target } ) => (
-					<li key={ message }>
+					<li key={ `${ targetId( target ) }\n${ message }` }>
 						{ message }
 						{ target && (
 							<>
@@ -882,14 +887,27 @@ export default function SequenceGraphEditor( {
 		}
 
 		// Two stages can be wrong in the identical way — two of them left
-		// unnamed, say — and the same sentence twice is noise, not a second
-		// thing to fix.
-		return reasons.filter(
-			( reason, index ) =>
-				reasons.findIndex(
-					( other ) => other.message === reason.message
-				) === index
-		);
+		// neither named nor keyed, say — and the same sentence twice is noise,
+		// not a second thing to fix.
+		//
+		// Told apart by where the fault is as well as what it says, because the
+		// sentence alone does not identify one: an unlabelled transition is
+		// named by its destination, so two stages each holding one to the same
+		// place word their faults identically. Deduped on the message alone,
+		// the notice kept the first and dropped the second — one reason where
+		// there were two, and a "Show transition" that reached only one of
+		// them, so fixing what it opened earned the same refusal again.
+		const seen = new Set();
+		return reasons.filter( ( reason ) => {
+			// Newline-joined: a message can hold anything, but `targetId`
+			// cannot, so nothing a message contains can forge a key boundary.
+			const key = `${ targetId( reason.target ) }\n${ reason.message }`;
+			if ( seen.has( key ) ) {
+				return false;
+			}
+			seen.add( key );
+			return true;
+		} );
 	}, [ validation.errors, isPhase, selectedPostTypes ] );
 
 	// The refusal stands down once the last reason for it is gone, so it cannot
