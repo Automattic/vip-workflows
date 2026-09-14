@@ -28,8 +28,8 @@ The measured findings behind every rule are in [Appendix A](#appendix-a--audit-f
 | Capitalization | **Sentence case** for everything the plugin writes: labels, headings, buttons, badges, column headers, event names, status names. Four carve-outs only — see [Capitalization](#capitalization). |
 | One name per concept | A thing has **one** user-facing name across every surface. The editor and the admin never call the same object different things. |
 | Labels | A noun phrase for a setting, a verb phrase for an action. No terminal period. Never a sentence. |
-| Helper text | States the **effect**, not the label again. One sentence, terminal period, **under ~120 characters**. If it needs two sentences, the design is unclear, not the copy. |
-| Help coverage | Every control that isn't self-evident carries `help`. Core's Preferences modal is 15/15; we are 40/93. |
+| Helper text | Only what a person would otherwise get wrong — a format, a constraint, a consequence. **About 50 characters**, one sentence, terminal period. Never documents the feature. |
+| Help coverage | No quota. A control whose label is enough carries no `help`. |
 | Errors | Full sentence, terminal period, says **what happened and what to do next**. Never bare `Failed to X`. |
 | Permission errors | `Sorry, you are not allowed to …` — core's exact idiom, verbatim. |
 | Empty states | Name what is absent, then give the way out. `No X yet.` alone is half a string. |
@@ -218,42 +218,39 @@ already calls them **Tools**.
 
 ## Helper text
 
-**Helper text states the effect of the control, in one sentence, under ~120
-characters, ending in a period.**
+**Helper text is for what a person would otherwise get wrong: a format, a
+constraint, a consequence they would not guess. About 50 characters, one
+sentence, ending in a period. Most controls need none.**
 
 ```jsx
-<ToggleControl
+<TextControl
+	__next40pxDefaultSize
 	__nextHasNoMarginBottom
-	label={ __( 'Allow users to review their own posts', 'vip-workflows' ) }
-	help={ __( 'Authors can see their own posts in the Review Queue.', 'vip-workflows' ) }
+	label={ __( 'Sequence name', 'vip-workflows' ) }
+	help={ __( 'Must be unique.', 'vip-workflows' ) }
 />
 ```
 
-Three failures, in the order they matter:
+- **Past ~50 characters, the help is doing another job.** It is documenting a
+  feature in place, or the control needs so much explanation that the control is
+  the problem. Explanation belongs in documentation, a tooltip, or another
+  disclosure the reader opens on purpose. Helper text is read *while the user is
+  deciding*; a paragraph under a select is not read at all, and it can take up
+  more room than the control it describes.
+- **Restating the label is not help.** `Prompt workflow selection for new posts`
+  / *"A modal prompts users to select a workflow when they create a post."* says
+  the label twice. Delete it.
+- **Cut the lead-in.** A role group's help does not need *"Selected roles
+  can…"*; the checkboxes are the roles. A state message does not need *"This
+  channel is not set up, so…"* under the channel's own checkbox.
+- **State messages under an input follow the same limit.** Say what is wrong
+  and, if there is room, where to fix it: *"Not set up. See Workflows →
+  Notifications."*
+- **Not a place for developer reference.** A variable list for a prompt, or a
+  description of what an internal field stores, is API documentation.
 
-**1. Too long.** Three `help` strings run 206–421 characters, all in the graph
-inspectors. The 421-character one hangs under a control labelled `Stage` and
-explains region entry, editor publishes, scheduled posts, REST writes and
-sequence re-assignment in a single breath. Helper text is read *while the user is
-deciding*; at that length nobody does. Long explanation is a documentation link
-or a `HowToModal`, not a `help` prop.
-
-**2. Restating the label.** Six of the fifteen literal `label`+`help` pairs
-repeat the label as a sentence — `Channel name` / *"A friendly name to identify
-this Slack channel"*, `Sequence Name` / *"Enter a unique name for this
-sequence."* Per [`settings-standard.md`](settings-standard.md#fields-and-helper-text):
-if the help text is the label as a sentence, **delete it**.
-
-**3. Missing entirely.** 40 `help` props across 93 controls. Core's Preferences
-modal is 15/15. A control whose effect is not obvious from its label needs help;
-most of ours have neither.
-
-Helper text is also **not** a place for developer reference. The Prompts screen
-renders `Variables: {seed}, {tags}, {news_angle}, {total_cards}, {pinned_count},
-{pinned_breakdown}, {dismissed_count}, {pinned_details}, {assistant_list}.` as
-help under a prompt field. That is API documentation in a settings screen. The
-variable list belongs in the editor UI for the prompt itself, or in a
-disclosure — not in `help`.
+Where a concept genuinely needs more than a sentence to use correctly, that is a
+design question to raise, not a longer `help` string.
 
 ---
 
@@ -438,7 +435,7 @@ is not.
 - [ ] `ability` does not reach the user; the word is `tool`.
 - [ ] Labels are noun phrases (settings) or vocabulary-table verbs (actions); no terminal period, no colon, no shortcut hints.
 - [ ] Every `settings_schema` field declares an explicit `label`.
-- [ ] Helper text states the effect, one sentence, under ~120 characters, terminal period.
+- [ ] Helper text only where a person would otherwise get it wrong; about 50 characters, one sentence, terminal period.
 - [ ] No help text that restates its label; no template-variable dumps.
 - [ ] Errors are full sentences with a next step; no bare `Failed to …`; no raw `%s` upstream text spliced in.
 - [ ] Permission errors read `Sorry, you are not allowed to …`.
@@ -456,7 +453,7 @@ Measured across the whole monorepo: **2,190 translatable strings in 207 files**,
 of which **1,940 are user-facing** (excluding 250 `input_schema` /
 `output_schema` descriptions, which are model-only by design).
 
-All of it is fixed except finding 2, which is deferred, and finding 4 (below); the table is the record of what was found, not a queue. Every changed string is listed in [`copy-audit-before-after.md`](copy-audit-before-after.md).
+All of it is fixed except finding 2, which is deferred; the table is the record of what was found, not a queue. Every changed string is listed in [`copy-audit-before-after.md`](copy-audit-before-after.md).
 
 | # | Finding | Extent |
 |---|---|---|
@@ -520,6 +517,6 @@ gaps — capitalization drift the settings and action sweeps never covered, one
 object with two names, and one field serving two audiences — plus helper text
 that is scarce and, where present, occasionally enormous.
 
-Finding 4 is the one this pass did not close: helper text is still absent on
-more than half the controls. Adding it is a per-screen design question, not a
-sweep.
+Finding 4 is withdrawn rather than closed. Missing help is not a defect when the
+label is enough; the fix for helper text was to shorten it to about 50
+characters and delete what documented features in place.

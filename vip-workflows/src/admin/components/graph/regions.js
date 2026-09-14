@@ -76,10 +76,7 @@ export function regionDescription( region ) {
 				'vip-workflows'
 			);
 		case 'private':
-			return __(
-				'Visible only to logged-in users who can read private posts.',
-				'vip-workflows'
-			);
+			return __( 'Only users with access can see it.', 'vip-workflows' );
 		case 'publish':
 			return __( 'Live on the site.', 'vip-workflows' );
 		default:

@@ -42,7 +42,7 @@ class CorePrompts {
 				'output'      => 'markdown',
 				'label'       => __( 'Media: image analysis', 'vip-workflows' ),
 				'group'       => __( 'Media', 'vip-workflows' ),
-				'description' => __( 'Vision prompt for analyzing uploaded images during research.', 'vip-workflows' ),
+				'description' => __( 'Analyzes images uploaded during research.', 'vip-workflows' ),
 				'default'     => "Analyze this image for editorial research. Provide:\n\n" .
 					"DESCRIPTION:\n" .
 					"A detailed description of what is shown (people, objects, setting, context).\n\n" .
@@ -63,7 +63,7 @@ class CorePrompts {
 				'output'      => 'markdown',
 				'label'       => __( 'Media: PDF analysis', 'vip-workflows' ),
 				'group'       => __( 'Media', 'vip-workflows' ),
-				'description' => __( 'Prompt for summarizing and extracting text from uploaded PDFs.', 'vip-workflows' ),
+				'description' => __( 'Summarizes and extracts text from uploaded PDFs.', 'vip-workflows' ),
 				'default'     => "Analyze this PDF document for editorial research. Provide:\n\n" .
 					"SUMMARY:\n" .
 					'A concise 2-3 paragraph summary of the document covering the main points, ' .
@@ -101,7 +101,7 @@ class CorePrompts {
 				'output'      => 'markdown',
 				'label'       => __( 'Media: image analysis (ideation source)', 'vip-workflows' ),
 				'group'       => __( 'Media', 'vip-workflows' ),
-				'description' => __( 'Shorter image analysis prompt used when analyzing a pinned ideation source image.', 'vip-workflows' ),
+				'description' => __( 'Analyzes images pinned as ideation sources.', 'vip-workflows' ),
 				'default'     => 'Analyze this image for editorial research. Describe what is shown, any text visible, and key details relevant for journalism/editorial use. Be thorough.',
 			)
 		);
@@ -116,7 +116,7 @@ class CorePrompts {
 			array(
 				'label'       => __( 'Ideation: seed analysis', 'vip-workflows' ),
 				'group'       => __( 'Ideation', 'vip-workflows' ),
-				'description' => __( 'Extracts structured metadata (tags, entities, queries) from a story seed.', 'vip-workflows' ),
+				'description' => __( 'Extracts tags, entities and queries from a seed.', 'vip-workflows' ),
 				'variables'   => array( 'seed', 'brand_context' ),
 				'default'     => <<<'PROMPT'
 Analyze this story idea seed and extract structured metadata.
@@ -151,7 +151,7 @@ PROMPT
 			array(
 				'label'       => __( 'Ideation: editorial mentor', 'vip-workflows' ),
 				'group'       => __( 'Ideation', 'vip-workflows' ),
-				'description' => __( 'Evaluates ideation progress and suggests next steps.', 'vip-workflows' ),
+				'description' => __( 'Suggests next steps for an ideation project.', 'vip-workflows' ),
 				'variables'   => array( 'seed', 'tags', 'news_angle', 'total_cards', 'pinned_count', 'pinned_breakdown', 'dismissed_count', 'pinned_details', 'assistant_list' ),
 				'default'     => <<<'PROMPT'
 You are an editorial mentor guiding a journalist through story ideation. They started with a seed idea and assistants found related sources. The journalist has been curating by pinning sources they find valuable.
@@ -198,7 +198,7 @@ PROMPT
 			array(
 				'label'       => __( 'Ideation: WP search re-ranking', 'vip-workflows' ),
 				'group'       => __( 'Ideation', 'vip-workflows' ),
-				'description' => __( 'Ranks candidate archive articles by relevance to the seed.', 'vip-workflows' ),
+				'description' => __( 'Ranks archive results by relevance to the seed.', 'vip-workflows' ),
 				'variables'   => array( 'limit', 'seed', 'candidate_text' ),
 				'default'     => <<<'PROMPT'
 Given this story idea seed, rank the following articles by relevance. Return ONLY a JSON array of article indices (numbers) in order of relevance, most relevant first. Return at most {limit} indices.
@@ -241,7 +241,7 @@ PROMPT
 				'output'      => 'markdown',
 				'label'       => __( 'Research: project summary', 'vip-workflows' ),
 				'group'       => __( 'Research', 'vip-workflows' ),
-				'description' => __( 'Synthesizes multiple research sources for a project.', 'vip-workflows' ),
+				'description' => __( 'Combines a project’s research sources.', 'vip-workflows' ),
 				'variables'   => array( 'source_count', 'max_length', 'context' ),
 				'default'     => 'You are analyzing {source_count} research sources for an editorial project. '
 					. "Synthesize the information and provide:\n\n"

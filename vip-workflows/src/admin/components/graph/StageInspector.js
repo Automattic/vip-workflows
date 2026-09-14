@@ -496,7 +496,7 @@ export default function StageInspector( {
 						__nextHasNoMarginBottom
 						label={ __( 'Agent', 'vip-workflows' ) }
 						help={ __(
-							'Makes this an AI stage: the agent runs when a post enters, and routes it onward by its outcome.',
+							'Runs when a post enters this stage.',
 							'vip-workflows'
 						) }
 						value={ abilityId }

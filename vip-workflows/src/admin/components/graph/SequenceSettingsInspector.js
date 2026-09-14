@@ -95,7 +95,7 @@ export default function SequenceSettingsInspector( {
 						__nextHasNoMarginBottom
 						label={ __( 'Let AI stages publish', 'vip-workflows' ) }
 						help={ __(
-							'Lets an AI stage publish or go private without waiting for a person. It grants no rights the post’s author lacks.',
+							'Never exceeds the post author’s permissions.',
 							'vip-workflows'
 						) }
 						checked={ settings?.allow_agent_publish === true }

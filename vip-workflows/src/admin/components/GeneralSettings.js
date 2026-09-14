@@ -197,10 +197,6 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 						'Prompt workflow selection for new posts',
 						'vip-workflows'
 					) }
-					help={ __(
-						'A modal prompts users to select a workflow when they create a post.',
-						'vip-workflows'
-					) }
 					checked={ settings.workflow_enforcement }
 					onChange={ ( val ) =>
 						setSettings( {
@@ -245,10 +241,6 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 						'Allow users to review their own posts',
 						'vip-workflows'
 					) }
-					help={ __(
-						'Authors can see their own posts in the Review Queue.',
-						'vip-workflows'
-					) }
 					checked={ settings.allow_self_review }
 					onChange={ ( val ) =>
 						setSettings( {
@@ -265,7 +257,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				<RoleCheckboxGroup
 					label={ __( 'Workflow override', 'vip-workflows' ) }
 					description={ __(
-						'Selected roles can change post status directly, bypassing workflow restrictions.',
+						'Change post status outside the workflow.',
 						'vip-workflows'
 					) }
 					roles={ roles }
@@ -281,7 +273,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				<RoleCheckboxGroup
 					label={ __( 'Tool check bypass', 'vip-workflows' ) }
 					description={ __(
-						'Selected roles can proceed with transitions even when required tool checks fail.',
+						'Move posts even when required checks fail.',
 						'vip-workflows'
 					) }
 					roles={ roles }
@@ -301,7 +293,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				<RoleCheckboxGroup
 					label={ __( 'Own activity', 'vip-workflows' ) }
 					description={ __(
-						'Selected roles can open the audit log and see their own activity in it.',
+						'Their own events only.',
 						'vip-workflows'
 					) }
 					roles={ roles }
@@ -317,7 +309,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				<RoleCheckboxGroup
 					label={ __( 'All activity', 'vip-workflows' ) }
 					description={ __(
-						'Selected roles can see every user’s activity in the audit log.',
+						'Events from every user.',
 						'vip-workflows'
 					) }
 					roles={ roles }

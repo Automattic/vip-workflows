@@ -232,10 +232,10 @@ describe( 'a provider derived from the only connected credential', () => {
 
 		expect( dirty ).toBe( true );
 		expect(
-			within( panel ).getByText( /cannot generate through it/ )
+			within( panel ).getByText( /Check Settings → Connectors/ )
 		).toBeInTheDocument();
 		expect(
-			within( panel ).queryByText( /the default will be used/ )
+			within( panel ).queryByText( /default model will be used/ )
 		).not.toBeInTheDocument();
 	} );
 } );

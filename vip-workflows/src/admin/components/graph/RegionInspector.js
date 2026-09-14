@@ -72,7 +72,7 @@ export default function RegionInspector( {
 							__nextHasNoMarginBottom
 							label={ __( 'Stage', 'vip-workflows' ) }
 							help={ __(
-								'Where a post lands when something outside the sequence gives it this status — an editor publishing, a scheduled post going live, a REST write.',
+								'Used when the status is set outside the sequence.',
 								'vip-workflows'
 							) }
 							value={ entryKey || '' }

@@ -247,11 +247,11 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 
 		return provider === 'openai'
 			? __(
-					'No models were discovered for this provider; the default will be used.',
+					'No models found. The default model will be used.',
 					'vip-workflows'
 			  )
 			: __(
-					'No models could be discovered for this provider, so AI features cannot generate through it. Check its connection in Settings → Connectors, or choose a provider whose models are reachable.',
+					'No models found. Check Settings → Connectors.',
 					'vip-workflows'
 			  );
 	} )();
@@ -309,21 +309,15 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 						options={ providerOptions }
 						onChange={ onProviderChange }
 						help={
-							<>
+							<Link
+								href="/wp-admin/options-connectors.php"
+								openInNewTab
+							>
 								{ __(
-									'Only providers with a configured API key appear here.',
+									'Add providers in Settings → Connectors',
 									'vip-workflows'
-								) }{ ' ' }
-								<Link
-									href="/wp-admin/options-connectors.php"
-									openInNewTab
-								>
-									{ __(
-										'Manage API keys in Settings → Connectors',
-										'vip-workflows'
-									) }
-								</Link>
-							</>
+								) }
+							</Link>
 						}
 					/>
 					<SelectControl

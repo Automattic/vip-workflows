@@ -1,6 +1,6 @@
 # UX copy audit — before / after
 
-Every user-facing string that changed. Derived from the diff between the audit commit and HEAD rather than from an edit log, so a string renamed twice shows only its **net** result. **243 distinct strings** across the plugin and its five extension plugins.
+Every user-facing string that changed. Derived from the diff between the audit commit and HEAD rather than from an edit log, so a string renamed twice shows only its **net** result. **266 distinct strings** across the plugin and its five extension plugins.
 
 Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes are excluded.
 
@@ -11,16 +11,16 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | [Ability labels](#ability-labels) | 10 |
 | [New: reader-facing tool summaries](#new-reader-facing-tool-summaries) | 26 |
 | [New: Quick Edit strings, now translatable](#new-quick-edit-strings-now-translatable) | 5 |
-| [Helper text](#helper-text) | 13 |
-| [Rewritten for clarity](#rewritten-for-clarity) | 14 |
+| [Helper text](#helper-text) | 38 |
+| [Rewritten for clarity](#rewritten-for-clarity) | 13 |
 | [Errors](#errors) | 20 |
 | [Permission errors](#permission-errors) | 12 |
 | [Empty states](#empty-states) | 5 |
 | [Removed “Please”](#removed-please) | 10 |
 | [Removed “successfully”](#removed-successfully) | 4 |
-| [Typography](#typography) | 23 |
+| [Typography](#typography) | 22 |
 | [Terminal periods](#terminal-periods) | 6 |
-| **Total** | **243** |
+| **Total** | **266** |
 
 ---
 
@@ -189,25 +189,50 @@ These were hardcoded English inside an inline script and could not be translated
 | Placeholders: %s | `PromptsSettings.js` |
 | Working… | `class-posts-columns.php` |
 
-## Helper text (13)
+## Helper text (38)
 
 | Before | After | Where |
 |---|---|---|
 | A friendly name to identify this Slack channel | *(removed)* | `NotificationChannelsTab.js` |
-| An AI stage routes on what a language model returned, and that model reads the post’s own content, so publishing and going private both wait for a person. Off by default. | Lets an AI stage publish or go private without waiting for a person. It grants no rights the post’s author lacks. | `SequenceSettingsInspector.js` |
+| A modal prompts users to select a workflow when they create a post. | *(removed)* | `GeneralSettings.js` |
+| An AI stage routes on what a language model returned, and that model reads the post’s own content, so publishing and going private both wait for a person. Off by default. | Never exceeds the post author’s permissions. | `SequenceSettingsInspector.js` |
 | Analyzes a fetched video transcript. Variables: {title}, {transcript}. | Analyzes a fetched video transcript. | `class-core-prompts.php` |
-| Choosing an agent makes this an AI stage: it runs when a post enters, and routes the post onward by outcome. Drag from the stage’s pass, fail and error handles on the can | Makes this an AI stage: the agent runs when a post enters, and routes it onward by its outcome. | `StageInspector.js` |
-| Evaluates ideation progress and suggests next steps. Variables: {seed}, {tags}, {news_angle}, {total_cards}, {pinned_count}, {pinned_breakdown}, {dismissed_count}, {pinne | Evaluates ideation progress and suggests next steps. | `class-core-prompts.php` |
-| Extracts structured metadata (tags, entities, queries) from a story seed. Variables: {seed}, {brand_context}. | Extracts structured metadata (tags, entities, queries) from a story seed. | `class-core-prompts.php` |
-| Ranks candidate archive articles by relevance to the seed. Variables: {limit}, {seed}, {candidate_text}. | Ranks candidate archive articles by relevance to the seed. | `class-core-prompts.php` |
+| Another field already uses this key. Saving is refused until it is unique. | Another field already uses this key. | `InspectorFieldList.js` |
+| Authors can see their own posts in the Review Queue. | *(removed)* | `GeneralSettings.js` |
+| Choosing an agent makes this an AI stage: it runs when a post enters, and routes the post onward by outcome. Drag from the stage’s pass, fail and error handles on the can | Runs when a post enters this stage. | `StageInspector.js` |
+| Comparable coverage at or above this multiple of a typical story counts as Tier 1. | A multiple of a typical story. | `class-performance-check.php` |
+| Comparable coverage at or below this multiple counts as Tier 3. Everything between the two is Tier 2. | A multiple of a typical story. | `class-performance-check.php` |
+| Evaluates ideation progress and suggests next steps. Variables: {seed}, {tags}, {news_angle}, {total_cards}, {pinned_count}, {pinned_breakdown}, {dismissed_count}, {pinne | Suggests next steps for an ideation project. | `class-core-prompts.php` |
+| Extracts structured metadata (tags, entities, queries) from a story seed. Variables: {seed}, {brand_context}. | Extracts tags, entities and queries from a seed. | `class-core-prompts.php` |
+| Inactive sequences are saved as drafts and not applied to content. | Inactive sequences don’t apply to posts. | `SequenceIdentityFields.js` |
+| Manage API keys in Settings → Connectors | Add providers in Settings → Connectors | `AiModelSettings.js` |
+| No channel with this id is registered on this site — its plugin may be inactive. It stays stored, and notifies again if the channel comes back. | Channel not found, so nothing is sent. | `TransitionInspector.js` |
+| No models could be discovered for this provider, so AI features cannot generate through it. Check its connection in Settings → Connectors, or choose a provider whose mode | No models found. Check Settings → Connectors. | `AiModelSettings.js` |
+| No models were discovered for this provider; the default will be used. | No models found. The default model will be used. | `AiModelSettings.js` |
+| No role with this slug exists on this site — its plugin may be inactive. Nobody matches it, so it allows nobody while it keeps the restriction on. | Role not found, so it matches no one. | `TransitionInspector.js` |
+| Only providers with a configured API key appear here. | *(removed)* | `AiModelSettings.js` |
+| Only these roles can use this transition. With none checked, everyone can. | Leave all unchecked to allow everyone. | `TransitionInspector.js` |
+| Prompt for summarizing and extracting text from uploaded PDFs. | Summarizes and extracts text from uploaded PDFs. | `class-core-prompts.php` |
+| Ranks candidate archive articles by relevance to the seed. Variables: {limit}, {seed}, {candidate_text}. | Ranks archive results by relevance to the seed. | `class-core-prompts.php` |
+| Research, discovery, and source management for ideation projects. | Research and source tools for ideation. | `class-ideation-experiment.php` |
+| Restrict this transition to a previously assigned user or role | Only the earlier assignee can make this move. | `TransitionAssignmentConfig.js` |
+| Selected roles can change post status directly, bypassing workflow restrictions. | Change post status outside the workflow. | `GeneralSettings.js` |
+| Selected roles can open the audit log and see their own activity in it. | Their own events only. | `GeneralSettings.js` |
+| Selected roles can proceed with transitions even when required tool checks fail. | Move posts even when required checks fail. | `GeneralSettings.js` |
+| Selected roles can see every user's activity in the audit log. | Events from every user. | `GeneralSettings.js` |
+| Shorter image analysis prompt used when analyzing a pinned ideation source image. | Analyzes images pinned as ideation sources. | `class-core-prompts.php` |
 | Summarizes a single research source. Variables: {max_length}, {title}, {content}. | Summarizes a single research source. | `class-core-prompts.php` |
 | Summary prompt for transcripts and extracted text. {content_type} is the kind of content being summarized. | Summary prompt for transcripts and extracted text. | `class-core-prompts.php` |
-| Synthesizes multiple research sources for a project. Variables: {source_count}, {max_length}, {context}. | Synthesizes multiple research sources for a project. | `class-core-prompts.php` |
+| Synthesizes multiple research sources for a project. Variables: {source_count}, {max_length}, {context}. | Combines a project’s research sources. | `class-core-prompts.php` |
 | System instruction for editorial draft generation. Variables: {guideline_context}, {word_count}, {image_placement}. | System instruction for editorial draft generation. | `class-core-prompts.php` |
+| This channel is not set up, so nothing is sent on it. Finish it under Workflows → Notifications, or untick it here. | Not set up. See Workflows → Notifications. | `TransitionInspector.js` |
+| This field needs a key. Saving is refused until it has one. | A key is required. | `InspectorFieldList.js` |
 | User prompt for editorial draft generation. Variables: {project_name}, {research_context}, {image_instructions}. | User prompt for editorial draft generation. | `class-core-prompts.php` |
-| Where a post lands when something outside the workflow sets this status — publishing from the editor, a scheduled post going live, a REST write — and where a sequence ass | Where a post lands when something outside the sequence gives it this status — an editor publishing, a scheduled post going live, a REST write. | `RegionInspector.js` |
+| Visible only to logged-in users who can read private posts. | Only users with access can see it. | `regions.js` |
+| Vision prompt for analyzing uploaded images during research. | Analyzes images uploaded during research. | `class-core-prompts.php` |
+| Where a post lands when something outside the workflow sets this status — publishing from the editor, a scheduled post going live, a REST write — and where a sequence ass | Used when the status is set outside the sequence. | `RegionInspector.js` |
 
-## Rewritten for clarity (14)
+## Rewritten for clarity (13)
 
 | Before | After | Where |
 |---|---|---|
@@ -219,7 +244,6 @@ These were hardcoded English inside an inline script and could not be translated
 | Enter a unique name for this sequence. | Must be unique. | `SequencesList.js` |
 | Human-readable description of what the ability does. | Tool description written for a language model. Not for display — use label and meta.summary. | `class-abilities-controller.php` |
 | Must match assignment key from another transition | Must match the key an earlier transition assigned. | `TransitionAssignmentConfig.js` |
-| Restrict this transition to a previously assigned user or role | Only the user or role an earlier transition assigned can make this move. | `TransitionAssignmentConfig.js` |
 | Sequences define workflow stages and transitions for your content types. | A sequence is the set of stages a post moves through, and the routes between them. | `SequencesList.js` |
 | View all workflow activity and changes. | Every workflow event on this site — what happened, who did it, and when. | `AuditLog.js` |
 | View Dashboard | Open dashboard | `class-dashboard-widget.php` |
@@ -302,7 +326,7 @@ These were hardcoded English inside an inline script and could not be translated
 | Post claimed successfully. | Post claimed. | `class-workflow-controller.php` |
 | Post released successfully. | Post released. | `class-workflow-controller.php` |
 
-## Typography (23)
+## Typography (22)
 
 | Before | After | Where |
 |---|---|---|
@@ -319,7 +343,6 @@ These were hardcoded English inside an inline script and could not be translated
 | Searching the web... | Searching the web… | `class-web-researcher.php` |
 | Searching Wikipedia... | Searching Wikipedia… | `workflow-assistant-wikipedia.php` |
 | Searching your archive... | Searching your archive… | `class-archive-scout.php` |
-| Selected roles can see every user's activity in the audit log. | Selected roles can see every user’s activity in the audit log. | `GeneralSettings.js` |
 | The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post\'s status, or choose a sequence that covers it. | The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post’s status, or choose a sequence that covers it. | `class-status-manager.php` |
 | The %s provider is not registered with this site\'s WordPress AI Client, so text generation cannot run through it. | The %s provider is not registered with this site’s WordPress AI Client, so text generation cannot run through it. | `class-ai-availability.php` |
 | The %s was stopped by the AI provider\'s content filter, so it returned nothing. Re-running it will not help until the wording that triggered the filter changes. | The %s was stopped by the AI provider’s content filter, so it returned nothing. Re-running it will not help until the wording that triggered the filter changes. | `class-llm-text-generator.php` |
