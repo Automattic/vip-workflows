@@ -545,6 +545,38 @@ export default function StageInspector( {
 					label
 			  );
 
+	// A row's value column: where the exit goes, with its state appended rather
+	// than substituted — the same reasoning as `exitSelectLabel` above, and one
+	// helper for both halves of the list for the same reason.
+	//
+	// The destination is the only place the panel reports a target that no
+	// longer exists, and a transition can be dangling and at fault at once: it
+	// draws no edge, so this row is the only reachable home of its panel and its
+	// Remove (see `claimedExits`). A fault that took the value column outright
+	// carried off the "(missing)" with it, leaving the one row that could say
+	// the exit points nowhere saying only that something is wrong.
+	//
+	// A fault still wins over "(disabled)": a disabled transition is a state
+	// someone chose, and this one is refusing to save.
+	const exitValue = ( destination, { problem, disabled = false } ) => {
+		if ( problem ) {
+			return sprintf(
+				/* translators: 1: where the exit goes, e.g. "Published" or "ghost (missing)". 2: that the exit is at fault, e.g. "Needs attention". */
+				__( '%1$s — %2$s', 'vip-workflows' ),
+				destination,
+				problem.short
+			);
+		}
+		if ( disabled ) {
+			return sprintf(
+				/* translators: %s: destination stage label */
+				__( '%s (disabled)', 'vip-workflows' ),
+				destination
+			);
+		}
+		return destination;
+	};
+
 	// On an AI stage a routed outcome and the transition it travels are one
 	// exit, so the outcome's row absorbs the transition — name and all — and
 	// the transitions list below carries only what no outcome claims. Listing
@@ -880,27 +912,6 @@ export default function StageInspector( {
 											const problem = claimed
 												? exitProblem( target )
 												: null;
-											// The fault wins the value column over
-											// "(disabled)", as it does for the rows
-											// below.
-											let value =
-												destination ||
-												__(
-													'Not routed',
-													'vip-workflows'
-												);
-											if ( problem ) {
-												value = problem.short;
-											} else if ( disabled ) {
-												value = sprintf(
-													/* translators: %s: destination stage label */
-													__(
-														'%s (disabled)',
-														'vip-workflows'
-													),
-													destination
-												);
-											}
 											return (
 												<Fact
 													key={ outcome }
@@ -914,7 +925,14 @@ export default function StageInspector( {
 														.filter( Boolean )
 														.join( ' ' ) }
 													label={ rowLabel }
-													value={ value }
+													value={ exitValue(
+														destination ||
+															__(
+																'Not routed',
+																'vip-workflows'
+															),
+														{ problem, disabled }
+													) }
 													empty={ ! destination }
 													onSelect={
 														claimed
@@ -1010,24 +1028,10 @@ export default function StageInspector( {
 												const problem = exitProblem(
 													transition.to
 												);
-												// The fault wins the value
-												// column over "(disabled)": a
-												// disabled transition is a
-												// state someone chose, and this
-												// one is refusing to save.
-												let value = destination;
-												if ( problem ) {
-													value = problem.short;
-												} else if ( disabled ) {
-													value = sprintf(
-														/* translators: %s: destination stage label */
-														__(
-															'%s (disabled)',
-															'vip-workflows'
-														),
-														destination
-													);
-												}
+												const value = exitValue(
+													destination,
+													{ problem, disabled }
+												);
 												return (
 													<SortableFact
 														// Keyed by position, not by target: a

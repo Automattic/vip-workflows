@@ -341,7 +341,41 @@ describe( 'the stage panel flags the exit at fault', () => {
 			}
 		);
 
-		expect( screen.getAllByText( 'Needs attention' ) ).toHaveLength( 2 );
+		expect( screen.getAllByText( /Needs attention/ ) ).toHaveLength( 2 );
+	} );
+
+	// A transition to a stage that is gone draws no edge, so its row in this
+	// list is the only place the panel can say the exit points nowhere — and
+	// the only reachable home of its panel and its Remove. A fault that took
+	// the value column outright took the "(missing)" with it, leaving the row
+	// saying something is wrong and no longer saying what.
+	it( 'keeps reporting a missing destination on a row that is also at fault', () => {
+		render(
+			<StageInspector
+				stage={ reviewStage( {
+					transitions: [ { to: 'ghost', label: 'Approve' } ],
+				} ) }
+				availableAgents={ [] }
+				resolveStageLabel={ ( key ) => key }
+				stageExists={ () => false }
+				onChange={ () => {} }
+				onDelete={ () => {} }
+				onSelectEdge={ () => {} }
+				canDelete
+				isKeyInUse={ () => false }
+				exitProblems={ {
+					[ edgeId( 'review', 'ghost' ) ]: [
+						'The “Approve” transition assigns work but names no assignment key.',
+					],
+				} }
+			/>
+		);
+
+		const row = screen.getByRole( 'button', {
+			name: /assigns work but names no assignment key/,
+		} );
+		expect( row ).toHaveTextContent( 'Needs attention' );
+		expect( row ).toHaveTextContent( 'ghost (missing)' );
 	} );
 
 	// A disabled transition is a state someone chose; a refused save is not.
