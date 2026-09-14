@@ -22,7 +22,7 @@
  * @package
  */
 
-import { render, waitFor, act } from './helpers/render-wp-component';
+import { render, waitFor, act, screen } from './helpers/render-wp-component';
 import apiFetch from '@wordpress/api-fetch';
 
 jest.mock( '@wordpress/api-fetch', () => jest.fn() );
@@ -117,6 +117,15 @@ const NON_WORKFLOW_ROW = {
 	created_date: '2026-01-01 00:00:00',
 	modified_date: '2026-01-02 00:00:00',
 };
+
+beforeEach( () => {
+	window.vipWorkflowsAdmin = { currentUser: { id: 42 } };
+} );
+
+afterEach( () => {
+	window.localStorage.clear();
+	delete window.vipWorkflowsAdmin;
+} );
 
 /**
  * Render a page with a canned endpoint response and return its DataViews fields.
@@ -359,6 +368,11 @@ describe( 'My Work SLA removal and the author field', () => {
 			mockCaptured.props.view.fields.includes( 'featured_image' )
 		).toBe( false );
 		expect( mockCaptured.props.view.mediaField ).toBe( 'featured_image' );
+		expect( mockCaptured.props.view.showMedia ).toBe( false );
+		expect( mockCaptured.props.defaultLayouts ).toEqual( {
+			table: { showMedia: false },
+			grid: { showMedia: true },
+		} );
 
 		const { container } = render( media.render( { item: WORKFLOW_ROW } ) );
 		expect( container.querySelector( 'img' ).src ).toBe(
@@ -438,11 +452,6 @@ describe( 'My Work SLA removal and the author field', () => {
 } );
 
 describe( 'My Work view persistence', () => {
-	afterEach( () => {
-		window.localStorage.clear();
-		delete window.vipWorkflowsAdmin;
-	} );
-
 	it( 'persists a changed view to localStorage, namespaced per user', async () => {
 		window.vipWorkflowsAdmin = { currentUser: { id: 42 } };
 		await fieldsOf( MyWorkPage, [ WORKFLOW_ROW ] );
@@ -475,18 +484,72 @@ describe( 'My Work view persistence', () => {
 		} );
 	} );
 
-	it( 'falls back to the default view when storage is corrupt', async () => {
-		window.vipWorkflowsAdmin = { currentUser: { id: 42 } };
+	it.each( [ 'not json', 'null', '[]', '42' ] )(
+		'rejects corrupt saved preferences: %s',
+		( stored ) => {
+			window.localStorage.setItem(
+				'vip_workflows_my_work_view_42',
+				stored
+			);
+			const report = jest
+				.spyOn( console, 'error' )
+				.mockImplementation( () => {} );
+			try {
+				expect( () => render( <MyWorkPage /> ) ).toThrow();
+			} finally {
+				report.mockRestore();
+			}
+		}
+	);
+
+	it( 'requires a user instead of storing preferences in a shared anonymous bucket', () => {
+		delete window.vipWorkflowsAdmin.currentUser;
+		const report = jest
+			.spyOn( console, 'error' )
+			.mockImplementation( () => {} );
+		try {
+			expect( () => render( <MyWorkPage /> ) ).toThrow(
+				'My Work requires the current user ID.'
+			);
+		} finally {
+			report.mockRestore();
+		}
+	} );
+
+	it( 'reports failed writes and preserves the saved view', async () => {
+		await fieldsOf( MyWorkPage, [ WORKFLOW_ROW ] );
+		const previousView = mockCaptured.props.view;
 		window.localStorage.setItem(
 			'vip_workflows_my_work_view_42',
-			'not json'
+			JSON.stringify( previousView )
 		);
-
-		await fieldsOf( MyWorkPage, [ WORKFLOW_ROW ] );
-
-		expect( mockCaptured.props.view.sort ).toEqual( {
-			field: 'modified_date',
-			direction: 'desc',
-		} );
+		const write = jest
+			.spyOn( Storage.prototype, 'setItem' )
+			.mockImplementation( () => {
+				throw new Error( 'Storage is full.' );
+			} );
+		try {
+			act( () => {
+				mockCaptured.props.onChangeView( {
+					...previousView,
+					groupBy: { field: 'author' },
+				} );
+			} );
+			expect(
+				screen.getByText( 'Storage is full.', {
+					selector: '.components-notice__content',
+				} )
+			).toBeInTheDocument();
+			expect( mockCaptured.props.view ).toEqual( previousView );
+			expect(
+				JSON.parse(
+					window.localStorage.getItem(
+						'vip_workflows_my_work_view_42'
+					)
+				)
+			).toEqual( previousView );
+		} finally {
+			write.mockRestore();
+		}
 	} );
 } );

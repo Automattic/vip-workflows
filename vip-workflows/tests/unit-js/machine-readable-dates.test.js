@@ -192,10 +192,12 @@ function times( ui ) {
 }
 
 beforeEach( () => {
+	window.vipWorkflowsAdmin = { currentUser: { id: 42 } };
 	setSettings( TOKYO );
 } );
 
 afterEach( () => {
+	delete window.vipWorkflowsAdmin;
 	setSettings( DEFAULTS );
 } );
 

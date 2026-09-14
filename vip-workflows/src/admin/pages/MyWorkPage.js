@@ -1,10 +1,10 @@
 /**
  * My Work Page Component.
  *
- * Shows all active work items (posts) for the current user as a
+ * Shows work items (posts) for the current user as a
  * `@wordpress/dataviews` table (also offered as a grid, with the post's
- * featured image as its media). The dataset is small and fully loaded from a
- * single endpoint, so filtering/sorting/pagination run client-side via
+ * featured image as its media). The user's dataset is loaded from a single
+ * endpoint, so filtering/sorting/pagination run client-side via
  * `filterSortAndPaginate` (the documented plugin pattern).
  *
  * The list mixes workflow-managed posts with the user's own posts that no
@@ -110,6 +110,7 @@ const DEFAULT_VIEW = {
 	// a post with no featured image renders the same placeholder DataViews
 	// itself draws when a media field has no render at all.
 	mediaField: 'featured_image',
+	showMedia: false,
 	fields: [
 		'workflow_name',
 		'status_label',
@@ -128,27 +129,33 @@ const DEFAULT_VIEW = {
  * @return {string} Storage key.
  */
 function storageKey() {
-	const userId = window.vipWorkflowsAdmin?.currentUser?.id ?? 0;
+	const userId = window.vipWorkflowsAdmin?.currentUser?.id;
+	if ( ! Number.isInteger( userId ) || userId <= 0 ) {
+		throw new Error( 'My Work requires the current user ID.' );
+	}
 	return `vip_workflows_my_work_view_${ userId }`;
 }
 
 /**
- * Read a previously persisted view, falling back to the default on anything
- * that goes wrong — no stored value, corrupt JSON, or storage unavailable
- * (private browsing, a full quota).
+ * Read saved customizations. Missing preferences use the initial view;
+ * unreadable preferences are reported by the page's error boundary.
  *
  * @return {Object} View.
  */
 function loadStoredView() {
-	try {
-		const raw = window.localStorage.getItem( storageKey() );
-		if ( ! raw ) {
-			return DEFAULT_VIEW;
-		}
-		return { ...DEFAULT_VIEW, ...JSON.parse( raw ) };
-	} catch ( e ) {
+	const raw = window.localStorage.getItem( storageKey() );
+	if ( raw === null ) {
 		return DEFAULT_VIEW;
 	}
+	const storedView = JSON.parse( raw );
+	if (
+		! storedView ||
+		typeof storedView !== 'object' ||
+		Array.isArray( storedView )
+	) {
+		throw new Error( 'The saved My Work view must be an object.' );
+	}
+	return { ...DEFAULT_VIEW, ...storedView };
 }
 
 export function MyWorkPage() {
@@ -158,15 +165,16 @@ export function MyWorkPage() {
 	const [ view, setView ] = useState( loadStoredView );
 
 	const handleChangeView = useCallback( ( nextView ) => {
-		setView( nextView );
 		try {
 			window.localStorage.setItem(
 				storageKey(),
 				JSON.stringify( nextView )
 			);
-		} catch ( e ) {
-			// Storage full or unavailable — the view still works this session.
+		} catch ( err ) {
+			setError( err.message );
+			return;
 		}
+		setView( nextView );
 	}, [] );
 
 	const handleChangeGroupBy = useCallback(
@@ -456,7 +464,10 @@ export function MyWorkPage() {
 						onChangeView={ handleChangeView }
 						actions={ actions }
 						paginationInfo={ paginationInfo }
-						defaultLayouts={ { table: {}, grid: {} } }
+						defaultLayouts={ {
+							table: { showMedia: false },
+							grid: { showMedia: true },
+						} }
 						searchLabel={ __(
 							'Search your work',
 							'vip-workflows'

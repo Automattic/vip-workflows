@@ -1494,7 +1494,7 @@ class WorkflowController extends WP_REST_Controller {
 	 * time — this row exposes only the single claim, not every pending slot.
 	 *
 	 * @param  WP_REST_Request $request Request.
-	 * @return WP_REST_Response
+	 * @return WP_REST_Response|WP_Error
 	 */
 	public function get_my_work( $request ) {
 		$current_user_id = get_current_user_id();
@@ -1502,9 +1502,13 @@ class WorkflowController extends WP_REST_Controller {
 			return new WP_REST_Response( array() );
 		}
 
-		$repository         = new \VIPWorkflows\Sequences\SequenceRepository();
-		$assignment_manager = new \VIPWorkflows\Workflow\AssignmentManager();
-		$items              = array();
+		$involved_post_ids = $this->get_my_work_post_ids( $current_user_id );
+		if ( $involved_post_ids instanceof WP_Error ) {
+			return $involved_post_ids;
+		}
+
+		$repository = new \VIPWorkflows\Sequences\SequenceRepository();
+		$items      = array();
 
 		// Get all sequences.
 		$sequences = $repository->get_all();
@@ -1522,35 +1526,20 @@ class WorkflowController extends WP_REST_Controller {
 						$status['key'],
 						array(
 							'posts_per_page' => 100,
+							// An empty post__in would select every post.
+							'post__in'      => $involved_post_ids ? $involved_post_ids : array( 0 ),
 							'orderby'        => 'date',
 							'order'          => 'DESC',
 						)
 					)
 				);
 
+				if ( $posts instanceof WP_Error ) {
+					return $posts;
+				}
+
 				foreach ( $posts as $post ) {
-					   // Check if user is involved with this post.
-					   $claimed_by_id = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
-					   $assignments   = $assignment_manager->get_all( $post->ID );
-
-					   $is_claimed  = $claimed_by_id && (int) $claimed_by_id === $current_user_id;
-					   $is_assigned = false;
-
-					   // Check if user has a pending assignment.
-					foreach ( $assignments as $assignment ) {
-						if ( 'user' === $assignment['type'] && $current_user_id === (int) $assignment['value'] && 'pending' === $assignment['status'] ) {
-							$is_assigned = true;
-							break;
-						}
-					}
-
-					   // Check if user is the post author.
-						   $is_author = $current_user_id === (int) $post->post_author;
-
-					   // Skip if user is not involved (not author, not claimed, not assigned).
-					if ( ! $is_author && ! $is_claimed && ! $is_assigned ) {
-						continue;
-					}
+					$claimed_by_id = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
 
 					$featured_image_url = get_the_post_thumbnail_url( $post->ID, 'medium' );
 
@@ -1565,9 +1554,9 @@ class WorkflowController extends WP_REST_Controller {
 						'post_status_label'   => $this->get_core_status_label( $post ),
 						'author'              => Actor::from_user( $post->post_author ),
 						// The single person currently claiming this post — distinct
-						// from AssignmentManager's per-slot pending assignments
-						// (`$assignments` above), which a sequence transition can
-						// define more than one of at a time (e.g. a legal reviewer
+						// from AssignmentManager's per-slot pending assignments,
+						// which a sequence transition can define more than one
+						// of at a time (e.g. a legal reviewer
 						// and an editorial approver, independently). That per-slot
 						// model isn't reducible to one assignee per post, so this
 						// column tracks the single claim instead.
@@ -1585,18 +1574,17 @@ class WorkflowController extends WP_REST_Controller {
 		// so a workflow-managed post can never leak in here as a plain non-workflow
 		// post, regardless of what stage it is currently in.
 		//
-		// post_type is the union of every post type any of this user's sequences
+		// Keep standard posts and every post type any of this user's sequences
 		// manages (not core's 'any', which would also pull in attachments) so a
 		// post authored under a CPT-based workflow still gets a fallback bucket
 		// when it isn't currently in that workflow. post_status is left unset so
 		// StageQuery defaults it to 'any' real status, matching the main loop
 		// above rather than only draft/pending/future.
-		$workflow_post_types = array();
+		$workflow_post_types = array( 'post' );
 		foreach ( $sequences as $sequence ) {
 			$workflow_post_types = array_merge( $workflow_post_types, $sequence->get_post_types() );
 		}
-		$workflow_post_types = array_unique( $workflow_post_types );
-		$workflow_post_types = $workflow_post_types ? $workflow_post_types : array( 'post' );
+		$workflow_post_types = array_values( array_unique( $workflow_post_types ) );
 
 		$non_workflow_posts = $this->query_all_pages(
 			\VIPWorkflows\Workflow\StageQuery::not_in_any_workflow(
@@ -1607,6 +1595,10 @@ class WorkflowController extends WP_REST_Controller {
 				)
 			)
 		);
+
+		if ( $non_workflow_posts instanceof WP_Error ) {
+			return $non_workflow_posts;
+		}
 
 		foreach ( $non_workflow_posts as $post ) {
 			// A post outside any workflow can still be claimed — the claim meta
@@ -1641,30 +1633,97 @@ class WorkflowController extends WP_REST_Controller {
 	}
 
 	/**
-	 * Run a WP_Query across every page of results, not just the first.
+	 * Find involvement before loading posts or paginating individual stages.
 	 *
-	 * Stops once a page comes back short of posts_per_page (the normal
-	 * end-of-results signal) rather than reading max_num_pages, which the
-	 * unit test suite's WP_Query double does not model. $ceiling is a bounded
-	 * safety valve against a query that never returns fewer than a full page.
+	 * Assignment slots contain serialized data, so inspect their records once
+	 * instead of issuing an assignment query for every post in every stage.
+	 * Actual post reads remain scoped by StageQuery and WP_Query.
 	 *
-	 * @param  array $args WP_Query args. 'posts_per_page' defaults to 100 if unset.
-	 * @param  int   $ceiling Maximum number of pages to fetch.
-	 * @return \WP_Post[]
+	 * @param int $user_id Current user ID.
+	 * @return int[]|WP_Error Involved post IDs, or a database read error.
 	 */
-	private function query_all_pages( array $args, int $ceiling = 20 ): array {
-		$per_page   = $args['posts_per_page'] ?? 100;
-		$posts      = array();
-		$paged      = 1;
-		$page_count = 0;
+	private function get_my_work_post_ids( int $user_id ) {
+		global $wpdb;
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- request-specific involvement lookup before WP_Query pagination.
+		$owned_rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT ID FROM %i WHERE post_author = %d
+				UNION SELECT post_id AS ID FROM %i WHERE meta_key = %s AND meta_value = %s',
+				$wpdb->posts,
+				$user_id,
+				$wpdb->postmeta,
+				'_vip_workflows_assigned_to',
+				(string) $user_id
+			)
+		);
+		if ( null === $owned_rows || '' !== $wpdb->last_error ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( '[VIP Workflows] Could not read My Work authors and claims: ' . $wpdb->last_error );
+			return new WP_Error( 'my_work_read_failed', __( 'Could not load your work.', 'vip-workflows' ), array( 'status' => 500 ) );
+		}
+
+		$assignment_rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT post_id, meta_value FROM %i WHERE meta_key LIKE %s',
+				$wpdb->postmeta,
+				$wpdb->esc_like( '_vip_workflows_assignment_' ) . '%'
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( null === $assignment_rows || '' !== $wpdb->last_error ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( '[VIP Workflows] Could not read My Work assignments: ' . $wpdb->last_error );
+			return new WP_Error( 'my_work_read_failed', __( 'Could not load your work.', 'vip-workflows' ), array( 'status' => 500 ) );
+		}
+
+		$post_ids = array_map( 'intval', array_column( $owned_rows, 'ID' ) );
+		foreach ( $assignment_rows as $row ) {
+			$assignment = maybe_unserialize( $row->meta_value );
+			if ( ! is_array( $assignment ) || ! isset( $assignment['type'], $assignment['value'], $assignment['status'] ) ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( '[VIP Workflows] Invalid assignment data on post %d.', $row->post_id ) );
+				return new WP_Error( 'my_work_assignment_invalid', __( 'Could not load your work.', 'vip-workflows' ), array( 'status' => 500 ) );
+			}
+
+			if ( 'user' === $assignment['type'] && $user_id === (int) $assignment['value'] && 'pending' === $assignment['status'] ) {
+				$post_ids[] = (int) $row->post_id;
+			}
+		}
+
+		return array_values( array_unique( $post_ids ) );
+	}
+
+	/**
+	 * Run a WP_Query across every page of results.
+	 *
+	 * @param array $args WP_Query args, including a positive posts_per_page.
+	 * @return \WP_Post[]|WP_Error
+	 */
+	private function query_all_pages( array $args ) {
+		global $wpdb;
+
+		$args['ignore_sticky_posts'] = true;
+		$args['no_found_rows'] = true;
+		$args['orderby']       = array(
+			'date' => 'DESC',
+			'ID'   => 'DESC',
+		);
+		$args['paged']         = 1;
+		$posts                 = array();
 
 		do {
-			$args['paged'] = $paged;
-			$query         = new \WP_Query( $args );
-			$page_count    = count( $query->posts );
-			$posts         = array_merge( $posts, $query->posts );
-			$paged++;
-		} while ( $page_count === $per_page && $paged <= $ceiling );
+			$query = new \WP_Query( $args );
+			if ( '' !== $wpdb->last_error ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( '[VIP Workflows] Could not read a My Work page: ' . $wpdb->last_error );
+				return new WP_Error( 'my_work_read_failed', __( 'Could not load your work.', 'vip-workflows' ), array( 'status' => 500 ) );
+			}
+			$page_count = count( $query->posts );
+			$posts      = array_merge( $posts, $query->posts );
+			$args['paged']++;
+		} while ( $page_count === $args['posts_per_page'] );
 
 		return $posts;
 	}

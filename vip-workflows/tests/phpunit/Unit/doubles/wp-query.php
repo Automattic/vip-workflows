@@ -32,7 +32,7 @@ if ( ! class_exists( 'WP_Query' ) ) {
          * Args every instance constructed since the suite last reset this, in
          * construction order — lets a test pin what a caller asked for (e.g.
          * post_type/post_status) even though every instance answers with the
-         * same $next_posts regardless of args.
+         * seeded $next_posts. Author, post__in and pagination are applied.
          *
          * @var array<int, array<string, mixed>>
          */
@@ -63,9 +63,19 @@ if ( ! class_exists( 'WP_Query' ) ) {
          * @param array<string, mixed> $args WP_Query args.
          */
         public function __construct( array $args = array() ) {
-            $this->query_vars       = $args;
-            $this->posts            = self::$next_posts;
-            $this->found_posts      = count( $this->posts );
+            $this->query_vars = $args;
+            $posts            = self::$next_posts;
+            if ( ! empty( $args['post__in'] ) ) {
+                $posts = array_values( array_filter( $posts, fn( $post ) => in_array( $post->ID, $args['post__in'], true ) ) );
+            }
+            if ( isset( $args['author'] ) ) {
+                $posts = array_values( array_filter( $posts, fn( $post ) => (int) $post->post_author === (int) $args['author'] ) );
+            }
+            $this->found_posts = count( $posts );
+            if ( isset( $args['paged'], $args['posts_per_page'] ) && $args['posts_per_page'] > 0 ) {
+                $posts = array_slice( $posts, ( $args['paged'] - 1 ) * $args['posts_per_page'], $args['posts_per_page'] );
+            }
+            $this->posts = $posts;
             self::$constructed_args[] = $args;
         }
     }
