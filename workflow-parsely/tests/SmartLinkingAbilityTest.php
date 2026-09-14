@@ -522,4 +522,75 @@ class SmartLinkingAbilityTest extends TestCase {
 			'A missing post_id must be reported, not defaulted.'
 		);
 	}
+
+	/**
+	 * Suggestions are cached, because the request is essentially the whole cost.
+	 *
+	 * Measured against the live API: ~14s of a 14.5s call, with single-digit
+	 * milliseconds for everything this plugin does with the answer.
+	 */
+	public function test_a_repeat_request_for_the_same_body_does_not_call_parsely_again(): void {
+		$fake    = $this->fake_service( array( $this->smart_link( 'espresso', 'https://example.com/espresso' ) ) );
+		$post_id = $this->make_post( 'A post about espresso.' );
+
+		$first  = $this->execute( array( 'post_id' => $post_id ) );
+		$second = $this->execute( array( 'post_id' => $post_id ) );
+
+		$this->assertSame( 1, $fake->calls, 'The second request must be served from cache.' );
+		$this->assertSame( $first, $second, 'A cached result must match the one that was computed.' );
+	}
+
+	/**
+	 * The body is in the key, so editing the post invalidates its own suggestions
+	 * rather than waiting for the TTL. Anchor text that no longer exists in the
+	 * article is worse than no suggestion at all.
+	 */
+	public function test_editing_the_body_asks_parsely_again(): void {
+		$fake    = $this->fake_service( array( $this->smart_link( 'espresso', 'https://example.com/espresso' ) ) );
+		$post_id = $this->make_post( 'A post about espresso.' );
+
+		$this->execute( array( 'post_id' => $post_id ) );
+
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => 'A post about espresso, and now also about grinders.',
+			)
+		);
+
+		$this->execute( array( 'post_id' => $post_id ) );
+
+		$this->assertSame( 2, $fake->calls, 'A changed body must not be answered from the old body\'s cache.' );
+	}
+
+	/**
+	 * "Nothing worth linking" is a determinate answer and costs a full round trip
+	 * to establish, so it is kept like any other.
+	 */
+	public function test_an_empty_result_is_cached_too(): void {
+		$fake    = $this->fake_service( new WP_Error( 'NO_LINKS', 'No links.' ) );
+		$post_id = $this->make_post( 'A post about nothing in particular.' );
+
+		$first  = $this->execute( array( 'post_id' => $post_id ) );
+		$second = $this->execute( array( 'post_id' => $post_id ) );
+
+		$this->assertSame( 1, $fake->calls, 'An empty result must be cached.' );
+		$this->assertSame( 0, $first['count'] );
+		$this->assertSame( $first, $second );
+	}
+
+	/**
+	 * Failures are not cached. NO_DATA is ambiguous between "no coverage of this
+	 * topic" and "the Site ID is wrong", and keeping either would turn a passing
+	 * outage into a day of wrong answers.
+	 */
+	public function test_an_ambiguous_failure_is_not_cached(): void {
+		$fake    = $this->fake_service( new WP_Error( 'NO_DATA', 'No data.' ) );
+		$post_id = $this->make_post( 'A post about an unfamiliar beat.' );
+
+		$this->assertWPError( $this->execute( array( 'post_id' => $post_id ) ) );
+		$this->assertWPError( $this->execute( array( 'post_id' => $post_id ) ) );
+
+		$this->assertSame( 2, $fake->calls, 'A failure must be retried, not remembered.' );
+	}
 }

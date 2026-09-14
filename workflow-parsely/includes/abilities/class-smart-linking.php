@@ -42,6 +42,16 @@ class SmartLinking {
 	public const NO_DATA_CODE = 'NO_DATA';
 
 	/**
+	 * How long a set of suggestions stays usable.
+	 *
+	 * A day, matching PerformanceCheck: the archive the suggestions are drawn
+	 * from barely moves, and the key already carries the body, so the editing
+	 * that would change the answer invalidates it directly rather than waiting
+	 * for this to expire.
+	 */
+	private const SUGGESTIONS_TTL = DAY_IN_SECONDS;
+
+	/**
 	 * Register the ability.
 	 *
 	 * Registered through the VIP Workflows wrapper rather than core's
@@ -247,6 +257,27 @@ class SmartLinking {
 			);
 		}
 
+		/*
+		 * Every caller pays for this, so it is cached here rather than in each
+		 * of them. Measured against the live API, the request is essentially the
+		 * whole cost of asking: ~14s of a 14.5s call on an article the account
+		 * has coverage for, against 4-7ms for everything this plugin does with
+		 * the answer. It is also not proportional to the article — a longer post
+		 * the account knows nothing about came back in under a second, while a
+		 * short one on a well-covered topic took fifteen. The work is Parse.ly
+		 * ranking candidates, so the better the match, the longer the wait.
+		 *
+		 * Uncached, a single editorial pass pays that repeatedly: a check on a
+		 * transition, a caller applying what it found, and the check again on the
+		 * next move are three identical requests for one editorial action.
+		 */
+		$cache_key = self::cache_key( $post_id, $content );
+		$cached    = get_transient( $cache_key );
+
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
 		$service = ParselyClient::suggestions();
 
 		if ( $service instanceof WP_Error ) {
@@ -269,7 +300,9 @@ class SmartLinking {
 			 * mean guessing, and guessing here risks swallowing a real failure.
 			 */
 			if ( self::NO_LINKS_CODE === $links->get_error_code() ) {
-				return self::result( array() );
+				// A determinate answer, and worth keeping: "nothing to link here"
+				// costs a full round trip to establish, every time.
+				return self::cache( $cache_key, self::result( array() ) );
 			}
 
 			/*
@@ -302,7 +335,57 @@ class SmartLinking {
 			$shaped[] = self::shape_link( $link );
 		}
 
-		return self::result( $shaped );
+		return self::cache( $cache_key, self::result( $shaped ) );
+	}
+
+	/**
+	 * Cache key for a post's suggestions.
+	 *
+	 * Keyed on everything that decides the answer: the post, the body actually
+	 * sent, and the Site ID whose archive the suggestions are drawn from. Editing
+	 * the post therefore invalidates its own suggestions directly rather than
+	 * waiting for the TTL, and pointing the site at a different Parse.ly account
+	 * cannot serve that account's answers for this one.
+	 *
+	 * Built the way PerformanceCheck builds its key, for the same reason: one
+	 * convention across the things that cache a Parse.ly result.
+	 *
+	 * @param  int    $post_id Post ID.
+	 * @param  string $content The body sent to Parse.ly.
+	 * @return string
+	 */
+	private static function cache_key( int $post_id, string $content ): string {
+		$options = function_exists( 'get_option' ) ? (array) get_option( 'parsely', array() ) : array();
+
+		return 'wf_parsely_links_' . md5(
+			(string) wp_json_encode(
+				array(
+					$post_id,
+					$content,
+					(string) ( $options['apikey'] ?? '' ),
+				)
+			)
+		);
+	}
+
+	/**
+	 * Store a determinate result, and return it.
+	 *
+	 * Only determinate outcomes reach here — a set of suggestions, or Parse.ly
+	 * saying there is nothing worth linking. Failures are deliberately not
+	 * cached: `NO_DATA` is ambiguous between "no coverage of this topic" and "the
+	 * Site ID is wrong", and a transport error says nothing about the article at
+	 * all. Keeping either would turn a passing outage into a day of wrong
+	 * answers, which is the opposite of what a cache is for.
+	 *
+	 * @param  string               $key    Cache key.
+	 * @param  array<string, mixed> $result The result to keep.
+	 * @return array<string, mixed>
+	 */
+	private static function cache( string $key, array $result ): array {
+		set_transient( $key, $result, self::SUGGESTIONS_TTL );
+
+		return $result;
 	}
 
 	/**
