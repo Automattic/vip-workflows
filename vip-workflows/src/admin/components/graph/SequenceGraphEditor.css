@@ -869,18 +869,17 @@
    tone: still there, still selectable (deleting it is a deliberate act), but
    reading as inert rather than as a path content can take.
 
-   Last of the tone rules so it wins over hover and selection. It wins over the
-   outcome hues too: a routed edge is disabled when its route publishes and the
-   sequence has not opted in (`isTransitionDisabled`), so the `.is-outcome`
-   form matches their specificity and, declared after, beats them. Hover and
-   selection still add their halo and weight, which is what keeps a dotted grey
-   line findable enough to click.
+   Last of the tone rules so it wins over hover and selection. It never competes
+   with the outcome hues: a routed edge can be disabled too, when its route
+   publishes and the sequence has not opted in (`isTransitionDisabled`), but
+   `GraphCanvas` gives a disabled edge no outcome classes, so the two are
+   mutually exclusive by construction. Hover and selection still add their halo
+   and weight, which is what keeps a dotted grey line findable enough to click.
 
    The dots themselves are set inline by `TransitionEdge`, from the same two
    constants the underpass ghost uses — one texture for "this line is not the
    thing it looks like", and one place it is measured. */
-.wf-sequence-editor .react-flow__edge.is-disabled,
-.wf-sequence-editor .react-flow__edge.is-outcome.is-disabled {
+.wf-sequence-editor .react-flow__edge.is-disabled {
 	color: var( --wpds-color-stroke-surface-neutral );
 }
 
@@ -1059,9 +1058,16 @@
 	color: var( --wf-outcome-error );
 }
 
-.wf-edge-overlay .is-disabled,
-.wf-edge-overlay .is-outcome.is-disabled {
+.wf-edge-overlay .is-disabled {
 	color: var( --wpds-color-stroke-surface-neutral );
+}
+
+/* A held route's departure mark still has to say which outcome it is, and its
+   white glyph all but vanishes on the pale disabled tone above. The disc takes
+   the neutral the shared-transition mark is drawn in instead, which carries
+   the same white glyph legibly. */
+.wf-edge-overlay .wf-edge-overlay__outcome.is-disabled {
+	color: var( --wpds-color-stroke-surface-neutral-strong );
 }
 
 /* The edge one of whose ends is being dragged. Its line still runs to where
@@ -1158,8 +1164,7 @@
 	color: var( --wf-outcome-error );
 }
 
-.wf-edge-anchors > g.is-disabled,
-.wf-edge-anchors > g.is-outcome.is-disabled {
+.wf-edge-anchors > g.is-disabled {
 	color: var( --wpds-color-stroke-surface-neutral );
 }
 

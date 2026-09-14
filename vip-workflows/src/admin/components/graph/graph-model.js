@@ -1095,8 +1095,9 @@ const PUBLICATION_REGIONS = [ 'publish', 'private' ];
  * Mirrors `StageAgentRunner::holds_publication()`: a route from outside the
  * publish/private regions into one of them is held unless the sequence sets
  * `allow_agent_publish`. The agent stops instead of taking it, and
- * `StatusManager::agent_routed_targets()` withholds it from people, so a held
- * route is a disabled transition (`isTransitionDisabled`).
+ * `StatusManager::agent_routed_targets()` withholds it from people while the
+ * agent owns the stage, so a held route is a disabled transition
+ * (`isTransitionDisabled`).
  *
  * @param {Object}  stage             The AI stage.
  * @param {Array}   stages            Every stage in the sequence.
@@ -1146,6 +1147,23 @@ export function outcomesRoutedTo( stage, targetKey ) {
 	return AGENT_OUTCOMES.filter(
 		( outcome ) => routing[ outcome ] === targetKey
 	);
+}
+
+/**
+ * Whether turning on `allow_agent_publish` is advice worth giving for a held
+ * route to a target.
+ *
+ * Only when a pass verdict alone leads there. With fail or error routed there
+ * too, the setting would publish failed and errored runs — the cheap way around
+ * the boundary. Mirrors `StageAgentRunner::publish_setting_fixes_route()`.
+ *
+ * @param {Object} stage     The AI stage.
+ * @param {string} targetKey The held destination.
+ * @return {boolean} True when the setting is a safe fix to suggest.
+ */
+export function publishSettingFixesRoute( stage, targetKey ) {
+	const outcomes = outcomesRoutedTo( stage, targetKey );
+	return outcomes.length === 1 && outcomes[ 0 ] === 'pass';
 }
 
 /**
@@ -1955,6 +1973,10 @@ export function validateSequence( {
 	// never joined to the End node, and those are the stages it would be.
 	const deadEnds = [];
 
+	// Stages an agent route leads to that the runtime holds for publishing,
+	// gathered for the reachability warning further down.
+	const heldTargets = new Set();
+
 	for ( const stage of stages ) {
 		// Each half named on its own, because the fix differs and so does what
 		// breaks: a stage with no name is one writers meet as a blank on the
@@ -1993,6 +2015,12 @@ export function validateSequence( {
 			);
 		}
 
+		// The agent's routes the runtime holds for publishing.
+		const held = heldPublishOutcomes( stage, stages, allowAgentPublish );
+		held.forEach( ( outcome ) =>
+			heldTargets.add( stage.agent.routing[ outcome ] )
+		);
+
 		// A non-terminal stage with no *usable* way out traps content. On an AI
 		// stage that means its agent routes: the transitions no outcome claims
 		// are disabled, so counting them here would call a trap a way out.
@@ -2007,11 +2035,7 @@ export function validateSequence( {
 		}
 		// An agent whose only routes are held for publishing does route
 		// somewhere; the held-route warning below says why content stops.
-		if (
-			! isTerminal &&
-			outgoing.length === 0 &&
-			heldPublishOutcomes( stage, stages, allowAgentPublish ).length === 0
-		) {
+		if ( ! isTerminal && outgoing.length === 0 && held.length === 0 ) {
 			addWarning(
 				stage.key,
 				isAgentStage( stage )
@@ -2075,22 +2099,28 @@ export function validateSequence( {
 			// server stores it, and turning the setting on revives it. But a run
 			// that takes it stops in place with no forward exit, so say so here
 			// rather than on the first post that gets stuck.
-			for ( const outcome of heldPublishOutcomes(
-				stage,
-				stages,
-				allowAgentPublish
-			) ) {
+			for ( const outcome of held ) {
 				addWarning(
 					stage.key,
-					sprintf(
-						/* translators: 1: agent outcome label, 2: target stage key */
-						__(
-							'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Turn on “Let AI stages publish” in the sequence settings, or route it to a stage before publishing.',
-							'vip-workflows'
-						),
-						agentOutcomeLabel( outcome ),
-						routing[ outcome ]
-					)
+					publishSettingFixesRoute( stage, routing[ outcome ] )
+						? sprintf(
+								/* translators: 1: agent outcome label, 2: target stage key */
+								__(
+									'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Turn on “Let AI stages publish” in the sequence settings, or route it to a stage before publishing.',
+									'vip-workflows'
+								),
+								agentOutcomeLabel( outcome ),
+								routing[ outcome ]
+						  )
+						: sprintf(
+								/* translators: 1: agent outcome label, 2: target stage key */
+								__(
+									'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Route it to a stage before publishing.',
+									'vip-workflows'
+								),
+								agentOutcomeLabel( outcome ),
+								routing[ outcome ]
+						  )
 				);
 			}
 		}
@@ -2372,7 +2402,14 @@ export function validateSequence( {
 		}
 
 		stages
-			.filter( ( stage ) => ! reachable.has( stage.key ) )
+			.filter(
+				( stage ) =>
+					! reachable.has( stage.key ) &&
+					// A held route leads here. The stage it leaves already says why
+					// content stops short of this one, and "no transition leads here"
+					// would send the author to add one that exists.
+					! heldTargets.has( stage.key )
+			)
 			.forEach( ( stage ) => {
 				addWarning(
 					stage.key,

@@ -668,12 +668,21 @@ class StatusManagerAgentGatingTest extends TestCase
     /**
      * A route into a publishing stage the sequence has not opted into is held
      * for the agent (StageAgentRunner::holds_publication), and the editor draws
-     * it disabled. It is withheld from people too — offered nowhere, refused by
-     * transition() — so the three surfaces agree.
+     * it disabled. While the agent owns the stage it is withheld from people
+     * too — here a failed run whose go-back is the one exit — and transition()
+     * refuses it.
      */
-    public function test_publish_held_route_is_neither_offered_nor_taken(): void
+    public function test_publish_held_route_is_refused_while_the_agent_owns_the_stage(): void
     {
-        $this->stub_post_in_ai_stage( '' );
+        $this->stub_post_in_ai_stage(
+            array(
+                'stage_key'  => 'ai_desk',
+                'status'     => 'failed',
+                'ability_id' => 'x',
+                'error'      => 'held',
+                'from_stage' => 'draft',
+            )
+        );
         $this->stub_current_user_roles( array( 'editor' ) );
         $this->stub_granted_caps();
 
@@ -681,11 +690,106 @@ class StatusManagerAgentGatingTest extends TestCase
         $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
         $manager = $this->gated_status_manager( $sequence );
 
-        $this->assertSame( array(), $manager->get_available_transitions( 42 ) );
+        $this->assertSame( array(), $manager->agent_routed_targets( $sequence, $sequence->get_status( 'ai_desk' ), 42 ) );
 
         $result = $manager->transition( 42, 'review' );
         $this->assertInstanceOf( 'WP_Error', $result );
         $this->assertSame( 'unrouted_agent_exit', $result->get_error_code() );
+        // The destination IS routed, so the refusal names the setting holding it
+        // rather than calling it unrouted.
+        $this->assertStringContainsString( 'Let AI stages publish', $result->get_error_message() );
+        $this->assertStringNotContainsString( 'only the destinations its outcomes route to', $result->get_error_message() );
+    }
+
+    /**
+     * A released stage hands a held route back: no run is coming, so withholding
+     * it would leave a post whose only routes publish with no way out. That
+     * includes a move the agent paused on soft warnings — confirming it is a
+     * person's decision, and must still work after the setting is turned off.
+     */
+    public function test_publish_held_route_is_offered_once_the_stage_is_released(): void
+    {
+        $released = array(
+            'no run'           => '',
+            'warnings pending' => array(
+                'stage_key' => 'ai_desk',
+                'status'    => 'warnings_pending',
+                'to_status' => 'review',
+            ),
+        );
+
+        foreach ( $released as $state => $job ) {
+            $this->stub_post_in_ai_stage( $job );
+            $this->stub_current_user_roles( array( 'editor' ) );
+
+            $sequence    = $this->sequence_with_unrouted_edge( 'publish' );
+            $transitions = $this->gated_status_manager( $sequence )->get_available_transitions( 42 );
+
+            $this->assertSame( array( 'review' ), array_column( $transitions, 'to' ), $state );
+        }
+    }
+
+    /**
+     * The setting is suggested only where a pass verdict alone reaches the held
+     * destination — never where it would also publish failed or errored runs.
+     */
+    public function test_publish_setting_is_suggested_only_for_pass_only_routes(): void
+    {
+        $this->assertTrue( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'fail' => 'draft' ), 'live' ) );
+        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'error' => 'live' ), 'live' ) );
+        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'fail' => 'live' ), 'live' ) );
+        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'review', 'error' => 'live' ), 'live' ) );
+    }
+
+    /**
+     * A region that cannot be read, at either end of a route, is not the routed-
+     * exit gate's to judge. The target stays in the list and transition() refuses
+     * it on its own terms (stage_region_missing) — rather than the gate throwing
+     * out of every surface that lists transitions, or withholding a route as
+     * "held" because an unreadable AI stage was taken for an unpublished one.
+     */
+    public function test_routed_targets_leave_unreadable_regions_to_transition(): void
+    {
+        $agent_stage = static fn( array $routing ): array => array(
+            'key'   => 'ai_desk',
+            'agent' => array(
+                'ability_id' => 'workflow-agent-fact-check/fact-check',
+                'routing'    => $routing,
+            ),
+        );
+        $sequence_with_regions = static function ( array $regions ): object {
+            $sequence = Mockery::mock( Sequence::class );
+            $sequence->shouldReceive( 'get_settings' )->andReturn( array() );
+            $sequence->shouldReceive( 'get_stage_status' )->andReturnUsing(
+                static function ( string $stage ) use ( $regions ): string {
+                    if ( ! isset( $regions[ $stage ] ) ) {
+                        throw new \InvalidArgumentException( "Stage \"{$stage}\" has no status region." );
+                    }
+                    return $regions[ $stage ];
+                }
+            );
+            return $sequence;
+        };
+
+        // A sibling route whose destination has no region: the sound route
+        // survives and nothing throws.
+        $this->assertSame(
+            array( 'review', 'legacy' ),
+            $this->status_manager()->agent_routed_targets(
+                $sequence_with_regions( array( 'ai_desk' => 'draft', 'review' => 'pending' ) ),
+                $agent_stage( array( 'pass' => 'review', 'fail' => 'legacy' ) )
+            )
+        );
+
+        // The AI stage itself has no region: its publishing route is not
+        // withheld as held.
+        $this->assertSame(
+            array( 'live' ),
+            $this->status_manager()->agent_routed_targets(
+                $sequence_with_regions( array( 'live' => 'publish' ) ),
+                $agent_stage( array( 'pass' => 'live' ) )
+            )
+        );
     }
 
     /**

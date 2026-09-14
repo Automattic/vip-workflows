@@ -788,23 +788,54 @@ class StageAgentRunner implements ModuleInterface {
 		}
 
 		// Points at the sequence, not at a manual move: a held route is withheld
-		// from people too (StatusManager::agent_routed_targets), so "transition it
-		// yourself" named something nobody could reach.
+		// from people while the agent owns the stage
+		// (StatusManager::agent_routed_targets), so "transition it yourself" named
+		// something nobody could reach.
 		if ( 'error' === $outcome ) {
 			return sprintf(
 				/* translators: 1: destination stage key, 2: the error the run reported. */
-				__( 'The agent run failed, and this stage routes errors to "%1$s", which publishes. This sequence doesn\'t allow AI stages to publish, so the post stopped here. Edit the sequence to turn on "Let AI stages publish", or route errors to a stage before publishing. The agent reported: %2$s', 'vip-workflows' ),
+				__( 'The agent run failed, and this stage routes errors to "%1$s", which publishes. This sequence doesn\'t allow AI stages to publish, so the post stopped here. Edit the sequence to route errors to a stage before publishing. The agent reported: %2$s', 'vip-workflows' ),
 				$to_key,
 				'' !== $error ? $error : __( 'no detail given', 'vip-workflows' )
 			);
 		}
 
+		$routing = $sequence->get_status( $from_key )['agent']['routing'] ?? array();
+
+		if ( is_array( $routing ) && self::publish_setting_fixes_route( $routing, $to_key ) ) {
+			return sprintf(
+				/* translators: 1: agent outcome key (pass or fail), 2: destination stage key. */
+				__( 'The AI agent returned "%1$s", which routes to "%2$s" — a stage that publishes. This sequence doesn\'t allow AI stages to publish, so the post stopped here. Edit the sequence to turn on "Let AI stages publish", or route "%1$s" to a stage before publishing.', 'vip-workflows' ),
+				$outcome,
+				$to_key
+			);
+		}
+
 		return sprintf(
 			/* translators: 1: agent outcome key (pass or fail), 2: destination stage key. */
-			__( 'The AI agent returned "%1$s", which routes to "%2$s" — a stage that publishes. This sequence doesn\'t allow AI stages to publish, so the post stopped here. Edit the sequence to turn on "Let AI stages publish", or route "%1$s" to a stage before publishing.', 'vip-workflows' ),
+			__( 'The AI agent returned "%1$s", which routes to "%2$s" — a stage that publishes. This sequence doesn\'t allow AI stages to publish, so the post stopped here. Edit the sequence to route "%1$s" to a stage before publishing.', 'vip-workflows' ),
 			$outcome,
 			$to_key
 		);
+	}
+
+	/**
+	 * Whether turning on `allow_agent_publish` is advice worth giving for a held route.
+	 *
+	 * Only when a pass verdict is the one thing that reaches the destination. With
+	 * a fail or error route there too — a fail with no route of its own falls back
+	 * to the error route — the setting would publish failed and errored runs, the
+	 * cheap way around the boundary the threat model warns about, so those get the
+	 * reroute advice alone.
+	 *
+	 * @param  array  $routing The AI stage's outcome routing.
+	 * @param  string $to_key  The held destination.
+	 * @return bool
+	 */
+	public static function publish_setting_fixes_route( array $routing, string $to_key ): bool {
+		return ( $routing['pass'] ?? '' ) === $to_key
+			&& ( $routing['fail'] ?? '' ) !== $to_key
+			&& ( $routing['error'] ?? '' ) !== $to_key;
 	}
 
 	/**

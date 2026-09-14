@@ -207,6 +207,7 @@ export default function TransitionInspector( {
 	sharedOutcomes = null,
 	disabled = false,
 	publishHeld = false,
+	suggestAgentPublish = false,
 	availableRoles,
 	availableTools,
 	toolsLoaded = false,
@@ -432,14 +433,23 @@ export default function TransitionInspector( {
 				     unrouted leftover, so it gets its own sentence. */ }
 				{ publishHeld && (
 					<Notice status="warning" isDismissible={ false }>
-						{ sprintf(
-							/* translators: %s: destination stage name. */
-							__(
-								'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so neither the agent nor anyone else can use it. It keeps its settings — turning on “Let AI stages publish” in the sequence settings makes it live again, or route this outcome to a stage before publishing.',
-								'vip-workflows'
-							),
-							targetLabel
-						) }
+						{ suggestAgentPublish
+							? sprintf(
+									/* translators: %s: destination stage name. */
+									__(
+										'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so the agent stops instead of taking it. It keeps its settings — turning on “Let AI stages publish” in the sequence settings makes it live again, or route this outcome to a stage before publishing.',
+										'vip-workflows'
+									),
+									targetLabel
+							  )
+							: sprintf(
+									/* translators: %s: destination stage name. */
+									__(
+										'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so the agent stops instead of taking it. It keeps its settings — route failures and errors to a stage before publishing; turning on “Let AI stages publish” would publish failed runs too.',
+										'vip-workflows'
+									),
+									targetLabel
+							  ) }
 					</Notice>
 				) }
 				{ /* Two of the agent's outcomes leading to one destination are

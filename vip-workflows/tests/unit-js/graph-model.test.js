@@ -1962,6 +1962,26 @@ describe( 'validateSequence for AI stages', () => {
 		expect( result.errors ).toEqual( [] );
 	} );
 
+	// Turning the setting on would publish failed and errored runs too, so a
+	// held route anything but pass leads along only gets the reroute advice.
+	it( 'suggests the setting only for a route pass alone takes', () => {
+		const warn = ( routing ) =>
+			validateSequence( {
+				name: 'Flow',
+				stages: agentStages( routing ),
+			} ).warnings.review.join( ' ' );
+
+		expect( warn( { pass: 'done', fail: 'draft' } ) ).toContain(
+			'Let AI stages publish'
+		);
+		expect( warn( { pass: 'draft', error: 'done' } ) ).not.toContain(
+			'Let AI stages publish'
+		);
+		expect( warn( { pass: 'done', fail: 'done' } ) ).not.toContain(
+			'Let AI stages publish'
+		);
+	} );
+
 	it( 'holds only routes that cross into publish or private', () => {
 		const all = agentStages( { pass: 'done', fail: 'draft' } );
 		const review = all.find( ( s ) => s.key === 'review' );
@@ -1994,6 +2014,40 @@ describe( 'validateSequence for AI stages', () => {
 		const warnings = ( result.warnings.review || [] ).join( ' ' );
 		expect( warnings ).toContain( 'the route is disabled' );
 		expect( warnings ).not.toContain( 'no outcome routed anywhere' );
+	} );
+
+	it( 'does not call a stage only a held route leads to unreachable', () => {
+		// `featured` publishes but is not its region's entry, and the only way
+		// in is review's held pass route. The warning on review says why posts
+		// stop there; telling the author that no transition leads to
+		// `featured` would send them to add one that exists.
+		const all = [
+			...agentStages( { pass: 'featured' } ).map( ( s ) =>
+				s.key === 'review'
+					? {
+							...s,
+							transitions: [
+								...s.transitions,
+								{ to: 'featured' },
+							],
+					  }
+					: s
+			),
+			{
+				key: 'featured',
+				label: 'Featured',
+				status: 'publish',
+				region_entry: false,
+				is_terminal: true,
+				transitions: [],
+			},
+		];
+		const result = validateSequence( { name: 'Flow', stages: all } );
+
+		expect( result.warnings.featured || [] ).toEqual( [] );
+		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
+			'Let AI stages publish'
+		);
 	} );
 
 	it( 'marks the held outcome edge on the canvas', () => {

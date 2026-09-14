@@ -294,6 +294,28 @@ describe( 'StageInspector transition read-out', () => {
 		// And the transition renders nowhere else — no bare "Approve" row.
 		expect( screen.queryByText( 'Approve' ) ).not.toBeInTheDocument();
 	} );
+
+	it( 'marks an outcome whose route the runtime holds because it publishes', () => {
+		// `done` publishes and the sequence has not opted in, so the pass
+		// route is disabled: the agent stops instead of taking it. Its row is
+		// still the outcome's — the transition stays absorbed — but it says
+		// so, the way an unclaimed leftover does.
+		const held = stage( {
+			agent: {
+				ability_id: 'workflow-agent-copy-edit/copy-edit',
+				routing: { pass: 'done' },
+			},
+		} );
+		const all = [ held, { key: 'done', label: 'Done', status: 'publish' } ];
+		renderInspector( held, jest.fn(), {
+			isTransitionDisabled: ( to ) =>
+				isTransitionDisabled( held, to, all, false ),
+		} );
+
+		const row = screen.getByText( 'Approve · on pass' ).closest( 'li' );
+		expect( row ).toHaveTextContent( 'Done (disabled)' );
+		expect( row ).toHaveClass( 'is-disabled' );
+	} );
 } );
 
 describe( 'StageInspector deduplicated exit list', () => {

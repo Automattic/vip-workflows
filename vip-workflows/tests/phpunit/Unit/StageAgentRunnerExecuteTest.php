@@ -837,6 +837,8 @@ class StageAgentRunnerExecuteTest extends TestCase
     public function test_error_route_does_not_cross_the_publish_boundary(): void
     {
         $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
 
         $status_manager = Mockery::mock( StatusManager::class );
         $status_manager->shouldReceive( 'get_sequence_for_post' )
@@ -853,6 +855,11 @@ class StageAgentRunnerExecuteTest extends TestCase
         $executor->shouldReceive( 'execute' )->once()->andThrow( new \RuntimeException( 'provider timed out' ) );
 
         ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        // Turning the setting on would publish every errored run, so the message
+        // sends the author to reroute errors instead.
+        $this->assertSame( 'failed', $job['status'] );
+        $this->assertStringNotContainsString( 'Let AI stages publish', $job['error'] );
     }
 
     /**
