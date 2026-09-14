@@ -29,6 +29,16 @@ if ( ! class_exists( 'WP_Query' ) ) {
         public static array $next_posts = array();
 
         /**
+         * Args every instance constructed since the suite last reset this, in
+         * construction order — lets a test pin what a caller asked for (e.g.
+         * post_type/post_status) even though every instance answers with the
+         * same $next_posts regardless of args.
+         *
+         * @var array<int, array<string, mixed>>
+         */
+        public static array $constructed_args = array();
+
+        /**
          * Query args this instance was constructed with.
          *
          * @var array<string, mixed>
@@ -53,9 +63,10 @@ if ( ! class_exists( 'WP_Query' ) ) {
          * @param array<string, mixed> $args WP_Query args.
          */
         public function __construct( array $args = array() ) {
-            $this->query_vars  = $args;
-            $this->posts       = self::$next_posts;
-            $this->found_posts = count( $this->posts );
+            $this->query_vars       = $args;
+            $this->posts            = self::$next_posts;
+            $this->found_posts      = count( $this->posts );
+            self::$constructed_args[] = $args;
         }
     }
 }

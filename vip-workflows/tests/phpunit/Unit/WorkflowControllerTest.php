@@ -1420,6 +1420,20 @@ class WorkflowControllerTest extends TestCase
         // No claim on any post: involvement comes from authorship below.
         Functions\when( 'get_post_meta' )->justReturn( '' );
         Functions\when( 'get_edit_post_link' )->justReturn( 'http://example.test/edit' );
+        // No featured image by default, matching core's own "none set" answer.
+        Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
+
+        Functions\when( 'get_userdata' )->alias(
+            fn( $id ) => (object) array(
+                'ID'           => $id,
+                'display_name' => 'User ' . $id,
+                'roles'        => array( 'author' ),
+                'user_email'   => 'user' . $id . '@example.test',
+            )
+        );
+        Functions\when( 'get_avatar_url' )->justReturn( 'http://example.test/avatar.png' );
+        \VIPWorkflows\Workflow\Actor::flush();
+        \WP_Query::$constructed_args = array();
 
         // The core statuses the fixtures use, labelled as core registers them.
         Functions\when( 'get_post_status_object' )->alias(
@@ -1525,6 +1539,154 @@ class WorkflowControllerTest extends TestCase
         $this->assertSame( '#3498db', $row['status_color'] );
         $this->assertSame( 'draft', $row['post_status'] );
         $this->assertSame( 'Draft', $row['post_status_label'] );
+        $this->assertSame( 7, $row['author']['id'] );
+        $this->assertSame( 'User 7', $row['author']['display_name'] );
+        $this->assertNull( $row['assignee'] );
+        $this->assertNull( $row['featured_image_url'] );
+        $this->assertArrayNotHasKey( 'urgency', $row );
+    }
+
+    /**
+     * A claimed post reports its claimant as `assignee`, distinct from
+     * `author` — and a post with a featured image reports its URL.
+     */
+    public function test_get_my_work_reports_assignee_and_featured_image(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ) );
+
+        // Authored by user 7 (seed_my_work's current user), claimed by user 9.
+        Functions\when( 'get_post_meta' )->alias(
+            fn( $post_id, $key, $single ) => '_vip_workflows_assigned_to' === $key ? 9 : ''
+        );
+        Functions\when( 'get_the_post_thumbnail_url' )->justReturn( 'http://example.test/image.jpg' );
+
+        \WP_Query::$next_posts = array(
+            $this->create_mock_post(
+                array(
+                    'ID'            => 14,
+                    'post_title'    => 'Claimed piece',
+                    'post_status'   => 'draft',
+                    'post_author'   => 7,
+                    'post_modified' => '2026-01-02 00:00:00',
+                )
+            ),
+        );
+
+        $data = $this->controller->get_my_work( $this->create_mock_request() )->get_data();
+
+        $workflow_rows = array_values(
+            array_filter( $data, fn( $item ) => null !== $item['workflow_name'] )
+        );
+
+        $this->assertCount( 1, $workflow_rows );
+        $row = $workflow_rows[0];
+
+        $this->assertSame( 7, $row['author']['id'] );
+        $this->assertSame( 9, $row['assignee']['id'] );
+        $this->assertSame( 'User 9', $row['assignee']['display_name'] );
+        $this->assertSame( 'http://example.test/image.jpg', $row['featured_image_url'] );
+    }
+
+    /**
+     * A sequence row whose single stage is terminal (e.g. Published).
+     *
+     * @return object
+     */
+    private function my_work_terminal_sequence_row(): object
+    {
+        return (object) array(
+            'id'          => 1,
+            'uuid'        => 'uuid-editorial',
+            'type'        => 'workflow',
+            'name'        => 'Editorial',
+            'slug'        => 'editorial',
+            'description' => '',
+            'version'     => 1,
+            'status'      => 'active',
+            'config'      => json_encode(
+                array(
+                    'post_types' => array( 'post' ),
+                    'statuses'   => array(
+                        array(
+                            'key'         => 'publish',
+                            'label'       => 'Published',
+                            'color'       => '#2ecc71',
+                            'status'      => 'publish',
+                            'is_terminal' => true,
+                            'transitions' => array(),
+                        ),
+                    ),
+                )
+            ),
+            'created_by'  => 1,
+            'created_at'  => '2026-01-01 00:00:00',
+            'updated_at'  => '2026-01-01 00:00:00',
+        );
+    }
+
+    /**
+     * A post an author is involved with does not vanish from My Work once its
+     * stage is terminal (e.g. Published) — this is the regression test for the
+     * bug where terminal stages were skipped before ever being queried.
+     */
+    public function test_get_my_work_includes_terminal_stage_posts(): void
+    {
+        $this->seed_my_work( array( $this->my_work_terminal_sequence_row() ) );
+
+        \WP_Query::$next_posts = array(
+            $this->create_mock_post(
+                array(
+                    'ID'            => 13,
+                    'post_title'    => 'Published piece',
+                    'post_status'   => 'publish',
+                    'post_author'   => 7,
+                    'post_modified' => '2026-01-02 00:00:00',
+                )
+            ),
+        );
+
+        $data = $this->controller->get_my_work( $this->create_mock_request() )->get_data();
+
+        $workflow_rows = array_values(
+            array_filter( $data, fn( $item ) => null !== $item['workflow_name'] )
+        );
+
+        $this->assertCount( 1, $workflow_rows );
+        $this->assertSame( 'Published', $workflow_rows[0]['status_label'] );
+        $this->assertSame( 'publish', $workflow_rows[0]['post_status'] );
+    }
+
+    /**
+     * The non-workflow fallback query is no longer restricted to
+     * draft/pending/future, and its post_type is the union of every post type
+     * any of the user's sequences manages rather than a hardcoded 'post'.
+     */
+    public function test_get_my_work_fallback_query_not_restricted_to_draft_pending_future(): void
+    {
+        $sequence_row               = $this->my_work_sequence_row();
+        $config                     = json_decode( $sequence_row->config, true );
+        $config['post_types']       = array( 'post', 'story' );
+        $sequence_row->config       = json_encode( $config );
+
+        $this->seed_my_work( array( $sequence_row ) );
+
+        \WP_Query::$next_posts = array();
+
+        $this->controller->get_my_work( $this->create_mock_request() );
+
+        $fallback_args = array_values(
+            array_filter(
+                \WP_Query::$constructed_args,
+                fn( $args ) => array_key_exists( 'author', $args )
+            )
+        );
+
+        $this->assertNotEmpty( $fallback_args, 'Expected the author-scoped fallback query to run.' );
+
+        $args = $fallback_args[0];
+        $this->assertSame( 'any', $args['post_status'] );
+        $this->assertContains( 'post', $args['post_type'] );
+        $this->assertContains( 'story', $args['post_type'] );
     }
 
     /**

@@ -1476,13 +1476,22 @@ class WorkflowController extends WP_REST_Controller {
 	/**
 	 * Get all active work items for current user.
 	 *
-	 * Returns posts where user is assigned (via claim or assignment) and not terminal/published.
+	 * Returns posts where the user is involved (author, claimed, or has a pending
+	 * assignment), at any stage of any sequence — including terminal stages such
+	 * as Published, so a post does not vanish from an author's own work list the
+	 * moment it ships.
 	 *
 	 * Every row carries two independent pairs, as the calendar endpoint does:
 	 * the workflow stage (`status_label` / `status_color`), which is NULL for a
 	 * post no workflow manages, and the core post status (`post_status` /
 	 * `post_status_label`), which every post has. They are not interchangeable
 	 * — a scheduled post is not at a workflow stage called "Scheduled".
+	 *
+	 * `author` and `assignee` are two different people: `author` is `post_author`,
+	 * `assignee` is whoever currently claims the post via `_vip_workflows_assigned_to`
+	 * (null if unclaimed). Neither is the same as AssignmentManager's per-slot
+	 * assignments, which a sequence transition can define more than one of at a
+	 * time — this row exposes only the single claim, not every pending slot.
 	 *
 	 * @param  WP_REST_Request $request Request.
 	 * @return WP_REST_Response
@@ -1501,15 +1510,13 @@ class WorkflowController extends WP_REST_Controller {
 		$sequences = $repository->get_all();
 
 		foreach ( $sequences as $sequence ) {
-			// Get all non-terminal, non-published statuses.
+			// Every status, including terminal ones (e.g. Published) — a post an
+			// author is involved with does not stop being their work once it ships.
 			foreach ( $sequence->get_statuses() as $status ) {
-				// Skip terminal statuses.
-				if ( ! empty( $status['is_dead_end'] ) || ! empty( $status['is_terminal'] ) ) {
-					continue;
-				}
-
-				// Query posts in this stage.
-				$query = new \WP_Query(
+				// Query posts in this stage, across every page rather than just the
+				// first — a stage holding more than one page must not silently drop
+				// the rest of an author's posts.
+				$posts = $this->query_all_pages(
 					\VIPWorkflows\Workflow\StageQuery::in_stage(
 						$sequence,
 						$status['key'],
@@ -1521,7 +1528,7 @@ class WorkflowController extends WP_REST_Controller {
 					)
 				);
 
-				foreach ( $query->posts as $post ) {
+				foreach ( $posts as $post ) {
 					   // Check if user is involved with this post.
 					   $claimed_by_id = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
 					   $assignments   = $assignment_manager->get_all( $post->ID );
@@ -1545,83 +1552,121 @@ class WorkflowController extends WP_REST_Controller {
 						continue;
 					}
 
+					$featured_image_url = get_the_post_thumbnail_url( $post->ID, 'medium' );
+
 					$items[] = array(
-						'post_id'           => $post->ID,
-						'title'             => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflows' ),
-						'edit_url'          => get_edit_post_link( $post->ID, 'raw' ),
-						'workflow_name'     => $sequence->name,
-						'status_label'      => $status['label'],
-						'status_color'      => $status['color'] ?? StagePalette::DEFAULT_COLOR,
-						'post_status'       => $post->post_status,
-						'post_status_label' => $this->get_core_status_label( $post ),
-						'urgency'           => 'normal',
-						'created_date'      => $post->post_date,
-						'modified_date'     => $post->post_modified,
+						'post_id'             => $post->ID,
+						'title'               => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflows' ),
+						'edit_url'            => get_edit_post_link( $post->ID, 'raw' ),
+						'workflow_name'       => $sequence->name,
+						'status_label'        => $status['label'],
+						'status_color'        => $status['color'] ?? StagePalette::DEFAULT_COLOR,
+						'post_status'         => $post->post_status,
+						'post_status_label'   => $this->get_core_status_label( $post ),
+						'author'              => Actor::from_user( $post->post_author ),
+						// The single person currently claiming this post — distinct
+						// from AssignmentManager's per-slot pending assignments
+						// (`$assignments` above), which a sequence transition can
+						// define more than one of at a time (e.g. a legal reviewer
+						// and an editorial approver, independently). That per-slot
+						// model isn't reducible to one assignee per post, so this
+						// column tracks the single claim instead.
+						'assignee'            => Actor::from_user( $claimed_by_id ),
+						'featured_image_url'  => $featured_image_url ? $featured_image_url : null,
+						'created_date'        => $post->post_date,
+						'modified_date'       => $post->post_modified,
 					);
 				}
 			}
 		}
 
 		// Also include non-workflow posts that match criteria. The NOT EXISTS
-		// exclusion is applied at the query level (via StageQuery) so a workflow
-		// post sitting in a terminal draft-visibility stage — absent from $items
-		// because the loop above skips terminal stages — can never leak in here
-		// as a plain non-workflow draft.
-		$query = new \WP_Query(
+		// exclusion is applied at the query level (via StageQuery::not_in_any_workflow),
+		// so a workflow-managed post can never leak in here as a plain non-workflow
+		// post, regardless of what stage it is currently in.
+		//
+		// post_type is the union of every post type any of this user's sequences
+		// manages (not core's 'any', which would also pull in attachments) so a
+		// post authored under a CPT-based workflow still gets a fallback bucket
+		// when it isn't currently in that workflow. post_status is left unset so
+		// StageQuery defaults it to 'any' real status, matching the main loop
+		// above rather than only draft/pending/future.
+		$workflow_post_types = array();
+		foreach ( $sequences as $sequence ) {
+			$workflow_post_types = array_merge( $workflow_post_types, $sequence->get_post_types() );
+		}
+		$workflow_post_types = array_unique( $workflow_post_types );
+		$workflow_post_types = $workflow_post_types ? $workflow_post_types : array( 'post' );
+
+		$non_workflow_posts = $this->query_all_pages(
 			\VIPWorkflows\Workflow\StageQuery::not_in_any_workflow(
 				array(
-					'post_type'      => 'post',
-					'post_status'    => array( 'draft', 'pending', 'future' ),
+					'post_type'      => $workflow_post_types,
 					'posts_per_page' => 100,
 					'author'         => $current_user_id,
 				)
 			)
 		);
 
-		foreach ( $query->posts as $post ) {
+		foreach ( $non_workflow_posts as $post ) {
+			// A post outside any workflow can still be claimed — the claim meta
+			// isn't itself workflow-scoped — so this fallback bucket carries an
+			// assignee too, for the same reason it carries an author.
+			$claimed_by_id      = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
+			$featured_image_url = get_the_post_thumbnail_url( $post->ID, 'medium' );
+
 			$items[] = array(
-				'post_id'           => $post->ID,
-				'title'             => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflows' ),
-				'edit_url'          => get_edit_post_link( $post->ID, 'raw' ),
-				'workflow_name'     => null,
+				'post_id'             => $post->ID,
+				'title'               => $post->post_title ? $post->post_title : __( '(no title)', 'vip-workflows' ),
+				'edit_url'            => get_edit_post_link( $post->ID, 'raw' ),
+				'workflow_name'       => null,
 				// A post in no workflow is at no stage, so it has no stage label and
 				// no stage color. Emitting its core status here put "Scheduled" in a
 				// column headed Stage, tinted like one, and scraped it into the stage
 				// filter — a post that is in no workflow appearing to be in a
 				// workflow stage. The core status travels in its own pair below.
-				'status_label'      => null,
-				'status_color'      => null,
-				'post_status'       => $post->post_status,
-				'post_status_label' => $this->get_core_status_label( $post ),
-				'urgency'           => 'normal',
-				'created_date'      => $post->post_date,
-				'modified_date'     => $post->post_modified,
+				'status_label'        => null,
+				'status_color'        => null,
+				'post_status'         => $post->post_status,
+				'post_status_label'   => $this->get_core_status_label( $post ),
+				'author'              => Actor::from_user( $post->post_author ),
+				'assignee'            => Actor::from_user( $claimed_by_id ),
+				'featured_image_url'  => $featured_image_url ? $featured_image_url : null,
+				'created_date'        => $post->post_date,
+				'modified_date'       => $post->post_modified,
 			);
 		}
 
-		// Sort by urgency (breaking > urgent > normal), then by created date DESC.
-		$urgency_order = array(
-			'breaking' => 1,
-			'urgent'   => 2,
-			'normal'   => 3,
-		);
-
-		usort(
-			$items,
-			function ( $a, $b ) use ( $urgency_order ) {
-				$urgency_a = $urgency_order[ $a['urgency'] ] ?? 3;
-				$urgency_b = $urgency_order[ $b['urgency'] ] ?? 3;
-
-				if ( $urgency_a !== $urgency_b ) {
-					return $urgency_a <=> $urgency_b;
-				}
-
-				// Same urgency - sort by created date DESC.
-				return strtotime( $b['created_date'] ) <=> strtotime( $a['created_date'] );
-			}
-		);
-
 		return new WP_REST_Response( $items );
+	}
+
+	/**
+	 * Run a WP_Query across every page of results, not just the first.
+	 *
+	 * Stops once a page comes back short of posts_per_page (the normal
+	 * end-of-results signal) rather than reading max_num_pages, which the
+	 * unit test suite's WP_Query double does not model. $ceiling is a bounded
+	 * safety valve against a query that never returns fewer than a full page.
+	 *
+	 * @param  array $args WP_Query args. 'posts_per_page' defaults to 100 if unset.
+	 * @param  int   $ceiling Maximum number of pages to fetch.
+	 * @return \WP_Post[]
+	 */
+	private function query_all_pages( array $args, int $ceiling = 20 ): array {
+		$per_page   = $args['posts_per_page'] ?? 100;
+		$posts      = array();
+		$paged      = 1;
+		$page_count = 0;
+
+		do {
+			$args['paged'] = $paged;
+			$query         = new \WP_Query( $args );
+			$page_count    = count( $query->posts );
+			$posts         = array_merge( $posts, $query->posts );
+			$paged++;
+		} while ( $page_count === $per_page && $paged <= $ceiling );
+
+		return $posts;
 	}
 
 	/**
