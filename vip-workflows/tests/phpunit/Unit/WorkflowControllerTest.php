@@ -74,6 +74,53 @@ class WorkflowControllerTest extends TestCase
     }
 
     /**
+     * Kanban, Calendar, and My Queue each gate their own surface independently
+     * of the other two, in every combination of enabled/disabled.
+     *
+     * @dataProvider view_experiment_states
+     */
+    public function test_view_routes_follow_independent_experiments( array $enabled, bool $kanban, bool $calendar, bool $my_queue ): void
+    {
+        Functions\when( 'get_option' )->justReturn( $enabled );
+        $registry = new \VIPWorkflows\Experiments\ExperimentRegistry();
+        $registry->register( new \VIPWorkflows\Experiments\KanbanExperiment() );
+        $registry->register( new \VIPWorkflows\Experiments\CalendarExperiment() );
+        $registry->register( new \VIPWorkflows\Experiments\MyQueueExperiment() );
+        ( new \ReflectionProperty( \VIPWorkflows\Plugin::class, 'experiment_registry' ) )
+            ->setValue( \VIPWorkflows\Plugin::get_instance(), $registry );
+
+        $routes = array();
+        Functions\when( 'register_rest_route' )->alias(
+            static function ( $namespace, $route, $args ) use ( &$routes ) {
+                $routes[ $route ] = $args;
+            }
+        );
+
+        $this->controller->register_routes();
+
+        $this->assertSame( $kanban, isset( $routes['/workflow/kanban'] ) );
+        $this->assertSame( $calendar, isset( $routes['/workflow/calendar'] ) );
+        $this->assertSame( $my_queue, isset( $routes['/workflow/my-queue'] ) );
+    }
+
+    /**
+     * @return array<string, array{0: string[], 1: bool, 2: bool, 3: bool}>
+     */
+    public static function view_experiment_states(): array
+    {
+        return array(
+            'none enabled'             => array( array(), false, false, false ),
+            'Kanban only'              => array( array( 'kanban' ), true, false, false ),
+            'Calendar only'            => array( array( 'calendar' ), false, true, false ),
+            'My Queue only'            => array( array( 'my_queue' ), false, false, true ),
+            'Kanban + Calendar'        => array( array( 'kanban', 'calendar' ), true, true, false ),
+            'Kanban + My Queue'        => array( array( 'kanban', 'my_queue' ), true, false, true ),
+            'Calendar + My Queue'      => array( array( 'calendar', 'my_queue' ), false, true, true ),
+            'all three enabled'        => array( array( 'kanban', 'calendar', 'my_queue' ), true, true, true ),
+        );
+    }
+
+    /**
      * Create a mock WP_REST_Request.
      *
      * @param array $params Request parameters.
@@ -350,7 +397,10 @@ class WorkflowControllerTest extends TestCase
         Functions\when( 'get_option' )->justReturn( array( 'bypass_workflow_roles' => array( 'administrator' ) ) );
 
         // AssignmentManager::get_all() queries postmeta directly.
+        $this->wpdb->last_error = '';
+        $this->wpdb->posts    = 'wp_posts';
         $this->wpdb->postmeta = 'wp_postmeta';
+        Functions\when( 'maybe_unserialize' )->alias( fn( $value ) => unserialize( $value ) );
         $this->wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $text ) => $text );
         $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing( fn( $query ) => $query );
         $this->wpdb->shouldReceive( 'get_results' )->andReturn( array() );
@@ -1259,9 +1309,10 @@ class WorkflowControllerTest extends TestCase
     {
         $registry = Mockery::mock( \VIPWorkflows\Experiments\ExperimentRegistry::class );
         $registry->shouldReceive( 'is_enabled' )->with( 'my_queue' )->andReturn( true );
-        // register_routes() also gates the Calendar route on the same
-        // registry; stub it so that unrelated check doesn't fail the test.
-        $registry->shouldReceive( 'is_enabled' )->with( 'calendar' )->andReturn( false );
+        // register_routes() also gates Kanban/Calendar on the same registry;
+        // a catch-all keeps those unrelated checks from failing this test as
+        // more experiment-gated routes are added.
+        $registry->shouldReceive( 'is_enabled' )->with( Mockery::not( 'my_queue' ) )->andReturn( false );
 
         $routes = $this->with_experiment_registry(
             $registry,
@@ -1287,8 +1338,7 @@ class WorkflowControllerTest extends TestCase
     public function test_register_routes_omits_my_queue_when_experiment_disabled(): void
     {
         $registry = Mockery::mock( \VIPWorkflows\Experiments\ExperimentRegistry::class );
-        $registry->shouldReceive( 'is_enabled' )->with( 'my_queue' )->andReturn( false );
-        $registry->shouldReceive( 'is_enabled' )->with( 'calendar' )->andReturn( false );
+        $registry->shouldReceive( 'is_enabled' )->andReturn( false );
 
         $routes = $this->with_experiment_registry(
             $registry,
@@ -1387,7 +1437,9 @@ class WorkflowControllerTest extends TestCase
     /**
      * Wire up everything get_my_queue() reads apart from the sequence rows.
      *
-     * @param array $sequence_rows Rows the sequence repository should find.
+     * @param array      $sequence_rows Rows the sequence repository should find.
+     * @param array|null $owned_ids     Author/claim IDs; null derives authors from fixtures.
+     * @param array      $assignments   Serialized assignment rows.
      */
     private function seed_my_queue( array $sequence_rows ): void
     {
@@ -1491,15 +1543,31 @@ class WorkflowControllerTest extends TestCase
     /**
      * Wire up everything get_my_work() reads apart from the sequence rows.
      *
-     * @param array $sequence_rows Rows the sequence repository should find.
+     * @param array      $sequence_rows Rows the sequence repository should find.
+     * @param array|null $owned_ids     Author/claim IDs; null derives authors from fixtures.
+     * @param array      $assignments   Serialized assignment rows.
      */
-    private function seed_my_work( array $sequence_rows ): void
+    private function seed_my_work( array $sequence_rows, ?array $owned_ids = null, array $assignments = array() ): void
     {
         Functions\when( 'get_current_user_id' )->justReturn( 7 );
 
         // No claim on any post: involvement comes from authorship below.
         Functions\when( 'get_post_meta' )->justReturn( '' );
         Functions\when( 'get_edit_post_link' )->justReturn( 'http://example.test/edit' );
+        // No featured image by default, matching core's own "none set" answer.
+        Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
+
+        Functions\when( 'get_userdata' )->alias(
+            fn( $id ) => (object) array(
+                'ID'           => $id,
+                'display_name' => 'User ' . $id,
+                'roles'        => array( 'author' ),
+                'user_email'   => 'user' . $id . '@example.test',
+            )
+        );
+        Functions\when( 'get_avatar_url' )->justReturn( 'http://example.test/avatar.png' );
+        \VIPWorkflows\Workflow\Actor::flush();
+        \WP_Query::$constructed_args = array();
 
         // The core statuses the fixtures use, labelled as core registers them.
         Functions\when( 'get_post_status_object' )->alias(
@@ -1513,17 +1581,30 @@ class WorkflowControllerTest extends TestCase
             }
         );
 
+        $this->wpdb->last_error = '';
+        $this->wpdb->posts    = 'wp_posts';
         $this->wpdb->postmeta = 'wp_postmeta';
+        Functions\when( 'maybe_unserialize' )->alias( fn( $value ) => unserialize( $value ) );
         $this->wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $text ) => $text );
         $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing( fn( $query ) => $query );
 
-        // Two callers share $wpdb here: the sequence repository and
-        // AssignmentManager::get_all(), which reads postmeta. Answer them apart —
-        // handing sequence rows to the assignment reader would blow up on the
-        // meta_key column it expects.
-        $this->wpdb->shouldReceive( 'get_results' )->andReturnUsing(
-            function ( $query ) use ( $sequence_rows ) {
-                return false === strpos( $query, 'postmeta' ) ? $sequence_rows : array();
+        // Resolve the involvement lookup independently from sequence reads.
+        $this->wpdb->shouldReceive( 'get_results' )->byDefault()->andReturnUsing(
+            function ( $query ) use ( $sequence_rows, $owned_ids, $assignments ) {
+                if ( false !== strpos( $query, 'post_author' ) ) {
+                    $ids = $owned_ids;
+                    if ( null === $ids ) {
+                        $ids = array_map(
+                            fn( $post ) => $post->ID,
+                            array_filter( \WP_Query::$next_posts, fn( $post ) => 7 === (int) $post->post_author )
+                        );
+                    }
+                    return array_map( fn( $id ) => (object) array( 'ID' => $id ), $ids );
+                }
+                if ( false !== strpos( $query, 'SELECT post_id, meta_value' ) ) {
+                    return $assignments;
+                }
+                return $sequence_rows;
             }
         );
     }
@@ -1605,6 +1686,305 @@ class WorkflowControllerTest extends TestCase
         $this->assertSame( '#3498db', $row['status_color'] );
         $this->assertSame( 'draft', $row['post_status'] );
         $this->assertSame( 'Draft', $row['post_status_label'] );
+        $this->assertSame( 7, $row['author']['id'] );
+        $this->assertSame( 'User 7', $row['author']['display_name'] );
+        $this->assertNull( $row['assignee'] );
+        $this->assertNull( $row['featured_image_url'] );
+        $this->assertArrayNotHasKey( 'urgency', $row );
+    }
+
+    /**
+     * A claimed post reports its claimant as `assignee`, distinct from
+     * `author` — and a post with a featured image reports its URL.
+     */
+    public function test_get_my_work_reports_assignee_and_featured_image(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ) );
+
+        // Authored by user 7 (seed_my_work's current user), claimed by user 9.
+        Functions\when( 'get_post_meta' )->alias(
+            fn( $post_id, $key, $single ) => '_vip_workflows_assigned_to' === $key ? 9 : ''
+        );
+        Functions\when( 'get_the_post_thumbnail_url' )->justReturn( 'http://example.test/image.jpg' );
+
+        \WP_Query::$next_posts = array(
+            $this->create_mock_post(
+                array(
+                    'ID'            => 14,
+                    'post_title'    => 'Claimed piece',
+                    'post_status'   => 'draft',
+                    'post_author'   => 7,
+                    'post_modified' => '2026-01-02 00:00:00',
+                )
+            ),
+        );
+
+        $data = $this->controller->get_my_work( $this->create_mock_request() )->get_data();
+
+        $workflow_rows = array_values(
+            array_filter( $data, fn( $item ) => null !== $item['workflow_name'] )
+        );
+
+        $this->assertCount( 1, $workflow_rows );
+        $row = $workflow_rows[0];
+
+        $this->assertSame( 7, $row['author']['id'] );
+        $this->assertSame( 9, $row['assignee']['id'] );
+        $this->assertSame( 'User 9', $row['assignee']['display_name'] );
+        $this->assertSame( 'http://example.test/image.jpg', $row['featured_image_url'] );
+    }
+
+    /**
+     * A later successful query must never hide a failed authors/claims read.
+     */
+    public function test_get_my_work_stops_when_involvement_read_fails(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ) );
+        $this->wpdb->shouldReceive( 'get_results' )
+            ->once()
+            ->withArgs( fn( $query ) => false !== strpos( $query, 'post_author' ) )
+            ->andReturnUsing( function () {
+                $this->wpdb->last_error = 'database unavailable';
+                return array();
+            } );
+        $this->wpdb->shouldReceive( 'get_results' )
+            ->never()
+            ->withArgs( fn( $query ) => false !== strpos( $query, 'SELECT post_id, meta_value' ) );
+
+        $result = $this->controller->get_my_work( $this->create_mock_request() );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'my_work_read_failed', $result->get_error_code() );
+        $this->assertSame( array(), \WP_Query::$constructed_args );
+    }
+
+    /**
+     * Failed assignment reads cannot produce an incomplete success response.
+     */
+    public function test_get_my_work_reports_assignment_read_failure(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ), array( 1 ) );
+        $this->wpdb->shouldReceive( 'get_results' )
+            ->once()
+            ->withArgs( fn( $query ) => false !== strpos( $query, 'SELECT post_id, meta_value' ) )
+            ->andReturnUsing( function () {
+                $this->wpdb->last_error = 'database unavailable';
+                return array();
+            } );
+
+        $result = $this->controller->get_my_work( $this->create_mock_request() );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'my_work_read_failed', $result->get_error_code() );
+        $this->assertSame( array(), \WP_Query::$constructed_args );
+    }
+
+    /**
+     * Query failure must not masquerade as the final, empty page.
+     */
+    public function test_my_work_pagination_reports_database_failure(): void
+    {
+        $this->seed_my_work( array() );
+        $this->wpdb->last_error = 'database unavailable';
+        $method = new \ReflectionMethod( $this->controller, 'query_all_pages' );
+
+        $result = $method->invoke( $this->controller, array( 'posts_per_page' => 100 ) );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'my_work_read_failed', $result->get_error_code() );
+        $this->assertCount( 1, \WP_Query::$constructed_args );
+    }
+
+    /**
+     * Pagination must include an author's own work after page twenty.
+     */
+    public function test_get_my_work_includes_more_than_two_thousand_posts(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ) );
+        \WP_Query::$next_posts = array_map(
+            fn( $id ) => $this->create_mock_post( array( 'ID' => $id, 'post_author' => 7, 'post_modified' => '2026-01-02 00:00:00' ) ),
+            range( 1, 2001 )
+        );
+
+        $data = $this->controller->get_my_work( $this->create_mock_request() )->get_data();
+        $workflow_rows = array_values( array_filter( $data, fn( $item ) => null !== $item['workflow_name'] ) );
+        $plain_rows    = array_values( array_filter( $data, fn( $item ) => null === $item['workflow_name'] ) );
+
+        $this->assertCount( 2001, $workflow_rows );
+        $this->assertSame( 2001, $workflow_rows[2000]['post_id'] );
+        $this->assertCount( 2001, $plain_rows );
+        $this->assertSame( 2001, $plain_rows[2000]['post_id'] );
+    }
+
+    /**
+     * Other authors' archives must not consume pages before involvement is tested.
+     */
+    public function test_get_my_work_filters_involvement_before_pagination(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ) );
+        \WP_Query::$next_posts = array_map(
+            fn( $id ) => $this->create_mock_post( array( 'ID' => $id, 'post_author' => 9, 'post_modified' => '2026-01-02 00:00:00' ) ),
+            range( 1, 2000 )
+        );
+        \WP_Query::$next_posts[] = $this->create_mock_post( array( 'ID' => 2001, 'post_author' => 7, 'post_modified' => '2026-01-02 00:00:00' ) );
+
+        $data = $this->controller->get_my_work( $this->create_mock_request() )->get_data();
+        $workflow_rows = array_values( array_filter( $data, fn( $item ) => null !== $item['workflow_name'] ) );
+
+        $this->assertCount( 1, $workflow_rows );
+        $this->assertSame( 2001, $workflow_rows[0]['post_id'] );
+        $this->assertSame( array( 2001 ), \WP_Query::$constructed_args[0]['post__in'] );
+        $this->assertCount( 2, \WP_Query::$constructed_args, 'Only one workflow page and one author page should be loaded.' );
+        foreach ( \WP_Query::$constructed_args as $args ) {
+            $this->assertTrue( $args['ignore_sticky_posts'], 'Sticky posts must not bypass involvement or expand the page size.' );
+        }
+    }
+
+    /**
+     * Claims and pending user slots qualify; completed, role and other-user slots do not.
+     */
+    public function test_get_my_work_preserves_claim_and_pending_user_involvement(): void
+    {
+        $assignments = array();
+        foreach (
+            array(
+                2 => array( 'type' => 'user', 'value' => 7, 'status' => 'pending' ),
+                3 => array( 'type' => 'user', 'value' => '7', 'status' => 'pending' ),
+                4 => array( 'type' => 'user', 'value' => 7, 'status' => 'completed' ),
+                5 => array( 'type' => 'role', 'value' => 7, 'status' => 'pending' ),
+                6 => array( 'type' => 'user', 'value' => 9, 'status' => 'pending' ),
+            ) as $post_id => $assignment
+        ) {
+            $assignments[] = (object) array( 'post_id' => $post_id, 'meta_value' => serialize( $assignment ) );
+        }
+        $this->seed_my_work( array( $this->my_work_sequence_row() ), array( 1 ), $assignments );
+        \WP_Query::$next_posts = array_map(
+            fn( $id ) => $this->create_mock_post( array( 'ID' => $id, 'post_author' => 9, 'post_modified' => '2026-01-02 00:00:00' ) ),
+            range( 1, 6 )
+        );
+        Functions\when( 'get_post_meta' )->alias( fn( $id, $key ) => 1 === $id && '_vip_workflows_assigned_to' === $key ? 7 : '' );
+
+        $data = $this->controller->get_my_work( $this->create_mock_request() )->get_data();
+
+        $this->assertSame( array( 1, 2, 3 ), array_column( $data, 'post_id' ) );
+        $this->assertSame( 7, $data[0]['assignee']['id'] );
+        $this->assertNull( $data[1]['assignee'], 'A pending slot is not the single claim.' );
+    }
+
+    /**
+     * WP_Query treats an empty post__in as unrestricted; zero involvement must not.
+     */
+    public function test_get_my_work_with_no_involvement_returns_no_posts(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ), array() );
+        \WP_Query::$next_posts = array( $this->create_mock_post( array( 'ID' => 1, 'post_author' => 9, 'post_modified' => '2026-01-02 00:00:00' ) ) );
+
+        $data = $this->controller->get_my_work( $this->create_mock_request() )->get_data();
+
+        $this->assertSame( array(), $data );
+        $this->assertSame( array( 0 ), \WP_Query::$constructed_args[0]['post__in'] );
+    }
+
+    /**
+     * A sequence row whose single stage is terminal (e.g. Published).
+     *
+     * @return object
+     */
+    private function my_work_terminal_sequence_row(): object
+    {
+        return (object) array(
+            'id'          => 1,
+            'uuid'        => 'uuid-editorial',
+            'type'        => 'workflow',
+            'name'        => 'Editorial',
+            'slug'        => 'editorial',
+            'description' => '',
+            'version'     => 1,
+            'status'      => 'active',
+            'config'      => json_encode(
+                array(
+                    'post_types' => array( 'post' ),
+                    'statuses'   => array(
+                        array(
+                            'key'         => 'publish',
+                            'label'       => 'Published',
+                            'color'       => '#2ecc71',
+                            'status'      => 'publish',
+                            'is_terminal' => true,
+                            'transitions' => array(),
+                        ),
+                    ),
+                )
+            ),
+            'created_by'  => 1,
+            'created_at'  => '2026-01-01 00:00:00',
+            'updated_at'  => '2026-01-01 00:00:00',
+        );
+    }
+
+    /**
+     * A post an author is involved with does not vanish from My Work once its
+     * stage is terminal (e.g. Published) — this is the regression test for the
+     * bug where terminal stages were skipped before ever being queried.
+     */
+    public function test_get_my_work_includes_terminal_stage_posts(): void
+    {
+        $this->seed_my_work( array( $this->my_work_terminal_sequence_row() ) );
+
+        \WP_Query::$next_posts = array(
+            $this->create_mock_post(
+                array(
+                    'ID'            => 13,
+                    'post_title'    => 'Published piece',
+                    'post_status'   => 'publish',
+                    'post_author'   => 7,
+                    'post_modified' => '2026-01-02 00:00:00',
+                )
+            ),
+        );
+
+        $data = $this->controller->get_my_work( $this->create_mock_request() )->get_data();
+
+        $workflow_rows = array_values(
+            array_filter( $data, fn( $item ) => null !== $item['workflow_name'] )
+        );
+
+        $this->assertCount( 1, $workflow_rows );
+        $this->assertSame( 'Published', $workflow_rows[0]['status_label'] );
+        $this->assertSame( 'publish', $workflow_rows[0]['post_status'] );
+    }
+
+    /**
+     * The non-workflow fallback query is no longer restricted to
+     * draft/pending/future, and its post_type is the union of every post type
+     * any of the user's sequences manages rather than a hardcoded 'post'.
+     */
+    public function test_get_my_work_fallback_query_not_restricted_to_draft_pending_future(): void
+    {
+        $sequence_row               = $this->my_work_sequence_row();
+        $config                     = json_decode( $sequence_row->config, true );
+        $config['post_types']       = array( 'story' );
+        $sequence_row->config       = json_encode( $config );
+
+        $this->seed_my_work( array( $sequence_row ) );
+
+        \WP_Query::$next_posts = array();
+
+        $this->controller->get_my_work( $this->create_mock_request() );
+
+        $fallback_args = array_values(
+            array_filter(
+                \WP_Query::$constructed_args,
+                fn( $args ) => array_key_exists( 'author', $args )
+            )
+        );
+
+        $this->assertNotEmpty( $fallback_args, 'Expected the author-scoped fallback query to run.' );
+
+        $args = $fallback_args[0];
+        $this->assertSame( 'any', $args['post_status'] );
+        $this->assertContains( 'post', $args['post_type'] );
+        $this->assertContains( 'story', $args['post_type'] );
     }
 
     /**

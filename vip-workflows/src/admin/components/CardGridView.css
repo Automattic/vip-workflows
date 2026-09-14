@@ -4,11 +4,12 @@
  * CardGridView.js.
  */
 
-/* Inner padding for the DataViews panel. On a built-in layout — the Audit Log,
-   My Work — DataViews' own chrome (`.dataviews__view-actions`, table cells)
-   supplies the 16px/24px insets inside `.vip-workflows-card-surface`. Free
-   composition renders our children bare, so the panel supplies the same insets
-   here. */
+/* Inner padding for the DataViews panel. On a built-in layout — the Audit Log —
+   DataViews' own chrome (`.dataviews__view-actions`, table cells) supplies the
+   16px/24px insets inside `.vip-workflows-card-surface`. Free composition
+   renders our children bare, so the panel supplies the same insets here (My
+   Work free-composes too, for the same reason, and does likewise in
+   MyWorkPage.css). */
 .vip-workflows-card-grid-view {
 	padding: var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-2xl);
 }
