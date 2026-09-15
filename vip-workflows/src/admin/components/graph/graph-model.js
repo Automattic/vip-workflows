@@ -1175,8 +1175,8 @@ export function publishSettingFixesRoute( stage, targetKey ) {
  * The one home of the canvas's edge-naming rule. `buildGraph` draws a
  * transition once per outcome routed along it, once unattributed when no
  * outcome claims it, and not at all when its target stage is gone — so anything
- * that has to *name* the same edge (a validation error's target, the stage
- * panel's exit rows) asks here rather than re-deriving it. Re-derived, the rule
+ * that has to *name* the same edge (a validation error's target) asks here
+ * rather than re-deriving it. Re-derived, the rule
  * drifts silently: a name built from a routing the drawing ignored points at an
  * edge id nothing on the canvas holds, and selecting it highlights nothing.
  *
@@ -1218,9 +1218,7 @@ export function drawnOutcomes(
  *
  * The FIRST of `drawnOutcomes`, matching `variants[ 0 ]` in `buildGraph`: two
  * outcomes sharing a destination draw two edges, and the fault belongs to the
- * transition both travel, so either one leads to the same panel. Every caller
- * that names this edge asks this same question, so the two rows the canvas drew
- * agree about which of them is at fault.
+ * transition both travel, so either one leads to the same panel.
  *
  * @param {Object} stage     The stage the transition leaves.
  * @param {string} targetKey The transition's target stage key.
