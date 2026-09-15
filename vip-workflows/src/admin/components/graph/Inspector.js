@@ -30,6 +30,7 @@ import {
 	useMemo,
 	useCallback,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 } from '@wordpress/element';
 import { Stack, Text } from '@wordpress/ui';
@@ -43,6 +44,7 @@ import SequenceSettingsInspector from './SequenceSettingsInspector';
 import SequenceIdentityFields from './SequenceIdentityFields';
 import RegionInspector from './RegionInspector';
 import {
+	edgeId,
 	stageRegion,
 	stageLabel,
 	isTransitionDisabled,
@@ -113,15 +115,17 @@ export default function Inspector( { reveal, ...props } ) {
 	// for another, so it always points at the heading now on screen.
 	const headingRef = useRef( null );
 
-	// Acted on by nonce, so only a reveal does this: an ordinary click on the
-	// canvas must not re-open a panel that was deliberately collapsed, nor take
-	// focus off the canvas it was made on.
-	const revealedNonce = useRef( 0 );
-	useEffect( () => {
-		if ( ! reveal || reveal.nonce === revealedNonce.current ) {
+	// Keyed on `reveal` alone — a new object per press — so only a reveal does
+	// this: an ordinary click on the canvas must not re-open a panel that was
+	// deliberately collapsed, nor take focus off the canvas it was made on.
+	//
+	// A layout effect, so the expansion commits with the selection rather than
+	// in a later task: the canvas measures the room the panel leaves on the
+	// next frame, and a passive effect's update can still be pending then.
+	useLayoutEffect( () => {
+		if ( ! reveal ) {
 			return;
 		}
-		revealedNonce.current = reveal.nonce;
 		setCollapsed( false );
 		// The only feedback the press gives that isn't visual. Focus lands on
 		// the heading of the panel that just mounted, which is both what a
@@ -431,6 +435,10 @@ function renderPanel( {
 			);
 		return (
 			<TransitionInspector
+				// One instance per transition record, so a section left open or
+				// shut on one transition does not carry over to the next — the
+				// fault a reveal lands on can be in a section the last one shut.
+				key={ edgeId( selection.from, selection.to ) }
 				transition={ selectedTransition }
 				from={ selection.from }
 				to={ selection.to }

@@ -418,22 +418,13 @@
    need it, and scoping it to whichever list got there first is how two lists
    end up flagging the same thing two different ways.
 
-   After `is-disabled` on purpose: a row can be both, and at equal specificity
-   the later rule takes the tone. */
+   A row is never this and `is-disabled` at once: the stage panel drops the
+   dimming from a row at fault, for the same reason the fault outranks
+   "(disabled)" in its value column. */
 .wf-inspector__fact.is-invalid,
 .wf-inspector__fact.is-invalid .wf-inspector__fact-value {
 	/* wpds-allow R6 -- <Stack> and <Text> expose no color prop */
 	color: var( --wpds-color-foreground-content-error );
-}
-
-/* That both-at-once row again: `is-disabled` dims the whole thing, which would
-   mute the one tone in the list that has to carry. The fault outranks the
-   dimming for the same reason it outranks "(disabled)" in the value column —
-   being unusable is a state someone chose, refusing to save is not. Only that
-   pairing is undimmed; a row being dragged still fades. */
-.wf-inspector__fact.is-disabled.is-invalid {
-	/* wpds-allow R6 -- <Stack> exposes no opacity prop */
-	opacity: 1;
 }
 
 /* The reorder grip. A button rather than the row itself, so the row's tooltip

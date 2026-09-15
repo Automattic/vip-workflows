@@ -108,7 +108,6 @@ import InspectorDangerZone from './InspectorDangerZone';
 import {
 	AGENT_OUTCOMES,
 	agentOutcomeLabel,
-	drawnOutcome,
 	edgeId,
 	isAgentStage,
 	stageRegion,
@@ -494,26 +493,11 @@ export default function StageInspector( {
 	// because a name that is only the complaint no longer says what the button
 	// does or which exit it belongs to.
 	//
-	// Named by `drawnOutcome`, the same rule the error's target was built from
-	// and the same rule the canvas draws by — not by the row's own outcome. Two
-	// outcomes routed to one destination are two rows naming one transition, and
-	// asking per row would flag whichever of them the rule happened to pick and
-	// leave its twin reading clean. A transition to a stage that is gone answers
-	// null here for the same reason it draws no line: nothing routes to a
-	// destination that isn't there.
-	//
-	// Still ambiguous in one stored shape the editor cannot write but can be
-	// handed: two transitions to the same destination share one edge id, so both
-	// rows carry the fault and the message names which of the two it means.
+	// Looked up by the transition, `from->to`, not by the row's own outcome:
+	// two outcomes routed to one destination are two rows naming one
+	// transition, and both carry its fault.
 	const exitProblem = ( target ) => {
-		const messages =
-			exitProblems[
-				edgeId(
-					stage.key,
-					target,
-					drawnOutcome( stage, target, { stageExists } )
-				)
-			];
+		const messages = exitProblems[ edgeId( stage.key, target ) ];
 		if ( ! messages?.length ) {
 			return null;
 		}
@@ -918,7 +902,11 @@ export default function StageInspector( {
 													className={ [
 														'wf-stage-inspector__route',
 														`is-${ outcome }`,
+														// A fault outranks the
+														// dimming, as it does
+														// "(disabled)".
 														disabled &&
+															! problem &&
 															'is-disabled',
 														problem && 'is-invalid',
 													]
@@ -1067,6 +1055,7 @@ export default function StageInspector( {
 														className={ [
 															'wf-stage-inspector__route',
 															disabled &&
+																! problem &&
 																'is-disabled',
 															problem &&
 																'is-invalid',

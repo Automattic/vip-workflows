@@ -313,7 +313,7 @@ describe( 'the stage panel flags the exit at fault', () => {
 				agent: { ability_id: 'a/b', routing: { pass: 'done' } },
 			} ),
 			{
-				[ edgeId( 'review', 'done', 'pass' ) ]: [
+				[ edgeId( 'review', 'done' ) ]: [
 					'The “Approve” transition assigns to a key another transition already assigns.',
 				],
 			}
@@ -326,10 +326,9 @@ describe( 'the stage panel flags the exit at fault', () => {
 	} );
 
 	// Two outcomes routed to one destination are two rows naming one
-	// transition. The error names that transition once, under whichever outcome
-	// the canvas names the edge by — so both rows have to look themselves up
-	// that same way, or one of a pair of identical rows reads clean and an
-	// author working from it concludes the panel is lying.
+	// transition. The fault is keyed by that transition, not by either
+	// outcome — so both rows find it, or one of a pair of identical rows reads
+	// clean and an author working from it concludes the panel is lying.
 	it( 'flags every outcome row the faulted transition is named by', () => {
 		renderInspector(
 			reviewStage( {
@@ -339,7 +338,7 @@ describe( 'the stage panel flags the exit at fault', () => {
 				},
 			} ),
 			{
-				[ edgeId( 'review', 'done', 'pass' ) ]: [
+				[ edgeId( 'review', 'done' ) ]: [
 					'The “Approve” transition assigns work but names no assignment key.',
 				],
 			}

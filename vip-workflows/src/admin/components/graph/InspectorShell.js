@@ -55,6 +55,7 @@ export const InspectorPanelContext = createContext( null );
 export default function InspectorShell( { eyebrow, title, children } ) {
 	const panel = useContext( InspectorPanelContext );
 	const bodyId = useId();
+	const headingId = useId();
 	const collapsed = Boolean( panel?.collapsed );
 	const headingRef = panel?.headingRef;
 
@@ -74,11 +75,24 @@ export default function InspectorShell( { eyebrow, title, children } ) {
 				     what it now holds: the eyebrow and the title together read
 				     "Transition, Send to legal". Focusable only as a
 				     destination — `tabindex="-1"` is never a tab stop — and
-				     only when something can send focus to it. */ }
+				     only when something can send focus to it. Named by those
+				     two parts, because a bare div has no name of its own to
+				     announce on arrival. */ }
 				<div
 					className="wf-inspector__heading"
 					ref={ headingRef }
 					tabIndex={ headingRef ? -1 : undefined }
+					role={ headingRef ? 'group' : undefined }
+					aria-labelledby={
+						headingRef
+							? [
+									eyebrow && `${ headingId }-eyebrow`,
+									title && `${ headingId }-title`,
+							  ]
+									.filter( Boolean )
+									.join( ' ' ) || undefined
+							: undefined
+					}
 				>
 					{ eyebrow && (
 						// heading-sm is the uppercase label variant, so the
@@ -88,6 +102,7 @@ export default function InspectorShell( { eyebrow, title, children } ) {
 							variant="heading-sm"
 							render={ <span /> }
 							className="wf-inspector__eyebrow"
+							id={ `${ headingId }-eyebrow` }
 						>
 							{ eyebrow }
 						</Text>
@@ -99,6 +114,7 @@ export default function InspectorShell( { eyebrow, title, children } ) {
 							variant="heading-lg"
 							render={ <h2 /> }
 							className="wf-inspector__title"
+							id={ `${ headingId }-title` }
 						>
 							{ title }
 						</Text>

@@ -11,9 +11,10 @@
  * vocabulary (`{ type: 'node' | 'edge' | 'region', … }`), and every one of the
  * three resolves to nodes React Flow already holds: a stage is its own node, a
  * transition is the run between the two it joins, and a status group is the
- * band node `layout.js` sizes to it. Nothing here measures anything — the
- * caller frames those ids with React Flow's own `getNodesBounds`, so a reveal
- * reads the geometry the canvas actually laid out.
+ * band node `layout.js` sizes to it — framed by the checkpoint slot that node
+ * carries, since that is where a group's faults are fixed. Nothing here
+ * measures anything — the caller frames those ids with React Flow's own
+ * `getNodesBounds`, so a reveal reads the geometry the canvas actually laid out.
  *
  * **How far it pans.** Per axis, and never by zooming: the zoom is the
  * author's, and a reveal that reset it would answer "where is this" by
@@ -21,10 +22,10 @@
  * does not move at all, which is the common case — the fault is usually right
  * there — and is what keeps the button from jolting a canvas that needed no
  * help. An axis it does not fit inside centres it. An axis it is *too big* for
- * (a status band is most of the canvas; a transition can run the length of the
- * sequence) aligns its start instead, because the middle of something that
- * overflows the viewport shows neither end, and its start is the stage a
- * transition leaves and the boundary a group is entered at.
+ * (a transition can run the length of the sequence) aligns the target's anchor
+ * instead — the stage a transition leaves — because the middle of something
+ * that overflows the viewport shows neither end, and the union's own start is
+ * the destination whenever a transition runs back up the flow.
  *
  * @package
  */
@@ -49,9 +50,9 @@ export function revealNodeIds( target ) {
 	switch ( target?.type ) {
 		case 'node':
 			return [ target.key ];
-		// Both ends. A transition is the run between two stages, and framing
-		// only the one it leaves can put its destination off-screen — which is
-		// the half the author is usually being sent to check.
+		// Both ends, the one it leaves first. A transition is the run between
+		// two stages, and framing only the one it leaves can put its
+		// destination off-screen; the first is what an overflow lands on.
 		case 'edge':
 			return [ target.from, target.to ];
 		// The band is a node of its own, sized to the region by `layout.js`.
@@ -73,6 +74,8 @@ export function revealNodeIds( target ) {
  * @param {number} axis.visibleStart Start of the visible strip, in pane px.
  * @param {number} axis.visibleSize  Length of the visible strip, in px.
  * @param {number} axis.margin       Room to keep at either end, in px.
+ * @param {number} axis.anchorStart  Where an overflowing span is aligned from,
+ *                                   in flow coordinates.
  * @return {?number} The new translation, or null when nothing need move.
  */
 function axisPan( {
@@ -83,6 +86,7 @@ function axisPan( {
 	visibleStart,
 	visibleSize,
 	margin,
+	anchorStart,
 } ) {
 	const screenStart = offset + start * zoom;
 	const screenSize = size * zoom;
@@ -100,7 +104,7 @@ function axisPan( {
 	}
 
 	if ( screenSize >= boxSize ) {
-		return boxStart - start * zoom;
+		return boxStart - anchorStart * zoom;
 	}
 
 	return boxStart + ( boxSize - screenSize ) / 2 - start * zoom;
@@ -117,11 +121,15 @@ function axisPan( {
  *                                   leaves visible, as `{ x, y, width,
  *                                   height }` in pane pixels.
  * @param {number}  [options.margin] Room to keep at the edges, in px.
+ * @param {Object}  [options.anchor] The part of the target an overflowing axis
+ *                                   is aligned to, in flow coordinates — the
+ *                                   stage a transition leaves. The whole
+ *                                   target when absent.
  * @return {?Object} A `{ x, y, zoom }` viewport, or null.
  */
 export function revealViewport(
 	bounds,
-	{ viewport, visible, margin = REVEAL_MARGIN }
+	{ viewport, visible, margin = REVEAL_MARGIN, anchor = bounds }
 ) {
 	if ( ! bounds || ! Number.isFinite( bounds.x + bounds.y ) ) {
 		return null;
@@ -135,6 +143,7 @@ export function revealViewport(
 		visibleStart: visible.x,
 		visibleSize: visible.width,
 		margin,
+		anchorStart: anchor.x,
 	} );
 	const y = axisPan( {
 		start: bounds.y,
@@ -144,6 +153,7 @@ export function revealViewport(
 		visibleStart: visible.y,
 		visibleSize: visible.height,
 		margin,
+		anchorStart: anchor.y,
 	} );
 
 	if ( x === null && y === null ) {

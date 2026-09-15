@@ -44,7 +44,7 @@ import { regionNodeId } from '../../src/admin/components/graph/graph-model';
 
 jest.mock( '@wordpress/api-fetch' );
 
-// Every reveal the canvas was handed, in order, deduplicated by request: the
+// Every reveal the canvas was handed, in order, deduplicated by identity: the
 // stub re-renders for reasons of its own (a keystroke in the panel), and a prop
 // arriving twice is still one instruction.
 let mockReveals = [];
@@ -53,10 +53,7 @@ jest.mock(
 	'../../src/admin/components/graph/GraphCanvas',
 	() =>
 		function GraphCanvasStub( { reveal } ) {
-			if (
-				reveal &&
-				mockReveals[ mockReveals.length - 1 ]?.nonce !== reveal.nonce
-			) {
+			if ( reveal && mockReveals[ mockReveals.length - 1 ] !== reveal ) {
 				mockReveals.push( reveal );
 			}
 			return <div data-testid="canvas" />;
@@ -127,9 +124,8 @@ function renderInspector( overrides = {} ) {
 }
 
 // One reveal of the stage these tests select, as the editor builds one.
-const revealDraft = ( nonce ) => ( {
+const revealDraft = () => ( {
 	target: { type: 'node', key: 'draft' },
-	nonce,
 } );
 
 describe( 'a reveal opens the panel it selects into', () => {
@@ -138,7 +134,7 @@ describe( 'a reveal opens the panel it selects into', () => {
 		fireEvent.click( toggle() );
 		expect( body() ).toHaveAttribute( 'hidden' );
 
-		update( { reveal: revealDraft( 1 ) } );
+		update( { reveal: revealDraft() } );
 
 		expect( body() ).not.toHaveAttribute( 'hidden' );
 		expect( toggle() ).toHaveAttribute( 'aria-expanded', 'true' );
@@ -161,7 +157,7 @@ describe( 'a reveal opens the panel it selects into', () => {
 			const { update } = renderInspector();
 			expect( body() ).toHaveAttribute( 'hidden' );
 
-			update( { reveal: revealDraft( 1 ) } );
+			update( { reveal: revealDraft() } );
 
 			expect( body() ).not.toHaveAttribute( 'hidden' );
 		} finally {
@@ -173,7 +169,7 @@ describe( 'a reveal opens the panel it selects into', () => {
 		const { update } = renderInspector();
 		expect( heading() ).not.toHaveFocus();
 
-		update( { reveal: revealDraft( 1 ) } );
+		update( { reveal: revealDraft() } );
 
 		expect( heading() ).toHaveFocus();
 		// The eyebrow and the title together, which is what a screen reader
@@ -197,7 +193,7 @@ describe( 'a reveal opens the panel it selects into', () => {
 		update( {
 			selection: { type: 'node', key: 'draft' },
 			selectedStage: STAGES[ 0 ],
-			reveal: revealDraft( 1 ),
+			reveal: revealDraft(),
 		} );
 
 		expect( heading() ).toHaveTextContent( 'Draft' );
@@ -220,15 +216,73 @@ describe( 'a reveal opens the panel it selects into', () => {
 		expect( heading() ).not.toHaveFocus();
 	} );
 
+	// The editor never clears a reveal, so every later click arrives with the
+	// last one still in hand. Still only a click.
+	it( 'leaves an ordinary selection alone after a reveal', () => {
+		const reveal = revealDraft();
+		const { update } = renderInspector( { reveal } );
+		toggle().focus();
+		fireEvent.click( toggle() );
+
+		update( {
+			reveal,
+			selection: { type: 'node', key: 'review' },
+			selectedStage: STAGES[ 1 ],
+		} );
+
+		expect( body() ).toHaveAttribute( 'hidden' );
+		expect( toggle() ).toHaveFocus();
+	} );
+
+	// Where focus lands has to say what it landed on, rather than leave that
+	// to how a screen reader treats a bare container.
+	it( 'names the heading focus lands on', () => {
+		const { update } = renderInspector();
+
+		update( { reveal: revealDraft() } );
+
+		expect( heading() ).toHaveAccessibleName( 'Stage Draft' );
+	} );
+
+	// A transition's sections open by what it holds. A reveal swapping one
+	// transition for another has to reopen them for the one it arrived at, or
+	// the field the fault names sits in a section the last transition shut.
+	it( 'opens the arriving transition’s sections, not the last one’s', () => {
+		const plain = { to: 'review', label: 'Submit' };
+		const gated = {
+			to: 'draft',
+			label: 'Send back',
+			requires_assignment: { meta_key: '' },
+		};
+		const { update } = renderInspector( {
+			selection: { type: 'edge', from: 'draft', to: 'review' },
+			selectedStage: null,
+			selectedTransition: plain,
+		} );
+		const restrict = () =>
+			screen.getByRole( 'button', { name: /Restrict to an assignee/ } );
+		expect( restrict() ).toHaveAttribute( 'aria-expanded', 'false' );
+
+		update( {
+			selection: { type: 'edge', from: 'review', to: 'draft' },
+			selectedTransition: gated,
+			reveal: {
+				target: { type: 'edge', from: 'review', to: 'draft' },
+			},
+		} );
+
+		expect( restrict() ).toHaveAttribute( 'aria-expanded', 'true' );
+	} );
+
 	it( 'reveals again when the same fault is asked for twice', () => {
 		const { update } = renderInspector();
-		update( { reveal: revealDraft( 1 ) } );
+		update( { reveal: revealDraft() } );
 
 		// Pressing the button a second time is a second reveal of one target —
-		// the panel may have been closed again in between, and the count is
-		// what says so, since the target itself never changed.
+		// the panel may have been closed again in between, and the fresh
+		// request is what says so, since the target itself never changed.
 		fireEvent.click( toggle() );
-		update( { reveal: revealDraft( 2 ) } );
+		update( { reveal: revealDraft() } );
 
 		expect( body() ).not.toHaveAttribute( 'hidden' );
 	} );
@@ -309,6 +363,19 @@ describe( 'where a reveal pans the canvas', () => {
 
 		expect( next.x + -500 ).toBe( REVEAL_MARGIN );
 		expect( next.y ).toBe( HOME.y );
+	} );
+
+	// A transition running back up the flow: its destination is the top of
+	// the pair. Aligned by the pair's own start, the stage it leaves — where
+	// the fault is configured — would be pushed off the bottom.
+	it( 'lands an oversized back-edge on the stage it leaves', () => {
+		const source = { x: 100, y: 4000, width: 200, height: 80 };
+		const next = pan(
+			{ x: 100, y: 0, width: 200, height: 4080 },
+			{ anchor: source }
+		);
+
+		expect( next.y + source.y ).toBe( REVEAL_MARGIN );
 	} );
 
 	it( 'keeps the zoom it was given', () => {
@@ -471,8 +538,6 @@ describe( 'the way a refused Save shows its fault', () => {
 		// between, so the second press has to arrive as a fresh instruction
 		// rather than as an unchanged prop.
 		expect( mockReveals ).toHaveLength( 2 );
-		expect( mockReveals[ 1 ].nonce ).toBeGreaterThan(
-			mockReveals[ 0 ].nonce
-		);
+		expect( mockReveals[ 1 ] ).not.toBe( mockReveals[ 0 ] );
 	} );
 } );

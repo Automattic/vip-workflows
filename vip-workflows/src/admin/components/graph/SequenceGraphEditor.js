@@ -317,7 +317,7 @@ const discardPrompt = () => [
  * to another.
  *
  * @param {Object}   props         Component props.
- * @param {Array}    props.reasons `{ message, target }`, one per reason.
+ * @param {Array}    props.reasons `{ key, message, target }`, one per reason.
  * @param {boolean}  props.isPhase Whether this is a phase sequence.
  * @param {Function} props.onShow  Selects a reason's target.
  * @return {JSX.Element} The notice body.
@@ -340,12 +340,12 @@ function SaveBlockers( { reasons, isPhase, onShow } ) {
 				reasons.length
 			) }
 			<Stack render={ <ul /> } direction="column" gap="xs">
-				{ /* Keyed by where the fault is as well as what it says, for
-				     the reason `saveBlockers` dedupes on both: two stages can
-				     hold the identically-worded fault, and the message alone
-				     is then one key for two rows. */ }
-				{ reasons.map( ( { message, target } ) => (
-					<li key={ `${ targetId( target ) }\n${ message }` }>
+				{ /* Keyed by the identity `saveBlockers` dedupes on — where
+				     the fault is as well as what it says: two stages can hold
+				     the identically-worded fault, and the message alone is
+				     then one key for two rows. */ }
+				{ reasons.map( ( { key, message, target } ) => (
+					<li key={ key }>
 						{ message }
 						{ target && (
 							<>
@@ -897,17 +897,24 @@ export default function SequenceGraphEditor( {
 		// the notice kept the first and dropped the second — one reason where
 		// there were two, and a "Show transition" that reached only one of
 		// them, so fixing what it opened earned the same refusal again.
+		//
+		// The key rides on the reason, so the list keys its rows by the same
+		// identity it was deduped on.
 		const seen = new Set();
-		return reasons.filter( ( reason ) => {
-			// Newline-joined: a message can hold anything, but `targetId`
-			// cannot, so nothing a message contains can forge a key boundary.
-			const key = `${ targetId( reason.target ) }\n${ reason.message }`;
-			if ( seen.has( key ) ) {
-				return false;
-			}
-			seen.add( key );
-			return true;
-		} );
+		return reasons
+			.map( ( reason ) => ( {
+				...reason,
+				// Newline-joined: a message can hold anything, but `targetId`
+				// cannot, so nothing a message contains can forge a key boundary.
+				key: `${ targetId( reason.target ) }\n${ reason.message }`,
+			} ) )
+			.filter( ( { key } ) => {
+				if ( seen.has( key ) ) {
+					return false;
+				}
+				seen.add( key );
+				return true;
+			} );
 	}, [ validation.errors, isPhase, selectedPostTypes ] );
 
 	// The refusal stands down once the last reason for it is gone, so it cannot
@@ -919,20 +926,21 @@ export default function SequenceGraphEditor( {
 	}, [ saveBlockers.length ] );
 
 	// The blocking faults that belong to one way out of a stage, keyed by the
-	// edge the canvas draws for it.
+	// transition they belong to — `from->to`, without the outcome.
 	//
 	// The stage panel's exit list reads this: a node badge says a stage needs
 	// attention, and without this the author has to open every transition it
-	// holds to find out which one the message meant. Keyed by edge id rather
-	// than by position, because that id is the one name the canvas, the
-	// selection and the inspector all already agree on.
+	// holds to find out which one the message meant. A stage holds one
+	// transition per destination, so `from->to` names the record; the outcome
+	// only says which of the edges drawn for it the canvas selects, and every
+	// row standing on that record carries the fault alike.
 	const exitProblems = useMemo( () => {
 		const byEdge = {};
 		validation.errors.forEach( ( { message, target } ) => {
 			if ( target?.type !== 'edge' ) {
 				return;
 			}
-			const id = edgeId( target.from, target.to, target.outcome );
+			const id = edgeId( target.from, target.to );
 			byEdge[ id ] = byEdge[ id ] || [];
 			byEdge[ id ].push( message );
 		} );
@@ -1086,18 +1094,15 @@ export default function SequenceGraphEditor( {
 	// stayed on the button in the notice, and a fault outside the viewport was
 	// highlighted where nobody was looking.
 	//
-	// The nonce is what tells `Inspector` and `GraphCanvas` this selection was
+	// `reveal` is what tells `Inspector` and `GraphCanvas` this selection was
 	// asked for. Without it they could only watch the selection, and would
-	// expand a deliberately collapsed panel and pan the canvas on every click;
-	// with it, pressing the same button twice is also two reveals, which is
-	// what makes it work again after panning away in between.
+	// expand a deliberately collapsed panel and pan the canvas on every click.
+	// A new object per press, so pressing the same button twice is also two
+	// reveals, which is what makes it work again after panning away.
 	const [ reveal, setReveal ] = useState( null );
 	const showTarget = useCallback( ( target ) => {
 		setSelection( target );
-		setReveal( ( previous ) => ( {
-			target,
-			nonce: ( previous?.nonce || 0 ) + 1,
-		} ) );
+		setReveal( { target } );
 	}, [] );
 
 	// --- Status regions ----------------------------------------------------
