@@ -78,17 +78,6 @@ import { IdeationPanel } from './IdeationPanel';
 const WorkflowHistoryModal = lazy( () => import( './WorkflowHistoryModal' ) );
 
 /**
- * The kinds of capture input this sidebar can ask a writer for.
- *
- * An assignment, and nothing else. A note (`textarea`, or the older `text`) a
- * stored sequence may still carry is no longer collected. It, and any kind
- * added by a newer version or by an extension that ships its own authoring UI,
- * has nothing here to render it, and is passed over rather than allowed to
- * block the move.
- */
-const COLLECTABLE_INPUT_TYPES = [ 'assignment' ];
-
-/**
  * The post's workflow state, and everything that acts on it.
  *
  * @param {Object}      root0          Component props.
@@ -183,19 +172,14 @@ export function WorkflowPanel( { children } ) {
 	const [ toolFailures, setToolFailures ] = useState( null ); // For displaying blocked transition details
 	const [ warningsModal, setWarningsModal ] = useState( null ); // { toStatus, warnings, inputData, comment }
 	/*
-	 * The transition currently asking for input, and how far through it we are.
+	 * The transition currently asking for an assignee.
 	 *
-	 * A transition captures a LIST of inputs, so this is a queue rather than a
-	 * request: `pending` is what is still to be asked, `collected` is what has
-	 * been answered so far, and the transition fires once the queue drains. One
-	 * popover shows at a time — the one for `pending[0]` — because they anchor to
-	 * the same rail button and stacking them would put two dialogs on one point.
-	 *
-	 * Dismissing any of them abandons the whole transition, including answers
-	 * already given. That is the same promise the single popover made: nothing is
-	 * written until the move happens, so backing out costs the post nothing.
+	 * A transition carries at most one assignment — the write gate refuses two —
+	 * so this is one request, not a queue. Dismissing its popover abandons the
+	 * transition: nothing is written until the move happens, so backing out
+	 * costs the post nothing.
 	 */
-	const [ inputQueue, setInputQueue ] = useState( null ); // { toStatus, pending, collected, transitionLabel, anchor }
+	const [ assignmentRequest, setAssignmentRequest ] = useState( null ); // { toStatus, input, transitionLabel, anchor }
 	const [ showRefreshPrompt, setShowRefreshPrompt ] = useState( false ); // agent finished with unsaved edits open
 	const [ actionError, setActionError ] = useState( null ); // every action failure — shown as a Notice, not a browser dialog
 
@@ -304,10 +288,10 @@ export function WorkflowPanel( { children } ) {
 	useEffect( () => {
 		const offered = ( to ) => transitions.some( ( t ) => t.to === to );
 
-		if ( inputQueue && ! offered( inputQueue.toStatus ) ) {
-			setInputQueue( null );
+		if ( assignmentRequest && ! offered( assignmentRequest.toStatus ) ) {
+			setAssignmentRequest( null );
 		}
-	}, [ transitions, inputQueue ] );
+	}, [ transitions, assignmentRequest ] );
 
 	// Put this post in a workflow — or move it to a different one.
 	//
@@ -573,47 +557,17 @@ export function WorkflowPanel( { children } ) {
 		}
 	};
 
-	/*
-	 * Take one input's answer and move to the next, or go once nothing is left.
-	 *
-	 * Every answer is merged into one flat `meta_key => value` map, which is what
-	 * the server has always been handed — it is why two inputs on one transition
-	 * must not share a storage key, and why the editor and the write gate both
-	 * refuse a sequence where they do.
-	 */
-	// The input being asked for right now, or null when nothing is.
-	const currentInput = inputQueue?.pending[ 0 ] || null;
-
-	const advanceInputQueue = ( collectedFromInput ) => {
-		if ( ! inputQueue ) {
-			return;
-		}
-
-		const collected = { ...inputQueue.collected, ...collectedFromInput };
-		const pending = inputQueue.pending.slice( 1 );
-
-		if ( pending.length === 0 ) {
-			setInputQueue( null );
-			handleTransition( inputQueue.toStatus, false, collected );
-			return;
-		}
-
-		setInputQueue( { ...inputQueue, pending, collected } );
-	};
-
 	// Handle assignment selection (user, role, etc.)
 	const handleAssignmentSelect = ( selectedValue, notes = '' ) => {
-		const input = inputQueue?.pending[ 0 ];
-
-		if ( ! input ) {
+		if ( ! assignmentRequest ) {
 			return;
 		}
 
-		const metaKey = input.meta_key;
+		const metaKey = assignmentRequest.input.meta_key;
 		if ( ! metaKey ) {
 			console.error(
 				'Missing meta_key in assignment input configuration',
-				input
+				assignmentRequest.input
 			);
 			return;
 		}
@@ -623,7 +577,8 @@ export function WorkflowPanel( { children } ) {
 		const inputData = {
 			[ metaKey ]: selectedValue,
 			[ `${ metaKey }__name` ]:
-				input.label || __( 'Assignee', 'vip-workflows' ),
+				assignmentRequest.input.label ||
+				__( 'Assignee', 'vip-workflows' ),
 		};
 
 		// Add notes if provided
@@ -633,7 +588,8 @@ export function WorkflowPanel( { children } ) {
 			inputData[ `${ notesKey }__name` ] = __( 'Notes', 'vip-workflows' );
 		}
 
-		advanceInputQueue( inputData );
+		setAssignmentRequest( null );
+		handleTransition( assignmentRequest.toStatus, false, inputData );
 	};
 
 	// `anchor` is the rail button that was clicked: a transition that requires
@@ -692,27 +648,26 @@ export function WorkflowPanel( { children } ) {
 		}
 
 		/*
-		 * What this transition asks for, in the order the author arranged it.
+		 * The assignment this transition asks for, if any.
 		 *
-		 * An input of a kind this build has no popover for is dropped rather
-		 * than blocking the move: it can only arrive from a config written by
-		 * a newer version or an out-of-tree extension, and stopping the writer
-		 * dead on a field nothing can render would strand the post. The move
-		 * still happens; what that input would have captured is simply not.
+		 * An assignment is the only input the sidebar collects. Anything else a
+		 * stored transition carries — a retired note (`textarea`, or the older
+		 * `text`), or a kind this build does not know — is passed over rather
+		 * than allowed to block the move; the sequence editor lists it for the
+		 * author to remove.
 		 */
-		const pending = ( transition.inputs || [] ).filter( ( input ) =>
-			COLLECTABLE_INPUT_TYPES.includes( input?.type )
+		const input = ( transition.inputs || [] ).find(
+			( candidate ) => 'assignment' === candidate?.type
 		);
 
-		if ( pending.length === 0 ) {
+		if ( ! input ) {
 			handleTransition( transition.to );
 			return;
 		}
 
-		setInputQueue( {
+		setAssignmentRequest( {
 			toStatus: transition.to,
-			pending,
-			collected: {},
+			input,
 			transitionLabel: transition.label,
 			anchor,
 		} );
@@ -1262,25 +1217,26 @@ export function WorkflowPanel( { children } ) {
 				/>
 			) }
 
-			{ /* Whatever the transition is asking for right now — anchored to
-			     the rail transition that asked, one input at a time. Dismissing
-			     any of them (Close, Escape, click-outside) abandons the whole
-			     transition, answers already given included: nothing is written
+			{ /* The assignee the transition is asking for — anchored to the
+			     rail transition that asked. Dismissing it (Close, Escape,
+			     click-outside) abandons the transition: nothing is written
 			     until the move happens. */ }
-			{ currentInput && (
+			{ assignmentRequest && (
 				<TransitionAssignmentPopover
 					title={
-						currentInput.label ||
-						inputQueue.transitionLabel ||
+						assignmentRequest.input.label ||
+						assignmentRequest.transitionLabel ||
 						__( 'Select assignee', 'vip-workflows' )
 					}
-					anchor={ inputQueue.anchor }
-					assigneeType={ currentInput.assignee_type || 'user' }
-					roleFilter={ currentInput.filter?.roles || [] }
+					anchor={ assignmentRequest.anchor }
+					assigneeType={
+						assignmentRequest.input.assignee_type || 'user'
+					}
+					roleFilter={ assignmentRequest.input.filter?.roles || [] }
 					notesLabel={ __( 'Notes (optional)', 'vip-workflows' ) }
 					notesRequired={ false }
 					onSubmit={ handleAssignmentSelect }
-					onClose={ () => setInputQueue( null ) }
+					onClose={ () => setAssignmentRequest( null ) }
 				/>
 			) }
 

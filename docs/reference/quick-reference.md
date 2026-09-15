@@ -149,7 +149,7 @@ GET         /vip-workflows/v1/audit-log/users
 
 **Transition Inputs**:
 - A transition's `inputs` list carries at most one `assignment` (`meta_key`,
-  `assignee_type`, `label`, `required`, `filter`)
+  `assignee_type`, `label`, `filter`)
 - Frontend sends `inputData` — the assignee under the assignment's `meta_key`,
   plus optional `{meta_key}_notes` — during the transition
 - Backend stores in TWO places:

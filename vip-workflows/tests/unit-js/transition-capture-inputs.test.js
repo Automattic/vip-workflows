@@ -48,10 +48,10 @@ const note = ( noteName, id = 'n1' ) => ( {
 	meta_key: `wfp_${ id }_${ noteName.toLowerCase() }`,
 } );
 
-const assignment = ( label = 'Pick a reviewer' ) => ( {
+const assignment = () => ( {
 	type: 'assignment',
 	assignee_type: 'user',
-	label,
+	label: 'Pick a reviewer',
 	meta_key: 'wfp_n1abcde',
 } );
 
@@ -110,25 +110,39 @@ describe( 'Transition assignments', () => {
 		expect( addControl() ).toBeInTheDocument();
 	} );
 
-	it( 'lists a stored note as no longer collected, with nothing to fill in', async () => {
+	it( 'lists a stored note as no longer collected, with nothing to open', () => {
 		renderInspector( {
 			to: 'review',
 			inputs: [ note( 'Why' ), assignment() ],
 		} );
 
-		const row = screen.getByRole( 'button', { name: 'Configure Why' } );
-		expect( row ).toHaveTextContent( 'No longer collected' );
+		// An inert row with a tip, not a "Configure" button: a popover with
+		// nothing focusable in it could not be dismissed from the keyboard.
+		expect(
+			screen.queryByRole( 'button', { name: 'Configure Why' } )
+		).toBeNull();
+		expect( screen.getByText( 'No longer collected' ) ).toBeInTheDocument();
+		expect(
+			screen.getByRole( 'button', { name: 'About Why' } )
+		).toBeInTheDocument();
 
-		await act( async () => {
-			fireEvent.click( row );
+		// Stored notes to remove are what a shut section reports.
+		expect( screen.getByText( '1 input to remove' ) ).toBeInTheDocument();
+	} );
+
+	it( 'does not flag an assignment whose key a stored note also carries', () => {
+		// Only an assignment writes under its key, so a note's stale key is no
+		// collision.
+		renderInspector( {
+			to: 'review',
+			inputs: [
+				{ ...note( 'Why' ), meta_key: 'wfp_n1abcde' },
+				assignment(),
+			],
 		} );
 
-		expect(
-			screen.getByText( /Notes are no longer collected/ )
-		).toBeInTheDocument();
-		expect(
-			screen.queryByRole( 'textbox', { name: 'Note name' } )
-		).toBeNull();
+		expect( screen.queryByText( 'Duplicate key' ) ).toBeNull();
+		expect( screen.getByText( 'Assignment' ) ).toBeInTheDocument();
 	} );
 
 	it( 'removes the input the row belongs to, leaving the rest in order', async () => {

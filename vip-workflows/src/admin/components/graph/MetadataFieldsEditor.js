@@ -1,9 +1,8 @@
 /**
  * MetadataFieldsEditor — editorial metadata fields for a sequence.
  *
- * A sequence's metadata fields and a transition's capture inputs are the same
- * object at different scopes — a named, typed, optionally-required place to put
- * a value — so both are `InspectorFieldList`, and all that lives here is what
+ * A sequence's metadata fields are an ordered list of named, typed places to put
+ * a value, so they are an `InspectorFieldList`, and all that lives here is what
  * makes a metadata field a metadata field: its type options, its config form,
  * and what a new one starts as.
  *

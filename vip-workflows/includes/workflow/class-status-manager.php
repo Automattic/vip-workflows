@@ -553,8 +553,9 @@ class StatusManager {
 					'required_tools' => $transition['required_tools'] ?? array(),
 				);
 
-				// What the transition captures, in the order the author arranged
-				// it — the editor collects them in that order before the move.
+				// What the transition captures, as stored. The editor collects its
+				// assignment before the move and passes over anything else — a
+				// retired note a stored sequence may still carry.
 				if ( ! empty( $transition['inputs'] ) ) {
 					$mapped['inputs'] = $transition['inputs'];
 				}

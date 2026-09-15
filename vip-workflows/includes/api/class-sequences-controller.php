@@ -1065,13 +1065,11 @@ class SequencesController extends WP_REST_Controller {
 								$processed_input['meta_key'] = sanitize_key( $input['meta_key'] );
 							}
 							// A note is no longer collected, but one a stored
-							// sequence still carries keeps its name and id, so
-							// the editor can list it for the author to remove.
+							// sequence still carries keeps its name, so the
+							// editor can list it for the author to remove. Its
+							// id has no reader left and is dropped.
 							if ( ! empty( $input['note_name'] ) ) {
 								$processed_input['note_name'] = sanitize_text_field( $input['note_name'] );
-							}
-							if ( ! empty( $input['note_id'] ) ) {
-								$processed_input['note_id'] = sanitize_key( $input['note_id'] );
 							}
 							// Assignment-specific config.
 							if ( ! empty( $input['assignee_type'] ) ) {
@@ -1776,8 +1774,7 @@ class SequencesController extends WP_REST_Controller {
 	 * The assignment inputs a transition declares, keyed by their position in its
 	 * `inputs` list.
 	 *
-	 * A transition captures any number of inputs and at most one of them assigns
-	 * work — a cap the write gate enforces (see
+	 * A transition's `inputs` list holds at most one input that assigns work — a cap the write gate enforces (see
 	 * Sequence::prepare_config_for_write()). This returns them as a list anyway,
 	 * rather than the one: the two callers walk it, and a validator that assumed
 	 * the cap would stop reporting the very shape it is supposed to catch when the
