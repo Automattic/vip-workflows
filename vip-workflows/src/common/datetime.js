@@ -313,45 +313,13 @@ export function isSameDay( a, b ) {
 }
 
 /**
- * Whether one timestamp is strictly earlier than another.
- *
- * For the surfaces that compare two moments rather than show one — "did this
- * check run before the last edit?" — which still has to be asked on the
- * newsroom's clock, because that is the clock both moments were written on.
- *
- * It matters that this reads the timestamps the same way the formatters do.
- * The obvious shortcut is `new Date( a ) < new Date( b )`, and on most days it
- * agrees: two site-local strings both read in the browser's timezone are both
- * wrong by the same offset, and the offset cancels. It stops cancelling when
- * the browser observes daylight saving and the site does not, or observes it on
- * other dates — an hour that does not exist in the reader's timezone is shifted
- * forward when parsed, an hour that happens twice is ambiguous, and inside
- * those windows the two operands move by different amounts and the comparison
- * inverts. `getDate()` reads both on the site's clock, where the hour means
- * what it says.
- *
- * An absent end answers false, as it does for `isSameDay`: a check that has
- * never run and a post that has never been edited are both ordinary, and
- * neither puts one moment before another. A malformed timestamp is not
- * ordinary and is not handled here — it is a data integrity bug at whatever
- * wrote it.
- *
- * Strictly earlier, so two equal moments answer false.
- *
- * @param {string|Date} a First timestamp.
- * @param {string|Date} b Second timestamp.
- * @return {boolean} True when `a` is earlier than `b`.
- */
-export function isBefore( a, b ) {
-	return compareTimestamps( a, b ) < 0;
-}
-
-/**
  * Order two timestamps on the site's clock.
  *
  * Negative when `a` is the earlier moment, positive when it is the later one,
- * and zero when they are the same moment or when either is absent — the same
- * answer `isBefore` gives for a check that has never run.
+ * and zero when they are the same moment or when either is absent. An absent
+ * timestamp is ordinary — something that has not happened yet — and puts
+ * neither moment first; a malformed one is not handled here, because it is a
+ * data integrity bug at whatever wrote it.
  *
  * @param {string|Date} a First timestamp.
  * @param {string|Date} b Second timestamp.

@@ -35,6 +35,7 @@ import {
 	stageLabel,
 	isTransitionDisabled,
 	outcomesRoutedTo,
+	publishSettingFixesRoute,
 	START_ID,
 	END_ID,
 } from './graph-model';
@@ -129,6 +130,10 @@ function renderPanel( {
 	// SequenceSettingsInspector for the shape.
 	sequenceSettings,
 } ) {
+	// Strict `true`, as the runtime reads it (`StageAgentRunner::holds_publication`).
+	const allowAgentPublish =
+		sequenceSettings?.settings?.allow_agent_publish === true;
+
 	if ( selection?.type === 'region' ) {
 		const members = stages.filter(
 			( s ) => stageRegion( s ) === selection.region
@@ -163,6 +168,14 @@ function renderPanel( {
 				availableAgents={ availableAgents }
 				resolveStageLabel={ ( key ) => stageLabel( stages, key ) }
 				stageExists={ ( key ) => stages.some( ( s ) => s.key === key ) }
+				isTransitionDisabled={ ( to ) =>
+					isTransitionDisabled(
+						selectedStage,
+						to,
+						stages,
+						allowAgentPublish
+					)
+				}
 				isKeyInUse={ ( value ) =>
 					value !== selectedStage.key &&
 					stages.some( ( s ) => s.key === value )
@@ -224,6 +237,14 @@ function renderPanel( {
 		// editing both of them — which it has to say, since the canvas draws one
 		// edge per outcome and each looks like a transition of its own.
 		const sharing = outcomesRoutedTo( sourceStage, selection.to );
+		const disabled =
+			!! sourceStage &&
+			isTransitionDisabled(
+				sourceStage,
+				selection.to,
+				stages,
+				allowAgentPublish
+			);
 		return (
 			<TransitionInspector
 				transition={ selectedTransition }
@@ -231,10 +252,16 @@ function renderPanel( {
 				targetLabel={ stageLabel( stages, selection.to ) }
 				outcome={ selection.outcome || null }
 				sharedOutcomes={ sharing.length > 1 ? sharing : null }
-				disabled={
-					!! sourceStage &&
-					isTransitionDisabled( sourceStage, selection.to )
-				}
+				disabled={ disabled }
+				// Disabled with an outcome routed along it can only be the
+				// publish hold — an unrouted leftover has none. Keyed by the
+				// target, as `disabled` is, so a selection carrying no outcome
+				// (a legacy duplicate transition's row) gets the hold's notice too.
+				publishHeld={ disabled && sharing.length > 0 }
+				suggestAgentPublish={ publishSettingFixesRoute(
+					sourceStage,
+					selection.to
+				) }
 				availableRoles={ availableRoles }
 				availableTools={ availableTools }
 				toolsLoaded={ toolsLoaded }

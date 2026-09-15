@@ -135,44 +135,11 @@
 	margin-left: 28px; /* wpds-allow R2 -- the track's TARGET_INSET; the END pill rides the rail like a button */
 }
 
-/* --- Check dependencies --------------------------------------------------- */
+/* --- Agent outcomes ------------------------------------------------------- */
 
-/* Nested under the transition they gate, past its border: no edge, no
-   arrowhead — a check is a precondition on the move, not somewhere the post
-   goes. */
-.vip-workflows-rail__dep {
-	margin: var( --wpds-dimension-gap-xs ) 0 0 34px; /* wpds-allow R2 -- nests the dependency row under its transition, clear of the track */
-}
-
-.vip-workflows-rail__dep-indicator {
-	display: flex; /* wpds-allow R4 -- centres a 14px state mark in a fixed 14px column; registration for the drawing, not layout */
-	flex: 0 0 14px;
-	align-items: center;
-	justify-content: center;
-	width: 14px;
-	height: 32px;
-}
-
-.vip-workflows-rail__dep-spinner.components-spinner {
-	width: 13px;
-	height: 13px;
-	margin: 0; /* wpds-allow R2 -- cancels the Spinner's own outer margin so it fits the 14px indicator column */
-}
-
-.vip-workflows-rail__check.components-button {
-	flex: 1 1 auto;
-	justify-content: flex-start;
-}
-
-/* The state mark: the sequence editor's outcome glyphs (check / cross /
-   triangle), state held OUTSIDE the control that acts on it. The tone names
-   the verdict, always at full strength — the drawn dot wore age as a ring of
-   its tone, but a glyph has no hollow variant and a faded tone fails the 3:1
-   non-text contrast floor, so a stale result keeps its full-tone glyph and
-   the age lives in words (the indicator's title and the visible stale note;
-   the `--stale` class is the state hook and draws nothing). The neutral dash
-   (`--none`) = never asked. Inside an agent outcome button the mark rides the
-   Button's icon slot, which owns the icon–label spacing. */
+/* The sequence editor's outcome glyphs (check / cross / triangle), each in
+   its tone, riding the agent outcome button's icon slot — which owns the
+   icon–label spacing. */
 .vip-workflows-rail__outcome {
 	flex: 0 0 auto;
 	/* wpds-allow R6 -- <Icon> exposes no tone prop; the outcome tone must be set here. */
@@ -189,87 +156,4 @@
 
 .vip-workflows-rail__outcome--error {
 	--wf-outcome-tone: var( --wf-outcome-error );
-}
-
-.vip-workflows-rail__outcome--none {
-	--wf-outcome-tone: var( --wpds-color-stroke-surface-neutral );
-}
-
-/* --- Check details -------------------------------------------------------- */
-
-.vip-workflows-rail__issues {
-	width: calc( 100% - 56px );
-	margin: var( --wpds-dimension-gap-xs ) 0 0 56px; /* wpds-allow R2 -- aligned under the check button, past indicator and inset */
-}
-
-.vip-workflows-rail__stale-note {
-	margin: var( --wpds-dimension-gap-xs ) 0 0 56px; /* wpds-allow R2 -- aligned under the check button, past indicator and inset */
-	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
-	color: var( --wpds-color-foreground-content-neutral-weak );
-}
-
-.vip-workflows-rail__rollup {
-	font-weight: 600; /* wpds-allow R5 -- the roll-up is the one emphasised line of the details; <Text> exposes no weight prop */
-}
-
-.vip-workflows-rail__rollup--hard {
-	/* wpds-allow R6 -- <Text> styles typography only; the outcome tone has to be set here. */
-	color: var( --wf-outcome-fail );
-}
-
-.vip-workflows-rail__rollup--soft {
-	/* wpds-allow R6 -- <Text> styles typography only; the outcome tone has to be set here. */
-	color: var( --wf-outcome-error );
-}
-
-.vip-workflows-rail__issue {
-	position: relative;
-	padding-left: 9px; /* wpds-allow R2 -- room for the drawn 3px bullet */
-	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
-	color: var( --wpds-color-foreground-content-neutral-weak );
-}
-
-.vip-workflows-rail__issue::before {
-	content: '';
-	position: absolute;
-	top: 8px; /* wpds-allow R2 -- optical alignment of the drawn bullet to the first text line */
-	left: 1px; /* wpds-allow R2 -- optical alignment of the drawn bullet */
-	width: 3px;
-	height: 3px;
-	border-radius: var( --vip-workflows-border-radius-full );
-	background: var( --wpds-color-stroke-surface-neutral );
-}
-
-/* A line whose grade differs from the roll-up carries its own word. */
-.vip-workflows-rail__issue-grade {
-	margin-right: var( --wpds-dimension-gap-xs );
-	font-weight: 600; /* wpds-allow R5 -- the grade word is emphasised inline; <Text> exposes no weight prop */
-}
-
-.vip-workflows-rail__issue--hard .vip-workflows-rail__issue-grade {
-	/* wpds-allow R6 -- <Text> styles typography only; the outcome tone has to be set here. */
-	color: var( --wf-outcome-fail );
-}
-
-.vip-workflows-rail__issue--soft .vip-workflows-rail__issue-grade {
-	/* wpds-allow R6 -- <Text> styles typography only; the outcome tone has to be set here. */
-	color: var( --wf-outcome-error );
-}
-
-.vip-workflows-rail__more,
-.vip-workflows-rail__full-result.components-button {
-	align-self: flex-start;
-}
-
-.vip-workflows-rail__more {
-	padding: 0;
-	font: var( --vip-workflows-text-body-sm ); /* wpds-allow R6 -- Collapsible.Trigger exposes no typography prop, so the UA button font is replaced here */
-	color: var( --wpds-color-foreground-interactive-brand ); /* wpds-allow R6 -- Collapsible.Trigger exposes no tone prop; <Link tone="brand"> carries the colour but underlines at rest, which this control must not do */
-	background: none; /* wpds-allow R6 -- Collapsible.Trigger has no unstyled/plain variant, so the UA button surface is taken away here */
-	border: none; /* wpds-allow R6 -- the same UA button box (see above) */
-	cursor: pointer;
-}
-
-.vip-workflows-rail__more:hover {
-	text-decoration: underline; /* wpds-allow R6 -- the underline-on-hover-only affordance no Collapsible.Trigger or <Link> variant offers */
 }

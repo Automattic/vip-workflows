@@ -40,8 +40,9 @@ the sidebar's own readouts and split one feature across two places.
   post belongs to, assignment and claim, stage-agent states, the transition
   rail, the metadata slot, and the footer actions (Show history, Remove from
   workflow)
-- `TransitionRail.js` — the current stage, every way out of it, and the checks
-  each way out depends on, drawn as one figure
+- `TransitionRail.js` — the current stage and every way out of it, drawn as
+  one figure. A transition's required tools are not listed: they run when it
+  fires, and a refusal opens `ToolFailuresModal`
 - `WorkflowHistoryModal.js` — the transition trail, as a DataViews activity
   stream in a dialog. Code-split: DataViews is bundled rather than externalized,
   so it loads on first open

@@ -98,7 +98,6 @@ import {
 	agentOutcomeLabel,
 	edgeId,
 	isAgentStage,
-	isTransitionDisabled,
 	stageRegion,
 	reorderList,
 	transitionLabel,
@@ -245,6 +244,9 @@ export default function StageInspector( {
 	availableAgents = [],
 	resolveStageLabel,
 	stageExists,
+	// ( targetKey ) => boolean. Needs the whole sequence and its settings
+	// (`isTransitionDisabled`), which this panel is not handed.
+	isTransitionDisabled,
 } ) {
 	// The Key field edits a local draft so a rename onto another stage's key
 	// can be refused (updateStage rejects it — two stages sharing a key would
@@ -635,17 +637,41 @@ export default function StageInspector( {
 														)
 												  )
 												: agentOutcomeLabel( outcome );
+											// A route the runtime holds because
+											// it publishes is claimed like any
+											// other, and no more usable than an
+											// unclaimed leftover — so it says so
+											// the way the rows below do.
+											const disabled =
+												Boolean( claimed ) &&
+												isTransitionDisabled( target );
 											return (
 												<Fact
 													key={ outcome }
-													className={ `wf-stage-inspector__route is-${ outcome }` }
+													className={ [
+														'wf-stage-inspector__route',
+														`is-${ outcome }`,
+														disabled &&
+															'is-disabled',
+													]
+														.filter( Boolean )
+														.join( ' ' ) }
 													label={ rowLabel }
 													value={
-														destination ||
-														__(
-															'Not routed',
-															'vip-workflows'
-														)
+														disabled
+															? sprintf(
+																	/* translators: %s: destination stage label */
+																	__(
+																		'%s (disabled)',
+																		'vip-workflows'
+																	),
+																	destination
+															  )
+															: destination ||
+															  __(
+																	'Not routed',
+																	'vip-workflows'
+															  )
 													}
 													empty={ ! destination }
 													onSelect={
@@ -693,7 +719,6 @@ export default function StageInspector( {
 												// brings it back.
 												const disabled =
 													isTransitionDisabled(
-														stage,
 														transition.to
 													);
 												const destination =

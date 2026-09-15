@@ -405,17 +405,53 @@ class StatusManager {
 	 * filter (the editor payload does via get_available_transitions(); My Queue
 	 * builds its quick actions from Sequence::get_transitions_for_user directly).
 	 *
-	 * @param  ?array $status The stage's sequence config.
+	 * A route the runner holds because it publishes
+	 * (StageAgentRunner::holds_publication) is left out too while the agent owns
+	 * the stage: the agent will not take it, and the editor draws it disabled.
+	 * Once the stage is released (see agent_owns_stage_exits) it comes back —
+	 * the agent is not going to move the post, and withholding the route would
+	 * strand a post whose only routes publish. Pass the post to get that
+	 * answer; without one the route is always left out.
+	 *
+	 * @param  Sequence $sequence The sequence the stage belongs to.
+	 * @param  ?array   $status   The stage's sequence config.
+	 * @param  int      $post_id  Post sitting in the stage, or 0 to judge the stage alone.
 	 * @return array|null Routed destination keys, or null when the stage has no agent.
 	 */
-	public function agent_routed_targets( ?array $status ): ?array {
+	public function agent_routed_targets( Sequence $sequence, ?array $status, int $post_id = 0 ): ?array {
 		if ( ! is_array( $status ) || empty( $status['agent']['ability_id'] ) ) {
 			return null;
 		}
 
-		$routing = is_array( $status['agent']['routing'] ?? null ) ? $status['agent']['routing'] : array();
+		$routing  = is_array( $status['agent']['routing'] ?? null ) ? $status['agent']['routing'] : array();
+		$targets  = array_unique( array_filter( array_map( 'strval', $routing ) ) );
+		$from_key = (string) $status['key'];
 
-		return array_values( array_filter( array_map( 'strval', $routing ) ) );
+		if ( $post_id && ! $this->agent_owns_stage_exits( $post_id, $from_key, $status ) ) {
+			return array_values( $targets );
+		}
+
+		return array_values(
+			array_filter(
+				$targets,
+				function ( string $to ) use ( $sequence, $from_key ): bool {
+					// The hold is judged on both ends' regions. Where either cannot be
+					// read — a stage the sequence does not define, or one stored without
+					// a region — the target stays in: transition() refuses it on its own
+					// terms (invalid_transition / stage_region_missing), where a throw
+					// here would take down every surface that lists transitions, and
+					// holds_publication()'s fail-closed '' for an unreadable AI stage
+					// stays the runner's alone.
+					try {
+						$sequence->get_stage_status( $from_key );
+
+						return ! StageAgentRunner::holds_publication( $sequence, $from_key, $to );
+					} catch ( \InvalidArgumentException $e ) {
+						return true;
+					}
+				}
+			)
+		);
 	}
 
 	/**
@@ -494,7 +530,7 @@ class StatusManager {
 		// take — see agent_routed_targets(). Applied whenever the stage offers
 		// anything at all, so an unrouted transition never appears here in any
 		// job state.
-		$routed_targets = $this->agent_routed_targets( is_array( $stage_config ) ? $stage_config : null );
+		$routed_targets = $this->agent_routed_targets( $sequence, is_array( $stage_config ) ? $stage_config : null, $post_id );
 
 		// Map transitions to include full status info.
 		$result = array();
@@ -631,13 +667,23 @@ class StatusManager {
 		// a hand-built REST call cannot take an edge no surface shows. The agent
 		// itself and the go-back are the two sanctioned exceptions.
 		if ( ! $is_agent_actor && ! $is_revert ) {
-			$routed_targets = $this->agent_routed_targets( $sequence->get_status( $current_stage ) );
+			$current_config = $sequence->get_status( $current_stage );
+			$routed_targets = $this->agent_routed_targets( $sequence, $current_config, $post_id );
 			if ( null !== $routed_targets && ! in_array( $to_status, $routed_targets, true ) ) {
-				return new \WP_Error(
-					'unrouted_agent_exit',
-					__( 'This stage belongs to an AI agent; only the destinations its outcomes route to can be taken.', 'vip-workflows' ),
-					array( 'status' => 403 )
-				);
+				// A destination an outcome does route to was withheld because the
+				// route publishes. Saying it is unrouted would point away from the
+				// sequence setting that is the actual cause.
+				$routing = is_array( $current_config['agent']['routing'] ?? null ) ? array_map( 'strval', $current_config['agent']['routing'] ) : array();
+
+				if ( ! in_array( $to_status, $routing, true ) ) {
+					$message = __( 'This stage belongs to an AI agent; only the destinations its outcomes route to can be taken.', 'vip-workflows' );
+				} elseif ( StageAgentRunner::publish_setting_fixes_route( $routing, $to_status ) ) {
+					$message = __( 'This stage belongs to an AI agent, and its route to this destination publishes. This sequence doesn’t allow AI stages to publish, so the route stays closed while the agent owns this stage. Edit the sequence to route that outcome to a stage before publishing, or turn on "Let AI stages publish".', 'vip-workflows' );
+				} else {
+					$message = __( 'This stage belongs to an AI agent, and its route to this destination publishes. This sequence doesn’t allow AI stages to publish, so the route stays closed while the agent owns this stage. Edit the sequence to route that outcome to a stage before publishing.', 'vip-workflows' );
+				}
+
+				return new \WP_Error( 'unrouted_agent_exit', $message, array( 'status' => 403 ) );
 			}
 		}
 

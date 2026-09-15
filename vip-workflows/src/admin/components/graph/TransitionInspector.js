@@ -206,6 +206,8 @@ export default function TransitionInspector( {
 	outcome = null,
 	sharedOutcomes = null,
 	disabled = false,
+	publishHeld = false,
+	suggestAgentPublish = false,
 	availableRoles,
 	availableTools,
 	toolsLoaded = false,
@@ -394,6 +396,13 @@ export default function TransitionInspector( {
 			// all of them at once. A disabled transition says that up front,
 			// since it looks like any other once its options are open.
 			eyebrow={ ( () => {
+				if ( disabled && outcome ) {
+					return sprintf(
+						/* translators: %s: agent outcome names, e.g. "On pass". */
+						__( '%s · Disabled', 'vip-workflows' ),
+						agentOutcomeNames( sharedOutcomes || [ outcome ] )
+					);
+				}
 				if ( sharedOutcomes ) {
 					return agentOutcomeNames( sharedOutcomes );
 				}
@@ -411,12 +420,36 @@ export default function TransitionInspector( {
 				     configure it — the alternative is an author filling in
 				     roles and tools with no hint that the stage's agent has
 				     taken the exit over. */ }
-				{ disabled && (
+				{ disabled && ! publishHeld && (
 					<Notice status="warning" isDismissible={ false }>
 						{ __(
 							'This transition is disabled. An agent runs this stage and routes content onward by outcome, so nobody can use this. It keeps its settings — routing an outcome along it, or removing the stage’s agent, makes it live again.',
 							'vip-workflows'
 						) }
+					</Notice>
+				) }
+				{ /* A route into a publishing stage is disabled unless the
+				     sequence opts in — a different cause, and fix, from an
+				     unrouted leftover, so it gets its own sentence. */ }
+				{ publishHeld && (
+					<Notice status="warning" isDismissible={ false }>
+						{ suggestAgentPublish
+							? sprintf(
+									/* translators: %s: destination stage name. */
+									__(
+										'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so the agent stops instead of taking it. It keeps its settings — turning on “Let AI stages publish” in the sequence settings makes it live again, or route this outcome to a stage before publishing.',
+										'vip-workflows'
+									),
+									targetLabel
+							  )
+							: sprintf(
+									/* translators: %s: destination stage name. */
+									__(
+										'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so the agent stops instead of taking it. It keeps its settings — route failures and errors to a stage before publishing; turning on “Let AI stages publish” would publish failed runs too.',
+										'vip-workflows'
+									),
+									targetLabel
+							  ) }
 					</Notice>
 				) }
 				{ /* Two of the agent's outcomes leading to one destination are

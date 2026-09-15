@@ -18,7 +18,6 @@ import {
 	formatDateTime,
 	formatPartialDate,
 	formatTime,
-	isBefore,
 	isSameDay,
 	machineDate,
 	machineDateTime,
@@ -260,55 +259,6 @@ describe( 'datetime', () => {
 			expect( isSameDay( undefined, '2026-08-14T06:45:00Z' ) ).toBe(
 				false
 			);
-		} );
-	} );
-
-	describe( 'isBefore', () => {
-		it( 'orders two site-local timestamps', () => {
-			// The shape the transition rail asks in: a stored check result
-			// (`current_time( 'mysql' )`) against the editor's `modified`, both
-			// site-local wall clock with no offset on either.
-			expect(
-				isBefore( '2026-08-14 09:00:00', '2026-08-14T10:00:00' )
-			).toBe( true );
-			expect(
-				isBefore( '2026-08-14 11:00:00', '2026-08-14T10:00:00' )
-			).toBe( false );
-		} );
-
-		it( 'is false for the same moment written two ways', () => {
-			// Strictly earlier, so equality is not "before" — a check that ran
-			// on the same second as the last edit is not stale.
-			expect(
-				isBefore( '2026-08-14 10:00:00', '2026-08-14T10:00:00' )
-			).toBe( false );
-		} );
-
-		it( 'reads both ends on the site clock', () => {
-			// An offsetless string is the site's wall clock, so in Tokyo this
-			// pair is 09:00 and 10:00 JST — 00:00 and 01:00 UTC. Read on the
-			// browser's clock instead they would still be an hour apart, which
-			// is why the assertion that matters is the mixed one below.
-			expect(
-				isBefore( '2026-08-14 09:00:00', '2026-08-14T01:30:00Z' )
-			).toBe( true );
-
-			// 09:00 JST is 00:00 UTC, so an explicit UTC stamp half an hour
-			// earlier really is earlier — something a comparison that ignored
-			// the offset on one end and not the other would get backwards.
-			expect(
-				isBefore( '2026-08-13T23:30:00Z', '2026-08-14 09:00:00' )
-			).toBe( true );
-		} );
-
-		it( 'is false when either end is missing', () => {
-			// A check that has never run, or a post never edited since it was
-			// created. Both ordinary; neither is "before" the other.
-			expect( isBefore( null, '2026-08-14T10:00:00' ) ).toBe( false );
-			expect( isBefore( '2026-08-14T10:00:00', undefined ) ).toBe(
-				false
-			);
-			expect( isBefore( '', '2026-08-14T10:00:00' ) ).toBe( false );
 		} );
 	} );
 

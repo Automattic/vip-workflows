@@ -226,15 +226,16 @@ export function parseEdgeId( id ) {
  * exists are skipped (and reported by `validateSequence`) so React Flow never
  * sees a dangling edge.
  *
- * @param {Array}    stages                    Stage objects.
- * @param {Object}   [options]                 View options.
- * @param {string}   [options.selectedNodeKey] Currently selected stage key.
- * @param {string}   [options.selectedEdgeId]  Currently selected edge id.
- * @param {Object}   [options.warnings]        `{ stageKey: string[] }` from `validateSequence`.
- * @param {boolean}  [options.isPhase]         Phase sequence (no terminal flag or status region).
- * @param {string[]} [options.regions]         Status regions to draw a group for
- *                                             (see `visibleRegions`). Empty (the
- *                                             default) draws no groups.
+ * @param {Array}    stages                      Stage objects.
+ * @param {Object}   [options]                   View options.
+ * @param {string}   [options.selectedNodeKey]   Currently selected stage key.
+ * @param {string}   [options.selectedEdgeId]    Currently selected edge id.
+ * @param {Object}   [options.warnings]          `{ stageKey: string[] }` from `validateSequence`.
+ * @param {boolean}  [options.isPhase]           Phase sequence (no terminal flag or status region).
+ * @param {string[]} [options.regions]           Status regions to draw a group for
+ *                                               (see `visibleRegions`). Empty (the
+ *                                               default) draws no groups.
+ * @param {boolean}  [options.allowAgentPublish] The sequence's `allow_agent_publish`.
  * @return {{ nodes: Array, edges: Array }} React Flow graph.
  */
 export function buildGraph( stages, options = {} ) {
@@ -244,6 +245,7 @@ export function buildGraph( stages, options = {} ) {
 		warnings = {},
 		isPhase = false,
 		regions = [],
+		allowAgentPublish = false,
 	} = options;
 
 	const keys = new Set( stages.map( ( s ) => s.key ) );
@@ -318,7 +320,15 @@ export function buildGraph( stages, options = {} ) {
 						keys.has( t.to ) &&
 						// `isAgent` rather than the stage directly, so phase
 						// mode counts the same transitions it draws.
-						! ( isAgent && isTransitionDisabled( stage, t.to ) )
+						! (
+							isAgent &&
+							isTransitionDisabled(
+								stage,
+								t.to,
+								stages,
+								allowAgentPublish
+							)
+						)
 				).length,
 				warnings: stageWarnings,
 			},
@@ -352,10 +362,19 @@ export function buildGraph( stages, options = {} ) {
 			// leaving its own handle, rather than one ambiguous line. A
 			// transition no outcome claims still draws once, unattributed —
 			// and disabled, because the agent owns every way out of the stage.
+			// A routed one whose route publishes is disabled too
+			// (`isTransitionDisabled`), and keeps its per-outcome edges.
 			const claimed = routing
 				? outcomesRoutedTo( stage, transition.to )
 				: [];
-			const disabled = Boolean( routing ) && claimed.length === 0;
+			const disabled =
+				Boolean( routing ) &&
+				isTransitionDisabled(
+					stage,
+					transition.to,
+					stages,
+					allowAgentPublish
+				);
 			const variants = claimed.length > 0 ? claimed : [ null ];
 			variants.forEach( ( outcome, index ) => {
 				const id = edgeId( stage.key, transition.to, outcome );
@@ -1025,24 +1044,82 @@ function setRouting( stages, key, changes ) {
  * holds is therefore inert — it is not offered to anyone in the post editor, and
  * the canvas draws it greyed out.
  *
+ * A routed transition is disabled too when its route publishes and the sequence
+ * has not opted in (`heldPublishOutcomes`): the agent will not take it, and the
+ * server withholds it from people the same way.
+ *
  * Derived rather than stored. A `disabled` field written onto the transition
  * would be a second source of truth for something `agent.ability_id` already
  * answers, and would go stale the moment the agent is cleared or a route moves.
- * Nothing is ever deleted for this: clearing the agent brings every transition
- * back, configuration intact.
+ * Nothing is ever deleted for this: clearing the agent, or turning on
+ * `allow_agent_publish`, brings every transition back, configuration intact.
  *
- * @param {Object} stage     The stage the transition leaves.
- * @param {string} targetKey The transition's target stage key.
+ * @param {Object}  stage             The stage the transition leaves.
+ * @param {string}  targetKey         The transition's target stage key.
+ * @param {Array}   stages            Every stage in the sequence.
+ * @param {boolean} allowAgentPublish The sequence's `allow_agent_publish`.
  * @return {boolean} True when the transition cannot be used.
  */
-export function isTransitionDisabled( stage, targetKey ) {
+export function isTransitionDisabled(
+	stage,
+	targetKey,
+	stages,
+	allowAgentPublish
+) {
 	// Not the same question as "is the list empty". A stage with no agent has
 	// no outcomes at all, and its transitions are the ordinary usable kind —
 	// only an agent-owned stage disables what none of its outcomes claims.
 	if ( ! isAgentStage( stage ) ) {
 		return false;
 	}
-	return outcomesRoutedTo( stage, targetKey ).length === 0;
+	const outcomes = outcomesRoutedTo( stage, targetKey );
+	// Outcomes sharing a target share its region, so one answers for all.
+	return (
+		outcomes.length === 0 ||
+		heldPublishOutcomes( stage, stages, allowAgentPublish ).includes(
+			outcomes[ 0 ]
+		)
+	);
+}
+
+/**
+ * The regions an agent may not route into unless the sequence opts in —
+ * `StageAgentRunner::PUBLICATION_REGIONS`.
+ */
+const PUBLICATION_REGIONS = [ 'publish', 'private' ];
+
+/**
+ * Which of an agent's outcomes the runtime will refuse to take because the
+ * route publishes.
+ *
+ * Mirrors `StageAgentRunner::holds_publication()`: a route from outside the
+ * publish/private regions into one of them is held unless the sequence sets
+ * `allow_agent_publish`. The agent stops instead of taking it, and
+ * `StatusManager::agent_routed_targets()` withholds it from people while the
+ * agent owns the stage, so a held route is a disabled transition
+ * (`isTransitionDisabled`).
+ *
+ * @param {Object}  stage             The AI stage.
+ * @param {Array}   stages            Every stage in the sequence.
+ * @param {boolean} allowAgentPublish The sequence's `allow_agent_publish`.
+ * @return {Array} Held outcome keys in `AGENT_OUTCOMES` order.
+ */
+export function heldPublishOutcomes( stage, stages, allowAgentPublish ) {
+	if (
+		allowAgentPublish ||
+		! isAgentStage( stage ) ||
+		PUBLICATION_REGIONS.includes( stageRegion( stage ) )
+	) {
+		return [];
+	}
+	const routing = stage.agent.routing || {};
+	return AGENT_OUTCOMES.filter( ( outcome ) => {
+		const target = stages.find( ( s ) => s.key === routing[ outcome ] );
+		return (
+			Boolean( target ) &&
+			PUBLICATION_REGIONS.includes( stageRegion( target ) )
+		);
+	} );
 }
 
 /**
@@ -1070,6 +1147,23 @@ export function outcomesRoutedTo( stage, targetKey ) {
 	return AGENT_OUTCOMES.filter(
 		( outcome ) => routing[ outcome ] === targetKey
 	);
+}
+
+/**
+ * Whether turning on `allow_agent_publish` is advice worth giving for a held
+ * route to a target.
+ *
+ * Only when a pass verdict alone leads there. With fail or error routed there
+ * too, the setting would publish failed and errored runs — the cheap way around
+ * the boundary. Mirrors `StageAgentRunner::publish_setting_fixes_route()`.
+ *
+ * @param {Object} stage     The AI stage.
+ * @param {string} targetKey The held destination.
+ * @return {boolean} True when the setting is a safe fix to suggest.
+ */
+export function publishSettingFixesRoute( stage, targetKey ) {
+	const outcomes = outcomesRoutedTo( stage, targetKey );
+	return outcomes.length === 1 && outcomes[ 0 ] === 'pass';
 }
 
 /**
@@ -1562,12 +1656,17 @@ export function reconnectEdgeToNewStage( stages, from, to, options = {} ) {
 	// unrouted edge is a path no content travels (`validateSequence` does not
 	// walk them either), so a stage grown off one would be flagged unreachable
 	// the moment it appeared.
+	//
+	// The publish hold is left out (`allowAgentPublish` as true): it is a
+	// sequence setting, not a fact about the gesture, and refusing to create a
+	// stage the author dragged into a published band would only hide the
+	// disabled edge the canvas is about to explain.
 	const source = moved.stages.find( ( s ) => s.key === from );
 	const reached =
 		from === START_ID
 			? entryStageKey( moved.stages ) === key
 			: Boolean( findTransition( moved.stages, from, key ) ) &&
-			  ! isTransitionDisabled( source, key );
+			  ! isTransitionDisabled( source, key, moved.stages, true );
 	if ( ! reached ) {
 		return { stages, key: null };
 	}
@@ -1668,6 +1767,10 @@ function gateSlotKey( requirement ) {
  *                                               `/abilities?context=stage`,
  *                                               used to warn when a stage's
  *                                               agent cannot run.
+ * @param {boolean} [params.allowAgentPublish]   The sequence's
+ *                                               `allow_agent_publish`, used to
+ *                                               warn on agent routes the
+ *                                               runtime will hold.
  * @return {{ valid: boolean, errors: string[], warnings: Object }} Result.
  *         `errors` block Save; `warnings` is `{ stageKey: string[] }` for nodes.
  *         A rule the server would refuse the save for appears in both, so the
@@ -1682,6 +1785,7 @@ export function validateSequence( {
 	isPhase = false,
 	requiredTransitions = [],
 	agents = [],
+	allowAgentPublish = false,
 } ) {
 	const errors = [];
 	const warnings = {};
@@ -1869,6 +1973,10 @@ export function validateSequence( {
 	// never joined to the End node, and those are the stages it would be.
 	const deadEnds = [];
 
+	// Stages an agent route leads to that the runtime holds for publishing,
+	// gathered for the reachability warning further down.
+	const heldTargets = new Set();
+
 	for ( const stage of stages ) {
 		// Each half named on its own, because the fix differs and so does what
 		// breaks: a stage with no name is one writers meet as a blank on the
@@ -1907,15 +2015,27 @@ export function validateSequence( {
 			);
 		}
 
+		// The agent's routes the runtime holds for publishing.
+		const held = heldPublishOutcomes( stage, stages, allowAgentPublish );
+		held.forEach( ( outcome ) =>
+			heldTargets.add( stage.agent.routing[ outcome ] )
+		);
+
 		// A non-terminal stage with no *usable* way out traps content. On an AI
 		// stage that means its agent routes: the transitions no outcome claims
 		// are disabled, so counting them here would call a trap a way out.
 		const outgoing = ( stage.transitions || [] ).filter(
-			( t ) => keys.has( t.to ) && ! isTransitionDisabled( stage, t.to )
+			( t ) =>
+				keys.has( t.to ) &&
+				! isTransitionDisabled( stage, t.to, stages, allowAgentPublish )
 		);
 		const isTerminal = ! isPhase && Boolean( stage.is_terminal );
 		if ( ! isTerminal && outgoing.length === 0 ) {
 			deadEnds.push( stage );
+		}
+		// An agent whose only routes are held for publishing does route
+		// somewhere; the held-route warning below says why content stops.
+		if ( ! isTerminal && outgoing.length === 0 && held.length === 0 ) {
 			addWarning(
 				stage.key,
 				isAgentStage( stage )
@@ -1973,6 +2093,35 @@ export function validateSequence( {
 						)
 					);
 				}
+			}
+
+			// A route into a publishing stage is a warning, not a blocker: the
+			// server stores it, and turning the setting on revives it. But a run
+			// that takes it stops in place with no forward exit, so say so here
+			// rather than on the first post that gets stuck.
+			for ( const outcome of held ) {
+				addWarning(
+					stage.key,
+					publishSettingFixesRoute( stage, routing[ outcome ] )
+						? sprintf(
+								/* translators: 1: agent outcome label, 2: target stage key */
+								__(
+									'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Turn on “Let AI stages publish” in the sequence settings, or route it to a stage before publishing.',
+									'vip-workflows'
+								),
+								agentOutcomeLabel( outcome ),
+								routing[ outcome ]
+						  )
+						: sprintf(
+								/* translators: 1: agent outcome label, 2: target stage key */
+								__(
+									'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Route it to a stage before publishing.',
+									'vip-workflows'
+								),
+								agentOutcomeLabel( outcome ),
+								routing[ outcome ]
+						  )
+				);
 			}
 		}
 
@@ -2239,14 +2388,28 @@ export function validateSequence( {
 			const key = pending.pop();
 			const from = stages.find( ( s ) => s.key === key );
 			( from.transitions || [] ).forEach( ( t ) => {
-				if ( ! isTransitionDisabled( from, t.to ) ) {
+				if (
+					! isTransitionDisabled(
+						from,
+						t.to,
+						stages,
+						allowAgentPublish
+					)
+				) {
 					reach( t.to );
 				}
 			} );
 		}
 
 		stages
-			.filter( ( stage ) => ! reachable.has( stage.key ) )
+			.filter(
+				( stage ) =>
+					! reachable.has( stage.key ) &&
+					// A held route leads here. The stage it leaves already says why
+					// content stops short of this one, and "no transition leads here"
+					// would send the author to add one that exists.
+					! heldTargets.has( stage.key )
+			)
 			.forEach( ( stage ) => {
 				addWarning(
 					stage.key,
