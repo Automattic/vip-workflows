@@ -12,6 +12,16 @@
 	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted empty-state tone; Stack has no color prop */
 }
 
+/* Inner padding for the DataViews panel. On a built-in (non-composed) layout,
+   DataViews' own chrome (`.dataviews__view-actions`, `.dataviews-footer`)
+   supplies this inset itself. My Work free-composes (see CardGridView.css for
+   the same note on that panel) to slot in the "Group by" control DataViews'
+   default UI doesn't offer, which renders every child bare — without this the
+   toolbar sits flush against `.vip-workflows-card-surface`'s border. */
+.vip-workflows-my-work-panel {
+	padding: var(--wpds-dimension-padding-lg) var(--wpds-dimension-padding-2xl);
+}
+
 /* Muted empty-state text now uses the shared `vip-workflows-description` helper
    (see admin-page.css) rather than wp-admin's `.description`. */
 

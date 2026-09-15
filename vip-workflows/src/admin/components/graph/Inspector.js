@@ -21,7 +21,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from '@wordpress/element';
 import { Stack, Text } from '@wordpress/ui';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 import InspectorShell, { InspectorCollapseContext } from './InspectorShell';
 import StageInspector from './StageInspector';
@@ -36,6 +36,7 @@ import {
 	isTransitionDisabled,
 	outcomesRoutedTo,
 	canReconnect,
+	publishSettingFixesRoute,
 	START_ID,
 	END_ID,
 } from './graph-model';
@@ -136,6 +137,10 @@ function renderPanel( {
 	// SequenceSettingsInspector for the shape.
 	sequenceSettings,
 } ) {
+	// Strict `true`, as the runtime reads it (`StageAgentRunner::holds_publication`).
+	const allowAgentPublish =
+		sequenceSettings?.settings?.allow_agent_publish === true;
+
 	if ( selection?.type === 'region' ) {
 		const members = stages.filter(
 			( s ) => stageRegion( s ) === selection.region
@@ -215,6 +220,14 @@ function renderPanel( {
 				availableAgents={ availableAgents }
 				resolveStageLabel={ ( key ) => stageLabel( stages, key ) }
 				stageExists={ ( key ) => stages.some( ( s ) => s.key === key ) }
+				isTransitionDisabled={ ( to ) =>
+					isTransitionDisabled(
+						selectedStage,
+						to,
+						stages,
+						allowAgentPublish
+					)
+				}
 				isKeyInUse={ ( value ) =>
 					value !== selectedStage.key &&
 					stages.some( ( s ) => s.key === value )
@@ -332,17 +345,21 @@ function renderPanel( {
 			key === END_ID
 				? __( 'End of workflow', 'vip-workflows' )
 				: stageLabel( stages, key );
-		const movesTo = ( end ) =>
-			[
+		const movesTo = ( end ) => {
+			const current = 'source' === end ? selection.from : selection.to;
+			// A dangling transition is still editable from the stage's exit
+			// list. Keep its missing destination selected until the author
+			// repairs it, rather than letting the select display a real stage
+			// that the transition does not reach.
+			const missing = ! stages.some( ( stage ) => stage.key === current );
+			const candidates = [
 				...stages.map( ( s ) => s.key ),
 				...( 'target' === end ? [ END_ID ] : [] ),
-			]
+			];
+			return [ ...( missing ? [ current ] : [] ), ...candidates ]
 				.filter(
 					( key ) =>
-						key ===
-							( 'source' === end
-								? selection.from
-								: selection.to ) ||
+						key === current ||
 						canReconnect(
 							stages,
 							selection.from,
@@ -352,8 +369,27 @@ function renderPanel( {
 							edgeOutcome
 						)
 				)
-				.map( ( key ) => ( { label: endLabel( key ), value: key } ) );
+				.map( ( key ) => ( {
+					label:
+						missing && key === current
+							? sprintf(
+									/* translators: %s: stage key that no longer exists. */
+									__( '%s (missing)', 'vip-workflows' ),
+									key
+							  )
+							: endLabel( key ),
+					value: key,
+				} ) );
+		};
 
+		const disabled =
+			!! sourceStage &&
+			isTransitionDisabled(
+				sourceStage,
+				selection.to,
+				stages,
+				allowAgentPublish
+			);
 		return (
 			<TransitionInspector
 				transition={ selectedTransition }
@@ -377,10 +413,16 @@ function renderPanel( {
 				targetLabel={ targetLabel }
 				outcome={ edgeOutcome }
 				sharedOutcomes={ sharing.length > 1 ? sharing : null }
-				disabled={
-					!! sourceStage &&
-					isTransitionDisabled( sourceStage, selection.to )
-				}
+				disabled={ disabled }
+				// Disabled with an outcome routed along it can only be the
+				// publish hold — an unrouted leftover has none. Keyed by the
+				// target, as `disabled` is, so a selection carrying no outcome
+				// (a legacy duplicate transition's row) gets the hold's notice too.
+				publishHeld={ disabled && sharing.length > 0 }
+				suggestAgentPublish={ publishSettingFixesRoute(
+					sourceStage,
+					selection.to
+				) }
 				availableRoles={ availableRoles }
 				availableTools={ availableTools }
 				toolsLoaded={ toolsLoaded }

@@ -27,7 +27,7 @@ export default function MyDashboard() {
 			] }
 			title={ __( 'My Dashboard', 'vip-workflows' ) }
 			subtitle={ __(
-				'Your personal workspace for work and ideation.',
+				'Find work and see what needs your attention.',
 				'vip-workflows'
 			) }
 		>

@@ -19,6 +19,12 @@ export function MyDashboardPage() {
 	const canEditOthersPosts =
 		!! window.vipWorkflowsAdmin?.currentUser?.canManage;
 	const ideationEnabled = !! window.vipWorkflowsAdmin?.experiments?.ideation;
+	// My Queue is both role-gated (editors+) and, while it's still evolving,
+	// experiment-gated — the same combination Calendar and Kanban use for a
+	// surface that isn't ready for every site yet.
+	const myQueueEnabled =
+		canEditOthersPosts &&
+		!! window.vipWorkflowsAdmin?.experiments?.my_queue;
 	const [ counts, setCounts ] = useState( {} );
 
 	useEffect( () => {
@@ -55,10 +61,10 @@ export function MyDashboardPage() {
 				'/vip-workflows/v1/ideation?per_page=50&author=me'
 			);
 		}
-		if ( canEditOthersPosts ) {
+		if ( myQueueEnabled ) {
 			fetchCount( 'my-queue', '/vip-workflows/v1/workflow/my-queue' );
 		}
-	}, [ canEditOthersPosts, ideationEnabled ] );
+	}, [ ideationEnabled, myQueueEnabled ] );
 
 	const formatTitle = useCallback(
 		( label, tabName ) => {
@@ -74,7 +80,7 @@ export function MyDashboardPage() {
 			{
 				name: 'my-work',
 				title: formatTitle(
-					__( 'My Work', 'vip-workflows' ),
+					__( 'My work', 'vip-workflows' ),
 					'my-work'
 				),
 			},
@@ -85,25 +91,25 @@ export function MyDashboardPage() {
 			baseTabs.push( {
 				name: 'my-ideation',
 				title: formatTitle(
-					__( 'My Ideation', 'vip-workflows' ),
+					__( 'My ideation', 'vip-workflows' ),
 					'my-ideation'
 				),
 			} );
 		}
 
-		// Only show My Queue for users who can edit others' posts (editors+).
-		if ( canEditOthersPosts ) {
+		// My Queue: editors+ only, and only while the experiment is enabled.
+		if ( myQueueEnabled ) {
 			baseTabs.push( {
 				name: 'my-queue',
 				title: formatTitle(
-					__( 'My Queue', 'vip-workflows' ),
+					__( 'My queue', 'vip-workflows' ),
 					'my-queue'
 				),
 			} );
 		}
 
 		return baseTabs;
-	}, [ canEditOthersPosts, ideationEnabled, formatTitle ] );
+	}, [ ideationEnabled, myQueueEnabled, formatTitle ] );
 
 	const validTabNames = useMemo(
 		() => tabs.map( ( t ) => t.name ),

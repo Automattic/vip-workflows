@@ -26,12 +26,49 @@ import {
 	addStage,
 	setStageStatus,
 	removeStage,
+	rewireTransition,
+	setRegionEntry,
+	clearRegionEntry,
 } from '../../src/admin/components/graph/graph-model';
 import { visibleRegions } from '../../src/admin/components/graph/regions';
 
 if ( ! global.structuredClone ) {
 	global.structuredClone = ( value ) => JSON.parse( JSON.stringify( value ) );
 }
+
+// d3's zoom animation measures the renderer's client dimensions. jsdom's zero
+// width makes its interpolation divide by zero once a Reset animation ticks.
+// Keep the actual React Flow store, nodes and animation, and supply only the
+// viewport size a browser would measure.
+let viewportMeasurements;
+beforeEach( () => {
+	viewportMeasurements = [];
+	for ( const [ property, size ] of [
+		[ 'clientWidth', 1000 ],
+		[ 'clientHeight', 800 ],
+	] ) {
+		const original = Object.getOwnPropertyDescriptor(
+			Element.prototype,
+			property
+		).get;
+		const measurement = jest
+			.spyOn( Element.prototype, property, 'get' )
+			.mockImplementation( function () {
+				return this.matches(
+					'.wf-canvas__viewport, .react-flow__renderer'
+				)
+					? size
+					: original.call( this );
+			} );
+		viewportMeasurements.push( measurement );
+	}
+} );
+
+afterEach( () => {
+	viewportMeasurements.forEach( ( measurement ) =>
+		measurement.mockRestore()
+	);
+} );
 
 class Boundary extends Component {
 	constructor( props ) {
@@ -79,8 +116,8 @@ const STAGES = [
 
 // The editor's half, reduced to the state GraphCanvas reads and the buttons
 // standing in for the panels.
-function Editor() {
-	const [ stages, setStages ] = useState( STAGES );
+function Editor( { initialStages = STAGES } ) {
+	const [ stages, setStages ] = useState( initialStages );
 	const [ selectedKey, setSelectedKey ] = useState( null );
 	const regions = useMemo( () => visibleRegions( stages, [] ), [ stages ] );
 	const noop = () => {};
@@ -113,6 +150,33 @@ function Editor() {
 				Delete Published
 			</button>
 			<button onClick={ () => setSelectedKey( null ) }>Clear</button>
+			<button
+				onClick={ () =>
+					setStages( ( current ) =>
+						setRegionEntry( current, 'writing' )
+					)
+				}
+			>
+				Make Writing checkpoint
+			</button>
+			<button
+				onClick={ () =>
+					setStages( ( current ) =>
+						clearRegionEntry( current, 'draft' )
+					)
+				}
+			>
+				Clear Draft checkpoint
+			</button>
+			<button
+				onClick={ () =>
+					setStages( ( current ) =>
+						rewireTransition( current, 'writing', 'review', 'done' )
+					)
+				}
+			>
+				Repoint Writing
+			</button>
 			<output data-testid="selected">{ String( selectedKey ) }</output>
 			<Boundary>
 				<GraphCanvas
@@ -155,6 +219,114 @@ async function press( name ) {
 }
 
 describe( 'GraphCanvas and structure changed from outside it', () => {
+	it( 'keeps stage positions when an inspector repoints a transition', async () => {
+		const initialStages = [
+			{
+				key: 'draft',
+				label: 'Draft',
+				status: 'draft',
+				region_entry: true,
+				transitions: [ { to: 'writing' } ],
+			},
+			{
+				key: 'writing',
+				label: 'Writing',
+				status: 'draft',
+				transitions: [ { to: 'review' } ],
+			},
+			{
+				key: 'review',
+				label: 'Review',
+				status: 'draft',
+				transitions: [ { to: 'done' } ],
+			},
+			{
+				key: 'done',
+				label: 'Done',
+				status: 'draft',
+				is_terminal: true,
+				transitions: [],
+			},
+		];
+		const { container } = render(
+			<Editor initialStages={ initialStages } />
+		);
+		await settle();
+		const positions = () =>
+			Array.from(
+				container.querySelectorAll( '.react-flow__node-stage' ),
+				( node ) => [
+					node.getAttribute( 'data-id' ),
+					node.style.transform,
+				]
+			);
+		const before = positions();
+
+		await press( 'Repoint Writing' );
+
+		expect( screen.queryByTestId( 'crash' ) ).toBeNull();
+		expect( positions() ).toEqual( before );
+
+		await press( 'Reset layout' );
+		// Reset animates the viewport for 200ms. Let that animation finish too,
+		// so invalid zoom geometry cannot escape after the node assertions.
+		await act( async () => {
+			await new Promise( ( resolve ) => setTimeout( resolve, 250 ) );
+		} );
+		expect( positions() ).not.toEqual( before );
+		expect(
+			container.querySelector( '.react-flow__viewport' ).style.transform
+		).not.toMatch( /NaN|Infinity/ );
+	} );
+
+	it.each( [
+		[ 'Make Writing checkpoint', false ],
+		[ 'Clear Draft checkpoint', false ],
+		[ 'Make Writing checkpoint', true ],
+		[ 'Clear Draft checkpoint', true ],
+	] )(
+		'places the former checkpoint below the remaining stages: %s (frozen=%s)',
+		async ( action, frozen ) => {
+			const initialStages = [
+				...STAGES,
+				{
+					key: 'review',
+					label: 'Review',
+					status: 'draft',
+					transitions: [],
+				},
+			];
+			const { container } = render(
+				<Editor initialStages={ initialStages } />
+			);
+			await settle();
+			if ( frozen ) {
+				await press( 'Add stage' );
+			}
+			const position = ( key ) => {
+				const transform = container.querySelector(
+					`.react-flow__node[data-id="${ key }"]`
+				).style.transform;
+				const [ x, y ] = transform
+					.match( /-?\d+(?:\.\d+)?/g )
+					.map( Number );
+				return { x, y };
+			};
+			const reviewBefore = position( 'review' );
+
+			await press( action );
+
+			expect( screen.queryByTestId( 'crash' ) ).toBeNull();
+			expect( position( 'review' ) ).toEqual( reviewBefore );
+			expect( position( 'draft' ).y ).toBeGreaterThan(
+				position( 'review' ).y
+			);
+			expect( position( 'writing' ).y ).toBeLessThanOrEqual(
+				position( 'review' ).y
+			);
+		}
+	);
+
 	it( 'survives a status change that empties a band', async () => {
 		render( <Editor /> );
 		await settle();

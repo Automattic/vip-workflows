@@ -93,10 +93,7 @@ function keyProblems( items, keyOf, isStarted ) {
 			return isStarted( item )
 				? {
 						short: __( 'Needs a key', 'vip-workflows' ),
-						full: __(
-							'This field needs a key. Saving is refused until it has one.',
-							'vip-workflows'
-						),
+						full: __( 'A key is required.', 'vip-workflows' ),
 				  }
 				: undefined;
 		}
@@ -105,7 +102,7 @@ function keyProblems( items, keyOf, isStarted ) {
 			return {
 				short: __( 'Duplicate key', 'vip-workflows' ),
 				full: __(
-					'Another field already uses this key. Saving is refused until it is unique.',
+					'Another field already uses this key.',
 					'vip-workflows'
 				),
 			};

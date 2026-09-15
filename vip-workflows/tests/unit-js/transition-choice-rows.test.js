@@ -133,7 +133,9 @@ describe( 'Allowed roles', () => {
 		await openRow( 'Allowed roles: All' );
 
 		const group = screen.getByRole( 'group', { name: 'Allowed roles' } );
-		expect( group ).toHaveTextContent( 'With none checked, everyone can.' );
+		expect( group ).toHaveTextContent(
+			'Leave all unchecked to allow everyone.'
+		);
 		expect(
 			screen.getByRole( 'checkbox', { name: 'Contributor' } )
 		).not.toBeChecked();
@@ -173,7 +175,7 @@ describe( 'Allowed roles', () => {
 			screen.getByRole( 'checkbox', { name: /^shop_manager/ } )
 		).toBeChecked();
 		expect(
-			screen.getByText( /No role with this slug exists on this site/ )
+			screen.getByText( /Role not found, so it matches no one/ )
 		).toBeInTheDocument();
 	} );
 
@@ -256,7 +258,7 @@ describe( 'Notifications', () => {
 			screen.getByRole( 'checkbox', { name: /^Slack/ } )
 		).toBeChecked();
 		expect(
-			screen.getByText( /This channel is not set up/ )
+			screen.getByText( /Not set up\. See Workflows → Notifications/ )
 		).toBeInTheDocument();
 	} );
 
@@ -292,7 +294,7 @@ describe( 'Notifications', () => {
 			screen.getByRole( 'checkbox', { name: /^ntfy/ } )
 		).toBeChecked();
 		expect(
-			screen.getByText( /No channel with this id is registered/ )
+			screen.getByText( /Channel not found, so nothing is sent/ )
 		).toBeInTheDocument();
 	} );
 

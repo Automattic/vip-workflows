@@ -104,7 +104,7 @@ export default function ArticleCard( {
 									render={ <span /> }
 									className="vip-workflows-ideation-card__summarized"
 									title={ __(
-										'AI Summarized',
+										'AI summarized',
 										'vip-workflows'
 									) }
 								>
@@ -160,7 +160,7 @@ export default function ArticleCard( {
 			{ modalOpen && (
 				<CardDetailModal
 					title={
-						card.title || __( 'Source Detail', 'vip-workflows' )
+						card.title || __( 'Source detail', 'vip-workflows' )
 					}
 					onClose={ () => setModalOpen( false ) }
 					media={

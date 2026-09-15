@@ -110,7 +110,7 @@ function register_create_sequence(): void {
 	wp_register_ability(
 		'vip-workflows/create-sequence',
 		array(
-			'label'               => __( 'Create Sequence', 'vip-workflows' ),
+			'label'               => __( 'New sequence', 'vip-workflows' ),
 			'description'         => __( 'Creates a new workflow sequence with its statuses, transitions, and metadata fields.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
@@ -346,6 +346,7 @@ function register_create_sequence(): void {
 				return current_user_can( 'manage_options' );
 			},
 			'meta'                => array(
+				'summary'             => __( 'Creates a sequence with its stages, transitions and metadata fields.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

@@ -276,9 +276,17 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 				/>
 			</Card.Header>
 			<Card.Content render={ <Stack direction="column" gap="lg" /> }>
-				<Text variant="body-md" render={ <p /> }>
-					{ localAbility.description }
-				</Text>
+				{ /*
+				 * `meta.summary` is the reader's sentence. `description` is
+				 * the model's tool description and is never rendered — see
+				 * docs/guides/copy-standard.md. An ability that declares no
+				 * summary shows its label alone rather than a model prompt.
+				 */ }
+				{ localAbility.meta?.summary && (
+					<Text variant="body-md" render={ <p /> }>
+						{ localAbility.meta.summary }
+					</Text>
+				) }
 
 				{ isUnavailable && (
 					<Notice status="warning" isDismissible={ false }>
@@ -440,7 +448,10 @@ export function useToolsSettings() {
 		{
 			name: 'check',
 			title: __( 'Checks', 'vip-workflows' ),
-			empty: __( 'No check tools are registered.', 'vip-workflows' ),
+			empty: __(
+				'No check tools yet. Add one with the Abilities API — see Add custom tools.',
+				'vip-workflows'
+			),
 		},
 		{
 			name: 'validator',
@@ -450,7 +461,10 @@ export function useToolsSettings() {
 		{
 			name: 'helper',
 			title: __( 'Helpers', 'vip-workflows' ),
-			empty: __( 'No helper tools are registered.', 'vip-workflows' ),
+			empty: __(
+				'No helper tools yet. Add one with the Abilities API — see Add custom tools.',
+				'vip-workflows'
+			),
 		},
 	];
 

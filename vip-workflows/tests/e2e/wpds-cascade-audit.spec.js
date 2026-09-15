@@ -26,6 +26,8 @@ const {
 	formatReport,
 } = require( './helpers/wpds-cascade-audit' );
 
+const { withEnabledExperiment } = require( './helpers/experiments' );
+
 const STRICT = !! process.env.WPDS_AUDIT_STRICT;
 
 // DS-bearing admin screens. The System screens (Settings…Tools) render on the
@@ -33,7 +35,11 @@ const STRICT = !! process.env.WPDS_AUDIT_STRICT;
 // are full-bleed app canvases. Add new DS screens here as they ship.
 const SCREENS = [
 	{ name: 'Board (main)', query: 'page=vip-workflows' },
-	{ name: 'Kanban', query: 'page=vip-workflows-kanban' },
+	{
+		name: 'Kanban',
+		query: 'page=vip-workflows-kanban',
+		experiment: 'kanban',
+	},
 	{ name: 'Settings', query: 'page=vip-workflows-settings' },
 	{ name: 'Notifications', query: 'page=vip-workflows-notifications' },
 	{ name: 'Agents', query: 'page=vip-workflows-agents' },
@@ -47,30 +53,45 @@ test.describe.configure( { mode: 'serial' } );
 
 test.describe( 'WPDS ↔ wp-admin cascade audit', () => {
 	for ( const screen of SCREENS ) {
-		test( screen.name, async ( { admin, page } ) => {
-			await admin.visitAdminPage( 'admin.php', screen.query );
-			// Let the React app render (DS styles inject on first paint).
-			await page.waitForLoadState( 'networkidle' ).catch( () => {} );
+		test( screen.name, async ( { admin, page, requestUtils } ) => {
+			const auditScreen = async () => {
+				await admin.visitAdminPage( 'admin.php', screen.query );
+				// Let the React app render (DS styles inject on first paint).
+				await page.waitForLoadState( 'networkidle' ).catch( () => {} );
 
-			const findings = await auditCascade( page );
-			report.push( {
-				screen: screen.name,
-				query: screen.query,
-				findings,
-			} );
+				await expect(
+					page.locator( '#vip-workflows-root' )
+				).toBeVisible();
 
-			// eslint-disable-next-line no-console
-			console.log( formatReport( screen.name, findings ) );
-			await test.info().attach( `cascade-${ screen.query }.json`, {
-				body: JSON.stringify( findings, null, 2 ),
-				contentType: 'application/json',
-			} );
-
-			if ( STRICT ) {
-				expect(
+				const findings = await auditCascade( page );
+				report.push( {
+					screen: screen.name,
+					query: screen.query,
 					findings,
-					formatReport( screen.name, findings )
-				).toEqual( [] );
+				} );
+
+				// eslint-disable-next-line no-console
+				console.log( formatReport( screen.name, findings ) );
+				await test.info().attach( `cascade-${ screen.query }.json`, {
+					body: JSON.stringify( findings, null, 2 ),
+					contentType: 'application/json',
+				} );
+
+				if ( STRICT ) {
+					expect(
+						findings,
+						formatReport( screen.name, findings )
+					).toEqual( [] );
+				}
+			};
+			if ( screen.experiment ) {
+				await withEnabledExperiment(
+					requestUtils,
+					screen.experiment,
+					auditScreen
+				);
+			} else {
+				await auditScreen();
 			}
 		} );
 	}

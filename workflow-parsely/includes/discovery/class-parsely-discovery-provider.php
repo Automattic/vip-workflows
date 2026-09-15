@@ -81,7 +81,7 @@ class ParselyDiscoveryProvider {
 		$registry->register(
 			self::SLUG,
 			array(
-				'label'                 => __( 'Parse.ly Trending', 'workflow-parsely' ),
+				'label'                 => __( 'Parse.ly trending', 'workflow-parsely' ),
 				'description'           => __( 'Your best-performing published stories right now, as starting points for a follow-up.', 'workflow-parsely' ),
 				'icon'                  => 'chart-line',
 				'features'              => array( 'recommend' ),

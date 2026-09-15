@@ -1,6 +1,6 @@
 <?php
 /**
- * Editorial Mentor truncation-reporting tests.
+ * Editorial mentor truncation-reporting tests.
  *
  * The mentor asks for a JSON object containing free prose plus an array of
  * suggestions. When the model stops at the token ceiling the partial payload

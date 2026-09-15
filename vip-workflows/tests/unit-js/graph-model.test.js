@@ -34,6 +34,7 @@ import {
 	isAgentStage,
 	isTransitionDisabled,
 	outcomesRoutedTo,
+	heldPublishOutcomes,
 	agentOutcomeNames,
 	validateSequence,
 	NODE_TYPE,
@@ -699,6 +700,26 @@ describe( 'reconnectEdge', () => {
 		expect( findTransition( next, 'draft', 'review' ) ).toBeNull();
 		expect( findTransition( next, 'draft', 'done' ) ).toBeTruthy();
 		expect( selection ).toEqual( { from: 'draft', to: 'done' } );
+	} );
+
+	it( 'cannot make an AI stage final by repointing an unrouted transition to End', () => {
+		const input = setStageAgent( stages(), 'review', 'ability/x' );
+		expect(
+			canReconnect( input, 'review', 'done', 'review', END_ID )
+		).toBe( false );
+
+		const result = reconnectEdge(
+			input,
+			'review',
+			'done',
+			'review',
+			END_ID
+		);
+		expect( result.stages ).toBe( input );
+		expect( result.selection ).toBeNull();
+		expect(
+			findTransition( result.stages, 'review', 'done' )
+		).toBeTruthy();
 	} );
 
 	it( 'new source: carries roles/tools over to the new transition', () => {
@@ -1563,7 +1584,9 @@ describe( 'routeOutcome / clearOutcome', () => {
 		expect(
 			isTransitionDisabled(
 				routed.find( ( s ) => s.key === 'review' ),
-				'done'
+				'done',
+				routed,
+				true
 			)
 		).toBe( true );
 	} );
@@ -1574,7 +1597,9 @@ describe( 'routeOutcome / clearOutcome', () => {
 		const review = next.find( ( s ) => s.key === 'review' );
 		// fail still goes to done, so that transition stays usable.
 		expect( findTransition( next, 'review', 'done' ) ).toBeTruthy();
-		expect( isTransitionDisabled( review, 'done' ) ).toBe( false );
+		expect( isTransitionDisabled( review, 'done', next, true ) ).toBe(
+			false
+		);
 		expect( review.agent.routing ).toEqual( {
 			pass: 'draft',
 			fail: 'done',
@@ -1625,7 +1650,9 @@ describe( 'routeOutcome / clearOutcome', () => {
 		const review = next.find( ( s ) => s.key === 'review' );
 		expect( review.agent.routing ).toEqual( {} );
 		expect( findTransition( next, 'review', 'done' ) ).toBeTruthy();
-		expect( isTransitionDisabled( review, 'done' ) ).toBe( true );
+		expect( isTransitionDisabled( review, 'done', next, true ) ).toBe(
+			true
+		);
 	} );
 } );
 
@@ -1656,11 +1683,14 @@ describe( 'outcomesRoutedTo', () => {
 	} );
 
 	it( 'is what makes a transition disabled — nobody on it', () => {
-		const review = agentStages( { pass: 'done' } ).find(
-			( s ) => s.key === 'review'
+		const all = agentStages( { pass: 'done' } );
+		const review = all.find( ( s ) => s.key === 'review' );
+		expect( isTransitionDisabled( review, 'done', all, true ) ).toBe(
+			false
 		);
-		expect( isTransitionDisabled( review, 'done' ) ).toBe( false );
-		expect( isTransitionDisabled( review, 'draft' ) ).toBe( true );
+		expect( isTransitionDisabled( review, 'draft', all, true ) ).toBe(
+			true
+		);
 	} );
 } );
 
@@ -1843,7 +1873,9 @@ describe( 'outcome edge gestures', () => {
 		const review = next.find( ( s ) => s.key === 'review' );
 		expect( review.agent.routing ).toEqual( {} );
 		expect( findTransition( next, 'review', 'done' ) ).toBeTruthy();
-		expect( isTransitionDisabled( review, 'done' ) ).toBe( true );
+		expect( isTransitionDisabled( review, 'done', next, true ) ).toBe(
+			true
+		);
 	} );
 
 	it( 'deleting the disabled edge itself still removes the transition', () => {
@@ -1896,6 +1928,8 @@ describe( 'validateSequence for AI stages', () => {
 		const result = validateSequence( {
 			name: 'Flow',
 			stages: agentStages( { pass: 'done' } ),
+			// `done` publishes; opted in so only the error-route rule is under test.
+			allowAgentPublish: true,
 		} );
 		expect( result.warnings.review || [] ).toEqual( [] );
 	} );
@@ -1930,28 +1964,194 @@ describe( 'validateSequence for AI stages', () => {
 				'error',
 				'draft'
 			),
+			allowAgentPublish: true,
 		} );
 		expect( result.warnings.review || [] ).toEqual( [] );
+	} );
+
+	// `done` sits in the publish region. The runtime holds an agent route into
+	// it unless the sequence opts in, and the held run has no forward exit.
+	it( 'warns about a route the runtime will hold because it publishes', () => {
+		const result = validateSequence( {
+			name: 'Flow',
+			stages: agentStages( { pass: 'done' } ),
+		} );
+		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
+			'Let AI stages publish'
+		);
+		expect( result.errors ).toEqual( [] );
+	} );
+
+	// Turning the setting on would publish failed and errored runs too, so a
+	// held route anything but pass leads along only gets the reroute advice.
+	it( 'suggests the setting only for a route pass alone takes', () => {
+		const warn = ( routing ) =>
+			validateSequence( {
+				name: 'Flow',
+				stages: agentStages( routing ),
+			} ).warnings.review.join( ' ' );
+
+		expect( warn( { pass: 'done', fail: 'draft' } ) ).toContain(
+			'Let AI stages publish'
+		);
+		expect( warn( { pass: 'draft', error: 'done' } ) ).not.toContain(
+			'Let AI stages publish'
+		);
+		expect( warn( { pass: 'done', fail: 'done' } ) ).not.toContain(
+			'Let AI stages publish'
+		);
+	} );
+
+	it( 'holds only routes that cross into publish or private', () => {
+		const all = agentStages( { pass: 'done', fail: 'draft' } );
+		const review = all.find( ( s ) => s.key === 'review' );
+		expect( heldPublishOutcomes( review, all, false ) ).toEqual( [
+			'pass',
+		] );
+		expect( heldPublishOutcomes( review, all, true ) ).toEqual( [] );
+
+		// An agent already on the published side publishes nothing new.
+		const published = { ...review, status: 'private' };
+		expect( heldPublishOutcomes( published, all, false ) ).toEqual( [] );
+
+		// A held route is a disabled transition, the same as an unrouted one.
+		expect( isTransitionDisabled( review, 'done', all, false ) ).toBe(
+			true
+		);
+		expect( isTransitionDisabled( review, 'done', all, true ) ).toBe(
+			false
+		);
+		expect( isTransitionDisabled( review, 'draft', all, false ) ).toBe(
+			false
+		);
+	} );
+
+	it( 'does not call a stage whose only route is held unrouted', () => {
+		const result = validateSequence( {
+			name: 'Flow',
+			stages: agentStages( { pass: 'done' } ),
+		} );
+		const warnings = ( result.warnings.review || [] ).join( ' ' );
+		expect( warnings ).toContain( 'the route is disabled' );
+		expect( warnings ).not.toContain( 'no outcome routed anywhere' );
+	} );
+
+	it( 'does not call a stage only a held route leads to unreachable', () => {
+		// `featured` publishes but is not its region's entry, and the only way
+		// in is review's held pass route. The warning on review says why posts
+		// stop there; telling the author that no transition leads to
+		// `featured` would send them to add one that exists.
+		const all = [
+			...agentStages( { pass: 'featured' } ).map( ( s ) =>
+				s.key === 'review'
+					? {
+							...s,
+							transitions: [
+								...s.transitions,
+								{ to: 'featured' },
+							],
+					  }
+					: s
+			),
+			{
+				key: 'featured',
+				label: 'Featured',
+				status: 'publish',
+				region_entry: false,
+				is_terminal: true,
+				transitions: [],
+			},
+		];
+		const result = validateSequence( { name: 'Flow', stages: all } );
+
+		expect( result.warnings.featured || [] ).toEqual( [] );
+		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
+			'Let AI stages publish'
+		);
+	} );
+
+	it( 'marks the held outcome edge on the canvas', () => {
+		const held = ( allowAgentPublish ) =>
+			buildGraph( agentStages( { pass: 'done' } ), {
+				allowAgentPublish,
+			} ).edges.find(
+				( e ) => e.id === edgeId( 'review', 'done', 'pass' )
+			).data.disabled;
+		expect( held( false ) ).toBe( true );
+		expect( held( true ) ).toBe( false );
+	} );
+
+	it.each( [
+		[ 'draft', 'private', true ],
+		[ 'pending', 'publish', true ],
+		[ 'pending', 'draft', false ],
+		[ 'private', 'publish', false ],
+		[ 'publish', 'private', false ],
+	] )(
+		'applies the publication boundary from %s to %s',
+		( from, to, held ) => {
+			const regions = { review: from, done: to };
+			const all = agentStages( { pass: 'done' } ).map( ( stage ) => ( {
+				...stage,
+				status: regions[ stage.key ] || stage.status,
+			} ) );
+			const review = all.find( ( stage ) => stage.key === 'review' );
+			expect( isTransitionDisabled( review, 'done', all, false ) ).toBe(
+				held
+			);
+		}
+	);
+
+	it( 'revives every shared outcome edge and counts its transition once', () => {
+		const all = routeOutcome(
+			agentStages( { pass: 'done', fail: 'done' } ),
+			'review',
+			'error',
+			'draft'
+		);
+		for ( const allowAgentPublish of [ false, true ] ) {
+			const { nodes, edges } = buildGraph( all, { allowAgentPublish } );
+			const shared = edges.filter(
+				( edge ) => edge.source === 'review' && edge.target === 'done'
+			);
+			expect( shared.map( ( edge ) => edge.data.outcome ) ).toEqual( [
+				'pass',
+				'fail',
+			] );
+			expect( shared.map( ( edge ) => edge.data.disabled ) ).toEqual( [
+				! allowAgentPublish,
+				! allowAgentPublish,
+			] );
+			expect(
+				nodes.find( ( node ) => node.id === 'review' ).data
+					.transitionCount
+			).toBe( allowAgentPublish ? 2 : 1 );
+		}
 	} );
 } );
 
 describe( 'disabled transitions on an AI stage', () => {
 	it( 'disables every transition no outcome routes along', () => {
 		// review -> done exists but nothing routes to it.
-		const stage = agentStages().find( ( s ) => s.key === 'review' );
-		expect( isTransitionDisabled( stage, 'done' ) ).toBe( true );
+		const all = agentStages();
+		const stage = all.find( ( s ) => s.key === 'review' );
+		expect( isTransitionDisabled( stage, 'done', all, true ) ).toBe( true );
 	} );
 
 	it( 'leaves a routed transition alone', () => {
-		const stage = agentStages( { pass: 'done' } ).find(
-			( s ) => s.key === 'review'
+		const all = agentStages( { pass: 'done' } );
+		const stage = all.find( ( s ) => s.key === 'review' );
+		expect( isTransitionDisabled( stage, 'done', all, true ) ).toBe(
+			false
 		);
-		expect( isTransitionDisabled( stage, 'done' ) ).toBe( false );
 	} );
 
 	it( 'disables nothing on a stage with no agent', () => {
-		const stage = stages().find( ( s ) => s.key === 'review' );
-		expect( isTransitionDisabled( stage, 'done' ) ).toBe( false );
+		const all = stages();
+		const stage = all.find( ( s ) => s.key === 'review' );
+		expect( isTransitionDisabled( stage, 'done', all, false ) ).toBe(
+			false
+		);
 	} );
 
 	it( 'flags the disabled edge on the canvas', () => {
@@ -1959,9 +2159,10 @@ describe( 'disabled transitions on an AI stage', () => {
 		const edge = edges.find( ( e ) => e.id === 'review->done' );
 		expect( edge.data.disabled ).toBe( true );
 		// A routed one is a live agent route, not a disabled transition.
-		const routed = buildGraph( agentStages( { pass: 'done' } ) ).edges.find(
-			( e ) => e.id === 'review:pass->done'
-		);
+		// `done` publishes, so opt in to keep the hold out of it.
+		const routed = buildGraph( agentStages( { pass: 'done' } ), {
+			allowAgentPublish: true,
+		} ).edges.find( ( e ) => e.id === 'review:pass->done' );
 		expect( routed.data.disabled ).toBe( false );
 	} );
 
@@ -1970,7 +2171,9 @@ describe( 'disabled transitions on an AI stage', () => {
 		expect(
 			nodes.find( ( n ) => n.id === 'review' ).data.transitionCount
 		).toBe( 0 );
-		const routed = buildGraph( agentStages( { pass: 'done' } ) ).nodes;
+		const routed = buildGraph( agentStages( { pass: 'done' } ), {
+			allowAgentPublish: true,
+		} ).nodes;
 		expect(
 			routed.find( ( n ) => n.id === 'review' ).data.transitionCount
 		).toBe( 1 );
@@ -1992,7 +2195,9 @@ describe( 'disabled transitions on an AI stage', () => {
 		const withAgent = agentStages( { pass: 'done' } );
 		const cleared = setStageAgent( withAgent, 'review', '' );
 		const review = cleared.find( ( s ) => s.key === 'review' );
-		expect( isTransitionDisabled( review, 'done' ) ).toBe( false );
+		expect( isTransitionDisabled( review, 'done', cleared, false ) ).toBe(
+			false
+		);
 		expect(
 			findTransition( cleared, 'review', 'done' ).required_tools
 		).toEqual( [ 'seo' ] );

@@ -1,7 +1,7 @@
 /**
  * Unit tests for the activity-rail event icons.
  *
- * Both activity views — the admin Audit Log and the editor's Workflow History
+ * Both activity views — the admin Audit Log and the editor's Workflow history
  * modal — hand DataViews an `event_icon` field as their `mediaField`, so the
  * timeline disc carries a glyph for the event type instead of a plain bullet.
  *

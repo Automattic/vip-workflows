@@ -57,7 +57,7 @@ export default function SeedInput( { onSubmit, isSubmitting } ) {
 					render={ <h1 /> }
 					className="vip-workflows-ideation-seed__title"
 				>
-					{ __( "What's the story?", 'vip-workflows' ) }
+					{ __( 'What’s the story?', 'vip-workflows' ) }
 				</Text>
 				<Text
 					variant="body-md"

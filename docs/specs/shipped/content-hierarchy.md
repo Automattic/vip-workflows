@@ -17,7 +17,7 @@ Story
   "Mayoral Race Deep Dive"
   story status: monitoring
   │
-  ├── Ideation Project (vip_research)
+  ├── Ideation Project (vip_ideation)
   │     seed, AI research, pinned cards
   │
   ├── Article (post) — "Inside the Mayoral Race"
@@ -42,7 +42,7 @@ Story
   "Ballot Measures Explainer"
   story status: ideation
   │
-  └── Ideation Project (vip_research)
+  └── Ideation Project (vip_ideation)
         still researching, no article yet
 
 
@@ -58,7 +58,7 @@ Story (refresh cycle)
   "Remote Work Trends 2025"
   story status: refresh
   │
-  ├── Ideation Project (vip_research) — original research
+  ├── Ideation Project (vip_ideation) — original research
   │
   ├── Article (post) — "Remote Work in 2025: What Changed"
   │     original article, WordPress status: publish

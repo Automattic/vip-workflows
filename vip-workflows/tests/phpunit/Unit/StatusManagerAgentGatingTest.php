@@ -453,6 +453,8 @@ class StatusManagerAgentGatingTest extends TestCase
         $sequence->shouldReceive( 'get_status' )
             ->with( 'review' )
             ->andReturn( array( 'key' => 'review', 'label' => 'Review' ) );
+        $sequence->shouldReceive( 'get_settings' )->andReturn( array() );
+        $sequence->shouldReceive( 'get_stage_status' )->andReturn( 'draft' );
         return $sequence;
     }
 
@@ -569,9 +571,11 @@ class StatusManagerAgentGatingTest extends TestCase
      * Sequence mock for an AI stage with two authored edges (review, approve)
      * of which only `review` is routed, plus a defined `draft` origin stage.
      *
+     * @param  string $review_region Region the routed `review` stage sits in.
+     * @param  array  $settings      The sequence's settings bag.
      * @return object
      */
-    private function sequence_with_unrouted_edge(): object
+    private function sequence_with_unrouted_edge( string $review_region = 'pending', array $settings = array() ): object
     {
         $ai_desk = array(
             'key'   => 'ai_desk',
@@ -593,6 +597,10 @@ class StatusManagerAgentGatingTest extends TestCase
         $sequence->shouldReceive( 'get_status' )->with( 'review' )->andReturn( array( 'key' => 'review', 'label' => 'Review' ) );
         $sequence->shouldReceive( 'get_status' )->with( 'approve' )->andReturn( array( 'key' => 'approve', 'label' => 'Approve' ) );
         $sequence->shouldReceive( 'get_status' )->with( 'draft' )->andReturn( array( 'key' => 'draft', 'label' => 'Draft' ) );
+        $sequence->shouldReceive( 'get_settings' )->andReturn( $settings );
+        $sequence->shouldReceive( 'get_stage_status' )->andReturnUsing(
+            static fn( string $stage ): string => 'review' === $stage ? $review_region : 'draft'
+        );
         return $sequence;
     }
 
@@ -655,6 +663,323 @@ class StatusManagerAgentGatingTest extends TestCase
 
         $this->assertInstanceOf( 'WP_Error', $result );
         $this->assertSame( 'unrouted_agent_exit', $result->get_error_code() );
+    }
+
+    /**
+     * A route into a publishing stage the sequence has not opted into is held
+     * for the agent (StageAgentRunner::holds_publication), and the editor draws
+     * it disabled. While the agent owns the stage it is withheld from people
+     * too — here a failed run whose go-back is the one exit — and transition()
+     * refuses it.
+     */
+    public function test_publish_held_route_is_refused_while_the_agent_owns_the_stage(): void
+    {
+        $this->stub_post_in_ai_stage(
+            array(
+                'stage_key'  => 'ai_desk',
+                'status'     => 'failed',
+                'ability_id' => 'x',
+                'error'      => 'held',
+                'from_stage' => 'draft',
+            )
+        );
+        $this->stub_current_user_roles( array( 'editor' ) );
+        $this->stub_granted_caps();
+
+        $sequence = $this->sequence_with_unrouted_edge( 'publish' );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
+        $manager = $this->gated_status_manager( $sequence );
+
+        $this->assertSame( array(), $manager->agent_routed_targets( $sequence, $sequence->get_status( 'ai_desk' ), 42 ) );
+
+        $result = $manager->transition( 42, 'review' );
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'unrouted_agent_exit', $result->get_error_code() );
+        // The destination IS routed, so the refusal names the setting holding it
+        // rather than calling it unrouted.
+        $this->assertStringContainsString( 'Let AI stages publish', $result->get_error_message() );
+        $this->assertStringNotContainsString( 'only the destinations its outcomes route to', $result->get_error_message() );
+    }
+
+    /** A warning acknowledgement cannot open a publishing route owned by a running agent. */
+    public function test_pending_agent_publish_route_cannot_be_forced_by_acknowledging_warnings(): void
+    {
+        $this->stub_post_in_ai_stage( self::fresh_pending_job() );
+        $this->stub_current_user_roles( array( 'administrator' ) );
+        $this->stub_granted_caps();
+        Functions\expect( 'wp_update_post' )->never();
+        Functions\expect( 'update_post_meta' )->never();
+
+        $sequence = $this->sequence_with_unrouted_edge( 'publish' );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
+
+        $result = $this->gated_status_manager( $sequence )->transition( 42, 'review', array( 'acknowledge_warnings' => true ) );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'unrouted_agent_exit', $result->get_error_code() );
+    }
+
+    /**
+     * A released stage hands a held route back: no run is coming, so withholding
+     * it would leave a post whose only routes publish with no way out. That
+     * includes a move the agent paused on soft warnings — confirming it is a
+     * person's decision, and must still work after the setting is turned off.
+     */
+    public function test_publish_held_route_is_offered_once_the_stage_is_released(): void
+    {
+        foreach ( self::released_agent_jobs() as $state => $data ) {
+            $job = $data[0];
+            $this->stub_post_in_ai_stage( $job );
+            $this->stub_current_user_roles( array( 'editor' ) );
+
+            $sequence    = $this->sequence_with_unrouted_edge( 'publish' );
+            $transitions = $this->gated_status_manager( $sequence )->get_available_transitions( 42 );
+
+            $this->assertSame( array( 'review' ), array_column( $transitions, 'to' ), $state );
+        }
+    }
+
+    /** Released job states must permit a human to take a held publishing route. */
+    public static function released_agent_jobs(): array
+    {
+        return array(
+            'no run' => array( '' ),
+            'originless failure' => array(
+                array(
+                    'stage_key' => 'ai_desk',
+                    'status'    => 'failed',
+                    'error'     => 'The publishing route was held.',
+                ),
+            ),
+            'warnings pending' => array(
+                array(
+                    'stage_key' => 'ai_desk',
+                    'status'    => 'warnings_pending',
+                    'to_status' => 'review',
+                ),
+            ),
+        );
+    }
+
+    /**
+     * Handback must permit the actual transition, including a confirmation of
+     * an agent's warning decision after automatic publication was switched off.
+     *
+     * @dataProvider released_agent_jobs
+     * @param mixed $job Released job marker.
+     */
+    public function test_released_publish_route_reaches_the_human_status_write( $job ): void
+    {
+        $this->stub_post_in_ai_stage( $job );
+        $this->stub_current_user_roles( array( 'editor' ) );
+        $this->stub_granted_caps();
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+        Functions\expect( 'wp_update_post' )->once()->andReturn( new \WP_Error( 'update_failed', 'Reached the status write.' ) );
+
+        $sequence = $this->sequence_with_unrouted_edge( 'publish' );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
+        $sequence->shouldReceive( 'get_transition' )->andReturn( array() );
+        $sequence->shouldReceive( 'can_user_transition' )->andReturn( true );
+        $sequence->shouldReceive( 'get_missing_required_metadata' )->andReturn( array() );
+
+        $result = $this->gated_status_manager( $sequence )->transition( 42, 'review', array( 'acknowledge_warnings' => true ) );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'update_failed', $result->get_error_code() );
+    }
+
+    /**
+     * A route released by the agent does not grant the person publish_posts.
+     *
+     * @dataProvider released_agent_jobs
+     * @param mixed $job Released job marker.
+     */
+    public function test_released_publish_route_still_requires_publication_capability( $job ): void
+    {
+        $this->stub_post_in_ai_stage( $job );
+        $this->stub_current_user_roles( array( 'editor' ) );
+        $this->stub_granted_caps();
+        Functions\when( 'current_user_can' )->alias( static fn( string $cap ): bool => 'publish_posts' !== $cap );
+        Functions\expect( 'wp_update_post' )->never();
+        Functions\expect( 'update_post_meta' )->never();
+
+        $sequence = $this->sequence_with_unrouted_edge( 'publish' );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
+        $sequence->shouldReceive( 'get_transition' )->andReturn( array() );
+
+        $result = $this->gated_status_manager( $sequence )->transition( 42, 'review', array( 'acknowledge_warnings' => true ) );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'forbidden_region_crossing', $result->get_error_code() );
+    }
+
+    /** Handback does not waive the role permission on the authored edge. */
+    public function test_released_publish_route_still_requires_transition_permission(): void
+    {
+        $this->stub_post_in_ai_stage( '' );
+        $this->stub_current_user_roles( array( 'editor' ) );
+        $this->stub_granted_caps();
+        Functions\expect( 'wp_update_post' )->never();
+        Functions\expect( 'update_post_meta' )->never();
+
+        $sequence = $this->sequence_with_unrouted_edge( 'publish' );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
+        $sequence->shouldReceive( 'get_transition' )->andReturn( array() );
+        $sequence->shouldReceive( 'can_user_transition' )->andReturn( false );
+
+        $result = $this->gated_status_manager( $sequence )->transition( 42, 'review' );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'forbidden_transition', $result->get_error_code() );
+    }
+
+    /** Confirming an agent's warning decision cannot waive a required check. */
+    public function test_released_publish_route_still_runs_required_checks(): void
+    {
+        $this->stub_post_in_ai_stage( self::released_agent_jobs()['warnings pending'][0] );
+        $this->stub_current_user_roles( array( 'editor' ) );
+        $this->stub_granted_caps();
+        Functions\when( 'get_option' )->alias(
+            static fn( string $key ): array => 'vip_workflows_ability_settings' === $key
+                ? array( 'test/required-check' => array( 'enabled' => false ) )
+                : array()
+        );
+        Functions\expect( 'wp_update_post' )->never();
+        Functions\expect( 'update_post_meta' )->never();
+
+        global $wpdb;
+        $wpdb = Mockery::mock( 'wpdb' );
+        $wpdb->prefix = 'wp_';
+        $wpdb->shouldReceive( 'insert' )->once()->andReturn( true );
+
+        $plugin = ( new \ReflectionClass( \VIPWorkflows\Plugin::class ) )->newInstanceWithoutConstructor();
+        ( new \ReflectionProperty( \VIPWorkflows\Plugin::class, 'event_bus' ) )
+            ->setValue( $plugin, Mockery::mock( \VIPWorkflows\Automation\EventBus::class ) );
+        ( new \ReflectionProperty( \VIPWorkflows\Plugin::class, 'instance' ) )->setValue( null, $plugin );
+
+        $sequence = $this->sequence_with_unrouted_edge( 'publish' );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
+        $sequence->shouldReceive( 'get_transition' )->andReturn( array( 'required_tools' => array( 'test/required-check' ) ) );
+        $sequence->shouldReceive( 'can_user_transition' )->andReturn( true );
+        $sequence->shouldReceive( 'get_missing_required_metadata' )->andReturn( array() );
+
+        $result = $this->gated_status_manager( $sequence )->transition( 42, 'review', array( 'acknowledge_warnings' => true ) );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'tool_check_failed', $result->get_error_code() );
+        $this->assertSame( 'tool_disabled', $result->get_error_data()['hard_failures'][0]['key'] );
+    }
+
+    /**
+     * The setting is suggested only where a pass verdict alone reaches the held
+     * destination — never where it would also publish failed or errored runs.
+     */
+    public function test_publish_setting_is_suggested_only_for_pass_only_routes(): void
+    {
+        $this->assertTrue( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'fail' => 'draft' ), 'live' ) );
+        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'error' => 'live' ), 'live' ) );
+        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'fail' => 'live' ), 'live' ) );
+        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'review', 'error' => 'live' ), 'live' ) );
+    }
+
+    /**
+     * A region that cannot be read, at either end of a route, is not the routed-
+     * exit gate's to judge. The target stays in the list and transition() refuses
+     * it on its own terms (stage_region_missing) — rather than the gate throwing
+     * out of every surface that lists transitions, or withholding a route as
+     * "held" because an unreadable AI stage was taken for an unpublished one.
+     */
+    public function test_routed_targets_leave_unreadable_regions_to_transition(): void
+    {
+        $agent_stage = static fn( array $routing ): array => array(
+            'key'   => 'ai_desk',
+            'agent' => array(
+                'ability_id' => 'workflow-agent-fact-check/fact-check',
+                'routing'    => $routing,
+            ),
+        );
+        $sequence_with_regions = static function ( array $regions ): object {
+            $sequence = Mockery::mock( Sequence::class );
+            $sequence->shouldReceive( 'get_settings' )->andReturn( array() );
+            $sequence->shouldReceive( 'get_stage_status' )->andReturnUsing(
+                static function ( string $stage ) use ( $regions ): string {
+                    if ( ! isset( $regions[ $stage ] ) ) {
+                        throw new \InvalidArgumentException( "Stage \"{$stage}\" has no status region." );
+                    }
+                    return $regions[ $stage ];
+                }
+            );
+            return $sequence;
+        };
+
+        // A sibling route whose destination has no region: the sound route
+        // survives and nothing throws.
+        $this->assertSame(
+            array( 'review', 'legacy' ),
+            $this->status_manager()->agent_routed_targets(
+                $sequence_with_regions( array( 'ai_desk' => 'draft', 'review' => 'pending' ) ),
+                $agent_stage( array( 'pass' => 'review', 'fail' => 'legacy' ) )
+            )
+        );
+
+        // The AI stage itself has no region: its publishing route is not
+        // withheld as held.
+        $this->assertSame(
+            array( 'live' ),
+            $this->status_manager()->agent_routed_targets(
+                $sequence_with_regions( array( 'live' => 'publish' ) ),
+                $agent_stage( array( 'pass' => 'live' ) )
+            )
+        );
+    }
+
+    /** Invalid regions produce an actionable transition error, never a fatal or a publishing-policy error. */
+    public function test_held_route_with_unreadable_region_returns_the_region_error(): void
+    {
+        $this->stub_post_in_ai_stage( self::fresh_pending_job() );
+        Functions\expect( 'wp_update_post' )->never();
+        Functions\expect( 'update_post_meta' )->never();
+
+        foreach ( array( 'ai_desk', 'review' ) as $missing_region ) {
+            $sequence = Mockery::mock( Sequence::class );
+            $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
+            $sequence->shouldReceive( 'get_settings' )->andReturn( array() );
+            $sequence->shouldReceive( 'get_status' )->with( 'ai_desk' )->andReturn(
+                array( 'key' => 'ai_desk', 'agent' => self::AI_DESK_AGENT )
+            );
+            $sequence->shouldReceive( 'get_status' )->with( 'review' )->andReturn( array( 'key' => 'review' ) );
+            $sequence->shouldReceive( 'get_stage_status' )->andReturnUsing(
+                static function ( string $stage ) use ( $missing_region ): string {
+                    if ( $stage === $missing_region ) {
+                        throw new \InvalidArgumentException( "Stage \"{$stage}\" has no status region." );
+                    }
+                    return 'ai_desk' === $stage ? 'draft' : 'publish';
+                }
+            );
+
+            $result = $this->gated_status_manager( $sequence )->transition( 42, 'review' );
+
+            $this->assertInstanceOf( 'WP_Error', $result );
+            $this->assertSame( 'stage_region_missing', $result->get_error_code(), $missing_region );
+            $this->assertStringContainsString( $missing_region, $result->get_error_message() );
+        }
+    }
+
+    /**
+     * An opted-in sequence releases the route: it is an ordinary routed exit.
+     */
+    public function test_publish_route_is_offered_when_the_sequence_opts_in(): void
+    {
+        $this->stub_post_in_ai_stage( '' );
+        $this->stub_current_user_roles( array( 'editor' ) );
+
+        $manager     = $this->gated_status_manager(
+            $this->sequence_with_unrouted_edge( 'publish', array( 'allow_agent_publish' => true ) )
+        );
+        $transitions = $manager->get_available_transitions( 42 );
+
+        $this->assertCount( 1, $transitions );
+        $this->assertSame( 'review', $transitions[0]['to'] );
     }
 
     /**

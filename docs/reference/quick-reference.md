@@ -18,18 +18,18 @@ $plugin = \VIPWorkflows\Plugin::get_instance();
 $status_manager = $plugin->get_status_manager();
 $post_type_manager = $plugin->get_post_type_manager();
 $event_bus = $plugin->get_event_bus();
-$job_scheduler = $plugin->get_job_scheduler();
+$experiment_registry = $plugin->get_experiment_registry();
 
 // Transition status
 $status_manager->transition($post_id, 'review');
 
 // Get sequence
 $repository = new \VIPWorkflows\Sequences\SequenceRepository();
-$sequence = $repository->get($sequence_id);
+$sequence = $repository->find($sequence_id);
 
 // Execute tool
 $executor = new \VIPWorkflows\Abilities\AbilityExecutor();
-$result = $executor->execute('vip-workflows/seo-check', $post_id);
+$result = $executor->execute('vip-workflows/seo-check', ['post_id' => $post_id]);
 ```
 
 ### Key Hooks
@@ -67,7 +67,9 @@ GET         /vip-workflows/v1/workflow/post/{id}/history
 
 # Abilities (Tools)
 GET         /vip-workflows/v1/abilities
-POST        /vip-workflows/v1/abilities/{id}/execute
+GET         /vip-workflows/v1/abilities/{id}
+POST        /vip-workflows/v1/abilities/{id}/run
+GET         /vip-workflows/v1/posts/{post_id}/ability-results
 GET         /vip-workflows/v1/tools
 POST        /vip-workflows/v1/tools/{id}/settings
 
@@ -94,22 +96,24 @@ GET         /vip-workflows/v1/discovery/search?provider={slug}&text={query}&filt
 GET         /vip-workflows/v1/discovery/filters?provider={slug}
 POST        /vip-workflows/v1/discovery/select
 
-# Unified Assistants (Integrations page)
+# Unified Assistants (Agents page)
 GET         /vip-workflows/v1/assistants
 GET         /vip-workflows/v1/assistants/{slug}
 POST        /vip-workflows/v1/assistants/{slug}/settings
 
-# AI Agent
-POST        /vip-workflows/v1/ai-agent/chat
-GET         /vip-workflows/v1/ai-agent/conversations
-GET/DEL     /vip-workflows/v1/ai-agent/conversations/{id}
+# Experiments
+GET         /vip-workflows/v1/settings/experiments
+POST        /vip-workflows/v1/settings/experiments
 
-# Jobs
-GET         /vip-workflows/v1/jobs
-GET         /vip-workflows/v1/jobs/history
-GET/POST    /vip-workflows/v1/jobs/{id}/settings
-POST        /vip-workflows/v1/jobs/{id}/run
+# Audit Log
+GET         /vip-workflows/v1/audit-log
+GET         /vip-workflows/v1/audit-log/event-types
+GET         /vip-workflows/v1/audit-log/users
 ```
+
+> **AI Agent chat endpoints are not in this repo.** They were extracted to the standalone `vip-ai-agent` plugin (2026-07-09); see [`docs/specs/shipped/ai-agent.md`](../specs/shipped/ai-agent.md).
+>
+> **There is no Jobs REST namespace.** An earlier job-registry framework (`/jobs`, `/jobs/{id}/settings`, `/jobs/{id}/run`) was removed — see [architecture.md §7](architecture.md#7-scheduled-cleanup). The only scheduled work today is the nightly `Maintenance\Cleanup` routine, which has no settings or run-now endpoint.
 
 ---
 
@@ -127,7 +131,7 @@ POST        /vip-workflows/v1/jobs/{id}/run
 - `AbilityExecutor::execute()` expects `['post_id' => $id]` context, NOT just `$post_id`
 - Old pattern (wrong): `$executor->execute($ability_id, $post_id)`
 - New pattern (correct): `$executor->execute($ability_id, ['post_id' => $post_id])`
-- Results are `AbilityResult` objects with `success`, `score`, `status`, `issues[]`, etc.
+- Results are `AbilityResult` objects. Its own properties are execution metadata (`success`, `summary`, `error`, `duration_ms`, `post_id`, etc.); the ability's actual payload — `score`, `status`, `issues[]`, or whatever the ability's `output_schema` declares — lives in `$result->output`, e.g. `$result->output['issues']`
 - The surface a run came from is the optional third argument — `$executor->execute($ability_id, ['post_id' => $post_id], 'transition')` — and an ability reads it back with `AbilityExecutor::current_context()`. Never put it in the input array: abilities declare `additionalProperties => false`, so it would fail validation
 
 **Hard Check Enforcement Logic**:
@@ -153,7 +157,7 @@ POST        /vip-workflows/v1/jobs/{id}/run
 
 **Assignment Requirements**:
 - Sequence defines `requires_assignment` with `meta_key` and `match` rule
-- Match types: `current_user`, `role:editor`, etc.
+- Match types: `current_user`, `current_user_role`, `completed` (agent-driven, status-based rather than identity-based)
 - Validated via `AssignmentManager::user_satisfies_requirement()`
 - Transitions locked/unlocked in frontend via `_locked` and `_locked_reason` props
 - Can be bypassed if user has `can_user_bypass_workflow()` permission
@@ -219,9 +223,10 @@ POST        /vip-workflows/v1/jobs/{id}/run
 **CRITICAL: Never embed reusable functionality in feature-specific controllers.**
 
 Generic utilities live in `includes/integrations/`:
-- `MediaProcessor` - AI processing for images, audio, video, PDFs (used by research sources, assets)
+- `MediaProcessor` - AI processing for images, audio, video, PDFs (used by research sources and ideation)
 - `UrlMetaExtractor` - Fetch Open Graph/meta tags from URLs (used by research, etc.)
-- `AIMediaAnalyzer` - Thin event-driven adapter; hooks `vip_workflows_asset_file_uploaded` and dispatches to `MediaProcessor`. No longer contains its own AI logic.
+
+There is no `AIMediaAnalyzer` any more — it hooked an asset-upload event that no longer exists. The standalone Workflow Notes (assets) subsystem it served was removed in schema `2.16.0`; see [architecture.md § Ideation System](architecture.md#4-ideation-system).
 
 Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 - `GET /vip-workflows/v1/url-meta?url=...` - URL metadata extraction
@@ -233,7 +238,7 @@ Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 
 ### Extension Plugin Patterns
 
-**All tools** must set `meta.type` (`check`, `helper`, `validator`, `agent`) to appear in Integrations > Tools. Tools without `meta.type` are hidden from the admin UI. Ability IDs use `vendor/name` slash format (e.g., `my-plugin/my-check`). Never use `sanitize_key()` on ability IDs.
+**All tools** must set `meta.type` (`check`, `helper`, `validator`, `agent`) to appear on the Tools page. Tools without `meta.type` are hidden from the admin UI. Ability IDs use `vendor/name` slash format (e.g., `my-plugin/my-check`). Never use `sanitize_key()` on ability IDs.
 
 **Check Tools** (e.g., editorial-alignment, checklist):
 - Register on `wp_abilities_api_init` hook via `vip_workflows_register_ability()`
@@ -242,8 +247,8 @@ Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 - Each issue has `check_key`, `message`, `severity` ('error', 'warning', 'info')
 - Define configurable settings in `meta.settings_schema` (not `input_schema`)
 - Fields with `enforceable: true` get soft/hard check mode pills in UI
-- Set `meta.show_in_commands = true` on ability registration so admins can enable "Show in Command Palette (⌘K)" for the tool in Integrations > Tools. The actual on/off value is admin-configured per site; the meta flag is only the opt-in gate.
-- Set `meta.transition_eligible = true` on ability registration so admins can enable "Can be used in transitions" for the tool in Integrations > Tools.
+- Set `meta.show_in_commands = true` on ability registration so admins can enable "Show in Command Palette (⌘K)" for the tool on the Tools page. The actual on/off value is admin-configured per site; the meta flag is only the opt-in gate.
+- Set `meta.transition_eligible = true` on ability registration so admins can enable "Can be used in transitions" for the tool on the Tools page.
 - Read settings at runtime via `AbilitySettings::get_options()`, not from `$input`
 - Display results inline in editor sidebar
 

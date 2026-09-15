@@ -275,6 +275,7 @@ function endsAfterMove( edge, end, candidate ) {
 function Flow( {
 	stages,
 	isPhase,
+	allowAgentPublish = false,
 	warnings,
 	regions: regionsProp = [],
 	selectedNodeKey,
@@ -322,8 +323,8 @@ function Flow( {
 	// anything the canvas *draws* changes — a label being typed in the
 	// inspector, a colour, a stage count.
 	const graph = useMemo(
-		() => buildGraph( stages, { isPhase, regions } ),
-		[ stages, isPhase, regions ]
+		() => buildGraph( stages, { isPhase, regions, allowAgentPublish } ),
+		[ stages, isPhase, regions, allowAgentPublish ]
 	);
 
 	// What the dagre pass actually reads out of that projection: which nodes
@@ -566,8 +567,12 @@ function Flow( {
 					'is-outbound',
 				// An agent outcome edge, drawn in that outcome's tone — at all
 				// times, so two lines between the same pair of stages can be
-				// told apart at rest (see the CSS).
-				edge.data?.outcome && `is-outcome is-${ edge.data.outcome }`,
+				// told apart at rest (see the CSS). Unless it is disabled: a
+				// route held for publishing keeps its outcome but not its tone,
+				// so the disabled rules never have to out-rank the hues.
+				! edge.data?.disabled &&
+					edge.data?.outcome &&
+					`is-outcome is-${ edge.data.outcome }`,
 				// A transition an agent stage no longer lets anyone use. Still
 				// selectable and deletable — just visibly inert.
 				edge.data?.disabled && 'is-disabled',
@@ -965,16 +970,16 @@ function Flow( {
 	// added or removed from outside the canvas too — the inspector's delete, the
 	// "add stage" button, a status change that moves one between bands — and each
 	// of those would otherwise re-flow whatever hadn't been placed yet. So the
-	// same freeze runs on any structural change, against the arrangement that was
-	// on screen before it.
+	// same freeze runs on any layout change, including a transition re-pointed
+	// in the inspector, against the arrangement that was on screen before it.
 	//
 	// A layout effect, not a passive one: it commits before the browser paints,
 	// so the re-laid-out frame it is undoing is never shown.
 	const drawnLayout = useRef( null );
 	useLayoutEffect( () => {
 		const previous = drawnLayout.current;
-		drawnLayout.current = { structureKey, layout };
-		if ( ! previous || previous.structureKey === structureKey ) {
+		drawnLayout.current = { layoutKey, layout };
+		if ( ! previous || previous.layoutKey === layoutKey ) {
 			return;
 		}
 		// Nothing was on the canvas to keep — the sequence loading in, not an
@@ -985,12 +990,16 @@ function Flow( {
 		// Only what is still on the canvas, in the band it was in. A deleted stage
 		// needs no placement, and a moved one's would name a band it has left —
 		// which may be a band that is gone, where `bandRegionOf` throws.
-		const regionNow = new Map(
-			layout.nodes.map( ( n ) => [ n.id, n.data?.region ] )
-		);
-		const kept = previous.layout.nodes.filter(
-			( n ) => regionNow.get( n.id ) === n.data?.region
-		);
+		const nodesNow = new Map( layout.nodes.map( ( n ) => [ n.id, n ] ) );
+		const kept = previous.layout.nodes.filter( ( n ) => {
+			const current = nodesNow.get( n.id );
+			return (
+				current &&
+				current.data?.region === n.data?.region &&
+				Boolean( current.data?.isRegionEntry ) ===
+					Boolean( n.data?.isRegionEntry )
+			);
+		} );
 		// A stage arriving from outside the canvas — Add stage in the sequence
 		// panel, a status picked in the stage panel — has no placement, and the
 		// layout reserves no room for placed stages, so it would land on its
@@ -1000,6 +1009,33 @@ function Flow( {
 		const keptIds = new Set( kept.map( ( n ) => n.id ) );
 		const isFree = ( n ) => n.type === NODE_TYPE && ! n.data?.isRegionEntry;
 		freezeCanvas( { ...previous.layout, nodes: kept }, ( next ) => {
+			// A checkpoint changed from a panel has no new pointer position: its
+			// old slot must not pin it above the band's remaining stages. A drag
+			// off the slot already supplied a fresh placement, which stays put.
+			previous.layout.nodes.forEach( ( n ) => {
+				const current = nodesNow.get( n.id );
+				if (
+					! current ||
+					Boolean( current.data?.isRegionEntry ) ===
+						Boolean( n.data?.isRegionEntry )
+				) {
+					return;
+				}
+				const oldPlacement = placementIn(
+					n.position,
+					n.data?.region ?? null,
+					previous.layout.bands
+				);
+				const placement = next[ n.id ];
+				const unchanged =
+					placement &&
+					placement.region === oldPlacement.region &&
+					placement.x === oldPlacement.x &&
+					placement.y === oldPlacement.y;
+				if ( current.data?.isRegionEntry || unchanged ) {
+					delete next[ n.id ];
+				}
+			} );
 			const floors = {};
 			kept.filter( isFree ).forEach( ( n ) => {
 				const bottom = n.position.y + ( n.height || STAGE_HEIGHT );
@@ -1033,7 +1069,7 @@ function Flow( {
 		// Freezing *is* the canvas becoming the author's, so the centering below
 		// has nothing left to do: claiming the key is how it's told.
 		prevStructure.current = structureKey;
-	}, [ structureKey, layout, freezeCanvas ] );
+	}, [ structureKey, layoutKey, layout, freezeCanvas ] );
 
 	// The frame the centering below waits on, and the only thing that cancels it:
 	// unmount. Cancelling from that effect's own cleanup instead would lose the

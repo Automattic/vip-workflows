@@ -134,7 +134,7 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 		try {
 			new URL( url );
 		} catch {
-			setError( __( 'Please enter a valid URL.', 'vip-workflows' ) );
+			setError( __( 'Enter a valid URL.', 'vip-workflows' ) );
 			return;
 		}
 
@@ -157,7 +157,7 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 
 	return (
 		<Modal
-			title={ __( 'Add Source URL', 'vip-workflows' ) }
+			title={ __( 'Add source URL', 'vip-workflows' ) }
 			onRequestClose={ onClose }
 			className="vip-workflows-research-add-source-modal"
 			size="medium"

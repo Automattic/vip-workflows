@@ -48,7 +48,7 @@ Panel input / Card action / Mentor suggestion
 
 **Files:** `class-ideation-orchestrator.php`, `class-ideation-controller.php`
 
-- New `run_query(int $project_id, string $assistant_id, string $query): AssistantResult` on `IdeationOrchestrator`
+- New `run_query(int $project_id, string $assistant_id, string $query): array` on `IdeationOrchestrator`
   - Loads seed + seed_analysis from meta
   - Builds context with `query` key set to the custom search term
   - Instantiates and runs the single specified assistant

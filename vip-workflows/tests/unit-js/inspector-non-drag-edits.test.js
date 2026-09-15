@@ -273,6 +273,35 @@ describe( 'Re-pointing a transition without dragging its endpoint', () => {
 		);
 	} );
 
+	it( 'keeps a missing destination visible until the author repairs it', () => {
+		const transition = { to: 'deleted', label: 'Submit' };
+		const onReconnectTransition = jest.fn();
+		renderInspector( {
+			...edgeSelection( { to: 'deleted' } ),
+			stages: [
+				{ ...STAGES[ 0 ], transitions: [ transition ] },
+				...STAGES.slice( 1 ),
+			],
+			selectedTransition: transition,
+			onReconnectTransition,
+		} );
+
+		expect( picker( 'To' ) ).toHaveValue( 'deleted' );
+		expect(
+			screen.getByRole( 'option', { name: 'deleted (missing)' } )
+		).toHaveProperty( 'selected', true );
+		expect( onReconnectTransition ).not.toHaveBeenCalled();
+
+		fireEvent.change( picker( 'To' ), { target: { value: 'review' } } );
+		expect( onReconnectTransition ).toHaveBeenCalledWith(
+			'draft',
+			'deleted',
+			'draft',
+			'review',
+			null
+		);
+	} );
+
 	it( 'gives an outcome edge no From control — its departure is fixed', () => {
 		// An outcome belongs to the agent on its own stage: moving the source
 		// would ask a different stage's agent to own the route, which
@@ -293,6 +322,25 @@ describe( 'Re-pointing a transition without dragging its endpoint', () => {
 
 		expect( screen.queryByRole( 'combobox', { name: 'From' } ) ).toBeNull();
 		expect( picker( 'To' ) ).toBeInTheDocument();
+	} );
+
+	it( 'does not offer End for an AI stage’s unrouted transition', () => {
+		renderInspector( {
+			...edgeSelection(),
+			stages: [
+				{
+					...STAGES[ 0 ],
+					agent: { ability_id: 'x', routing: {} },
+				},
+				...STAGES.slice( 1 ),
+			],
+		} );
+
+		expect(
+			Array.from( picker( 'To' ).options ).map(
+				( option ) => option.value
+			)
+		).toEqual( [ 'review', 'done' ] );
 	} );
 
 	it( 'offers no re-pointing at all in a phase sequence', () => {

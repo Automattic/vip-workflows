@@ -80,13 +80,13 @@ describe( 'AdminPage breadcrumbs', () => {
 
 	it( 'renders a trail-less title as a standalone heading (no breadcrumb nav)', () => {
 		const html = renderToString(
-			<AdminPage title="Coming Soon">body</AdminPage>
+			<AdminPage title="Coming soon">body</AdminPage>
 		);
 
 		// With no parent links there is no breadcrumb nav — just the page <h1>.
 		expect( html ).not.toContain( 'vip-workflows-admin-page__breadcrumbs' );
 		expect( html ).toContain( 'vip-workflows-admin-page__title' );
-		expect( html ).toContain( '>Coming Soon<' );
+		expect( html ).toContain( '>Coming soon<' );
 	} );
 } );
 

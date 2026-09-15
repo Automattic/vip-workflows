@@ -36,7 +36,7 @@ export default function Agents() {
 			] }
 			title={ __( 'Agents', 'vip-workflows' ) }
 			subtitle={ __(
-				'Configure agents that assist with editorial work.',
+				'Agents run when a post enters a stage, and route it onward by what they find.',
 				'vip-workflows'
 			) }
 			actions={

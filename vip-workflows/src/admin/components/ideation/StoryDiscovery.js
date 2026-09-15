@@ -206,11 +206,11 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 																	{ prompt.importance ===
 																	'key_event'
 																		? __(
-																				'Key Event',
+																				'Key event',
 																				'vip-workflows'
 																		  )
 																		: __(
-																				'Top Story',
+																				'Top story',
 																				'vip-workflows'
 																		  ) }
 																</Badge>

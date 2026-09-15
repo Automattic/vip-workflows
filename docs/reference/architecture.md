@@ -23,7 +23,7 @@ The scope is deliberately broader than simple status transitions, but the repo n
 | Workflow Stage | Post meta `_vip_workflows_current_stage_key` (queried via `StageQuery`) |
 | Stage Transition | `StatusManager::transition()` — stage meta write; `post_status` written only when the edge crosses a status-region boundary |
 | Story-to-Object links | `wp_vip_story_objects` join table + `_vip_story_id` meta |
-| Audit Trail | `wp_vip_workflows_events` (with `story_id` column) |
+| Audit Trail | `wp_vip_workflows_events` (post-scoped; no `story_id` column) |
 
 See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarchy.md) for the full hierarchy and relationship model.
 
@@ -42,7 +42,7 @@ See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarc
 
 ### 1. Sequences
 
-**Sequences** define workflows. They are JSON configurations stored in `wp_vip_sequences` table. Two types exist: **workflow** (editorial statuses for posts, labeled **"Workflow Sequences"** in the admin UI) and **phase** (transitions between content lifecycle phases: Ideation, Editorial).
+**Sequences** define workflows. They are JSON configurations stored in `wp_vip_sequences` table. Two types exist: **workflow** (editorial statuses for posts, labeled **"Workflow sequences"** in the admin UI) and **phase** (transitions between content lifecycle phases: Ideation, Editorial).
 
 > **Naming note:** The database `type` column, the PHP/JS variable names (e.g. `Sequence::TYPE_WORKFLOW`, `workflowSequences`) and the user-facing tab label all use `workflow`. A sequence of this type is not necessarily editorial — it drives whatever post types it is configured for.
 
@@ -167,19 +167,15 @@ wp_register_ability('vip-workflows/seo-check', [
    - Keyword variations
    - Returns pass/warning/fail per check
 
-4. **AI Agent** (`vip-workflows/ai-agent`):
-   - Conversational AI assistant (chat interface in sidebar)
-   - Multi-turn conversations with post context
-   - Aware of available tools/abilities (can recommend running them)
-   - Can suggest title, excerpt, and text replacements
-   - Highlighted text awareness for rewriting
-   - Chat history persisted per post in `vip_ai_agent_conversations` table
-   - Configurable model (default: gpt-4o)
-   - Display name stored in constant for easy renaming
+> **AI Agent moved out of core (2026-07-09):** the conversational chat sidebar
+> ability, its `AiAgentService`/`AiAgentController` classes, and the
+> `vip_ai_agent_conversations` table now live in the standalone `vip-ai-agent`
+> plugin, not in this repo. See
+> [`docs/specs/shipped/ai-agent.md`](../specs/shipped/ai-agent.md).
 
 **Extension Plugin Tools** (demonstrate extensibility):
 
-4. **Checklist Tool** (`workflow-tool-checklist`):
+1. **Checklist Tool** (`workflow-tool-checklist`):
    - Configurable checklist items per sequence
    - Per-item hard/soft enforcement
    - Editor UI showing checklist with checkboxes
@@ -195,29 +191,26 @@ Additional tools can be built as standalone plugins.
 **Unified Settings Schema**: All plugin types (tools, assistants, notification channels) define configurable settings via `settings_schema` in their `meta` block. The UI auto-renders fields via `SchemaSettings.js`. Tool settings with `enforceable: true` display a soft/hard check mode pill. Settings are read at runtime via `AbilitySettings::get_options()`, not from `$input`. Plugins can override the auto-rendered UI with custom React components via JS filters (e.g., `vipWorkflows.toolSettingsComponent`, `vipWorkflows.assistantSettings`). Each such filter receives a callbacks object — `{ disabled, onHasChangesChange, onSaveRef }` — which the card always supplies, so a filter callback may destructure it without guarding. `disabled` is `true` while the tool or agent is switched off, and a plugin-supplied component **must** honor it: pass it to every control, and never report `true` through `onHasChangesChange` while it is set. A card can only disable the controls it renders itself; a plugin component replaces those, so a component that ignores `disabled` leaves a switched-off tool configurable and savable.
 
 **Tool Results Storage**:
-- Stored in `wp_vip_ability_results` table
-- Includes score, status, detailed results JSON, execution time
+- Stored in `wp_vip_ability_results` table — one row per tool run against a post
+- Includes summary, duration, and the raw `output` array (score/status/issues, shaped per the ability's `output_schema`)
 - Cached and displayed in Editor Tools Panel
-- Audit trail for compliance
+- This is a distinct history from the `wp_vip_workflows_events` audit log below: this table is per-tool-run detail used to gate transitions, not the site-wide event stream
 
 **Tool Execution Context**:
 ```php
 $executor = new AbilityExecutor();
 $result = $executor->execute('vip-workflows/seo-check', ['post_id' => $post_id]);
 
-// $result is AbilityResult object with:
-// - success (boolean)
-// - score (0-100 or null)
-// - status ('pass', 'warning', 'fail')
-// - summary (human-readable)
-// - data (detailed results array)
-// - issues (array of issue objects with check_key, message, severity)
-// - duration_ms (execution time)
-// - post_id (context)
+// $result is an AbilityResult object. Its own properties are execution
+// metadata: id, ability_id, post_id, success (bool), summary, error,
+// duration_ms, created_by, created_at. The ability's actual output — score,
+// status, issues, or whatever else the ability's output_schema declares —
+// lives in $result->output, not as top-level properties.
 
 // Check enforcement during transitions:
 $settings = AbilitySettings::get_instance();
-foreach ($result->issues as $issue) {
+$issues = $result->output['issues'] ?? array();
+foreach ($issues as $issue) {
     $check_key = $issue['check_key'] ?? 'general';
     $is_hard = $settings->is_hard_check('vip-workflows/seo-check', $check_key);
     // Or check issue severity: $issue['severity'] === 'error' or 'hard'
@@ -230,23 +223,11 @@ foreach ($result->issues as $issue) {
 
 ### 4. Ideation System
 
-Pre-workflow system for capturing, developing, and assigning ideas before they become posts.
+Pre-workflow system for capturing and developing ideas before they become posts, gated behind the `ideation` experiment (see [§ Experiments](../specs/shipped/experiments.md)). One CPT: `vip_ideation` — story ideation projects, registered by `IdeationPostTypes` in `includes/ideation/research/class-ideation-post-types.php` (namespace `VIPWorkflows\Ideation\Research`).
 
-**CPTs**:
-- `vip_ideation` - Story ideation projects (see Story Ideation below)
-- `vip_workflows_note` - Assets/resources (documents, images, audio, video) - hidden, internal
+> **A standalone asset library used to live here and was removed** (schema migration `2.16.0`: "The Workflow Notes (assets) subsystem was removed"). There is no `vip_workflows_note` CPT, no `AssetsController`, no `AIMediaAnalyzer`, no `/vip-workflows/v1/assets/upload` route, and no `AssetManager.js` — none of that exists on `main` any more. Uploaded-document AI analysis lives inside the Story Ideation flow below instead (`_vip_ideation_asst_{id}` meta, `MediaProcessor` shared with research), not as a separate asset manager. There is also no ideation-specific assignment feature ("Direct Assignment" / "Automatic") — assignment is a workflow (post-transition) concept, handled by `AssignmentManager` and documented under Sequences above.
 
-**Assignment Methods**:
-1. **Direct Assignment**: Editor assigns to specific writer
-2. **Automatic**: Automation rules assign based on criteria
-
-**Asset Management**:
-- Upload documents, images, audio, video
-- Automatic AI analysis on upload (Vision API for images, Whisper for audio/video)
-- Search and filter asset library
-- Asset metadata stored in post meta
-
-### 4b. Story Ideation (New)
+### 4b. Story Ideation
 
 Upstream creative workspace for developing story ideas before they enter the editorial workflow. A journalist enters a ~20-word seed describing a story idea. The system deploys specialized AI assistants in parallel to enrich it.
 
@@ -322,7 +303,7 @@ add_filter( 'vip_workflows_media_providers', function( $providers ) {
 - `DiscoveryController` exposes REST endpoints that proxy to registered providers
 - `StoryDiscovery` React component renders provider sections on the landing page between SeedInput and RecentProjects
 - `DiscoverySearchModal` renders dynamic filter controls from provider filter definitions
-- Providers appear in the unified Assistants tab on the Integrations page (see §6 below); plugins spanning discovery + research group their capabilities via `vip_workflows_register_assistant_meta`
+- Providers appear on the unified Agents page (see §5a below); plugins spanning discovery + research group their capabilities via `vip_workflows_register_assistant_meta`
 
 **Key files**:
 - `includes/discovery/` - registry and module
@@ -331,9 +312,9 @@ add_filter( 'vip_workflows_media_providers', function( $providers ) {
 - `src/admin/components/ideation/DiscoverySearchModal.js` - search modal
 - [`docs/specs/shipped/story-discovery.md`](../specs/shipped/story-discovery.md) — full spec
 
-### 5a. Unified Assistants (Integrations page)
+### 5a. Unified Assistants (Agents page)
 
-**One card per plugin** on the Integrations > Assistants tab, regardless of whether a plugin provides a research ability, a discovery provider, or both.
+**One card per plugin** on the **Workflows → Agents** page (there is no longer a tabbed "Integrations" page — see [admin-ui.md](admin-ui.md)), regardless of whether a plugin provides a research ability, a discovery provider, or both.
 
 **Architecture**:
 - `AssistantRegistry` (singleton) synthesizes unified entries from `AbilitySettings` (category = `research`) and `DiscoveryProviderRegistry`
@@ -359,23 +340,29 @@ add_filter( 'vip_workflows_media_providers', function( $providers ) {
 - **Built-in Channels**: Email, Slack
 - **Custom Channels**: Extensible via standalone plugins
 
-**In-App Notifications**:
-- Bell icon in admin bar with unread count
-- Dropdown list of recent notifications
-- Click to navigate to related post
-- Mark as read/unread
-- Stored in `wp_vip_workflows_notifications` table
+> **No in-app bell/inbox.** The `wp_vip_workflows_notifications` table is still created by `class-schema.php`, but nothing in the plugin reads or writes it — there is no admin-bar bell, no unread dropdown, no mark-as-read. The only delivery paths today are the Email and Slack channels below. If that changes, this table stops being vestigial and this note should come out.
 
-**Notification Types**:
-- Status transitions (post moved to review, approved, etc.)
-- Assignments (you've been assigned to a post)
-- Tool failures (required check failed)
-- SLA breaches (post stuck too long in status)
+**Notification Types** (routed via the event-to-channel matrix; see below):
+- `published` — a post's first crossing into the `publish` region, whether the crossing was workflow-driven or a core-driven publish (scheduled post, quick edit, REST, CLI)
+- Per-transition — any transition a sequence configures `notifications: [...]` on sends its own template to those channels directly, independent of the routing matrix
 
-**Channel Configuration**:
-- Email: Uses WordPress `wp_mail()`, no config needed
-- Slack: Requires webhook URL in settings
-- Custom: Plugin provides settings UI
+**Channel Configuration** — **Workflows → Notifications**, two tabs, one Save for the screen:
+- **Channels** — one card per registered channel (Slack supports multiple webhook destinations, each its own card). Email uses `wp_mail()`; Slack needs a webhook URL
+- **Routing** — the event → channels matrix (currently just `published`) plus a debug mode that mirrors every event to chosen channels for testing
+- **Custom**: a plugin registers a channel via the `vip_workflows_notification_channels` filter and provides its own settings UI
+
+### 6b. Audit Log
+
+Two separate systems both get called "audit trail" in this codebase; they store different things and back different UI.
+
+| | `wp_vip_workflows_events` | `wp_vip_ability_results` |
+|---|---|---|
+| **What it records** | Every workflow event: status transitions, blocked transitions, tool runs/warnings/failures, workflow assignment/claim/release, sequence configuration changes | One row per tool (ability) run against a post: score/status/issues, duration, success |
+| **Surface** | **Workflows → Audit Log** admin page (`src/admin/pages/AuditLog.js`), a site-wide, filterable (event type, user, post, search) event stream | Editor Tools Panel — the cached result of the last run of each tool against the current post |
+| **Backing controller** | `includes/api/class-audit-log-controller.php` (`GET /vip-workflows/v1/audit-log`) | `includes/api/class-abilities-controller.php` / `AbilityResultRepository` |
+| **Used to gate transitions?** | No — it is a read of what already happened | Yes — `StatusManager::run_transition_tools()` reads the fresh result, not this stored history, but successful runs land here |
+
+Both are pruned by the same nightly `Maintenance\Cleanup` routine (see §7) — ability results after 90 days, events after a year.
 
 ### 7. Scheduled Cleanup
 
@@ -465,9 +452,8 @@ VIPWorkflows\Plugin (Singleton Bootstrap)
 │   ├── AgentRunner (Async agent tasks)
 │   └── AssignmentManager (User assignments)
 │
-├── Ideation\
-│   ├── IdeationPostTypes (Registers ideation/note CPTs)
-│   └── WorkflowNote (Model)
+├── Ideation\Research\
+│   └── IdeationPostTypes (Registers the vip_ideation CPT — the old Workflow Notes/asset CPT was removed in schema 2.16.0)
 │
 ├── Abilities\
 │   ├── AbilityRegistry (Tool registration)
@@ -478,8 +464,13 @@ VIPWorkflows\Plugin (Singleton Bootstrap)
 │   └── tools/
 │       ├── seo-check.php
 │       ├── readability.php
-│       ├── keyword-check.php
-│       └── ai-agent.php
+│       └── keyword-check.php
+│
+├── Experiments\
+│   ├── Experiment (Abstract base for toggleable experiments)
+│   ├── ExperimentRegistry (Tracks experiments, resolves enabled state)
+│   ├── ExperimentCLI (wp vip-workflows experiment list|enable|disable)
+│   └── IdeationExperiment (Gates IdeationPostTypes, SourceProcessingJob, DiscoveryModule)
 │
 ├── Automation\
 │   ├── EventBus (Records every event the plugin emits)
@@ -501,23 +492,24 @@ VIPWorkflows\Plugin (Singleton Bootstrap)
 │   ├── SequencesController
 │   ├── WorkflowController (Transitions)
 │   ├── AbilitiesController (Tool execution)
-│   ├── AiAgentController (Chat + conversations)
-│   ├── AssetsController
+│   ├── ToolsController (Tool settings/toggles)
 │   ├── NotificationsController
+│   ├── ExperimentsController (Toggle experiments)
+│   ├── PromptsController
+│   ├── AssignableUsersController
+│   ├── MetadataController
 │   └── AuditLogController
 │
 ├── Admin\
 │   ├── Admin (Main menu, page dispatcher)
 │   ├── IdeationAdmin (Ideation UI)
-│   ├── Settings (General settings)
+│   ├── Settings (General settings, capability checks for audit log/bypass)
 │   ├── PostsColumns (Workflow column)
 │   ├── DashboardWidget ("My Workflow")
-│   ├── Settings (Settings pages)
-│   └── Integrations (Integrations settings)
+│   └── AdminStyles
 │
 ├── AI\
-│   ├── EventDispatcher (PSR-14 for AI request logging)
-│   └── AiAgentService (Chat orchestration, system prompt, tool awareness)
+│   └── EventDispatcher (PSR-14 for AI request logging)
 │
 ├── Editor\
 │   └── EditorIntegration (Sidebar scripts)
@@ -527,9 +519,12 @@ VIPWorkflows\Plugin (Singleton Bootstrap)
 │   └── Seeder (Default data)
 │
 └── Integrations\
-    ├── AIMediaAnalyzer (event adapter — vip_workflows_asset_file_uploaded → MediaProcessor)
-    ├── MediaProcessor (core AI: image vision, audio/video transcription, PDF analysis; shared by assets + research + ideation)
-    └── UrlMetaExtractor (Fetch Open Graph/meta from URLs)
+    ├── MediaProcessor (core AI: image vision, audio/video transcription, PDF analysis; shared by research + ideation — no longer by an asset manager, which was removed)
+    ├── UrlMetaExtractor (Fetch Open Graph/meta from URLs)
+    ├── ContentExtractor (Extract text content from URLs/HTML)
+    ├── DraftBuilder (Build post drafts from ideation data)
+    ├── GuidelineContextProvider (Read guideline context from Gutenberg/Core for AI)
+    └── YouTubeTranscript (YouTube transcript extraction)
 ```
 
 ### Bootstrap Flow

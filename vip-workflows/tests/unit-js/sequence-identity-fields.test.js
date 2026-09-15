@@ -16,8 +16,7 @@ import { render, screen, fireEvent } from './helpers/render-wp-component';
 
 import Inspector from '../../src/admin/components/graph/Inspector';
 
-const ACTIVE_HELP =
-	'Inactive sequences are saved as drafts and not applied to content.';
+const ACTIVE_HELP = 'Inactive sequences don’t apply to posts.';
 const DESCRIPTION_PLACEHOLDER = 'What is this workflow for?';
 
 const STAGES = [

@@ -189,7 +189,7 @@ class IdeationRestartAnalysisTest extends TestCase
         return array(
             array(
                 'type'    => 'news-angle',
-                'title'   => 'News Angle',
+                'title'   => 'News angle',
                 'content' => 'The prior angle.',
                 'card_id' => self::OLD_BOARD_ID,
             ),
@@ -240,7 +240,7 @@ class IdeationRestartAnalysisTest extends TestCase
             'cards'   => array(
                 array(
                     'type'    => 'news-angle',
-                    'title'   => 'News Angle',
+                    'title'   => 'News angle',
                     'content' => 'The fresh angle.',
                 ),
                 array(

@@ -686,7 +686,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
         $this->assertStringContainsString( 'guard.strings.bulkVetoUnpublish', $script );
         // Direction comes from the shared region map, never a second copy of it.
         $this->assertStringContainsString( "api.statusToRegion(targetStatus) === 'publish'", $script );
-        $this->assertStringContainsString( 'published status can\'t be changed directly', $script );
+        $this->assertStringContainsString( 'published status can\u2019t be changed directly', $script );
     }
 
     /**

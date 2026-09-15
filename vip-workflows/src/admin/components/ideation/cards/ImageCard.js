@@ -339,7 +339,7 @@ export default function ImageCard( {
 					}
 					onClose={ () => setModalOpen( false ) }
 					className="vip-workflows-ideation-media-modal"
-					summaryTitle={ __( 'AI Analysis', 'vip-workflows' ) }
+					summaryTitle={ __( 'AI analysis', 'vip-workflows' ) }
 					media={
 						<div className="vip-workflows-ideation-media-modal__preview">
 							{ mediaPreview }

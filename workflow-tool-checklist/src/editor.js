@@ -115,7 +115,7 @@ function ChecklistPanel() {
 			<PluginDocumentSettingPanel
 				name="workflow-checklist"
 				title={ __(
-					'Workflow: Pre-publish Checklist',
+					'Workflow: Pre-publish checklist',
 					'workflow-tool-checklist'
 				) }
 				className="workflow-checklist-panel"
@@ -138,7 +138,7 @@ function ChecklistPanel() {
 		<PluginDocumentSettingPanel
 			name="workflow-checklist"
 			title={ __(
-				'Workflow: Pre-publish Checklist',
+				'Workflow: Pre-publish checklist',
 				'workflow-tool-checklist'
 			) }
 			className="workflow-checklist-panel"
@@ -204,7 +204,7 @@ function ChecklistPanel() {
 				{ allRequiredChecked && requiredItems.length > 0 && (
 					<div className="workflow-checklist__success">
 						{ __(
-							'✓ All required items complete',
+							'All required items complete',
 							'workflow-tool-checklist'
 						) }
 					</div>
