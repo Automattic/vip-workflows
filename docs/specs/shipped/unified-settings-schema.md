@@ -63,9 +63,9 @@ Field properties (superset of what exists today):
 
 Plugins can bypass schema-driven rendering entirely by injecting custom React components via JS filters. This takes precedence over auto-rendered settings.
 
-For tools: `vip_workflows_tool_settings_{slug}` filter.
+For tools: `vipWorkflows.toolSettingsComponent` filter (shipped as this camelCase JS hook rather than the per-slug PHP-style name originally proposed here). Assistants have the equivalent `vipWorkflows.assistantSettings` / `vipWorkflows.assistantSettingsComponent` pair.
 
-Use cases: the checklist tool (complex list editor), or any plugin needing UI that cannot be expressed as simple form fields.
+Use cases: the checklist tool (`workflow-tool-checklist`, complex list editor), or any plugin needing UI that cannot be expressed as simple form fields.
 
 ## Changes
 
@@ -90,7 +90,7 @@ In [`class-tools-controller.php`](../../../vip-workflows/includes/api/class-tool
 - [`readability.php`](../../../vip-workflows/includes/abilities/tools/readability.php) -- move `target_grade` (integer, default 8, enforceable)
 - [`seo-check.php`](../../../vip-workflows/includes/abilities/tools/seo-check.php) -- move `min_words` (integer, default 300, enforceable), `min_paragraphs` (integer, default 3, enforceable), `min_images` (integer, default 1, enforceable), `check_meta` (boolean, default true, enforceable)
 - [`keyword-check.php`](../../../vip-workflows/includes/abilities/tools/keyword-check.php) -- move `flagged_words` (string, default ''), `case_sensitive` (boolean, default false), `match_partial` (boolean, default false)
-- The built-in AI agent -- move its model selection from execution input to the settings schema.
+- The built-in AI agent -- move its model selection from execution input to the settings schema. **Moot**: the built-in AI agent was extracted to the standalone `vip-ai-agent` plugin (2026-07-09, see [`ai-agent.md`](ai-agent.md)) before or instead of this migration landing for it. Its model selection stayed a plugin-wide setting in this repo (`vip_workflows_ai_model` option, `AI\Credentials::DEFAULT_MODEL`, read via `AiInference::model()`) rather than a per-ability `settings_schema`. The migration table's "AI Agent" row below reflects the original plan, not what shipped.
 
 Each tool's `execute()` callback changes from `$input['key'] ?? default` to reading from `AbilitySettings::get_options()`. This fixes the transition-time bug where saved settings were ignored.
 

@@ -278,17 +278,25 @@ stored row remains valid. Two notes:
 
 ## Code entry points
 
-- `vip-workflows/includes/sequences/class-sequence.php` — `illegal_crossings()`,
-  `reroute_illegal_crossings()`, `prepare_config_for_write()`, `normalize_stages()`,
-  `get_region_entry_stage()`
+> Updated for the shipped state: `illegal_crossings()` and `canEnter()` did not
+> survive (see the banner above); `reroute_illegal_crossings()` is now
+> `collapse_duplicate_transitions()`. The list below points at what exists
+> today, not the pre-removal names the rest of this document still uses when
+> describing the plan and its rationale.
+
+- `vip-workflows/includes/sequences/class-sequence.php` —
+  `collapse_duplicate_transitions()`, `prepare_config_for_write()`,
+  `normalize_stages()`, `get_region_entry_stage()`
 - `vip-workflows/includes/workflow/class-status-manager.php` — `transition()`
   (already unconstrained), `assign_sequence()`, `resolve_reseat_stage()`,
   `dispatch_stage_change()`, `current_user_can_cross_region()`
 - `vip-workflows/includes/sequences/class-sequence-repository.php` —
   `repair_stage_regions()`
-- `vip-workflows/includes/database/class-schema.php` — `replay_stored_stage_configs()`
-- `vip-workflows/src/admin/components/graph/graph-model.js` — `canEnter()`,
-  `illegalCrossings()`, `rerouteIllegalCrossings()`, `validateSequence()`,
-  `regionEntryStage()`
-- `vip-workflows/src/admin/components/graph/SequenceGraphEditor.js` — the repair
-  action and the two connection validators
+- `vip-workflows/includes/database/class-schema.php` —
+  `replay_stored_stage_configs()`
+- `vip-workflows/src/admin/components/graph/graph-model.js` —
+  `validateSequence()`, `regionEntryStage()`
+- `vip-workflows/src/admin/components/graph/SequenceGraphEditor.js` —
+  `isValidConnection` (the `isStageKey`-based connection validator) and
+  `reconnectEdge`/`reconnectEdgeToNewStage` (the inline both-endpoints-are-stages
+  guard mentioned in the banner)

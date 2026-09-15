@@ -10,6 +10,8 @@ related:
 
 # Unified Assistants Tab
 
+> **Partially superseded.** The tabbed "Integrations" page this spec describes no longer exists — Notifications, Agents, and Tools are now separate top-level admin pages, each its own item under the Workflows menu. The standalone **Agents** page (`src/admin/pages/Agents.js`) is what this spec calls the "Assistants" tab: it renders the same `AssistantsTab` component this spec introduced, backed by the same `AssistantRegistry`/`AssistantCard`/`class-assistant-registry.php` design described below, unchanged. Only the admin-page label moved from "Assistants" to "Agents" — the backend and component names below are still accurate as written. The "How Existing Plugins Map" section reflects the plugin lineup as of this spec's date (2026-07-29); several of those plugins have since moved to the `vip-workflow-extensions` repo.
+
 ## Problem
 
 The Integrations page has separate tabs for "Assistants" (research agents) and "Story Discovery" (discovery providers). A plugin like Qwoted provides both capabilities: it surfaces journalist requests as story prompts (discovery) and finds expert sources during research (assistant). With separate tabs, the editor sees the same service twice and configures credentials in two places.

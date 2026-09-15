@@ -323,13 +323,14 @@ add_action('rest_api_init', function() {
 ### 8. AI Prompt Filters
 
 These filters customize the prompts sent to the Vision and Whisper APIs. All
-three fire inside `MediaProcessor`, so they apply to every call site (asset
-uploads via `AIMediaAnalyzer`, research image sources, and ideation image
-sources).
+three fire inside `MediaProcessor`, so they apply to every call site (research
+image sources and ideation image sources — the asset-upload path that used to
+call through `AIMediaAnalyzer` was removed along with the rest of the Workflow
+Notes/asset subsystem in schema `2.16.0`).
 
 | Filter | Signature | Notes |
 |--------|-----------|-------|
-| `vip_workflows_ai_image_prompt` | `(string $prompt)` | Image/vision analysis. Renamed from `vip_workflows_media_image_prompt` on the MediaProcessor path. ⚠️ Also dropped the `$attachment_id` second arg that existed on the asset-upload path pre-merge. |
+| `vip_workflows_ai_image_prompt` | `(string $prompt)` | Image/vision analysis. Renamed from `vip_workflows_media_image_prompt` on the MediaProcessor path. ⚠️ Also dropped the `$attachment_id` second arg that existed on the (now-removed) asset-upload path pre-merge. |
 | `vip_workflows_ai_summary_prompt` | `(string $prompt, string $content_type)` | Transcript/text summarization. `$content_type` is additive and backward-compatible. |
 | `vip_workflows_media_pdf_prompt` | `(string $prompt)` | PDF analysis. New filter; no legacy name. |
 
