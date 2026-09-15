@@ -104,6 +104,7 @@ import {
 	canReconnect,
 	canReconnectToNewStage,
 	isAgentStage,
+	isRequiredHandOff,
 	START_ID,
 	END_ID,
 	STAGE_WIDTH,
@@ -356,10 +357,10 @@ function Flow( {
 	onClearSelection,
 	onDeleteNode,
 	onDeleteEdge,
-	// Whether a pair is a hand-off a phase sequence owes. The editor's own
-	// predicate, passed rather than re-derived, so the context menu cannot offer
-	// a deletion `handleDeleteTransition` refuses.
-	isRequiredHandOff,
+	// The hand-offs a phase sequence owes, from `/sequences/options`. Read
+	// through the same `isRequiredHandOff` the delete handler is guarded with,
+	// so the context menu cannot offer a deletion that handler refuses.
+	requiredTransitions = [],
 	onAddStageFromNode,
 	onPlaceStage,
 	onSetStageStatus,
@@ -1591,7 +1592,12 @@ function Flow( {
 			const parsed = parseEdgeId( edge.id );
 			if (
 				parsed.from === START_ID ||
-				isRequiredHandOff?.( parsed.from, parsed.to )
+				( isPhase &&
+					isRequiredHandOff(
+						requiredTransitions,
+						parsed.from,
+						parsed.to
+					) )
 			) {
 				openMenuAt( event, {} );
 				return;
@@ -1599,7 +1605,7 @@ function Flow( {
 			onSelectEdge( edge.id );
 			openMenuAt( event, { edge: parsed } );
 		},
-		[ isRequiredHandOff, onSelectEdge, openMenuAt ]
+		[ isPhase, requiredTransitions, onSelectEdge, openMenuAt ]
 	);
 
 	// What the menu offers, decided by what it was opened on.

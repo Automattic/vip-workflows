@@ -64,6 +64,7 @@ import {
 	targetId,
 	isAgentOutcome,
 	isAgentStage,
+	isRequiredHandOff,
 	stageLabel,
 	START_ID,
 	END_ID,
@@ -1350,18 +1351,19 @@ export default function SequenceGraphEditor( {
 		);
 	};
 
-	// Whether this pair is a hand-off the sequence owes. Phase-only, and read
-	// from the server's answer rather than from a pair of keys written here —
-	// the same list `validateSequence` refuses the save against, so what cannot
-	// be deleted and what the save insists on are one fact.
-	const isRequiredHandOff = useCallback(
-		( from, to ) =>
-			isPhase &&
-			requiredPhaseTransitions.some(
-				( t ) => t.from === from && t.to === to
-			),
-		[ isPhase, requiredPhaseTransitions ]
-	);
+	// The phase panel's way to draw an owed hand-off. The same edit the canvas
+	// connects with, but asked for from a panel rather than dragged on the
+	// canvas: the button pressed is in the panel the new selection replaces, so
+	// without a reveal focus falls to the document and the new hand-off may be
+	// out of view. `showTarget` is what hands both to the transition's panel.
+	const handleAddHandOff = ( from, to ) => {
+		const result = connectEdge( stages, from, to );
+		if ( ! result.selection ) {
+			return;
+		}
+		setStages( result.stages );
+		showTarget( { type: 'edge', ...result.selection, outcome: null } );
+	};
 
 	const handleDeleteTransition = ( from, to, outcome = null ) => {
 		// The Start edge is structural and can't be deleted.
@@ -1374,8 +1376,13 @@ export default function SequenceGraphEditor( {
 		// reported afterwards. The transition panel drops its Remove control
 		// for the same pair; this guard is what also closes the canvas's
 		// keyboard-delete path, which reaches this handler without passing any
-		// control that could have been hidden.
-		if ( isRequiredHandOff( from, to ) ) {
+		// control that could have been hidden. Read from the server's answer —
+		// the same list `validateSequence` refuses the save against, so what
+		// cannot be deleted and what the save insists on are one fact.
+		if (
+			isPhase &&
+			isRequiredHandOff( requiredPhaseTransitions, from, to )
+		) {
 			return;
 		}
 		setStages( ( current ) =>
@@ -1948,7 +1955,7 @@ export default function SequenceGraphEditor( {
 						onClearSelection={ clearSelection }
 						onDeleteNode={ handleDeleteStage }
 						onDeleteEdge={ handleDeleteTransition }
-						isRequiredHandOff={ isRequiredHandOff }
+						requiredTransitions={ requiredPhaseTransitions }
 						onAddStageFromNode={
 							isPhase ? undefined : handleAddStageFromNode
 						}
@@ -1989,15 +1996,11 @@ export default function SequenceGraphEditor( {
 						onDeleteStage={ handleDeleteStage }
 						onUpdateTransition={ handleUpdateTransition }
 						onDeleteTransition={ handleDeleteTransition }
-						// The same gesture the canvas connects with, so a
-						// hand-off drawn from the phase panel and one dragged
-						// between the nodes make the identical edit and land on
-						// the identical selection.
 						onConnectTransition={ handleConnect }
 						onReconnectTransition={ handleReconnect }
 						onSelectNode={ selectNode }
+						onAddHandOff={ handleAddHandOff }
 						requiredTransitions={ requiredPhaseTransitions }
-						isRequiredHandOff={ isRequiredHandOff }
 						onSelectEdge={ selectEdge }
 						onSelectRegion={ selectRegion }
 						exitProblems={ exitProblems }

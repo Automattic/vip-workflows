@@ -48,6 +48,7 @@ import {
 	stageRegion,
 	stageLabel,
 	isTransitionDisabled,
+	isRequiredHandOff,
 	missingHandOffs,
 	outcomesRoutedTo,
 	canReconnect,
@@ -168,12 +169,15 @@ function renderPanel( {
 	onConnectTransition,
 	onReconnectTransition,
 	onSelectNode,
-	// Phase-only. The hand-offs the sequence owes, from `/sequences/options`,
-	// and whether one particular pair is among them — the same predicate the
-	// editor guards its delete with, passed rather than re-derived so the panel
-	// cannot offer a removal the handler would refuse.
-	requiredTransitions,
-	isRequiredHandOff,
+	// Phase-only. Draws an owed hand-off from the phase panel.
+	onAddHandOff,
+	// The hand-offs a phase sequence owes, from `/sequences/options`. Read here
+	// through the same `isRequiredHandOff` the editor guards its delete with,
+	// so the panel cannot offer a removal the handler would refuse.
+	//
+	// Empty until the server has answered, and on a workflow sequence, which
+	// owes none — both are "nothing is owed", which is what the list says.
+	requiredTransitions = [],
 	onSelectEdge,
 	onSelectRegion,
 	exitProblems,
@@ -227,7 +231,7 @@ function renderPanel( {
 					).filter( ( { from } ) => from === selectedStage.key ) }
 					resolveStageLabel={ ( key ) => stageLabel( stages, key ) }
 					onAddHandOff={ ( to ) =>
-						onConnectTransition( selectedStage.key, to )
+						onAddHandOff( selectedStage.key, to )
 					}
 				/>
 			);
@@ -508,11 +512,17 @@ function renderPanel( {
 						selection.outcome || null
 					)
 				}
-				// Absent on a workflow sequence, which owes no hand-offs at
-				// all — "nobody asked" and "nothing is required" are the same
-				// answer here, so no predicate means every transition removes.
+				// A workflow sequence owes no hand-offs, whatever its stages
+				// happen to be keyed.
 				canRemove={
-					! isRequiredHandOff?.( selection.from, selection.to )
+					! (
+						isPhase &&
+						isRequiredHandOff(
+							requiredTransitions,
+							selection.from,
+							selection.to
+						)
+					)
 				}
 			/>
 		);

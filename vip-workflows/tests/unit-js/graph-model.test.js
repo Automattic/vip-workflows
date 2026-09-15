@@ -1327,13 +1327,14 @@ describe( 'validateSequence', () => {
 			requiredTransitions: IDEATION_TO_EDITORIAL,
 		} );
 		expect( result.valid ).toBe( false );
+		// Named as the canvas names them, by label.
 		const message = messages( result.errors ).join( ' ' );
-		expect( message ).toContain( 'ideation' );
-		expect( message ).toContain( 'editorial' );
+		expect( message ).toContain( 'Ideation' );
+		expect( message ).toContain( 'Editorial' );
 		// And on the node the missing hand-off leaves from, so the canvas says
 		// where to draw it.
 		expect( ( result.warnings.ideation || [] ).join( ' ' ) ).toContain(
-			'editorial'
+			'Editorial'
 		);
 	} );
 

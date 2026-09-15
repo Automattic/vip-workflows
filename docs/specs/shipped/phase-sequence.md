@@ -1,7 +1,7 @@
 ---
 status: shipped
 version: 1.1
-last_updated: 2026-09-11
+last_updated: 2026-09-15
 related:
   - shipped/content-hierarchy.md
   - shipped/experiments.md
@@ -50,7 +50,7 @@ Sequence `type: 'phase'` stored in the existing `wp_vip_sequences` table. Identi
 
 Phases are fixed (no add/remove). Only Ideation has a meaningful transition today. Editorial appears as a read-only phase card noting that its internal workflow is managed by its own (`type: 'workflow'`) sequence.
 
-Transitions are add/remove, not toggle. The default seeded sequence ships with the Ideation → Editorial transition pre-added, with empty tools/roles/notifications. An admin can remove it and re-add it later — with only one possible target (Editorial), there is nothing to choose between.
+The default seeded sequence ships with the Ideation → Editorial transition pre-added, with empty tools/roles/notifications. That hand-off is required (`required_phase_transitions` from `/sequences/options`), so it cannot be removed: the transition panel offers no Remove control and the editor refuses a keyboard delete. A stored config that lacks it is refused on save, and the Ideation phase panel offers to add it — with only one possible target (Editorial), there is nothing to choose between.
 
 ## Backend Changes
 
@@ -83,8 +83,8 @@ Renders the two phase cards, visually connected to show the pipeline flow.
 
 **Ideation card** is expandable and shows its one transition:
 - Target phase (read-only label — the only possible target is Editorial), button label (text input), required tools (checkboxes), allowed roles (checkboxes, empty = all), notifications (checkboxes).
-- An "Add Transition" button appears when the transition has been removed; clicking re-adds it targeting Editorial. It disappears once the transition exists, since there is no second target to offer.
-- "Remove Transition" button (same pattern as workflow sequence editors).
+- An "Add the hand-off to “Editorial”" button appears on the Ideation phase panel when the required transition is missing; clicking adds it and opens its transition panel. It disappears once the transition exists.
+- No "Remove transition" control: the hand-off is required, so it cannot be removed.
 
 **Editorial card**: read-only, shows "Managed by Editorial Sequences" with a link to the Editorial (Workflow) Sequences tab. (Editorial sequences use `type: 'workflow'` internally.)
 

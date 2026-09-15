@@ -52,6 +52,7 @@ jest.mock(
 );
 
 import SequenceGraphEditor from '../../src/admin/components/graph/SequenceGraphEditor';
+import { isRequiredHandOff } from '../../src/admin/components/graph/graph-model';
 
 const IDEATION_TO_EDITORIAL = [ { from: 'ideation', to: 'editorial' } ];
 
@@ -80,12 +81,15 @@ let writes;
  * @param {Array}  [options.transitions] What the graph MAY connect.
  * @param {Array}  [options.required]    What it may not be saved without.
  *                                       Defaults to the whole graph.
+ * @param {string} [options.mode]        `workflow` to open the same stages as
+ *                                       a workflow sequence instead.
  * @return {Promise<void>} Resolves once the canvas is up.
  */
 async function renderPhaseEditor( {
 	phases,
 	transitions = IDEATION_TO_EDITORIAL,
 	required = transitions,
+	mode = 'phase',
 } ) {
 	apiFetch.mockImplementation( ( { path, method, data } ) => {
 		if ( path === '/vip-workflows/v1/sequences/options' ) {
@@ -109,15 +113,18 @@ async function renderPhaseEditor( {
 			name: 'Content Lifecycle',
 			description: '',
 			status: 'active',
-			type: 'phase',
-			config: { phases },
+			type: mode,
+			config:
+				'phase' === mode
+					? { phases }
+					: { statuses: phases, post_types: [ 'post' ] },
 		} );
 	} );
 
 	render(
 		<SequenceGraphEditor
 			sequenceId={ 3 }
-			mode="phase"
+			mode={ mode }
 			onCancel={ jest.fn() }
 		/>
 	);
@@ -205,6 +212,29 @@ describe( 'A phase panel opened on a missing hand-off', () => {
 		).not.toBeInTheDocument();
 	} );
 
+	// The button pressed lives in the panel the new selection replaces. Left to
+	// the selection alone, focus falls to the document and a keyboard is sent
+	// back to the top of the page — so the add is a reveal, as "Show phase" was.
+	it( 'takes the keyboard to the new hand-off’s panel', async () => {
+		await renderPhaseEditor( { phases: LIFECYCLE } );
+		await selectPhase( 'ideation' );
+
+		const add = screen.getByRole( 'button', {
+			name: /Add the hand-off to/,
+		} );
+		add.focus();
+		fireEvent.click( add );
+
+		const heading = document.querySelector( '.wf-inspector__heading' );
+		expect( heading ).toHaveTextContent( 'Ideation → Editorial' );
+		expect( heading ).toHaveFocus();
+		expect( canvas.reveal?.target ).toMatchObject( {
+			type: 'edge',
+			from: 'ideation',
+			to: 'editorial',
+		} );
+	} );
+
 	// A panel names the phase it opened on. Editorial owes nothing, so offering
 	// Ideation's hand-off here would be a button fixing something this panel is
 	// not about — and two panels offering the same repair is how one of them
@@ -277,6 +307,24 @@ describe( 'A phase panel opened on a missing hand-off', () => {
 			screen.getByText( /Select the connection/i )
 		).toBeInTheDocument();
 	} );
+
+	// Owing nothing is not the same as having a way out. Nothing leaves
+	// Editorial, so a panel telling it to select the connection that does is
+	// the dead end above, on the other phase.
+	it( 'does not tell a phase with no way out to select one', async () => {
+		await renderPhaseEditor( { phases: LIFECYCLE_CONNECTED } );
+		await selectPhase( 'editorial' );
+
+		expect(
+			document.querySelector( '.wf-inspector__heading' )
+		).toHaveTextContent( 'Editorial' );
+		expect(
+			screen.queryByText( /Select the connection/i )
+		).not.toBeInTheDocument();
+		expect(
+			screen.getByText( /no connection leaves this one/i )
+		).toBeInTheDocument();
+	} );
 } );
 
 describe( 'A hand-off the sequence owes', () => {
@@ -307,12 +355,12 @@ describe( 'A hand-off the sequence owes', () => {
 		expect( saveButton() ).toBeDisabled();
 	} );
 
-	// The canvas has a control of its own now — an edge's context menu, whose
-	// only verb is Delete — so it is handed the same predicate the panel is,
-	// and it answers about the obligation rather than about phase mode.
-	// Re-deriving it there is what would let the menu offer the one removal the
-	// handler refuses.
-	it( 'tells the canvas which pair may not be deleted', async () => {
+	// The canvas has a control of its own — an edge's right-click menu, whose
+	// only verb for a transition is Delete — so it is given the same list the
+	// panel reads its guard from, and asks `isRequiredHandOff` of it. Left
+	// without the list, the menu would offer the one removal the handler
+	// refuses: an item that promises and does nothing.
+	it( 'tells the canvas which hand-offs are owed', async () => {
 		await renderPhaseEditor( {
 			phases: LIFECYCLE_CONNECTED,
 			transitions: [
@@ -322,21 +370,33 @@ describe( 'A hand-off the sequence owes', () => {
 			required: IDEATION_TO_EDITORIAL,
 		} );
 
-		expect( canvas.isRequiredHandOff( 'ideation', 'editorial' ) ).toBe(
-			true
-		);
-		expect( canvas.isRequiredHandOff( 'ideation', 'triage' ) ).toBe(
-			false
-		);
+		expect( canvas.requiredTransitions ).toEqual( IDEATION_TO_EDITORIAL );
+		expect(
+			isRequiredHandOff(
+				canvas.requiredTransitions,
+				'ideation',
+				'editorial'
+			)
+		).toBe( true );
+		expect(
+			isRequiredHandOff(
+				canvas.requiredTransitions,
+				'ideation',
+				'triage'
+			)
+		).toBe( false );
 	} );
 
 	// The guard is the obligation, not the phase mode. A hand-off a phase
 	// sequence MAY draw but is not required to keep is ordinary work, and
-	// refusing to remove it would strand whoever drew it.
+	// refusing to remove it would strand whoever drew it — including one that
+	// shares either end with the one that is owed, which is where a guard
+	// matching on half the pair would give itself away.
 	it( 'still removes one the server allows but does not require', async () => {
-		const bothHops = [
+		const allowed = [
 			{ from: 'ideation', to: 'triage' },
 			{ from: 'ideation', to: 'editorial' },
+			{ from: 'triage', to: 'editorial' },
 		];
 
 		await renderPhaseEditor( {
@@ -349,14 +409,24 @@ describe( 'A hand-off the sequence owes', () => {
 						{ to: 'editorial', label: 'Create Draft' },
 					],
 				},
-				{ key: 'triage', label: 'Triage', transitions: [] },
+				{
+					key: 'triage',
+					label: 'Triage',
+					transitions: [ { to: 'editorial', label: 'Accept' } ],
+				},
 				{ key: 'editorial', label: 'Editorial', transitions: [] },
 			],
-			transitions: bothHops,
+			transitions: allowed,
 			required: [ { from: 'ideation', to: 'editorial' } ],
 		} );
-		await selectHandOff( 'ideation', 'triage' );
 
+		// Same source as the owed hand-off.
+		await selectHandOff( 'ideation', 'triage' );
+		fireEvent.click(
+			screen.getByRole( 'button', { name: /Remove transition/i } )
+		);
+		// Same target.
+		await selectHandOff( 'triage', 'editorial' );
 		fireEvent.click(
 			screen.getByRole( 'button', { name: /Remove transition/i } )
 		);
@@ -366,5 +436,24 @@ describe( 'A hand-off the sequence owes', () => {
 		expect( writes[ 0 ].data.statuses[ 0 ].transitions ).toEqual( [
 			expect.objectContaining( { to: 'editorial' } ),
 		] );
+		expect( writes[ 0 ].data.statuses[ 1 ].transitions ).toEqual( [] );
+	} );
+
+	// The list is published to every editor, and a workflow sequence is free to
+	// key its stages however it likes. Owing is a phase sequence's business.
+	it( 'is nothing a workflow sequence owes, whatever its stages are keyed', async () => {
+		await renderPhaseEditor( {
+			phases: LIFECYCLE_CONNECTED,
+			mode: 'workflow',
+		} );
+		await selectHandOff( 'ideation', 'editorial' );
+
+		expect(
+			screen.getByRole( 'button', { name: /Remove transition/i } )
+		).toBeInTheDocument();
+
+		await act( () => canvas.onDeleteEdge( 'ideation', 'editorial' ) );
+
+		expect( canvas.stages[ 0 ].transitions ).toEqual( [] );
 	} );
 } );
