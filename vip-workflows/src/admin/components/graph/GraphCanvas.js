@@ -33,10 +33,9 @@
  * spanning a band takes no pointer events at all (see `RegionNode`), so panning
  * still works over the whole canvas. (Selection does not follow: this canvas
  * derives `selected` from the editor's selection props and drops React Flow's
- * `select` changes, reading what the keyboard picked out of its store instead —
- * see `handleSelectionChange`, which takes one thing or nothing, so a shift-drag
- * marquee over several stages still selects none of them.) What a region *looks*
- * like isn't in that node either: the boundary line and the label that names it
+ * `select` changes; a click, or Enter/Space on a focused card or line, is what
+ * selects — see `handleKeyDown` — so a shift-drag marquee selects nothing.)
+ * What a region *looks* like isn't in that node either: the boundary line and the label that names it
  * are screen-space chrome drawn by `RegionBands`, so the line runs the width of
  * the viewport however far the graph is panned and the label stays pinned to its
  * left edge — a region is a section of the canvas, not a shape on it.
@@ -115,6 +114,7 @@ import {
 	bandAtPoint,
 	checkpointSlotAtPoint,
 	offsetIn,
+	RANK_SEP,
 } from './layout';
 import { EdgePlanProvider } from './EdgePlanProvider';
 import EdgeOverlay from './EdgeOverlay';
@@ -733,9 +733,8 @@ function Flow( {
 
 	// Nodes are draggable, so React Flow's position changes are the one kind of
 	// node change worth keeping. Structure (add/remove) still flows through
-	// `stages`; `select` changes are dropped here and read from React Flow's own
-	// store instead, by `handleSelectionChange` below — a selection is a fact
-	// about the editor, not about the node array.
+	// `stages`; `select` changes are dropped — a selection is a fact about the
+	// editor, not about the node array (keyboard selection: `handleKeyDown`).
 	//
 	// The in-flight position is released here rather than in `onNodeDragStop`,
 	// which a drag isn't guaranteed to reach: a second touch point, or the node
@@ -780,45 +779,39 @@ function Flow( {
 	// What the keyboard selects, handed to the editor.
 	//
 	// React Flow's own keyboard activation — Enter or Space on a focused node
-	// or edge — selects in its store and nowhere else: it never calls
-	// `onNodeClick`, and the matching `select` change is dropped above. So a
-	// keyboard author could reach every card on this canvas and open none of
-	// them, which left every control in the inspector pointer-only — including
-	// the ones that exist precisely so a setting has a path that isn't a drag.
+	// or edge — only emits a `select` change, which is dropped above, and never
+	// calls `onNodeClick`. So a keyboard author could reach every card on this
+	// canvas and open none of them. The key is read here instead, on its way up
+	// from the focused card or line, and handed to the same callbacks a click
+	// uses.
 	//
-	// Only a selection is reported, never an empty one. Clearing stays what it
-	// always was, a click on the pane: React Flow empties its store selection
-	// whenever it reconciles a rebuilt `nodes` array, and a clear reported from
-	// that would shut the panel out from under an author part-way through
-	// typing in it.
+	// Not from React Flow's store (`onSelectionChange`): in a controlled flow the
+	// store only catches up with the editor's selection in an effect after the
+	// render, so it reports the *previous* selection back — undoing every clear
+	// and bouncing between two selections forever — and a shift-drag marquee
+	// writes a selection there too.
 	//
-	// Guarded against what the editor just said, because the selection travels
-	// back down as `selected` on the derived nodes and arrives here again as a
-	// change. Reporting it a second time is a fresh selection object for the
-	// same node, and a render of the whole editor to hold it.
-	//
-	// One, or nothing. The inspector shows the options of a single thing, and
-	// the editor's selection is shaped to match — so a shift-drag marquee over
-	// half the graph still selects nothing rather than picking whichever of
-	// them React Flow happened to list first.
-	const handleSelectionChange = useCallback(
-		( { nodes: picked, edges: pickedEdges } ) => {
-			const stageNodes = picked.filter(
-				( item ) => item.type === NODE_TYPE
-			);
-			if ( stageNodes.length > 0 ) {
-				const [ node ] = stageNodes;
-				if ( stageNodes.length === 1 && node.id !== selectedNodeKey ) {
-					onSelectNode( node.id );
-				}
+	// Only the card or line itself counts: Enter on a control inside a card is
+	// that control's.
+	const handleKeyDown = useCallback(
+		( event ) => {
+			if ( event.key !== 'Enter' && event.key !== ' ' ) {
 				return;
 			}
-			const [ edge ] = pickedEdges;
-			if ( pickedEdges.length === 1 && edge.id !== selectedEdgeId ) {
-				onSelectEdge( edge.id );
+			const id = event.target.getAttribute?.( 'data-id' );
+			if ( event.target.classList?.contains( 'react-flow__node' ) ) {
+				if (
+					nodes.some( ( n ) => n.id === id && n.type === NODE_TYPE )
+				) {
+					onSelectNode( id );
+				}
+			} else if (
+				event.target.classList?.contains( 'react-flow__edge' )
+			) {
+				onSelectEdge( id );
 			}
 		},
-		[ onSelectNode, onSelectEdge, selectedNodeKey, selectedEdgeId ]
+		[ nodes, onSelectNode, onSelectEdge ]
 	);
 
 	// `getNodesBounds` comes off the instance rather than the package export.
@@ -960,7 +953,11 @@ function Flow( {
 		[ getNodesBounds, getViewport, setViewport ]
 	);
 
-	const structureKey = nodes.map( ( n ) => n.id ).join( '|' );
+	// Which nodes there are, and which band each stage is in — so a stage moved
+	// to another status from outside the canvas is a structural change too.
+	const structureKey = nodes
+		.map( ( n ) => `${ n.id }:${ n.data?.region ?? '' }` )
+		.join( '|' );
 	const prevStructure = useRef( '' );
 
 	// The last layout actually drawn, kept for exactly one render. Every gesture
@@ -985,7 +982,54 @@ function Flow( {
 		if ( ! previous.layout.nodes.some( ( n ) => n.type === NODE_TYPE ) ) {
 			return;
 		}
-		freezeCanvas( previous.layout );
+		// Only what is still on the canvas, in the band it was in. A deleted stage
+		// needs no placement, and a moved one's would name a band it has left —
+		// which may be a band that is gone, where `bandRegionOf` throws.
+		const regionNow = new Map(
+			layout.nodes.map( ( n ) => [ n.id, n.data?.region ] )
+		);
+		const kept = previous.layout.nodes.filter(
+			( n ) => regionNow.get( n.id ) === n.data?.region
+		);
+		// A stage arriving from outside the canvas — Add stage in the sequence
+		// panel, a status picked in the stage panel — has no placement, and the
+		// layout reserves no room for placed stages, so it would land on its
+		// band's content origin: where the stage frozen there already sits. It
+		// goes below the lowest stage already in that band instead. (A checkpoint
+		// is pinned to the border, so it needs no spot and makes no floor.)
+		const keptIds = new Set( kept.map( ( n ) => n.id ) );
+		const isFree = ( n ) => n.type === NODE_TYPE && ! n.data?.isRegionEntry;
+		freezeCanvas( { ...previous.layout, nodes: kept }, ( next ) => {
+			const floors = {};
+			kept.filter( isFree ).forEach( ( n ) => {
+				const bottom = n.position.y + ( n.height || STAGE_HEIGHT );
+				const floor = floors[ n.data?.region ];
+				if ( ! floor || bottom > floor.y ) {
+					floors[ n.data?.region ] = { x: n.position.x, y: bottom };
+				}
+			} );
+			layout.nodes
+				.filter( ( n ) => isFree( n ) && ! keptIds.has( n.id ) )
+				.forEach( ( n ) => {
+					const region = n.data?.region;
+					const floor = floors[ region ];
+					if (
+						! floor ||
+						next[ n.id ]?.region === ( region ?? null )
+					) {
+						return;
+					}
+					next[ n.id ] = placementIn(
+						{ x: floor.x, y: floor.y + RANK_SEP },
+						region,
+						previous.layout.bands
+					);
+					floors[ region ] = {
+						x: floor.x,
+						y: floor.y + RANK_SEP + ( n.height || STAGE_HEIGHT ),
+					};
+				} );
+		} );
 		// Freezing *is* the canvas becoming the author's, so the centering below
 		// has nothing left to do: claiming the key is how it's told.
 		prevStructure.current = structureKey;
@@ -1379,15 +1423,16 @@ function Flow( {
 		( event, node ) => {
 			// Start, End and the region bands are not things you operate — they
 			// are `selectable: false` for the same reason — so a right-click on
-			// one gets the canvas's menu, not an empty menu of its own.
-			if ( node.type !== NODE_TYPE ) {
+			// one gets the canvas's menu, not an empty menu of its own. So does a
+			// phase: it has no statuses and no End, and it cannot be deleted.
+			if ( node.type !== NODE_TYPE || isPhase ) {
 				openMenuAt( event, {} );
 				return;
 			}
 			onSelectNode( node.id );
 			openMenuAt( event, { stageKey: node.id } );
 		},
-		[ onSelectNode, openMenuAt ]
+		[ isPhase, onSelectNode, openMenuAt ]
 	);
 
 	// A transition. The Start edge is not one: it has nothing to delete
@@ -1453,8 +1498,13 @@ function Flow( {
 									'Not a final stage',
 									'vip-workflows'
 								),
-								onSelect: () =>
-									onDeleteEdge( stage.key, END_ID, null ),
+								// Both mutations move the selection (off the
+								// stage, or onto its End edge); the menu was
+								// opened on the stage, so it keeps it.
+								onSelect: () => {
+									onDeleteEdge( stage.key, END_ID, null );
+									onSelectNode( stage.key );
+								},
 						  }
 						: {
 								id: 'set-terminal',
@@ -1462,12 +1512,14 @@ function Flow( {
 									'Make this a final stage',
 									'vip-workflows'
 								),
-								onSelect: () =>
+								onSelect: () => {
 									onConnectTransition(
 										stage.key,
 										END_ID,
 										null
-									),
+									);
+									onSelectNode( stage.key );
+								},
 						  }
 				);
 			}
@@ -1500,7 +1552,12 @@ function Flow( {
 					: {
 							id: 'delete-transition',
 							icon: trash,
-							label: __( 'Delete transition', 'vip-workflows' ),
+							// An outcome edge only un-routes: its transition
+							// stays, disabled (`clearOutcome`) — the words
+							// `TransitionInspector` uses for the same action.
+							label: outcome
+								? __( 'Remove this route', 'vip-workflows' )
+								: __( 'Delete transition', 'vip-workflows' ),
 							onSelect: () => onDeleteEdge( from, to, outcome ),
 					  },
 			];
@@ -1545,6 +1602,7 @@ function Flow( {
 		onConnectTransition,
 		onDeleteEdge,
 		onDeleteNode,
+		onSelectNode,
 	] );
 
 	const menuLabel = useMemo( () => {
@@ -1575,11 +1633,12 @@ function Flow( {
 			ref={ viewportRef }
 		>
 			<ReactFlow
+				// On React Flow's own wrapper, which every card and line sits in.
+				onKeyDown={ handleKeyDown }
 				nodes={ nodes }
 				edges={ edgesWithHover }
 				onNodesChange={ handleNodesChange }
 				onEdgesChange={ noop }
-				onSelectionChange={ handleSelectionChange }
 				nodeTypes={ nodeTypes }
 				edgeTypes={ edgeTypes }
 				nodesDraggable

@@ -126,6 +126,7 @@ function renderPanel( {
 	onDeleteTransition,
 	onConnectTransition,
 	onReconnectTransition,
+	onSelectNode,
 	onSelectEdge,
 	onSelectRegion,
 	onSetRegionEntry,
@@ -194,7 +195,16 @@ function renderPanel( {
 		// share one — so every other stage is a candidate here, including the
 		// ones this stage already reaches.
 		const outcomeOptions = others.map( ( s ) => nameOf( s.key ) );
-		const routing = selectedStage.agent?.routing || {};
+		// Those mutations are the canvas's, and move the selection the way a
+		// gesture does: onto the new edge, or off everything. Asked from this
+		// panel the author is still on the stage, so it is selected again in the
+		// same batch — the panel never unmounts, and focus stays on the control.
+		const onStage =
+			( mutate ) =>
+			( ...args ) => {
+				mutate( ...args );
+				onSelectNode( selectedStage.key );
+			};
 
 		return (
 			<StageInspector
@@ -227,19 +237,33 @@ function renderPanel( {
 				// the canvas runs when a connection is dropped — the model
 				// knows what a drop on End means, and what a source handle
 				// carrying an outcome means, so neither is restated here.
-				onAddExit={ ( target ) =>
+				onAddExit={ onStage( ( target ) =>
 					onConnectTransition( selectedStage.key, target, null )
-				}
-				onRouteOutcome={ ( outcome, target ) =>
-					onConnectTransition( selectedStage.key, target, outcome )
-				}
-				onClearOutcome={ ( outcome ) =>
-					onDeleteTransition(
-						selectedStage.key,
-						routing[ outcome ],
-						outcome
-					)
-				}
+				) }
+				// An outcome that already leads somewhere is *moved*, the way
+				// dragging its edge's endpoint moves it — the transition's
+				// settings go with it, as the To select on that edge does.
+				onRouteOutcome={ onStage( ( outcome, target ) => {
+					const current = selectedStage.agent?.routing?.[ outcome ];
+					return current
+						? onReconnectTransition(
+								selectedStage.key,
+								current,
+								selectedStage.key,
+								target,
+								outcome
+						  )
+						: onConnectTransition(
+								selectedStage.key,
+								target,
+								outcome
+						  );
+				} ) }
+				// An outcome is cleared by name; `disconnectEdge` never reads
+				// the target for one.
+				onClearOutcome={ onStage( ( outcome ) =>
+					onDeleteTransition( selectedStage.key, null, outcome )
+				) }
 				canDelete={ stages.length > 1 }
 			/>
 		);
@@ -296,9 +320,10 @@ function renderPanel( {
 		// Where this edge's ends could move to, asked of the model one
 		// candidate at a time. `canReconnect` is the same predicate the canvas
 		// paints its held-endpoint verdict with, so a destination missing from
-		// this list is one a drag would have refused too — and the current end
-		// leads each list, because a select has to be able to show what it is
-		// set to.
+		// this list is one a drag would have refused too. The current end stays
+		// in its place in stage order rather than leading the list: a select
+		// commits on every change, and one that re-sorted itself around the
+		// value just picked would send an arrow key back where it came from.
 		//
 		// Phase sequences are left out: their hand-offs are fixed pairs the
 		// server decides (`isValidConnection`), not something this panel may
@@ -312,24 +337,21 @@ function renderPanel( {
 				...stages.map( ( s ) => s.key ),
 				...( 'target' === end ? [ END_ID ] : [] ),
 			]
-				.filter( ( key ) => {
-					const newFrom = 'source' === end ? key : selection.from;
-					const newTo = 'source' === end ? selection.to : key;
-					if (
-						newFrom === selection.from &&
-						newTo === selection.to
-					) {
-						return false;
-					}
-					return canReconnect(
-						stages,
-						selection.from,
-						selection.to,
-						newFrom,
-						newTo,
-						edgeOutcome
-					);
-				} )
+				.filter(
+					( key ) =>
+						key ===
+							( 'source' === end
+								? selection.from
+								: selection.to ) ||
+						canReconnect(
+							stages,
+							selection.from,
+							selection.to,
+							'source' === end ? key : selection.from,
+							'source' === end ? selection.to : key,
+							edgeOutcome
+						)
+				)
 				.map( ( key ) => ( { label: endLabel( key ), value: key } ) );
 
 		return (
@@ -337,22 +359,8 @@ function renderPanel( {
 				transition={ selectedTransition }
 				from={ selection.from }
 				to={ selection.to }
-				fromOptions={
-					isPhase
-						? []
-						: [
-								{ label: sourceLabel, value: selection.from },
-								...movesTo( 'source' ),
-						  ]
-				}
-				toOptions={
-					isPhase
-						? []
-						: [
-								{ label: targetLabel, value: selection.to },
-								...movesTo( 'target' ),
-						  ]
-				}
+				fromOptions={ isPhase ? [] : movesTo( 'source' ) }
+				toOptions={ isPhase ? [] : movesTo( 'target' ) }
 				onRepoint={
 					isPhase
 						? undefined

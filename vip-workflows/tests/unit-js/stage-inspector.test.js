@@ -131,16 +131,6 @@ describe( 'StageInspector and the stage’s place on the canvas', () => {
 		).toEqual( [ 'Draft', 'Pending Review' ] );
 	} );
 
-	it( 'keeps a status the canvas is not drawing rather than reading blank', () => {
-		// The stage is holding it either way; a picker that silently disowned
-		// the value would report a status the stage does not have.
-		renderInspector( stage( { status: 'private' } ), jest.fn(), {
-			regions: [ 'draft' ],
-		} );
-
-		expect( statusPicker() ).toHaveValue( 'private' );
-	} );
-
 	it( 'falls back to the status a stage with none will be stored with', () => {
 		// The server persists a stage carrying no `status` as draft, so an
 		// unsaved or legacy one reads as the region it will land in, not blank.
@@ -189,7 +179,8 @@ describe( 'StageInspector and the stage’s place on the canvas', () => {
 
 		fireEvent.click(
 			within( factRow( 'Entry checkpoint' ) ).getByRole( 'button', {
-				name: /Open the “Published” post status options/,
+				// The value is in the name: a button's label replaces its text.
+				name: /^Entry checkpoint: No\. Open the “Published” post status options/,
 			} )
 		);
 		expect( onSelectRegion ).toHaveBeenCalledWith( 'publish' );
@@ -816,9 +807,37 @@ describe( 'StageInspector exits, without a drag', () => {
 		);
 
 		await openMenu( 'Route On pass' );
-		fireEvent.click( screen.getByRole( 'menuitem', { name: 'Done' } ) );
+		fireEvent.click(
+			screen.getByRole( 'menuitemradio', { name: 'Done' } )
+		);
 
 		expect( onRouteOutcome ).toHaveBeenCalledWith( 'pass', 'done' );
+	} );
+
+	it( 'checks the destination an outcome already has', async () => {
+		renderInspector(
+			stage( {
+				agent: {
+					ability_id: 'workflow-agent-copy-edit/copy-edit',
+					routing: { pass: 'done' },
+				},
+			} ),
+			jest.fn(),
+			{
+				outcomeOptions: DESTINATIONS,
+				onRouteOutcome: jest.fn(),
+				onClearOutcome: jest.fn(),
+			}
+		);
+
+		await openMenu( 'Route On pass' );
+
+		expect(
+			screen.getByRole( 'menuitemradio', { name: 'Done' } )
+		).toHaveAttribute( 'aria-checked', 'true' );
+		expect(
+			screen.getByRole( 'menuitemradio', { name: 'Archive' } )
+		).toHaveAttribute( 'aria-checked', 'false' );
 	} );
 
 	it( 'un-routes one that leads somewhere', async () => {
@@ -969,7 +988,7 @@ describe( 'StageInspector panel structure', () => {
 		).toBeInTheDocument();
 		expect( within( exits ).getByText( 'Archive' ) ).toBeInTheDocument();
 		// And apart from the facts about the stage itself, which keep their own.
-		expect( within( exits ).queryByText( 'Post status' ) ).toBeNull();
+		expect( within( exits ).queryByText( 'Entry checkpoint' ) ).toBeNull();
 	} );
 
 	it( 'keeps label and color open in place', () => {

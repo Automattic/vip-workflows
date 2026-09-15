@@ -974,6 +974,11 @@ export default function SequenceGraphEditor( {
 		() => ( isPhase ? [] : visibleRegions( stages, addedRegions ) ),
 		[ isPhase, stages, addedRegions ]
 	);
+	// The statuses the server allows that aren't drawn yet — what "Add post
+	// status…" offers, and whether it is offered at all.
+	const addableRegions = REGION_ORDER.filter(
+		( region ) => ! regions.includes( region )
+	);
 
 	const handleAddRegion = useCallback( ( region ) => {
 		setAddedRegions( ( current ) =>
@@ -1031,8 +1036,21 @@ export default function SequenceGraphEditor( {
 	// region the stage leaves, because a checkpoint is a position on that
 	// region's border and the stage is no longer in it, and which stage takes
 	// it next is the region's own control (`handleSetRegionEntry`).
+	//
+	// Arriving in a region that holds no stage yet is the one exception, on
+	// `addStage`'s terms: nothing holds that slot, so seating the stage there
+	// moves no one — and without a slot to drop into, this control would
+	// otherwise leave the region unsaveable with no way to say otherwise here.
 	const handleSetStageStatus = useCallback( ( key, region ) => {
-		setStages( ( current ) => setStageStatus( current, key, region ) );
+		setStages( ( current ) => {
+			const moved = setStageStatus( current, key, region );
+			const empty = ! current.some(
+				( s ) => s.key !== key && stageRegion( s ) === region
+			);
+			return empty && moved !== current
+				? setRegionEntry( moved, key )
+				: moved;
+		} );
 	}, [] );
 
 	// --- Stage mutations ---------------------------------------------------
@@ -1617,11 +1635,7 @@ export default function SequenceGraphEditor( {
 		// gets added, and until now nothing anywhere said how a stage does.
 		onAddStage: isPhase ? undefined : handleAddStage,
 		onAddPostStatus: () => setAddingRegion( true ),
-		// The same rule the menu item is gated on: every status the server
-		// allows is already drawn.
-		canAddPostStatus: REGION_ORDER.some(
-			( region ) => ! regions.includes( region )
-		),
+		canAddPostStatus: addableRegions.length > 0,
 		// Whether there is a row to delete, which a new sequence gains the
 		// moment it is first saved.
 		isNew: ! savedId,
@@ -1784,6 +1798,7 @@ export default function SequenceGraphEditor( {
 						onDeleteTransition={ handleDeleteTransition }
 						onConnectTransition={ handleConnect }
 						onReconnectTransition={ handleReconnect }
+						onSelectNode={ selectNode }
 						onSelectEdge={ selectEdge }
 						onSelectRegion={ selectRegion }
 						sequenceSettings={ sequenceSettings }
@@ -1792,9 +1807,7 @@ export default function SequenceGraphEditor( {
 			</div>
 			{ addingRegion && (
 				<AddPostStatusModal
-					available={ REGION_ORDER.filter(
-						( region ) => ! regions.includes( region )
-					) }
+					available={ addableRegions }
 					onAdd={ handleAddRegion }
 					onClose={ () => setAddingRegion( false ) }
 				/>

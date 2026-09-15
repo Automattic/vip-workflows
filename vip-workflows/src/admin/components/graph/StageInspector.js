@@ -75,7 +75,9 @@ import {
 	SelectControl,
 	ComboboxControl,
 	DropdownMenu,
+	MenuGroup,
 	MenuItem,
+	MenuItemsChoice,
 } from '@wordpress/components';
 import { chevronDown } from '@wordpress/icons';
 import { Stack, Text } from '@wordpress/ui';
@@ -281,30 +283,32 @@ function OutcomeRouteMenu( { outcome, target, options, onRoute, onClear } ) {
 		>
 			{ ( { onClose } ) => (
 				<>
-					{ options.map( ( option ) => (
-						<MenuItem
-							key={ option.value }
-							isSelected={ option.value === target }
-							onClick={ () => {
+					{ /* Radio items, so the destination it has now is checked
+					     and announced as such rather than listed like the rest. */ }
+					<MenuGroup>
+						<MenuItemsChoice
+							choices={ options }
+							value={ target }
+							onSelect={ ( value ) => {
 								// Shut first, so focus is already on its way
 								// back to the toggle before the row it names
 								// re-renders underneath it.
 								onClose();
-								onRoute( outcome, option.value );
+								onRoute( outcome, value );
 							} }
-						>
-							{ option.label }
-						</MenuItem>
-					) ) }
+						/>
+					</MenuGroup>
 					{ target && (
-						<MenuItem
-							onClick={ () => {
-								onClose();
-								onClear( outcome );
-							} }
-						>
-							{ __( 'Not routed', 'vip-workflows' ) }
-						</MenuItem>
+						<MenuGroup>
+							<MenuItem
+								onClick={ () => {
+									onClose();
+									onClear( outcome );
+								} }
+							>
+								{ __( 'Not routed', 'vip-workflows' ) }
+							</MenuItem>
+						</MenuGroup>
 					) }
 				</>
 			) }
@@ -362,9 +366,8 @@ export default function StageInspector( {
 	);
 
 	// AI-stage config. An agent runs on entry and routes the post onward by
-	// outcome; the routes themselves are drawn on the canvas (drag from the
-	// node's pass / fail / error handles onto a stage), so all this panel does
-	// is pick the agent and read back where each outcome currently leads.
+	// outcome. Each route is picked on its outcome's row below, or drawn on the
+	// canvas from the node's pass / fail / error handles.
 	const isAgent = isAgentStage( stage );
 	const abilityId = stage.agent?.ability_id || '';
 	const routing = stage.agent?.routing || {};
@@ -616,14 +619,11 @@ export default function StageInspector( {
 						__nextHasNoMarginBottom
 						label={ __( 'Post status', 'vip-workflows' ) }
 						value={ region }
-						options={ regionOptions(
-							// The statuses the canvas is drawing. A status not
-							// drawn has no band to move the node into, and
-							// adding one is the sequence panel's verb.
-							regions.includes( region )
-								? regions
-								: [ ...regions, region ]
-						) }
+						// The statuses the canvas is drawing — every stage's
+						// among them (`visibleRegions`). A status not drawn has
+						// no band to move the node into, and adding one is the
+						// sequence panel's verb.
+						options={ regionOptions( regions ) }
 						help={ statusHelp }
 						onChange={ ( next ) => onSetStatus?.( next ) }
 					/>
@@ -698,12 +698,17 @@ export default function StageInspector( {
 									? () => onSelectRegion( region )
 									: undefined
 							}
+							// The row's name replaces its text, so it has to
+							// carry the value too.
 							selectLabel={ sprintf(
-								/* translators: %s: post status label (e.g. Pending Review) */
+								/* translators: 1: Yes or No, 2: post status label (e.g. Pending Review) */
 								__(
-									'Open the “%s” post status options, where the entry checkpoint is set',
+									'Entry checkpoint: %1$s. Open the “%2$s” post status options, where it is set',
 									'vip-workflows'
 								),
+								stage.region_entry
+									? __( 'Yes', 'vip-workflows' )
+									: __( 'No', 'vip-workflows' ),
 								regionLabel( region )
 							) }
 						/>
@@ -725,8 +730,11 @@ export default function StageInspector( {
 							>
 								<InspectorFieldListAdd
 									addOptions={ exitOptions }
-									onAdd={ ( target ) => onAddExit( target ) }
+									onAdd={ onAddExit }
 									label={ __( 'Add exit', 'vip-workflows' ) }
+									// A destination is the thing to read, even
+									// when there is only one of them.
+									alwaysMenu
 								/>
 							</Stack>
 						) }

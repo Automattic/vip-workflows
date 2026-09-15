@@ -88,6 +88,7 @@ function renderInspector( overrides = {} ) {
 		onReconnectTransition: () => {},
 		onSetStageStatus: () => {},
 		onSelectRegion: () => {},
+		onSelectNode: () => {},
 		onSelectEdge: () => {},
 		sequenceSettings: SEQUENCE_SETTINGS,
 		...overrides,
@@ -129,7 +130,8 @@ describe( 'Where a new exit may go', () => {
 
 	it( 'creates the transition through the same mutation a dropped connection does', async () => {
 		const onConnectTransition = jest.fn();
-		renderInspector( { onConnectTransition } );
+		const onSelectNode = jest.fn();
+		renderInspector( { onConnectTransition, onSelectNode } );
 
 		await openMenu( 'Add exit' );
 		fireEvent.click( screen.getByRole( 'menuitem', { name: 'Done' } ) );
@@ -142,6 +144,92 @@ describe( 'Where a new exit may go', () => {
 			'done',
 			null
 		);
+		// That mutation selects the new edge, as a drop does; asked from the
+		// stage's panel, the stage stays selected.
+		expect( onSelectNode ).toHaveBeenCalledWith( 'draft' );
+	} );
+
+	it( 'names the destination even when there is only one', async () => {
+		// Review already reaches Done and is not final: End is all that's left,
+		// and a bare "+" would make the stage final without saying so.
+		renderInspector( {
+			selection: { type: 'node', key: 'review' },
+			stages: [
+				STAGES[ 0 ],
+				{
+					...STAGES[ 1 ],
+					transitions: [ { to: 'draft' }, { to: 'done' } ],
+				},
+				STAGES[ 2 ],
+			],
+			selectedStage: {
+				...STAGES[ 1 ],
+				transitions: [ { to: 'draft' }, { to: 'done' } ],
+			},
+		} );
+
+		await openMenu( 'Add exit' );
+
+		expect( menuLabels() ).toEqual( [ 'End of workflow' ] );
+	} );
+} );
+
+describe( 'Routing an outcome from the stage panel', () => {
+	const aiDraft = ( routing ) => ( {
+		...STAGES[ 0 ],
+		agent: { ability_id: 'x', routing },
+	} );
+	const renderAiDraft = ( routing, overrides ) => {
+		const stage = aiDraft( routing );
+		renderInspector( {
+			stages: [ stage, STAGES[ 1 ], STAGES[ 2 ] ],
+			selectedStage: stage,
+			availableAgents: [ { id: 'x', label: 'Agent X' } ],
+			...overrides,
+		} );
+	};
+
+	it( 'routes an unrouted outcome as a new connection', async () => {
+		const onConnectTransition = jest.fn();
+		renderAiDraft( {}, { onConnectTransition } );
+
+		await openMenu( 'Route On pass' );
+		fireEvent.click(
+			screen.getByRole( 'menuitemradio', { name: 'Done' } )
+		);
+
+		expect( onConnectTransition ).toHaveBeenCalledWith(
+			'draft',
+			'done',
+			'pass'
+		);
+	} );
+
+	it( 'moves a routed outcome, so its transition’s settings go with it', async () => {
+		// Routing it as a fresh connection would leave the old transition —
+		// tools, roles, notifications — behind on a disabled edge, and send the
+		// outcome along a bare one. The To select on that edge moves it; so
+		// does this.
+		const onReconnectTransition = jest.fn();
+		const onConnectTransition = jest.fn();
+		renderAiDraft(
+			{ pass: 'review' },
+			{ onReconnectTransition, onConnectTransition }
+		);
+
+		await openMenu( 'Route On pass' );
+		fireEvent.click(
+			screen.getByRole( 'menuitemradio', { name: 'Done' } )
+		);
+
+		expect( onReconnectTransition ).toHaveBeenCalledWith(
+			'draft',
+			'review',
+			'draft',
+			'done',
+			'pass'
+		);
+		expect( onConnectTransition ).not.toHaveBeenCalled();
 	} );
 } );
 
