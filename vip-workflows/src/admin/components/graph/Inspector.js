@@ -16,14 +16,27 @@
  * time the selection swaps one panel for another, so the flag would reset on
  * every click. This component stays mounted across those swaps.
  *
+ * Which is also what lets a `reveal` — a selection made *for* the author, by
+ * the blocked-save notice's "Show transition" — open a panel that is closed.
+ * Swapping the contents of a hidden panel is no answer to "show me": the panel
+ * starts collapsed on mobile and stays that way for anyone who closed it, so
+ * without this the button changed nothing on screen at all.
+ *
  * @package
  */
 
-import { useState, useMemo, useCallback, useEffect } from '@wordpress/element';
+import {
+	useState,
+	useMemo,
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+} from '@wordpress/element';
 import { Stack, Text } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
 
-import InspectorShell, { InspectorCollapseContext } from './InspectorShell';
+import InspectorShell, { InspectorPanelContext } from './InspectorShell';
 import StageInspector from './StageInspector';
 import PhaseStageInspector from './PhaseStageInspector';
 import TransitionInspector from './TransitionInspector';
@@ -31,9 +44,12 @@ import SequenceSettingsInspector from './SequenceSettingsInspector';
 import SequenceIdentityFields from './SequenceIdentityFields';
 import RegionInspector from './RegionInspector';
 import {
+	edgeId,
 	stageRegion,
 	stageLabel,
 	isTransitionDisabled,
+	isRequiredHandOff,
+	missingHandOffs,
 	outcomesRoutedTo,
 	canReconnect,
 	publishSettingFixesRoute,
@@ -78,7 +94,7 @@ function useIsMobileLayout() {
 	return isMobile;
 }
 
-export default function Inspector( props ) {
+export default function Inspector( { reveal, ...props } ) {
 	const isMobile = useIsMobileLayout();
 
 	// Open on desktop, collapsed on mobile — where the panel spans the bottom
@@ -95,15 +111,40 @@ export default function Inspector( props ) {
 		setCollapsed( isMobile );
 	}, [ isMobile ] );
 
-	const collapse = useMemo(
-		() => ( { collapsed, toggle } ),
+	// Where a reveal sends focus: the panel's heading, which is the eyebrow and
+	// the title together — "Transition", "Send to legal". `InspectorShell`
+	// attaches it, and does so again each time the selection swaps one panel
+	// for another, so it always points at the heading now on screen.
+	const headingRef = useRef( null );
+
+	// Keyed on `reveal` alone — a new object per press — so only a reveal does
+	// this: an ordinary click on the canvas must not re-open a panel that was
+	// deliberately collapsed, nor take focus off the canvas it was made on.
+	//
+	// A layout effect, so the expansion commits with the selection rather than
+	// in a later task: the canvas measures the room the panel leaves on the
+	// next frame, and a passive effect's update can still be pending then.
+	useLayoutEffect( () => {
+		if ( ! reveal ) {
+			return;
+		}
+		setCollapsed( false );
+		// The only feedback the press gives that isn't visual. Focus lands on
+		// the heading of the panel that just mounted, which is both what a
+		// screen reader reads out and where a keyboard is left — on the fix,
+		// rather than on a button in a notice several tab stops away from it.
+		headingRef.current?.focus();
+	}, [ reveal ] );
+
+	const panel = useMemo(
+		() => ( { collapsed, toggle, headingRef } ),
 		[ collapsed, toggle ]
 	);
 
 	return (
-		<InspectorCollapseContext.Provider value={ collapse }>
+		<InspectorPanelContext.Provider value={ panel }>
 			{ renderPanel( props ) }
-		</InspectorCollapseContext.Provider>
+		</InspectorPanelContext.Provider>
 	);
 }
 
@@ -128,8 +169,18 @@ function renderPanel( {
 	onConnectTransition,
 	onReconnectTransition,
 	onSelectNode,
+	// Phase-only. Draws an owed hand-off from the phase panel.
+	onAddHandOff,
+	// The hand-offs a phase sequence owes, from `/sequences/options`. Read here
+	// through the same `isRequiredHandOff` the editor guards its delete with,
+	// so the panel cannot offer a removal the handler would refuse.
+	//
+	// Empty until the server has answered, and on a workflow sequence, which
+	// owes none — both are "nothing is owed", which is what the list says.
+	requiredTransitions = [],
 	onSelectEdge,
 	onSelectRegion,
+	exitProblems,
 	onSetRegionEntry,
 	onSetStageStatus,
 	onRemoveRegion,
@@ -167,7 +218,23 @@ function renderPanel( {
 
 	if ( selection?.type === 'node' && selectedStage ) {
 		if ( isPhase ) {
-			return <PhaseStageInspector stage={ selectedStage } />;
+			return (
+				<PhaseStageInspector
+					stage={ selectedStage }
+					// Only the hand-offs owed by THIS phase. The panel names
+					// the phase it opened on, so offering a hand-off out of
+					// the other one would be a button that fixes something
+					// this panel isn't about.
+					missing={ missingHandOffs(
+						stages,
+						requiredTransitions
+					).filter( ( { from } ) => from === selectedStage.key ) }
+					resolveStageLabel={ ( key ) => stageLabel( stages, key ) }
+					onAddHandOff={ ( to ) =>
+						onAddHandOff( selectedStage.key, to )
+					}
+				/>
+			);
 		}
 
 		// Where a new exit could go: every other stage this one does not
@@ -277,6 +344,9 @@ function renderPanel( {
 				onClearOutcome={ onStage( ( outcome ) =>
 					onDeleteTransition( selectedStage.key, null, outcome )
 				) }
+				// Which of those exits would have the save refused, keyed by
+				// those same edge ids.
+				exitProblems={ exitProblems }
 				canDelete={ stages.length > 1 }
 			/>
 		);
@@ -392,6 +462,10 @@ function renderPanel( {
 			);
 		return (
 			<TransitionInspector
+				// One instance per transition record, so a section left open or
+				// shut on one transition does not carry over to the next — the
+				// fault a reveal lands on can be in a section the last one shut.
+				key={ edgeId( selection.from, selection.to ) }
 				transition={ selectedTransition }
 				from={ selection.from }
 				to={ selection.to }
@@ -436,6 +510,18 @@ function renderPanel( {
 						selection.from,
 						selection.to,
 						selection.outcome || null
+					)
+				}
+				// A workflow sequence owes no hand-offs, whatever its stages
+				// happen to be keyed.
+				canRemove={
+					! (
+						isPhase &&
+						isRequiredHandOff(
+							requiredTransitions,
+							selection.from,
+							selection.to
+						)
 					)
 				}
 			/>

@@ -61,8 +61,10 @@ import {
 	parseEdgeId,
 	visibleRegions,
 	edgeId,
+	targetId,
 	isAgentOutcome,
 	isAgentStage,
+	isRequiredHandOff,
 	stageLabel,
 	START_ID,
 	END_ID,
@@ -72,6 +74,40 @@ import { paletteColorAt, snapToPalette } from '../../utils/stage-palette';
 
 import '../../../common/outcome-tones.css';
 import './SequenceGraphEditor.css';
+
+/**
+ * What the blocked-save notice's button offers to open.
+ *
+ * Named for the thing, not for the gesture: “Show transition” tells an author
+ * what they are about to be taken to, where a bare “Show” or “Fix” leaves them
+ * to guess whether the canvas is about to move, the panel is about to change,
+ * or something is about to be edited on their behalf. Nothing is edited: the
+ * press selects the thing, brings it into view on the canvas, and opens the
+ * panel where the fix is made with focus in it (`showTarget`).
+ *
+ * A node is a stage or a phase depending on the sequence, and the two are not
+ * interchangeable words: the phase editor calls its nodes phases everywhere
+ * else it names one, so a button offering to “Show stage” there names a thing
+ * that surface has no word for. Both reach a node: a phase sequence through
+ * its required hand-offs, a workflow through a stage left without a name or
+ * sharing another's key.
+ *
+ * @param {Object}  target  A validation error's target.
+ * @param {boolean} isPhase Whether this is a phase sequence.
+ * @return {string} Button label.
+ */
+function blockedTargetLabel( target, isPhase ) {
+	switch ( target.type ) {
+		case 'edge':
+			return __( 'Show transition', 'vip-workflows' );
+		case 'region':
+			return __( 'Show status group', 'vip-workflows' );
+		default:
+			return isPhase
+				? __( 'Show phase', 'vip-workflows' )
+				: __( 'Show stage', 'vip-workflows' );
+	}
+}
 
 /**
  * What the server's region repair changed, said out loud.
@@ -276,13 +312,20 @@ const discardPrompt = () => [
  * two post-type checks the editor makes itself — and each one names what is
  * wrong and the gesture that fixes it. Nothing is composed here.
  *
- * @param {Object} props         Component props.
- * @param {Array}  props.reasons The sentences, one per reason.
+ * A listed reason that knows where its fault is carries a button that opens
+ * it. A lone reason carries none here: the notice offers it as its own
+ * action, where one button beside one sentence cannot be misread as belonging
+ * to another.
+ *
+ * @param {Object}   props         Component props.
+ * @param {Array}    props.reasons `{ key, message, target }`, one per reason.
+ * @param {boolean}  props.isPhase Whether this is a phase sequence.
+ * @param {Function} props.onShow  Selects a reason's target.
  * @return {JSX.Element} The notice body.
  */
-function SaveBlockers( { reasons } ) {
+function SaveBlockers( { reasons, isPhase, onShow } ) {
 	if ( reasons.length === 1 ) {
-		return reasons[ 0 ];
+		return reasons[ 0 ].message;
 	}
 
 	return (
@@ -298,8 +341,25 @@ function SaveBlockers( { reasons } ) {
 				reasons.length
 			) }
 			<Stack render={ <ul /> } direction="column" gap="xs">
-				{ reasons.map( ( reason ) => (
-					<li key={ reason }>{ reason }</li>
+				{ /* Keyed by the identity `saveBlockers` dedupes on — where
+				     the fault is as well as what it says: two stages can hold
+				     the identically-worded fault, and the message alone is
+				     then one key for two rows. */ }
+				{ reasons.map( ( { key, message, target } ) => (
+					<li key={ key }>
+						{ message }
+						{ target && (
+							<>
+								{ ' ' }
+								<Button
+									variant="link"
+									onClick={ () => onShow( target ) }
+								>
+									{ blockedTargetLabel( target, isPhase ) }
+								</Button>
+							</>
+						) }
+					</li>
 				) ) }
 			</Stack>
 		</>
@@ -810,22 +870,52 @@ export default function SequenceGraphEditor( {
 	 * them here is what keeps that inert row out of the database, so they belong
 	 * in the same list as the rest.
 	 */
+	//
+	// Each reason is `{ message, target }`, as `validateSequence` reports one;
+	// the editor's own post-type rule is about the sequence rather than
+	// anything on the canvas, so its target is null.
 	const saveBlockers = useMemo( () => {
 		const reasons = [ ...validation.errors ];
 
 		if ( ! isPhase && selectedPostTypes.length === 0 ) {
-			reasons.push(
-				__(
+			reasons.push( {
+				message: __(
 					'This sequence is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types.',
 					'vip-workflows'
-				)
-			);
+				),
+				target: null,
+			} );
 		}
 
 		// Two stages can be wrong in the identical way — two of them left
-		// unnamed, say — and the same sentence twice is noise, not a second
-		// thing to fix.
-		return [ ...new Set( reasons ) ];
+		// neither named nor keyed, say — and the same sentence twice is noise,
+		// not a second thing to fix.
+		//
+		// Told apart by where the fault is as well as what it says, because the
+		// sentence alone does not identify one: an unlabelled transition is
+		// named by its destination, so two stages each holding one to the same
+		// place word their faults identically. Deduped on the message alone,
+		// the notice kept the first and dropped the second — one reason where
+		// there were two, and a "Show transition" that reached only one of
+		// them, so fixing what it opened earned the same refusal again.
+		//
+		// The key rides on the reason, so the list keys its rows by the same
+		// identity it was deduped on.
+		const seen = new Set();
+		return reasons
+			.map( ( reason ) => ( {
+				...reason,
+				// Newline-joined: a message can hold anything, but `targetId`
+				// cannot, so nothing a message contains can forge a key boundary.
+				key: `${ targetId( reason.target ) }\n${ reason.message }`,
+			} ) )
+			.filter( ( { key } ) => {
+				if ( seen.has( key ) ) {
+					return false;
+				}
+				seen.add( key );
+				return true;
+			} );
 	}, [ validation.errors, isPhase, selectedPostTypes ] );
 
 	// The refusal stands down once the last reason for it is gone, so it cannot
@@ -835,6 +925,28 @@ export default function SequenceGraphEditor( {
 			setSaveRefused( false );
 		}
 	}, [ saveBlockers.length ] );
+
+	// The blocking faults that belong to one way out of a stage, keyed by the
+	// transition they belong to — `from->to`, without the outcome.
+	//
+	// The stage panel's exit list reads this: a node badge says a stage needs
+	// attention, and without this the author has to open every transition it
+	// holds to find out which one the message meant. A stage holds one
+	// transition per destination, so `from->to` names the record; the outcome
+	// only says which of the edges drawn for it the canvas selects, and every
+	// row standing on that record carries the fault alike.
+	const exitProblems = useMemo( () => {
+		const byEdge = {};
+		validation.errors.forEach( ( { message, target } ) => {
+			if ( target?.type !== 'edge' ) {
+				return;
+			}
+			const id = edgeId( target.from, target.to );
+			byEdge[ id ] = byEdge[ id ] || [];
+			byEdge[ id ].push( message );
+		} );
+		return byEdge;
+	}, [ validation.errors ] );
 
 	// --- Unsaved work ------------------------------------------------------
 
@@ -974,6 +1086,25 @@ export default function SequenceGraphEditor( {
 		[]
 	);
 	const clearSelection = useCallback( () => setSelection( null ), [] );
+
+	// "Show transition" is one gesture with three parts, and selecting is only
+	// the first: the panel that fixes the fault has to be open and hold focus,
+	// and the canvas has to bring the fault into view. Left at the selection
+	// alone the press could change nothing anyone could see — the panel starts
+	// collapsed on mobile and stays collapsed for anyone who closed it, focus
+	// stayed on the button in the notice, and a fault outside the viewport was
+	// highlighted where nobody was looking.
+	//
+	// `reveal` is what tells `Inspector` and `GraphCanvas` this selection was
+	// asked for. Without it they could only watch the selection, and would
+	// expand a deliberately collapsed panel and pan the canvas on every click.
+	// A new object per press, so pressing the same button twice is also two
+	// reveals, which is what makes it work again after panning away.
+	const [ reveal, setReveal ] = useState( null );
+	const showTarget = useCallback( ( target ) => {
+		setSelection( target );
+		setReveal( { target } );
+	}, [] );
 
 	// --- Status regions ----------------------------------------------------
 
@@ -1220,9 +1351,38 @@ export default function SequenceGraphEditor( {
 		);
 	};
 
+	// The phase panel's way to draw an owed hand-off. The same edit the canvas
+	// connects with, but asked for from a panel rather than dragged on the
+	// canvas: the button pressed is in the panel the new selection replaces, so
+	// without a reveal focus falls to the document and the new hand-off may be
+	// out of view. `showTarget` is what hands both to the transition's panel.
+	const handleAddHandOff = ( from, to ) => {
+		const result = connectEdge( stages, from, to );
+		if ( ! result.selection ) {
+			return;
+		}
+		setStages( result.stages );
+		showTarget( { type: 'edge', ...result.selection, outcome: null } );
+	};
+
 	const handleDeleteTransition = ( from, to, outcome = null ) => {
 		// The Start edge is structural and can't be deleted.
 		if ( from === START_ID ) {
+			return;
+		}
+		// Neither is a hand-off a phase sequence owes. Deleting one can only
+		// ever produce a sequence the server refuses — there is no valid state
+		// on the far side of the gesture — so it is refused here rather than
+		// reported afterwards. The transition panel drops its Remove control
+		// for the same pair; this guard is what also closes the canvas's
+		// keyboard-delete path, which reaches this handler without passing any
+		// control that could have been hidden. Read from the server's answer —
+		// the same list `validateSequence` refuses the save against, so what
+		// cannot be deleted and what the save insists on are one fact.
+		if (
+			isPhase &&
+			isRequiredHandOff( requiredPhaseTransitions, from, to )
+		) {
 			return;
 		}
 		setStages( ( current ) =>
@@ -1666,13 +1826,51 @@ export default function SequenceGraphEditor( {
 								// call, and React refuses the next render. A
 								// string is read as given and renders nothing.
 								spokenMessage={
-									error || saveBlockers.join( ' ' )
+									error ||
+									saveBlockers
+										.map( ( { message } ) => message )
+										.join( ' ' )
+								}
+								// Naming the stage or transition at fault is not
+								// the same as finding it: an author reading
+								// “the ‘Send to legal’ transition…” still has to
+								// scan the canvas for a line whose label matches.
+								// A lone reason that knows where it is offers
+								// to open it here; a list offers it row by row
+								// (see SaveBlockers). Absent for a server error
+								// and for a fault of the sequence itself,
+								// neither of which has anything on the canvas
+								// to open.
+								actions={
+									! error &&
+									saveBlockers.length === 1 &&
+									saveBlockers[ 0 ].target
+										? [
+												{
+													label: blockedTargetLabel(
+														saveBlockers[ 0 ]
+															.target,
+														isPhase
+													),
+													onClick: () =>
+														showTarget(
+															saveBlockers[ 0 ]
+																.target
+														),
+													variant: 'primary',
+												},
+										  ]
+										: undefined
 								}
 							>
 								{ error ? (
 									error
 								) : (
-									<SaveBlockers reasons={ saveBlockers } />
+									<SaveBlockers
+										reasons={ saveBlockers }
+										isPhase={ isPhase }
+										onShow={ showTarget }
+									/>
 								) }
 							</Notice>
 						</div>
@@ -1757,6 +1955,7 @@ export default function SequenceGraphEditor( {
 						onClearSelection={ clearSelection }
 						onDeleteNode={ handleDeleteStage }
 						onDeleteEdge={ handleDeleteTransition }
+						requiredTransitions={ requiredPhaseTransitions }
 						onAddStageFromNode={
 							isPhase ? undefined : handleAddStageFromNode
 						}
@@ -1764,6 +1963,9 @@ export default function SequenceGraphEditor( {
 						onSetStageStatus={ handleSetStageStatus }
 						onAddRegion={ () => setAddingRegion( true ) }
 						onRemoveRegion={ handleRemoveRegion }
+						// A fault the notice offered to show has to end up
+						// somewhere the author can see it, not just selected.
+						reveal={ reveal }
 						connectable
 						isValidConnection={ isValidConnection }
 					/>
@@ -1774,6 +1976,9 @@ export default function SequenceGraphEditor( {
 				>
 					<Inspector
 						selection={ selection }
+						// …and the panel holding the fix has to be open, with
+						// focus in it, however the panel was left.
+						reveal={ reveal }
 						isPhase={ isPhase }
 						stages={ stages }
 						selectedStage={ selectedStage }
@@ -1794,8 +1999,11 @@ export default function SequenceGraphEditor( {
 						onConnectTransition={ handleConnect }
 						onReconnectTransition={ handleReconnect }
 						onSelectNode={ selectNode }
+						onAddHandOff={ handleAddHandOff }
+						requiredTransitions={ requiredPhaseTransitions }
 						onSelectEdge={ selectEdge }
 						onSelectRegion={ selectRegion }
+						exitProblems={ exitProblems }
 						sequenceSettings={ sequenceSettings }
 					/>
 				</Stack>

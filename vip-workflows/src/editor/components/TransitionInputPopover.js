@@ -1,13 +1,13 @@
 /**
- * Transition input popovers — the side-anchored dialogs a rail transition
- * opens when it requires input before it can fire.
+ * Transition input popover — the side-anchored dialog a rail transition opens
+ * when it asks for an assignee before it can fire.
  *
- * These replace two full-screen modals (TextInputModal and
- * AssignmentWithNotesModal) with the document-sidebar popover pattern the
- * metadata rows already follow: a popover anchored beside the sidebar
- * (placement `left-start`, mirroring core's PostAuthor / PostSchedule
- * dialogs), a header naming the action with a Close icon button, the flow's
- * inputs, then the committing action. The composition mirrors MetadataRow's
+ * It replaces a full-screen modal (AssignmentWithNotesModal) with the
+ * document-sidebar popover pattern the metadata rows already follow: a popover
+ * anchored beside the sidebar (placement `left-start`, mirroring core's
+ * PostAuthor / PostSchedule dialogs), a header naming the action with a Close
+ * icon button, the flow's inputs, then the committing action. The composition
+ * mirrors MetadataRow's
  * Dropdown popover; a raw Popover is used here instead of Dropdown because
  * the trigger is a rail transition button whose click handler runs confirm
  * flows before any popover may open, so the trigger cannot be surrendered to
@@ -31,7 +31,6 @@ import {
 	Notice,
 	Popover,
 	Spinner,
-	TextControl,
 	TextareaControl,
 } from '@wordpress/components';
 import { Stack, Text } from '@wordpress/ui';
@@ -99,97 +98,6 @@ function TransitionInputPopover( { title, anchor, onClose, children } ) {
 				{ children }
 			</Stack>
 		</Popover>
-	);
-}
-
-/**
- * Text/textarea input for a transition that requires a note.
- *
- * @param {Object}   root0           Component props.
- * @param {string}   root0.title     The transition's label.
- * @param {?Element} root0.anchor    The rail button the popover anchors to.
- * @param {string}   root0.label     The input's label (the note's name).
- * @param {string}   root0.inputType 'text' or 'textarea'.
- * @param {boolean}  root0.required  Whether a value is required to commit.
- * @param {Function} root0.onSubmit  Called with the value on commit.
- * @param {Function} root0.onClose   Called on dismissal; nothing commits.
- */
-export function TransitionTextInputPopover( {
-	title,
-	anchor,
-	label,
-	inputType = 'text',
-	required = false,
-	onSubmit,
-	onClose,
-} ) {
-	const [ value, setValue ] = useState( '' );
-	const [ error, setError ] = useState( null );
-
-	const handleSubmit = () => {
-		if ( required && ! value.trim() ) {
-			setError( __( 'This field is required.', 'vip-workflows' ) );
-			return;
-		}
-
-		onSubmit( value );
-	};
-
-	const handleKeyDown = ( e ) => {
-		// Submit on Cmd/Ctrl+Enter for textarea
-		if (
-			inputType === 'textarea' &&
-			e.key === 'Enter' &&
-			( e.metaKey || e.ctrlKey )
-		) {
-			e.preventDefault();
-			handleSubmit();
-		}
-	};
-
-	return (
-		<TransitionInputPopover
-			title={ title }
-			anchor={ anchor }
-			onClose={ onClose }
-		>
-			{ inputType === 'textarea' ? (
-				<TextareaControl
-					__nextHasNoMarginBottom
-					label={ label }
-					value={ value }
-					onChange={ setValue }
-					rows={ 5 }
-					onKeyDown={ handleKeyDown }
-					help={
-						error ||
-						__( 'Press Cmd/Ctrl+Enter to submit', 'vip-workflows' )
-					}
-					className={ error ? 'has-error' : '' }
-				/>
-			) : (
-				<TextControl
-					__next40pxDefaultSize
-					__nextHasNoMarginBottom
-					label={ label }
-					value={ value }
-					onChange={ setValue }
-					onKeyDown={ ( e ) => {
-						if ( e.key === 'Enter' ) {
-							e.preventDefault();
-							handleSubmit();
-						}
-					} }
-					help={ error }
-					className={ error ? 'has-error' : '' }
-				/>
-			) }
-			<ActionRow>
-				<Button variant="primary" onClick={ handleSubmit }>
-					{ __( 'Submit', 'vip-workflows' ) }
-				</Button>
-			</ActionRow>
-		</TransitionInputPopover>
 	);
 }
 

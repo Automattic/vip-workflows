@@ -11,8 +11,9 @@
  *
  * - Clicking a transition that requires input opens the popover, not a modal.
  * - Committing fires the transition with exactly the payload the modals sent
- *   (`wfp_{note_id}_{slug}` note keys; assignment `meta_key` plus optional
- *   `_notes` keys).
+ *   (assignment `meta_key` plus optional `_notes` keys).
+ * - A stored note is not asked for. Notes are no longer collected, so a
+ *   transition still carrying one moves without it.
  * - Dismissing (Close, Escape) abandons the transition: nothing fires.
  * - Both assignment branches survive: user (searchable combobox) and role
  *   (role list).
@@ -99,29 +100,6 @@ const USERS = [
 	{ id: 1, name: 'Admin' },
 	{ id: 7, name: 'Jane Doe' },
 ];
-
-/**
- * A transition requiring a textarea note, as the REST route delivers it.
- *
- * @param {Object} inputOverrides Overrides for the input config.
- * @return {Object} A transition.
- */
-function noteTransition( inputOverrides = {} ) {
-	return {
-		to: 'review',
-		label: 'Send to Review',
-		status_info: { key: 'review', label: 'Review' },
-		inputs: [
-			{
-				type: 'textarea',
-				note_id: 'n1',
-				note_name: 'Editor note',
-				required: false,
-				...inputOverrides,
-			},
-		],
-	};
-}
 
 /**
  * A transition requiring an assignment, as the REST route delivers it.
@@ -275,14 +253,14 @@ afterEach( () => {
 
 describe( 'WorkflowPanel transition input popover', () => {
 	it( 'opens a side-anchored popover, not a modal, named for the action', async () => {
-		await renderWith( [ noteTransition() ] );
-		await openPopoverFor( 'Send to Review' );
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		await openPopoverFor( 'Assign reviewer' );
 
 		// The popover announces as a named dialog — the role the Modal had,
 		// which a bare aria-label on a role-less div would not restore.
-		expect( screen.getByRole( 'dialog', { name: 'Send to Review' } ) ).toBe(
-			popover()
-		);
+		expect(
+			screen.getByRole( 'dialog', { name: 'Assign reviewer' } )
+		).toBe( popover() );
 
 		// No full-screen modal.
 		expect(
@@ -293,48 +271,36 @@ describe( 'WorkflowPanel transition input popover', () => {
 		expect(
 			screen.getByRole( 'button', { name: 'Close' } )
 		).toBeInTheDocument();
-
-		// The note's input, labelled with the note's name, and the commit
-		// action with its kept verb.
-		expect( screen.getByLabelText( 'Editor note' ) ).toBeInTheDocument();
-		expect(
-			screen.getByRole( 'button', { name: 'Submit' } )
-		).toBeInTheDocument();
 	} );
 
-	it( 'commits the note with exactly the payload the modal sent', async () => {
-		await renderWith( [ noteTransition() ] );
-		await openPopoverFor( 'Send to Review' );
-
-		fireEvent.change( screen.getByLabelText( 'Editor note' ), {
-			target: { value: 'Checked twice' },
-		} );
-		await act( async () => {
-			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
-		} );
-
-		expect( firedTransitions() ).toEqual( [
+	it( 'moves without asking for a note a stored transition still carries', async () => {
+		await renderWith( [
 			{
-				to_status: 'review',
-				acknowledge_warnings: false,
-				input_data: {
-					wfp_n1_editor_note: 'Checked twice',
-					wfp_n1_editor_note__name: 'Editor note',
-				},
+				to: 'review',
+				label: 'Send to Review',
+				status_info: { key: 'review', label: 'Review' },
+				inputs: [
+					{
+						type: 'textarea',
+						note_id: 'n1',
+						note_name: 'Editor note',
+						required: true,
+					},
+				],
 			},
 		] );
+		await openPopoverFor( 'Send to Review' );
 
-		// The popover closed with the commit.
-		await waitFor( () => expect( popover() ).not.toBeInTheDocument() );
+		expect( popover() ).not.toBeInTheDocument();
+		expect( firedTransitions() ).toEqual( [
+			{ to_status: 'review', acknowledge_warnings: false },
+		] );
 	} );
 
 	it( 'abandons the transition on Close — nothing fires', async () => {
-		await renderWith( [ noteTransition() ] );
-		await openPopoverFor( 'Send to Review' );
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		await openPopoverFor( 'Assign reviewer' );
 
-		fireEvent.change( screen.getByLabelText( 'Editor note' ), {
-			target: { value: 'Never sent' },
-		} );
 		await act( async () => {
 			fireEvent.click( screen.getByRole( 'button', { name: 'Close' } ) );
 		} );
@@ -344,14 +310,17 @@ describe( 'WorkflowPanel transition input popover', () => {
 	} );
 
 	it( 'abandons the transition on Escape — nothing fires', async () => {
-		await renderWith( [ noteTransition() ] );
-		await openPopoverFor( 'Send to Review' );
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		await openPopoverFor( 'Assign reviewer' );
 
 		await act( async () => {
-			fireEvent.keyDown( screen.getByLabelText( 'Editor note' ), {
-				key: 'Escape',
-				keyCode: 27,
-			} );
+			fireEvent.keyDown(
+				screen.getByRole( 'button', { name: 'Editor' } ),
+				{
+					key: 'Escape',
+					keyCode: 27,
+				}
+			);
 		} );
 
 		expect( popover() ).not.toBeInTheDocument();
@@ -359,8 +328,8 @@ describe( 'WorkflowPanel transition input popover', () => {
 	} );
 
 	it( 'abandons the transition when focus moves outside — nothing fires', async () => {
-		await renderWith( [ noteTransition() ] );
-		await openPopoverFor( 'Send to Review' );
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		await openPopoverFor( 'Assign reviewer' );
 
 		await waitFor( () =>
 			expect( popover().contains( document.activeElement ) ).toBe( true )
@@ -377,29 +346,14 @@ describe( 'WorkflowPanel transition input popover', () => {
 		expect( firedTransitions() ).toEqual( [] );
 	} );
 
-	it( 'refuses an empty required note and stays open', async () => {
-		await renderWith( [ noteTransition( { required: true } ) ] );
-		await openPopoverFor( 'Send to Review' );
-
-		await act( async () => {
-			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
-		} );
-
-		expect(
-			screen.getByText( 'This field is required.' )
-		).toBeInTheDocument();
-		expect( popover() ).toBeInTheDocument();
-		expect( firedTransitions() ).toEqual( [] );
-	} );
-
 	it( 'the warnings acknowledgement re-sends the captured input', async () => {
 		// The first POST answers warnings_pending; the acknowledge POST
 		// succeeds. The input captured by the popover must ride BOTH requests
 		// — the server consumes it only after the warning gates, so an
-		// acknowledge without it completes the move with the note silently
-		// absent.
+		// acknowledge without it completes the move with the assignment
+		// silently absent.
 		await renderWith(
-			[ noteTransition() ],
+			[ assignmentTransition( 'role' ) ],
 			[
 				{
 					warnings_pending: true,
@@ -407,10 +361,10 @@ describe( 'WorkflowPanel transition input popover', () => {
 				},
 			]
 		);
-		await openPopoverFor( 'Send to Review' );
+		await openPopoverFor( 'Assign reviewer' );
 
-		fireEvent.change( screen.getByLabelText( 'Editor note' ), {
-			target: { value: 'Checked twice' },
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
 		} );
 		await act( async () => {
 			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
@@ -425,17 +379,17 @@ describe( 'WorkflowPanel transition input popover', () => {
 		} );
 
 		const inputData = {
-			wfp_n1_editor_note: 'Checked twice',
-			wfp_n1_editor_note__name: 'Editor note',
+			wfp_a1_assignee: 'editor',
+			wfp_a1_assignee__name: 'Assignee',
 		};
 		expect( firedTransitions() ).toEqual( [
 			{
-				to_status: 'review',
+				to_status: 'assigned',
 				acknowledge_warnings: false,
 				input_data: inputData,
 			},
 			{
-				to_status: 'review',
+				to_status: 'assigned',
 				acknowledge_warnings: true,
 				input_data: inputData,
 			},
@@ -450,7 +404,7 @@ describe( 'WorkflowPanel transition input popover', () => {
 			},
 		];
 
-		await renderWith( [ noteTransition() ], [], {
+		await renderWith( [ assignmentTransition( 'role' ) ], [], {
 			agent_pending: false,
 			agent_job: {
 				status: 'warnings_pending',
@@ -487,8 +441,8 @@ describe( 'WorkflowPanel transition input popover', () => {
 	} );
 
 	it( 'moves focus into the popover and returns it to the trigger on close', async () => {
-		await renderWith( [ noteTransition() ] );
-		const trigger = await openPopoverFor( 'Send to Review' );
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		const trigger = await openPopoverFor( 'Assign reviewer' );
 
 		await waitFor( () =>
 			expect( popover().contains( document.activeElement ) ).toBe( true )
@@ -537,6 +491,7 @@ describe( 'WorkflowPanel transition input popover', () => {
 				acknowledge_warnings: false,
 				input_data: {
 					wfp_a1_assignee: 7,
+					wfp_a1_assignee__name: 'Assignee',
 					wfp_a1_assignee_notes: 'Please review',
 					wfp_a1_assignee_notes__name: 'Notes',
 				},
@@ -571,7 +526,8 @@ describe( 'WorkflowPanel transition input popover', () => {
 		).toBeInTheDocument();
 		expect( firedTransitions() ).toEqual( [] );
 
-		// Committing without notes sends only the assignment key.
+		// Committing without notes sends the assignment and the name its
+		// history row reads — not the minted key.
 		await act( async () => {
 			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
 		} );
@@ -583,7 +539,10 @@ describe( 'WorkflowPanel transition input popover', () => {
 			{
 				to_status: 'assigned',
 				acknowledge_warnings: false,
-				input_data: { wfp_a1_assignee: 'editor' },
+				input_data: {
+					wfp_a1_assignee: 'editor',
+					wfp_a1_assignee__name: 'Assignee',
+				},
 			},
 		] );
 	} );

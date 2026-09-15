@@ -328,6 +328,7 @@ export default function StageInspector( {
 	exitOptions = [],
 	outcomeOptions = [],
 	regions = [],
+	exitProblems = {},
 	canDelete,
 	isKeyInUse,
 	availableAgents = [],
@@ -478,6 +479,86 @@ export default function StageInspector( {
 		( target, outcome = null ) =>
 		() =>
 			onSelectEdge( edgeId( stage.key, target, outcome ) );
+
+	// Why an exit would have the save refused, if it would.
+	//
+	// The node on the canvas already carries the message — but it carries it for
+	// the whole stage, so an author who has read “the ‘Send to legal’ transition
+	// assigns work but names no assignment key” is left comparing that name
+	// against every row in this list. The row that has to change says so itself,
+	// in the same `{ short, full }` grammar `InspectorFieldList` flags a
+	// duplicate storage key with: the short form takes the value column, so the
+	// fault is legible without opening anything, and the whole message joins the
+	// row's accessible name — appended to “Select …” rather than replacing it,
+	// because a name that is only the complaint no longer says what the button
+	// does or which exit it belongs to.
+	//
+	// Looked up by the transition, `from->to`, not by the row's own outcome:
+	// two outcomes routed to one destination are two rows naming one
+	// transition, and both carry its fault.
+	const exitProblem = ( target ) => {
+		const messages = exitProblems[ edgeId( stage.key, target ) ];
+		if ( ! messages?.length ) {
+			return null;
+		}
+		return {
+			short: __( 'Needs attention', 'vip-workflows' ),
+			// One row, one line. A transition can hold more than one fault at
+			// once, and the first is the one to fix first.
+			full: messages[ 0 ],
+		};
+	};
+
+	// A row's accessible name, with the reason it is at fault appended rather
+	// than substituted: a name that is only the complaint no longer says what
+	// the button does or which exit it belongs to. One helper for both halves of
+	// the exits list, so an outcome row and a transition row cannot drift into
+	// naming themselves two different ways.
+	const exitSelectLabel = ( label, problem ) =>
+		problem
+			? sprintf(
+					/* translators: 1: the exit's label — the transition, or the transition and its outcome (e.g. "Move to Published · on pass"). 2: why the sequence will not save. */
+					__( 'Select %1$s — %2$s', 'vip-workflows' ),
+					label,
+					problem.full
+			  )
+			: sprintf(
+					/* translators: %s: the exit's label — the transition and its outcome (e.g. "Move to Published · on pass"), the transition's label, or the bare outcome ("On pass"). */
+					__( 'Select %s', 'vip-workflows' ),
+					label
+			  );
+
+	// A row's value column: where the exit goes, with its state appended rather
+	// than substituted — the same reasoning as `exitSelectLabel` above, and one
+	// helper for both halves of the list for the same reason.
+	//
+	// The destination is the only place the panel reports a target that no
+	// longer exists, and a transition can be dangling and at fault at once: it
+	// draws no edge, so this row is the only reachable home of its panel and its
+	// Remove (see `claimedExits`). A fault that took the value column outright
+	// carried off the "(missing)" with it, leaving the one row that could say
+	// the exit points nowhere saying only that something is wrong.
+	//
+	// A fault still wins over "(disabled)": a disabled transition is a state
+	// someone chose, and this one is refusing to save.
+	const exitValue = ( destination, { problem, disabled = false } ) => {
+		if ( problem ) {
+			return sprintf(
+				/* translators: 1: where the exit goes, e.g. "Published" or "ghost (missing)". 2: that the exit is at fault, e.g. "Needs attention". */
+				__( '%1$s — %2$s', 'vip-workflows' ),
+				destination,
+				problem.short
+			);
+		}
+		if ( disabled ) {
+			return sprintf(
+				/* translators: %s: destination stage label */
+				__( '%s (disabled)', 'vip-workflows' ),
+				destination
+			);
+		}
+		return destination;
+	};
 
 	// On an AI stage a routed outcome and the transition it travels are one
 	// exit, so the outcome's row absorbs the transition — name and all — and
@@ -807,34 +888,38 @@ export default function StageInspector( {
 											const disabled =
 												Boolean( claimed ) &&
 												isTransitionDisabled( target );
+											// Only a routed outcome can carry
+											// one: an outcome nobody routed
+											// travels no transition, so there is
+											// nothing here to be at fault.
+											const problem = claimed
+												? exitProblem( target )
+												: null;
 											return (
 												<Fact
 													key={ outcome }
 													className={ [
 														'wf-stage-inspector__route',
 														`is-${ outcome }`,
+														// A fault outranks the
+														// dimming, as it does
+														// "(disabled)".
 														disabled &&
+															! problem &&
 															'is-disabled',
+														problem && 'is-invalid',
 													]
 														.filter( Boolean )
 														.join( ' ' ) }
 													label={ rowLabel }
-													value={
-														disabled
-															? sprintf(
-																	/* translators: %s: destination stage label */
-																	__(
-																		'%s (disabled)',
-																		'vip-workflows'
-																	),
-																	destination
-															  )
-															: destination ||
-															  __(
-																	'Not routed',
-																	'vip-workflows'
-															  )
-													}
+													value={ exitValue(
+														destination ||
+															__(
+																'Not routed',
+																'vip-workflows'
+															),
+														{ problem, disabled }
+													) }
 													empty={ ! destination }
 													onSelect={
 														claimed
@@ -844,13 +929,9 @@ export default function StageInspector( {
 															  )
 															: undefined
 													}
-													selectLabel={ sprintf(
-														/* translators: %s: the row's label — the transition and its outcome (e.g. "Move to Published · on pass"), or the bare outcome ("On pass"). */
-														__(
-															'Select %s',
-															'vip-workflows'
-														),
-														rowLabel
+													selectLabel={ exitSelectLabel(
+														rowLabel,
+														problem
 													) }
 													trailing={
 														onRouteOutcome ? (
@@ -931,6 +1012,13 @@ export default function StageInspector( {
 													transition,
 													nameTarget( transition.to )
 												);
+												const problem = exitProblem(
+													transition.to
+												);
+												const value = exitValue(
+													destination,
+													{ problem, disabled }
+												);
 												return (
 													<SortableFact
 														// Keyed by position, not by target: a
@@ -959,34 +1047,22 @@ export default function StageInspector( {
 														onSelect={ selectExit(
 															transition.to
 														) }
-														selectLabel={ sprintf(
-															/* translators: %s: the transition's label. */
-															__(
-																'Select %s',
-																'vip-workflows'
-															),
-															label
+														selectLabel={ exitSelectLabel(
+															label,
+															problem
 														) }
 														className={ [
 															'wf-stage-inspector__route',
 															disabled &&
+																! problem &&
 																'is-disabled',
+															problem &&
+																'is-invalid',
 														]
 															.filter( Boolean )
 															.join( ' ' ) }
 														label={ label }
-														value={
-															disabled
-																? sprintf(
-																		/* translators: %s: destination stage label */
-																		__(
-																			'%s (disabled)',
-																			'vip-workflows'
-																		),
-																		destination
-																  )
-																: destination
-														}
+														value={ value }
 													>
 														<span
 															className="wf-stage-inspector__route-dot"

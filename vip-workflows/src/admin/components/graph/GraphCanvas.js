@@ -104,6 +104,7 @@ import {
 	canReconnect,
 	canReconnectToNewStage,
 	isAgentStage,
+	isRequiredHandOff,
 	START_ID,
 	END_ID,
 	STAGE_WIDTH,
@@ -119,6 +120,7 @@ import {
 import { EdgePlanProvider } from './EdgePlanProvider';
 import EdgeOverlay from './EdgeOverlay';
 import EdgeAnchors from './EdgeAnchors';
+import { revealNodeIds, revealViewport } from './canvas-reveal';
 import { regionLabel, stageRegion, REGION_ORDER } from './regions';
 
 // Note: React Flow's base stylesheet (`@xyflow/react/dist/style.css`) is imported
@@ -146,6 +148,13 @@ const noop = () => {};
 // long sequence can be read end to end.
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 2;
+
+// How long the canvas takes to travel to a revealed fault, and the preference
+// that cuts the journey to nothing. The pan is not something the author aimed —
+// they asked to see one transition, not to move the graph — so it is the kind
+// of motion the preference exists for.
+const REVEAL_MS = 200;
+const REDUCED_MOTION = '( prefers-reduced-motion: reduce )';
 
 /**
  * Width the floating inspector takes out of the canvas, in pixels.
@@ -175,6 +184,64 @@ function inspectorReserve( el ) {
 		return 0;
 	}
 	return width + inset * 2;
+}
+
+/**
+ * The part of the canvas the floating panel leaves visible, in pane pixels.
+ *
+ * Which side the panel takes its room from is the layout: above wp-admin's
+ * breakpoint it is a column down the right, and `inspectorReserve` is its
+ * width. Below it the panel docks across the bottom instead — that layout sets
+ * `--wf-inspector-width` to zero, which is how the reserve above answers 0 —
+ * and the room it takes has to be measured rather than computed, because a
+ * docked panel is as tall as whatever is open inside it (at most half the
+ * viewport, `SequenceGraphEditor.css`), and a collapsed one is a title bar.
+ *
+ * The notices float over the top of the pane in both layouts, and a reveal is
+ * always asked for from one — the refused-save notice holds the button — so
+ * the strip starts below the lowest of them.
+ *
+ * @param {HTMLElement} el The canvas pane.
+ * @return {Object} `{ x, y, width, height }` relative to the pane.
+ */
+function visibleCanvas( el ) {
+	const editor = el.closest( '.wf-sequence-editor' );
+	const paneTop = el.getBoundingClientRect().top;
+	// Measured against the pane, so jsdom's all-zero rects answer 0.
+	const top = Math.max(
+		0,
+		...Array.from(
+			editor?.querySelectorAll( '.wf-sequence-editor__notice' ) || [],
+			( notice ) => notice.getBoundingClientRect().bottom - paneTop
+		)
+	);
+
+	const reserve = inspectorReserve( el );
+	if ( reserve > 0 ) {
+		return {
+			x: 0,
+			y: top,
+			width: Math.max( 0, el.clientWidth - reserve ),
+			height: Math.max( 0, el.clientHeight - top ),
+		};
+	}
+
+	const panelTop = editor
+		?.querySelector( '.wf-inspector' )
+		?.getBoundingClientRect().top;
+	// No panel to clear (nothing has rendered one), or one measured at the
+	// origin (jsdom lays nothing out): the whole pane is visible. A reveal
+	// that trusted a zero here would pan every target off the top.
+	const bottom =
+		Number.isFinite( panelTop ) && panelTop > paneTop
+			? Math.min( el.clientHeight, panelTop - paneTop )
+			: el.clientHeight;
+	return {
+		x: 0,
+		y: top,
+		width: el.clientWidth,
+		height: Math.max( 0, bottom - top ),
+	};
 }
 
 /**
@@ -290,11 +357,19 @@ function Flow( {
 	onClearSelection,
 	onDeleteNode,
 	onDeleteEdge,
+	// The hand-offs a phase sequence owes, from `/sequences/options`. Read
+	// through the same `isRequiredHandOff` the delete handler is guarded with,
+	// so the context menu cannot offer a deletion that handler refuses.
+	requiredTransitions = [],
 	onAddStageFromNode,
 	onPlaceStage,
 	onSetStageStatus,
 	onAddRegion,
 	onRemoveRegion,
+	// A selection made *for* the author rather than by them — the blocked-save
+	// notice's "Show transition". `{ target }`, a new object per press; see
+	// `showTarget` in `SequenceGraphEditor`.
+	reveal,
 	connectable = true,
 	isValidConnection,
 } ) {
@@ -779,8 +854,13 @@ function Flow( {
 	// store's, so it reads the geometry React Flow actually laid out — which is
 	// also what lets the centering below hand it a node array from an earlier
 	// render without centering on stale positions.
-	const { setViewport, getViewport, getNodesBounds, screenToFlowPosition } =
-		useReactFlow();
+	const {
+		setViewport,
+		getViewport,
+		getNodesBounds,
+		getInternalNode,
+		screenToFlowPosition,
+	} = useReactFlow();
 	const store = useStoreApi();
 	const viewportRef = useRef( null );
 
@@ -1086,6 +1166,75 @@ function Flow( {
 		pendingRecenter.current = false;
 		centerOn( layout.nodes, { duration: 200 } );
 	}, [ layout, centerOn ] );
+
+	// --- Showing a fault ----------------------------------------------------
+
+	// A reveal is a selection the author asked to be *taken to* — the
+	// blocked-save notice's "Show transition". The canvas already follows the
+	// selection, so an ordinary click needs nothing more; but a selection made
+	// on their behalf can land anywhere, including well outside the viewport,
+	// where highlighting it says nothing.
+	//
+	// Acted on when `reveal` changes identity, never on the selection: an
+	// ordinary click must not move the canvas out from under the author, and
+	// each press is a fresh object, so pressing the same button twice — after
+	// panning away in between — is two reveals of one target. Everything else
+	// the effect reads is React Flow's, and stable.
+	useEffect( () => {
+		if ( ! reveal ) {
+			return;
+		}
+
+		// Next frame, so the nodes the selection re-drew are in React Flow's
+		// store before they are measured.
+		const frame = requestAnimationFrame( () => {
+			const el = viewportRef.current;
+			const ids = revealNodeIds( reveal.target ).filter( ( id ) =>
+				getInternalNode( id )
+			);
+			// A target naming nothing the canvas holds — a stage deleted since
+			// the save was refused — is not worth a guess at where to look.
+			if ( ! el || ids.length === 0 ) {
+				return;
+			}
+
+			let bounds = getNodesBounds( ids );
+			// What an overflowing target lands on: the stage a transition
+			// leaves, which `revealNodeIds` lists first.
+			let anchor = getNodesBounds( [ ids[ 0 ] ] );
+			if ( reveal.target.type === 'region' ) {
+				// A status group is fixed at its checkpoint slot, which hangs
+				// over the band's top edge rather than sitting inside it.
+				const { slotX, slotY } = getInternalNode( ids[ 0 ] ).data;
+				bounds = anchor = {
+					x: bounds.x + slotX,
+					y: bounds.y + slotY,
+					width: STAGE_WIDTH,
+					height: STAGE_HEIGHT,
+				};
+			}
+
+			const next = revealViewport( bounds, {
+				viewport: getViewport(),
+				visible: visibleCanvas( el ),
+				anchor,
+			} );
+			if ( next ) {
+				// Animated, so the canvas is seen to travel and the fault is
+				// read as the place it arrived at rather than as a graph that
+				// changed while nobody was looking — unless the whole canvas
+				// sliding is exactly what has been asked not to happen. Linear,
+				// because d3's default zooms out mid-flight on a long pan.
+				setViewport( next, {
+					duration: window.matchMedia( REDUCED_MOTION ).matches
+						? 0
+						: REVEAL_MS,
+					interpolate: 'linear',
+				} );
+			}
+		} );
+		return () => cancelAnimationFrame( frame );
+	}, [ reveal, getInternalNode, getNodesBounds, getViewport, setViewport ] );
 
 	// --- Dropping on empty canvas -------------------------------------------
 
@@ -1432,17 +1581,31 @@ function Flow( {
 	// (`disconnectEdge` refuses it), and where it points follows the Draft
 	// region's entry checkpoint, which is set on that region. So it opens the
 	// canvas's menu rather than one offering nothing.
+	//
+	// Neither is a hand-off a phase sequence owes: deletion is the only verb
+	// this menu has for an edge, and `handleDeleteTransition` refuses that pair.
+	// Left in, the item would promise a removal and do nothing — so it is absent
+	// here, the treatment the transition panel's Remove and the phases at either
+	// end already get.
 	const openEdgeMenu = useCallback(
 		( event, edge ) => {
 			const parsed = parseEdgeId( edge.id );
-			if ( parsed.from === START_ID ) {
+			if (
+				parsed.from === START_ID ||
+				( isPhase &&
+					isRequiredHandOff(
+						requiredTransitions,
+						parsed.from,
+						parsed.to
+					) )
+			) {
 				openMenuAt( event, {} );
 				return;
 			}
 			onSelectEdge( edge.id );
 			openMenuAt( event, { edge: parsed } );
 		},
-		[ onSelectEdge, openMenuAt ]
+		[ isPhase, requiredTransitions, onSelectEdge, openMenuAt ]
 	);
 
 	// What the menu offers, decided by what it was opened on.
