@@ -2288,7 +2288,7 @@ class SequencesControllerTest extends TestCase
 
         $this->assertSame( 'Why', $inputs[0]['note_name'] );
         $this->assertTrue( $inputs[0]['required'] );
-        $this->assertSame( 'n1', $inputs[0]['note_id'] );
+        $this->assertArrayNotHasKey( 'note_id', $inputs[0], 'The allowlist drops a note id nothing reads.' );
 
         $this->assertSame( 'legal_reviewer', $inputs[1]['meta_key'] );
         $this->assertSame( 'user', $inputs[1]['assignee_type'] );

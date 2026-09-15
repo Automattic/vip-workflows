@@ -81,8 +81,7 @@ See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarc
               "type": "assignment",
               "meta_key": "wfp_n1726000000abcde",
               "assignee_type": "user",
-              "label": "Who makes the changes?",
-              "required": true
+              "label": "Who makes the changes?"
             }
           ]
         }

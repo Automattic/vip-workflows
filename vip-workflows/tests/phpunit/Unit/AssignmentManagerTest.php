@@ -45,8 +45,8 @@ class AssignmentManagerTest extends TestCase
 
     /**
      * A transition captures a list, and the assignment need not lead it. Reaching
-     * for `inputs[0]` would find whichever note the author happened to put first
-     * and write no assignment at all.
+     * for `inputs[0]` would find a retired note a stored sequence still carries
+     * ahead of it, and write no assignment at all.
      */
     public function test_process_transition_input_finds_an_assignment_after_a_note(): void
     {

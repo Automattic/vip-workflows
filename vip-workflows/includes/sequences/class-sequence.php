@@ -1571,9 +1571,10 @@ class Sequence {
 	 * this plugin owns, only from hand-written import JSON, and the two disagree
 	 * about what the transition captures — there is no answer to infer.
 	 *
-	 * At most one input may be an assignment. Notes are unbounded, but a
-	 * transition's assignment is the one slot the editor collects an assignee
-	 * for when the transition is taken. Collapsing a second would discard an
+	 * At most one input may be an assignment: it is the one slot the editor
+	 * collects an assignee for when the transition is taken. Other inputs — a
+	 * retired note a stored sequence may still carry — are not counted, and the
+	 * editor no longer collects them. Collapsing a second would discard an
 	 * assignment an author configured, so it is refused on write instead.
 	 *
 	 * @param  array  $transition A transition, with `to` already sanitized.
