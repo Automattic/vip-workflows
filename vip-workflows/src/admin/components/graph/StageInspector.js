@@ -9,19 +9,21 @@
  * (`snapToPalette`), so the picker has no off-palette value to represent.
  *
  * Where the stage sits — its post status region, and whether it holds that
- * region's entry checkpoint — is not edited here. Both are said by the node's
- * place on the canvas: the section it sits in is the status, and sitting astride
- * that section's boundary line is the checkpoint. Dragging is the gesture for
- * each, and `RegionInspector` names the checkpoint from the region's side; a
- * pair of controls restating that would be a second, mutable copy of what the
- * canvas already shows.
+ * region's entry checkpoint — is *shown* by the node's place on the canvas: the
+ * section it sits in is the status, and sitting astride that section's boundary
+ * line is the checkpoint. Position displays both. It is no longer the only way
+ * to set either, which is the correction this panel carries: a gesture is a fine
+ * way to set something, a poor way to check it, and a disastrous way to be the
+ * only way — a canvas whose settings answer only to a drag has no answer at all
+ * for an author who cannot make one.
  *
- * They are still *read back* here. A gesture is a fine way to set something and
- * a poor way to check it: a node's status is only legible if you can see which
- * band it landed in, and where its transitions go is a set of lines to trace.
- * Text says what the selected stage is currently set to without asking anyone
- * to read the canvas back. Nothing in the read-out is *edited* here — every
- * value in it changes by dragging.
+ * The two did not become the same control, because they are not the same shape.
+ * A status is a property of the stage, so it sits with the label and the color,
+ * one more thing the stage IS. A checkpoint is a property of the *region* — one
+ * of its stages seats what arrives from outside, exactly one — so it stays a
+ * single picker in `RegionInspector`, and the row here reports it and opens that
+ * panel. A flag on each stage would be a second, mutable copy of a choice that
+ * has one answer per region, and two copies of a rule drift.
  *
  * The exits are reachable from it, though. Each one names a transition with
  * options of its own, and the only way to open those was to find the matching
@@ -57,8 +59,9 @@
  * it out of the way on the majority of stages that never will; it now sits with
  * the label and the color on every stage, because which agent runs a stage is
  * part of what the stage is rather than a mode to put it into. Where each of the
- * agent's outcomes leads is still set on the canvas by dragging from the node's
- * colored handles, and read back with every other exit.
+ * agent's outcomes leads is picked on the outcome's own row, and on the canvas
+ * by dragging from the node's colored handles — the same routing, said twice
+ * because one of the two is a drag.
  *
  * The stage key stays behind a disclosure — it is set once at creation — and
  * deleting the stage ends the body, in the danger zone every inspector shares.
@@ -71,7 +74,12 @@ import {
 	TextControl,
 	SelectControl,
 	ComboboxControl,
+	DropdownMenu,
+	MenuGroup,
+	MenuItem,
+	MenuItemsChoice,
 } from '@wordpress/components';
+import { chevronDown } from '@wordpress/icons';
 import { Stack, Text } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
 import { paletteOptions } from '../../utils/stage-palette';
@@ -90,6 +98,10 @@ import {
 	sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
 import { Fact, SortableFact } from './InspectorFacts';
+// The same add control the field lists use. It is a list's add control, not a
+// field's — one menu, one option per thing that can be added — and an exit is
+// added to a list exactly as a capture input is.
+import { InspectorFieldListAdd } from './InspectorFieldList';
 import InspectorShell from './InspectorShell';
 import InspectorSection from './InspectorSection';
 import InspectorDangerZone from './InspectorDangerZone';
@@ -102,7 +114,7 @@ import {
 	reorderList,
 	transitionLabel,
 } from './graph-model';
-import { regionDescription, regionLabel } from './regions';
+import { regionDescription, regionLabel, regionOptions } from './regions';
 
 import './StageInspector.css';
 
@@ -234,11 +246,88 @@ function routedOutcomeLabel( outcome, transitionName ) {
 	}
 }
 
+/**
+ * Where one of an agent's outcomes leads, as a control.
+ *
+ * The row it sits on already names the outcome and reports its destination, so
+ * this is the picker and nothing else: every other stage, and — once the
+ * outcome leads somewhere — the choice of leading nowhere. It rides in the
+ * row's `trailing` slot rather than replacing the row's own button, because
+ * that button opens the transition the outcome travels, which is a different
+ * question with a whole panel of answers behind it.
+ *
+ * End is not among the options. An outcome routes to a stage and nothing else —
+ * `routing` holds stage keys, and an AI stage is made final by clearing its
+ * agent first — which is `isValidConnection`'s rule, stated here by having
+ * nothing else to offer rather than by refusing a choice after it is made.
+ *
+ * @param {Object}   props         Component props.
+ * @param {string}   props.outcome The outcome being routed.
+ * @param {?string}  props.target  Stage key it leads to now, if any.
+ * @param {Array}    props.options Destinations: `{ label, value }`.
+ * @param {Function} props.onRoute Routes it: ( outcome, target ).
+ * @param {Function} props.onClear Un-routes it: ( outcome ).
+ * @return {JSX.Element} The picker.
+ */
+function OutcomeRouteMenu( { outcome, target, options, onRoute, onClear } ) {
+	return (
+		<DropdownMenu
+			icon={ chevronDown }
+			label={ sprintf(
+				/* translators: %s: agent outcome label (e.g. On pass) */
+				__( 'Route %s', 'vip-workflows' ),
+				agentOutcomeLabel( outcome )
+			) }
+			toggleProps={ { size: 'small', showTooltip: true } }
+		>
+			{ ( { onClose } ) => (
+				<>
+					{ /* Radio items, so the destination it has now is checked
+					     and announced as such rather than listed like the rest. */ }
+					<MenuGroup>
+						<MenuItemsChoice
+							choices={ options }
+							value={ target }
+							onSelect={ ( value ) => {
+								// Shut first, so focus is already on its way
+								// back to the toggle before the row it names
+								// re-renders underneath it.
+								onClose();
+								onRoute( outcome, value );
+							} }
+						/>
+					</MenuGroup>
+					{ target && (
+						<MenuGroup>
+							<MenuItem
+								onClick={ () => {
+									onClose();
+									onClear( outcome );
+								} }
+							>
+								{ __( 'Not routed', 'vip-workflows' ) }
+							</MenuItem>
+						</MenuGroup>
+					) }
+				</>
+			) }
+		</DropdownMenu>
+	);
+}
+
 export default function StageInspector( {
 	stage,
 	onChange,
 	onDelete,
 	onSelectEdge,
+	onSelectRegion,
+	onSetStatus,
+	onAddExit,
+	onRouteOutcome,
+	onClearOutcome,
+	exitOptions = [],
+	outcomeOptions = [],
+	regions = [],
 	canDelete,
 	isKeyInUse,
 	availableAgents = [],
@@ -279,9 +368,8 @@ export default function StageInspector( {
 	);
 
 	// AI-stage config. An agent runs on entry and routes the post onward by
-	// outcome; the routes themselves are drawn on the canvas (drag from the
-	// node's pass / fail / error handles onto a stage), so all this panel does
-	// is pick the agent and read back where each outcome currently leads.
+	// outcome. Each route is picked on its outcome's row below, or drawn on the
+	// canvas from the node's pass / fail / error handles.
 	const isAgent = isAgentStage( stage );
 	const abilityId = stage.agent?.ability_id || '';
 	const routing = stage.agent?.routing || {};
@@ -466,6 +554,35 @@ export default function StageInspector( {
 		}
 	};
 
+	// The stage's own status region, and what saying it out loud has to include.
+	//
+	// Two sentences at most: what this status does to a post, and — only while
+	// this stage is the one its region seats arrivals at — what moving it costs.
+	// `setStageStatus` frees the checkpoint of the region a stage leaves, which
+	// is right (a checkpoint is a position on that region's border, and the
+	// stage is no longer in it) and invisible from a control, where the drag it
+	// mirrors let the author watch the node come off the line. Said before the
+	// change rather than reported after it: Save is blocked while a region has
+	// no checkpoint, and an author who knows that in advance can set the next
+	// one first.
+	const region = stageRegion( stage );
+	const holdsCheckpoint = Boolean( stage.region_entry );
+	const statusHelp = [
+		regionDescription( region ),
+		holdsCheckpoint
+			? sprintf(
+					/* translators: %s: post status label (e.g. Pending Review) */
+					__(
+						'This stage is where “%s” seats a post that arrives from outside the workflow. Moving it to another status leaves that one with no entry checkpoint, and Save is blocked until a stage takes it.',
+						'vip-workflows'
+					),
+					regionLabel( region )
+			  )
+			: '',
+	]
+		.filter( Boolean )
+		.join( ' ' );
+
 	// Whether the stage has any exit at all to report. An AI stage always does:
 	// its three outcomes are listed whether or not they lead anywhere, because
 	// an unrouted outcome is a thing to fix rather than a thing to omit.
@@ -492,6 +609,25 @@ export default function StageInspector( {
 						value={ stage.color || '' }
 						options={ paletteOptions() }
 						onChange={ ( color ) => onChange( { color } ) }
+					/>
+					{ /* Which status posts hold here — the same setting the
+					     node's band says, in the group of things the stage IS.
+					     It is not merged into `onChange` with the fields above
+					     it: the status is a move between groups, with a
+					     checkpoint to free on the way out, and the editor's own
+					     mutation is what knows that. */ }
+					<SelectControl
+						__next40pxDefaultSize
+						__nextHasNoMarginBottom
+						label={ __( 'Post status', 'vip-workflows' ) }
+						value={ region }
+						// The statuses the canvas is drawing — every stage's
+						// among them (`visibleRegions`). A status not drawn has
+						// no band to move the node into, and adding one is the
+						// sequence panel's verb.
+						options={ regionOptions( regions ) }
+						help={ statusHelp }
+						onChange={ ( next ) => onSetStatus?.( next ) }
 					/>
 					<ComboboxControl
 						__next40pxDefaultSize
@@ -532,8 +668,9 @@ export default function StageInspector( {
 					/>
 				</InspectorSection>
 
-				{ /* What the canvas set, read back. Two lists, one group: what
-				     the stage is, then every way out of it. */ }
+				{ /* Where this stage stands in its region, and every way out
+				     of it. One group: a post here holds a status and leaves by
+				     some number of exits. */ }
 				<InspectorSection>
 					<Stack
 						render={ <ul /> }
@@ -541,28 +678,16 @@ export default function StageInspector( {
 						gap="xs"
 						className="wf-inspector__facts"
 					>
-						<Fact
-							label={ __( 'Post status', 'vip-workflows' ) }
-							value={ regionLabel( stageRegion( stage ) ) }
-							// Two things worth saying, and the split matters:
-							// what this particular status does to a post — from
-							// `regionDescription`, the same sentence
-							// `AddPostStatusModal` shows when the status is
-							// added — and then how it got set. The old section
-							// prose only ever said the second.
-							tip={ [
-								// Empty for a region the vocabulary doesn't
-								// know, which would otherwise open the tip with
-								// a space.
-								regionDescription( stageRegion( stage ) ),
-								__(
-									'Set by dragging the node: the section of the canvas it sits in is the status posts hold here.',
-									'vip-workflows'
-								),
-							]
-								.filter( Boolean )
-								.join( ' ' ) }
-						/>
+						{ /* Reported here, set on the region. A region seats
+						     arrivals at exactly one of its stages, so the
+						     control belongs where that choice is one field
+						     rather than a flag on each of its stages that could
+						     disagree — and this row opens it, the same way an
+						     exit row opens the transition it names. It loses
+						     its tooltip by becoming a button (a tip is a
+						     trigger, and a control inside a control is not a
+						     thing); the panel it opens carries the whole
+						     explanation against the picker itself. */ }
 						<Fact
 							label={ __( 'Entry checkpoint', 'vip-workflows' ) }
 							value={
@@ -570,14 +695,51 @@ export default function StageInspector( {
 									? __( 'Yes', 'vip-workflows' )
 									: __( 'No', 'vip-workflows' )
 							}
-							tip={ __(
-								'Where a post lands when something outside the workflow gives it this status — a status change made in the editor, a scheduled post going live, or a sequence assigned to a post that already has one. Set by dragging the node onto the section’s boundary line.',
-								'vip-workflows'
+							onSelect={
+								onSelectRegion
+									? () => onSelectRegion( region )
+									: undefined
+							}
+							// The row's name replaces its text, so it has to
+							// carry the value too.
+							selectLabel={ sprintf(
+								/* translators: 1: Yes or No, 2: post status label (e.g. Pending Review) */
+								__(
+									'Entry checkpoint: %1$s. Open the “%2$s” post status options, where it is set',
+									'vip-workflows'
+								),
+								stage.region_entry
+									? __( 'Yes', 'vip-workflows' )
+									: __( 'No', 'vip-workflows' ),
+								regionLabel( region )
 							) }
 						/>
 					</Stack>
 
 					<div className="wf-stage-inspector__exits">
+						{ /* An exit that needs a destination named needs a
+						     picker to name it in, and this is where the exits
+						     already are. No heading over it: the rows say what
+						     they are, which is why the three that used to sit
+						     here went. An AI stage gets none of this — its
+						     outcomes are the only ways out of it, and each one
+						     picks its own destination on its own row below. */ }
+						{ ! isAgent && exitOptions.length > 0 && (
+							<Stack
+								direction="row"
+								align="center"
+								justify="flex-end"
+							>
+								<InspectorFieldListAdd
+									addOptions={ exitOptions }
+									onAdd={ onAddExit }
+									label={ __( 'Add exit', 'vip-workflows' ) }
+									// A destination is the thing to read, even
+									// when there is only one of them.
+									alwaysMenu
+								/>
+							</Stack>
+						) }
 						{ hasExits ? (
 							// Only the transitions are sortable, so the context
 							// wraps the whole list but the SortableContext below
@@ -690,6 +852,27 @@ export default function StageInspector( {
 														),
 														rowLabel
 													) }
+													trailing={
+														onRouteOutcome ? (
+															<OutcomeRouteMenu
+																outcome={
+																	outcome
+																}
+																target={
+																	target
+																}
+																options={
+																	outcomeOptions
+																}
+																onRoute={
+																	onRouteOutcome
+																}
+																onClear={
+																	onClearOutcome
+																}
+															/>
+														) : undefined
+													}
 												>
 													<span
 														className="wf-stage-inspector__route-dot"
@@ -826,7 +1009,7 @@ export default function StageInspector( {
 								className="wf-inspector-section__help"
 							>
 								{ __(
-									'Nothing leaves this stage yet. Drag from one of its handles on the canvas to connect it to another stage.',
+									'Nothing leaves this stage yet. Add an exit above, or drag from one of the stage’s handles on the canvas.',
 									'vip-workflows'
 								) }
 							</Text>

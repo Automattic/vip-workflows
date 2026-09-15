@@ -1442,7 +1442,11 @@ export function canReconnect(
 		const source = stages.find( ( s ) => s.key === newFrom );
 		// Nothing for the endpoint to become when that stage already exits —
 		// see the docblock.
-		return Boolean( source ) && ! source.is_terminal;
+		return (
+			Boolean( source ) &&
+			! source.is_terminal &&
+			! isAgentStage( source )
+		);
 	}
 	if ( newFrom === oldFrom ) {
 		return canRewireTransition( stages, oldFrom, oldTo, newTo );

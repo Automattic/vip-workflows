@@ -32,10 +32,10 @@
  * The bands are geometry, not drop zones in the pointer-events sense — the node
  * spanning a band takes no pointer events at all (see `RegionNode`), so panning
  * still works over the whole canvas. (Selection does not follow: this canvas
- * derives `selected` from the editor's selection props, and drops React Flow's
- * `select` changes on the floor — see `handleNodesChange`. Shift-drag draws a
- * marquee that selects nothing.) What a region *looks*
- * like isn't in that node either: the boundary line and the label that names it
+ * derives `selected` from the editor's selection props and drops React Flow's
+ * `select` changes; a click, or Enter/Space on a focused card or line, is what
+ * selects — see `handleKeyDown` — so a shift-drag marquee selects nothing.)
+ * What a region *looks* like isn't in that node either: the boundary line and the label that names it
  * are screen-space chrome drawn by `RegionBands`, so the line runs the width of
  * the viewport however far the graph is panned and the label stays pinned to its
  * left edge — a region is a section of the canvas, not a shape on it.
@@ -103,7 +103,9 @@ import {
 	parseEdgeId,
 	canReconnect,
 	canReconnectToNewStage,
+	isAgentStage,
 	START_ID,
+	END_ID,
 	STAGE_WIDTH,
 	STAGE_HEIGHT,
 } from './graph-model';
@@ -112,11 +114,12 @@ import {
 	bandAtPoint,
 	checkpointSlotAtPoint,
 	offsetIn,
+	RANK_SEP,
 } from './layout';
 import { EdgePlanProvider } from './EdgePlanProvider';
 import EdgeOverlay from './EdgeOverlay';
 import EdgeAnchors from './EdgeAnchors';
-import { regionLabel, REGION_ORDER } from './regions';
+import { regionLabel, stageRegion, REGION_ORDER } from './regions';
 
 // Note: React Flow's base stylesheet (`@xyflow/react/dist/style.css`) is imported
 // from the admin entry (`src/admin/index.js`), not here. Its filename matches
@@ -290,6 +293,7 @@ function Flow( {
 	onAddStageFromNode,
 	onInsertStageOnEdge,
 	onPlaceStage,
+	onSetStageStatus,
 	onAddRegion,
 	onRemoveRegion,
 	connectable = true,
@@ -734,8 +738,8 @@ function Flow( {
 
 	// Nodes are draggable, so React Flow's position changes are the one kind of
 	// node change worth keeping. Structure (add/remove) still flows through
-	// `stages`; `select` changes are dropped, which is A11Y-001 (see the note at
-	// the top of the file).
+	// `stages`; `select` changes are dropped — a selection is a fact about the
+	// editor, not about the node array (keyboard selection: `handleKeyDown`).
 	//
 	// The in-flight position is released here rather than in `onNodeDragStop`,
 	// which a drag isn't guaranteed to reach: a second touch point, or the node
@@ -775,6 +779,44 @@ function Flow( {
 			);
 		},
 		[ commitStagePlacement ]
+	);
+
+	// What the keyboard selects, handed to the editor.
+	//
+	// React Flow's own keyboard activation — Enter or Space on a focused node
+	// or edge — only emits a `select` change, which is dropped above, and never
+	// calls `onNodeClick`. So a keyboard author could reach every card on this
+	// canvas and open none of them. The key is read here instead, on its way up
+	// from the focused card or line, and handed to the same callbacks a click
+	// uses.
+	//
+	// Not from React Flow's store (`onSelectionChange`): in a controlled flow the
+	// store only catches up with the editor's selection in an effect after the
+	// render, so it reports the *previous* selection back — undoing every clear
+	// and bouncing between two selections forever — and a shift-drag marquee
+	// writes a selection there too.
+	//
+	// Only the card or line itself counts: Enter on a control inside a card is
+	// that control's.
+	const handleKeyDown = useCallback(
+		( event ) => {
+			if ( event.key !== 'Enter' && event.key !== ' ' ) {
+				return;
+			}
+			const id = event.target.getAttribute?.( 'data-id' );
+			if ( event.target.classList?.contains( 'react-flow__node' ) ) {
+				if (
+					nodes.some( ( n ) => n.id === id && n.type === NODE_TYPE )
+				) {
+					onSelectNode( id );
+				}
+			} else if (
+				event.target.classList?.contains( 'react-flow__edge' )
+			) {
+				onSelectEdge( id );
+			}
+		},
+		[ nodes, onSelectNode, onSelectEdge ]
 	);
 
 	// `getNodesBounds` comes off the instance rather than the package export.
@@ -916,7 +958,11 @@ function Flow( {
 		[ getNodesBounds, getViewport, setViewport ]
 	);
 
-	const structureKey = nodes.map( ( n ) => n.id ).join( '|' );
+	// Which nodes there are, and which band each stage is in — so a stage moved
+	// to another status from outside the canvas is a structural change too.
+	const structureKey = nodes
+		.map( ( n ) => `${ n.id }:${ n.data?.region ?? '' }` )
+		.join( '|' );
 	const prevStructure = useRef( '' );
 
 	// The last layout actually drawn, kept for exactly one render. Every gesture
@@ -924,16 +970,16 @@ function Flow( {
 	// added or removed from outside the canvas too — the inspector's delete, the
 	// "add stage" button, a status change that moves one between bands — and each
 	// of those would otherwise re-flow whatever hadn't been placed yet. So the
-	// same freeze runs on any structural change, against the arrangement that was
-	// on screen before it.
+	// same freeze runs on any layout change, including a transition re-pointed
+	// in the inspector, against the arrangement that was on screen before it.
 	//
 	// A layout effect, not a passive one: it commits before the browser paints,
 	// so the re-laid-out frame it is undoing is never shown.
 	const drawnLayout = useRef( null );
 	useLayoutEffect( () => {
 		const previous = drawnLayout.current;
-		drawnLayout.current = { structureKey, layout };
-		if ( ! previous || previous.structureKey === structureKey ) {
+		drawnLayout.current = { layoutKey, layout };
+		if ( ! previous || previous.layoutKey === layoutKey ) {
 			return;
 		}
 		// Nothing was on the canvas to keep — the sequence loading in, not an
@@ -941,11 +987,89 @@ function Flow( {
 		if ( ! previous.layout.nodes.some( ( n ) => n.type === NODE_TYPE ) ) {
 			return;
 		}
-		freezeCanvas( previous.layout );
+		// Only what is still on the canvas, in the band it was in. A deleted stage
+		// needs no placement, and a moved one's would name a band it has left —
+		// which may be a band that is gone, where `bandRegionOf` throws.
+		const nodesNow = new Map( layout.nodes.map( ( n ) => [ n.id, n ] ) );
+		const kept = previous.layout.nodes.filter( ( n ) => {
+			const current = nodesNow.get( n.id );
+			return (
+				current &&
+				current.data?.region === n.data?.region &&
+				Boolean( current.data?.isRegionEntry ) ===
+					Boolean( n.data?.isRegionEntry )
+			);
+		} );
+		// A stage arriving from outside the canvas — Add stage in the sequence
+		// panel, a status picked in the stage panel — has no placement, and the
+		// layout reserves no room for placed stages, so it would land on its
+		// band's content origin: where the stage frozen there already sits. It
+		// goes below the lowest stage already in that band instead. (A checkpoint
+		// is pinned to the border, so it needs no spot and makes no floor.)
+		const keptIds = new Set( kept.map( ( n ) => n.id ) );
+		const isFree = ( n ) => n.type === NODE_TYPE && ! n.data?.isRegionEntry;
+		freezeCanvas( { ...previous.layout, nodes: kept }, ( next ) => {
+			// A checkpoint changed from a panel has no new pointer position: its
+			// old slot must not pin it above the band's remaining stages. A drag
+			// off the slot already supplied a fresh placement, which stays put.
+			previous.layout.nodes.forEach( ( n ) => {
+				const current = nodesNow.get( n.id );
+				if (
+					! current ||
+					Boolean( current.data?.isRegionEntry ) ===
+						Boolean( n.data?.isRegionEntry )
+				) {
+					return;
+				}
+				const oldPlacement = placementIn(
+					n.position,
+					n.data?.region ?? null,
+					previous.layout.bands
+				);
+				const placement = next[ n.id ];
+				const unchanged =
+					placement &&
+					placement.region === oldPlacement.region &&
+					placement.x === oldPlacement.x &&
+					placement.y === oldPlacement.y;
+				if ( current.data?.isRegionEntry || unchanged ) {
+					delete next[ n.id ];
+				}
+			} );
+			const floors = {};
+			kept.filter( isFree ).forEach( ( n ) => {
+				const bottom = n.position.y + ( n.height || STAGE_HEIGHT );
+				const floor = floors[ n.data?.region ];
+				if ( ! floor || bottom > floor.y ) {
+					floors[ n.data?.region ] = { x: n.position.x, y: bottom };
+				}
+			} );
+			layout.nodes
+				.filter( ( n ) => isFree( n ) && ! keptIds.has( n.id ) )
+				.forEach( ( n ) => {
+					const region = n.data?.region;
+					const floor = floors[ region ];
+					if (
+						! floor ||
+						next[ n.id ]?.region === ( region ?? null )
+					) {
+						return;
+					}
+					next[ n.id ] = placementIn(
+						{ x: floor.x, y: floor.y + RANK_SEP },
+						region,
+						previous.layout.bands
+					);
+					floors[ region ] = {
+						x: floor.x,
+						y: floor.y + RANK_SEP + ( n.height || STAGE_HEIGHT ),
+					};
+				} );
+		} );
 		// Freezing *is* the canvas becoming the author's, so the centering below
 		// has nothing left to do: claiming the key is how it's told.
 		prevStructure.current = structureKey;
-	}, [ structureKey, layout, freezeCanvas ] );
+	}, [ structureKey, layoutKey, layout, freezeCanvas ] );
 
 	// The frame the centering below waits on, and the only thing that cancels it:
 	// unmount. Cancelling from that effect's own cleanup instead would lose the
@@ -1298,12 +1422,13 @@ function Flow( {
 
 	// --- Right-click menu --------------------------------------------------
 
-	// `{ x, y }` in viewport-relative px, plus the region the menu was opened
-	// on (null on empty canvas).
+	// `{ x, y }` in viewport-relative px, plus what the menu was opened on: a
+	// region band (`region`), a stage card (`stageKey`), a transition (`edge`),
+	// or none of the three, which is the canvas itself.
 	const [ menu, setMenu ] = useState( null );
 	const closeMenu = useCallback( () => setMenu( null ), [] );
 
-	const openMenu = useCallback( ( event, region = null ) => {
+	const openMenuAt = useCallback( ( event, target ) => {
 		event.preventDefault();
 		const rect = viewportRef.current?.getBoundingClientRect();
 		if ( ! rect ) {
@@ -1312,14 +1437,168 @@ function Flow( {
 		setMenu( {
 			x: event.clientX - rect.left,
 			y: event.clientY - rect.top,
-			region,
+			region: null,
+			stageKey: null,
+			edge: null,
+			...target,
 		} );
 	}, [] );
 
+	// The pane, and a region band's label. Both open the canvas's own menu; the
+	// band names the region it was opened on, so the menu can offer to remove
+	// that one.
+	const openMenu = useCallback(
+		( event, region = null ) => openMenuAt( event, { region } ),
+		[ openMenuAt ]
+	);
+
+	// A stage card. Right-clicking selects it exactly as a left-click does: the
+	// menu carries the stage settings that need no second node to name, and the
+	// inspector it opens behind them is where the rest of them are.
+	const openNodeMenu = useCallback(
+		( event, node ) => {
+			// Start, End and the region bands are not things you operate — they
+			// are `selectable: false` for the same reason — so a right-click on
+			// one gets the canvas's menu, not an empty menu of its own. So does a
+			// phase: it has no statuses and no End, and it cannot be deleted.
+			if ( node.type !== NODE_TYPE || isPhase ) {
+				openMenuAt( event, {} );
+				return;
+			}
+			onSelectNode( node.id );
+			openMenuAt( event, { stageKey: node.id } );
+		},
+		[ isPhase, onSelectNode, openMenuAt ]
+	);
+
+	// A transition. The Start edge is not one: it has nothing to delete
+	// (`disconnectEdge` refuses it), and where it points follows the Draft
+	// region's entry checkpoint, which is set on that region. So it opens the
+	// canvas's menu rather than one offering nothing.
+	const openEdgeMenu = useCallback(
+		( event, edge ) => {
+			const parsed = parseEdgeId( edge.id );
+			if ( parsed.from === START_ID ) {
+				openMenuAt( event, {} );
+				return;
+			}
+			onSelectEdge( edge.id );
+			openMenuAt( event, { edge: parsed } );
+		},
+		[ onSelectEdge, openMenuAt ]
+	);
+
+	// What the menu offers, decided by what it was opened on.
+	//
+	// Every item here is a verb that needs no *second* node to name it: a status
+	// to move into, a flag to set, something to delete. The verbs that do need
+	// one — where a new transition goes, which stage an outcome routes to, where
+	// an existing transition is re-pointed — are controls in the inspector,
+	// sitting against the read-out of the same setting. A menu item cannot ask
+	// "which stage?" without a submenu, and `role="menu"` is a promise about the
+	// keyboard that this menu keeps for one level only.
 	const menuItems = useMemo( () => {
 		if ( ! menu ) {
 			return [];
 		}
+
+		if ( menu.stageKey ) {
+			const stage = stages.find( ( s ) => s.key === menu.stageKey );
+			if ( ! stage ) {
+				return [];
+			}
+			const current = stageRegion( stage );
+			const items = regions
+				.filter( ( region ) => region !== current )
+				.map( ( region ) => ( {
+					id: `status-${ region }`,
+					label: sprintf(
+						/* translators: %s: post status label (e.g. Pending Review) */
+						__( 'Set post status to “%s”', 'vip-workflows' ),
+						regionLabel( region )
+					),
+					onSelect: () => onSetStageStatus?.( stage.key, region ),
+				} ) );
+
+			// Final means an edge to End, so it is offered where End exists: a
+			// phase sequence draws no endpoints at all, and an AI stage leaves
+			// only by its outcomes — `isValidConnection` refuses an outcome
+			// aimed at End, and clearing the agent is what makes the stage
+			// eligible again.
+			if ( ! isPhase && ! isAgentStage( stage ) ) {
+				items.push(
+					stage.is_terminal
+						? {
+								id: 'clear-terminal',
+								label: __(
+									'Not a final stage',
+									'vip-workflows'
+								),
+								// Both mutations move the selection (off the
+								// stage, or onto its End edge); the menu was
+								// opened on the stage, so it keeps it.
+								onSelect: () => {
+									onDeleteEdge( stage.key, END_ID, null );
+									onSelectNode( stage.key );
+								},
+						  }
+						: {
+								id: 'set-terminal',
+								label: __(
+									'Make this a final stage',
+									'vip-workflows'
+								),
+								onSelect: () => {
+									onConnectTransition(
+										stage.key,
+										END_ID,
+										null
+									);
+									onSelectNode( stage.key );
+								},
+						  }
+				);
+			}
+
+			items.push( {
+				id: 'delete-stage',
+				icon: trash,
+				label: __( 'Delete stage', 'vip-workflows' ),
+				// The same floor the inspector's delete keeps: a sequence needs
+				// somewhere for content to be.
+				disabled: stages.length <= 1,
+				onSelect: () => onDeleteNode( stage.key ),
+			} );
+
+			return items;
+		}
+
+		if ( menu.edge ) {
+			const { from, to, outcome } = menu.edge;
+			// The edge to End *is* the terminal flag, so deleting it is said in
+			// the words of the thing it changes rather than as the deletion of a
+			// transition nobody drew.
+			return [
+				to === END_ID
+					? {
+							id: 'clear-terminal',
+							label: __( 'Not a final stage', 'vip-workflows' ),
+							onSelect: () => onDeleteEdge( from, END_ID, null ),
+					  }
+					: {
+							id: 'delete-transition',
+							icon: trash,
+							// An outcome edge only un-routes: its transition
+							// stays, disabled (`clearOutcome`) — the words
+							// `TransitionInspector` uses for the same action.
+							label: outcome
+								? __( 'Remove this route', 'vip-workflows' )
+								: __( 'Delete transition', 'vip-workflows' ),
+							onSelect: () => onDeleteEdge( from, to, outcome ),
+					  },
+			];
+		}
+
 		const remaining = REGION_ORDER.filter(
 			( r ) => ! regions.includes( r )
 		);
@@ -1347,7 +1626,30 @@ function Flow( {
 		}
 
 		return items;
-	}, [ menu, regionMeta, regions, onAddRegion, onRemoveRegion ] );
+	}, [
+		menu,
+		stages,
+		isPhase,
+		regionMeta,
+		regions,
+		onAddRegion,
+		onRemoveRegion,
+		onSetStageStatus,
+		onConnectTransition,
+		onDeleteEdge,
+		onDeleteNode,
+		onSelectNode,
+	] );
+
+	const menuLabel = useMemo( () => {
+		if ( menu?.stageKey ) {
+			return __( 'Stage actions', 'vip-workflows' );
+		}
+		if ( menu?.edge ) {
+			return __( 'Transition actions', 'vip-workflows' );
+		}
+		return __( 'Canvas actions', 'vip-workflows' );
+	}, [ menu ] );
 
 	return (
 		<div
@@ -1367,6 +1669,8 @@ function Flow( {
 			ref={ viewportRef }
 		>
 			<ReactFlow
+				// On React Flow's own wrapper, which every card and line sits in.
+				onKeyDown={ handleKeyDown }
 				nodes={ nodes }
 				edges={ edgesWithHover }
 				onNodesChange={ handleNodesChange }
@@ -1411,6 +1715,8 @@ function Flow( {
 				onEdgeClick={ ( _e, edge ) => onSelectEdge( edge.id ) }
 				onPaneClick={ onClearSelection }
 				onPaneContextMenu={ openMenu }
+				onNodeContextMenu={ openNodeMenu }
+				onEdgeContextMenu={ openEdgeMenu }
 				onMove={ closeMenu }
 				onNodesDelete={ ( deleted ) =>
 					deleted.forEach( ( n ) => onDeleteNode( n.id ) )
@@ -1479,10 +1785,13 @@ function Flow( {
 					x={ menu.x }
 					y={ menu.y }
 					items={ menuItems }
-					// One name for the menu however it was opened. Which
-					// region it was opened on is already carried by the item
-					// that names it ("Remove “Pending Review”").
-					label={ __( 'Canvas actions', 'vip-workflows' ) }
+					// Named for what it acts on, since that is the one thing
+					// the items themselves don't say: "Set post status to
+					// “Draft”" is the same sentence whichever stage it was
+					// opened over. Which region a canvas menu was opened on is
+					// carried by the item that names it ("Remove “Pending
+					// Review”"), so all three canvas cases share one name.
+					label={ menuLabel }
 					onClose={ closeMenu }
 				/>
 			) }

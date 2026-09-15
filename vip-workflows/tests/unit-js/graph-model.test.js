@@ -702,6 +702,26 @@ describe( 'reconnectEdge', () => {
 		expect( selection ).toEqual( { from: 'draft', to: 'done' } );
 	} );
 
+	it( 'cannot make an AI stage final by repointing an unrouted transition to End', () => {
+		const input = setStageAgent( stages(), 'review', 'ability/x' );
+		expect(
+			canReconnect( input, 'review', 'done', 'review', END_ID )
+		).toBe( false );
+
+		const result = reconnectEdge(
+			input,
+			'review',
+			'done',
+			'review',
+			END_ID
+		);
+		expect( result.stages ).toBe( input );
+		expect( result.selection ).toBeNull();
+		expect(
+			findTransition( result.stages, 'review', 'done' )
+		).toBeTruthy();
+	} );
+
 	it( 'new source: carries roles/tools over to the new transition', () => {
 		// review -> done (with allowed_roles + required_tools) moves to draft -> done.
 		const { stages: next, selection } = reconnectEdge(

@@ -26,6 +26,14 @@
  * the panel says so at the top rather than locking fields the author is setting
  * up for later.
  *
+ * **Both ends are controls too.** Where a transition starts and where it lands
+ * were said only by dragging an endpoint across the canvas — a fine gesture, and
+ * for anyone who cannot make one, no gesture at all. Each list holds the ends
+ * this particular edge could take, asked of `canReconnect` one candidate at a
+ * time, so what a drag would refuse is missing rather than offered and then
+ * rejected. An outcome edge gets no From control: its departure belongs to the
+ * agent on its own stage, so there is nowhere for that end to go.
+ *
  * A *shared* transition says so at the top too, and for a sharper reason. A
  * stage holds at most one transition per target, so an agent routing two
  * outcomes to one destination puts both of them on one record: the canvas draws
@@ -37,7 +45,12 @@
  * @package
  */
 
-import { TextControl, ToggleControl, Notice } from '@wordpress/components';
+import {
+	TextControl,
+	ToggleControl,
+	SelectControl,
+	Notice,
+} from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { requirementText } from '../../../common/AgentRequirements';
@@ -201,6 +214,11 @@ function toolProblem( tool ) {
 
 export default function TransitionInspector( {
 	transition,
+	from,
+	to,
+	fromOptions = [],
+	toOptions = [],
+	onRepoint,
 	sourceLabel,
 	targetLabel,
 	outcome = null,
@@ -472,6 +490,48 @@ export default function TransitionInspector( {
 						) }
 					</Notice>
 				) }
+				{ /* Both ends, as controls. The canvas moves them by dragging
+				     an endpoint onto another card (`EdgeAnchors`), which is a
+				     fine gesture and the only one there was; these are the same
+				     move for anyone not making it with a pointer. Each list
+				     holds only the ends this edge could actually take —
+				     `canReconnect` answers per candidate, so a duplicate
+				     transition, a departure an AI stage cannot own, or a stage
+				     that already exits the flow is absent rather than refused
+				     after the fact.
+
+				     An outcome's departure is fixed — it belongs to the agent
+				     on its own stage — so an outcome edge gets no From control
+				     at all, rather than one with a single entry that cannot be
+				     changed. `fromOptions` carries the current end, so one
+				     option means there is nowhere else for it to go. */ }
+				{ onRepoint && (
+					<InspectorSection>
+						{ fromOptions.length > 1 && (
+							<SelectControl
+								__next40pxDefaultSize
+								__nextHasNoMarginBottom
+								label={ __( 'From', 'vip-workflows' ) }
+								value={ from }
+								options={ fromOptions }
+								onChange={ ( next ) => onRepoint( next, to ) }
+							/>
+						) }
+						<SelectControl
+							__next40pxDefaultSize
+							__nextHasNoMarginBottom
+							label={ __( 'To', 'vip-workflows' ) }
+							value={ to }
+							options={ toOptions }
+							help={ __(
+								'Where content goes when this transition is used. “End of workflow” makes the stage it leaves a final one and drops this transition, settings and all — a final stage exits the flow rather than moving content on.',
+								'vip-workflows'
+							) }
+							onChange={ ( next ) => onRepoint( from, next ) }
+						/>
+					</InspectorSection>
+				) }
+
 				<InspectorSection>
 					{ /* The placeholder is the real default, not an invented
 					     example. Leaving this blank does not leave the
