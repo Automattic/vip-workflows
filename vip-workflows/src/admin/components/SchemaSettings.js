@@ -99,8 +99,12 @@ export function SchemaSettings( {
 			{ entries.map( ( [ key, field ] ) => {
 				const value = values[ key ] ?? field.default ?? '';
 				const fieldId = `vip-workflows-schema-settings-${ instanceId }-${ key }`;
-				const label = field.label || field.description || key;
-				const help = field.label ? field.description || '' : '';
+				// `description` is help text, never a label: a field with no
+				// label falls back to its key, which reads as the bug it is
+				// rather than quietly rendering a sentence where a noun phrase
+				// belongs. See docs/guides/copy-standard.md.
+				const label = field.label || key;
+				const help = field.description || '';
 				const required = field.required || false;
 				const enforceable = showCheckModes && field.enforceable;
 

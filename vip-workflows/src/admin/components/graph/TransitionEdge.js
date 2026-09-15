@@ -109,7 +109,7 @@
  */
 import { memo } from '@wordpress/element';
 import { BaseEdge, EdgeLabelRenderer, useStore } from '@xyflow/react';
-import { Icon } from '@wordpress/components';
+import { Button, Icon } from '@wordpress/components';
 import { link } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import { useEdgePlan } from './EdgePlanProvider';
@@ -270,8 +270,11 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 							</span>
 						) }
 						{ pill && (
-							<button
+							<Button
 								type="button"
+								size="small"
+								icon={ shared ? link : undefined }
+								iconSize={ SHARED_GLYPH }
 								className={ [
 									'wf-transition-edge__pill',
 									pillVisible && 'is-visible',
@@ -297,13 +300,17 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 								// back for a pointer.
 								title={ pill }
 							>
-								{ shared && (
-									<Icon icon={ link } size={ SHARED_GLYPH } />
-								) }
-								<span className="wf-transition-edge__pill-text">
-									{ pill }
-								</span>
-							</button>
+								{ /* An array preserves Button's icon-and-text
+								     layout while the label has an ellipsis wrapper. */ }
+								{ [
+									<span
+										key="label"
+										className="wf-transition-edge__pill-text"
+									>
+										{ pill }
+									</span>,
+								] }
+							</Button>
 						) }
 					</div>
 				</EdgeLabelRenderer>

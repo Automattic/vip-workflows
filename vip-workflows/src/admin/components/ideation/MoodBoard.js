@@ -125,7 +125,7 @@ const FIXED_SECTIONS = {
 		emptyText: __( 'Seed analysis in progress…', 'vip-workflows' ),
 	},
 	uploads: {
-		label: __( 'Added by You', 'vip-workflows' ),
+		label: __( 'Added by you', 'vip-workflows' ),
 		icon: (
 			<svg
 				width="14"
@@ -252,7 +252,7 @@ const MEDIA_SUBGROUPS = [
 	},
 	{
 		key: 'ai-generated',
-		label: __( 'AI Generated', 'vip-workflows' ),
+		label: __( 'AI generated', 'vip-workflows' ),
 		icon: (
 			<svg
 				width="12"
@@ -622,7 +622,7 @@ export default function MoodBoard( {
 							 * `draft` and not `low`: the caution intents are
 							 * amber, and a turned-off agent is a configuration
 							 * state, not something to warn a writer about. This
-							 * is the same neutral tone the Workflow Sequences
+							 * is the same neutral tone the Workflow sequences
 							 * list gives a sequence that exists but is not live.
 							 */ }
 							{ isOffAgent && (

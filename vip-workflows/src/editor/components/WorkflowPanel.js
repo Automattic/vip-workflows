@@ -202,15 +202,6 @@ export function WorkflowPanel( { children } ) {
 	const [ showRefreshPrompt, setShowRefreshPrompt ] = useState( false ); // agent finished with unsaved edits open
 	const [ actionError, setActionError ] = useState( null ); // every action failure — shown as a Notice, not a browser dialog
 
-	/*
-	 * Bumped after every transition attempt that reached the server. A
-	 * transition re-runs its required checks server-side whatever the cache
-	 * said, so fresh result rows exist after a success AND after a
-	 * tool_check_failed refusal — the rail re-reads them on this signal so its
-	 * indicators and the server's answer agree.
-	 */
-	const [ resultsVersion, setResultsVersion ] = useState( 0 );
-
 	const { savePost } = useDispatch( editorStore );
 	const {
 		fetchWorkflowStatus,
@@ -366,7 +357,7 @@ export function WorkflowPanel( { children } ) {
 		} catch ( err ) {
 			setActionError(
 				err.message ||
-					__( 'Failed to assign workflow', 'vip-workflows' )
+					__( 'Could not assign the workflow.', 'vip-workflows' )
 			);
 		} finally {
 			setTransitioning( false );
@@ -404,7 +395,7 @@ export function WorkflowPanel( { children } ) {
 		} catch ( err ) {
 			setActionError(
 				err.message ||
-					__( 'Failed to remove workflow', 'vip-workflows' )
+					__( 'Could not remove the workflow.', 'vip-workflows' )
 			);
 		} finally {
 			// The panel stays mounted through a removal now, so the busy state
@@ -480,11 +471,11 @@ export function WorkflowPanel( { children } ) {
 						code: 'save_failed',
 						message: targetIsAiStage
 							? __(
-									'Could not save the post before starting the AI stage. Please try again.',
+									'Could not save the post before starting the AI stage. Try again.',
 									'vip-workflows'
 							  )
 							: __(
-									'Could not save the post before the transition. Please try again.',
+									'Could not save the post before the transition. Try again.',
 									'vip-workflows'
 							  ),
 					};
@@ -530,14 +521,12 @@ export function WorkflowPanel( { children } ) {
 				setTransitioning( false );
 				setTransitioningTo( null );
 				setWarningsModal( null );
-				setResultsVersion( ( v ) => v + 1 );
 
 				refreshPost();
 			} )
 			.catch( ( err ) => {
 				setTransitioning( false );
 				setTransitioningTo( null );
-				setResultsVersion( ( v ) => v + 1 );
 
 				// A refusal that carries per-item detail: a required tool's
 				// hard check, or a required metadata field left empty. Both
@@ -775,7 +764,6 @@ export function WorkflowPanel( { children } ) {
 			.then( ( response ) => {
 				receiveWorkflowStatus( response );
 				setTransitioning( false );
-				setResultsVersion( ( v ) => v + 1 );
 				refreshPost();
 			} )
 			.catch( ( err ) => {
@@ -1152,10 +1140,9 @@ export function WorkflowPanel( { children } ) {
 				</DismissibleNotice>
 			) }
 
-			{ /* The transition rail: the current stage, every way out of it,
-			     and the checks each way out depends on, as one drawing. An AI
-			     stage's exits are withheld while its agent works AND while it
-			     sits failed with a go-back available
+			{ /* The transition rail: the current stage and every way out of
+			     it, as one drawing. An AI stage's exits are withheld while its
+			     agent works AND while it sits failed with a go-back available
 			     (StatusManager::agent_owns_stage_exits) — the rail renders the
 			     sequence's routed outcomes in their place, and the failed
 			     state's exit is the Go back button above. Only a failure whose
@@ -1167,7 +1154,6 @@ export function WorkflowPanel( { children } ) {
 			     polls), and the ability, Kanban board and Quick Edit paths
 			     reach transition() without going through this list at all. */ }
 			<TransitionRail
-				postId={ postId }
 				current={ current }
 				transitions={ transitions }
 				allStatuses={ allStatuses }
@@ -1177,7 +1163,6 @@ export function WorkflowPanel( { children } ) {
 				transitioning={ transitioning }
 				transitioningTo={ transitioningTo }
 				onTransition={ handleTransitionClick }
-				resultsVersion={ resultsVersion }
 				postStatus={ postStatus }
 			/>
 
@@ -1228,7 +1213,7 @@ export function WorkflowPanel( { children } ) {
 				<Suspense
 					fallback={
 						<Modal
-							title={ __( 'Workflow History', 'vip-workflows' ) }
+							title={ __( 'Workflow history', 'vip-workflows' ) }
 							onRequestClose={ () => setHistoryOpen( false ) }
 							size="medium"
 						>
@@ -1247,7 +1232,7 @@ export function WorkflowPanel( { children } ) {
 			     same dialog, same chrome, one component. */ }
 			{ toolFailures && (
 				<ToolFailuresModal
-					title={ __( 'Transition Blocked', 'vip-workflows' ) }
+					title={ __( 'Transition blocked', 'vip-workflows' ) }
 					message={ toolFailures.message }
 					hardFailures={ toolFailures.hardFailures }
 					softWarnings={ toolFailures.softWarnings }
@@ -1268,7 +1253,7 @@ export function WorkflowPanel( { children } ) {
 			{ /* Warnings Confirmation Modal */ }
 			{ warningsModal && (
 				<ToolFailuresModal
-					title={ __( 'Warnings Detected', 'vip-workflows' ) }
+					title={ __( 'Warnings detected', 'vip-workflows' ) }
 					message={ __(
 						'The following warnings were detected:',
 						'vip-workflows'

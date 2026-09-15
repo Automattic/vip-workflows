@@ -1,6 +1,6 @@
 <?php
 /**
- * Update Post Fields ability tests.
+ * Update post fields ability tests.
  *
  * @package VIPWorkflows\Tests\Unit
  */

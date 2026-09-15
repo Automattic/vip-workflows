@@ -771,6 +771,9 @@ export default function SequenceGraphEditor( {
 
 	// --- Validation --------------------------------------------------------
 
+	// Strict `true`, as the runtime reads it (`StageAgentRunner::publication_hold`).
+	const allowAgentPublish = settings?.allow_agent_publish === true;
+
 	const validation = useMemo(
 		() =>
 			validateSequence( {
@@ -779,8 +782,16 @@ export default function SequenceGraphEditor( {
 				isPhase,
 				requiredTransitions: requiredPhaseTransitions,
 				agents: availableAgents,
+				allowAgentPublish,
 			} ),
-		[ name, stages, isPhase, requiredPhaseTransitions, availableAgents ]
+		[
+			name,
+			stages,
+			isPhase,
+			requiredPhaseTransitions,
+			availableAgents,
+			allowAgentPublish,
+		]
 	);
 
 	/*
@@ -1298,7 +1309,7 @@ export default function SequenceGraphEditor( {
 						sprintf(
 							/* translators: %s: stage label or key. */
 							__(
-								'The “%s” stage is set to run an AI agent but none is chosen. Please set one.',
+								'The “%s” stage is set to run an AI agent but none is chosen. Choose one.',
 								'vip-workflows'
 							),
 							unfinished[ 0 ].label || unfinished[ 0 ].key
@@ -1665,6 +1676,7 @@ export default function SequenceGraphEditor( {
 					<GraphCanvas
 						stages={ stages }
 						isPhase={ isPhase }
+						allowAgentPublish={ allowAgentPublish }
 						warnings={ validation.warnings }
 						regions={ regions }
 						selectedNodeKey={

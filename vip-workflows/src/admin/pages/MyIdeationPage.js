@@ -184,7 +184,7 @@ export function MyIdeationPage() {
 				<div className="vip-workflows-my-ideation__empty">
 					<Text variant="body-md" render={ <p /> }>
 						{ __(
-							"You haven't started any ideation projects yet.",
+							'You haven’t started any ideation projects yet.',
 							'vip-workflows'
 						) }
 					</Text>

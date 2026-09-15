@@ -1,7 +1,7 @@
 {
   "name": "Editorial Review",
   "type": "workflow",
-  "description": "Standard editorial workflow for blog posts and articles",
+  "description": "Standard editorial workflow for blog posts and articles.",
   "config": {
     "version": "2.0",
     "post_types": [
@@ -16,20 +16,20 @@
       {
         "key": "draft",
         "label": "Draft",
-        "description": "Author is writing the content",
+        "description": "Author is writing the content.",
         "color": "#3498db",
         "icon": "edit",
         "transitions": [
           {
             "to": "review",
-            "label": "Submit for Review"
+            "label": "Submit for review"
           }
         ]
       },
       {
         "key": "review",
-        "label": "In Review",
-        "description": "Editor is reviewing the content",
+        "label": "In review",
+        "description": "Editor is reviewing the content.",
         "color": "#f39c12",
         "icon": "visibility",
         "transitions": [
@@ -39,20 +39,20 @@
           },
           {
             "to": "draft",
-            "label": "Request Changes"
+            "label": "Request changes"
           }
         ]
       },
       {
         "key": "ready",
-        "label": "Ready to Publish",
-        "description": "Approved and awaiting publication",
+        "label": "Ready to publish",
+        "description": "Approved and awaiting publication.",
         "color": "#27ae60",
         "icon": "yes-alt",
         "transitions": [
           {
             "to": "publish",
-            "label": "Publish Now"
+            "label": "Publish now"
           },
           {
             "to": "future",
@@ -60,14 +60,14 @@
           },
           {
             "to": "review",
-            "label": "Send Back for Review"
+            "label": "Send back for review"
           }
         ]
       },
       {
         "key": "publish",
         "label": "Published",
-        "description": "Content is live",
+        "description": "Content is live.",
         "color": "#9b59b6",
         "icon": "megaphone",
         "is_terminal": true,

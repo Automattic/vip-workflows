@@ -1,13 +1,13 @@
 # Database Schema Reference
 
-Generated from `vip-workflows/includes/database/class-schema.php` (v2.14.0).
+Generated from `vip-workflows/includes/database/class-schema.php` (v2.24.0).
 
 ---
 
 ## Core Tables
 
 ### `wp_vip_sequences`
-Workflow and phase process definitions. JSON config drives statuses, transitions, required tools, and role permissions. The `type` column is `'workflow'` (labeled "Workflow Sequences" in the UI) or `'phase'`.
+Workflow and phase process definitions. JSON config drives statuses, transitions, required tools, and role permissions. The `type` column is `'workflow'` (labeled "Workflow sequences" in the UI) or `'phase'`.
 
 ```sql
 CREATE TABLE wp_vip_sequences (
@@ -279,6 +279,6 @@ Stored in `wp_postmeta`:
 | `_vip_workflows_assigned_desk` | integer | Assigned desk ID |
 | `_vip_workflows_transition_data` | array | Per-status transition history (serialized) |
 | `wfp_{note_id}_{slug}` | mixed | Transition input notes (dynamic keys from sequence config) |
-| `_vip_asset_analysis` | array | AI analysis results (serialized) |
-| `_vip_asset_attached_to` | array | Object IDs this asset is attached to (serialized) |
 | `_vip_ideation_asst_{id}` | array | Per-assistant execution state for ideation projects |
+
+`_vip_asset_analysis` and `_vip_asset_attached_to` no longer exist — they belonged to the standalone Workflow Notes/asset subsystem removed in schema `2.16.0`. Uploaded-file AI analysis is now stored on the `wp_vip_ideation_sources` row itself (`content`, `excerpt`, `ai_analysis` columns above), not in post meta.

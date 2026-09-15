@@ -918,10 +918,10 @@ describe( 'The commit that confirms a save', () => {
 /*
  * A metadata field the author started and did not finish.
  *
- * The inspector flags a row that carries a label and no key — "This field needs
- * a key. Saving is refused until it has one." — and the save has to make that
- * true. It used to drop any row missing either half from the payload instead, so
- * the write succeeded, the response reseated the field list without the row, and
+ * The inspector flags a row that carries a label and no key — "A key is
+ * required." — and the save has to refuse it too. It used to drop any row
+ * missing either half from the payload instead, so the write succeeded, the
+ * response reseated the field list without the row, and
  * the field the author configured disappeared under a success toast with nothing
  * naming it. The server refuses such a row by name
  * (`invalid_metadata_field_key` / `invalid_metadata_field_label`), so it has to

@@ -53,7 +53,7 @@ class HeadlineSuggestions {
 		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
-				'label'               => __( 'Headline Suggestions', 'workflow-parsely' ),
+				'label'               => __( 'Headline suggestions', 'workflow-parsely' ),
 				'description'         => __( 'Suggest alternative headlines for a post using Parse.ly.', 'workflow-parsely' ),
 				'category'            => 'vip-workflows',
 				'input_schema'        => array(
@@ -99,6 +99,7 @@ class HeadlineSuggestions {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
+					'summary'               => __( 'Suggests alternative headlines, using Parse.ly.', 'workflow-parsely' ),
 					'show_in_rest'          => true,
 
 					/*

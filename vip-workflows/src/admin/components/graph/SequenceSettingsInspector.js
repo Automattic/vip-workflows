@@ -95,7 +95,7 @@ export default function SequenceSettingsInspector( {
 						__nextHasNoMarginBottom
 						label={ __( 'Let AI stages publish', 'vip-workflows' ) }
 						help={ __(
-							'An AI stage routes on what a language model returned, and that model reads the post’s own content, so publishing and going private both wait for a person. Off by default. Turning it on grants no new rights — an agent still cannot publish for an author who could not.',
+							'Never exceeds the post author’s permissions.',
 							'vip-workflows'
 						) }
 						checked={ settings?.allow_agent_publish === true }

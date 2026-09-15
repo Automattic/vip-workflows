@@ -13,35 +13,9 @@
 
 import { render, act } from './helpers/render-wp-component';
 import { screen } from '@testing-library/react';
-import apiFetch from '@wordpress/api-fetch';
 import { speak } from '@wordpress/a11y';
 
-jest.mock( '@wordpress/api-fetch', () => jest.fn() );
-jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
-jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
-
-// eslint-disable-next-line import/first
-import { createReduxStore, register } from '@wordpress/data';
-
-register(
-	createReduxStore( 'core/editor', {
-		reducer: ( state = {} ) => state,
-		selectors: {
-			getEditedPostAttribute: () => 'draft',
-		},
-	} )
-);
-
-register(
-	createReduxStore( 'core/notices', {
-		reducer: ( state = {} ) => state,
-		actions: {
-			createSuccessNotice: () => ( { type: 'NOOP' } ),
-			createErrorNotice: () => ( { type: 'NOOP' } ),
-		},
-	} )
-);
 
 // eslint-disable-next-line import/first
 import { TransitionRail } from '../../src/editor/components/TransitionRail';
@@ -66,14 +40,12 @@ const ALL_STATUSES = [
 ];
 
 const BASE_PROPS = {
-	postId: 42,
 	transitions: [],
 	allStatuses: ALL_STATUSES,
 	agentLastRun: null,
 	transitioning: false,
 	transitioningTo: null,
 	onTransition: () => {},
-	resultsVersion: 0,
 };
 
 /**
@@ -93,9 +65,7 @@ const landedProps = ( agentLastRun ) => ( {
 describe( 'TransitionRail agent resolve flash', () => {
 	beforeEach( () => {
 		jest.useFakeTimers();
-		apiFetch.mockReset();
 		speak.mockReset();
-		apiFetch.mockImplementation( () => Promise.resolve( [] ) );
 	} );
 
 	afterEach( () => {

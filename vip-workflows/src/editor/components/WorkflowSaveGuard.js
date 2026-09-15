@@ -25,13 +25,11 @@
  * @package
  */
 
-import { useCallback, useEffect, useRef } from '@wordpress/element';
+import { useEffect, useRef } from '@wordpress/element';
 import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
-import { store as noticesStore } from '@wordpress/notices';
 import { addFilter, removeFilter } from '@wordpress/hooks';
 import apiFetch from '@wordpress/api-fetch';
-import { __ } from '@wordpress/i18n';
 
 import {
 	DECISION_SILENT,
@@ -39,10 +37,7 @@ import {
 	evaluateStatusChange,
 	getEntryStageLabels,
 	getOrphanedWorkflowMessage,
-	getOrphanedWorkflowRemoveConfirmation,
 	getPublishVetoMessage,
-	getRemoveFromWorkflowConfirmation,
-	getRemoveFromWorkflowLabel,
 	getStatusChangeConfirmLabel,
 	getStatusChangeConfirmTitle,
 	getStatusChangeWarning,
@@ -61,14 +56,6 @@ import { STORE_NAME } from '../store';
  */
 const GUARD_HOOK_NAMESPACE = 'vip-workflows/workflow-save-guard';
 
-/**
- * Notice id for the publish veto, so a second refusal replaces the first
- * instead of stacking.
- *
- * @type {string}
- */
-const VETO_NOTICE_ID = 'vip-workflows/publish-veto';
-
 export function WorkflowSaveGuard() {
 	const postId = useSelect(
 		( select ) => select( STORE_NAME ).getPostId(),
@@ -76,8 +63,6 @@ export function WorkflowSaveGuard() {
 	);
 
 	const { editPost } = useDispatch( editorStore );
-	const { removeWorkflow } = useDispatch( STORE_NAME );
-	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
 	const registry = useRegistry();
 	const [ confirm, confirmDialog ] = useConfirm();
 
@@ -87,54 +72,6 @@ export function WorkflowSaveGuard() {
 	useEffect( () => {
 		postIdRef.current = postId;
 	}, [ postId ] );
-
-	// The audited escape offered alongside the veto: take the post out of the
-	// workflow so it can then be published as an ordinary post. Reachable from
-	// the notice, which survives the sidebar being closed.
-	const removeFromWorkflow = useCallback(
-		async ( workflowName ) => {
-			const confirmed = await confirm(
-				// No name means the sequence row is gone, not that the lookup
-				// failed: an orphaned post has nothing left to name.
-				workflowName
-					? getRemoveFromWorkflowConfirmation( { workflowName } )
-					: getOrphanedWorkflowRemoveConfirmation(),
-				{
-					title: getRemoveFromWorkflowLabel(),
-					confirmLabel: getRemoveFromWorkflowLabel(),
-					isDestructive: true,
-				}
-			);
-
-			if ( ! confirmed ) {
-				return;
-			}
-
-			// The same removal the sidebar panel's footer performs, because it
-			// is literally the same call: the store deletes the workflow,
-			// re-reads the post's state and refreshes the post entity. Setting
-			// a couple of store flags here instead is what left the sidebar
-			// panel — which held its own copy of the workflow — drawing the
-			// sequence this notice had just deleted until the page was
-			// reloaded.
-			try {
-				await removeWorkflow();
-			} catch ( err ) {
-				createErrorNotice(
-					err.message ||
-						__(
-							'Failed to remove this post from its workflow',
-							'vip-workflows'
-						),
-					{ type: 'snackbar' }
-				);
-				return;
-			}
-
-			removeNotice( VETO_NOTICE_ID );
-		},
-		[ confirm, createErrorNotice, removeNotice, removeWorkflow ]
-	);
 
 	// Guard the editor's own status controls.
 	//
@@ -250,22 +187,12 @@ export function WorkflowSaveGuard() {
 
 				restoreEditorStatus();
 
-				// The message is a dead end without the way through, so the
-				// audited escape rides along with it — in a notice rather than
-				// in the sidebar, so it is reachable with the sidebar closed.
-				createErrorNotice( message, {
-					id: VETO_NOTICE_ID,
-					isDismissible: true,
-					actions: [
-						{
-							label: getRemoveFromWorkflowLabel(),
-							onClick: () => removeFromWorkflow( workflowName ),
-						},
-					],
-				} );
-
 				// Refuse the save outright, the way the server veto behind this
-				// does.
+				// does. Core's own save-failure handling turns this message into
+				// the notice the user sees — no notice is raised here, so there
+				// is exactly one, and no one-click way out of the workflow rides
+				// along with it. Removing the post from its workflow stays a
+				// deliberate act in the sidebar panel, not a button on an error.
 				throw new Error( message );
 			}
 
@@ -312,7 +239,7 @@ export function WorkflowSaveGuard() {
 		addFilter( 'editor.preSavePost', GUARD_HOOK_NAMESPACE, guardSave );
 
 		return () => removeFilter( 'editor.preSavePost', GUARD_HOOK_NAMESPACE );
-	}, [ confirm, createErrorNotice, editPost, registry, removeFromWorkflow ] );
+	}, [ confirm, editPost, registry ] );
 
 	return confirmDialog;
 }

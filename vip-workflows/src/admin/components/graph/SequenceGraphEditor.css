@@ -855,10 +855,11 @@
    reading as inert rather than as a path content can take.
 
    Last of the tone rules so it wins over hover and selection. It never competes
-   with the outcome hues: an edge is disabled precisely because no outcome claims
-   it, so the two are mutually exclusive by construction (`buildGraph`). Hover
-   and selection still add their halo and weight, which is what keeps a dotted
-   grey line findable enough to click.
+   with the outcome hues: a routed edge can be disabled too, when its route
+   publishes and the sequence has not opted in (`isTransitionDisabled`), but
+   `GraphCanvas` gives a disabled edge no outcome classes, so the two are
+   mutually exclusive by construction. Hover and selection still add their halo
+   and weight, which is what keeps a dotted grey line findable enough to click.
 
    The dots themselves are set inline by `TransitionEdge`, from the same two
    constants the underpass ghost uses — one texture for "this line is not the
@@ -1044,6 +1045,14 @@
 
 .wf-edge-overlay .is-disabled {
 	color: var( --wpds-color-stroke-surface-neutral );
+}
+
+/* A held route's departure mark still has to say which outcome it is, and its
+   white glyph all but vanishes on the pale disabled tone above. The disc takes
+   the neutral the shared-transition mark is drawn in instead, which carries
+   the same white glyph legibly. */
+.wf-edge-overlay .wf-edge-overlay__outcome.is-disabled {
+	color: var( --wpds-color-stroke-surface-neutral-strong );
 }
 
 /* The edge one of whose ends is being dragged. Its line still runs to where
@@ -1250,11 +1259,9 @@
    because a stage name is arbitrarily long and a pill the width of the canvas
    would be a worse answer than an elided one; the full string is in the title.
 
-   A plain element rather than a `<Button>` for the reason the mark is not a
-   `<Stack>`: the surface, border, radius, elevation and truncation below are
-   the whole of it, and binding it to the library control would restate every
-   one of them as an override. */
-.wf-transition-edge__pill {
+   The WPDS Button supplies the keyboard behavior, small size and focus ring;
+   this canvas-specific surface supplies the pill's geometry and appearance. */
+.wf-transition-edge__pill.components-button {
 	position: absolute;
 	top: 0; /* wpds-allow R2 -- zero needs no token */
 	left: 0; /* wpds-allow R2 -- zero needs no token */
@@ -1262,10 +1269,7 @@
 	align-items: center; /* wpds-allow R4 -- centres the glyph and the label on one baseline inside that inline-flex button */
 	gap: var( --wpds-dimension-gap-xs );
 	max-width: 160px;
-	padding: var( --wpds-dimension-padding-xs );
 	color: var( --wpds-color-foreground-content-neutral );
-	font-size: var( --wpds-typography-font-size-xs );
-	line-height: var( --wpds-typography-line-height-xs );
 	white-space: nowrap;
 	background: var( --wpds-color-background-surface-neutral );
 	border: 1px solid var( --wpds-color-stroke-surface-neutral );
@@ -1313,12 +1317,6 @@
 .wf-transition-edge__pill:focus-visible {
 	opacity: 1;
 	pointer-events: auto;
-}
-
-.wf-transition-edge__pill:focus-visible {
-	outline: var( --wpds-border-width-focus ) solid
-		var( --wpds-color-stroke-interactive-brand );
-	outline-offset: 1px;
 }
 
 /* The inspector panel styles itself — see `Inspector.css`, imported by

@@ -2,52 +2,24 @@
  * The transition rail's empty and degenerate states, which must not
  * impersonate each other.
  *
- * A naive implementation collapses terminal, dead end, agent running,
- * all-locked and blocked-by-check into one blank box reading "dead end".
- * They are five different facts (six, counting a stage whose edges belong to
- * other roles), and each test here asserts its own marker present AND its
- * neighbours' markers absent.
+ * A naive implementation collapses terminal, dead end, agent running and
+ * all-locked into one blank box reading "dead end". They are four different
+ * facts (five, counting a stage whose edges belong to other roles), and each
+ * test here asserts its own marker present AND its neighbours' markers absent.
  *
  * @package
  */
 
-import { render, screen, waitFor, act } from './helpers/render-wp-component';
-import apiFetch from '@wordpress/api-fetch';
+import { render, screen, act } from './helpers/render-wp-component';
 
-jest.mock( '@wordpress/api-fetch', () => jest.fn() );
-jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
-jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
-
-// eslint-disable-next-line import/first
-import { createReduxStore, register } from '@wordpress/data';
-
-register(
-	createReduxStore( 'core/editor', {
-		reducer: ( state = {} ) => state,
-		selectors: {
-			getEditedPostAttribute: ( state, attr ) =>
-				'modified' === attr ? '2026-08-14T10:00:00' : 'draft',
-		},
-	} )
-);
-
-register(
-	createReduxStore( 'core/notices', {
-		reducer: ( state = {} ) => state,
-		actions: {
-			createSuccessNotice: () => ( { type: 'NOOP' } ),
-			createErrorNotice: () => ( { type: 'NOOP' } ),
-		},
-	} )
-);
 
 // eslint-disable-next-line import/first
 import { TransitionRail } from '../../src/editor/components/TransitionRail';
 
 /**
- * Render the rail with defaults a test overrides, flushing the initial
- * abilities fetch so no state update lands outside act().
+ * Render the rail with defaults a test overrides, flushing its layout effects
+ * so no state update lands outside act().
  *
  * @param {Object} props Prop overrides.
  */
@@ -55,7 +27,6 @@ async function renderRail( props = {} ) {
 	await act( async () => {
 		render(
 			<TransitionRail
-				postId={ 42 }
 				current={ { key: 'offer', label: 'Offer' } }
 				transitions={ [] }
 				allStatuses={ [] }
@@ -64,7 +35,6 @@ async function renderRail( props = {} ) {
 				transitioning={ false }
 				transitioningTo={ null }
 				onTransition={ () => {} }
-				resultsVersion={ 0 }
 				{ ...props }
 			/>
 		);
@@ -116,16 +86,6 @@ function withLayout() {
 }
 
 describe( 'TransitionRail degenerate states', () => {
-	beforeEach( () => {
-		apiFetch.mockReset();
-		apiFetch.mockImplementation( ( { path } ) => {
-			if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
-				return Promise.resolve( [] );
-			}
-			return Promise.resolve( {} );
-		} );
-	} );
-
 	it( 'completed: the green check and one heading say it — no name in the heading, no badge, no pill, no arrow', async () => {
 		// The state used to say "finished" four times over: the check, the
 		// stage's own name as the heading, a Live badge beside it, and an END
@@ -138,7 +98,7 @@ describe( 'TransitionRail degenerate states', () => {
 				current: { key: 'hired', label: 'Hired', is_terminal: true },
 			} );
 
-			expect( screen.getByText( 'Workflow Completed' ) ).toBeVisible();
+			expect( screen.getByText( 'Workflow completed' ) ).toBeVisible();
 			expect( doneMark() ).toBeInTheDocument();
 			expect( neutralDot() ).not.toBeInTheDocument();
 
@@ -185,7 +145,7 @@ describe( 'TransitionRail degenerate states', () => {
 			// Both flags on one stage: the dead end wins, so the heading stays
 			// the stage's own name and the panel never calls the stop a finish.
 			expect(
-				screen.queryByText( 'Workflow Completed' )
+				screen.queryByText( 'Workflow completed' )
 			).not.toBeInTheDocument();
 			expect( screen.getByText( 'Rejected' ) ).toBeVisible();
 
@@ -222,7 +182,7 @@ describe( 'TransitionRail degenerate states', () => {
 		expect( screen.getByText( 'Live' ) ).toBeVisible();
 		expect( screen.getByText( 'Published' ) ).toBeVisible();
 		expect(
-			screen.queryByText( 'Workflow Completed' )
+			screen.queryByText( 'Workflow completed' )
 		).not.toBeInTheDocument();
 	} );
 
@@ -413,67 +373,6 @@ describe( 'TransitionRail degenerate states', () => {
 			screen.getByText( 'You are not assigned to this post.' )
 		).toBeVisible();
 		expect( endPill() ).not.toBeInTheDocument();
-	} );
-
-	it( 'blocked-by-check: the transition stays live with the failing check beneath it', async () => {
-		apiFetch.mockImplementation( ( { path } ) => {
-			if ( path.startsWith( '/vip-workflows/v1/abilities?' ) ) {
-				return Promise.resolve( [
-					{
-						id: 'x/seo',
-						label: 'SEO check',
-						enabled: true,
-						check_modes: { meta: 'hard' },
-						meta: {},
-					},
-				] );
-			}
-			if ( path.includes( '/ability-results' ) ) {
-				return Promise.resolve( [
-					{
-						ability_id: 'x/seo',
-						success: true,
-						created_at: '2026-08-14 11:00:00',
-						output: {
-							status: 'fail',
-							issues: [
-								{
-									check_key: 'meta',
-									message: 'Meta description is missing.',
-								},
-							],
-						},
-					},
-				] );
-			}
-			return Promise.resolve( {} );
-		} );
-
-		await renderRail( {
-			transitions: [
-				{ to: 'hired', label: 'Hire', required_tools: [ 'x/seo' ] },
-			],
-		} );
-
-		// The failing verdict is an icon glyph carrying the fail tone class,
-		// not a painted dot.
-		await waitFor( () =>
-			expect(
-				document.querySelector(
-					'svg.vip-workflows-rail__outcome--fail'
-				)
-			).toBeInTheDocument()
-		);
-
-		// The server re-runs the check at transition time whatever the cache
-		// says, so a cached failure must not disable the move.
-		expect(
-			screen.getByRole( 'button', { name: 'Hire' } )
-		).not.toHaveAttribute( 'aria-disabled', 'true' );
-		expect( screen.getByText( 'Blocks this move.' ) ).toBeVisible();
-		expect(
-			screen.getByText( 'Meta description is missing.' )
-		).toBeVisible();
 	} );
 
 	it( 'role-filtered: edges the sequence declares but the user cannot see are named, not a dead end', async () => {

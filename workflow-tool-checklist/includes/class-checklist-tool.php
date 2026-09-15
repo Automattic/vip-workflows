@@ -25,7 +25,7 @@ class ChecklistTool {
 		wp_register_ability(
 			'workflow-tool-checklist/checklist',
 			array(
-				'label'               => __( 'Pre-publish Checklist', 'workflow-tool-checklist' ),
+				'label'               => __( 'Pre-publish checklist', 'workflow-tool-checklist' ),
 				'description'         => __( 'Ensure all required items are checked before proceeding.', 'workflow-tool-checklist' ),
 				'category'            => 'vip-workflows',
 				'input_schema'        => array(
@@ -78,6 +78,7 @@ class ChecklistTool {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
+					'summary'             => __( 'Requires every item on your pre-publish checklist to be ticked.', 'workflow-tool-checklist' ),
 					'show_in_rest'        => true,
 					'show_in_commands'    => false,
 					'icon'                => 'list-view',
@@ -103,7 +104,7 @@ class ChecklistTool {
 		if ( empty( $items ) ) {
 			return new \WP_Error(
 				'no_checklist_items',
-				__( 'No checklist items have been configured. Please add items in the Integrations settings.', 'workflow-tool-checklist' )
+				__( 'No checklist items yet. Add them in Integrations settings.', 'workflow-tool-checklist' )
 			);
 		}
 
@@ -117,7 +118,7 @@ class ChecklistTool {
 		if ( ! current_user_can( 'edit_post', $input['post_id'] ) ) {
 			return new \WP_Error(
 				'permission_denied',
-				__( 'You do not have permission to edit this post.', 'workflow-tool-checklist' )
+				__( 'Sorry, you are not allowed to edit this post.', 'workflow-tool-checklist' )
 			);
 		}
 

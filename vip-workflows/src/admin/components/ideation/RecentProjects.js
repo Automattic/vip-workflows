@@ -281,7 +281,7 @@ export default function RecentProjects( { onSelect } ) {
 						>
 							&#9654;
 						</span>
-						{ __( 'In Pipeline', 'vip-workflows' ) }
+						{ __( 'In pipeline', 'vip-workflows' ) }
 						{ /* wpds-allow R7 -- styled count pill (inline-flex badge); not a Stack/Text */ }
 						<span className="vip-workflows-ideation-pipeline__count">
 							{ pipelineProjects.length }

@@ -206,6 +206,8 @@ export default function TransitionInspector( {
 	outcome = null,
 	sharedOutcomes = null,
 	disabled = false,
+	publishHeld = false,
+	suggestAgentPublish = false,
 	availableRoles,
 	availableTools,
 	toolsLoaded = false,
@@ -277,7 +279,7 @@ export default function TransitionInspector( {
 		.map( ( tool ) => ( {
 			value: tool.id,
 			label: tool.label || tool.id,
-			description: tool.description,
+			description: tool.meta?.summary,
 		} ) );
 
 	const addTool = ( id ) =>
@@ -312,7 +314,7 @@ export default function TransitionInspector( {
 		return {
 			label: tool ? tool.label || tool.id : id,
 			value: problem ? problem.short : '',
-			tip: problem ? problem.full : tool.description,
+			tip: problem ? problem.full : tool.meta?.summary,
 			invalid: Boolean( problem ),
 		};
 	};
@@ -365,7 +367,7 @@ export default function TransitionInspector( {
 			help: channel.configured
 				? undefined
 				: __(
-						'This channel is not set up, so nothing is sent on it. Finish it under Workflows → Notifications, or untick it here.',
+						'Not set up. See Workflows → Notifications.',
 						'vip-workflows'
 				  ),
 		} ) );
@@ -394,6 +396,13 @@ export default function TransitionInspector( {
 			// all of them at once. A disabled transition says that up front,
 			// since it looks like any other once its options are open.
 			eyebrow={ ( () => {
+				if ( disabled && outcome ) {
+					return sprintf(
+						/* translators: %s: agent outcome names, e.g. "On pass". */
+						__( '%s · Disabled', 'vip-workflows' ),
+						agentOutcomeNames( sharedOutcomes || [ outcome ] )
+					);
+				}
 				if ( sharedOutcomes ) {
 					return agentOutcomeNames( sharedOutcomes );
 				}
@@ -411,12 +420,36 @@ export default function TransitionInspector( {
 				     configure it — the alternative is an author filling in
 				     roles and tools with no hint that the stage's agent has
 				     taken the exit over. */ }
-				{ disabled && (
+				{ disabled && ! publishHeld && (
 					<Notice status="warning" isDismissible={ false }>
 						{ __(
 							'This transition is disabled. An agent runs this stage and routes content onward by outcome, so nobody can use this. It keeps its settings — routing an outcome along it, or removing the stage’s agent, makes it live again.',
 							'vip-workflows'
 						) }
+					</Notice>
+				) }
+				{ /* A route into a publishing stage is disabled unless the
+				     sequence opts in — a different cause, and fix, from an
+				     unrouted leftover, so it gets its own sentence. */ }
+				{ publishHeld && (
+					<Notice status="warning" isDismissible={ false }>
+						{ suggestAgentPublish
+							? sprintf(
+									/* translators: %s: destination stage name. */
+									__(
+										'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so the agent stops instead of taking it. It keeps its settings — turning on “Let AI stages publish” in the sequence settings makes it live again, or route this outcome to a stage before publishing.',
+										'vip-workflows'
+									),
+									targetLabel
+							  )
+							: sprintf(
+									/* translators: %s: destination stage name. */
+									__(
+										'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so the agent stops instead of taking it. It keeps its settings — route failures and errors to a stage before publishing; turning on “Let AI stages publish” would publish failed runs too.',
+										'vip-workflows'
+									),
+									targetLabel
+							  ) }
 					</Notice>
 				) }
 				{ /* Two of the agent's outcomes leading to one destination are
@@ -485,7 +518,7 @@ export default function TransitionInspector( {
 					<InspectorChoiceRow
 						label={ __( 'Allowed roles', 'vip-workflows' ) }
 						help={ __(
-							'Only these roles can use this transition. With none checked, everyone can.',
+							'Leave all unchecked to allow everyone.',
 							'vip-workflows'
 						) }
 						options={ availableRoles.map( ( role ) => ( {
@@ -497,7 +530,7 @@ export default function TransitionInspector( {
 							toggleInArray( 'allowed_roles', slug )
 						}
 						unknownHelp={ __(
-							'No role with this slug exists on this site — its plugin may be inactive. Nobody matches it, so it allows nobody while it keeps the restriction on.',
+							'Role not found, so it matches no one.',
 							'vip-workflows'
 						) }
 						noneLabel={ __( 'All', 'vip-workflows' ) }
@@ -758,7 +791,7 @@ export default function TransitionInspector( {
 								toggleInArray( 'notifications', id )
 							}
 							unknownHelp={ __(
-								'No channel with this id is registered on this site — its plugin may be inactive. It stays stored, and notifies again if the channel comes back.',
+								'Channel not found, so nothing is sent.',
 								'vip-workflows'
 							) }
 							noneLabel={ __( 'None', 'vip-workflows' ) }

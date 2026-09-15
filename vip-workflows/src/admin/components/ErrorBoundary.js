@@ -36,7 +36,7 @@ export default class ErrorBoundary extends Component {
 				<AdminPage
 					title={ __( 'Something went wrong', 'vip-workflows' ) }
 					subtitle={ __(
-						'An error occurred while rendering this page.',
+						'This page could not be rendered. Reload to try again.',
 						'vip-workflows'
 					) }
 					constrained

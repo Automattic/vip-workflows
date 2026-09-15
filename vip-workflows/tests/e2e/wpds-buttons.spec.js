@@ -15,6 +15,8 @@ const {
 	openWorkflowPanel,
 } = require( './helpers/workflow' );
 
+const { withEnabledExperiment } = require( './helpers/experiments' );
+
 test.describe( 'VIP Workflows — WPDS buttons (e2e)', () => {
 	let postId;
 	let sequenceId;
@@ -57,28 +59,37 @@ test.describe( 'VIP Workflows — WPDS buttons (e2e)', () => {
 	test( 'Kanban hidden-column badge hides and restores a column', async ( {
 		admin,
 		page,
+		requestUtils,
 	} ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-kanban' );
+		// Kanban ships disabled by default behind the 'kanban' experiment.
+		await withEnabledExperiment( requestUtils, 'kanban', async () => {
+			await admin.visitAdminPage(
+				'admin.php',
+				'page=vip-workflows-kanban'
+			);
 
-		const hideButtons = page.getByRole( 'button', { name: 'Hide column' } );
-		await expect( hideButtons.first() ).toBeVisible();
-		const initialCount = await hideButtons.count();
+			const hideButtons = page.getByRole( 'button', {
+				name: 'Hide column',
+			} );
+			await expect( hideButtons.first() ).toBeVisible();
+			const initialCount = await hideButtons.count();
 
-		// Hide the first column -> it collapses into a restore badge.
-		await hideButtons.first().click();
-		const badge = page.locator(
-			'.vip-workflows-kanban-hidden-column-badge'
-		);
-		await expect( badge.first() ).toBeVisible();
+			// Hide the first column -> it collapses into a restore badge.
+			await hideButtons.first().click();
+			const badge = page.locator(
+				'.vip-workflows-kanban-hidden-column-badge'
+			);
+			await expect( badge.first() ).toBeVisible();
 
-		// Clicking the badge (a converted WPDS Button) restores the column.
-		await badge.first().click();
-		await expect(
-			page.locator( '.vip-workflows-kanban-hidden-column-badge' )
-		).toHaveCount( 0 );
-		await expect(
-			page.getByRole( 'button', { name: 'Hide column' } )
-		).toHaveCount( initialCount );
+			// Clicking the badge (a converted WPDS Button) restores the column.
+			await badge.first().click();
+			await expect(
+				page.locator( '.vip-workflows-kanban-hidden-column-badge' )
+			).toHaveCount( 0 );
+			await expect(
+				page.getByRole( 'button', { name: 'Hide column' } )
+			).toHaveCount( initialCount );
+		} );
 	} );
 
 	test( 'role-gated transition opens the role-select popover', async ( {
@@ -126,7 +137,7 @@ test.describe( 'VIP Workflows — WPDS buttons (e2e)', () => {
 		// alone would not prove the workflow was recognised as finished.
 		await expect(
 			panel.locator( '.vip-workflows-rail__stage' )
-		).toHaveText( 'Workflow Completed' );
+		).toHaveText( 'Workflow completed' );
 		await expect(
 			panel.locator( '.vip-workflows-rail__ending' )
 		).toHaveText( 'Assigned' );

@@ -272,6 +272,7 @@ function endsAfterMove( edge, end, candidate ) {
 function Flow( {
 	stages,
 	isPhase,
+	allowAgentPublish = false,
 	warnings,
 	regions: regionsProp = [],
 	selectedNodeKey,
@@ -317,8 +318,8 @@ function Flow( {
 	// anything the canvas *draws* changes — a label being typed in the
 	// inspector, a colour, a stage count.
 	const graph = useMemo(
-		() => buildGraph( stages, { isPhase, regions } ),
-		[ stages, isPhase, regions ]
+		() => buildGraph( stages, { isPhase, regions, allowAgentPublish } ),
+		[ stages, isPhase, regions, allowAgentPublish ]
 	);
 
 	// What the dagre pass actually reads out of that projection: which nodes
@@ -527,8 +528,12 @@ function Flow( {
 					'is-outbound',
 				// An agent outcome edge, drawn in that outcome's tone — at all
 				// times, so two lines between the same pair of stages can be
-				// told apart at rest (see the CSS).
-				edge.data?.outcome && `is-outcome is-${ edge.data.outcome }`,
+				// told apart at rest (see the CSS). Unless it is disabled: a
+				// route held for publishing keeps its outcome but not its tone,
+				// so the disabled rules never have to out-rank the hues.
+				! edge.data?.disabled &&
+					edge.data?.outcome &&
+					`is-outcome is-${ edge.data.outcome }`,
 				// A transition an agent stage no longer lets anyone use. Still
 				// selectable and deletable — just visibly inert.
 				edge.data?.disabled && 'is-disabled',

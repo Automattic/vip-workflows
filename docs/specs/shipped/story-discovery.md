@@ -15,6 +15,8 @@ related:
 > return structured unmet requirements instead of a bare bool. The bool contract
 > is unchanged and still valid. See [Availability](#availability).
 
+> **Partially superseded.** The core discovery framework this spec describes — the registry, the `vip_workflows_register_discovery_providers` hook, the story prompt shape, and the REST endpoints — is unchanged and verified against current `main`. But the [Foresight News Provider](#foresight-news-provider-extension-plugin) section below describes `workflow-discovery-foresight/` as an in-repo extension plugin; it was removed from the monorepo (PR #269, August 21, 2026) because it already existed in `vip-workflow-extensions` — a pure removal, not a move. Read that section as a worked example of implementing a discovery provider, not as documentation of a plugin currently in this repo. A real, shipped provider now lives in `workflow-parsely/` instead (`ParselyDiscoveryProvider`, slug `parsely-trending`, `recommend`-only) — see [Future Providers](#future-providers-not-in-scope) below, also amended.
+
 ---
 
 ## Problem
@@ -352,7 +354,7 @@ The prompt's full structured data is also stored as project meta (`_vip_discover
 
 ### Settings
 
-Providers appear on the unified Integrations → Assistants tab as individual cards (or grouped with a research ability when a plugin registers both, via `vip_workflows_register_assistant_meta`). Settings fields are either auto-rendered from the provider's `settings_schema` or injected by the plugin via the `vipWorkflows.assistantSettings` JS filter (with legacy `vip_workflows_discovery_provider_settings` still supported for backward compatibility). See `docs/specs/unified-assistants-tab.md` for the unified tab architecture.
+Providers appear on the standalone **Agents** admin page as individual cards (or grouped with a research ability when a plugin registers both, via `vip_workflows_register_assistant_meta`) — the same `AssistantsTab` component this once rendered inside a tabbed Integrations page now renders there instead. Settings fields are either auto-rendered from the provider's `settings_schema` or injected by the plugin via the `vipWorkflows.assistantSettings` JS filter (with legacy `vip_workflows_discovery_provider_settings` still supported for backward compatibility). See `docs/specs/shipped/unified-assistants-tab.md` for the tab architecture and its own supersession note.
 
 For the Foresight News provider specifically:
 
@@ -446,9 +448,9 @@ The cards land in `vip_ideation_sources` alongside results from Web Researcher, 
 
 ## Future Providers (Not In Scope)
 
-These are not planned for this work, but the framework should accommodate them without changes:
+These were not planned for this work, but the framework was meant to accommodate them without changes. One has since shipped:
 
-- **Parse.ly**: Trending content on the site, audience engagement data, content gap analysis. Likely `recommend` only (no search).
+- **Parse.ly** — shipped. `workflow-parsely/includes/discovery/class-parsely-discovery-provider.php` registers `parsely-trending` as `recommend`-only, exactly as predicted here: it ranks the site's own published stories by recent traffic (via `/analytics/posts`) as follow-up starting points, not a feed of topics trending elsewhere.
 - **Competitor monitoring**: Surface stories competitors are covering that we aren't. Likely both `recommend` and `search`.
 - **Wire services** (AP, Reuters): Breaking and upcoming wire content. Likely `search` primarily.
 - **Social listening**: Trending topics from social platforms. Likely `recommend` only.

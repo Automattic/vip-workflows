@@ -66,7 +66,7 @@ const tool = ( id, label, overrides = {} ) => ( {
 	id,
 	name: id,
 	label,
-	description: `What ${ label } does.`,
+	meta: { summary: `What ${ label } does.` },
 	category: 'vip-workflows',
 	enabled: true,
 	availability: { available: true, groups: [] },

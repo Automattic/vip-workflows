@@ -36,7 +36,7 @@ export default function Tools() {
 			] }
 			title={ __( 'Tools', 'vip-workflows' ) }
 			subtitle={ __(
-				'Configure workflow tools available to your team.',
+				'Tools check a post before it moves. A transition can require any of them.',
 				'vip-workflows'
 			) }
 			actions={

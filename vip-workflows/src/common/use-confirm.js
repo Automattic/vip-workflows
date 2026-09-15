@@ -60,7 +60,7 @@ export function useConfirm() {
 
 	const confirmDialog = dialog ? (
 		<Modal
-			title={ dialog.title || __( 'Please confirm', 'vip-workflows' ) }
+			title={ dialog.title || __( 'Confirm', 'vip-workflows' ) }
 			onRequestClose={ () => settle( false ) }
 			size="small"
 		>

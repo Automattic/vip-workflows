@@ -319,7 +319,7 @@ describe( 'WorkflowPanel required-field refusal', () => {
 		await renderWithRefusal( REQUIRED_FIELDS_ERROR );
 
 		expect(
-			screen.getByRole( 'dialog', { name: 'Transition Blocked' } )
+			screen.getByRole( 'dialog', { name: 'Transition blocked' } )
 		).toBeInTheDocument();
 		expect(
 			screen.getByText( 'Section is required and has no value.' )
@@ -354,7 +354,7 @@ describe( 'WorkflowPanel required-field refusal', () => {
 		} );
 
 		expect(
-			screen.getByRole( 'dialog', { name: 'Transition Blocked' } )
+			screen.getByRole( 'dialog', { name: 'Transition blocked' } )
 		).toBeInTheDocument();
 		expect( screen.getByText( 'Title is too long.' ) ).toBeInTheDocument();
 
@@ -371,7 +371,7 @@ describe( 'WorkflowPanel required-field refusal', () => {
 		} );
 
 		expect(
-			screen.queryByRole( 'dialog', { name: 'Transition Blocked' } )
+			screen.queryByRole( 'dialog', { name: 'Transition blocked' } )
 		).not.toBeInTheDocument();
 	} );
 

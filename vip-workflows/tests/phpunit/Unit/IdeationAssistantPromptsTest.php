@@ -2,7 +2,7 @@
 /**
  * Ideation assistant prompt migration tests.
  *
- * Guards that the Seed Analyst, Editorial Mentor and LLM-Assisted WP Search
+ * Guards that the Seed Analyst, Editorial mentor and LLM-Assisted WP Search
  * prompts resolve through the PromptRegistry and reproduce the prior heredoc
  * output byte-for-byte. The seed/search call sites are exercised end to
  * end via reflection so the variable wiring is covered, not just the registered
@@ -213,7 +213,7 @@ PROMPT;
     }
 
     /**
-     * Editorial Mentor registered default is byte-identical to the prior heredoc
+     * Editorial mentor registered default is byte-identical to the prior heredoc
      * once its variables are substituted. The call site derives many vars
      * from runtime state, so the default is guarded at the registry level.
      */

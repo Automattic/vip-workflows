@@ -90,7 +90,7 @@ describe( 'notesDialogProps', () => {
 		expect( props.notes ).toEqual( [
 			{ label: 'Assignee', value: 'Ada Lovelace' },
 		] );
-		expect( props.title ).toBe( 'Transition Notes' );
+		expect( props.title ).toBe( 'Transition notes' );
 	} );
 } );
 

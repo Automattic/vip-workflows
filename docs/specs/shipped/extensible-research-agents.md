@@ -305,7 +305,9 @@ card per run, the second collapses genuinely different cards into one. See
 
 ### Built-in Agent Registration
 
-**Web Researcher** (`includes/abilities/tools/web-researcher.php`):
+> **Where these actually live today:** the built-in agents shipped as classes under `includes/ideation/assistants/` (`class-web-researcher.php`, `class-media-scout.php`, `class-archive-scout.php`), not as function-based registrations under `includes/abilities/tools/` as sketched below. The registration shape (ability id, `category: 'research'`, `meta.type: 'research'`) matches; the file layout does not. See [`docs/reference/file-structure.md`](../../reference/file-structure.md) for the current tree.
+
+**Web Researcher** (illustrative registration shape; see note above for the real file):
 
 ```php
 function register_web_researcher(): void {

@@ -167,7 +167,7 @@ export function WorkflowHistoryModal( { postId, onClose } ) {
 
 	return (
 		<Modal
-			title={ __( 'Workflow History', 'vip-workflows' ) }
+			title={ __( 'Workflow history', 'vip-workflows' ) }
 			onRequestClose={ onClose }
 			className="vip-workflows-history-modal"
 			size="medium"

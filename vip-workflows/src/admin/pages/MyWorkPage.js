@@ -1,9 +1,10 @@
 /**
  * My Work Page Component.
  *
- * Shows all active work items (posts) for the current user as a
- * `@wordpress/dataviews` table. The dataset is small and fully loaded from a
- * single endpoint, so filtering/sorting/pagination run client-side via
+ * Shows work items (posts) for the current user as a
+ * `@wordpress/dataviews` table (also offered as a grid, with the post's
+ * featured image as its media). The user's dataset is loaded from a single
+ * endpoint, so filtering/sorting/pagination run client-side via
  * `filterSortAndPaginate` (the documented plugin pattern).
  *
  * The list mixes workflow-managed posts with the user's own posts that no
@@ -12,18 +13,26 @@
  * tinted with its per-stage color (consistent with the CPT and Audit Log
  * DataViews) and is empty for a post in no workflow, while Status renders the
  * core post status every post has.
+ *
+ * The view is free-composed (`CardGridView.js`'s pattern) rather than using
+ * DataViews' default chrome, purely to slot in one control DataViews itself
+ * doesn't offer: grouping. `view.groupBy` is supported end-to-end by
+ * `filterSortAndPaginate` and the table layout, but ships no picker for it —
+ * the "Group by" select below is the one hand-built piece of UI on this page.
+ * The view (filters, sort, visible columns, group-by) persists per-user in
+ * localStorage so a reader's customization survives a reload.
  */
 
 import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
-import { Spinner, Notice } from '@wordpress/components';
+import { Spinner, Notice, SelectControl } from '@wordpress/components';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
-import { Badge, Stack, Text } from '@wordpress/ui';
+import { Stack, Text } from '@wordpress/ui';
 import { pencil } from '@wordpress/icons';
 
 import StatusBadge from '../components/StatusBadge';
-import { TitleLink } from '../../common/DataViewCells';
+import { TitleLink, AuthorCell } from '../../common/DataViewCells';
 import {
 	Timestamp,
 	siteDateTimeFormat,
@@ -33,17 +42,35 @@ import { toElements } from '../utils/dataview-elements';
 
 import './MyWorkPage.css';
 
-// Editorial urgency (SLA): labels plus the Badge intent that conveys severity.
-const URGENCY_LABELS = {
-	breaking: __( 'Breaking', 'vip-workflows' ),
-	urgent: __( 'Urgent', 'vip-workflows' ),
-	normal: __( 'Normal', 'vip-workflows' ),
-};
-const URGENCY_INTENT = {
-	breaking: 'high',
-	urgent: 'medium',
-	normal: 'none',
-};
+/**
+ * Alphabetical, but a blank value always sorts last regardless of direction.
+ *
+ * DataViews' own comparator treats `''` as an ordinary string, so it sorts
+ * before every real value in ascending order — "no workflow" reads as if it
+ * came alphabetically first, and leads both the table and (since grouping
+ * reuses this same comparator, per `groupByField.sort` in
+ * `filterSortAndPaginate`) the group order. A row with nothing to say about
+ * a field belongs at the end of it, in either direction, not at the front of
+ * ascending.
+ *
+ * @param {string} a         First value.
+ * @param {string} b         Second value.
+ * @param {string} direction 'asc' or 'desc'.
+ * @return {number} Ordering of `a` against `b`.
+ */
+function sortTextEmptyLast( a, b, direction ) {
+	if ( ! a && ! b ) {
+		return 0;
+	}
+	if ( ! a ) {
+		return 1;
+	}
+	if ( ! b ) {
+		return -1;
+	}
+	const compared = a.localeCompare( b );
+	return 'desc' === direction ? -compared : compared;
+}
 
 // Core post statuses a work item can carry: the four editorial regions a
 // sequence can model, plus the `future` overlay. Fixed on purpose — a filter
@@ -57,33 +84,108 @@ const CORE_STATUS_ELEMENTS = [
 	{ value: 'publish', label: __( 'Published', 'vip-workflows' ) },
 ];
 
+// Fields a reader can group rows by. Deliberately not every filterable field:
+// grouping renders a header from the field's raw `getValue()` (DataViews has
+// no group-label lookup), and `post_status`'s getValue is the core slug
+// (`draft`) rather than its label — a correct filter value, but a header
+// nobody would want to read. Only fields whose getValue is already the
+// human-readable string are offered here.
+const GROUP_BY_FIELDS = [
+	{ value: '', label: __( 'No grouping', 'vip-workflows' ) },
+	{ value: 'status_label', label: __( 'Stage', 'vip-workflows' ) },
+	{ value: 'workflow_name', label: __( 'Workflow', 'vip-workflows' ) },
+	{ value: 'author', label: __( 'Author', 'vip-workflows' ) },
+	{ value: 'assignee', label: __( 'Assignee', 'vip-workflows' ) },
+];
+
 const DEFAULT_VIEW = {
 	type: 'table',
 	search: '',
 	filters: [],
 	page: 1,
 	perPage: 20,
-	// No default sort: the /my-work endpoint already orders items by urgency
-	// (breaking > urgent > normal) then date, and re-sorting client-side would
-	// discard that triage ordering. Column headers still sort on demand.
-	sort: {},
+	sort: { field: 'modified_date', direction: 'desc' },
 	titleField: 'title',
+	// The grid layout's media, read regardless of `fields` visibility below —
+	// a post with no featured image renders the same placeholder DataViews
+	// itself draws when a media field has no render at all.
+	mediaField: 'featured_image',
+	showMedia: false,
 	fields: [
 		'workflow_name',
 		'status_label',
 		'post_status',
-		'urgency',
+		'author',
+		'assignee',
 		'modified_date',
 		'created_date',
 	],
 	layout: {},
 };
 
+/**
+ * Build the localStorage key a user's customized view is stored under.
+ *
+ * @return {string} Storage key.
+ */
+function storageKey() {
+	const userId = window.vipWorkflowsAdmin?.currentUser?.id;
+	if ( ! Number.isInteger( userId ) || userId <= 0 ) {
+		throw new Error( 'My Work requires the current user ID.' );
+	}
+	return `vip_workflows_my_work_view_${ userId }`;
+}
+
+/**
+ * Read saved customizations. Missing preferences use the initial view;
+ * unreadable preferences are reported by the page's error boundary.
+ *
+ * @return {Object} View.
+ */
+function loadStoredView() {
+	const raw = window.localStorage.getItem( storageKey() );
+	if ( raw === null ) {
+		return DEFAULT_VIEW;
+	}
+	const storedView = JSON.parse( raw );
+	if (
+		! storedView ||
+		typeof storedView !== 'object' ||
+		Array.isArray( storedView )
+	) {
+		throw new Error( 'The saved My Work view must be an object.' );
+	}
+	return { ...DEFAULT_VIEW, ...storedView };
+}
+
 export function MyWorkPage() {
 	const [ items, setItems ] = useState( [] );
 	const [ loading, setLoading ] = useState( true );
 	const [ error, setError ] = useState( null );
-	const [ view, setView ] = useState( DEFAULT_VIEW );
+	const [ view, setView ] = useState( loadStoredView );
+
+	const handleChangeView = useCallback( ( nextView ) => {
+		try {
+			window.localStorage.setItem(
+				storageKey(),
+				JSON.stringify( nextView )
+			);
+		} catch ( err ) {
+			setError( err.message );
+			return;
+		}
+		setView( nextView );
+	}, [] );
+
+	const handleChangeGroupBy = useCallback(
+		( field ) => {
+			handleChangeView( {
+				...view,
+				groupBy: field ? { field } : undefined,
+			} );
+		},
+		[ view, handleChangeView ]
+	);
 
 	const fetchWork = useCallback( async () => {
 		setLoading( true );
@@ -135,7 +237,10 @@ export function MyWorkPage() {
 				label: __( 'Workflow', 'vip-workflows' ),
 				enableGlobalSearch: true,
 				elements: toElements( items, 'workflow_name' ),
-				filterBy: { operators: [ 'isAny' ] },
+				// `isPrimary`, like Stage below: a quick filter chip up front
+				// rather than one more click behind "Add filter".
+				filterBy: { operators: [ 'isAny' ], isPrimary: true },
+				sort: sortTextEmptyLast,
 				getValue: ( { item } ) => item.workflow_name || '',
 				render: ( { item } ) => item.workflow_name || '—',
 			},
@@ -144,8 +249,12 @@ export function MyWorkPage() {
 				label: __( 'Stage', 'vip-workflows' ),
 				elements: toElements( items, 'status_label' ),
 				filterBy: { operators: [ 'isAny' ], isPrimary: true },
-				enableSorting: false,
-				getValue: ( { item } ) => item.status_label,
+				// Sortable on purpose, not left over: grouping and column-sort
+				// share DataViews' one `enableSorting` gate (both look up a
+				// field via `enableSorting !== false` in filterSortAndPaginate),
+				// so Stage being offered in the Group By control requires this.
+				sort: sortTextEmptyLast,
+				getValue: ( { item } ) => item.status_label ?? '',
 				// A post no workflow manages is at no stage. It still has a core
 				// status, which is the Status column's job, not this one's.
 				render: ( { item } ) =>
@@ -167,19 +276,73 @@ export function MyWorkPage() {
 				render: ( { item } ) => item.post_status_label || '—',
 			},
 			{
-				id: 'urgency',
-				label: __( 'SLA', 'vip-workflows' ),
-				elements: Object.entries( URGENCY_LABELS ).map(
-					( [ value, label ] ) => ( { value, label } )
+				id: 'author',
+				label: __( 'Author', 'vip-workflows' ),
+				// `getValue` is the display name, not the author id or object:
+				// both filter matching and group headers read a field's raw
+				// `getValue()`, and a name is what a filter chip or a group
+				// header should show. `render` still draws from the full actor.
+				elements: toElements(
+					items.map( ( item ) => ( {
+						author_name: item.author?.display_name,
+					} ) ),
+					'author_name'
 				),
 				filterBy: { operators: [ 'isAny' ] },
-				enableSorting: false,
-				getValue: ( { item } ) => item.urgency || 'normal',
-				render: ( { item } ) => (
-					<Badge intent={ URGENCY_INTENT[ item.urgency ] || 'none' }>
-						{ URGENCY_LABELS[ item.urgency ] || item.urgency }
-					</Badge>
+				sort: sortTextEmptyLast,
+				getValue: ( { item } ) => item.author?.display_name ?? '',
+				render: ( { item } ) =>
+					item.author ? <AuthorCell actor={ item.author } /> : '—',
+			},
+			{
+				// The person currently claiming the post, not one of a sequence's
+				// named assignment slots (a legal reviewer, an editorial approver,
+				// …) — a post can have several of those pending at once, to
+				// different people, so no single one of them is "the" assignee.
+				// This is the one claim a post has at most one of at a time.
+				id: 'assignee',
+				label: __( 'Assignee', 'vip-workflows' ),
+				elements: toElements(
+					items.map( ( item ) => ( {
+						assignee_name: item.assignee?.display_name,
+					} ) ),
+					'assignee_name'
 				),
+				filterBy: { operators: [ 'isAny' ] },
+				sort: sortTextEmptyLast,
+				getValue: ( { item } ) => item.assignee?.display_name ?? '',
+				render: ( { item } ) =>
+					item.assignee ? (
+						<AuthorCell actor={ item.assignee } />
+					) : (
+						'—'
+					),
+			},
+			{
+				// Grid-only: rendered as the card's media via `view.mediaField`,
+				// never a visible table column (kept out of `DEFAULT_VIEW.fields`
+				// on purpose) — a table full of thumbnails wasn't asked for, and
+				// the grid finds this field by id regardless of the visible-column
+				// list. The library draws its own placeholder box whenever a media
+				// field has no `render`, so it's reused here for "no image" rather
+				// than inventing a second one.
+				id: 'featured_image',
+				type: 'media',
+				label: __( 'Featured Image', 'vip-workflows' ),
+				enableSorting: false,
+				enableGlobalSearch: false,
+				filterBy: false,
+				getValue: ( { item } ) => item.featured_image_url ?? '',
+				render: ( { item } ) =>
+					item.featured_image_url ? (
+						<img
+							src={ item.featured_image_url }
+							alt=""
+							loading="lazy"
+						/>
+					) : (
+						<span className="dataviews-view-grid__media-placeholder" />
+					),
 			},
 			// Both dates render as the shared `<Timestamp>` rather than the
 			// field type's bare string, so the instant is on the page in a form
@@ -198,7 +361,7 @@ export function MyWorkPage() {
 			{
 				id: 'modified_date',
 				type: 'datetime',
-				label: __( 'Last Updated', 'vip-workflows' ),
+				label: __( 'Last updated', 'vip-workflows' ),
 				filterBy: false,
 				format: { datetime: siteDateTimeFormat() },
 				sort: sortByTimestamp,
@@ -293,21 +456,75 @@ export function MyWorkPage() {
 					</Text>
 				</Stack>
 			) : (
-				<div className="vip-workflows-card-surface">
+				<div className="vip-workflows-my-work-panel vip-workflows-card-surface">
 					<DataViews
 						data={ data }
 						fields={ fields }
 						view={ view }
-						onChangeView={ setView }
+						onChangeView={ handleChangeView }
 						actions={ actions }
 						paginationInfo={ paginationInfo }
-						defaultLayouts={ { table: {} } }
+						defaultLayouts={ {
+							table: { showMedia: false },
+							grid: { showMedia: true },
+						} }
 						searchLabel={ __(
 							'Search your work',
 							'vip-workflows'
 						) }
 						getItemId={ ( item ) => String( item.post_id ) }
-					/>
+					>
+						<Stack direction="column" gap="lg">
+							<Stack
+								gap="sm"
+								align="center"
+								justify="space-between"
+							>
+								<Stack gap="sm" align="center">
+									<DataViews.Search
+										label={ __(
+											'Search your work',
+											'vip-workflows'
+										) }
+									/>
+									<DataViews.FiltersToggle />
+									{ /* `compact` (32px), not `__next40pxDefaultSize`
+									     (40px): this sits in the same row as
+									     DataViews' own Search box and icon
+									     buttons, all compact, and the taller
+									     default size stood 8px above and below
+									     them rather than lining up. */ }
+									<SelectControl
+										label={ __(
+											'Group by',
+											'vip-workflows'
+										) }
+										labelPosition="side"
+										size="compact"
+										value={ view.groupBy?.field ?? '' }
+										options={ GROUP_BY_FIELDS }
+										onChange={ handleChangeGroupBy }
+										__nextHasNoMarginBottom
+									/>
+								</Stack>
+								<Stack gap="sm" align="center">
+									{ /* Free composition, unlike the default UI,
+									     does not fold the layout switcher into
+									     `<DataViews.ViewConfig>` — the gear only
+									     ever renders sort/density/properties.
+									     `LayoutSwitcher` is the separate piece
+									     that offers table vs. grid; without it
+									     here the grid layout above would exist
+									     in config but have no way to reach it. */ }
+									<DataViews.LayoutSwitcher />
+									<DataViews.ViewConfig />
+								</Stack>
+							</Stack>
+							<DataViews.FiltersToggled />
+							<DataViews.Layout />
+							<DataViews.Pagination />
+						</Stack>
+					</DataViews>
 				</div>
 			) }
 		</div>

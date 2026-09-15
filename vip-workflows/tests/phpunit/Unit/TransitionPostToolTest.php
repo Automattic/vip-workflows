@@ -1,6 +1,6 @@
 <?php
 /**
- * Transition Post ability tests.
+ * Move post ability tests.
  *
  * @package VIPWorkflows\Tests\Unit
  */
