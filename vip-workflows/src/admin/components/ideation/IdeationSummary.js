@@ -86,7 +86,7 @@ export default function IdeationSummary( {
 									variant="body-sm"
 									className="vip-workflows-ideation-summary__keypoints-label"
 								>
-									{ __( 'Key Points', 'vip-workflows' ) }
+									{ __( 'Key points', 'vip-workflows' ) }
 								</Text>
 								<ul>
 									{ keyPoints.map( ( point, i ) => (
@@ -122,7 +122,7 @@ export default function IdeationSummary( {
 		<Card.Root className="vip-workflows-ideation-summary">
 			<Card.Header>
 				<Card.Title>
-					{ __( 'Project Summary', 'vip-workflows' ) }
+					{ __( 'Project summary', 'vip-workflows' ) }
 				</Card.Title>
 				<Button
 					variant="secondary"

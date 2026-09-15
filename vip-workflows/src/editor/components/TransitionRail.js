@@ -528,7 +528,7 @@ export function TransitionRail( {
 							className="vip-workflows-rail__stage"
 						>
 							{ isCompleted
-								? __( 'Workflow Completed', 'vip-workflows' )
+								? __( 'Workflow completed', 'vip-workflows' )
 								: shownStage?.label }
 						</Text>
 						{ /* Core visibility, which the stage does not imply: a

@@ -198,7 +198,7 @@ function stageChange(
 	return {
 		id: 1,
 		event_type: 'status_transition',
-		event_type_label: 'Stage Changed',
+		event_type_label: 'Stage changed',
 		event_data: {
 			from_status: 'status_1',
 			to_status: 'status_2',
@@ -246,7 +246,7 @@ async function renderWithHistory( history ) {
 	// click; the entries land after its first request resolves.
 	await waitFor( () =>
 		expect(
-			screen.getByRole( 'dialog', { name: 'Workflow History' } )
+			screen.getByRole( 'dialog', { name: 'Workflow history' } )
 		).toBeInTheDocument()
 	);
 }

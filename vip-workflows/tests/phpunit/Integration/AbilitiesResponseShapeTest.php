@@ -255,7 +255,7 @@ class AbilitiesResponseShapeTest extends TestCase
             self::WEB_RESEARCHER_ABILITY
         );
 
-        $this->assertSame( 'Web Researcher', $researcher['label'] );
+        $this->assertSame( 'Web researcher', $researcher['label'] );
         $this->assertNotSame( $researcher['id'], $researcher['label'] );
     }
 

@@ -279,7 +279,7 @@ export default function TransitionInspector( {
 		.map( ( tool ) => ( {
 			value: tool.id,
 			label: tool.label || tool.id,
-			description: tool.description,
+			description: tool.meta?.summary,
 		} ) );
 
 	const addTool = ( id ) =>
@@ -314,7 +314,7 @@ export default function TransitionInspector( {
 		return {
 			label: tool ? tool.label || tool.id : id,
 			value: problem ? problem.short : '',
-			tip: problem ? problem.full : tool.description,
+			tip: problem ? problem.full : tool.meta?.summary,
 			invalid: Boolean( problem ),
 		};
 	};
@@ -367,7 +367,7 @@ export default function TransitionInspector( {
 			help: channel.configured
 				? undefined
 				: __(
-						'This channel is not set up, so nothing is sent on it. Finish it under Workflows → Notifications, or untick it here.',
+						'Not set up. See Workflows → Notifications.',
 						'vip-workflows'
 				  ),
 		} ) );
@@ -518,7 +518,7 @@ export default function TransitionInspector( {
 					<InspectorChoiceRow
 						label={ __( 'Allowed roles', 'vip-workflows' ) }
 						help={ __(
-							'Only these roles can use this transition. With none checked, everyone can.',
+							'Leave all unchecked to allow everyone.',
 							'vip-workflows'
 						) }
 						options={ availableRoles.map( ( role ) => ( {
@@ -530,7 +530,7 @@ export default function TransitionInspector( {
 							toggleInArray( 'allowed_roles', slug )
 						}
 						unknownHelp={ __(
-							'No role with this slug exists on this site — its plugin may be inactive. Nobody matches it, so it allows nobody while it keeps the restriction on.',
+							'Role not found, so it matches no one.',
 							'vip-workflows'
 						) }
 						noneLabel={ __( 'All', 'vip-workflows' ) }
@@ -791,7 +791,7 @@ export default function TransitionInspector( {
 								toggleInArray( 'notifications', id )
 							}
 							unknownHelp={ __(
-								'No channel with this id is registered on this site — its plugin may be inactive. It stays stored, and notifies again if the channel comes back.',
+								'Channel not found, so nothing is sent.',
 								'vip-workflows'
 							) }
 							noneLabel={ __( 'None', 'vip-workflows' ) }

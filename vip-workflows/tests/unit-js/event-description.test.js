@@ -251,7 +251,7 @@ describe( 'eventSummary', () => {
 	// be said in the description rather than standing over it as a heading.
 	it( 'says what the event did in one sentence that names its kind', () => {
 		expect(
-			summarise( 'status_transition', 'Stage Changed', {
+			summarise( 'status_transition', 'Stage changed', {
 				from_label: 'In Review',
 				to_label: 'Published',
 			} )
@@ -261,10 +261,10 @@ describe( 'eventSummary', () => {
 	it( 'falls back to the name where there is nothing to say', () => {
 		// Rather than leaving the description slot empty.
 		expect(
-			summarise( 'workflow.removed', 'Workflow Removed', {
+			summarise( 'workflow.removed', 'Workflow removed', {
 				sequence_name: 'Editorial Sequence',
 			} )
-		).toBe( 'Workflow Removed' );
+		).toBe( 'Workflow removed' );
 	} );
 
 	// So the slot is never empty, whatever the event turns out to be.

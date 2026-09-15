@@ -85,7 +85,7 @@ class IdeationOrchestratorTest extends TestCase {
 		$context = $method->invoke( new IdeationOrchestrator(), 'story seed' );
 
 		$this->assertCount( 1, $context );
-		$this->assertSame( 'Content Guidelines', $context[0]['title'] );
+		$this->assertSame( 'Content guidelines', $context[0]['title'] );
 		$this->assertStringContainsString( 'Keep this final instruction.', $context[0]['content'] );
 		$this->assertGreaterThan( 500, strlen( $context[0]['content'] ) );
 	}
@@ -111,8 +111,8 @@ class IdeationOrchestratorTest extends TestCase {
 	public function test_persisted_requirements_carry_identity_kind_and_sources(): void {
 		$availability = Availability::unmet(
 			RequirementGroup::any(
-				$this->make_requirement( 'credential:tavily', array( 'Web Images (Tavily)' ) ),
-				$this->make_requirement( 'credential:youtube', array( 'YouTube Videos' ) )
+				$this->make_requirement( 'credential:tavily', array( 'Web images (Tavily)' ) ),
+				$this->make_requirement( 'credential:youtube', array( 'YouTube videos' ) )
 			)
 		);
 
@@ -124,12 +124,12 @@ class IdeationOrchestratorTest extends TestCase {
 						array(
 							'id'      => 'credential:tavily',
 							'kind'    => Requirement::KIND_MISSING_CREDENTIAL,
-							'sources' => array( 'Web Images (Tavily)' ),
+							'sources' => array( 'Web images (Tavily)' ),
 						),
 						array(
 							'id'      => 'credential:youtube',
 							'kind'    => Requirement::KIND_MISSING_CREDENTIAL,
-							'sources' => array( 'YouTube Videos' ),
+							'sources' => array( 'YouTube videos' ),
 						),
 					),
 				),
@@ -255,7 +255,7 @@ class IdeationOrchestratorTest extends TestCase {
 
 		$assistants = $this->read_assistant_meta();
 
-		$this->assertSame( 'Seed Analyst', $assistants['vip-workflows/seed-analyst']['label'] );
+		$this->assertSame( 'Seed analyst', $assistants['vip-workflows/seed-analyst']['label'] );
 	}
 
 	public function test_every_stored_assistant_carries_a_label(): void {

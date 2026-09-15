@@ -26,12 +26,13 @@ const STAGES = [ { key: 'draft', label: 'Draft' } ];
  * Render the inspector for a region.
  *
  * @param {boolean} canRemove Whether the region may be removed.
+ * @param {string}  [region]  Region slug; defaults to `pending`.
  * @return {HTMLElement} The remove button.
  */
-function renderInspector( canRemove ) {
+function renderInspector( canRemove, region = 'pending' ) {
 	render(
 		<RegionInspector
-			region="pending"
+			region={ region }
 			stages={ STAGES }
 			entryKey="draft"
 			onSetEntry={ () => {} }
@@ -56,7 +57,15 @@ describe( 'RegionInspector remove action', () => {
 		const button = renderInspector( false );
 
 		expect( button ).toHaveAccessibleDescription(
-			/Only a status with no stages can be removed/
+			'Move or delete its stages first.'
+		);
+	} );
+
+	it( 'says Draft is never removable, whatever it holds', () => {
+		const button = renderInspector( false, 'draft' );
+
+		expect( button ).toHaveAccessibleDescription(
+			'Draft can’t be removed.'
 		);
 	} );
 
@@ -67,7 +76,7 @@ describe( 'RegionInspector remove action', () => {
 		// the reason a control is dead should not be the hardest thing on the
 		// panel to find out.
 		expect(
-			screen.getByText( /Only a status with no stages can be removed/ )
+			screen.getByText( 'Move or delete its stages first.' )
 		).toBeVisible();
 	} );
 
@@ -82,5 +91,22 @@ describe( 'RegionInspector remove action', () => {
 
 		expect( button ).not.toBeDisabled();
 		expect( button ).not.toHaveAttribute( 'aria-disabled' );
+	} );
+} );
+
+describe( 'RegionInspector summary', () => {
+	// Each status is described in its own form, not as a label in a template.
+	it.each( [
+		[ 'draft', /^Stages here are drafts\. A post set to draft outside/ ],
+		[
+			'pending',
+			/^Stages here are pending review\. A post set to pending/,
+		],
+		[ 'private', /^Stages here are private\. A post made private outside/ ],
+		[ 'publish', /^Stages here are published\. A post published outside/ ],
+	] )( 'describes %s in its own words', ( region, summary ) => {
+		renderInspector( true, region );
+
+		expect( screen.getByText( summary ) ).toBeVisible();
 	} );
 } );

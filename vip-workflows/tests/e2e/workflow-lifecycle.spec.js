@@ -33,7 +33,7 @@ test.describe( 'VIP Workflows — lifecycle (REST)', () => {
 			title: 'Lifecycle e2e',
 		} ) );
 
-		// Starts in draft with a single "Submit for Review" transition.
+		// Starts in draft with a single "Submit for review" transition.
 		let status = await getWorkflowStatus( requestUtils, postId );
 		expect( status.has_workflow ).toBe( true );
 		expect( status.current.key ).toBe( 'draft' );
@@ -65,7 +65,7 @@ test.describe( 'VIP Workflows — lifecycle (REST)', () => {
 		} ) );
 
 		await transition( requestUtils, postId, 'review' );
-		await transition( requestUtils, postId, 'draft' ); // Request Changes.
+		await transition( requestUtils, postId, 'draft' ); // Request changes.
 
 		const history = await requestUtils.rest( {
 			path: `/vip-workflows/v1/workflow/post/${ postId }/history`,

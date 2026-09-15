@@ -56,7 +56,7 @@ export function collectedNotes( event ) {
 export function notesDialogProps( event ) {
 	return {
 		notes: collectedNotes( event ),
-		title: __( 'Transition Notes', 'vip-workflows' ),
+		title: __( 'Transition notes', 'vip-workflows' ),
 	};
 }
 

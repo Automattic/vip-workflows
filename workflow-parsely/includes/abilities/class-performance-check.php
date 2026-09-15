@@ -217,6 +217,7 @@ class PerformanceCheck {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
+					'summary'               => __( 'Compares this post with how similar stories performed, using Parse.ly.', 'workflow-parsely' ),
 					'type'                  => 'check',
 
 					/* Comparable articles and what each of them did. */
@@ -234,7 +235,7 @@ class PerformanceCheck {
 							'type'        => 'number',
 							'default'     => 2.0,
 							'label'       => __( 'Tier 1 at or above', 'workflow-parsely' ),
-							'description' => __( 'Comparable coverage at or above this multiple of a typical story counts as Tier 1.', 'workflow-parsely' ),
+							'description' => __( 'A multiple of a typical story.', 'workflow-parsely' ),
 							'minimum'     => 0.1,
 							'maximum'     => 20,
 						),
@@ -242,7 +243,7 @@ class PerformanceCheck {
 							'type'        => 'number',
 							'default'     => 0.8,
 							'label'       => __( 'Tier 3 at or below', 'workflow-parsely' ),
-							'description' => __( 'Comparable coverage at or below this multiple counts as Tier 3. Everything between the two is Tier 2.', 'workflow-parsely' ),
+							'description' => __( 'A multiple of a typical story.', 'workflow-parsely' ),
 							'minimum'     => 0,
 							'maximum'     => 20,
 						),
@@ -254,7 +255,7 @@ class PerformanceCheck {
 					'show_in_commands'      => true,
 					'transition_eligible'   => true,
 					'icon'                  => 'chart-bar',
-					'thinking_message'      => __( 'Comparing with past performance...', 'workflow-parsely' ),
+					'thinking_message'      => __( 'Comparing with past performance…', 'workflow-parsely' ),
 					'annotations'           => array(
 						'readonly'    => true,
 						'destructive' => false,
@@ -333,7 +334,7 @@ class PerformanceCheck {
 		if ( ! current_user_can( 'edit_post', $post_id ) ) {
 			return new WP_Error(
 				'workflow_parsely_permission_denied',
-				__( 'You do not have permission to compare this post.', 'workflow-parsely' )
+				__( 'Sorry, you are not allowed to compare this post.', 'workflow-parsely' )
 			);
 		}
 

@@ -147,7 +147,7 @@ function dropOnHeader( file ) {
 const modal = () => within( screen.getByRole( 'dialog' ) );
 
 const nameField = () =>
-	screen.queryByRole( 'textbox', { name: /Sequence Name/ } );
+	screen.queryByRole( 'textbox', { name: /Sequence name/ } );
 
 describe( 'A sequence file dropped on the import modal', () => {
 	it( 'is taken anywhere in the dialog body, not only over the box', async () => {

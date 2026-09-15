@@ -2,13 +2,13 @@
 	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
 	"meta": {
 		"title": "VIP Workflows — Playground",
-		"description": "Boots WordPress trunk (the nightly build), installs the MCP Adapter companion plugin, activates VIP Workflows, and lands on the Workflows dashboard. The VIP Workflows plugin is supplied by mounting it from this monorepo; see PLAYGROUND.md for the run command.",
+		"description": "Boots WordPress, installs the MCP Adapter companion plugin, activates VIP Workflows, and lands on the Workflows dashboard. The VIP Workflows plugin is supplied by mounting it from this monorepo; see PLAYGROUND.md for the run command.",
 		"author": "vip-workflows"
 	},
 	"landingPage": "/wp-admin/admin.php?page=vip-workflows",
 	"preferredVersions": {
-		"php": "8.2",
-		"wp": "nightly"
+		"php": "latest",
+		"wp": "latest"
 	},
 	"phpExtensionBundles": [ "kitchen-sink" ],
 	"features": {
@@ -33,9 +33,13 @@
 			},
 			"options": { "activate": true }
 		},
-		{
-			"step": "activatePlugin",
-			"pluginPath": "vip-workflows/vip-workflows.php"
+      	{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://github.com/Automattic/vip-workflows/releases/latest/download/vip-workflows.zip"
+			},
+			"options": { "activate": true }
 		}
 	]
 }

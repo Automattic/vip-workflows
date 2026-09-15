@@ -61,8 +61,8 @@ class PerformanceSignals {
 		vip_workflows_register_ability(
 			self::ABILITY_ID,
 			array(
-				'label'               => __( 'Past Performance', 'workflow-parsely' ),
-				'description'         => __( 'How this newsroom\'s comparable past coverage performed, and which angles did best.', 'workflow-parsely' ),
+				'label'               => __( 'Past performance', 'workflow-parsely' ),
+				'description'         => __( 'How this newsroom’s comparable past coverage performed, and which angles did best.', 'workflow-parsely' ),
 				'category'            => 'research',
 				'input_schema'        => array(
 					'type'       => 'object',
@@ -91,13 +91,14 @@ class PerformanceSignals {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
+					'summary'               => __( 'Shows how comparable past coverage performed, and which angles did best.', 'workflow-parsely' ),
 					'type'                  => 'research',
 					'display_order'         => 20,
 					'show_in_rest'          => true,
 					'show_in_commands'      => false,
 					'transition_eligible'   => false,
 					'icon'                  => 'chart-bar',
-					'thinking_message'      => __( 'Checking how similar stories performed...', 'workflow-parsely' ),
+					'thinking_message'      => __( 'Checking how similar stories performed…', 'workflow-parsely' ),
 					'success_message'       => __( 'Found comparable coverage.', 'workflow-parsely' ),
 					'annotations'           => array(
 						'readonly'    => true,

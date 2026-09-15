@@ -164,7 +164,7 @@ function register_update_sequence(): void {
 	vip_workflows_register_ability(
 		UPDATE_SEQUENCE_ABILITY_ID,
 		array(
-			'label'               => __( 'Update Sequence', 'vip-workflows' ),
+			'label'               => __( 'Update sequence', 'vip-workflows' ),
 			'description'         => __( 'Replaces the configuration of an existing workflow sequence — its statuses, transitions, required tools, role permissions and metadata fields. This is a full replacement, not a patch: any field you omit is cleared, so read the sequence first (Validate Sequence returns its stored configuration). Cannot change whether the sequence is active; use Activate Sequence for that.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
@@ -393,6 +393,7 @@ function register_update_sequence(): void {
 				return current_user_can( 'manage_options' );
 			},
 			'meta'                => array(
+				'summary'             => __( 'Replaces a sequence’s whole configuration. Anything you leave out is cleared.', 'vip-workflows' ),
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'annotations'         => array(

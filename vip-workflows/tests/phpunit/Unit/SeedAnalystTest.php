@@ -23,14 +23,14 @@ class SeedAnalystTest extends TestCase {
 		$section = $this->invoke_format(
 			array(
 				array(
-					'title'   => 'Content Guidelines',
-					'content' => "=== Content Guidelines ===\n## Copy Guidelines\nNo unsupported superlatives.",
+					'title'   => 'Content guidelines',
+					'content' => "=== Content guidelines ===\n## Copy Guidelines\nNo unsupported superlatives.",
 				),
 			)
 		);
 
 		$this->assertStringContainsString( 'BRAND CONTEXT', $section );
-		$this->assertStringContainsString( 'Content Guidelines:', $section );
+		$this->assertStringContainsString( 'Content guidelines:', $section );
 		// The actual rule text must reach the prompt, not just the label.
 		$this->assertStringContainsString( 'No unsupported superlatives.', $section );
 	}

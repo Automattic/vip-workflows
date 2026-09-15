@@ -25,7 +25,7 @@ import {
 const STAGE_CHANGE = {
 	id: 1,
 	event_type: 'status_transition',
-	event_type_label: 'Stage Changed',
+	event_type_label: 'Stage changed',
 	event_data: {
 		from_label: 'Ideas',
 		to_label: 'Copy Desk',
@@ -68,14 +68,14 @@ describe( 'the fields DataViews renders itself', () => {
 		// The label rides on every row, so the title is right on first paint and
 		// in a view that offers no type filter and so has no elements to map it.
 		expect( eventTypeField().getValue( { item: STAGE_CHANGE } ) ).toBe(
-			'Stage Changed'
+			'Stage changed'
 		);
 	} );
 
 	it( 'keeps the type filter keyed on the slug the query takes', () => {
 		const field = eventTypeField( {
 			elements: [
-				{ value: 'status_transition', label: 'Stage Changed' },
+				{ value: 'status_transition', label: 'Stage changed' },
 			],
 			enableFiltering: true,
 		} );

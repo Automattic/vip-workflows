@@ -2060,6 +2060,54 @@ describe( 'validateSequence for AI stages', () => {
 		expect( held( false ) ).toBe( true );
 		expect( held( true ) ).toBe( false );
 	} );
+
+	it.each( [
+		[ 'draft', 'private', true ],
+		[ 'pending', 'publish', true ],
+		[ 'pending', 'draft', false ],
+		[ 'private', 'publish', false ],
+		[ 'publish', 'private', false ],
+	] )(
+		'applies the publication boundary from %s to %s',
+		( from, to, held ) => {
+			const regions = { review: from, done: to };
+			const all = agentStages( { pass: 'done' } ).map( ( stage ) => ( {
+				...stage,
+				status: regions[ stage.key ] || stage.status,
+			} ) );
+			const review = all.find( ( stage ) => stage.key === 'review' );
+			expect( isTransitionDisabled( review, 'done', all, false ) ).toBe(
+				held
+			);
+		}
+	);
+
+	it( 'revives every shared outcome edge and counts its transition once', () => {
+		const all = routeOutcome(
+			agentStages( { pass: 'done', fail: 'done' } ),
+			'review',
+			'error',
+			'draft'
+		);
+		for ( const allowAgentPublish of [ false, true ] ) {
+			const { nodes, edges } = buildGraph( all, { allowAgentPublish } );
+			const shared = edges.filter(
+				( edge ) => edge.source === 'review' && edge.target === 'done'
+			);
+			expect( shared.map( ( edge ) => edge.data.outcome ) ).toEqual( [
+				'pass',
+				'fail',
+			] );
+			expect( shared.map( ( edge ) => edge.data.disabled ) ).toEqual( [
+				! allowAgentPublish,
+				! allowAgentPublish,
+			] );
+			expect(
+				nodes.find( ( node ) => node.id === 'review' ).data
+					.transitionCount
+			).toBe( allowAgentPublish ? 2 : 1 );
+		}
+	} );
 } );
 
 describe( 'disabled transitions on an AI stage', () => {

@@ -481,7 +481,7 @@ describe( 'KanbanBoard drop failure reporting', () => {
 		await drop( 11, 'newsroom__ghost' );
 		expect( notices ).toContainEqual( {
 			status: 'error',
-			message: 'Failed to move card',
+			message: 'Could not move the card.',
 			options: { type: 'snackbar' },
 		} );
 
@@ -491,7 +491,7 @@ describe( 'KanbanBoard drop failure reporting', () => {
 		await drop( 999, 'newsroom__review' );
 		expect( notices ).toContainEqual( {
 			status: 'error',
-			message: 'Failed to move card',
+			message: 'Could not move the card.',
 			options: { type: 'snackbar' },
 		} );
 	} );
@@ -509,7 +509,7 @@ describe( 'KanbanBoard drop failure reporting', () => {
 		} );
 		expect( notices ).toContainEqual( {
 			status: 'success',
-			message: 'Card moved successfully',
+			message: 'Card moved.',
 			options: { type: 'snackbar' },
 		} );
 	} );

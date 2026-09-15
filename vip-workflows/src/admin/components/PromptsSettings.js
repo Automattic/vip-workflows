@@ -113,7 +113,10 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 			<Notice status="error" isDismissible={ false }>
 				{ sprintf(
 					/* translators: %s: error message from the prompts request. */
-					__( 'Failed to load prompts: %s', 'vip-workflows' ),
+					__(
+						'Could not load prompts. Reload the page to try again. Details: %s',
+						'vip-workflows'
+					),
 					error
 				) }
 			</Notice>
@@ -132,7 +135,7 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 		return (
 			<Text variant="body-md" render={ <p /> }>
 				{ __(
-					'No configurable prompts are registered.',
+					'No configurable prompts on this site. A plugin registers them.',
 					'vip-workflows'
 				) }
 			</Text>
@@ -169,6 +172,26 @@ export function PromptsSettings( { onDirtyChange, registerSave } ) {
 									setDraft( prompt.id, value )
 								}
 							/>
+							{ /* The placeholders this template accepts, read
+							     from the registry's own `variables` rather than
+							     spelled out again in the description prose. A
+							     list of tokens is reference material, not a
+							     sentence, so it sits beside the field instead
+							     of inside `help`. */ }
+							{ !! prompt.variables?.length && (
+								<Text variant="body-sm">
+									{ sprintf(
+										/* translators: %s: comma-separated list of template placeholders. */
+										__(
+											'Placeholders: %s',
+											'vip-workflows'
+										),
+										prompt.variables
+											.map( ( v ) => `{${ v }}` )
+											.join( ', ' )
+									) }
+								</Text>
+							) }
 							{ /* A field-scoped utility, so it sits under its own
 							     field and stays left-aligned with it rather than
 							     joining the screen's action row. */ }

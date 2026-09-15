@@ -131,7 +131,7 @@ class GuidelineContextProviderKnowledgeTest extends TestCase {
 
 		$context = GuidelineContextProvider::gather_context();
 
-		$this->assertStringContainsString( '=== Content Guidelines ===', $context );
+		$this->assertStringContainsString( '=== Content guidelines ===', $context );
 		$this->assertStringContainsString( 'Only write in iambic pentameter.', $context );
 		$this->assertStringContainsString( 'A trade publication for civil engineers.', $context );
 

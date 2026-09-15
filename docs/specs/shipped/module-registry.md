@@ -105,7 +105,14 @@ public function register_routes(): void {
     // Status endpoint stays here (it's the controller's own route).
     register_rest_route( self::NAMESPACE, '/status', array( /* ... */ ) );
 
-    // REST modules.
+    // REST modules. (Illustrative subset, not exhaustive — see
+    // docs/reference/file-structure.md § includes/api/ for the current list.
+    // Controllers that once appeared in an earlier version of this example —
+    // ApiKeysController, JobsController, PackagesController, PitchesController,
+    // ClaimBoardController, AssetsController, ResearchProjectsController,
+    // AiAgentController — no longer exist; each of those subsystems was removed
+    // or, for AiAgentController, extracted to the standalone vip-ai-agent
+    // plugin.)
     $controllers = array(
         new SequencesController(),
         new WorkflowController(),
@@ -113,15 +120,11 @@ public function register_routes(): void {
         new AbilitiesController(),
         new ToolsController(),
         new AuditLogController(),
-        new ApiKeysController(),
+        new ExperimentsController(),
         new GeneralSettingsController(),
-        new JobsController(),
-        new PackagesController(),
-        new PitchesController(),
-        new ClaimBoardController(),
-        new AssetsController(),
-        new ResearchProjectsController(),
-        new AiAgentController(),
+        new IdeationController(),
+        new DiscoveryController(),
+        new AssistantsController(),
         new UtilityController(),
     );
 

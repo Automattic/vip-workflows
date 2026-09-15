@@ -43,6 +43,52 @@ class AdminTest extends TestCase
     }
 
     /**
+     * Kanban and Calendar each gate their own surface, including when only the
+     * other experiment is enabled.
+     *
+     * @dataProvider view_experiment_states
+     */
+    public function test_view_menu_follow_independent_experiments( array $enabled, bool $kanban, bool $calendar ): void
+    {
+        Functions\when( 'get_option' )->justReturn( $enabled );
+        $registry = new \VIPWorkflows\Experiments\ExperimentRegistry();
+        $registry->register( new \VIPWorkflows\Experiments\KanbanExperiment() );
+        $registry->register( new \VIPWorkflows\Experiments\CalendarExperiment() );
+        ( new \ReflectionProperty( \VIPWorkflows\Plugin::class, 'experiment_registry' ) )
+            ->setValue( \VIPWorkflows\Plugin::get_instance(), $registry );
+
+        Functions\when( 'current_user_can' )->justReturn( true );
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'get_userdata' )->justReturn( $this->create_mock_user( array( 'roles' => array( 'administrator' ) ) ) );
+        Functions\when( 'add_menu_page' )->justReturn( null );
+        $menus = array();
+        Functions\when( 'add_submenu_page' )->alias(
+            static function ( $parent, $page_title, $menu_title, $capability, $slug ) use ( &$menus ) {
+                $menus[] = $slug;
+            }
+        );
+
+        ( new Admin() )->register_menu();
+
+        $this->assertSame( $kanban, in_array( 'vip-workflows-kanban', $menus, true ) );
+        $this->assertSame( $calendar, in_array( 'vip-workflows-calendar', $menus, true ) );
+        $this->assertContains( 'vip-workflows-my-dashboard', $menus );
+    }
+
+    /**
+     * @return array<string, array{0: string[], 1: bool, 2: bool}>
+     */
+    public static function view_experiment_states(): array
+    {
+        return array(
+            'disabled by default' => array( array(), false, false ),
+            'Kanban only'         => array( array( 'kanban' ), true, false ),
+            'Calendar only'       => array( array( 'calendar' ), false, true ),
+            'both enabled'        => array( array( 'kanban', 'calendar' ), true, true ),
+        );
+    }
+
+    /**
      * Extract the ordered list of menu slugs after cleanup.
      *
      * @return string[]

@@ -357,7 +357,7 @@ export function WorkflowPanel( { children } ) {
 		} catch ( err ) {
 			setActionError(
 				err.message ||
-					__( 'Failed to assign workflow', 'vip-workflows' )
+					__( 'Could not assign the workflow.', 'vip-workflows' )
 			);
 		} finally {
 			setTransitioning( false );
@@ -395,7 +395,7 @@ export function WorkflowPanel( { children } ) {
 		} catch ( err ) {
 			setActionError(
 				err.message ||
-					__( 'Failed to remove workflow', 'vip-workflows' )
+					__( 'Could not remove the workflow.', 'vip-workflows' )
 			);
 		} finally {
 			// The panel stays mounted through a removal now, so the busy state
@@ -471,11 +471,11 @@ export function WorkflowPanel( { children } ) {
 						code: 'save_failed',
 						message: targetIsAiStage
 							? __(
-									'Could not save the post before starting the AI stage. Please try again.',
+									'Could not save the post before starting the AI stage. Try again.',
 									'vip-workflows'
 							  )
 							: __(
-									'Could not save the post before the transition. Please try again.',
+									'Could not save the post before the transition. Try again.',
 									'vip-workflows'
 							  ),
 					};
@@ -1213,7 +1213,7 @@ export function WorkflowPanel( { children } ) {
 				<Suspense
 					fallback={
 						<Modal
-							title={ __( 'Workflow History', 'vip-workflows' ) }
+							title={ __( 'Workflow history', 'vip-workflows' ) }
 							onRequestClose={ () => setHistoryOpen( false ) }
 							size="medium"
 						>
@@ -1232,7 +1232,7 @@ export function WorkflowPanel( { children } ) {
 			     same dialog, same chrome, one component. */ }
 			{ toolFailures && (
 				<ToolFailuresModal
-					title={ __( 'Transition Blocked', 'vip-workflows' ) }
+					title={ __( 'Transition blocked', 'vip-workflows' ) }
 					message={ toolFailures.message }
 					hardFailures={ toolFailures.hardFailures }
 					softWarnings={ toolFailures.softWarnings }
@@ -1253,7 +1253,7 @@ export function WorkflowPanel( { children } ) {
 			{ /* Warnings Confirmation Modal */ }
 			{ warningsModal && (
 				<ToolFailuresModal
-					title={ __( 'Warnings Detected', 'vip-workflows' ) }
+					title={ __( 'Warnings detected', 'vip-workflows' ) }
 					message={ __(
 						'The following warnings were detected:',
 						'vip-workflows'

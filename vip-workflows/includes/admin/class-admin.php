@@ -197,25 +197,29 @@ class Admin implements ModuleInterface {
 				array( $this, 'render_my_dashboard_page' )
 			);
 
-			// Kanban board - available to all who can edit posts.
-			add_submenu_page(
-				'vip-workflows',
-				__( 'Kanban', 'vip-workflows' ),
-				__( 'Kanban', 'vip-workflows' ),
-				'edit_posts',
-				'vip-workflows-kanban',
-				array( $this, 'render_kanban_page' )
-			);
+			// Kanban board - available to all who can edit posts, while enabled.
+			if ( Plugin::experiment_enabled( 'kanban' ) ) {
+				add_submenu_page(
+					'vip-workflows',
+					__( 'Kanban', 'vip-workflows' ),
+					__( 'Kanban', 'vip-workflows' ),
+					'edit_posts',
+					'vip-workflows-kanban',
+					array( $this, 'render_kanban_page' )
+				);
+			}
 
-			// Calendar - available to all who can edit posts.
-			add_submenu_page(
-				'vip-workflows',
-				__( 'Calendar', 'vip-workflows' ),
-				__( 'Calendar', 'vip-workflows' ),
-				'edit_posts',
-				'vip-workflows-calendar',
-				array( $this, 'render_calendar_page' )
-			);
+			// Calendar - available to all who can edit posts, while enabled.
+			if ( Plugin::experiment_enabled( 'calendar' ) ) {
+				add_submenu_page(
+					'vip-workflows',
+					__( 'Calendar', 'vip-workflows' ),
+					__( 'Calendar', 'vip-workflows' ),
+					'edit_posts',
+					'vip-workflows-calendar',
+					array( $this, 'render_calendar_page' )
+				);
+			}
 
 			// Ideation page - the creative workspace for story ideas.
 			if ( Plugin::experiment_enabled( 'ideation' ) ) {
@@ -608,7 +612,7 @@ class Admin implements ModuleInterface {
 		<div class="notice notice-warning">
 			<p>
 				<strong><?php esc_html_e( 'VIP Workflows:', 'vip-workflows' ); ?></strong>
-					<?php esc_html_e( 'This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These sequences had to be changed to fit. The changes are safe, but they change how the sequences behave — please confirm them in the Sequence editor.', 'vip-workflows' ); ?>
+					<?php esc_html_e( 'This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These sequences had to be changed to fit. The changes are safe, but they change how the sequences behave — confirm them in the Sequence editor.', 'vip-workflows' ); ?>
 			</p>
 			<ul style="list-style: disc; margin-left: 2em;">
 				<?php foreach ( $changed as $sequence ) : ?>
@@ -716,7 +720,7 @@ class Admin implements ModuleInterface {
 	public function render_audit_log_page(): void {
 		// Check access.
 		if ( ! Settings::can_user_view_audit_log() ) {
-			wp_die( esc_html__( 'You do not have permission to view the audit log.', 'vip-workflows' ) );
+			wp_die( esc_html__( 'Sorry, you are not allowed to view the audit log.', 'vip-workflows' ) );
 		}
 
 		self::render_app_root();
