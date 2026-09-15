@@ -40,16 +40,31 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 
 const mockCaptured = { props: null };
 
-jest.mock( '@wordpress/dataviews/wp', () => ( {
-	DataViews: ( props ) => {
+jest.mock( '@wordpress/dataviews/wp', () => {
+	// My Work free-composes <DataViews> (see MyWorkPage.js) for its "Group by"
+	// control, passing `DataViews.*` sub-components as children. This mock
+	// never renders `children`, so a no-op stub is enough for each of them.
+	const noop = () => null;
+	const DataViews = ( props ) => {
 		mockCaptured.props = props;
 		return null;
-	},
-	filterSortAndPaginate: ( data ) => ( {
-		data,
-		paginationInfo: { totalItems: data.length, totalPages: 1 },
-	} ),
-} ) );
+	};
+	DataViews.Search = noop;
+	DataViews.FiltersToggle = noop;
+	DataViews.FiltersToggled = noop;
+	DataViews.ViewConfig = noop;
+	DataViews.LayoutSwitcher = noop;
+	DataViews.Layout = noop;
+	DataViews.Pagination = noop;
+
+	return {
+		DataViews,
+		filterSortAndPaginate: ( data ) => ( {
+			data,
+			paginationInfo: { totalItems: data.length, totalPages: 1 },
+		} ),
+	};
+} );
 
 jest.mock( '@dnd-kit/core', () => ( {
 	__esModule: true,
@@ -110,7 +125,6 @@ const WORK_ROW = {
 	status_color: '#3498db',
 	post_status: 'draft',
 	post_status_label: 'Draft',
-	urgency: 'normal',
 	created_date: '2026-01-01 09:00:00',
 	modified_date: '2026-01-02 15:45:00',
 };
@@ -178,10 +192,12 @@ function times( ui ) {
 }
 
 beforeEach( () => {
+	window.vipWorkflowsAdmin = { currentUser: { id: 42 } };
 	setSettings( TOKYO );
 } );
 
 afterEach( () => {
+	delete window.vipWorkflowsAdmin;
 	setSettings( DEFAULTS );
 } );
 
@@ -231,8 +247,9 @@ describe( 'the My Queue waiting column', () => {
 		// Which row leads is a product decision, and the finding this work
 		// answers asked only that the column become sortable. It is, so
 		// oldest-first is one click away rather than imposed on everybody —
-		// and My Work, the sibling tab, states no default sort for the same
-		// reason.
+		// My Work, the sibling tab, does declare a default sort (by last
+		// updated) now that its dead SLA/urgency sort is gone — its endpoint
+		// no longer imposes an implicit order, so the frontend states one.
 		const { view } = await dataViewsOf( MyQueuePage, [ QUEUE_ROW ] );
 
 		expect( view.sort ).toEqual( {} );

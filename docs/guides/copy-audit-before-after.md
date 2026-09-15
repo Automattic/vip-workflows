@@ -254,7 +254,7 @@ These were hardcoded English inside an inline script and could not be translated
 | Sequences define workflow stages and transitions for your content types. | A sequence is the set of stages a post moves through, and the routes between them. | `SequencesList.js` |
 | View all workflow activity and changes. | Every workflow event on this site — what happened, who did it, and when. | `AuditLog.js` |
 | View Dashboard | Open dashboard | `class-dashboard-widget.php` |
-| Your personal workspace for work and ideation. | The posts assigned to you, your review queue, and your ideation projects. | `MyDashboard.js` |
+| Your personal workspace for work and ideation. | Find work and see what needs your attention. | `MyDashboard.js` |
 | ✓ All required items complete | All required items complete | `editor.js` |
 
 ## Errors (20)
@@ -370,4 +370,3 @@ These were hardcoded English inside an inline script and could not be translated
 | Content is live | Content is live. | `editorial-review-sequence.json` |
 | Editor is reviewing the content | Editor is reviewing the content. | `editorial-review-sequence.json` |
 | Standard editorial workflow for blog posts and articles | Standard editorial workflow for blog posts and articles. | `editorial-review-sequence.json` |
-

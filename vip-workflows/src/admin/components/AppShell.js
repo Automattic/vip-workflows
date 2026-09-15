@@ -143,13 +143,19 @@ export default function AppShell() {
 			return <MyDashboard />;
 		}
 
-		// Kanban board page
-		if ( page === 'vip-workflows-kanban' ) {
+		// Kanban board page (only routed while the Kanban experiment is enabled).
+		if (
+			page === 'vip-workflows-kanban' &&
+			window.vipWorkflowsAdmin?.experiments?.kanban
+		) {
 			return <Kanban />;
 		}
 
-		// Calendar page
-		if ( page === 'vip-workflows-calendar' ) {
+		// Calendar page (only routed while the Calendar experiment is enabled).
+		if (
+			page === 'vip-workflows-calendar' &&
+			window.vipWorkflowsAdmin?.experiments?.calendar
+		) {
 			return <Calendar />;
 		}
 

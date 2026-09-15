@@ -166,7 +166,7 @@ class AssistantRegistryAggregationTest extends TestCase
         $this->assertCount( 1, $requirements );
         $this->assertSame( 'credential:tavily', $requirements[0]->get_id() );
         $this->assertSame( Requirement::KIND_MISSING_CREDENTIAL, $requirements[0]->get_kind() );
-        $this->assertSame( array( 'Web Researcher' ), $requirements[0]->get_sources() );
+        $this->assertSame( array( 'Web researcher' ), $requirements[0]->get_sources() );
     }
 
     public function test_source_attribution_names_the_contributing_ability(): void
@@ -178,7 +178,7 @@ class AssistantRegistryAggregationTest extends TestCase
                 array(
                     'type'      => 'ability',
                     'id'        => 'vip-workflows/web-researcher',
-                    'label'     => 'Web Researcher',
+                    'label'     => 'Web researcher',
                     'available' => false,
                 ),
             ),

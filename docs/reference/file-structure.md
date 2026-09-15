@@ -68,7 +68,7 @@ includes/
 │   └── class-sequence-repository.php # Sequence CRUD
 │
 ├── database/
-│   ├── class-schema.php               # Table creation/updates (v2.14.0)
+│   ├── class-schema.php               # Table creation/updates (v2.24.0)
 │   └── class-seeder.php              # Default data seeding
 │
 ├── discovery/
@@ -85,8 +85,6 @@ includes/
 │   └── class-ideation-experiment.php     # Ideation experiment declaration
 │
 ├── ideation/
-│   ├── class-ideation-post-types.php  # Registers the Workflow Note CPT
-│   ├── class-workflow-note.php        # Asset model
 │   ├── assistants/
 │   │   ├── class-ideation-orchestrator.php    # Coordinates all assistants
 │   │   ├── class-seed-analyst.php             # Tag/entity extraction via LLM
@@ -103,22 +101,27 @@ includes/
 │   │   └── class-ai-image-provider.php        # AI image generation (DALL-E)
 │   └── research/
 │       ├── class-ideation-analyzer.php        # AI analysis tools (summarize, compare)
-│       ├── class-ideation-post-types.php      # Research project CPT
+│       ├── class-ideation-post-types.php      # Registers the vip_ideation CPT (Story ideation projects) — the old Workflow Notes/asset CPT was removed in schema 2.16.0
 │       ├── class-source-processing-job.php    # Background source processing
 │       └── search-providers/
 │           ├── class-search-provider-interface.php
 │           ├── class-search-provider-registry.php
 │           └── class-tavily-provider.php
 │
-├── integrations/
-│   ├── class-ai-media-analyzer.php   # Event adapter; delegates AI processing to MediaProcessor
-│   ├── class-media-processor.php      # Generic AI processing (images, audio, video, PDF)
+├── integrations/                      # No AIMediaAnalyzer / asset-upload consumer here any more —
+│   │                                   # the Workflow Notes (assets) subsystem was removed in schema 2.16.0
+│   ├── class-media-processor.php      # Generic AI processing (images, audio, video, PDF), shared by research + ideation
 │   ├── class-url-meta-extractor.php   # Fetch Open Graph/meta tags from URLs
 │   ├── class-content-extractor.php    # Extract text content from URLs/HTML
 │   ├── class-draft-builder.php        # Build post drafts from ideation data
+│   ├── class-guideline-context-provider.php  # Read guideline context from Gutenberg/Core for AI
+│   ├── class-llm-json-generator.php   # Generate structured JSON via LLM
 │   ├── class-llm-json-parser.php      # Parse LLM responses as JSON
-│   ├── class-you-tube-transcript.php  # YouTube transcript extraction
-│   └── class-guideline-context-provider.php  # Read guideline context from Gutenberg/Core for AI
+│   ├── class-llm-text-generator.php   # Generate plain-text content via LLM
+│   ├── class-markdown.php             # Markdown helpers shared across integrations
+│   ├── class-ssrf-guard.php           # Guards outbound URL fetches against SSRF
+│   ├── class-uploads-path-guard.php   # Validates upload paths stay inside the uploads directory
+│   └── class-you-tube-transcript.php  # YouTube transcript extraction
 │
 ├── maintenance/
 │   └── class-cleanup.php              # Nightly prune, reported to the audit log
@@ -146,18 +149,23 @@ includes/
     ├── class-sequences-controller.php    # Sequence CRUD
     ├── class-workflow-controller.php      # Transition endpoints
     ├── class-abilities-controller.php     # Tool execution
-    ├── class-ability-settings-controller.php  # Tool settings
+    ├── class-tools-controller.php         # Tool settings (there is no class-ability-settings-controller.php)
     ├── class-availability-serializer.php  # Capability-aware availability serialization
-    ├── class-assets-controller.php        # Asset CRUD + upload
+    ├── class-assignable-users-controller.php  # Users eligible for a transition's assignment
     ├── class-assistants-controller.php    # Unified assistants
     ├── class-audit-log-controller.php     # Event log
     ├── class-discovery-controller.php     # Story discovery
+    ├── class-experiments-controller.php   # Toggle registered experiments
     ├── class-general-settings-controller.php  # General settings
     ├── class-ideation-controller.php      # Story ideation
     ├── class-ideation-sources-controller.php  # Research sources CRUD
+    ├── class-metadata-controller.php      # Sequence-declared editorial metadata fields
     ├── class-notifications-controller.php # Notification channels
+    ├── class-prompts-controller.php       # Settings: Prompts tab
     └── class-utility-controller.php       # Shared utility endpoints
 ```
+
+There is no `class-assets-controller.php` and no `/vip-workflows/v1/assets/upload` route — the Workflow Notes (assets) subsystem was removed (schema `2.16.0`).
 
 ### JavaScript Code (`src/`)
 
@@ -174,31 +182,41 @@ src/
 │   │   ├── SummaryCard.js                    # Shared list card (title, badges, description, meta, actions)
 │   │   ├── CardGridView.js                   # Shared DataViews free-composition panel: search + filters + card grid + pagination
 │   │   ├── SequencesList.js                 # Sequence list
-│   │   ├── graph/                            # Sequence graph editor (both sequence types)
+│   │   ├── graph/                            # Sequence graph editor (both sequence types) — has grown
+│   │   │   │                                 # a family of edge-routing/region-rendering helpers
+│   │   │   │                                 # (edge-*.js, RegionBands.js, RegionNode.js, regions.js,
+│   │   │   │                                 # StageNode.js, TerminalNode.js) beyond the core files below
 │   │   │   ├── SequenceGraphEditor.js        # Editor core: state, load/save, canvas + inspector
 │   │   │   ├── graph-model.js                # Pure model: projection, mutations, validateSequence()
 │   │   │   ├── GraphCanvas.js                # @xyflow/react canvas wrapper
 │   │   │   ├── StageInspector.js             # Stage (node) options
 │   │   │   ├── TransitionInspector.js        # Transition (edge) options
 │   │   │   ├── SequenceSettingsInspector.js  # Sequence-level settings
+│   │   │   ├── RegionInspector.js            # Status-region options
 │   │   │   └── PhaseStageInspector.js        # Fixed-phase stage inspector
 │   │   ├── TransitionAssignmentConfig.js     # Assignment config in sequences
-│   │   ├── AssetManager.js                   # Asset upload/management
 │   │   ├── KanbanBoard.js                    # Kanban board
 │   │   ├── KanbanColumn.js                   # Kanban column
 │   │   ├── KanbanCard.js                     # Kanban card
-│   │   ├── GeneralSettings.js                # General settings form
-│   │   ├── ApiKeysSettings.js                # API keys settings
-│   │   ├── AssistantsTab.js                  # Integrations > Assistants
+│   │   ├── GeneralSettings.js                # Settings: General tab
+│   │   ├── AiModelSettings.js                # Settings: AI services tab (provider/model choice)
+│   │   ├── PromptsSettings.js                # Settings: Prompts tab
+│   │   ├── ExperimentsSettings.js            # Settings: Experiments tab (toggle registered experiments)
+│   │   ├── SettingsFooter.js                 # Shared Save/Cancel footer for staged screens
+│   │   ├── SettingsSection.js                # Shared settings section wrapper
+│   │   ├── AssistantsTab.js                  # Agents page content (unified assistants)
 │   │   ├── AssistantCard.js                  # Unified assistant card
-│   │   ├── ToolsSettings.js                  # Integrations > Tools
-│   │   ├── NotificationChannelsTab.js        # Integrations > Channels
-│   │   ├── JobsTab.js                        # Integrations > Jobs
+│   │   ├── ToolsSettings.js                  # Tools page content
+│   │   ├── NotificationChannelsTab.js        # Notifications page: Channels + Routing tabs
+│   │   ├── HowToModal.js                     # Shared "how to extend this" modal
+│   │   ├── StatusBadge.js                    # Shared status/severity badge
 │   │   ├── SchemaSettings.js                 # Auto-render settings from JSON schema
 │   │   ├── InstallSkillButton.js             # Download skill zip for AI agents
-│   │   ├── SearchResultsModal.js             # Generic search results modal
 │   │   ├── AddSourceModal.js                 # Add research source manually
 │   │   ├── ProjectEditModal.js               # Edit ideation project
+│   │   ├── markdown.js                       # Markdown rendering helper
+│   │   ├── notifications/
+│   │   │   └── NotificationsApp.js           # Routing tab: event-to-channel matrix + debug mirror
 │   │   └── ideation/
 │   │       ├── SeedInput.js                  # Freeform seed textarea
 │   │       ├── IdeationWorkspace.js          # Main workspace layout
@@ -207,7 +225,12 @@ src/
 │   │       ├── IdeationCard.js               # Card type router
 │   │       ├── IdeationSummary.js            # Project summary view
 │   │       ├── RecentProjects.js             # Recent projects list
+│   │       ├── StoryDiscovery.js             # Landing-page discovery provider sections
 │   │       ├── DiscoverySearchModal.js        # Discovery provider search
+│   │       ├── AssistantPanel.js             # Collapsible mentor/assistant-results panel
+│   │       ├── PromptPreviewModal.js         # Preview the prompt sent to an assistant
+│   │       ├── AddSourceModal.js             # Add research source manually (ideation-scoped)
+│   │       ├── assistant-icon.js             # Per-assistant icon resolution
 │   │       ├── use-card-actions.js           # Pin/dismiss/similar hooks
 │   │       ├── use-mentor.js                 # Editorial mentor hook
 │   │       ├── use-drop-zone.js              # Drag-and-drop hook
@@ -220,21 +243,20 @@ src/
 │   │           ├── EntityCard.js             # Entity card
 │   │           └── NewsAngleCard.js          # News angle card
 │   └── pages/
-│       ├── Dashboard.js                      # Workflow overview
 │       ├── MyDashboard.js                    # Personal dashboard
 │       ├── MyDashboardPage.js                # Personal dashboard page wrapper
 │       ├── MyWorkPage.js                     # My work items
 │       ├── MyQueuePage.js                    # My review queue
+│       ├── MyIdeationPage.js                 # Personal ideation queue
 │       ├── Kanban.js                         # Kanban board page
-│       ├── Sequences.js                     # Sequence management
-│       ├── Queue.js                          # Review queue
-│       ├── AuditLog.js                       # Audit log viewer
 │       ├── Calendar.js                       # Calendar view
+│       ├── Sequences.js                     # Sequence management
+│       ├── AuditLog.js                       # Audit log viewer
 │       ├── Ideation.js                       # Story ideation
-│       ├── Contributors.js                   # Contributor management
-│       ├── Notifications.js                  # Notifications page
-│       ├── Settings.js                       # Settings page
-│       └── Integrations.js                   # Integrations page
+│       ├── Notifications.js                  # Notifications page (Channels + Routing)
+│       ├── Agents.js                         # Agents page (unified assistants)
+│       ├── Tools.js                          # Tools page
+│       └── Settings.js                       # Settings page (General, AI services, Prompts, Experiments)
 │
 ├── editor/
 │   ├── index.js                              # Editor sidebar entry point

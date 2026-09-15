@@ -61,7 +61,9 @@ Surface-specific consequences:
   do looks like any other, because nothing in the sequence says which those
   are.
 - **Cards:** the screen's leading verb is `primary` at the `SummaryCard` call
-  site (Jobs → `Run now`, Sequences → `Edit`); utilities are `tertiary`.
+  site (Sequences → `Edit`); utilities are `tertiary`. (There is no Jobs
+  screen — an earlier job-registry framework was removed; see
+  [architecture.md §7](../reference/architecture.md#7-scheduled-cleanup).)
 - **DataViews quick actions:** first `primary`, rest `secondary` — never N
   primaries in one cell.
 

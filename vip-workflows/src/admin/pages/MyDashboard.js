@@ -27,7 +27,7 @@ export default function MyDashboard() {
 			] }
 			title={ __( 'My Dashboard', 'vip-workflows' ) }
 			subtitle={ __(
-				'The posts assigned to you, your review queue, and your ideation projects.',
+				'Find work and see what needs your attention.',
 				'vip-workflows'
 			) }
 		>
