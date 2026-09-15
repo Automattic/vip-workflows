@@ -1957,23 +1957,39 @@ function normalizeSlotKey( value ) {
  * the line that would have joined them as well adds nothing to do, and there is
  * no node to hang the offer on either.
  *
- * @param {Array} stages                Stage objects.
- * @param {Array} [requiredTransitions] `{ from, to }` pairs, from
- *                                      `/sequences/options`.
+ * @param {Array} stages              Stage objects.
+ * @param {Array} requiredTransitions `{ from, to }` pairs, from
+ *                                    `/sequences/options`.
  * @return {Array} The `{ from, to }` pairs that are owed and not drawn.
  */
-export function missingHandOffs( stages, requiredTransitions = [] ) {
-	const present = new Set( ( stages || [] ).map( ( s ) => s.key ) );
+export function missingHandOffs( stages, requiredTransitions ) {
+	const present = ( key ) => stages.some( ( s ) => s.key === key );
 
-	return requiredTransitions.filter( ( { from, to } ) => {
-		if ( ! present.has( from ) || ! present.has( to ) ) {
-			return false;
-		}
+	return requiredTransitions.filter(
+		( { from, to } ) =>
+			present( from ) &&
+			present( to ) &&
+			! findTransition( stages, from, to )
+	);
+}
 
-		const source = stages.find( ( s ) => s.key === from );
-
-		return ! ( source.transitions || [] ).some( ( t ) => t.to === to );
-	} );
+/**
+ * Whether a transition is a hand-off the sequence owes, and so not the
+ * author's to remove.
+ *
+ * Asked by both the editor's delete handler and the transition panel deciding
+ * whether to offer Remove, so the two cannot disagree. Phase-only: the list is
+ * published for every editor, and a workflow sequence whose stages happen to
+ * share a phase's key owes nothing — the caller gates on the mode.
+ *
+ * @param {Array}  requiredTransitions `{ from, to }` pairs, from
+ *                                     `/sequences/options`.
+ * @param {string} from                Source phase key.
+ * @param {string} to                  Target phase key.
+ * @return {boolean} True when the pair is owed.
+ */
+export function isRequiredHandOff( requiredTransitions, from, to ) {
+	return requiredTransitions.some( ( t ) => t.from === from && t.to === to );
 }
 
 /**
@@ -2155,13 +2171,13 @@ export function validateSequence( {
 	for ( const { from, to } of missingHandOffs( stages, required ) ) {
 		addBlocker(
 			sprintf(
-				/* translators: 1: source phase key, 2: target phase key */
+				/* translators: 1: source phase label, 2: target phase label */
 				__(
-					'Phase sequences must hand off from “%1$s” to “%2$s”. Open the phase to add it, or drag from it on the canvas.',
+					'Phase sequences must hand off from “%1$s” to “%2$s”. Show “%1$s” to add it, or drag from it to “%2$s” on the canvas.',
 					'vip-workflows'
 				),
-				from,
-				to
+				stageLabel( stages, from ),
+				stageLabel( stages, to )
 			),
 			nodeTarget( from )
 		);
