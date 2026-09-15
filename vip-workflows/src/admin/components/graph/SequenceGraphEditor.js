@@ -45,7 +45,6 @@ import AddPostStatusModal from './AddPostStatusModal';
 import {
 	addStage,
 	addStageFromNode,
-	insertStageOnEdge,
 	removeStage,
 	updateStage,
 	setRegionEntry,
@@ -1102,19 +1101,6 @@ export default function SequenceGraphEditor( {
 		[ stages ]
 	);
 
-	// Insert a stage in the middle of an edge (the edge "+" affordance). Returns
-	// the new stage's key, so the canvas can pin the node to the point on the
-	// edge the "+" was clicked at instead of letting the layout re-place it.
-	const handleInsertStageOnEdge = useCallback(
-		( from, to, outcome ) => {
-			const result = insertStageOnEdge( stages, from, to, { outcome } );
-			setStages( result.stages );
-			setSelection( { type: 'node', key: result.key } );
-			return result.key;
-		},
-		[ stages ]
-	);
-
 	const handleUpdateStage = ( key, changes ) => {
 		// Picking an agent routes through its own mutation rather than a plain
 		// field merge, because clearing it drops the whole agent. Where a stage
@@ -1773,9 +1759,6 @@ export default function SequenceGraphEditor( {
 						onDeleteEdge={ handleDeleteTransition }
 						onAddStageFromNode={
 							isPhase ? undefined : handleAddStageFromNode
-						}
-						onInsertStageOnEdge={
-							isPhase ? undefined : handleInsertStageOnEdge
 						}
 						onPlaceStage={ handlePlaceStage }
 						onSetStageStatus={ handleSetStageStatus }

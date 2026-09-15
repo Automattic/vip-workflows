@@ -226,3 +226,26 @@ export const TUNNEL_GHOST = 0.3;
  */
 export const TUNNEL_DOT = 1;
 export const TUNNEL_DOT_GAP = 2.1;
+
+/**
+ * How wide an edge is to point at, in *screen* px — the invisible stroke React
+ * Flow lays over the line to catch the pointer.
+ *
+ * The odd unit is the point. Every other number in this file is flow px, which
+ * the viewport transform scales; a hit target measured that way is generous
+ * zoomed in and, at the zoom a whole sequence fits on screen at, thinner than
+ * the pointer can reliably be aimed, so the same edge is easy to select at one
+ * zoom and fiddly at another. `TransitionEdge` divides it by the live zoom to
+ * take it out of flow space, so this is what the pointer actually gets at every
+ * zoom. (`vector-effect: non-scaling-stroke` cannot do it: React Flow's zoom is
+ * a CSS transform outside each edge's `<svg>`.)
+ *
+ * 20 rather than more because of `EDGE_PITCH`. Every edge sits at one z-index,
+ * so where two hit bands overlap the later-painted edge takes the pointer, and
+ * once half the band reaches a bundled neighbour's line — whose lanes settle as
+ * close as `EDGE_PITCH - EDGE_GUARD_SLACK` — that neighbour is what pointing at
+ * its own line selects. 20 keeps half the band inside that gap at zoom 1.
+ * Zoomed further out the band outgrows it, but by then the lanes are a few
+ * screen px apart and are not separate things to aim at.
+ */
+export const EDGE_HIT_WIDTH = 20;

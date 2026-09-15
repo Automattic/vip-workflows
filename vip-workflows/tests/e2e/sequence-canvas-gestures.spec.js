@@ -156,6 +156,125 @@ test.describe( 'VIP Workflows — sequence canvas gestures', () => {
 		}
 	} );
 
+	test( 'transition pills keep their hit target at low zoom and select by pointer or keyboard', async ( {
+		admin,
+		page,
+		requestUtils,
+	} ) => {
+		const bp = await createTwoStageSequence( requestUtils );
+		sequenceId = bp.id;
+		await openEditor( admin, page, bp.name );
+
+		const pill = page
+			.locator( '.wf-transition-edge__pill' )
+			.filter( { hasText: 'Send to review' } );
+		const line = page.locator(
+			'.react-flow__edge[data-id="draft->review"] .react-flow__edge-interaction'
+		);
+		const viewport = page.locator( '.react-flow__viewport' );
+		const save = page.getByRole( 'button', { name: 'Save', exact: true } );
+		await expect( pill ).toHaveCount( 1 );
+		await save.hover();
+		await expect( pill ).toHaveCSS( 'opacity', '0' );
+
+		const initialBox = await pill.boundingBox();
+		const initialZoom = await viewport.evaluate(
+			( element ) =>
+				new DOMMatrix( getComputedStyle( element ).transform ).a
+		);
+		for ( let step = 0; step < 4; step++ ) {
+			await page.locator( '.react-flow__controls-zoomout' ).click();
+		}
+		await expect
+			.poll( () =>
+				viewport.evaluate(
+					( element ) =>
+						new DOMMatrix( getComputedStyle( element ).transform ).a
+				)
+			)
+			.toBeLessThan( initialZoom * 0.6 );
+		const zoomedBox = await pill.boundingBox();
+		expect( Math.abs( zoomedBox.width - initialBox.width ) ).toBeLessThan(
+			1
+		);
+		expect( Math.abs( zoomedBox.height - initialBox.height ) ).toBeLessThan(
+			1
+		);
+
+		// Hit both sides of the transparent stroke, eight SCREEN pixels away
+		// from its centre. An unscaled or clipped hit band misses at low zoom.
+		for ( const side of [ -1, 1 ] ) {
+			await save.hover();
+			await expect( pill ).toHaveCSS( 'opacity', '0' );
+			const point = await line.evaluate( ( element, direction ) => {
+				const length = element.getTotalLength();
+				const matrix = element.getScreenCTM();
+				const from = element
+					.getPointAtLength( length * 0.35 )
+					.matrixTransform( matrix );
+				const to = element
+					.getPointAtLength( length * 0.36 )
+					.matrixTransform( matrix );
+				const dx = to.x - from.x;
+				const dy = to.y - from.y;
+				const distance = Math.hypot( dx, dy );
+				return {
+					x: from.x - ( direction * 8 * dy ) / distance,
+					y: from.y + ( direction * 8 * dx ) / distance,
+				};
+			}, side );
+			await page.mouse.move( point.x, point.y );
+			await expect( pill ).toHaveCSS( 'opacity', '1' );
+		}
+
+		// The pill is portalled out of the SVG edge. Crossing that DOM boundary
+		// must keep the hover, and clicking must reach the edge's selection.
+		await pill.hover();
+		await expect( pill ).toHaveCSS( 'opacity', '1' );
+		await pill.click();
+		await expect(
+			page.locator( '.wf-edge-anchors__anchor--target' )
+		).toBeVisible();
+		await save.hover();
+		await expect( pill ).toHaveCSS( 'opacity', '1' );
+
+		// Select a stage, then use the pill from the keyboard. A focused pill
+		// must reveal itself and its WPDS focus ring before Enter opens the edge.
+		await page.locator( '.react-flow__node[data-id="draft"]' ).click();
+		await save.hover();
+		const restingShadow = await pill.evaluate(
+			( element ) => getComputedStyle( element ).boxShadow
+		);
+		await save.focus();
+		await page.keyboard.press( 'Tab' );
+		await pill.focus();
+		await expect( pill ).toBeFocused();
+		await expect( pill ).toHaveCSS( 'opacity', '1' );
+		// WordPress supplies Button's styles. Its focus indicator can be an
+		// outline or a shadow, and either must be visibly distinct from rest.
+		await expect
+			.poll( () =>
+				pill.evaluate( ( element, unfocusedShadow ) => {
+					const style = getComputedStyle( element );
+					const visibleOutline =
+						style.outlineStyle !== 'none' &&
+						parseFloat( style.outlineWidth ) > 0 &&
+						style.outlineColor !== 'transparent' &&
+						style.outlineColor !== 'rgba(0, 0, 0, 0)';
+					const visibleShadow =
+						style.boxShadow !== 'none' &&
+						style.boxShadow !== unfocusedShadow;
+					return visibleOutline || visibleShadow;
+				}, restingShadow )
+			)
+			.toBe( true );
+		await page.keyboard.press( 'Enter' );
+		await expect(
+			page.locator( '.wf-edge-anchors__anchor--target' )
+		).toBeVisible();
+		await expect( page.locator( '.wf-stage-node' ) ).toHaveCount( 2 );
+	} );
+
 	test( 'drop a connection on empty canvas to create the stage it points at', async ( {
 		admin,
 		page,

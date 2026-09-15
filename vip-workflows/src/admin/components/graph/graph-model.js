@@ -27,6 +27,10 @@ import {
 	stageRegion,
 	visibleRegions,
 } from './regions';
+import {
+	derivedTransitionLabel,
+	transitionLabel,
+} from '../../../common/transition-label';
 
 // `stageRegion` belongs with the rest of the region vocabulary, but every
 // consumer of the model reads it from here. `regionEntryStage` moved there for
@@ -110,10 +114,7 @@ export function stageLabel( stages, key ) {
  * stage's routed outcomes — and is re-exported here so graph-side consumers
  * keep importing it from the model.
  */
-export {
-	derivedTransitionLabel,
-	transitionLabel,
-} from '../../../common/transition-label';
+export { derivedTransitionLabel, transitionLabel };
 
 /**
  * The outcomes a stage agent can finish with, in reading order. A stage whose
@@ -394,6 +395,24 @@ export function buildGraph( stages, options = {} ) {
 					data: {
 						outcome,
 						disabled,
+						// The exception, and the one the canvas draws: the
+						// label on the transition's pill. Derived here rather
+						// than read off the transition, because most
+						// transitions have no stored label — `addTransition`
+						// deliberately stores none, so a renamed stage renames
+						// its buttons — and a pill bound to the raw field would
+						// be blank on nearly every edge. `transitionLabel` is
+						// the same rule `StatusManager::transition_label()`
+						// applies server-side, from the single shared copy in
+						// `src/common/transition-label.js`, so the pill says
+						// what the writer's button will say.
+						//
+						// Re-derived on every build, never stored: this is the
+						// live value, not a snapshot of one.
+						label: transitionLabel(
+							transition,
+							stageLabel( stages, transition.to )
+						),
 						// Every outcome standing on this one transition record,
 						// when more than one does — null otherwise. Two edges
 						// drawn from one record are not two things to configure:
@@ -1291,45 +1310,6 @@ export function addStageFromNode( stages, sourceKey, options = {} ) {
 	return { stages: connected, key };
 }
 
-/**
- * Insert a new stage in the middle of an edge, splitting `from → to` into
- * `from → new → to`. The original transition's configuration rides along on the
- * first hop (`from → new`); the second hop (`new → to`) is a fresh basic
- * transition.
- *
- * On an outcome edge only that outcome is re-pointed at the new stage; any other
- * outcome sharing the old destination keeps going straight there.
- *
- * The new stage joins the source's region: an insert is a step added to an
- * existing run of work, not a status change, so it shouldn't silently move the
- * post's `post_status` boundary from where the author put it.
- *
- * @param {Array}   stages            Existing stages.
- * @param {string}  from              Source stage key of the edge.
- * @param {string}  to                Target stage key of the edge.
- * @param {Object}  [options]         Insert options.
- * @param {?string} [options.outcome] Agent outcome the edge carries, if any.
- * @return {{ stages: Array, key: string }} New stages array and the new key.
- */
-export function insertStageOnEdge( stages, from, to, options = {} ) {
-	const { outcome = null } = options;
-	const source = stages.find( ( s ) => s.key === from );
-	const { stages: withStage, key } = addStage( stages, {
-		status: source ? stageRegion( source ) : DEFAULT_REGION,
-	} );
-	if ( isAgentOutcome( outcome ) ) {
-		// The original transition's configuration rides along on the first hop,
-		// the same way `rewireTransition` carries it for a plain edge — its
-		// label is left to be regenerated for the new destination.
-		const existing = findTransition( withStage, from, to );
-		const { to: _drop, label: _label, ...fields } = existing || {};
-		const rerouted = routeOutcome( withStage, from, outcome, key, fields );
-		return { stages: addTransition( rerouted, key, to ), key };
-	}
-	const rewired = rewireTransition( withStage, from, to, key );
-	return { stages: addTransition( rewired, key, to ), key };
-}
-
 // ---------------------------------------------------------------------------
 // Edge gestures — the semantics behind the canvas connect / reconnect /
 // delete-edge handlers. Kept here (pure) so the Start / End special cases are
@@ -1549,10 +1529,9 @@ export function reconnectEdge(
 		return { stages, selection: null };
 	}
 	if ( isAgentOutcome( outcome ) ) {
-		// The route's configuration rides along to the new destination, the
-		// same harvest `insertStageOnEdge` does when it re-points an outcome —
-		// its label is left to be regenerated for the new destination. Without
-		// it the route arrives on a bare transition and the roles, tools and
+		// The route's configuration rides along to the new destination — its
+		// label is left to be regenerated for the new destination. Without it
+		// the route arrives on a bare transition and the roles, tools and
 		// notifications the author set are silently gone.
 		const existing = findTransition( stages, oldFrom, oldTo );
 		const { to: _drop, label: _label, ...fields } = existing || {};
