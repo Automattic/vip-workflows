@@ -2,10 +2,9 @@
  * InspectorFieldList — an ordered list an author adds to, orders and prunes.
  *
  * Three things in this editor have that shape: a sequence's metadata fields, the
- * inputs a transition captures on its way past, and the tools a transition
- * requires. The first two are the same object at different scopes — a named,
- * typed, optionally-required place to put a value — and the third is nothing of
- * the kind, which is the point. What they share is the list, not the item, so the
+ * assignment a transition captures on its way past, and the tools a transition
+ * requires. The first two are each a configured place to put a value under a
+ * storage key, and the third is nothing of the kind, which is the point. What they share is the list, not the item, so the
  * list lives here and the differences arrive as props.
  *
  * **Two of its halves are opt-in, because only a field definition has them.** A
@@ -169,7 +168,9 @@ function FieldRow( {
 	removeLabel,
 } ) {
 	const summary = describe( item, index );
-	const configurable = Boolean( renderConfig );
+	// Per row, not per list: an item that describes itself with a `tip` has
+	// nothing to configure, even in a list whose other items do.
+	const configurable = Boolean( renderConfig ) && ! summary.tip;
 
 	return (
 		<SortableFact
@@ -313,10 +314,10 @@ export default function InspectorFieldList( {
 	//
 	// It must not carry the key for a second reason: this doubles as the row's
 	// React key, and a key derived from the item's own content changes as the
-	// item is edited. A note's storage key is built from its name, so naming one
-	// remounted the row mid-keystroke and closed the popover the name was being
-	// typed into. Row identity is where a row sits; what it holds is free to
-	// change underneath it.
+	// item is edited. A metadata field's generated key follows its label, so
+	// labelling one would remount the row mid-keystroke and pull focus out of
+	// the field being typed into. Row identity is where a row sits; what it
+	// holds is free to change underneath it.
 	const sortId = ( item, index ) => String( index );
 
 	const updateItem = ( index, changes ) => {

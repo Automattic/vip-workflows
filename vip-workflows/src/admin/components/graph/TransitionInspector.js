@@ -50,7 +50,7 @@ import {
 	SelectControl,
 	Notice,
 } from '@wordpress/components';
-import { Stack, Text } from '@wordpress/ui';
+import { Stack } from '@wordpress/ui';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { requirementText } from '../../../common/AgentRequirements';
 import { AssignmentInputConfig } from '../TransitionAssignmentConfig';
@@ -182,8 +182,14 @@ export default function TransitionInspector( {
 	// enforces (`Sequence::normalize_transition_inputs()`) — so once it has one
 	// there is nothing left to add, and the section's Add control goes, the way
 	// the Tools section's does when the site has nothing more to offer.
-	const assignmentCount = inputs.filter(
+	const hasAssignment = inputs.some(
 		( input ) => 'assignment' === input.type
+	);
+
+	// Everything else on the list is a stored input the editor sidebar no
+	// longer collects — a retired note, or a kind this build does not know.
+	const uncollectedCount = inputs.filter(
+		( input ) => 'assignment' !== input.type
 	).length;
 
 	// One row per stored id, resolved against what this site offers. Every id
@@ -291,19 +297,24 @@ export default function TransitionInspector( {
 
 	const subtitle = `${ sourceLabel } → ${ targetLabel }`;
 
-	// Collapsed-state gist, so the section reads while shut.
-	const assignmentSummary = assignmentCount
-		? sprintf(
-				/* translators: %d: how many assignments the transition captures. */
-				_n(
-					'%d assignment',
-					'%d assignments',
-					assignmentCount,
-					'vip-workflows'
-				),
-				assignmentCount
-		  )
-		: __( 'None', 'vip-workflows' );
+	// Collapsed-state gist, so the section reads while shut. An input left to
+	// remove outranks the assignment: it is the one thing in here that needs the
+	// author, and a shut section saying "None" would hide it.
+	let assignmentSummary = __( 'None', 'vip-workflows' );
+	if ( uncollectedCount ) {
+		assignmentSummary = sprintf(
+			/* translators: %d: how many stored inputs are no longer collected. */
+			_n(
+				'%d input to remove',
+				'%d inputs to remove',
+				uncollectedCount,
+				'vip-workflows'
+			),
+			uncollectedCount
+		);
+	} else if ( hasAssignment ) {
+		assignmentSummary = __( '1 assignment', 'vip-workflows' );
+	}
 
 	return (
 		<InspectorShell
@@ -567,7 +578,7 @@ export default function TransitionInspector( {
 						collapsible
 						defaultOpen={ inputs.length > 0 }
 						actions={
-							assignmentCount ? undefined : (
+							hasAssignment ? undefined : (
 								<InspectorFieldListAdd
 									addOptions={ [
 										{
@@ -595,7 +606,15 @@ export default function TransitionInspector( {
 						<InspectorFieldList
 							items={ inputs }
 							onChange={ updateInputs }
-							keyOf={ ( item ) => item.meta_key || '' }
+							// Only an assignment writes under its key, so only
+							// assignments can collide: an uncollected input
+							// writes nothing, and its stale key is no reason
+							// to flag a live assignment beside it.
+							keyOf={ ( item ) =>
+								'assignment' === item.type
+									? item.meta_key || ''
+									: ''
+							}
 							// An assignment is started the moment it exists:
 							// its key is minted with it rather than derived
 							// from anything typed, so a blank one is a stored
@@ -603,80 +622,89 @@ export default function TransitionInspector( {
 							// that said nothing would leave the author with
 							// Save switched off and no row to point at.
 							isStarted={ ( item ) => 'assignment' === item.type }
-							// A note a stored sequence still carries stays on
-							// the list, so the author can see it and remove
-							// it, but says it does nothing: the editor sidebar
-							// no longer asks for one.
-							describe={ ( item ) => ( {
-								label:
-									item.note_name ||
-									item.label ||
-									__( 'Untitled', 'vip-workflows' ),
-								value:
-									'assignment' === item.type
-										? __( 'Assignment', 'vip-workflows' )
-										: __(
+							// Anything else a stored sequence still carries —
+							// a retired note, or a kind this build does not
+							// know — stays on the list so the author can see
+							// and remove it. It has nothing to configure, so
+							// its row says why in a tip rather than opening a
+							// popover with nothing in it to focus.
+							describe={ ( item ) =>
+								'assignment' === item.type
+									? {
+											label:
+												item.label ||
+												__(
+													'Untitled',
+													'vip-workflows'
+												),
+											value: __(
+												'Assignment',
+												'vip-workflows'
+											),
+									  }
+									: {
+											label:
+												item.note_name ||
+												item.label ||
+												item.type ||
+												__(
+													'Untitled',
+													'vip-workflows'
+												),
+											value: __(
 												'No longer collected',
 												'vip-workflows'
-										  ),
-								invalid: 'assignment' !== item.type,
-							} ) }
-							renderConfig={ ( { item, update, problem } ) =>
-								'assignment' === item.type ? (
-									<>
-										{ /* The row says the key is wrong, and
-										     there is no key field to say it
-										     beside: the key is minted, so the
-										     fix is a fresh one. */ }
-										{ problem && (
-											<Notice
-												status="error"
-												isDismissible={ false }
-											>
-												{ __(
-													'This assignment has no key of its own, so the sequence can’t be saved. Remove it and add it again.',
-													'vip-workflows'
-												) }
-											</Notice>
-										) }
-										<AssignmentInputConfig
-											input={ item }
-											availableRoles={ availableRoles }
-											onUpdateInput={ ( field, value ) =>
-												update( { [ field ]: value } )
-											}
-											onToggleRoleFilter={ ( slug ) => {
-												const roles =
-													item.filter?.roles || [];
-												update( {
-													filter: {
-														...item.filter,
-														roles: roles.includes(
-															slug
-														)
-															? roles.filter(
-																	( r ) =>
-																		r !==
-																		slug
-															  )
-															: [
-																	...roles,
-																	slug,
-															  ],
-													},
-												} );
-											} }
-										/>
-									</>
-								) : (
-									<Text variant="body-sm" render={ <p /> }>
-										{ __(
-											'Notes are no longer collected when a transition is taken, so this input does nothing. Remove it.',
-											'vip-workflows'
-										) }
-									</Text>
-								)
+											),
+											tip: __(
+												'The editor no longer asks for this input when the transition is taken, so it does nothing. Remove it.',
+												'vip-workflows'
+											),
+											invalid: true,
+									  }
 							}
+							renderConfig={ ( { item, update, problem } ) => (
+								<>
+									{ /* The row says the key is wrong, and there
+									     is no key field to say it beside: the
+									     key is minted, so the fix is a fresh
+									     one. */ }
+									{ problem && (
+										<Notice
+											status="error"
+											isDismissible={ false }
+										>
+											{ __(
+												'This assignment has no key of its own, so the sequence can’t be saved. Remove it and add it again.',
+												'vip-workflows'
+											) }
+										</Notice>
+									) }
+									<AssignmentInputConfig
+										input={ item }
+										availableRoles={ availableRoles }
+										onUpdateInput={ ( field, value ) =>
+											update( { [ field ]: value } )
+										}
+										onToggleRoleFilter={ ( slug ) => {
+											const roles =
+												item.filter?.roles || [];
+											update( {
+												filter: {
+													...item.filter,
+													roles: roles.includes(
+														slug
+													)
+														? roles.filter(
+																( r ) =>
+																	r !== slug
+														  )
+														: [ ...roles, slug ],
+												},
+											} );
+										} }
+									/>
+								</>
+							) }
 							removeLabel={ __(
 								'Remove input',
 								'vip-workflows'
