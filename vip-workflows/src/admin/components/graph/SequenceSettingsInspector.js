@@ -6,17 +6,17 @@
  * name, description, post types, AI stage settings, metadata fields, delete —
  * lives here, shown when no node or edge is selected. Grouped with
  * `InspectorSection`, the same primitive the stage and transition panels use;
- * only metadata fields collapse, since that group opens into an editor of its
- * own. Delete ends the body, in the danger zone every inspector shares.
+ * stages, post statuses, and metadata fields collapse, since each opens into a
+ * list of its own. Delete ends the body, in the danger zone every inspector
+ * shares.
  *
- * **Two things the canvas owns are started from here**: adding a stage, and
- * adding a post status. Both make something on the canvas rather than editing
- * the sequence, so on the face of it neither belongs in this panel — but both
- * are about the sequence rather than about anything selected in it, and this is
- * the panel that shows when nothing is. The alternative was where they were:
- * one buried in a right-click menu, the other with no affordance at all, since
- * "drag off a handle and release over empty canvas" is not something a surface
- * can say to you.
+ * **Stages and post statuses are listed and managed here**, following the same
+ * add/remove pattern the metadata fields section uses. Stages are the steps
+ * content moves through; each row shows its name and which post status it lives
+ * in. Post statuses are the editorial regions drawn on the canvas; each row
+ * names the status and says what it does to a post. Both are canvas concepts
+ * surfaced here because both are about the sequence rather than about anything
+ * selected in it.
  *
  * @package
  */
@@ -27,10 +27,9 @@ import {
 	Spinner,
 	ToggleControl,
 } from '@wordpress/components';
-import { Stack } from '@wordpress/ui';
-import { plus } from '@wordpress/icons';
+import { Stack, Text } from '@wordpress/ui';
+import { trash } from '@wordpress/icons';
 import { __, sprintf, _n } from '@wordpress/i18n';
-import { ActionRow } from '../../../common/ActionRow';
 import InspectorShell from './InspectorShell';
 import InspectorSection from './InspectorSection';
 import InspectorDangerZone from './InspectorDangerZone';
@@ -38,6 +37,16 @@ import SequenceIdentityFields from './SequenceIdentityFields';
 import MetadataFieldsEditor, {
 	MetadataFieldsAdd,
 } from './MetadataFieldsEditor';
+import InspectorFieldList, {
+	InspectorFieldListAdd,
+} from './InspectorFieldList';
+import { Fact } from './InspectorFacts';
+import {
+	regionLabel,
+	regionDescription,
+	stageRegion,
+	DEFAULT_REGION,
+} from './regions';
 
 export default function SequenceSettingsInspector( {
 	name,
@@ -57,8 +66,15 @@ export default function SequenceSettingsInspector( {
 	onDelete,
 	deleting,
 	onAddStage,
-	onAddPostStatus,
-	canAddPostStatus,
+	stages,
+	onStagesChange,
+	onRemoveStage,
+	regions,
+	addableRegions,
+	onAddRegion,
+	onRemoveRegion,
+	onSelectNode,
+	onSelectRegion,
 } ) {
 	const fieldCount = ( metadataFields || [] ).length;
 	const metadataSummary = fieldCount
@@ -68,6 +84,50 @@ export default function SequenceSettingsInspector( {
 				fieldCount
 		  )
 		: __( 'None', 'vip-workflows' );
+
+	const stageCount = ( stages || [] ).length;
+	const stageSummary = stageCount
+		? sprintf(
+				/* translators: %d: number of stages. */
+				_n( '%d stage', '%d stages', stageCount, 'vip-workflows' ),
+				stageCount
+		  )
+		: __( 'None', 'vip-workflows' );
+
+	const regionCount = ( regions || [] ).length;
+	const regionSummary = regionCount
+		? sprintf(
+				/* translators: %d: number of post statuses. */
+				_n( '%d status', '%d statuses', regionCount, 'vip-workflows' ),
+				regionCount
+		  )
+		: __( 'None', 'vip-workflows' );
+
+	// InspectorFieldList calls onChange with the whole array for both remove
+	// and reorder. A remove delivers a shorter array — detect which stage was
+	// taken out and delegate to the full removal, which also cleans up
+	// transitions pointing at the deleted stage.
+	const handleStagesListChange = ( newList ) => {
+		if ( newList.length < stages.length ) {
+			const removed = stages.find(
+				( s ) => ! newList.some( ( n ) => n.key === s.key )
+			);
+			if ( removed ) {
+				onRemoveStage( removed.key );
+			}
+			return;
+		}
+		onStagesChange( newList );
+	};
+
+	// A region is removable when it is empty (no stage lives in it) and is
+	// not the default region (Draft), which content is created in.
+	const canRemoveRegion = ( region ) => {
+		if ( region === DEFAULT_REGION ) {
+			return false;
+		}
+		return ! ( stages || [] ).some( ( s ) => stageRegion( s ) === region );
+	};
 
 	return (
 		<InspectorShell
@@ -88,44 +148,139 @@ export default function SequenceSettingsInspector( {
 					onActiveChange={ onActiveChange }
 				/>
 
-				{ /* The canvas's two creation verbs. They are sequence-level
-				     rather than stage-level — neither one is about the stage
-				     that happens to be selected — and this is the panel that
-				     shows when nothing is. Until now the only home either had
-				     was a right-click on the canvas, which nothing announces:
-				     the status one was a menu item, and the stage one was
-				     "drag off a handle and let go over empty space". */ }
 				{ onAddStage && (
 					<InspectorSection
-						title={ __( 'Structure', 'vip-workflows' ) }
-						help={ __(
-							'Everything content moves through is drawn on the canvas. A stage added here lands in Draft with nothing leading to it yet, and opens its own panel — where its post status and the ways out of it are set.',
-							'vip-workflows'
-						) }
+						title={ __( 'Stages', 'vip-workflows' ) }
+						summary={ stageSummary }
+						collapsible
+						defaultOpen={ stageCount > 0 }
+						actions={
+							<InspectorFieldListAdd
+								addOptions={ [
+									{
+										label: __( 'Stage', 'vip-workflows' ),
+										value: 'stage',
+									},
+								] }
+								onAdd={ onAddStage }
+								label={ __( 'Add stage', 'vip-workflows' ) }
+							/>
+						}
 					>
-						<ActionRow>
-							<Button
-								__next40pxDefaultSize
-								variant="secondary"
-								icon={ plus }
-								onClick={ onAddStage }
+						<InspectorFieldList
+							items={ stages || [] }
+							onChange={ handleStagesListChange }
+							describe={ ( stage ) => ( {
+								label:
+									stage.label ||
+									__( 'Untitled', 'vip-workflows' ),
+								value: regionLabel( stageRegion( stage ) ),
+							} ) }
+							onItemSelect={
+								onSelectNode
+									? ( stage ) => onSelectNode( stage.key )
+									: undefined
+							}
+							removeLabel={ __(
+								'Remove stage',
+								'vip-workflows'
+							) }
+							emptyLabel={ __(
+								'This sequence has no stages. Add one to create the first step content moves through.',
+								'vip-workflows'
+							) }
+						/>
+					</InspectorSection>
+				) }
+
+				{ onAddStage && (
+					<InspectorSection
+						title={ __( 'Post statuses', 'vip-workflows' ) }
+						summary={ regionSummary }
+						collapsible
+						defaultOpen={ regionCount > 0 }
+						actions={
+							( addableRegions || [] ).length > 0 && (
+								<InspectorFieldListAdd
+									addOptions={ addableRegions.map(
+										( region ) => ( {
+											label: regionLabel( region ),
+											value: region,
+											description:
+												regionDescription( region ),
+										} )
+									) }
+									onAdd={ onAddRegion }
+									label={ __(
+										'Add post status',
+										'vip-workflows'
+									) }
+									alwaysMenu
+								/>
+							)
+						}
+					>
+						{ regionCount === 0 ? (
+							<Text
+								variant="body-sm"
+								render={ <p /> }
+								className="wf-inspector-section__help"
 							>
-								{ __( 'Add stage', 'vip-workflows' ) }
-							</Button>
-							<Button
-								__next40pxDefaultSize
-								variant="secondary"
-								icon={ plus }
-								onClick={ onAddPostStatus }
-								// Every status the server allows is already
-								// drawn — the same gate the canvas menu's item
-								// carries.
-								disabled={ ! canAddPostStatus }
-								accessibleWhenDisabled
+								{ __(
+									'No post statuses are in use.',
+									'vip-workflows'
+								) }
+							</Text>
+						) : (
+							<Stack
+								render={ <ul /> }
+								direction="column"
+								gap="xs"
+								className="wf-inspector__facts"
 							>
-								{ __( 'Add post status…', 'vip-workflows' ) }
-							</Button>
-						</ActionRow>
+								{ regions.map( ( region ) => (
+									<Fact
+										key={ region }
+										label={ regionLabel( region ) }
+										value={ regionDescription( region ) }
+										onSelect={
+											onSelectRegion
+												? () => onSelectRegion( region )
+												: undefined
+										}
+										selectLabel={
+											onSelectRegion
+												? sprintf(
+														/* translators: %s: the post status label (e.g. "Pending Review"). */
+														__(
+															'Select %s',
+															'vip-workflows'
+														),
+														regionLabel( region )
+												  )
+												: undefined
+										}
+										trailing={
+											canRemoveRegion( region ) ? (
+												<Button
+													icon={ trash }
+													label={ __(
+														'Remove post status',
+														'vip-workflows'
+													) }
+													showTooltip
+													onClick={ () =>
+														onRemoveRegion( region )
+													}
+													isDestructive
+													size="small"
+												/>
+											) : undefined
+										}
+									/>
+								) ) }
+							</Stack>
+						) }
 					</InspectorSection>
 				) }
 

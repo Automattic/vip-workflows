@@ -8,14 +8,15 @@
  * the kind, which is the point. What they share is the list, not the item, so the
  * list lives here and the differences arrive as props.
  *
- * **Two of its halves are opt-in, because only a field definition has them.** A
- * row opens a configuration popover when `renderConfig` says what is in it, and
- * the list polices storage keys when `keyOf` says where to find one. A required
- * tool has neither: it is an ability id chosen from a menu, with nothing to set
- * per tool and no key of its own to collide with. A list that omits both is not a
- * degraded field list — it is this list without the two things a *field* adds to
- * it, and putting a tool through either would mean inventing a configuration with
- * nothing in it or a key nobody typed.
+ * **Three of its halves are opt-in.** A row opens a configuration popover when
+ * `renderConfig` says what is in it, navigates somewhere else when
+ * `onItemSelect` says where, and the list polices storage keys when `keyOf`
+ * says where to find one. A required tool has none of the three; the sequence
+ * settings panel's stage list has only `onItemSelect` — clicking a stage
+ * selects it on the canvas, the same way clicking a transition in the stage
+ * panel does. The three are mutually compatible except that `renderConfig` and
+ * `onItemSelect` compete for the row's click: when both are present the popover
+ * wins, because a row that opens its own settings should not also navigate away.
  *
  * **The list is the surface; one item's configuration shows at a time.** Rendering
  * every field's sub-form at once is what the metadata editor used to do, and a
@@ -146,6 +147,7 @@ function keyProblems( items, keyOf, isStarted ) {
  * @param {?Object}   props.problem        Why its key would have the save refused.
  * @param {Function}  props.describe       Names the item and says what it is set to.
  * @param {?Function} [props.renderConfig] Renders the item's options, when it has any.
+ * @param {?Function} [props.onItemSelect] Selects the item elsewhere (canvas, another panel).
  * @param {boolean}   props.isOpen         Whether this row's options are showing.
  * @param {Function}  props.onToggle       Opens or shuts this row's options: ( index ).
  * @param {Function}  props.onCloseConfig  Shuts whatever is open.
@@ -161,6 +163,7 @@ function FieldRow( {
 	problem,
 	describe,
 	renderConfig,
+	onItemSelect,
 	isOpen,
 	onToggle,
 	onCloseConfig,
@@ -170,6 +173,27 @@ function FieldRow( {
 } ) {
 	const summary = describe( item, index );
 	const configurable = Boolean( renderConfig );
+	const navigable = ! configurable && Boolean( onItemSelect );
+
+	// What pressing the row does: open a config popover, select the item
+	// elsewhere (canvas / another panel), or nothing.
+	let selectHandler;
+	let selectAccessibleLabel;
+	if ( configurable ) {
+		selectHandler = () => onToggle( index );
+		selectAccessibleLabel = sprintf(
+			/* translators: %s: the item's name. */
+			__( 'Configure %s', 'vip-workflows' ),
+			summary.label
+		);
+	} else if ( navigable ) {
+		selectHandler = () => onItemSelect( item, index );
+		selectAccessibleLabel = sprintf(
+			/* translators: %s: the item's name. */
+			__( 'Select %s', 'vip-workflows' ),
+			summary.label
+		);
+	}
 
 	return (
 		<SortableFact
@@ -189,18 +213,10 @@ function FieldRow( {
 			// the popover behind this row is where it gets fixed.
 			value={ problem ? problem.short : summary.value }
 			empty={ problem ? false : Boolean( summary.empty ) }
-			tip={ configurable ? undefined : summary.tip }
-			onSelect={ configurable ? () => onToggle( index ) : undefined }
+			tip={ configurable || navigable ? undefined : summary.tip }
+			onSelect={ selectHandler }
 			expanded={ configurable ? isOpen : undefined }
-			selectLabel={
-				configurable
-					? sprintf(
-							/* translators: %s: the item's name. */
-							__( 'Configure %s', 'vip-workflows' ),
-							summary.label
-					  )
-					: undefined
-			}
+			selectLabel={ selectAccessibleLabel }
 			trailing={
 				<>
 					<Button
@@ -274,6 +290,7 @@ function FieldRow( {
  * @param {?Function} [props.isStarted]    Whether the author has begun this item.
  * @param {Function}  props.describe       Names an item and says what it is set to.
  * @param {?Function} [props.renderConfig] Renders an item's options, for lists whose items have any.
+ * @param {?Function} [props.onItemSelect] Selects an item elsewhere: ( item, index ). See `FieldRow`.
  * @param {string}    props.removeLabel    Accessible name for a row's remove button.
  * @param {string}    props.emptyLabel     What an empty list says for itself.
  * @return {JSX.Element} The list, or its empty state.
@@ -285,6 +302,7 @@ export default function InspectorFieldList( {
 	isStarted,
 	describe,
 	renderConfig,
+	onItemSelect,
 	removeLabel,
 	emptyLabel,
 } ) {
@@ -391,6 +409,7 @@ export default function InspectorFieldList( {
 							problem={ problems[ index ] }
 							describe={ describe }
 							renderConfig={ renderConfig }
+							onItemSelect={ onItemSelect }
 							isOpen={ openIndex === index }
 							onToggle={ ( target ) =>
 								setOpenIndex( ( open ) =>
