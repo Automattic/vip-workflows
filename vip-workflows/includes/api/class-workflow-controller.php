@@ -1400,7 +1400,7 @@ class WorkflowController extends WP_REST_Controller {
 
 					// Re-resolve transitions WITH the post context so region-crossing
 					// capability filtering (Sequence::get_transitions_for_user only
-					// filters crossings when a post ID is provided) and assignment
+					// filters crossings when a post ID is provided) and required-field
 					// locks apply per post. A post the user can do nothing with does
 					// not belong in their queue.
 					$post_transitions = $sequence->get_transitions_for_user( $status['key'], 0, $post->ID );

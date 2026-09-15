@@ -537,6 +537,7 @@ describe( 'WorkflowPanel transition input popover', () => {
 				acknowledge_warnings: false,
 				input_data: {
 					wfp_a1_assignee: 7,
+					wfp_a1_assignee__name: 'Assignee',
 					wfp_a1_assignee_notes: 'Please review',
 					wfp_a1_assignee_notes__name: 'Notes',
 				},
@@ -571,7 +572,8 @@ describe( 'WorkflowPanel transition input popover', () => {
 		).toBeInTheDocument();
 		expect( firedTransitions() ).toEqual( [] );
 
-		// Committing without notes sends only the assignment key.
+		// Committing without notes sends the assignment and the name its
+		// history row reads — not the minted key.
 		await act( async () => {
 			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
 		} );
@@ -583,7 +585,10 @@ describe( 'WorkflowPanel transition input popover', () => {
 			{
 				to_status: 'assigned',
 				acknowledge_warnings: false,
-				input_data: { wfp_a1_assignee: 'editor' },
+				input_data: {
+					wfp_a1_assignee: 'editor',
+					wfp_a1_assignee__name: 'Assignee',
+				},
 			},
 		] );
 	} );

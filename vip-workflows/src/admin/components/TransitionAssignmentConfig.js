@@ -78,8 +78,7 @@ function assigneeTypeOptions( assigneeType ) {
  * input it is editing, a question its caller has already answered.
  *
  * The slot key is not among the fields. It is minted when the input is added
- * and never shown: nothing an author does reads it, so there is nothing for
- * them to type or to match.
+ * and never shown, so there is nothing for an author to type or to match.
  *
  * @param {Object}   props                    Component props.
  * @param {Object}   props.input              The assignment input being configured.

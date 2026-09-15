@@ -112,7 +112,7 @@ class AssignmentManagerTest extends TestCase
     /**
      * An assignment nobody supplied a value for is skipped rather than written
      * empty — the writer dismissed the picker, and a slot holding nothing would
-     * satisfy no gate while looking like it had been filled.
+     * name no assignee while looking like it had been filled.
      */
     public function test_process_transition_input_skips_an_assignment_with_no_value(): void
     {

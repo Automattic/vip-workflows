@@ -415,9 +415,8 @@ export default function StageInspector( {
 		}
 		return {
 			short: __( 'Needs attention', 'vip-workflows' ),
-			// One row, one line. A transition holding two faults at once is
-			// possible (a slot with no key and a gate with no key), and the
-			// first is the one to fix first.
+			// One row, one line. A transition can hold more than one fault at
+			// once, and the first is the one to fix first.
 			full: messages[ 0 ],
 		};
 	};
