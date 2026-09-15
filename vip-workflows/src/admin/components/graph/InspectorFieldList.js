@@ -443,18 +443,30 @@ export default function InspectorFieldList( {
  * about it. A menu exists so an author can read before choosing; an option
  * carrying a description — or a reason it is barred — has something to be read,
  * and a bare `+` that silently commits to it would be answering a question it
- * never asked.
+ * never asked. `alwaysMenu` says the option's name is itself that thing — a
+ * destination, say, which a bare `+` would add without ever naming.
  *
- * @param {Object}   props            Component props.
- * @param {Array}    props.addOptions What can be added: `{ label, value, description?, disabled? }`.
- * @param {Function} props.onAdd      Adds one: ( optionValue ).
- * @param {string}   props.label      Accessible name for the control.
+ * @param {Object}   props              Component props.
+ * @param {Array}    props.addOptions   What can be added: `{ label, value, description?, disabled? }`.
+ * @param {Function} props.onAdd        Adds one: ( optionValue ).
+ * @param {string}   props.label        Accessible name for the control.
+ * @param {boolean}  [props.alwaysMenu] Never collapse one option to a button.
  * @return {JSX.Element} The add control.
  */
-export function InspectorFieldListAdd( { addOptions, onAdd, label } ) {
+export function InspectorFieldListAdd( {
+	addOptions,
+	onAdd,
+	label,
+	alwaysMenu = false,
+} ) {
 	const [ only ] = addOptions;
 
-	if ( 1 === addOptions.length && ! only.description && ! only.disabled ) {
+	if (
+		! alwaysMenu &&
+		1 === addOptions.length &&
+		! only.description &&
+		! only.disabled
+	) {
 		return (
 			<Button
 				icon={ plus }

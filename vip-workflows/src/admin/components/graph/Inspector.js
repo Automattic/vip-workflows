@@ -21,7 +21,7 @@
 
 import { useState, useMemo, useCallback, useEffect } from '@wordpress/element';
 import { Stack, Text } from '@wordpress/ui';
-import { __ } from '@wordpress/i18n';
+import { __, sprintf } from '@wordpress/i18n';
 
 import InspectorShell, { InspectorCollapseContext } from './InspectorShell';
 import StageInspector from './StageInspector';
@@ -35,6 +35,7 @@ import {
 	stageLabel,
 	isTransitionDisabled,
 	outcomesRoutedTo,
+	canReconnect,
 	publishSettingFixesRoute,
 	START_ID,
 	END_ID,
@@ -119,12 +120,18 @@ function renderPanel( {
 	availableTools,
 	toolsLoaded,
 	availableChannels,
+	regions = [],
 	onUpdateStage,
 	onDeleteStage,
 	onUpdateTransition,
 	onDeleteTransition,
+	onConnectTransition,
+	onReconnectTransition,
+	onSelectNode,
 	onSelectEdge,
+	onSelectRegion,
 	onSetRegionEntry,
+	onSetStageStatus,
 	onRemoveRegion,
 	// Everything the sequence-level panel edits, passed through whole — see
 	// SequenceSettingsInspector for the shape.
@@ -162,9 +169,54 @@ function renderPanel( {
 		if ( isPhase ) {
 			return <PhaseStageInspector stage={ selectedStage } />;
 		}
+
+		// Where a new exit could go: every other stage this one does not
+		// already reach, and the flow's exit when it isn't already final. A
+		// stage holds at most one transition per target — a server invariant —
+		// so a destination already connected is not a second exit to add, it is
+		// the one listed in the rows below.
+		const connected = new Set(
+			( selectedStage.transitions || [] ).map( ( t ) => t.to )
+		);
+		const others = stages.filter( ( s ) => s.key !== selectedStage.key );
+		const nameOf = ( key ) => ( {
+			label: stageLabel( stages, key ),
+			value: key,
+		} );
+		const exitOptions = [
+			...others
+				.filter( ( s ) => ! connected.has( s.key ) )
+				.map( ( s ) => nameOf( s.key ) ),
+			...( selectedStage.is_terminal
+				? []
+				: [
+						{
+							label: __( 'End of workflow', 'vip-workflows' ),
+							value: END_ID,
+						},
+				  ] ),
+		];
+		// An outcome routes to a stage and nothing else, and two of them may
+		// share one — so every other stage is a candidate here, including the
+		// ones this stage already reaches.
+		const outcomeOptions = others.map( ( s ) => nameOf( s.key ) );
+		// Those mutations are the canvas's, and move the selection the way a
+		// gesture does: onto the new edge, or off everything. Asked from this
+		// panel the author is still on the stage, so it is selected again in the
+		// same batch — the panel never unmounts, and focus stays on the control.
+		const onStage =
+			( mutate ) =>
+			( ...args ) => {
+				mutate( ...args );
+				onSelectNode( selectedStage.key );
+			};
+
 		return (
 			<StageInspector
 				stage={ selectedStage }
+				regions={ regions }
+				exitOptions={ exitOptions }
+				outcomeOptions={ outcomeOptions }
 				availableAgents={ availableAgents }
 				resolveStageLabel={ ( key ) => stageLabel( stages, key ) }
 				stageExists={ ( key ) => stages.some( ( s ) => s.key === key ) }
@@ -188,6 +240,43 @@ function renderPanel( {
 				// own panel, so it hands the selection back to the editor
 				// exactly as the canvas does — same function, same edge ids.
 				onSelectEdge={ onSelectEdge }
+				// And the checkpoint row is a way into the region's panel,
+				// which is where that one setting lives.
+				onSelectRegion={ onSelectRegion }
+				onSetStatus={ ( region ) =>
+					onSetStageStatus( selectedStage.key, region )
+				}
+				// Adding an exit and routing an outcome are the same mutation
+				// the canvas runs when a connection is dropped — the model
+				// knows what a drop on End means, and what a source handle
+				// carrying an outcome means, so neither is restated here.
+				onAddExit={ onStage( ( target ) =>
+					onConnectTransition( selectedStage.key, target, null )
+				) }
+				// An outcome that already leads somewhere is *moved*, the way
+				// dragging its edge's endpoint moves it — the transition's
+				// settings go with it, as the To select on that edge does.
+				onRouteOutcome={ onStage( ( outcome, target ) => {
+					const current = selectedStage.agent?.routing?.[ outcome ];
+					return current
+						? onReconnectTransition(
+								selectedStage.key,
+								current,
+								selectedStage.key,
+								target,
+								outcome
+						  )
+						: onConnectTransition(
+								selectedStage.key,
+								target,
+								outcome
+						  );
+				} ) }
+				// An outcome is cleared by name; `disconnectEdge` never reads
+				// the target for one.
+				onClearOutcome={ onStage( ( outcome ) =>
+					onDeleteTransition( selectedStage.key, null, outcome )
+				) }
 				canDelete={ stages.length > 1 }
 			/>
 		);
@@ -237,6 +326,62 @@ function renderPanel( {
 		// editing both of them — which it has to say, since the canvas draws one
 		// edge per outcome and each looks like a transition of its own.
 		const sharing = outcomesRoutedTo( sourceStage, selection.to );
+		const edgeOutcome = selection.outcome || null;
+		const sourceLabel = stageLabel( stages, selection.from );
+		const targetLabel = stageLabel( stages, selection.to );
+
+		// Where this edge's ends could move to, asked of the model one
+		// candidate at a time. `canReconnect` is the same predicate the canvas
+		// paints its held-endpoint verdict with, so a destination missing from
+		// this list is one a drag would have refused too. The current end stays
+		// in its place in stage order rather than leading the list: a select
+		// commits on every change, and one that re-sorted itself around the
+		// value just picked would send an arrow key back where it came from.
+		//
+		// Phase sequences are left out: their hand-offs are fixed pairs the
+		// server decides (`isValidConnection`), not something this panel may
+		// re-point.
+		const endLabel = ( key ) =>
+			key === END_ID
+				? __( 'End of workflow', 'vip-workflows' )
+				: stageLabel( stages, key );
+		const movesTo = ( end ) => {
+			const current = 'source' === end ? selection.from : selection.to;
+			// A dangling transition is still editable from the stage's exit
+			// list. Keep its missing destination selected until the author
+			// repairs it, rather than letting the select display a real stage
+			// that the transition does not reach.
+			const missing = ! stages.some( ( stage ) => stage.key === current );
+			const candidates = [
+				...stages.map( ( s ) => s.key ),
+				...( 'target' === end ? [ END_ID ] : [] ),
+			];
+			return [ ...( missing ? [ current ] : [] ), ...candidates ]
+				.filter(
+					( key ) =>
+						key === current ||
+						canReconnect(
+							stages,
+							selection.from,
+							selection.to,
+							'source' === end ? key : selection.from,
+							'source' === end ? selection.to : key,
+							edgeOutcome
+						)
+				)
+				.map( ( key ) => ( {
+					label:
+						missing && key === current
+							? sprintf(
+									/* translators: %s: stage key that no longer exists. */
+									__( '%s (missing)', 'vip-workflows' ),
+									key
+							  )
+							: endLabel( key ),
+					value: key,
+				} ) );
+		};
+
 		const disabled =
 			!! sourceStage &&
 			isTransitionDisabled(
@@ -248,9 +393,25 @@ function renderPanel( {
 		return (
 			<TransitionInspector
 				transition={ selectedTransition }
-				sourceLabel={ stageLabel( stages, selection.from ) }
-				targetLabel={ stageLabel( stages, selection.to ) }
-				outcome={ selection.outcome || null }
+				from={ selection.from }
+				to={ selection.to }
+				fromOptions={ isPhase ? [] : movesTo( 'source' ) }
+				toOptions={ isPhase ? [] : movesTo( 'target' ) }
+				onRepoint={
+					isPhase
+						? undefined
+						: ( newFrom, newTo ) =>
+								onReconnectTransition(
+									selection.from,
+									selection.to,
+									newFrom,
+									newTo,
+									edgeOutcome
+								)
+				}
+				sourceLabel={ sourceLabel }
+				targetLabel={ targetLabel }
+				outcome={ edgeOutcome }
 				sharedOutcomes={ sharing.length > 1 ? sharing : null }
 				disabled={ disabled }
 				// Disabled with an outcome routed along it can only be the

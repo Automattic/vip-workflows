@@ -250,13 +250,24 @@ test.describe( 'VIP Workflows — sequence canvas gestures', () => {
 		await pill.focus();
 		await expect( pill ).toBeFocused();
 		await expect( pill ).toHaveCSS( 'opacity', '1' );
+		// WordPress supplies Button's styles. Its focus indicator can be an
+		// outline or a shadow, and either must be visibly distinct from rest.
 		await expect
 			.poll( () =>
-				pill.evaluate(
-					( element ) => getComputedStyle( element ).boxShadow
-				)
+				pill.evaluate( ( element, unfocusedShadow ) => {
+					const style = getComputedStyle( element );
+					const visibleOutline =
+						style.outlineStyle !== 'none' &&
+						parseFloat( style.outlineWidth ) > 0 &&
+						style.outlineColor !== 'transparent' &&
+						style.outlineColor !== 'rgba(0, 0, 0, 0)';
+					const visibleShadow =
+						style.boxShadow !== 'none' &&
+						style.boxShadow !== unfocusedShadow;
+					return visibleOutline || visibleShadow;
+				}, restingShadow )
 			)
-			.not.toBe( restingShadow );
+			.toBe( true );
 		await page.keyboard.press( 'Enter' );
 		await expect(
 			page.locator( '.wf-edge-anchors__anchor--target' )

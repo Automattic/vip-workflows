@@ -43,6 +43,7 @@ import {
 	fireEvent,
 	waitFor,
 	within,
+	act,
 } from './helpers/render-wp-component';
 
 import { isTransitionDisabled } from '../../src/admin/components/graph/graph-model';
@@ -93,21 +94,80 @@ function pickAgent( name ) {
 }
 
 describe( 'StageInspector and the stage’s place on the canvas', () => {
-	// Where a stage sits is said by the canvas: the status region section it is
-	// in, and the boundary line it straddles when it holds that region's entry
-	// checkpoint. Both were once editable here too, which made the panel a
-	// second, mutable copy of what the canvas already showed. Dragging is the
-	// gesture now, and `RegionInspector` names the checkpoint from the region's
-	// side — so neither control belongs on the stage.
-	it( 'offers no post status control', () => {
-		renderInspector( stage( { status: 'publish' } ) );
+	// Where a stage sits is *shown* by the canvas: the status section it is in,
+	// and the boundary line it straddles when it holds that region's entry
+	// checkpoint. Position displays both. It is no longer the only way to set
+	// either — a canvas whose settings answer only to a drag has no answer at
+	// all for an author who cannot make one.
+	//
+	// The two did not land in the same place, and that split is what these pin.
+	// A status is a property of the stage, so it is a control here, beside the
+	// label and the color. A checkpoint is a property of the region — one of
+	// its stages seats what arrives from outside, exactly one — so it stays a
+	// single picker on the region, and this panel reports it and opens that.
+	const factRow = ( name ) => screen.getByText( name ).closest( 'li' );
+	const statusPicker = () =>
+		screen.getByRole( 'combobox', { name: 'Post status' } );
 
-		expect(
-			screen.queryByRole( 'combobox', { name: 'Status' } )
-		).not.toBeInTheDocument();
+	it( 'sets the post status without a drag', () => {
+		const onSetStatus = jest.fn();
+		renderInspector( stage( { status: 'publish' } ), jest.fn(), {
+			regions: [ 'draft', 'publish' ],
+			onSetStatus,
+		} );
+
+		expect( statusPicker() ).toHaveValue( 'publish' );
+		fireEvent.change( statusPicker(), { target: { value: 'draft' } } );
+		expect( onSetStatus ).toHaveBeenCalledWith( 'draft' );
 	} );
 
-	it( 'offers no entry-checkpoint control', () => {
+	it( 'offers only the statuses the canvas is drawing', () => {
+		// A status with no band has nowhere to put the node. Adding one is the
+		// sequence panel's verb, not a side effect of moving a stage.
+		renderInspector( stage( { status: 'draft' } ), jest.fn(), {
+			regions: [ 'draft', 'pending' ],
+		} );
+
+		expect(
+			within( statusPicker() )
+				.getAllByRole( 'option' )
+				.map( ( option ) => option.textContent )
+		).toEqual( [ 'Draft', 'Pending Review' ] );
+	} );
+
+	it( 'falls back to the status a stage with none will be stored with', () => {
+		// The server persists a stage carrying no `status` as draft, so an
+		// unsaved or legacy one reads as the region it will land in, not blank.
+		renderInspector( stage(), jest.fn(), { regions: [ 'draft' ] } );
+
+		expect( statusPicker() ).toHaveValue( 'draft' );
+	} );
+
+	it( 'says what moving a checkpoint stage costs before it is moved', () => {
+		// `setStageStatus` frees the checkpoint of the region being left —
+		// right, and invisible from a control, where the drag it mirrors let
+		// the author watch the node come off the boundary line. Save is blocked
+		// while a region has none, so this is said in advance.
+		renderInspector(
+			stage( { status: 'publish', region_entry: true } ),
+			jest.fn(),
+			{ regions: [ 'draft', 'publish' ] }
+		);
+
+		expect(
+			screen.getByText( /no entry checkpoint/i )
+		).toBeInTheDocument();
+	} );
+
+	it( 'says nothing of the sort on a stage that holds no checkpoint', () => {
+		renderInspector( stage( { status: 'publish' } ), jest.fn(), {
+			regions: [ 'draft', 'publish' ],
+		} );
+
+		expect( screen.queryByText( /no entry checkpoint/i ) ).toBeNull();
+	} );
+
+	it( 'offers no entry-checkpoint control of its own', () => {
 		renderInspector( stage( { status: 'publish', region_entry: true } ) );
 
 		expect(
@@ -115,23 +175,19 @@ describe( 'StageInspector and the stage’s place on the canvas', () => {
 		).not.toBeInTheDocument();
 	} );
 
-	// Setting both by dragging is one thing; checking them by reading the canvas
-	// back is another. The panel says what the selected stage is currently set
-	// to, in text, without any of it being a control.
-	const factRow = ( name ) => screen.getByText( name ).closest( 'li' );
+	it( 'opens the region’s panel, where the checkpoint is set', () => {
+		const onSelectRegion = jest.fn();
+		renderInspector( stage( { status: 'publish' } ), jest.fn(), {
+			onSelectRegion,
+		} );
 
-	it( 'names the post status the stage sits in', () => {
-		renderInspector( stage( { status: 'publish' } ) );
-
-		expect( factRow( 'Post status' ) ).toHaveTextContent( 'Published' );
-	} );
-
-	it( 'falls back to the status a stage with none will be stored with', () => {
-		// The server persists a stage carrying no `status` as draft, so an
-		// unsaved or legacy one reads as the region it will land in, not blank.
-		renderInspector( stage() );
-
-		expect( factRow( 'Post status' ) ).toHaveTextContent( 'Draft' );
+		fireEvent.click(
+			within( factRow( 'Entry checkpoint' ) ).getByRole( 'button', {
+				// The value is in the name: a button's label replaces its text.
+				name: /^Entry checkpoint: No\. Open the “Published” post status options/,
+			} )
+		);
+		expect( onSelectRegion ).toHaveBeenCalledWith( 'publish' );
 	} );
 
 	it( 'says whether the stage holds its status’s entry checkpoint', () => {
@@ -144,33 +200,6 @@ describe( 'StageInspector and the stage’s place on the canvas', () => {
 		renderInspector( stage( { status: 'publish' } ) );
 
 		expect( factRow( 'Entry checkpoint' ) ).toHaveTextContent( 'No' );
-	} );
-
-	// The section prose these replace explained two settings in one paragraph
-	// above both of them. A tooltip belongs to one parameter, so the paragraph
-	// had to split — and a read-out row is two `<Text>`s with nothing to hover
-	// and nothing to focus, so each needed a real trigger built for it.
-	it( 'explains the post status through a focusable trigger, not hover text', () => {
-		renderInspector( stage( { status: 'publish' } ) );
-
-		const trigger = within( factRow( 'Post status' ) ).getByRole(
-			'button',
-			{
-				name: 'About Post status',
-			}
-		);
-		// A button, so hover is not the only way in.
-		expect( trigger ).toBeEnabled();
-	} );
-
-	it( 'explains the entry checkpoint separately, on its own row', () => {
-		renderInspector( stage( { status: 'publish' } ) );
-
-		expect(
-			within( factRow( 'Entry checkpoint' ) ).getByRole( 'button', {
-				name: 'About Entry checkpoint',
-			} )
-		).toBeEnabled();
 	} );
 } );
 
@@ -246,11 +275,12 @@ describe( 'StageInspector transition read-out', () => {
 		renderInspector( stage( { transitions: [] } ) );
 
 		// No heading above it supplies the subject any more, so the sentence
-		// has to name what is empty itself — and it carries the instruction for
-		// adding a transition, which is most needed on exactly this stage.
+		// has to name what is empty itself — and it carries both ways of
+		// filling it, which are most needed on exactly this stage. The drag is
+		// named second now: it is the one an author might not be able to make.
 		expect(
 			screen.getByText( /Nothing leaves this stage yet/ )
-		).toHaveTextContent( 'Drag from one of its handles on the canvas' );
+		).toHaveTextContent( 'Add an exit above, or drag from one of the' );
 	} );
 
 	it( 'marks a transition the stage’s agent has taken over', () => {
@@ -663,7 +693,7 @@ describe( 'StageInspector AI-stage config', () => {
 		).toBeInTheDocument();
 	} );
 
-	it( 'reads back where each outcome leads instead of offering routing controls', () => {
+	it( 'reads back where each outcome leads, on one row per outcome', () => {
 		renderInspector(
 			stage( {
 				agent: {
@@ -679,8 +709,9 @@ describe( 'StageInspector AI-stage config', () => {
 		// All three outcomes are listed. The two unrouted ones read by their
 		// bare outcome names; the routed one has absorbed the transition it
 		// travels, so its row is the transition's name qualified by the
-		// outcome. None of them is a control — the routes are drawn on the
-		// canvas.
+		// outcome. The row itself stays a read-out — where the outcome leads is
+		// picked from the control beside it (see the routing describe below),
+		// not by editing the row's own text.
 		for ( const label of [ 'On pass', 'On fail' ] ) {
 			expect( screen.getByText( label ) ).toBeInTheDocument();
 			expect(
@@ -703,6 +734,184 @@ describe( 'StageInspector AI-stage config', () => {
 		);
 
 		expect( screen.getByText( 'deleted (missing)' ) ).toBeInTheDocument();
+	} );
+} );
+
+describe( 'StageInspector exits, without a drag', () => {
+	// Every gesture that makes an exit names a *second* stage, which is what a
+	// drag is good at and a menu item is not. So the destination is picked from
+	// a control on the panel: a plain stage adds an exit to one of the places it
+	// could go, and an AI stage — whose outcomes are its only ways out — picks a
+	// destination on each outcome's own row.
+	const DESTINATIONS = [
+		{ label: 'Done', value: 'done' },
+		{ label: 'Archive', value: 'archive' },
+	];
+
+	async function openMenu( name ) {
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name } ) );
+		} );
+	}
+
+	it( 'adds an exit to a destination picked from the panel', async () => {
+		const onAddExit = jest.fn();
+		renderInspector( stage( { transitions: [] } ), jest.fn(), {
+			exitOptions: [
+				...DESTINATIONS,
+				{ label: 'End of workflow', value: '__wf_end__' },
+			],
+			onAddExit,
+		} );
+
+		await openMenu( 'Add exit' );
+		fireEvent.click( screen.getByRole( 'menuitem', { name: 'Archive' } ) );
+
+		expect( onAddExit ).toHaveBeenCalledWith( 'archive' );
+	} );
+
+	it( 'offers the flow’s exit among them, so final is not a drag either', async () => {
+		renderInspector( stage( { transitions: [] } ), jest.fn(), {
+			exitOptions: [
+				...DESTINATIONS,
+				{ label: 'End of workflow', value: '__wf_end__' },
+			],
+			onAddExit: jest.fn(),
+		} );
+
+		await openMenu( 'Add exit' );
+
+		expect(
+			screen.getByRole( 'menuitem', { name: 'End of workflow' } )
+		).toBeInTheDocument();
+	} );
+
+	it( 'offers nothing to add when there is nowhere left to go', () => {
+		// Every other stage already reached, and the stage already final.
+		renderInspector( stage(), jest.fn(), {
+			exitOptions: [],
+			onAddExit: jest.fn(),
+		} );
+
+		expect(
+			screen.queryByRole( 'button', { name: 'Add exit' } )
+		).toBeNull();
+	} );
+
+	it( 'gives an AI stage no add control — its outcomes are its exits', () => {
+		renderInspector(
+			stage( {
+				agent: {
+					ability_id: 'workflow-agent-copy-edit/copy-edit',
+					routing: {},
+				},
+			} ),
+			jest.fn(),
+			{ exitOptions: DESTINATIONS, onAddExit: jest.fn() }
+		);
+
+		expect(
+			screen.queryByRole( 'button', { name: 'Add exit' } )
+		).toBeNull();
+	} );
+
+	it( 'routes an outcome from its own row', async () => {
+		const onRouteOutcome = jest.fn();
+		renderInspector(
+			stage( {
+				agent: {
+					ability_id: 'workflow-agent-copy-edit/copy-edit',
+					routing: {},
+				},
+			} ),
+			jest.fn(),
+			{
+				outcomeOptions: DESTINATIONS,
+				onRouteOutcome,
+				onClearOutcome: jest.fn(),
+			}
+		);
+
+		await openMenu( 'Route On pass' );
+		fireEvent.click(
+			screen.getByRole( 'menuitemradio', { name: 'Done' } )
+		);
+
+		expect( onRouteOutcome ).toHaveBeenCalledWith( 'pass', 'done' );
+	} );
+
+	it( 'checks the destination an outcome already has', async () => {
+		renderInspector(
+			stage( {
+				agent: {
+					ability_id: 'workflow-agent-copy-edit/copy-edit',
+					routing: { pass: 'done' },
+				},
+			} ),
+			jest.fn(),
+			{
+				outcomeOptions: DESTINATIONS,
+				onRouteOutcome: jest.fn(),
+				onClearOutcome: jest.fn(),
+			}
+		);
+
+		await openMenu( 'Route On pass' );
+
+		expect(
+			screen.getByRole( 'menuitemradio', { name: 'Done' } )
+		).toHaveAttribute( 'aria-checked', 'true' );
+		expect(
+			screen.getByRole( 'menuitemradio', { name: 'Archive' } )
+		).toHaveAttribute( 'aria-checked', 'false' );
+	} );
+
+	it( 'un-routes one that leads somewhere', async () => {
+		const onClearOutcome = jest.fn();
+		renderInspector(
+			stage( {
+				agent: {
+					ability_id: 'workflow-agent-copy-edit/copy-edit',
+					routing: { pass: 'done' },
+				},
+			} ),
+			jest.fn(),
+			{
+				outcomeOptions: DESTINATIONS,
+				onRouteOutcome: jest.fn(),
+				onClearOutcome,
+			}
+		);
+
+		await openMenu( 'Route On pass' );
+		fireEvent.click(
+			screen.getByRole( 'menuitem', { name: 'Not routed' } )
+		);
+
+		expect( onClearOutcome ).toHaveBeenCalledWith( 'pass' );
+	} );
+
+	it( 'offers no "not routed" on an outcome that leads nowhere already', async () => {
+		renderInspector(
+			stage( {
+				agent: {
+					ability_id: 'workflow-agent-copy-edit/copy-edit',
+					routing: {},
+				},
+			} ),
+			jest.fn(),
+			{
+				outcomeOptions: DESTINATIONS,
+				onRouteOutcome: jest.fn(),
+				onClearOutcome: jest.fn(),
+			}
+		);
+
+		await openMenu( 'Route On fail' );
+
+		expect(
+			screen.queryByRole( 'menuitem', { name: 'Not routed' } )
+		).toBeNull();
 	} );
 } );
 
@@ -805,7 +1014,7 @@ describe( 'StageInspector panel structure', () => {
 		).toBeInTheDocument();
 		expect( within( exits ).getByText( 'Archive' ) ).toBeInTheDocument();
 		// And apart from the facts about the stage itself, which keep their own.
-		expect( within( exits ).queryByText( 'Post status' ) ).toBeNull();
+		expect( within( exits ).queryByText( 'Entry checkpoint' ) ).toBeNull();
 	} );
 
 	it( 'keeps label and color open in place', () => {
