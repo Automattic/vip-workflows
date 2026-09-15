@@ -23,6 +23,7 @@ import StageInspector from '../../src/admin/components/graph/StageInspector';
 import {
 	buildGraph,
 	edgeId,
+	isTransitionDisabled,
 	validateSequence,
 } from '../../src/admin/components/graph/graph-model';
 
@@ -261,6 +262,9 @@ describe( 'the stage panel flags the exit at fault', () => {
 					key === 'done' ? 'Done' : key
 				}
 				stageExists={ () => true }
+				isTransitionDisabled={ ( to ) =>
+					isTransitionDisabled( stage, to, [ stage ], false )
+				}
 				onChange={ () => {} }
 				onDelete={ () => {} }
 				onSelectEdge={ () => {} }
@@ -358,6 +362,7 @@ describe( 'the stage panel flags the exit at fault', () => {
 				availableAgents={ [] }
 				resolveStageLabel={ ( key ) => key }
 				stageExists={ () => false }
+				isTransitionDisabled={ () => false }
 				onChange={ () => {} }
 				onDelete={ () => {} }
 				onSelectEdge={ () => {} }
