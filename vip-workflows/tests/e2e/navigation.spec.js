@@ -19,8 +19,8 @@ test.describe( 'VIP Workflows — navigation', () => {
 		const root = page.locator( '#vip-workflows-root' );
 		await expect( root ).toBeAttached();
 		await expect( root ).not.toBeEmpty();
-		// Not the "Coming Soon" fallback — the bare slug must route to My Dashboard.
-		await expect( root ).not.toContainText( 'Coming Soon' );
+		// Not the "Coming soon" fallback — the bare slug must route to My Dashboard.
+		await expect( root ).not.toContainText( 'Coming soon' );
 		// The native wp-admin Workflows submenu lists My Dashboard.
 		await expect(
 			page
@@ -44,7 +44,7 @@ test.describe( 'VIP Workflows — navigation', () => {
 			const root = page.locator( '#vip-workflows-root' );
 			await expect( root ).toBeAttached();
 			await expect( root ).not.toBeEmpty();
-			await expect( root ).not.toContainText( 'Coming Soon' );
+			await expect( root ).not.toContainText( 'Coming soon' );
 		} );
 	}
 

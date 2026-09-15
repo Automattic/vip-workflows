@@ -68,9 +68,9 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
     public function data_abilities(): array
     {
         return array(
-            'update'   => array( 'vip-workflows/update-sequence', 'Update Sequence' ),
-            'activate' => array( 'vip-workflows/activate-sequence', 'Activate Sequence' ),
-            'validate' => array( 'vip-workflows/validate-sequence', 'Validate Sequence' ),
+            'update'   => array( 'vip-workflows/update-sequence', 'Update sequence' ),
+            'activate' => array( 'vip-workflows/activate-sequence', 'Activate sequence' ),
+            'validate' => array( 'vip-workflows/validate-sequence', 'Validate sequence' ),
         );
     }
 

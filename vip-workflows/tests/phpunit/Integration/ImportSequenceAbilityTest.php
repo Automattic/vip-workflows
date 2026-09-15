@@ -1,6 +1,6 @@
 <?php
 /**
- * Execute-path coverage for the Import Sequence ability.
+ * Execute-path coverage for the Import sequence ability.
  *
  * Runs in the integration suite so execute_import_sequence() exercises the real
  * SequencesController::import_sequence() path against a booted WordPress + DB.
@@ -17,7 +17,7 @@ use VIPWorkflows\Sequences\SequenceRepository;
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/import-sequence.php';
 
 /**
- * Tests the Import Sequence ability execute callback end to end.
+ * Tests the Import sequence ability execute callback end to end.
  */
 class ImportSequenceAbilityTest extends TestCase
 {

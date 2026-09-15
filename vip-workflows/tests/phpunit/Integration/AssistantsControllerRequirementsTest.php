@@ -188,7 +188,7 @@ class AssistantsControllerRequirementsTest extends TestCase
         $requirement = $groups[0]['requirements'][0];
         $this->assertSame( 'credential:tavily', $requirement['id'] );
         $this->assertSame( Requirement::KIND_MISSING_CREDENTIAL, $requirement['kind'] );
-        $this->assertSame( array( 'Web Researcher' ), $requirement['sources'] );
+        $this->assertSame( array( 'Web researcher' ), $requirement['sources'] );
     }
 
     public function test_availability_is_serialized_rather_than_json_encoded_as_an_object(): void

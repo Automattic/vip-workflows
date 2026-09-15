@@ -768,7 +768,8 @@ export function TransitionRail( {
 			setHelperModal( null );
 		} catch ( err ) {
 			createErrorNotice(
-				err.message || __( 'Failed to apply.', 'vip-workflows' ),
+				err.message ||
+					__( 'Could not apply the result.', 'vip-workflows' ),
 				{ type: 'snackbar' }
 			);
 		} finally {
@@ -1150,7 +1151,7 @@ export function TransitionRail( {
 							className="vip-workflows-rail__stage"
 						>
 							{ isCompleted
-								? __( 'Workflow Completed', 'vip-workflows' )
+								? __( 'Workflow completed', 'vip-workflows' )
 								: shownStage?.label }
 						</Text>
 						{ /* Core visibility, which the stage does not imply: a

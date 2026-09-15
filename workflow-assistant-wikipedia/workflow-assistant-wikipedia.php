@@ -64,7 +64,7 @@ function register(): void {
 				'show_in_commands'    => false,
 				'transition_eligible' => false,
 				'icon'                => 'page',
-				'thinking_message'    => __( 'Searching Wikipedia...', 'workflow-assistant-wikipedia' ),
+				'thinking_message'    => __( 'Searching Wikipedia…', 'workflow-assistant-wikipedia' ),
 				'success_message'     => __( 'Wikipedia search complete.', 'workflow-assistant-wikipedia' ),
 			),
 		)

@@ -1,6 +1,6 @@
 <?php
 /**
- * Registration-contract tests for the Import Sequence ability.
+ * Registration-contract tests for the Import sequence ability.
  *
  * @package VIPWorkflows\Tests\Unit
  */
@@ -14,7 +14,7 @@ use Brain\Monkey\Functions;
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/import-sequence.php';
 
 /**
- * Tests that the Import Sequence ability registers with the expected contract.
+ * Tests that the Import sequence ability registers with the expected contract.
  */
 class ImportSequenceAbilityRegistrationTest extends TestCase
 {
@@ -45,7 +45,7 @@ class ImportSequenceAbilityRegistrationTest extends TestCase
         $this->assertArrayHasKey( 'vip-workflows/import-sequence', $this->registered );
         $args = $this->registered['vip-workflows/import-sequence'];
 
-        $this->assertSame( 'Import Sequence', $args['label'] );
+        $this->assertSame( 'Import sequence', $args['label'] );
         $this->assertStringContainsStringIgnoringCase( 'sequence', $args['description'] );
         $this->assertStringNotContainsStringIgnoringCase( 'blueprint', $args['description'] );
         $this->assertSame( array( 'sequence_json' ), $args['input_schema']['required'] );

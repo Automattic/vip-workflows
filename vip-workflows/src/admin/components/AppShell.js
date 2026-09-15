@@ -193,7 +193,7 @@ export default function AppShell() {
 		// Default fallback
 		return (
 			<AdminPage
-				title={ __( 'Coming Soon', 'vip-workflows' ) }
+				title={ __( 'Coming soon', 'vip-workflows' ) }
 				subtitle={ __(
 					'This page is being migrated to the new design.',
 					'vip-workflows'

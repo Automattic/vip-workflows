@@ -289,20 +289,22 @@ list of names before it reads as a wall of forms.
 
 ## Fields and helper text
 
-### Every control's helper text goes in `help`
+### A control's helper text goes in `help`
 
 ```jsx
-<ToggleControl
+<TextControl
+	__next40pxDefaultSize
 	__nextHasNoMarginBottom
-	label={ __( 'Allow users to review their own posts', 'vip-workflows' ) }
-	help={ __( 'Authors can see their own posts in the Review Queue.', 'vip-workflows' ) }
-	checked={ … }
+	label={ __( 'Sequence name', 'vip-workflows' ) }
+	help={ __( 'Must be unique.', 'vip-workflows' ) }
+	value={ … }
 	onChange={ … }
 />
 ```
 
-- **`help` states the effect, not the label again.** If the help text is the
-  label as a sentence, delete it.
+- **Only when it prevents a mistake, and short.** If the help text is the
+  label as a sentence, delete it. [`copy-standard.md`](copy-standard.md) governs
+  the wording and sets the length (about 50 characters, one sentence).
 - **Never a sibling `<p>`.** The prop wires `aria-describedby`; a loose
   paragraph is invisible to assistive tech and drifts out of the control's
   spacing.

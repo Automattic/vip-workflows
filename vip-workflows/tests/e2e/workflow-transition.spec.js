@@ -46,14 +46,14 @@ test.describe( 'VIP Workflows — transition (editor UI)', () => {
 		// Perform the transition.
 		await panel
 			.locator( '.vip-workflows-rail__actions' )
-			.getByRole( 'button', { name: 'Submit for Review' } )
+			.getByRole( 'button', { name: 'Submit for review' } )
 			.click();
 
 		// UI now offers the review-stage transitions.
 		await expect(
 			panel.getByRole( 'button', { name: 'Approve' } )
 		).toBeVisible();
-		await expect( currentStage ).toHaveText( 'In Review' );
+		await expect( currentStage ).toHaveText( 'In review' );
 
 		// And the change is persisted server-side.
 		const status = await getWorkflowStatus( requestUtils, postId );

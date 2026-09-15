@@ -80,7 +80,7 @@ export function MyDashboardPage() {
 			{
 				name: 'my-work',
 				title: formatTitle(
-					__( 'My Work', 'vip-workflows' ),
+					__( 'My work', 'vip-workflows' ),
 					'my-work'
 				),
 			},
@@ -91,7 +91,7 @@ export function MyDashboardPage() {
 			baseTabs.push( {
 				name: 'my-ideation',
 				title: formatTitle(
-					__( 'My Ideation', 'vip-workflows' ),
+					__( 'My ideation', 'vip-workflows' ),
 					'my-ideation'
 				),
 			} );
@@ -102,7 +102,7 @@ export function MyDashboardPage() {
 			baseTabs.push( {
 				name: 'my-queue',
 				title: formatTitle(
-					__( 'My Queue', 'vip-workflows' ),
+					__( 'My queue', 'vip-workflows' ),
 					'my-queue'
 				),
 			} );

@@ -612,7 +612,7 @@ class Admin implements ModuleInterface {
 		<div class="notice notice-warning">
 			<p>
 				<strong><?php esc_html_e( 'VIP Workflows:', 'vip-workflows' ); ?></strong>
-					<?php esc_html_e( 'This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These sequences had to be changed to fit. The changes are safe, but they change how the sequences behave — please confirm them in the Sequence editor.', 'vip-workflows' ); ?>
+					<?php esc_html_e( 'This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These sequences had to be changed to fit. The changes are safe, but they change how the sequences behave — confirm them in the Sequence editor.', 'vip-workflows' ); ?>
 			</p>
 			<ul style="list-style: disc; margin-left: 2em;">
 				<?php foreach ( $changed as $sequence ) : ?>
@@ -720,7 +720,7 @@ class Admin implements ModuleInterface {
 	public function render_audit_log_page(): void {
 		// Check access.
 		if ( ! Settings::can_user_view_audit_log() ) {
-			wp_die( esc_html__( 'You do not have permission to view the audit log.', 'vip-workflows' ) );
+			wp_die( esc_html__( 'Sorry, you are not allowed to view the audit log.', 'vip-workflows' ) );
 		}
 
 		self::render_app_root();

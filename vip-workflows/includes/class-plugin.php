@@ -328,7 +328,7 @@ final class Plugin {
 		 * Use wp_register_ability() to register abilities:
 		 *
 		 * wp_register_ability( 'my-plugin/my-ability', [
-		 *     'label'               => __( 'My Ability', 'my-plugin' ),
+		 *     'label'               => __( 'My ability', 'my-plugin' ),
 		 *     'description'         => __( 'Does something useful.', 'my-plugin' ),
 		 *     'category'            => 'vip-workflows',
 		 *     'input_schema'        => [ ... ],

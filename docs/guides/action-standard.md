@@ -12,10 +12,12 @@ Every action is a `Button` from `@wordpress/components`, or a DataViews action
 descriptor. There is no other action primitive. The rules below govern how one
 is weighted, ordered, placed, sized, labeled, and confirmed.
 
-[`settings-standard.md`](settings-standard.md) completes the series: it governs
+[`settings-standard.md`](settings-standard.md) continues the series: it governs
 the shape of a settings screen, and it narrows this document's rules for save
 actions specifically — one Save per screen, in a `SettingsFooter`, with a label
-that never changes.
+that never changes. [`copy-standard.md`](copy-standard.md) closes it: this
+document owns the *verb* an action uses, that one owns everything else about how
+the plugin words itself — capitalization, helper text, errors and empty states.
 
 ## TL;DR
 

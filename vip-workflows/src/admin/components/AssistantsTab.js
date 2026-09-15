@@ -86,7 +86,7 @@ add_action( 'wp_abilities_api_init', function() {
                 'type'             => 'research',
                 'display_order'    => 50,
                 'icon'             => 'search',
-                'thinking_message' => 'Searching...',
+                'thinking_message' => 'Searching…',
                 'success_message'  => 'Search complete.',
                 'settings_schema'  => [
                     'api_key' => [
@@ -265,7 +265,10 @@ export function useAssistantsSettings() {
 		{
 			name: 'plugin',
 			title: __( 'From plugins', 'vip-workflows' ),
-			empty: __( 'No agent plugins are installed.', 'vip-workflows' ),
+			empty: __(
+				'No agent plugins installed. Agents arrive as separate plugins.',
+				'vip-workflows'
+			),
 		},
 	];
 

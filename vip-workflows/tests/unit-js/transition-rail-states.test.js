@@ -138,7 +138,7 @@ describe( 'TransitionRail degenerate states', () => {
 				current: { key: 'hired', label: 'Hired', is_terminal: true },
 			} );
 
-			expect( screen.getByText( 'Workflow Completed' ) ).toBeVisible();
+			expect( screen.getByText( 'Workflow completed' ) ).toBeVisible();
 			expect( doneMark() ).toBeInTheDocument();
 			expect( neutralDot() ).not.toBeInTheDocument();
 
@@ -185,7 +185,7 @@ describe( 'TransitionRail degenerate states', () => {
 			// Both flags on one stage: the dead end wins, so the heading stays
 			// the stage's own name and the panel never calls the stop a finish.
 			expect(
-				screen.queryByText( 'Workflow Completed' )
+				screen.queryByText( 'Workflow completed' )
 			).not.toBeInTheDocument();
 			expect( screen.getByText( 'Rejected' ) ).toBeVisible();
 
@@ -222,7 +222,7 @@ describe( 'TransitionRail degenerate states', () => {
 		expect( screen.getByText( 'Live' ) ).toBeVisible();
 		expect( screen.getByText( 'Published' ) ).toBeVisible();
 		expect(
-			screen.queryByText( 'Workflow Completed' )
+			screen.queryByText( 'Workflow completed' )
 		).not.toBeInTheDocument();
 	} );
 

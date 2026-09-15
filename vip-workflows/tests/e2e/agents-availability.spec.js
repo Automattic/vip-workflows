@@ -152,7 +152,9 @@ test.describe( 'VIP Workflows — agent availability requirements', () => {
 			// An empty origin says so rather than being filtered out: a strip
 			// that varies per site can collapse to a single tab.
 			await expect(
-				page.getByText( 'No agent plugins are installed.' )
+				page.getByText(
+					'No agent plugins installed. Agents arrive as separate plugins.'
+				)
 			).toBeVisible();
 		}
 	} );

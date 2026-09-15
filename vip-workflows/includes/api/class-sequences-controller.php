@@ -1899,7 +1899,7 @@ class SequencesController extends WP_REST_Controller {
 							'duplicate_assignment_key',
 							sprintf(
 								/* translators: %s: duplicate assignment key */
-								__( 'Duplicate assignment key: "%s". Two transitions assigning the same key overwrite each other\'s assignment.', 'vip-workflows' ),
+								__( 'Duplicate assignment key: "%s". Two transitions assigning the same key overwrite each other’s assignment.', 'vip-workflows' ),
 								$key
 							),
 							array( 'status' => 400 )

@@ -365,7 +365,7 @@ class AssignmentManager {
 			return __( 'This transition is waiting for an automated check to complete.', 'vip-workflows' );
 		}
 
-		return __( 'You do not have permission to perform this transition.', 'vip-workflows' );
+		return __( 'Sorry, you are not allowed to make this transition.', 'vip-workflows' );
 	}
 
 	/**

@@ -51,7 +51,7 @@ export default function ProjectEditModal( { project, onSave, onClose } ) {
 
 	return (
 		<Modal
-			title={ __( 'Edit Project', 'vip-workflows' ) }
+			title={ __( 'Edit project', 'vip-workflows' ) }
 			onRequestClose={ onClose }
 			size="small"
 		>
@@ -64,7 +64,7 @@ export default function ProjectEditModal( { project, onSave, onClose } ) {
 			<TextControl
 				__next40pxDefaultSize
 				__nextHasNoMarginBottom
-				label={ __( 'Project Name', 'vip-workflows' ) }
+				label={ __( 'Project name', 'vip-workflows' ) }
 				value={ name }
 				onChange={ setName }
 				onKeyDown={ handleKeyDown }

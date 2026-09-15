@@ -462,7 +462,7 @@ describe( 'WorkflowPanel transition input popover', () => {
 		} );
 
 		expect(
-			screen.getByRole( 'dialog', { name: 'Warnings Detected' } )
+			screen.getByRole( 'dialog', { name: 'Warnings detected' } )
 		).toBeInTheDocument();
 		expect(
 			screen.getByText( 'An editor should confirm this move.' )

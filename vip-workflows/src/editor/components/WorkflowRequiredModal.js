@@ -63,7 +63,7 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 			.catch( ( err ) => {
 				createErrorNotice(
 					err.message ||
-						__( 'Failed to assign workflow', 'vip-workflows' ),
+						__( 'Could not assign the workflow.', 'vip-workflows' ),
 					{ type: 'snackbar' }
 				);
 				setAssigning( false );
@@ -72,7 +72,7 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 
 	const introText = isRequired
 		? __(
-				'Your organization requires a workflow for new posts. Please select one to continue:',
+				'Your organization requires a workflow for new posts. Choose one to continue.',
 				'vip-workflows'
 		  )
 		: __(
@@ -167,7 +167,7 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 
 	return (
 		<Modal
-			title={ __( 'Select a Workflow', 'vip-workflows' ) }
+			title={ __( 'Select a workflow', 'vip-workflows' ) }
 			isDismissible={ ! isRequired }
 			shouldCloseOnClickOutside={ ! isRequired }
 			shouldCloseOnEsc={ ! isRequired }

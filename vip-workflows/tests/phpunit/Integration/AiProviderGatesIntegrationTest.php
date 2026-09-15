@@ -48,12 +48,12 @@ class AiProviderGatesIntegrationTest extends TestCase
         'workflow-agent-copy-edit/copy-edit'               => array(
             'workflow-agent-copy-edit',
             'WorkflowAgentCopyEdit\\register',
-            'Copy Edit',
+            'Copy edit',
         ),
         'workflow-agent-tag-sanity-check/tag-sanity-check' => array(
             'workflow-agent-tag-sanity-check',
             'WorkflowAgentTagSanityCheck\\register',
-            'Tag Sanity Check',
+            'Tag sanity check',
         ),
     );
 

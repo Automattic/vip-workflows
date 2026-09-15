@@ -257,7 +257,7 @@ describe( 'Settings screen shape', () => {
 
 		const group = roleGroup( 'Own activity' );
 		const description = within( group ).getByText(
-			'Selected roles can open the audit log and see their own activity in it.'
+			'Their own events only.'
 		);
 		const firstCheckbox = within( group ).getAllByRole( 'checkbox' )[ 0 ];
 
@@ -288,9 +288,7 @@ describe( 'Settings screen shape', () => {
 			group.querySelector( 'legend' )
 		);
 		expect( group ).toHaveAccessibleName( 'Own activity' );
-		expect( group ).toHaveAccessibleDescription(
-			'Selected roles can open the audit log and see their own activity in it.'
-		);
+		expect( group ).toHaveAccessibleDescription( 'Their own events only.' );
 	} );
 
 	it( 'renders the enforcement radios without a prop RadioControl would spread onto every input', async () => {

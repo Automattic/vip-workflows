@@ -52,7 +52,7 @@ export default function NewsAngleCard( {
 			</blockquote>
 			{ /* wpds-allow R7 -- uppercase news-angle label; no <Text> variant */ }
 			<span className="vip-workflows-ideation-card--angle__label">
-				{ __( 'News Angle', 'vip-workflows' ) }
+				{ __( 'News angle', 'vip-workflows' ) }
 			</span>
 			<Stack
 				justify="flex-end"

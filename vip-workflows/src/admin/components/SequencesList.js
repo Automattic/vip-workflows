@@ -41,7 +41,7 @@ const BREADCRUMBS = [
 ];
 const TITLE = __( 'Sequences', 'vip-workflows' );
 const SUBTITLE = __(
-	'Sequences define workflow stages and transitions for your content types.',
+	'A sequence is the set of stages a post moves through, and the routes between them.',
 	'vip-workflows'
 );
 
@@ -128,8 +128,14 @@ export function SequencesList() {
 				URL.revokeObjectURL( url );
 			} catch ( err ) {
 				createErrorNotice(
-					__( 'Failed to export sequence:', 'vip-workflows' ) +
-						err.message,
+					sprintf(
+						/* translators: %s: error message from the export. */
+						__(
+							'Could not export the sequence. Details: %s',
+							'vip-workflows'
+						),
+						err.message
+					),
 					{ type: 'snackbar' }
 				);
 			}
@@ -278,7 +284,7 @@ export function SequencesList() {
 			name: 'workflow',
 			title: sprintf(
 				/* translators: %d: count of workflow sequences */
-				__( 'Workflow Sequences (%d)', 'vip-workflows' ),
+				__( 'Workflow sequences (%d)', 'vip-workflows' ),
 				workflowSequences.length
 			),
 		},
@@ -290,13 +296,13 @@ export function SequencesList() {
 			name: 'phase',
 			title: sprintf(
 				/* translators: %d: count of phase sequences */
-				__( 'Phase Sequences (%d)', 'vip-workflows' ),
+				__( 'Phase sequences (%d)', 'vip-workflows' ),
 				phaseSequences.length
 			),
 		} );
 	}
 
-	// The add/import actions belong to the Workflow Sequences tab; the Phase
+	// The add/import actions belong to the Workflow sequences tab; the Phase
 	// tab has none. Surfaced in the AdminPage header and swapped with the tab.
 	// Secondary first, primary last — the standard's order rule holds in the
 	// page header too, so the leading verb sits rightmost in the group.
@@ -517,16 +523,12 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 
 	const handleImport = async () => {
 		if ( ! sequenceJson ) {
-			setError(
-				__( 'Please upload a sequence JSON file.', 'vip-workflows' )
-			);
+			setError( __( 'Upload a sequence JSON file.', 'vip-workflows' ) );
 			return;
 		}
 
 		if ( ! name.trim() ) {
-			setError(
-				__( 'Please enter a name for the sequence.', 'vip-workflows' )
-			);
+			setError( __( 'Enter a name for the sequence.', 'vip-workflows' ) );
 			return;
 		}
 
@@ -589,7 +591,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 			<Stack direction="column" gap="lg">
 				<Stack direction="column" gap="sm">
 					<label htmlFor="sequence-file-upload">
-						{ __( 'Upload Sequence JSON:', 'vip-workflows' ) }
+						{ __( 'Upload sequence JSON', 'vip-workflows' ) }
 					</label>
 					{ /* Drawn as a box so the place to aim at is legible
 					     before any drag starts. The box is the affordance
@@ -616,7 +618,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 					<>
 						<div className="vip-workflows-import-modal__type-preview">
 							<strong>
-								{ __( 'Sequence Type:', 'vip-workflows' ) }
+								{ __( 'Sequence type:', 'vip-workflows' ) }
 							</strong>{ ' ' }
 							{ sequenceJson.type || 'unknown' }
 						</div>
@@ -624,13 +626,10 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 						<TextControl
 							__next40pxDefaultSize
 							__nextHasNoMarginBottom
-							label={ __( 'Sequence Name', 'vip-workflows' ) }
+							label={ __( 'Sequence name', 'vip-workflows' ) }
 							value={ name }
 							onChange={ setName }
-							help={ __(
-								'Enter a unique name for this sequence.',
-								'vip-workflows'
-							) }
+							help={ __( 'Must be unique.', 'vip-workflows' ) }
 						/>
 					</>
 				) }

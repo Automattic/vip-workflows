@@ -181,7 +181,7 @@ class WebResearcherAvailabilityTest extends TestCase
         $requirement = $this->only_requirement( $availability );
         $this->assertSame( 'credential:tavily', $requirement->get_id() );
         $this->assertSame( Requirement::KIND_MISSING_CREDENTIAL, $requirement->get_kind() );
-        $this->assertSame( array( 'Web Researcher' ), $requirement->get_sources() );
+        $this->assertSame( array( 'Web researcher' ), $requirement->get_sources() );
     }
 
     public function test_connectors_backend_yields_an_admin_destination(): void

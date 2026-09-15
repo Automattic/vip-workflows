@@ -63,8 +63,8 @@ export default function PromptPreviewModal( {
 							}
 						>
 							{ prompt.importance === 'key_event'
-								? __( 'Key Event', 'vip-workflows' )
-								: __( 'Top Story', 'vip-workflows' ) }
+								? __( 'Key event', 'vip-workflows' )
+								: __( 'Top story', 'vip-workflows' ) }
 						</Badge>
 					) }
 					{ meta.is_embargoed && (

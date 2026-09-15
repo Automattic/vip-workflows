@@ -532,7 +532,7 @@ export default function AssistantPanel( {
 					</span>
 					{ /* wpds-allow R7 -- bold inline label (heading-md token); no matching Text variant */ }
 					<span className="vip-workflows-ideation-panel__mentor-label">
-						{ __( 'Editorial Mentor', 'vip-workflows' ) }
+						{ __( 'Editorial mentor', 'vip-workflows' ) }
 					</span>
 					{ readinessInfo && (
 						// wpds-allow R7 -- status pill with semantic bg/color per readiness state; styled inline label
@@ -608,7 +608,7 @@ export default function AssistantPanel( {
 						render={ <h4 /> }
 						className="vip-workflows-ideation-panel__section-title"
 					>
-						{ __( 'News Angle', 'vip-workflows' ) }
+						{ __( 'News angle', 'vip-workflows' ) }
 					</Text>
 					<Text variant="body-md" render={ <p /> }>
 						{ seedAnalysis.news_angle }
@@ -793,7 +793,7 @@ export default function AssistantPanel( {
 						render={ <h4 /> }
 						className="vip-workflows-ideation-panel__section-title"
 					>
-						{ __( 'Follow-up Queries', 'vip-workflows' ) }
+						{ __( 'Follow-up queries', 'vip-workflows' ) }
 					</Text>
 					{ ( queryLog || [] ).map( ( entry ) => (
 						<Stack

@@ -280,7 +280,7 @@ class MediaScoutAvailabilityTest extends TestCase
         );
 
         $this->assertSame(
-            array( 'Web Images (Tavily)', 'Web Videos (Tavily)', 'YouTube Videos' ),
+            array( 'Web images (Tavily)', 'Web videos (Tavily)', 'YouTube videos' ),
             $sources
         );
     }

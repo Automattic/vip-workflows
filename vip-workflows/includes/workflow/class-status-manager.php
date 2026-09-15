@@ -729,7 +729,7 @@ class StatusManager {
 			if ( ! current_user_can( 'edit_post', $post_id ) ) {
 				return new \WP_Error(
 					'cannot_edit_post',
-					__( 'You are not allowed to edit this post.', 'vip-workflows' ),
+					__( 'Sorry, you are not allowed to edit this post.', 'vip-workflows' ),
 					array( 'status' => 403 )
 				);
 			}
@@ -739,7 +739,7 @@ class StatusManager {
 			if ( $from_region !== $to_region && ! $this->current_user_can_cross_region( $post, $from_region, $to_region ) ) {
 				return new \WP_Error(
 					'forbidden_region_crossing',
-					__( 'You do not have permission to change this post to that status.', 'vip-workflows' ),
+					__( 'Sorry, you are not allowed to change this post to that status.', 'vip-workflows' ),
 					array( 'status' => 403 )
 				);
 			}
@@ -752,7 +752,7 @@ class StatusManager {
 		if ( ! $is_agent_actor && ! $is_revert && ! $sequence->can_user_transition( $current_stage, $to_status ) ) {
 			return new \WP_Error(
 				'forbidden_transition',
-				__( 'You do not have permission to perform this transition.', 'vip-workflows' ),
+				__( 'Sorry, you are not allowed to make this transition.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -1940,23 +1940,23 @@ class StatusManager {
 	 */
 	public static function event_type_label( string $event_type ): string {
 		$labels = array(
-			'status_transition'     => __( 'Stage Changed', 'vip-workflows' ),
-			'transition_blocked'    => __( 'Transition Blocked', 'vip-workflows' ),
-			'tool_warnings'         => __( 'Tool Warnings', 'vip-workflows' ),
-			'workflow.assigned'     => __( 'Workflow Assigned', 'vip-workflows' ),
-			'workflow.removed'      => __( 'Workflow Removed', 'vip-workflows' ),
-			'post.claimed'          => __( 'Post Claimed', 'vip-workflows' ),
-			'post.released'         => __( 'Post Released', 'vip-workflows' ),
-			'ability.executed'      => __( 'Tool Executed', 'vip-workflows' ),
-			'ability.failed'        => __( 'Tool Failed', 'vip-workflows' ),
+			'status_transition'     => __( 'Stage changed', 'vip-workflows' ),
+			'transition_blocked'    => __( 'Transition blocked', 'vip-workflows' ),
+			'tool_warnings'         => __( 'Tool warnings', 'vip-workflows' ),
+			'workflow.assigned'     => __( 'Workflow assigned', 'vip-workflows' ),
+			'workflow.removed'      => __( 'Workflow removed', 'vip-workflows' ),
+			'post.claimed'          => __( 'Post claimed', 'vip-workflows' ),
+			'post.released'         => __( 'Post released', 'vip-workflows' ),
+			'ability.executed'      => __( 'Tool executed', 'vip-workflows' ),
+			'ability.failed'        => __( 'Tool failed', 'vip-workflows' ),
 			// Configuration events. These carry no post, which the response shape
 			// already allows (`post_id` is a nullable column and `post` is null here).
-			'sequence.updated'     => __( 'Sequence Updated', 'vip-workflows' ),
-			'sequence.activated'   => __( 'Sequence Activated', 'vip-workflows' ),
-			'sequence.deactivated' => __( 'Sequence Deactivated', 'vip-workflows' ),
+			'sequence.updated'     => __( 'Sequence updated', 'vip-workflows' ),
+			'sequence.activated'   => __( 'Sequence activated', 'vip-workflows' ),
+			'sequence.deactivated' => __( 'Sequence deactivated', 'vip-workflows' ),
 			// Maintenance. Carries no post and no actor: the nightly prune runs
 			// on cron and belongs to no one.
-			'maintenance.cleanup'  => __( 'Cleanup Run', 'vip-workflows' ),
+			'maintenance.cleanup'  => __( 'Cleanup run', 'vip-workflows' ),
 		);
 
 		if ( isset( $labels[ $event_type ] ) ) {
@@ -2038,7 +2038,7 @@ class StatusManager {
 				'unmodeled_post_status',
 				sprintf(
 					/* translators: 1: sequence name. 2: post status label, e.g. "Pending Review". */
-					__( 'The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post\'s status, or choose a sequence that covers it.', 'vip-workflows' ),
+					__( 'The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post’s status, or choose a sequence that covers it.', 'vip-workflows' ),
 					$sequence->name,
 					$region_label
 				),

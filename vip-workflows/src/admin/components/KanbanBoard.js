@@ -45,9 +45,9 @@ const BREADCRUMBS = [
 		label: __( 'Workflows', 'vip-workflows' ),
 		href: 'admin.php?page=vip-workflows',
 	},
-	{ label: __( 'Kanban Board', 'vip-workflows' ) },
+	{ label: __( 'Kanban board', 'vip-workflows' ) },
 ];
-const TITLE = __( 'Kanban Board', 'vip-workflows' );
+const TITLE = __( 'Kanban board', 'vip-workflows' );
 
 /**
  * The legal drop targets for a dragged card, read off the transition payload
@@ -181,7 +181,11 @@ export function KanbanBoard() {
 			setError( null );
 		} catch ( err ) {
 			setError(
-				err.message || __( 'Failed to load board', 'vip-workflows' )
+				err.message ||
+					__(
+						'Could not load the board. Reload the page to try again.',
+						'vip-workflows'
+					)
 			);
 		} finally {
 			setLoading( false );
@@ -274,9 +278,12 @@ export function KanbanBoard() {
 			// The droppable ids ARE the column keys, so this is a
 			// data-integrity bug, not a user mistake — but the card still
 			// snapped back, so say so rather than fail in silence.
-			createErrorNotice( __( 'Failed to move card', 'vip-workflows' ), {
-				type: 'snackbar',
-			} );
+			createErrorNotice(
+				__( 'Could not move the card.', 'vip-workflows' ),
+				{
+					type: 'snackbar',
+				}
+			);
 			return;
 		}
 
@@ -285,9 +292,12 @@ export function KanbanBoard() {
 		if ( ! card ) {
 			// Same contract as above: the draggable ids are card ids, so a
 			// drag whose card cannot be found is a bug worth reporting.
-			createErrorNotice( __( 'Failed to move card', 'vip-workflows' ), {
-				type: 'snackbar',
-			} );
+			createErrorNotice(
+				__( 'Could not move the card.', 'vip-workflows' ),
+				{
+					type: 'snackbar',
+				}
+			);
 			return;
 		}
 
@@ -355,10 +365,9 @@ export function KanbanBoard() {
 				response = await transition( true );
 			}
 
-			createSuccessNotice(
-				__( 'Card moved successfully', 'vip-workflows' ),
-				{ type: 'snackbar' }
-			);
+			createSuccessNotice( __( 'Card moved.', 'vip-workflows' ), {
+				type: 'snackbar',
+			} );
 
 			// Refresh to get accurate data.
 			fetchData();
@@ -367,7 +376,10 @@ export function KanbanBoard() {
 			setData( originalData );
 
 			// Extract error message from WP REST API error format.
-			let errorMessage = __( 'Failed to move card', 'vip-workflows' );
+			let errorMessage = __(
+				'Could not move the card.',
+				'vip-workflows'
+			);
 			if ( err.message ) {
 				errorMessage = err.message;
 			} else if ( err.data?.message ) {
@@ -496,7 +508,7 @@ export function KanbanBoard() {
 			value: String( bp.id ),
 		} ) ),
 		{
-			label: __( 'No Workflow', 'vip-workflows' ),
+			label: __( 'No sequence', 'vip-workflows' ),
 			value: 'none',
 		},
 	];

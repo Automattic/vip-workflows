@@ -62,11 +62,11 @@ test.describe( 'VIP Workflows — publish via transition (editor UI)', () => {
 		const panel = await openWorkflowPanel( page );
 		await expect(
 			panel.locator( '.vip-workflows-rail__stage' )
-		).toHaveText( 'Ready to Publish' );
+		).toHaveText( 'Ready to publish' );
 
 		const publishNow = panel
 			.locator( '.vip-workflows-rail__actions' )
-			.getByRole( 'button', { name: 'Publish Now' } );
+			.getByRole( 'button', { name: 'Publish now' } );
 
 		// Declining the confirm abandons the transition entirely.
 		await publishNow.click();

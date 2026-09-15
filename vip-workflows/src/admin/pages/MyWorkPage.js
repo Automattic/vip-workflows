@@ -361,7 +361,7 @@ export function MyWorkPage() {
 			{
 				id: 'modified_date',
 				type: 'datetime',
-				label: __( 'Last Updated', 'vip-workflows' ),
+				label: __( 'Last updated', 'vip-workflows' ),
 				filterBy: false,
 				format: { datetime: siteDateTimeFormat() },
 				sort: sortByTimestamp,

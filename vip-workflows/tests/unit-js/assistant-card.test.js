@@ -383,8 +383,8 @@ describe( 'AssistantCard availability requirements', () => {
 						{
 							...tavilyRequirement,
 							sources: [
-								'Web Images (Tavily)',
-								'Web Videos (Tavily)',
+								'Web images (Tavily)',
+								'Web videos (Tavily)',
 							],
 						},
 					],
@@ -397,7 +397,7 @@ describe( 'AssistantCard availability requirements', () => {
 		);
 		expect(
 			screen.getByText(
-				'Needed by: Web Images (Tavily), Web Videos (Tavily)'
+				'Needed by: Web images (Tavily), Web videos (Tavily)'
 			)
 		).toBeInTheDocument();
 	} );

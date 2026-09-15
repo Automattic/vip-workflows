@@ -266,7 +266,7 @@ export default function DocumentCard( {
 									render={ <span /> }
 									className="vip-workflows-ideation-card__summarized"
 									title={ __(
-										'AI Analyzed',
+										'AI analyzed',
 										'vip-workflows'
 									) }
 								>
