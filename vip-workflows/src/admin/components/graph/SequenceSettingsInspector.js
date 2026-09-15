@@ -21,14 +21,8 @@
  * @package
  */
 
-import {
-	Button,
-	CheckboxControl,
-	Spinner,
-	ToggleControl,
-} from '@wordpress/components';
-import { Stack, Text } from '@wordpress/ui';
-import { trash } from '@wordpress/icons';
+import { CheckboxControl, Spinner, ToggleControl } from '@wordpress/components';
+import { Stack } from '@wordpress/ui';
 import { __, sprintf, _n } from '@wordpress/i18n';
 import InspectorShell from './InspectorShell';
 import InspectorSection from './InspectorSection';
@@ -40,7 +34,6 @@ import MetadataFieldsEditor, {
 import InspectorFieldList, {
 	InspectorFieldListAdd,
 } from './InspectorFieldList';
-import { Fact } from './InspectorFacts';
 import {
 	regionLabel,
 	regionDescription,
@@ -120,13 +113,29 @@ export default function SequenceSettingsInspector( {
 		onStagesChange( newList );
 	};
 
+	// Regions are strings, but InspectorFieldList works with objects. Wrap
+	// each slug so describe / onItemSelect / canRemove receive an object.
+	const regionItems = ( regions || [] ).map( ( slug ) => ( { slug } ) );
+
+	// A region was removed from the list — find which one and delegate.
+	const handleRegionsChange = ( newList ) => {
+		const removed = regionItems.find(
+			( item ) => ! newList.includes( item )
+		);
+		if ( removed ) {
+			onRemoveRegion( removed.slug );
+		}
+	};
+
 	// A region is removable when it is empty (no stage lives in it) and is
 	// not the default region (Draft), which content is created in.
-	const canRemoveRegion = ( region ) => {
-		if ( region === DEFAULT_REGION ) {
+	const canRemoveRegion = ( item ) => {
+		if ( item.slug === DEFAULT_REGION ) {
 			return false;
 		}
-		return ! ( stages || [] ).some( ( s ) => stageRegion( s ) === region );
+		return ! ( stages || [] ).some(
+			( s ) => stageRegion( s ) === item.slug
+		);
 	};
 
 	return (
@@ -220,67 +229,29 @@ export default function SequenceSettingsInspector( {
 							)
 						}
 					>
-						{ regionCount === 0 ? (
-							<Text
-								variant="body-sm"
-								render={ <p /> }
-								className="wf-inspector-section__help"
-							>
-								{ __(
-									'No post statuses are in use.',
-									'vip-workflows'
-								) }
-							</Text>
-						) : (
-							<Stack
-								render={ <ul /> }
-								direction="column"
-								gap="xs"
-								className="wf-inspector__facts"
-							>
-								{ regions.map( ( region ) => (
-									<Fact
-										key={ region }
-										label={ regionLabel( region ) }
-										value={ regionDescription( region ) }
-										onSelect={
-											onSelectRegion
-												? () => onSelectRegion( region )
-												: undefined
-										}
-										selectLabel={
-											onSelectRegion
-												? sprintf(
-														/* translators: %s: the post status label (e.g. "Pending Review"). */
-														__(
-															'Select %s',
-															'vip-workflows'
-														),
-														regionLabel( region )
-												  )
-												: undefined
-										}
-										trailing={
-											canRemoveRegion( region ) ? (
-												<Button
-													icon={ trash }
-													label={ __(
-														'Remove post status',
-														'vip-workflows'
-													) }
-													showTooltip
-													onClick={ () =>
-														onRemoveRegion( region )
-													}
-													isDestructive
-													size="small"
-												/>
-											) : undefined
-										}
-									/>
-								) ) }
-							</Stack>
-						) }
+						<InspectorFieldList
+							items={ regionItems }
+							onChange={ handleRegionsChange }
+							describe={ ( item ) => ( {
+								label: regionLabel( item.slug ),
+								value: regionDescription( item.slug ),
+							} ) }
+							onItemSelect={
+								onSelectRegion
+									? ( item ) => onSelectRegion( item.slug )
+									: undefined
+							}
+							sortable={ false }
+							canRemove={ canRemoveRegion }
+							removeLabel={ __(
+								'Remove post status',
+								'vip-workflows'
+							) }
+							emptyLabel={ __(
+								'No post statuses are in use.',
+								'vip-workflows'
+							) }
+						/>
 					</InspectorSection>
 				) }
 

@@ -386,10 +386,16 @@ describe( 'StageInspector deduplicated exit list', () => {
 	it( 'renders one row per exit: three routed outcomes plus the unclaimed transition', () => {
 		renderInspector( routedStage(), jest.fn(), props );
 
-		const exits = screen
+		const outcomes = screen
 			.getByText( 'Send to copyedit · on pass' )
 			.closest( 'ul' );
-		expect( within( exits ).getAllByRole( 'listitem' ) ).toHaveLength( 4 );
+		expect( within( outcomes ).getAllByRole( 'listitem' ) ).toHaveLength(
+			3
+		);
+		const transitionList = screen.getByText( 'Archive' ).closest( 'ul' );
+		expect(
+			within( transitionList ).getAllByRole( 'listitem' )
+		).toHaveLength( 1 );
 	} );
 
 	it( 'composes each routed outcome’s row from its transition’s name', () => {
@@ -1006,15 +1012,18 @@ describe( 'StageInspector panel structure', () => {
 			} )
 		);
 
-		const exits = screen.getByText( 'On fail' ).closest( 'ul' );
-		// Both kinds of exit in the same list: to a post travelling them, a
-		// button an author drew and a route an agent takes are the same thing.
+		// Agent outcomes and transition rows sit in adjacent lists inside the
+		// same exits section; together they are every way out of the stage.
+		const outcomes = screen.getByText( 'On fail' ).closest( 'ul' );
 		expect(
-			within( exits ).getByText( 'Approve · on pass' )
+			within( outcomes ).getByText( 'Approve · on pass' )
 		).toBeInTheDocument();
-		expect( within( exits ).getByText( 'Archive' ) ).toBeInTheDocument();
+		const transitionList = screen.getByText( 'Archive' ).closest( 'ul' );
+		expect( transitionList ).toBeInTheDocument();
 		// And apart from the facts about the stage itself, which keep their own.
-		expect( within( exits ).queryByText( 'Entry checkpoint' ) ).toBeNull();
+		expect(
+			within( outcomes ).queryByText( 'Entry checkpoint' )
+		).toBeNull();
 	} );
 
 	it( 'keeps label and color open in place', () => {
