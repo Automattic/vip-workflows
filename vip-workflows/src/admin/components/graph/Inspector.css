@@ -412,68 +412,41 @@
 	outline-offset: 1px;
 }
 
-/* A list that mixes draggable rows with fixed ones — the stage read-out, where
-   an agent's three outcomes are a fixed trio sitting among sortable transitions.
-   There the grip cannot take space: in flow it indented every sortable row by
-   its own width, so the transition rows sat deeper than the outcome rows in what
-   is one list, and the leading dots have to line up for the list to read flat.
+/* Grips and remove buttons are hidden at rest and revealed on hover or focus,
+   so the list reads as content at a glance and shows its controls only when an
+   author is acting on a row. The grip fades; the button appears without a
+   transition, because a destructive control that animates toward the pointer
+   would invite an accidental press.
 
-   So it is lifted out of the flow and laid over the row's leading dot, and
-   hidden until the row is hovered or the grip itself is focused — the order is
-   worth changing far less often than it is worth reading, and a column of grips
-   at full strength would read as the most important thing in the list. */
-.wf-inspector__facts--overlaid-grip .wf-inspector__fact.is-sortable {
-	position: relative; /* wpds-allow R4 -- anchors the overlaid grip <button>; <Stack> has no positioning prop */
-}
-
-.wf-inspector__facts--overlaid-grip .wf-inspector__grip {
-	position: absolute; /* wpds-allow R4 -- overlays the row's dot slot instead of indenting the row (see above) */
-	inset-inline-start: 0; /* wpds-allow R2 -- zero needs no token */
-	top: 50%; /* wpds-allow R4 -- centres the overlaid grip on the row's own line */
-	transform: translateY( -50% ); /* wpds-allow R4 -- the other half of that centring */
+   `:focus-within` covers keyboard navigation: once a screen-reader or tab-key
+   user is inside the row, every control in it is reachable. */
+.wf-inspector-field-list .wf-inspector__grip {
+	/* wpds-allow R6 -- <Stack> has no opacity prop */
 	opacity: 0;
 	transition: opacity 120ms ease;
 }
 
-.wf-inspector__facts--overlaid-grip
-	.wf-inspector__fact:hover
-	.wf-inspector__grip,
-.wf-inspector__facts--overlaid-grip .wf-inspector__grip:focus-visible {
-	/* wpds-allow R6 -- reveals the grip <button>, hung off the hovered row; that row is a <Stack>, which exposes no opacity prop */
+.wf-inspector-field-list .wf-inspector__fact:hover .wf-inspector__grip,
+.wf-inspector-field-list .wf-inspector__fact:focus-within .wf-inspector__grip,
+.wf-inspector-field-list .wf-inspector__grip:focus-visible {
+	/* wpds-allow R6 -- reveals the grip */
 	opacity: 1;
 }
 
-/* While the grip is up it sits exactly where the row's dot is, and the drag
-   glyph over a colored dot reads as neither — so the dot stands aside for the
-   grip's moment. `:has()` mirrors the grip's own focus reveal, which no
-   ancestor combinator can express. */
-.wf-inspector__facts--overlaid-grip
-	.wf-inspector__fact.is-sortable:hover
-	.wf-stage-inspector__route-dot,
-.wf-inspector__facts--overlaid-grip
-	.wf-inspector__fact.is-sortable:has( .wf-inspector__grip:focus-visible )
-	.wf-stage-inspector__route-dot {
-	visibility: hidden;
+.wf-inspector-field-list .wf-inspector__fact > .components-button.is-destructive {
+	/* wpds-allow R6 -- <Button> exposes no opacity prop */
+	opacity: 0;
 }
 
-/* Never animate the reveal, and never hide the grip outright, for anyone who
-   has asked for less motion or navigates by keyboard alone.
+.wf-inspector-field-list .wf-inspector__fact:hover > .components-button.is-destructive,
+.wf-inspector-field-list .wf-inspector__fact:focus-within > .components-button.is-destructive {
+	/* wpds-allow R6 -- reveals the remove button */
+	opacity: 1;
+}
 
-   The dot goes with it. The grip is up for good here rather than for a hover's
-   moment, and the rule above stands the dot aside only while it is hovered or
-   focused — so without this the drag glyph sits on top of a coloured route dot
-   on every row, at rest, which is the "reads as neither" that rule exists to
-   prevent. The two are one decision and have to move together. */
 @media ( prefers-reduced-motion: reduce ) {
-	.wf-inspector__facts--overlaid-grip .wf-inspector__grip {
+	.wf-inspector-field-list .wf-inspector__grip {
 		transition: none;
-		opacity: 1;
-	}
-
-	.wf-inspector__facts--overlaid-grip
-		.wf-inspector__fact.is-sortable
-		.wf-stage-inspector__route-dot {
-		visibility: hidden;
 	}
 }
 

@@ -253,6 +253,9 @@ function renderPanel( {
 				onAddExit={ onStage( ( target ) =>
 					onConnectTransition( selectedStage.key, target, null )
 				) }
+				onDeleteExit={ onStage( ( target ) =>
+					onDeleteTransition( selectedStage.key, target, null )
+				) }
 				// An outcome that already leads somewhere is *moved*, the way
 				// dragging its edge's endpoint moves it — the transition's
 				// settings go with it, as the To select on that edge does.

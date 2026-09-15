@@ -84,24 +84,10 @@ import { Stack, Text } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
 import { paletteOptions } from '../../utils/stage-palette';
 import { AgentRequirements } from '../../../common/AgentRequirements';
-import {
-	DndContext,
-	closestCenter,
-	KeyboardSensor,
-	PointerSensor,
-	useSensor,
-	useSensors,
-} from '@dnd-kit/core';
-import {
-	SortableContext,
-	verticalListSortingStrategy,
-	sortableKeyboardCoordinates,
-} from '@dnd-kit/sortable';
-import { Fact, SortableFact } from './InspectorFacts';
-// The same add control the field lists use. It is a list's add control, not a
-// field's — one menu, one option per thing that can be added — and an exit is
-// added to a list exactly as a capture input is.
-import { InspectorFieldListAdd } from './InspectorFieldList';
+import { Fact } from './InspectorFacts';
+import InspectorFieldList, {
+	InspectorFieldListAdd,
+} from './InspectorFieldList';
 import InspectorShell from './InspectorShell';
 import InspectorSection from './InspectorSection';
 import InspectorDangerZone from './InspectorDangerZone';
@@ -111,7 +97,6 @@ import {
 	edgeId,
 	isAgentStage,
 	stageRegion,
-	reorderList,
 	transitionLabel,
 } from './graph-model';
 import { regionDescription, regionLabel, regionOptions } from './regions';
@@ -323,6 +308,7 @@ export default function StageInspector( {
 	onSelectRegion,
 	onSetStatus,
 	onAddExit,
+	onDeleteExit,
 	onRouteOutcome,
 	onClearOutcome,
 	exitOptions = [],
@@ -356,16 +342,6 @@ export default function StageInspector( {
 		}
 		onChange( { key: sanitized } );
 	};
-
-	// Mirrors KanbanBoard's sensor setup. KeyboardSensor is not optional here:
-	// this list lives in a narrow panel where dragging is fiddly, so the keyboard
-	// route is the one that always works.
-	const sensors = useSensors(
-		useSensor( PointerSensor, { activationConstraint: { distance: 8 } } ),
-		useSensor( KeyboardSensor, {
-			coordinateGetter: sortableKeyboardCoordinates,
-		} )
-	);
 
 	// AI-stage config. An agent runs on entry and routes the post onward by
 	// outcome. Each route is picked on its outcome's row below, or drawn on the
@@ -458,12 +434,6 @@ export default function StageInspector( {
 	// writer's buttons appear in, so this list is where it is arranged.
 	const transitions = stage.transitions || [];
 
-	// Position, not destination — two transitions can share a target (see
-	// `reorderList`), and dnd-kit needs the ids in a SortableContext
-	// to be unique or it cannot tell the pair apart.
-	const transitionSortId = ( transition, index ) =>
-		`${ index }:${ transition.to }`;
-
 	// Select the edge a row reports, on the canvas and in this panel at once —
 	// the editor's own selection, so the transition's options open exactly as
 	// they do when its line is clicked.
@@ -533,25 +503,43 @@ export default function StageInspector( {
 		.map( ( transition, index ) => ( { transition, index } ) )
 		.filter( ( { index } ) => ! claimedIndices.has( index ) );
 
-	const handleTransitionDragEnd = ( { active, over } ) => {
-		if ( ! over ) {
+	// The transitions shown in InspectorFieldList: on a non-agent stage every
+	// transition, on an agent stage only the ones no outcome claims.
+	const displayedTransitions = listedTransitions.map(
+		( { transition } ) => transition
+	);
+
+	// InspectorFieldList calls onChange for both reorder and remove. A
+	// shorter array means a transition was removed — find it and delegate to
+	// the full disconnection, which also handles Start/End special cases.
+	const handleTransitionsChange = ( newList ) => {
+		if ( newList.length < displayedTransitions.length ) {
+			const removed = displayedTransitions.find(
+				( t ) => ! newList.includes( t )
+			);
+			if ( removed ) {
+				onDeleteExit( removed.to );
+			}
 			return;
 		}
-
-		const indexOf = ( id ) =>
-			parseInt( String( id ).split( ':' )[ 0 ], 10 );
-		const next = reorderList(
-			transitions,
-			indexOf( active.id ),
-			indexOf( over.id )
-		);
-
-		// Identity, not equality: a drop that ended where it started returns the
-		// original array, and reporting that as a change would mark the sequence
-		// dirty for a drag the author abandoned.
-		if ( next !== transitions ) {
-			onChange( { transitions: next } );
+		if ( ! isAgent ) {
+			// Non-agent: displayedTransitions IS the full array.
+			onChange( { transitions: newList } );
+			return;
 		}
+		// Agent: claimed transitions stay in their original positions;
+		// unclaimed ones fill the remaining slots in their new order.
+		const full = [];
+		let next = 0;
+		for ( let i = 0; i < transitions.length; i++ ) {
+			if ( claimedIndices.has( i ) ) {
+				full.push( transitions[ i ] );
+			} else if ( next < newList.length ) {
+				full.push( newList[ next ] );
+				next++;
+			}
+		}
+		onChange( { transitions: full } );
 	};
 
 	// The stage's own status region, and what saying it out loud has to include.
@@ -582,11 +570,6 @@ export default function StageInspector( {
 	]
 		.filter( Boolean )
 		.join( ' ' );
-
-	// Whether the stage has any exit at all to report. An AI stage always does:
-	// its three outcomes are listed whether or not they lead anywhere, because
-	// an unrouted outcome is a thing to fix rather than a thing to omit.
-	const hasExits = isAgent || transitions.length > 0;
 
 	return (
 		<InspectorShell
@@ -740,280 +723,155 @@ export default function StageInspector( {
 								/>
 							</Stack>
 						) }
-						{ hasExits ? (
-							// Only the transitions are sortable, so the context
-							// wraps the whole list but the SortableContext below
-							// holds just them: an agent's outcomes are a fixed
-							// trio, not an order anyone chose.
-							<DndContext
-								sensors={ sensors }
-								collisionDetection={ closestCenter }
-								onDragEnd={ handleTransitionDragEnd }
+						{ /* Agent outcomes are a fixed trio, not an
+						     ordered list an author adds to, so they stay
+						     as standalone rows above the transition list.
+						     On a non-agent stage there are none. */ }
+						{ isAgent && (
+							<Stack
+								render={ <ul /> }
+								direction="column"
+								gap="xs"
+								className="wf-inspector__facts"
 							>
-								<Stack
-									render={ <ul /> }
-									direction="column"
-									gap="xs"
-									// The exits list mixes an agent's fixed
-									// outcome rows with sortable transition
-									// rows, so the grips lift out of the flow
-									// and sit over the leading dots — the one
-									// list in the app that needs that.
-									className="wf-inspector__facts wf-inspector__facts--overlaid-grip"
-								>
-									{ /* An agent's outcomes come first because on
-									     an AI stage they are the live exits —
-									     each routed one absorbing the transition
-									     it travels (see `claimedExits`), so the
-									     rows below hold only what no outcome
-									     claims. On any other stage there are
-									     none, so the order costs nothing. */ }
-									{ isAgent &&
-										AGENT_OUTCOMES.map( ( outcome ) => {
-											const target =
-												routing[ outcome ] || null;
-											const destination =
-												routeSummary( outcome );
-											// The transition this outcome
-											// travels, absorbed into this row.
-											// Null for an outcome nobody has
-											// routed — nothing to name, nothing
-											// to select, a plain read-out — and
-											// for a route with no transition to
-											// travel on (see `claimedExits`).
-											const claimed =
-												target &&
-												claimedExits.has( target )
-													? transitions[
-															claimedExits.get(
-																target
-															)
-													  ]
-													: null;
-											const rowLabel = claimed
-												? routedOutcomeLabel(
-														outcome,
-														transitionLabel(
-															claimed,
-															nameTarget( target )
-														)
-												  )
-												: agentOutcomeLabel( outcome );
-											// A route the runtime holds because
-											// it publishes is claimed like any
-											// other, and no more usable than an
-											// unclaimed leftover — so it says so
-											// the way the rows below do.
-											const disabled =
-												Boolean( claimed ) &&
-												isTransitionDisabled( target );
-											return (
-												<Fact
-													key={ outcome }
-													className={ [
-														'wf-stage-inspector__route',
-														`is-${ outcome }`,
-														disabled &&
-															'is-disabled',
-													]
-														.filter( Boolean )
-														.join( ' ' ) }
-													label={ rowLabel }
-													value={
-														disabled
-															? sprintf(
-																	/* translators: %s: destination stage label */
-																	__(
-																		'%s (disabled)',
-																		'vip-workflows'
-																	),
-																	destination
-															  )
-															: destination ||
-															  __(
-																	'Not routed',
-																	'vip-workflows'
-															  )
-													}
-													empty={ ! destination }
-													onSelect={
-														claimed
-															? selectExit(
-																	target,
-																	outcome
-															  )
-															: undefined
-													}
-													selectLabel={ sprintf(
-														/* translators: %s: the row's label — the transition and its outcome (e.g. "Move to Published · on pass"), or the bare outcome ("On pass"). */
-														__(
-															'Select %s',
-															'vip-workflows'
-														),
-														rowLabel
-													) }
-													trailing={
-														onRouteOutcome ? (
-															<OutcomeRouteMenu
-																outcome={
-																	outcome
-																}
-																target={
-																	target
-																}
-																options={
-																	outcomeOptions
-																}
-																onRoute={
-																	onRouteOutcome
-																}
-																onClear={
-																	onClearOutcome
-																}
-															/>
-														) : undefined
-													}
-												>
-													<span
-														className="wf-stage-inspector__route-dot"
-														aria-hidden="true"
-													/>
-												</Fact>
-											);
-										} ) }
-									<SortableContext
-										items={ listedTransitions.map(
-											( { transition, index } ) =>
-												transitionSortId(
-													transition,
-													index
+								{ AGENT_OUTCOMES.map( ( outcome ) => {
+									const target = routing[ outcome ] || null;
+									const destination = routeSummary( outcome );
+									const claimed =
+										target && claimedExits.has( target )
+											? transitions[
+													claimedExits.get( target )
+											  ]
+											: null;
+									const rowLabel = claimed
+										? routedOutcomeLabel(
+												outcome,
+												transitionLabel(
+													claimed,
+													nameTarget( target )
 												)
-										) }
-										strategy={ verticalListSortingStrategy }
-									>
-										{ listedTransitions.map(
-											( { transition, index } ) => {
-												// An agent owns every exit of the stage it
-												// runs on, so a transition no outcome
-												// routes along cannot be used by anyone.
-												// Said here rather than left out: it is
-												// still configured, still drawn on the
-												// canvas, and re-routing an outcome at it
-												// brings it back.
-												const disabled =
-													isTransitionDisabled(
-														transition.to
-													);
-												const destination =
-													describeTarget(
-														transition.to
-													);
-												// A transition nobody labelled is
-												// not nameless: the runtime derives
-												// "Move to {destination}" for it on
-												// every read. So this row says that
-												// rather than calling it unlabelled —
-												// an author comparing the panel with
-												// a post's sidebar has to find the
-												// same words in both. Which does
-												// leave such a row naming its
-												// destination twice; that is what the
-												// writer sees, and the alternative is
-												// a read-out that disagrees with the
-												// thing it reads out.
-												//
-												// Built from the plain stage name, not
-												// from `destination`: a missing target
-												// is the value column's business, and
-												// the runtime would never say
-												// "(missing)" in a button.
-												const label = transitionLabel(
-													transition,
-													nameTarget( transition.to )
-												);
-												return (
-													<SortableFact
-														// Keyed by position, not by target: a
-														// stage stored before the
-														// one-transition-per-target rule can
-														// still hold two to the same place, and
-														// this read-out is where an author is
-														// asked to look at them before the
-														// repair collapses one.
-														key={ transitionSortId(
-															transition,
-															index
-														) }
-														id={ transitionSortId(
-															transition,
-															index
-														) }
-														dragLabel={ sprintf(
-															/* translators: %s: the transition's label. */
+										  )
+										: agentOutcomeLabel( outcome );
+									const disabled =
+										Boolean( claimed ) &&
+										isTransitionDisabled( target );
+									return (
+										<Fact
+											key={ outcome }
+											className={ [
+												'wf-stage-inspector__route',
+												`is-${ outcome }`,
+												disabled && 'is-disabled',
+											]
+												.filter( Boolean )
+												.join( ' ' ) }
+											label={ rowLabel }
+											value={
+												disabled
+													? sprintf(
+															/* translators: %s: destination stage label */
 															__(
-																'Reorder %s',
+																'%s (disabled)',
 																'vip-workflows'
 															),
-															label
-														) }
-														onSelect={ selectExit(
-															transition.to
-														) }
-														selectLabel={ sprintf(
-															/* translators: %s: the transition's label. */
-															__(
-																'Select %s',
-																'vip-workflows'
-															),
-															label
-														) }
-														className={ [
-															'wf-stage-inspector__route',
-															disabled &&
-																'is-disabled',
-														]
-															.filter( Boolean )
-															.join( ' ' ) }
-														label={ label }
-														value={
-															disabled
-																? sprintf(
-																		/* translators: %s: destination stage label */
-																		__(
-																			'%s (disabled)',
-																			'vip-workflows'
-																		),
-																		destination
-																  )
-																: destination
-														}
-													>
-														<span
-															className="wf-stage-inspector__route-dot"
-															aria-hidden="true"
-														/>
-													</SortableFact>
-												);
+															destination
+													  )
+													: destination ||
+													  __(
+															'Not routed',
+															'vip-workflows'
+													  )
 											}
-										) }
-									</SortableContext>
-								</Stack>
-							</DndContext>
-						) : (
-							// Says what is empty, now that no heading above it
-							// does — and carries the instruction for filling it,
-							// which is most needed on exactly this stage.
-							<Text
-								variant="body-sm"
-								render={ <p /> }
-								className="wf-inspector-section__help"
-							>
-								{ __(
-									'Nothing leaves this stage yet. Add an exit above, or drag from one of the stage’s handles on the canvas.',
-									'vip-workflows'
-								) }
-							</Text>
+											empty={ ! destination }
+											onSelect={
+												claimed
+													? selectExit(
+															target,
+															outcome
+													  )
+													: undefined
+											}
+											selectLabel={ sprintf(
+												/* translators: %s: the row's label. */
+												__(
+													'Select %s',
+													'vip-workflows'
+												),
+												rowLabel
+											) }
+											trailing={
+												onRouteOutcome ? (
+													<OutcomeRouteMenu
+														outcome={ outcome }
+														target={ target }
+														options={
+															outcomeOptions
+														}
+														onRoute={
+															onRouteOutcome
+														}
+														onClear={
+															onClearOutcome
+														}
+													/>
+												) : undefined
+											}
+										>
+											<span
+												className="wf-stage-inspector__route-dot"
+												aria-hidden="true"
+											/>
+										</Fact>
+									);
+								} ) }
+							</Stack>
 						) }
+						<InspectorFieldList
+							items={ displayedTransitions }
+							onChange={ handleTransitionsChange }
+							describe={ ( transition ) => {
+								const disabled = isTransitionDisabled(
+									transition.to
+								);
+								const destination = describeTarget(
+									transition.to
+								);
+								const label = transitionLabel(
+									transition,
+									nameTarget( transition.to )
+								);
+								return {
+									label,
+									value: disabled
+										? sprintf(
+												/* translators: %s: destination stage label */
+												__(
+													'%s (disabled)',
+													'vip-workflows'
+												),
+												destination
+										  )
+										: destination,
+									className: [
+										'wf-stage-inspector__route',
+										disabled && 'is-disabled',
+									]
+										.filter( Boolean )
+										.join( ' ' ),
+								};
+							} }
+							onItemSelect={ ( transition ) =>
+								onSelectEdge(
+									edgeId( stage.key, transition.to, null )
+								)
+							}
+							sortable
+							removeLabel={ __( 'Remove exit', 'vip-workflows' ) }
+							emptyLabel={ __(
+								'Nothing leaves this stage yet. Add an exit above, or drag from one of the stage\u2019s handles on the canvas.',
+								'vip-workflows'
+							) }
+						/>
 					</div>
 				</InspectorSection>
 

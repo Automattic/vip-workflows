@@ -8,14 +8,15 @@
  * the kind, which is the point. What they share is the list, not the item, so the
  * list lives here and the differences arrive as props.
  *
- * **Two of its halves are opt-in, because only a field definition has them.** A
- * row opens a configuration popover when `renderConfig` says what is in it, and
- * the list polices storage keys when `keyOf` says where to find one. A required
- * tool has neither: it is an ability id chosen from a menu, with nothing to set
- * per tool and no key of its own to collide with. A list that omits both is not a
- * degraded field list — it is this list without the two things a *field* adds to
- * it, and putting a tool through either would mean inventing a configuration with
- * nothing in it or a key nobody typed.
+ * **Three of its halves are opt-in.** A row opens a configuration popover when
+ * `renderConfig` says what is in it, navigates somewhere else when
+ * `onItemSelect` says where, and the list polices storage keys when `keyOf`
+ * says where to find one. A required tool has none of the three; the sequence
+ * settings panel's stage list has only `onItemSelect` — clicking a stage
+ * selects it on the canvas, the same way clicking a transition in the stage
+ * panel does. The three are mutually compatible except that `renderConfig` and
+ * `onItemSelect` compete for the row's click: when both are present the popover
+ * wins, because a row that opens its own settings should not also navigate away.
  *
  * **The list is the surface; one item's configuration shows at a time.** Rendering
  * every field's sub-form at once is what the metadata editor used to do, and a
@@ -60,7 +61,7 @@ import {
 	verticalListSortingStrategy,
 	sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
-import { SortableFact } from './InspectorFacts';
+import { Fact, SortableFact } from './InspectorFacts';
 import { reorderList } from './graph-model';
 
 /**
@@ -146,6 +147,9 @@ function keyProblems( items, keyOf, isStarted ) {
  * @param {?Object}   props.problem        Why its key would have the save refused.
  * @param {Function}  props.describe       Names the item and says what it is set to.
  * @param {?Function} [props.renderConfig] Renders the item's options, when it has any.
+ * @param {?Function} [props.onItemSelect] Selects the item elsewhere (canvas, another panel).
+ * @param {boolean}   [props.sortable]     Whether the row has a drag handle. Default `true`.
+ * @param {boolean}   [props.removable]    Whether the row has a remove button. Default `true`.
  * @param {boolean}   props.isOpen         Whether this row's options are showing.
  * @param {Function}  props.onToggle       Opens or shuts this row's options: ( index ).
  * @param {Function}  props.onCloseConfig  Shuts whatever is open.
@@ -161,6 +165,9 @@ function FieldRow( {
 	problem,
 	describe,
 	renderConfig,
+	onItemSelect,
+	sortable: isSortable = true,
+	removable = true,
 	isOpen,
 	onToggle,
 	onCloseConfig,
@@ -170,88 +177,106 @@ function FieldRow( {
 } ) {
 	const summary = describe( item, index );
 	const configurable = Boolean( renderConfig );
+	const navigable = ! configurable && Boolean( onItemSelect );
 
-	return (
-		<SortableFact
-			id={ id }
-			dragLabel={ sprintf(
-				/* translators: %s: the item's name. */
-				__( 'Reorder %s', 'vip-workflows' ),
-				summary.label
+	// What pressing the row does: open a config popover, select the item
+	// elsewhere (canvas / another panel), or nothing.
+	let selectHandler;
+	let selectAccessibleLabel;
+	if ( configurable ) {
+		selectHandler = () => onToggle( index );
+		selectAccessibleLabel = sprintf(
+			/* translators: %s: the item's name. */
+			__( 'Configure %s', 'vip-workflows' ),
+			summary.label
+		);
+	} else if ( navigable ) {
+		selectHandler = () => onItemSelect( item, index );
+		selectAccessibleLabel = sprintf(
+			/* translators: %s: the item's name. */
+			__( 'Select %s', 'vip-workflows' ),
+			summary.label
+		);
+	}
+
+	const rowClassName =
+		[
+			summary.className,
+			problem || summary.invalid ? 'is-invalid' : undefined,
+		]
+			.filter( Boolean )
+			.join( ' ' ) || undefined;
+
+	const trailing = (
+		<>
+			{ removable && (
+				<Button
+					icon={ trash }
+					label={ removeLabel }
+					showTooltip
+					onClick={ () => onRemove( index ) }
+					isDestructive
+					size="small"
+				/>
 			) }
-			// Either channel can put a row in the wrong: a key the save would
-			// refuse, or — for a list that has no keys — an item that describes
-			// itself as one that will not do its job.
-			className={ problem || summary.invalid ? 'is-invalid' : undefined }
-			label={ summary.label }
-			// A row whose key is wrong says so instead of saying what it
-			// captures: the setting is unreachable until the key is fixed, and
-			// the popover behind this row is where it gets fixed.
-			value={ problem ? problem.short : summary.value }
-			empty={ problem ? false : Boolean( summary.empty ) }
-			tip={ configurable ? undefined : summary.tip }
-			onSelect={ configurable ? () => onToggle( index ) : undefined }
-			expanded={ configurable ? isOpen : undefined }
-			selectLabel={
-				configurable
-					? sprintf(
-							/* translators: %s: the item's name. */
-							__( 'Configure %s', 'vip-workflows' ),
-							summary.label
-					  )
-					: undefined
-			}
-			trailing={
-				<>
-					<Button
-						icon={ trash }
-						label={ removeLabel }
-						showTooltip
-						onClick={ () => onRemove( index ) }
-						isDestructive
-						size="small"
-					/>
-					{ configurable && isOpen && (
-						<Popover
-							placement="left-start"
-							offset={ 36 }
-							shift
-							// The string, not a bare `true`:
-							// `useFocusOnMount` only looks for a tabbable
-							// for 'firstElement' / 'firstInputElement' and
-							// focuses the popover container itself for every
-							// other value, landing a keyboard user on a div
-							// instead of the first control.
-							focusOnMount="firstElement"
-							onClose={ onCloseConfig }
-							className="wf-inspector-field-list__popover"
-							// Popover renders a role-less div, where an
-							// aria-label alone is prohibited ARIA that
-							// assistive tech ignores. The explicit dialog
-							// role makes the label announce.
-							role="dialog"
-							aria-label={ summary.label }
-						>
-							<Stack
-								direction="column"
-								gap="md"
-								align="stretch"
-								className="wf-inspector-field-list__config"
-							>
-								{ renderConfig( {
-									item,
-									index,
-									problem,
-									update: ( changes ) =>
-										onUpdate( index, changes ),
-								} ) }
-							</Stack>
-						</Popover>
-					) }
-				</>
-			}
-		/>
+			{ configurable && isOpen && (
+				<Popover
+					placement="left-start"
+					offset={ 36 }
+					shift
+					focusOnMount="firstElement"
+					onClose={ onCloseConfig }
+					className="wf-inspector-field-list__popover"
+					role="dialog"
+					aria-label={ summary.label }
+				>
+					<Stack
+						direction="column"
+						gap="md"
+						align="stretch"
+						className="wf-inspector-field-list__config"
+					>
+						{ renderConfig( {
+							item,
+							index,
+							problem,
+							update: ( changes ) => onUpdate( index, changes ),
+						} ) }
+					</Stack>
+				</Popover>
+			) }
+		</>
 	);
+
+	const contentProps = {
+		className: rowClassName,
+		label: summary.label,
+		value: problem ? problem.short : summary.value,
+		empty: problem ? false : Boolean( summary.empty ),
+		tip: configurable || navigable ? undefined : summary.tip,
+		onSelect: selectHandler,
+		expanded: configurable ? isOpen : undefined,
+		selectLabel: selectAccessibleLabel,
+		trailing,
+	};
+
+	if ( isSortable ) {
+		return (
+			<SortableFact
+				id={ id }
+				dragLabel={ sprintf(
+					/* translators: %s: the item's name. */
+					__( 'Reorder %s', 'vip-workflows' ),
+					summary.label
+				) }
+				{ ...contentProps }
+			>
+				{ summary.leading }
+			</SortableFact>
+		);
+	}
+
+	return <Fact { ...contentProps }>{ summary.leading }</Fact>;
 }
 
 /**
@@ -274,6 +299,9 @@ function FieldRow( {
  * @param {?Function} [props.isStarted]    Whether the author has begun this item.
  * @param {Function}  props.describe       Names an item and says what it is set to.
  * @param {?Function} [props.renderConfig] Renders an item's options, for lists whose items have any.
+ * @param {?Function} [props.onItemSelect] Selects an item elsewhere: ( item, index ). See `FieldRow`.
+ * @param {boolean}   [props.sortable]     Whether items can be reordered by dragging. Default `true`.
+ * @param {?Function} [props.canRemove]    Per-item remove gate: ( item, index ) => boolean.
  * @param {string}    props.removeLabel    Accessible name for a row's remove button.
  * @param {string}    props.emptyLabel     What an empty list says for itself.
  * @return {JSX.Element} The list, or its empty state.
@@ -285,12 +313,15 @@ export default function InspectorFieldList( {
 	isStarted,
 	describe,
 	renderConfig,
+	onItemSelect,
+	sortable = true,
+	canRemove,
 	removeLabel,
 	emptyLabel,
 } ) {
-	// Mirrors the stage inspector's sensor setup. KeyboardSensor is not optional
-	// here: this list lives in a narrow panel where dragging is fiddly, so the
-	// keyboard route is the one that always works.
+	// KeyboardSensor is not optional: this list lives in a narrow panel where
+	// dragging is fiddly, so the keyboard route is the one that always works.
+	// Only created when the list is sortable.
 	const sensors = useSensors(
 		useSensor( PointerSensor, { activationConstraint: { distance: 8 } } ),
 		useSensor( KeyboardSensor, {
@@ -366,6 +397,42 @@ export default function InspectorFieldList( {
 		);
 	}
 
+	const rows = items.map( ( item, index ) => (
+		<FieldRow
+			key={ sortId( item, index ) }
+			id={ sortId( item, index ) }
+			item={ item }
+			index={ index }
+			problem={ problems[ index ] }
+			describe={ describe }
+			renderConfig={ renderConfig }
+			onItemSelect={ onItemSelect }
+			sortable={ sortable }
+			removable={ ! canRemove || canRemove( item, index ) }
+			isOpen={ openIndex === index }
+			onToggle={ ( target ) =>
+				setOpenIndex( ( open ) => ( open === target ? null : target ) )
+			}
+			onCloseConfig={ () => setOpenIndex( null ) }
+			onUpdate={ updateItem }
+			onRemove={ removeItem }
+			removeLabel={ removeLabel }
+		/>
+	) );
+
+	if ( ! sortable ) {
+		return (
+			<Stack
+				render={ <ul /> }
+				direction="column"
+				gap="xs"
+				className="wf-inspector__facts wf-inspector-field-list"
+			>
+				{ rows }
+			</Stack>
+		);
+	}
+
 	return (
 		<DndContext
 			sensors={ sensors }
@@ -382,27 +449,7 @@ export default function InspectorFieldList( {
 					items={ items.map( sortId ) }
 					strategy={ verticalListSortingStrategy }
 				>
-					{ items.map( ( item, index ) => (
-						<FieldRow
-							key={ sortId( item, index ) }
-							id={ sortId( item, index ) }
-							item={ item }
-							index={ index }
-							problem={ problems[ index ] }
-							describe={ describe }
-							renderConfig={ renderConfig }
-							isOpen={ openIndex === index }
-							onToggle={ ( target ) =>
-								setOpenIndex( ( open ) =>
-									open === target ? null : target
-								)
-							}
-							onCloseConfig={ () => setOpenIndex( null ) }
-							onUpdate={ updateItem }
-							onRemove={ removeItem }
-							removeLabel={ removeLabel }
-						/>
-					) ) }
+					{ rows }
 				</SortableContext>
 			</Stack>
 		</DndContext>

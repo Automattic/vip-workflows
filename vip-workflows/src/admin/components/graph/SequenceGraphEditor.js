@@ -1627,12 +1627,16 @@ export default function SequenceGraphEditor( {
 		onSettingsChange: setSettings,
 		metadataFields,
 		onMetadataChange: setMetadataFields,
-		// The canvas's own two verbs, given a home that isn't a right-click.
-		// Nothing on the canvas says that right-clicking is how a post status
-		// gets added, and until now nothing anywhere said how a stage does.
 		onAddStage: isPhase ? undefined : handleAddStage,
-		onAddPostStatus: () => setAddingRegion( true ),
-		canAddPostStatus: addableRegions.length > 0,
+		stages,
+		onStagesChange: setStages,
+		onRemoveStage: handleDeleteStage,
+		regions,
+		addableRegions,
+		onAddRegion: handleAddRegion,
+		onRemoveRegion: handleRemoveRegion,
+		onSelectNode: selectNode,
+		onSelectRegion: selectRegion,
 		// Whether there is a row to delete, which a new sequence gains the
 		// moment it is first saved.
 		isNew: ! savedId,
