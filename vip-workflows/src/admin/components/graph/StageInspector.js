@@ -858,12 +858,6 @@ export default function StageInspector( {
 									]
 										.filter( Boolean )
 										.join( ' ' ),
-									leading: (
-										<span
-											className="wf-stage-inspector__route-dot"
-											aria-hidden="true"
-										/>
-									),
 								};
 							} }
 							onItemSelect={ ( transition ) =>
