@@ -176,8 +176,8 @@
 
 /* Animate layout changes so adding, removing, or reconnecting a stage eases
    into place instead of snapping. Position only: nodes slide via their
-   transform, edges re-route via their `d`, and each edge's insert "+" rides
-   along with it. Timing comes from --wf-motion-* vars (WPDS-aligned). */
+   transform, edges re-route via their `d`, and each edge's midpoint pill and
+   mark ride along with it. Timing comes from --wf-motion-* vars (WPDS-aligned). */
 .react-flow__node {
 	transition: transform var( --wf-motion-duration )
 		var( --wf-motion-easing );
@@ -222,26 +222,29 @@
    puts the transition pill — at `auto`. Painting order is by z-index before DOM
    order, so the pill loses to both the line it belongs to and any status band it
    crosses, and the edge's own wide interaction stroke swallows the click. Lift
-   the layer over them. It takes no pointer events itself (React Flow sets
-   `none`, and only the pill inside switches them back on), so nothing else
-   becomes unclickable. */
+   the layer over them — to the stages' own z-index (`STAGE_Z`) and no further.
+   The layer comes before the nodes in the DOM, so at an equal z-index a card
+   still paints over a pill whose midpoint falls on it; any higher and a
+   selected edge's pill takes that card's clicks and drags, and a connection
+   released on the card there lands on the pill and grows a stage instead. It
+   takes no pointer events itself (React Flow sets `none`, and only the pill
+   inside switches them back on), so nothing else becomes unclickable. */
 .wf-sequence-editor .react-flow__edgelabel-renderer { /* wpds-allow R6 -- third-party chrome (React Flow); no theming API */
-	z-index: 5;
+	z-index: 2;
 }
 
 /* The invisible stroke React Flow lays over each line to catch the pointer. Its
-   width is set per edge (`EDGE_HIT_WIDTH`, `TransitionEdge`); what this does is
-   take it out of flow space, so the number is screen px at every zoom.
+   width is set per edge, in screen px against the live zoom (`EDGE_HIT_WIDTH`,
+   `TransitionEdge`).
 
-   Without it the target is scaled by the viewport transform like everything
-   else, which makes an edge generous to click zoomed in and — at the zoom a
-   whole sequence fits on screen at — thinner than the pointer can reliably be
-   aimed — the same edge easy to select at one zoom and fiddly at another. The
-   line itself is deliberately *not* given this treatment;
-   a 1px stroke that refused to thin with the canvas would read as the sequence
-   getting heavier the further out you zoomed. */
+   React Flow draws it with no `stroke` at all, only a zero opacity, and an
+   unpainted stroke adds nothing to the overflow of the `<svg>` each edge sits
+   in. Chromium hit-tests that overflow, so the half of the band on the far side
+   of the line from the svg's box ended at the painted halo, a couple of px out,
+   rather than half the band's width. A transparent stroke is painted: it gives
+   the band its full width on both sides, and still shows nothing. */
 .wf-sequence-editor .react-flow__edge-interaction { /* wpds-allow R6 -- third-party chrome (React Flow); the hit target is not a themeable surface */
-	vector-effect: non-scaling-stroke;
+	stroke: transparent;
 }
 
 /* --- Stage node --------------------------------------------------------- */
@@ -439,7 +442,7 @@
 	justify-content: center; /* wpds-allow R4 -- centres the grip glyph inside that <Handle> */
 	width: 22px;
 	height: 22px;
-	/* Same pill surface as the "+" affordances. */
+	/* Same pill surface as the transition pill. */
 	background: var( --wpds-color-background-surface-neutral );
 	border: 1px solid var( --wpds-color-stroke-surface-neutral );
 	border-radius: var( --vip-workflows-border-radius-full );
@@ -793,7 +796,11 @@
 	transition: color 0.1s ease;
 }
 
-.wf-sequence-editor .react-flow__edge:hover {
+/* `is-hovered` as well as `:hover`: the pill is portalled out of the edge's
+   `<g>`, so the pointer on it drops `:hover` while `GraphCanvas` still has the
+   edge hovered — and the ends in `EdgeOverlay` read only the class. */
+.wf-sequence-editor .react-flow__edge:hover,
+.wf-sequence-editor .react-flow__edge.is-hovered {
 	--wf-edge-halo: var( --wpds-color-stroke-surface-neutral );
 	--wf-edge-width: 2;
 
@@ -1158,10 +1165,26 @@
 
    The wrapper is the midpoint itself — a zero-size point the two hang off. It
    is `pointer-events: none`; only the pill switches them back on, and only once
-   it is visible. */
+   it is visible.
+
+   Its inline transform makes each edge's wrapper a stacking context of its own,
+   so a z-index on the pill orders it only against its own mark, and the next
+   edge in the layer — a shared set's sibling mark 12px away, a bundled
+   neighbour's pill — paints over it. The wrapper is what gets lifted, and a
+   hovered pill above a merely selected one, since that is the one the pointer
+   is on. */
 .wf-transition-edge__controls {
 	position: absolute;
 	pointer-events: none;
+}
+
+.wf-transition-edge__controls.is-visible,
+.wf-transition-edge__controls:has( :focus-visible ) {
+	z-index: 1;
+}
+
+.wf-transition-edge__controls.is-hovered {
+	z-index: 2;
 }
 
 /* "This line is one of a set standing on one transition." An AI stage may route
@@ -1209,11 +1232,13 @@
 	fill: currentColor;
 }
 
-/* The transition's label, and the thing that selects it. It replaced a 16px "+"
+/* The transition's label, and the thing that selects it. It replaced a 22px "+"
    at this midpoint, and the size is the point rather than a side effect: a 1px
    line is a hard thing to aim at, so the wide invisible stroke over the line
-   (`EDGE_HIT_WIDTH`, below) makes it easy to *reach*, and this makes it easy to
-   *click* once reached.
+   (`EDGE_HIT_WIDTH`, above) makes it easy to *reach*, and this makes it easy to
+   *click* once reached. Both hold at every zoom: `TransitionEdge` sizes the
+   stroke and scales this against the viewport — the centring transform is set
+   there, inline, for that reason.
 
    Shown on hover and selection only. Every edge carrying a permanent label
    would have the canvas restating what its own geometry already says — "Move to
@@ -1233,7 +1258,6 @@
 	position: absolute;
 	top: 0; /* wpds-allow R2 -- zero needs no token */
 	left: 0; /* wpds-allow R2 -- zero needs no token */
-	transform: translate( -50%, -50% );
 	display: inline-flex; /* wpds-allow R4 -- as above: a <Stack> carries none of this pill, so binding the class to one would only turn all of it into overrides */
 	align-items: center; /* wpds-allow R4 -- centres the glyph and the label on one baseline inside that inline-flex button */
 	gap: var( --wpds-dimension-gap-xs );
@@ -1250,7 +1274,6 @@
 	cursor: pointer;
 	opacity: 0;
 	pointer-events: none;
-	z-index: 1;
 	transition: opacity 0.1s ease;
 }
 
@@ -1283,9 +1306,9 @@
 }
 
 /* The pill lives in React Flow's label layer, which can't inherit the SVG
-   line's hover, so GraphCanvas flags the hovered/selected edge instead — and
-   the pill holds that flag open itself once the pointer is on it
-   (`TransitionEdge`), since moving off the line fires React Flow's mouse-leave. */
+   line's hover, so GraphCanvas flags the hovered/selected edge instead. That
+   flag holds while the pointer is on the pill: React Flow's edge mouse events
+   reach it through the portal, so moving onto it never leaves the edge. */
 .wf-transition-edge__pill.is-visible,
 .wf-transition-edge__pill:focus-visible {
 	opacity: 1;

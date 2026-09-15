@@ -235,12 +235,17 @@ export const TUNNEL_DOT_GAP = 2.1;
  * the viewport transform scales; a hit target measured that way is generous
  * zoomed in and, at the zoom a whole sequence fits on screen at, thinner than
  * the pointer can reliably be aimed, so the same edge is easy to select at one
- * zoom and fiddly at another. `vector-effect: non-scaling-stroke` on
- * the interaction path (`SequenceGraphEditor.css`) takes it out of flow space,
- * so this is what the pointer actually gets at every zoom.
+ * zoom and fiddly at another. `TransitionEdge` divides it by the live zoom to
+ * take it out of flow space, so this is what the pointer actually gets at every
+ * zoom. (`vector-effect: non-scaling-stroke` cannot do it: React Flow's zoom is
+ * a CSS transform outside each edge's `<svg>`.)
  *
- * 24 is the pointer-target floor rather than a tuned width: past it the strokes
- * of two bundled lanes — `EDGE_PITCH` apart — overlap so far that which edge a
- * click lands on stops being something the reader can aim at.
+ * 20 rather than more because of `EDGE_PITCH`. Every edge sits at one z-index,
+ * so where two hit bands overlap the later-painted edge takes the pointer, and
+ * once half the band reaches a bundled neighbour's line — whose lanes settle as
+ * close as `EDGE_PITCH - EDGE_GUARD_SLACK` — that neighbour is what pointing at
+ * its own line selects. 20 keeps half the band inside that gap at zoom 1.
+ * Zoomed further out the band outgrows it, but by then the lanes are a few
+ * screen px apart and are not separate things to aim at.
  */
-export const EDGE_HIT_WIDTH = 24;
+export const EDGE_HIT_WIDTH = 20;

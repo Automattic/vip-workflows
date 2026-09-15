@@ -133,7 +133,7 @@ export function bezierAt( a, c1, c2, b, t ) {
 
 /**
  * The point half the polyline's length along it, carrying the total length —
- * where the insert "+" goes.
+ * where the edge's pill and shared mark go.
  *
  * @param {Point[]} points The polyline.
  * @return {{ x: number, y: number, total: number }} Midpoint by arc length.

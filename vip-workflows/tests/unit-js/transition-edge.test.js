@@ -9,23 +9,24 @@
  * asking "does editing this one reach anything else?" is following one line,
  * and a mark on the other one is no answer.
  *
- * The pill is the other occupant of that point, and the reason most of these
- * tests exist: it renders through `EdgeLabelRenderer`, which portals it out of
- * the SVG edge group, so none of React Flow's edge events reach it. Both the
- * click that selects the edge and the hover that keeps the pill on screen have
- * to be answered by the pill itself, and each is a thing that silently does
- * nothing if the wiring is dropped.
+ * The pill is the other occupant of that point. It renders through
+ * `EdgeLabelRenderer`, which portals it out of the SVG edge group in the DOM
+ * but not in the React tree — so React Flow's edge `<g>` handlers, which are
+ * what select the edge and hold it hovered, have to keep answering for it.
+ * The tests below put the edge inside such a `<g>` and move the pointer the way
+ * a browser reports it, because a pill that handled its own leave would drop
+ * the hover on the way back to its line and no bare `mouseLeave` would say so.
  *
- * Rendering `TransitionEdge` needs two things stubbed. Its geometry arrives
+ * Rendering `TransitionEdge` needs three things stubbed. Its geometry arrives
  * from `EdgePlanProvider` — planning is a cross-edge pass, and there is nothing
- * to plan from one edge and no measured nodes — and `EdgeLabelRenderer` portals
+ * to plan from one edge and no measured nodes — `EdgeLabelRenderer` portals
  * into React Flow's own label layer, which exists only inside a mounted
- * `<ReactFlow>`.
+ * `<ReactFlow>`, and the zoom comes from React Flow's store.
  *
  * @package
  */
 
-import { createPortal as mockCreatePortal } from '@wordpress/element';
+import { createPortal as mockCreatePortal, useState } from '@wordpress/element';
 import { render, screen, fireEvent } from './helpers/render-wp-component';
 import TransitionEdge from '../../src/admin/components/graph/TransitionEdge';
 
@@ -38,13 +39,27 @@ import TransitionEdge from '../../src/admin/components/graph/TransitionEdge';
  */
 const mockLabelLayer = () => document.body;
 
+/** The viewport zoom the stubbed store reports; set per test. */
+let mockZoom = 1;
+
 jest.mock( '@xyflow/react', () => ( {
-	BaseEdge: ( { path } ) => <path data-testid="edge-line" d={ path } />,
+	BaseEdge: ( { path, interactionWidth } ) => (
+		<path
+			data-testid="edge-line"
+			d={ path }
+			data-interaction-width={ interactionWidth }
+		/>
+	),
 	// What the real one does: portal the label out of the SVG the edge is
 	// drawn in, so the controls are ordinary HTML on top of the canvas.
 	EdgeLabelRenderer: ( { children } ) =>
 		mockCreatePortal( children, mockLabelLayer() ),
+	useStore: ( selector ) => selector( { transform: [ 0, 0, mockZoom ] } ),
 } ) );
+
+beforeEach( () => {
+	mockZoom = 1;
+} );
 
 jest.mock( '../../src/admin/components/graph/EdgePlanProvider', () => ( {
 	useEdgePlan: () => ( {
@@ -80,14 +95,60 @@ function renderEdge( data = {} ) {
 					parallelIndex: 0,
 					parallelCount: 2,
 					label: PILL_LABEL,
-					onSelect: () => {},
-					onHover: () => {},
 					...data,
 				} }
 			/>
 		</svg>
 	);
 }
+
+/**
+ * One edge inside a stand-in for React Flow's edge `<g>`, wired the way
+ * `GraphCanvas` wires the real one: its enter/leave set the hover the edge is
+ * drawn with, and its click selects.
+ *
+ * @param {Object}   props         Harness props.
+ * @param {Function} props.onClick The edge `<g>`'s click handler.
+ * @return {JSX.Element} The harness.
+ */
+function EdgeGroup( { onClick = () => {} } ) {
+	const [ hovered, setHovered ] = useState( false );
+	return (
+		<svg>
+			<g
+				onClick={ onClick }
+				onMouseEnter={ () => setHovered( true ) }
+				onMouseLeave={ () => setHovered( false ) }
+			>
+				<TransitionEdge
+					id="review->done"
+					selected={ false }
+					data={ { label: PILL_LABEL, hovered } }
+				/>
+			</g>
+		</svg>
+	);
+}
+
+/**
+ * Move the pointer between two elements the way a browser reports it: `mouseout`
+ * on the one left and `mouseover` on the one entered, each naming the other.
+ *
+ * @param {?Element} from Element the pointer leaves, or null from outside.
+ * @param {?Element} to   Element the pointer enters, or null to outside.
+ */
+function movePointer( from, to ) {
+	if ( from ) {
+		fireEvent.mouseOut( from, { relatedTarget: to } );
+	}
+	if ( to ) {
+		fireEvent.mouseOver( to, { relatedTarget: from } );
+	}
+}
+
+/** @return {?Element} The pill, if it is currently shown. */
+const visiblePill = () =>
+	document.querySelector( '.wf-transition-edge__pill.is-visible' );
 
 describe( 'TransitionEdge shared-transition mark', () => {
 	it( 'marks every line of a shared set, not only the first of them', () => {
@@ -134,50 +195,68 @@ describe( 'TransitionEdge pill', () => {
 		).toBeInTheDocument();
 	} );
 
-	it( 'selects the edge when clicked, which React Flow cannot do for it', () => {
-		// The pill is portalled out of the SVG edge group, so a click on it
-		// fires no `onEdgeClick`. Drop this handler and the enlarged target
-		// silently stops selecting anything.
-		const onSelect = jest.fn();
-		renderEdge( { onSelect } );
+	it( 'selects through the edge it belongs to', () => {
+		// Portalled in the DOM, but a child of the edge `<g>` in the React tree,
+		// so its click reaches React Flow's `onEdgeClick` like the line's does.
+		const onClick = jest.fn();
+		render( <EdgeGroup onClick={ onClick } /> );
 
-		fireEvent.click( screen.getByRole( 'button' ) );
+		fireEvent.click( screen.getByRole( 'button', { hidden: true } ) );
 
-		expect( onSelect ).toHaveBeenCalled();
+		expect( onClick ).toHaveBeenCalledTimes( 1 );
 	} );
 
-	it( 'holds the edge hovered while the pointer is on it', () => {
-		// The regression the portal invites: moving off the line and onto the
-		// pill fires React Flow's `onEdgeMouseLeave`, and without this the pill
-		// disappears at the moment it is being reached for.
-		const onHover = jest.fn();
-		renderEdge( { onHover } );
+	it( 'stays up as the pointer moves between the line and the pill', () => {
+		render( <EdgeGroup /> );
+		const line = screen.getByTestId( 'edge-line' );
+		const pill = screen.getByRole( 'button', { hidden: true } );
 
-		const pill = screen.getByRole( 'button' );
-		fireEvent.mouseEnter( pill );
-		expect( onHover ).toHaveBeenLastCalledWith( true );
+		movePointer( null, line );
+		expect( visiblePill() ).toBeInTheDocument();
 
-		fireEvent.mouseLeave( pill );
-		expect( onHover ).toHaveBeenLastCalledWith( false );
+		movePointer( line, pill );
+		expect( visiblePill() ).toBeInTheDocument();
+
+		// The way back is the one a pill with its own leave handler gets wrong:
+		// the edge never re-enters, because as far as React is concerned the
+		// pointer never left it.
+		movePointer( pill, line );
+		expect( visiblePill() ).toBeInTheDocument();
+
+		movePointer( line, pill );
+		movePointer( pill, null );
+		expect( visiblePill() ).not.toBeInTheDocument();
 	} );
 
 	it( 'is drawn on a hovered edge and not on a resting one', () => {
 		// Visibility is a class rather than a mount, so the box is stable and
 		// the mark under it never shifts.
-		const { container } = renderEdge( { hovered: true } );
+		const { unmount } = renderEdge();
+		expect( screen.getByRole( 'button' ) ).toBeInTheDocument();
+		expect( visiblePill() ).not.toBeInTheDocument();
+		unmount();
+
+		renderEdge( { hovered: true } );
+		expect( visiblePill() ).toBeInTheDocument();
+	} );
+
+	it( 'holds its size on screen, and its hit stroke, at any zoom', () => {
+		// React Flow zooms with a CSS scale outside the edge's `<svg>`, so both
+		// are undone by hand: at a quarter zoom the stroke is four times as wide
+		// in flow px and the pill four times as large.
+		mockZoom = 0.25;
+		renderEdge( { hovered: true } );
+
 		expect(
-			container.ownerDocument.querySelector(
-				'.wf-transition-edge__pill.is-visible'
-			)
-		).toBeInTheDocument();
+			screen.getByTestId( 'edge-line' ).dataset.interactionWidth
+		).toBe( '80' );
+		expect( visiblePill().style.transform ).toContain( 'scale(4)' );
 	} );
 
 	it( 'stays with the line while an end of that line is being dragged', () => {
 		renderEdge( { hovered: true, reconnecting: true } );
 
-		expect(
-			document.querySelector( '.wf-transition-edge__pill.is-visible' )
-		).not.toBeInTheDocument();
+		expect( visiblePill() ).not.toBeInTheDocument();
 	} );
 
 	it( 'draws none at all on a synthetic Start/End edge', () => {

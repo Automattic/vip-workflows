@@ -175,8 +175,8 @@ export function bsplinePath( plan ) {
  * its border by design.
  *
  * The plan's ports are untouched, so everything measured from them — the break
- * marks, the midpoint the insert "+" rides at, the ports themselves — is the
- * geometry it always was. A dash pattern laid out along the full length still
+ * marks, the midpoint the pill and shared mark ride at, the ports themselves —
+ * is the geometry it always was. A dash pattern laid out along the full length still
  * lands where it did; the trim only clips its final run.
  *
  * @param {Array}  handles Cubic spans from `bsplinePath`.

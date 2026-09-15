@@ -27,9 +27,10 @@ import {
 	stageRegion,
 	visibleRegions,
 } from './regions';
-// Imported as well as re-exported below: `buildGraph` derives each edge's pill
-// label with it, and a bare `export … from` binds nothing locally.
-import { transitionLabel } from '../../../common/transition-label';
+import {
+	derivedTransitionLabel,
+	transitionLabel,
+} from '../../../common/transition-label';
 
 // `stageRegion` belongs with the rest of the region vocabulary, but every
 // consumer of the model reads it from here. `regionEntryStage` moved there for
@@ -113,10 +114,7 @@ export function stageLabel( stages, key ) {
  * stage's routed outcomes — and is re-exported here so graph-side consumers
  * keep importing it from the model.
  */
-export {
-	derivedTransitionLabel,
-	transitionLabel,
-} from '../../../common/transition-label';
+export { derivedTransitionLabel, transitionLabel };
 
 /**
  * The outcomes a stage agent can finish with, in reading order. A stage whose
@@ -250,13 +248,6 @@ export function buildGraph( stages, options = {} ) {
 	} = options;
 
 	const keys = new Set( stages.map( ( s ) => s.key ) );
-
-	// Display label per key, for the transition labels below — a lookup rather
-	// than a `stageLabel` scan per edge, since every edge needs its
-	// destination's.
-	const labels = new Map(
-		stages.map( ( s ) => [ s.key, s.label || s.key ] )
-	);
 
 	// Stages with at least one incoming transition; the rest are entry points.
 	const hasIncoming = new Set();
@@ -401,7 +392,7 @@ export function buildGraph( stages, options = {} ) {
 						// live value, not a snapshot of one.
 						label: transitionLabel(
 							transition,
-							labels.get( transition.to )
+							stageLabel( stages, transition.to )
 						),
 						// Every outcome standing on this one transition record,
 						// when more than one does — null otherwise. Two edges

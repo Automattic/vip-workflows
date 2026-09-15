@@ -50,10 +50,10 @@
  *
  * **The freeze.** The auto-layout gets exactly one turn. The first time the
  * author touches the canvas — drags a stage, drops a connection on empty space,
- * inserts one on an edge, deletes anything — every stage is pinned where it
- * currently sits (`freezeCanvas`), and from then on only the node the gesture
- * was actually about moves. Otherwise each edit re-ran dagre over the whole
- * graph: inserting a stage pushed everything downstream a rank, and a band
+ * deletes anything — every stage is pinned where it currently sits
+ * (`freezeCanvas`), and from then on only the node the gesture was actually
+ * about moves. Otherwise each edit re-ran dagre over the whole graph: adding a
+ * stage pushed everything downstream a rank, and a band
  * widening to fit a new stage slid the checkpoints back to centre while the
  * stages below them stayed put. "Reset layout" in the Controls panel drops the
  * placements and hands the graph back to dagre — the one place layout happens
@@ -469,27 +469,15 @@ function Flow( {
 	// Letting go there makes it that region's entry.
 	const [ dropSlotRegion, setDropSlotRegion ] = useState( null );
 
-	// Which edge is under the pointer. Hover comes from React Flow's own edge
-	// events (its edges carry a wide invisible interaction stroke, so the target
-	// is forgiving) *and* from the transition pill, which is why this sits up
-	// here: the decoration pass below hands every edge the setter.
-	//
-	// It rides in `data` because the pill renders in React Flow's label layer —
-	// a separate DOM subtree the SVG edge's class can't reach — and *also* as a
-	// class, because `EdgeOverlay` draws the end marks on a layer of its own and
-	// reads its tones from the edge's className. The line itself still takes its
-	// hover tone from CSS `:hover`; this is what keeps its ends in step.
-	const [ hoveredEdgeId, setHoveredEdgeId ] = useState( null );
-
 	// True only while a node is under the pointer. Two jobs: the layout easing is
 	// suspended (eased transforms would leave the node, and its edges, trailing
 	// the cursor), and every region shows its checkpoint slot, which is only a
 	// target while something is in flight.
 	const [ draggingNode, setDraggingNode ] = useState( false );
 
-	// Decoration: in-flight drag positions, selection, per-stage warnings, and
-	// the transition pill's handlers. Cheap (plain maps), so it can re-run on
-	// every selection or edit without paying for another layout.
+	// Decoration: in-flight drag positions, selection, and per-stage warnings.
+	// Cheap (plain maps), so it can re-run on every selection or edit without
+	// paying for another layout.
 	const { nodes, edges } = useMemo( () => {
 		const decoratedNodes = layout.nodes.map( ( laidOut ) => {
 			const node = dragPositions[ laidOut.id ]
@@ -547,26 +535,6 @@ function Flow( {
 			]
 				.filter( Boolean )
 				.join( ' ' ),
-			data: {
-				...edge.data,
-				// The transition pill's own two handlers. It renders through
-				// `EdgeLabelRenderer`, which portals it out of the SVG edge
-				// group, so neither of React Flow's edge events reaches it:
-				// clicking it fires no `onEdgeClick`, and — the one that bites
-				// — moving the pointer off the line and onto it fires
-				// `onEdgeMouseLeave`, which would take the pill away at the
-				// moment it was being reached for. Both have to be answered
-				// here, on the same state React Flow's own handlers set.
-				//
-				// Synthetic Start/End edges carry no transition and draw no
-				// pill, so they get neither.
-				onSelect: edge.data?.synthetic
-					? undefined
-					: () => onSelectEdge( edge.id ),
-				onHover: edge.data?.synthetic
-					? undefined
-					: ( over ) => setHoveredEdgeId( over ? edge.id : null ),
-			},
 		} ) );
 		return { nodes: decoratedNodes, edges: decoratedEdges };
 	}, [
@@ -577,7 +545,6 @@ function Flow( {
 		selectedEdgeId,
 		dropSlotRegion,
 		draggingNode,
-		onSelectEdge,
 	] );
 
 	// What the screen-space region layer needs of each region beyond its band
@@ -769,6 +736,19 @@ function Flow( {
 		useReactFlow();
 	const store = useStoreApi();
 	const viewportRef = useRef( null );
+
+	// Hover state comes from React Flow's own edge events (its edges carry a wide
+	// invisible interaction stroke, so the target is forgiving). Those cover the
+	// transition pill too: it is portalled out of the edge's `<g>` in the DOM but
+	// not in the React tree, and React computes enter/leave along the React tree,
+	// so moving between the line and its pill neither leaves nor re-enters the
+	// edge. It rides in `data` because the pill renders in React Flow's label
+	// layer — a separate DOM subtree the SVG edge's class can't reach — and *also*
+	// as a class, because `EdgeOverlay` draws the end marks on a layer of its own
+	// and reads its tones from the edge's className. The line takes its hover
+	// tone from that class as well (CSS `:hover` goes false while the pointer is
+	// on the pill), which is what keeps the line, its ends and the pill in step.
+	const [ hoveredEdgeId, setHoveredEdgeId ] = useState( null );
 
 	// The hovered stage, for the overlay. An AI stage's outcome badges paint
 	// on hover, and the arrowhead of an edge arriving under one yields for

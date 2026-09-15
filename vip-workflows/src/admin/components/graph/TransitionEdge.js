@@ -44,13 +44,19 @@
  * ## The pill
  *
  * What replaced the "+", and not as a like-for-like swap: it is a target
- * before it is a label. A 16px circle on a 1px line is a hard thing to hit, and
+ * before it is a label. A 22px circle on a 1px line is a hard thing to hit, and
  * the line was harder: selecting a transition meant getting the pointer almost
  * exactly onto a 1px stroke. Two changes answer that together: the
- * invisible stroke React Flow lays over the line is now `EDGE_HIT_WIDTH` in
+ * invisible stroke React Flow lays over the line is `EDGE_HIT_WIDTH` in
  * screen px rather than flow px, so hovering the edge no longer gets harder the
  * further out the canvas is zoomed, and the pill that hover reveals is a target
- * many times the size of the line for the click that follows.
+ * many times the size of the line for the click that follows — at every zoom
+ * too, since it is scaled against the viewport the same way.
+ *
+ * Both are undone by hand, from the live zoom. React Flow zooms with a CSS
+ * `scale()` on the HTML viewport that holds each edge's own `<svg>`, and
+ * `vector-effect: non-scaling-stroke` only answers transforms inside the SVG,
+ * so it leaves that one exactly where it was.
  *
  * It carries the label a writer will see on the button, derived — most
  * transitions store none, deliberately (`addTransition`), so `buildGraph` runs
@@ -89,10 +95,12 @@
  * the line does, since it is that line's outline; a dotted hover ring is just a
  * dotted hover ring.
  *
- * Selection comes from React Flow's own edge click handling on the line, and
- * from the pill's own handler off it: `EdgeLabelRenderer` portals the pill out
- * of the SVG edge group, so none of React Flow's edge events reach it and both
- * the click and the hover it needs are handed down in `data` (`GraphCanvas`).
+ * Selection comes from React Flow's own edge click handling, on the pill as
+ * much as on the line: `EdgeLabelRenderer` portals the pill out of the SVG edge
+ * group in the DOM but not in the React tree, and React propagates events —
+ * click, and enter/leave — along the React tree. So the pill's click reaches
+ * `onEdgeClick`, and moving between the line and the pill neither leaves nor
+ * re-enters the edge; the pill needs no handlers of its own.
  * Endpoints *are* draggable, but not by React Flow — its anchors sit where it
  * thinks the edge ends rather than where this one does, so the grab handles are
  * drawn on the planned ports by `EdgeAnchors` instead.
@@ -100,7 +108,7 @@
  * @package
  */
 import { memo } from '@wordpress/element';
-import { BaseEdge, EdgeLabelRenderer } from '@xyflow/react';
+import { BaseEdge, EdgeLabelRenderer, useStore } from '@xyflow/react';
 import { Icon } from '@wordpress/components';
 import { link } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
@@ -128,8 +136,17 @@ import {
 const SHARED_MARK = PORT_SPREAD;
 const SHARED_GLYPH = Math.round( ( SHARED_MARK * 18 ) / 22 );
 
+/**
+ * The viewport zoom, which the hit stroke and the pill are sized against.
+ *
+ * @param {Object} state React Flow store state.
+ * @return {number} Current zoom.
+ */
+const selectZoom = ( state ) => state.transform[ 2 ];
+
 function TransitionEdgeComponent( { id, data, selected } ) {
 	const drawn = useEdgePlan( id );
+	const zoom = useStore( selectZoom );
 
 	// Both nodes have to be measured before there's anything to draw.
 	if ( ! drawn ) {
@@ -145,14 +162,6 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 		( data?.disabled
 			? { strokeDasharray: `${ TUNNEL_DOT } ${ TUNNEL_DOT_GAP }` }
 			: undefined );
-
-	// The pill is off the line, in a layer of its own, so a click on it is not a
-	// click on the edge — React Flow never sees one. Stop it here and answer it
-	// with the selection it was meant to be.
-	const onPillClick = ( e ) => {
-		e.stopPropagation();
-		data?.onSelect?.();
-	};
 
 	// One line, one mark: the set is carried by every edge drawn from the
 	// transition, and every one of them wears it — a reader following the fail
@@ -171,6 +180,12 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 	// synthetic Start/End edges, which are not transitions and get no pill.
 	const pill = data?.label || null;
 
+	// Hidden while one of the edge's ends is being dragged: the line it stands on
+	// the middle of is itself hidden for the length of that gesture
+	// (`GraphCanvas`), and a pill floating with no line under it invites a click
+	// on a transition whose midpoint is about to move.
+	const pillVisible = ( data?.hovered || selected ) && ! data?.reconnecting;
+
 	return (
 		<>
 			{ /* Under the line, and transparent until the edge is hovered or
@@ -181,16 +196,15 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 				style={ dashed }
 			/>
 			{ /* `interactionWidth` is the invisible stroke React Flow lays
-			     over the line for the pointer. The stylesheet takes it out of
-			     flow space (`vector-effect: non-scaling-stroke`), so this is
-			     screen px and the target no longer thins as the canvas is
-			     zoomed out. */ }
+			     over the line for the pointer, in flow px. Divided by the zoom
+			     it is `EDGE_HIT_WIDTH` screen px, so the target no longer
+			     thins as the canvas is zoomed out. */ }
 			<BaseEdge
 				id={ id }
 				path={ d }
 				className="wf-transition-edge"
 				style={ stroked }
-				interactionWidth={ EDGE_HIT_WIDTH }
+				interactionWidth={ EDGE_HIT_WIDTH / zoom }
 			/>
 			{ /* The mouths of the underpasses: a semicircular cup closing each
 			     end of every break, its chord square to the line and its dome
@@ -213,9 +227,23 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 					     which is a stage name's, and so anything — moves
 					     neither of them. The mark holds the point at rest; the
 					     pill covers it while shown, and carries the same link
-					     glyph so nothing is lost for that moment. */ }
+					     glyph so nothing is lost for that moment.
+
+					     The wrapper's transform makes it a stacking context, so a
+					     shown pill is lifted here rather than on the pill itself —
+					     otherwise the next edge's mark, later in the layer, paints
+					     over it. A hovered one goes above a merely selected one,
+					     which is the one under the pointer. */ }
 					<div
-						className="wf-transition-edge__controls nodrag nopan"
+						className={ [
+							'wf-transition-edge__controls',
+							'nodrag',
+							'nopan',
+							pillVisible && 'is-visible',
+							pillVisible && data?.hovered && 'is-hovered',
+						]
+							.filter( Boolean )
+							.join( ' ' ) }
 						style={ {
 							transform: `translate(${ mid.x }px, ${ mid.y }px)`,
 						} }
@@ -242,34 +270,26 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 							</span>
 						) }
 						{ pill && (
-							/* wpds-allow R7 -- the pill is surface, border, radius, elevation and a truncating label, none of which a <Button> or a <Stack> carries at this size; binding it to one would restate every declaration below as a library override to gain a flex box. */
 							<button
 								type="button"
 								className={ [
 									'wf-transition-edge__pill',
-									// Hidden while one of the edge's ends is
-									// being dragged: the line it stands on the
-									// middle of is itself hidden for the length
-									// of that gesture (`GraphCanvas`), and a
-									// pill floating with no line under it
-									// invites a click on a transition whose
-									// midpoint is about to move.
-									( data?.hovered || selected ) &&
-										! data?.reconnecting &&
-										'is-visible',
+									pillVisible && 'is-visible',
 									data?.disabled && 'is-disabled',
 								]
 									.filter( Boolean )
 									.join( ' ' ) }
-								// The pointer is what this is sized for, but
-								// the hover it answers is React Flow's, set
-								// from the line. Moving off the line and onto
-								// the pill fires `onEdgeMouseLeave`, which
-								// would take the pill away as it was reached
-								// for — so it holds the state open itself.
-								onMouseEnter={ () => data?.onHover?.( true ) }
-								onMouseLeave={ () => data?.onHover?.( false ) }
-								onClick={ onPillClick }
+								// Scaled against the viewport, so it is the
+								// same size on screen at every zoom — the
+								// large target the hit stroke leads to, not a
+								// few pixels once the whole sequence fits.
+								style={ {
+									transform: `translate(-50%, -50%) scale(${
+										1 / zoom
+									})`,
+								} }
+								// No handlers: React Flow's own edge click and
+								// hover reach it through the portal.
 								// The pill elides a long destination name
 								// rather than growing to the width of the
 								// canvas. The accessible name is the full
