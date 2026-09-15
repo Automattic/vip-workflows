@@ -27,6 +27,7 @@ use VIPWorkflows\Experiments\ExperimentCLI;
 use VIPWorkflows\Experiments\ExperimentRegistry;
 use VIPWorkflows\Experiments\IdeationExperiment;
 use VIPWorkflows\Experiments\KanbanExperiment;
+use VIPWorkflows\Experiments\MyQueueExperiment;
 use VIPWorkflows\Sequences\SequenceRepository;
 use VIPWorkflows\Story\Story;
 
@@ -177,6 +178,7 @@ final class Plugin {
 		$this->experiment_registry->register( new IdeationExperiment() );
 		$this->experiment_registry->register( new KanbanExperiment() );
 		$this->experiment_registry->register( new CalendarExperiment() );
+		$this->experiment_registry->register( new MyQueueExperiment() );
 
 		/**
 		 * Fires when experiments should be registered.

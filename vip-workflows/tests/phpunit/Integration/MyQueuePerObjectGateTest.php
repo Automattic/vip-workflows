@@ -12,9 +12,13 @@
  * of every other user's unpublished post sitting in a `show_in_queue` stage —
  * content core grants them neither `edit_post` nor `read_post` on.
  *
- * The fix is one line, and the line already exists in this controller: the
- * kanban endpoint skips any post failing `current_user_can( 'edit_post', ... )`,
- * as do the calendar and dashboard queries. This endpoint was the omission.
+ * WorkflowController::get_my_queue() already carries the per-post
+ * `current_user_can( 'edit_post', ... )` guard this test exercises — the kanban,
+ * calendar, and dashboard queries carry the same line. What this test needs is
+ * the route to exist at all: registration is gated behind the `my_queue`
+ * experiment, so `set_up()` enables it the way `IdeationCreateDraftFailureTest`
+ * enables `ideation` — otherwise every request here 404s before the guard is
+ * ever reached.
  *
  * @package VIPWorkflows\Tests\Integration
  */
@@ -23,6 +27,7 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Tests\Integration;
 
+use VIPWorkflows\Plugin;
 use VIPWorkflows\Sequences\SequenceRepository;
 use VIPWorkflows\Workflow\StatusManager;
 use WP_REST_Request;
@@ -45,6 +50,9 @@ class MyQueuePerObjectGateTest extends TestCase {
 
 	public function set_up(): void {
 		parent::set_up();
+
+		// The route itself only registers when this experiment is on.
+		Plugin::get_instance()->get_experiment_registry()->enable( 'my_queue' );
 
 		$admin = (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin );

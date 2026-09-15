@@ -16,7 +16,7 @@ Experiments are in-development features that ship **disabled by default** and ca
 
 The system replaced the standalone "Content OS" admin page. The toggle UI now lives in **Settings → Experiments**.
 
-Registered experiments: **Ideation** (`ideation`), which gates the research/discovery/source-processing subsystem, **Kanban Board** (`kanban`), which gates the Kanban board admin page and its REST endpoint, and **Calendar** (`calendar`), which gates the Calendar admin page and its REST endpoint.
+Registered experiments: **Ideation** (`ideation`), which gates the research/discovery/source-processing subsystem; **Kanban Board** (`kanban`), which gates the Kanban board admin page and its REST endpoint; **Calendar** (`calendar`), which gates the Calendar admin page and its REST endpoint; and **My Queue** (`my_queue`), which gates the My Queue tab on My Dashboard and its REST endpoint.
 
 ---
 
@@ -31,6 +31,7 @@ Registered experiments: **Ideation** (`ideation`), which gates the research/disc
 | `IdeationExperiment` | `class-ideation-experiment.php` | The Ideation experiment. Registers `IdeationPostTypes`, `SourceProcessingJob`, `DiscoveryModule` (+ `IdeationAdmin` in admin); seeds the default phase sequence on activate and unschedules source-processing jobs on deactivate. |
 | `KanbanExperiment` | `class-kanban-experiment.php` | The Kanban board experiment. Declares no modules — it gates a single admin page and REST endpoint directly at their call sites in `class-admin.php` / `class-workflow-controller.php`. |
 | `CalendarExperiment` | `class-calendar-experiment.php` | The Calendar experiment. Declares no modules — it gates a single admin page and REST endpoint directly at their call sites in `class-admin.php` / `class-workflow-controller.php`. |
+| `MyQueueExperiment` | `class-my-queue-experiment.php` | The My Queue experiment. Declares no modules — it gates the My Queue tab (My Dashboard) and its REST endpoint directly at their call sites in `MyDashboardPage.js` / `class-workflow-controller.php`. |
 | `ExperimentCLI` | `class-experiment-cli.php` | `wp vip-workflows experiment list|enable|disable`. |
 
 ### Storage & resolution
