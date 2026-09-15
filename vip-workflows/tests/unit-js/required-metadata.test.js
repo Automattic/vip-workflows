@@ -80,13 +80,13 @@ function heldPublishEdge( labels ) {
 }
 
 /**
- * An edge held by the assignment rule — a lock the editor may not touch.
+ * An edge held by a disabled required tool — a lock the editor may not touch.
  */
-const ASSIGNMENT_HELD_EDGE = {
+const TOOL_HELD_EDGE = {
 	to: 'review',
 	label: 'Send to Review',
 	_locked: true,
-	_locked_reason: 'Only the assigned editor can make this move.',
+	_locked_reason: 'Required checks are switched off: x/seo',
 };
 
 describe( 'metadataValueIsEmpty', () => {
@@ -260,19 +260,19 @@ describe( 'projectRequiredMetadataLocks', () => {
 	} );
 
 	/**
-	 * The rule that keeps the server authoritative. An assignment lock is a fact
-	 * about the user, not about post meta, and no amount of typing in the
-	 * sidebar changes it.
+	 * The rule that keeps the server authoritative. A disabled-tool lock is a
+	 * site setting, not post meta, and no amount of typing in the sidebar
+	 * changes it.
 	 */
 	it( 'leaves a lock it does not own alone', () => {
 		const projected = projectRequiredMetadataLocks(
-			[ ASSIGNMENT_HELD_EDGE ],
+			[ TOOL_HELD_EDGE ],
 			[]
 		);
 
 		expect( projected[ 0 ]._locked ).toBe( true );
 		expect( projected[ 0 ]._locked_reason ).toBe(
-			ASSIGNMENT_HELD_EDGE._locked_reason
+			TOOL_HELD_EDGE._locked_reason
 		);
 	} );
 
@@ -300,7 +300,7 @@ describe( 'projectRequiredMetadataLocks', () => {
 	 * overwhelming majority) hand every consumer a stable reference.
 	 */
 	it( 'returns the same array when no metadata lock is present', () => {
-		const transitions = [ ASSIGNMENT_HELD_EDGE ];
+		const transitions = [ TOOL_HELD_EDGE ];
 
 		expect( projectRequiredMetadataLocks( transitions, [] ) ).toBe(
 			transitions

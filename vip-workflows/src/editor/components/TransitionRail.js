@@ -401,7 +401,7 @@ export function TransitionRail( {
 		// whose routed exits belong to its agent (reached job-less — e.g. a
 		// zero-route agent stage, the trap the sequence editor warns about),
 		// edges the sequence declares but role-filtering removed entirely
-		// (a rule that HOLDS an edge — assignment, required metadata — leaves
+		// (a rule that HOLDS an edge — required metadata, a disabled tool — leaves
 		// it in the list as a _locked row instead, so this state means the
 		// edges are gone, not held), and a stage that genuinely declares none
 		// without wearing the dead-end flag.

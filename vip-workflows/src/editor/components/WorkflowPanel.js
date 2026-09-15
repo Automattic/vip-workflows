@@ -653,8 +653,12 @@ export function WorkflowPanel( { children } ) {
 			return;
 		}
 
+		// Named the way a note is: the history labels each value by its
+		// `__name`, and falls back to the raw key — a minted `wfp_n…` id.
 		const inputData = {
 			[ metaKey ]: selectedValue,
+			[ `${ metaKey }__name` ]:
+				input.label || __( 'Assignee', 'vip-workflows' ),
 		};
 
 		// Add notes if provided

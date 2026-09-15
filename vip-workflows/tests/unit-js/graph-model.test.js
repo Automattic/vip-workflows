@@ -1906,6 +1906,93 @@ describe( 'outcome edge gestures', () => {
 	} );
 } );
 
+/*
+ * A gesture that copies a transition's configuration while the original stays
+ * would otherwise declare the original's assignment slot twice — a Save blocker
+ * whose only fix, with no key field left, is to rebuild the assignment by hand.
+ */
+describe( 'copied assignments take a slot of their own', () => {
+	const ASSIGNMENT = {
+		type: 'assignment',
+		assignee_type: 'role',
+		label: 'Pick desk',
+		required: true,
+		meta_key: 'wfp_n1abcde',
+	};
+
+	const withAssignment = ( routing ) =>
+		agentStages( routing ).map( ( s ) =>
+			s.key === 'review'
+				? {
+						...s,
+						transitions: s.transitions.map( ( t ) => ( {
+							...t,
+							inputs: [ ASSIGNMENT ],
+						} ) ),
+				  }
+				: s
+		);
+
+	const slotErrors = ( next ) =>
+		validateSequence( {
+			name: 'Flow',
+			stages: next,
+			allowAgentPublish: true,
+		} ).errors.filter( ( e ) => e.message.includes( 'slot' ) );
+
+	it( 'when a stage is inserted on an outcome edge', () => {
+		const { stages: next, key } = insertStageOnEdge(
+			withAssignment( { pass: 'done' } ),
+			'review',
+			'done',
+			{ outcome: 'pass' }
+		);
+		const [ copy ] = findTransition( next, 'review', key ).inputs;
+
+		expect( copy.meta_key ).toMatch( /^wfp_n/ );
+		expect( copy.meta_key ).not.toBe( ASSIGNMENT.meta_key );
+		expect( { ...copy, meta_key: ASSIGNMENT.meta_key } ).toEqual(
+			ASSIGNMENT
+		);
+		expect(
+			findTransition( next, 'review', 'done' ).inputs[ 0 ].meta_key
+		).toBe( ASSIGNMENT.meta_key );
+		expect( slotErrors( next ) ).toEqual( [] );
+	} );
+
+	it( 'when a shared outcome edge is re-pointed', () => {
+		const { stages: next } = reconnectEdge(
+			withAssignment( { pass: 'done', fail: 'done' } ),
+			'review',
+			'done',
+			'review',
+			'draft',
+			'pass'
+		);
+		const [ copy ] = findTransition( next, 'review', 'draft' ).inputs;
+
+		expect( copy.meta_key ).not.toBe( ASSIGNMENT.meta_key );
+		expect( copy.label ).toBe( 'Pick desk' );
+		expect( slotErrors( next ) ).toEqual( [] );
+	} );
+
+	it( 'but a moved outcome edge keeps its slot, since nothing stays behind', () => {
+		const { stages: next } = reconnectEdge(
+			withAssignment( { pass: 'done' } ),
+			'review',
+			'done',
+			'review',
+			'draft',
+			'pass'
+		);
+
+		expect( findTransition( next, 'review', 'done' ) ).toBeNull();
+		expect(
+			findTransition( next, 'review', 'draft' ).inputs[ 0 ].meta_key
+		).toBe( ASSIGNMENT.meta_key );
+	} );
+} );
+
 describe( 'validateSequence for AI stages', () => {
 	it( 'does not warn about a missing error destination — the error path is opt-in', () => {
 		// An errored run on such a stage deliberately fails in place, where the

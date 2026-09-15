@@ -142,9 +142,9 @@ GET         /vip-workflows/v1/audit-log/users
 - Blocked transitions logged to `wp_vip_workflows_events` via `log_blocked_transition()`
 
 **Bypass Permissions**:
-- `Settings::can_user_bypass_workflow()` - Skip role restrictions and required fields
+- `Settings::can_user_bypass_workflow()` - Skip role restrictions and required fields, and turn the publish-boundary veto on a direct status change into a confirm
 - `Settings::can_user_bypass_tool_checks()` - Skip hard check enforcement
-- Checked in `StatusManager::transition()` before enforcement
+- Checked in `StatusManager::transition()` before enforcement (and, for the first, in `Sequence::get_role_permitted_transitions()` and `PublishBoundaryGuard`)
 - Default: Administrators can bypass both (configurable in Settings → General)
 
 **Transition Input Notes**:
@@ -157,9 +157,9 @@ GET         /vip-workflows/v1/audit-log/users
 
 **Held Transitions (`_locked` / `_locked_reason` / `_locked_code`)**:
 - A transition the user may see but not take carries `_locked: true` plus
-  `_locked_reason` (a finished sentence for the reader). Role and capability
-  locks and disabled required tools are all projected this way, as is the
-  required-metadata gate
+  `_locked_reason` (a finished sentence for the reader). A disabled required
+  tool is projected this way, as is the required-metadata gate; a role or core
+  capability the user lacks drops the edge from the list instead
 - `_locked_code` names the RULE holding it, for code rather than for a reader.
   Only the required-metadata gate sets one today
   (`Sequence::CODE_REQUIRED_METADATA`, the same string

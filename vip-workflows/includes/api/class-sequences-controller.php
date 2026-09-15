@@ -690,16 +690,16 @@ class SequencesController extends WP_REST_Controller {
 							'items' => array(
 								'type'       => 'object',
 								'properties' => array(
-									'to'                  => array(
+									'to'             => array(
 										'type' => 'string',
 										'required' => true,
 									),
-									'label'               => array( 'type' => 'string' ),
-									'required_tools'      => array( 'type' => 'array' ),
-									'allowed_roles'       => array( 'type' => 'array' ),
-									'notifications'       => array( 'type' => 'array' ),
-									'show_in_queue'       => array( 'type' => 'boolean' ),
-									'inputs'              => array( 'type' => 'array' ),
+									'label'          => array( 'type' => 'string' ),
+									'required_tools' => array( 'type' => 'array' ),
+									'allowed_roles'  => array( 'type' => 'array' ),
+									'notifications'  => array( 'type' => 'array' ),
+									'show_in_queue'  => array( 'type' => 'boolean' ),
+									'inputs'         => array( 'type' => 'array' ),
 								),
 							),
 						),
@@ -1432,7 +1432,8 @@ class SequencesController extends WP_REST_Controller {
 
 		// Assignment slots, same gate as create/update. Checked before the keys
 		// are regenerated below, so the error names the key the author exported
-		// rather than a freshly minted one.
+		// rather than a freshly minted one — and so regeneration, which reads no
+		// old key, never mints over a blank or shared one.
 		$assignment_validation = $this->validate_assignment_keys( $sequence_json['config']['statuses'] );
 		if ( is_wp_error( $assignment_validation ) ) {
 			return $assignment_validation;
@@ -1829,9 +1830,9 @@ class SequencesController extends WP_REST_Controller {
 	 *     post meta, so the second assignment silently overwrites the first.
 	 *
 	 * Keys are compared after sanitize_key(), the normalization build_config()
-	 * stores them under, so a pair that differs only in what sanitize_key strips
-	 * ("Legal Reviewer" against "legal_reviewer") is caught here instead of
-	 * landing on one slot on write.
+	 * stores them under, so a pair that differs only in what sanitize_key
+	 * normalizes away ("Legal_Reviewer" against "legal_reviewer") is caught here
+	 * instead of landing on one slot on write.
 	 *
 	 * Follows the fail-loud contract: broken assignment wiring is a
 	 * data-integrity error, not something to silently persist.
@@ -1890,33 +1891,20 @@ class SequencesController extends WP_REST_Controller {
 	 *
 	 * An imported sequence gets its own assignment slots rather than sharing the
 	 * ones the source sequence writes, so every declared key is minted fresh.
+	 * Runs after validate_assignment_keys(), which has already refused a blank or
+	 * repeated key, so every slot here is distinct and its old key goes unread.
 	 *
-	 * @param  array $statuses Imported statuses.
+	 * @param  array $statuses Imported statuses, already validated.
 	 * @return array Statuses with fresh slot keys.
 	 */
 	private function regenerate_assignment_keys( array $statuses ): array {
-		$key_map = array();
+		$minted = 0;
 
 		foreach ( $statuses as $status_index => $status ) {
 			foreach ( $this->status_transitions( $status ) as $transition_index => $transition ) {
-				foreach ( self::transition_assignment_inputs( $transition ) as $input_index => $input ) {
-					// The same emptiness test validate_assignment_keys() applies,
-					// not empty(): empty() calls the key "0" blank, so a slot the
-					// validator has just accepted would be skipped here and the
-					// import would keep — and share — the source sequence's meta key.
-					$old_key = sanitize_key( (string) ( $input['meta_key'] ?? '' ) );
-
-					if ( '' === $old_key ) {
-						continue;
-					}
-
-					if ( ! isset( $key_map[ $old_key ] ) ) {
-						// One new key per old key. The counter keeps two slots apart
-						// even when they are minted in the same second.
-						$key_map[ $old_key ] = sanitize_key( sprintf( 'wfp_n%d_%d_%s', time(), count( $key_map ), wp_generate_password( 5, false ) ) );
-					}
-
-					$statuses[ $status_index ]['transitions'][ $transition_index ]['inputs'][ $input_index ]['meta_key'] = $key_map[ $old_key ];
+				foreach ( array_keys( self::transition_assignment_inputs( $transition ) ) as $input_index ) {
+					// The counter keeps two slots apart even when they are minted in the same second.
+					$statuses[ $status_index ]['transitions'][ $transition_index ]['inputs'][ $input_index ]['meta_key'] = sanitize_key( sprintf( 'wfp_n%d_%d_%s', time(), $minted++, wp_generate_password( 5, false ) ) );
 				}
 			}
 		}

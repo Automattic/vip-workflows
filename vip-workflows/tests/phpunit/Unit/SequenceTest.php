@@ -1368,7 +1368,7 @@ class SequenceTest extends TestCase
     }
 
     /**
-     * Workflow bypass roles bypass workflow rules (roles/assignments) but NOT
+     * Workflow bypass roles bypass workflow rules (roles, required fields) but NOT
      * core capabilities — a bypass-role user without publish_posts still isn't
      * offered the crossing edge.
      */

@@ -2125,6 +2125,51 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
+     * Import validates slot keys before it regenerates them, the same as
+     * create/update. Regeneration mints a fresh key per slot without reading the
+     * old one, so skipping the check would store the file's broken wiring rather
+     * than refuse it.
+     */
+    public function test_import_sequence_rejects_duplicate_assignment_keys(): void
+    {
+        $this->wpdb->shouldReceive( 'insert' )->never();
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => 'workflow',
+                    'name'   => 'Imported Duplicate Slots',
+                    'config' => array(
+                        'statuses' => array(
+                            array(
+                                'key'         => 'draft',
+                                'label'       => 'Draft',
+                                'transitions' => array(
+                                    array( 'to' => 'review', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ) ) ),
+                                ),
+                            ),
+                            array(
+                                'key'         => 'review',
+                                'label'       => 'Review',
+                                'transitions' => array(
+                                    array( 'to' => 'draft', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ) ) ),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'duplicate_assignment_key', $response->get_error_code() );
+    }
+
+    /**
      * Two transitions assigning the same slot key write and read the same post
      * meta, so the second assignment silently replaces the first.
      */

@@ -35,9 +35,9 @@
  * keys. A duplicate storage key is a 400 on save
  * (`duplicate_metadata_field_key`, `duplicate_assignment_key`), and it used to
  * be reported only after the fact, naming the field by array index. The row that
- * has to change is flagged as it is typed, and the message repeats inside the
- * popover where the key field actually is — a problem hidden behind a closed
- * disclosure is not a report.
+ * has to change is flagged as it is typed, and the popover the row opens says
+ * what to do about it — a problem hidden behind a closed disclosure is not a
+ * report.
  *
  * @package
  */
@@ -186,7 +186,7 @@ function FieldRow( {
 			label={ summary.label }
 			// A row whose key is wrong says so instead of saying what it
 			// captures: the setting is unreachable until the key is fixed, and
-			// the popover behind this row is where it gets fixed.
+			// the popover behind this row says how.
 			value={ problem ? problem.short : summary.value }
 			empty={ problem ? false : Boolean( summary.empty ) }
 			tip={ configurable ? undefined : summary.tip }
