@@ -15,7 +15,13 @@
  */
 
 import { useState } from '@wordpress/element';
-import { render, screen, fireEvent, act } from './helpers/render-wp-component';
+import {
+	render,
+	screen,
+	fireEvent,
+	act,
+	within,
+} from './helpers/render-wp-component';
 
 import TransitionInspector from '../../src/admin/components/graph/TransitionInspector';
 
@@ -131,8 +137,14 @@ describe( 'Transition capture inputs', () => {
 		} );
 
 		expect( screen.queryByText( 'Restrict to an assignee' ) ).toBeNull();
+		// `hidden`, because the toggle lived in a section that renders
+		// collapsed for this transition — a default query would skip it there
+		// and pass whether or not it still existed.
 		expect(
-			screen.queryByRole( 'checkbox', { name: 'Requires assignment' } )
+			screen.queryByRole( 'checkbox', {
+				name: 'Requires assignment',
+				hidden: true,
+			} )
 		).toBeNull();
 	} );
 
@@ -248,6 +260,20 @@ describe( 'Transition capture inputs', () => {
 		} );
 
 		expect( screen.getByText( 'Needs a key' ) ).toBeInTheDocument();
+
+		// And the row it points at says what to do: there is no key field to
+		// fix, so the popover names the fix that exists.
+		await act( async () => {
+			fireEvent.click(
+				screen.getByRole( 'button', { name: 'Configure Untitled' } )
+			);
+		} );
+
+		expect(
+			within(
+				screen.getByRole( 'dialog', { name: 'Untitled' } )
+			).getByText( /Remove it and add it again/ )
+		).toBeInTheDocument();
 	} );
 
 	it( 'derives a note key from the id and the name, the way the runtime rebuilds it', async () => {

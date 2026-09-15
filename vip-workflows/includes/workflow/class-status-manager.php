@@ -631,8 +631,9 @@ class StatusManager {
 		}
 
 		// An agent-driven exit transition (from StageAgentRunner) runs in a
-		// user-less cron context and is trusted: it bypasses the role and
-		// capability checks that apply to human callers (but never the trash
+		// user-less cron context and is trusted: it bypasses the role check that
+		// applies to human callers, and its capability checks run against the
+		// actor it names rather than the current user (it never skips the trash
 		// rejection above). This flag is only ever set by the in-process runner —
 		// WorkflowController builds $options explicitly and never forwards it, so
 		// it cannot be injected via REST.
@@ -736,8 +737,7 @@ class StatusManager {
 
 		// Null for a revert — a go-back has no authored edge, so it carries no
 		// label, tools or inputs.
-		$transition_config  = $sequence->get_transition( $current_stage, $to_status );
-		$assignment_manager = new AssignmentManager();
+		$transition_config = $sequence->get_transition( $current_stage, $to_status );
 
 		/*
 		 * An agent run executes at uid 0 under cron, so it names the identity it
@@ -968,7 +968,7 @@ class StatusManager {
 		// Process new assignment input if present. A revert has no transition
 		// config (see above) and therefore no input to process.
 		if ( is_array( $transition_config ) ) {
-			$assignment_manager->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array() );
+			( new AssignmentManager() )->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array() );
 		}
 
 		// Store transition input data if provided.

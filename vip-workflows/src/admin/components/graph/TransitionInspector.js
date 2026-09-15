@@ -65,6 +65,8 @@ import {
 	agentOutcomeLabel,
 	agentOutcomeNames,
 	derivedTransitionLabel,
+	inputId,
+	newAssignmentKey,
 } from './graph-model';
 
 /**
@@ -96,22 +98,6 @@ function inputTypeLabel( type ) {
 }
 
 /**
- * Generate a stable id for a capture input.
- *
- * The same generator the single textarea note used, now minting an id for every
- * input that needs one. Timestamp plus randomness rather than the counter
- * `uniqueStageKey` uses: a stage key only has to be unique within its sequence,
- * while these ids end up inside meta keys — a note's `wfp_{note_id}_{slug}`, an
- * assignment's slot — that have to stay distinct from every other sequence's on
- * the same site, including ones arriving later by import.
- *
- * @return {string} A fresh input id.
- */
-function inputId() {
-	return 'n' + Date.now() + Math.random().toString( 36 ).slice( 2, 7 );
-}
-
-/**
  * The storage key a note writes its value under.
  *
  * Derived from the id and the name, never typed: the runtime rebuilds the same
@@ -136,9 +122,8 @@ function noteMetaKey( id, name ) {
  *
  * A note gets its id here, at the moment it is added, so the key derived from it
  * is stable for the rest of the input's life however often it is renamed. An
- * assignment gets its slot key here for the same reason, in the `wfp_` shape the
- * import path mints when it regenerates slots: nothing reads the key but the
- * runtime, so nobody is asked to type it.
+ * assignment gets its slot key here for the same reason (`newAssignmentKey`):
+ * no author picks or matches it, so nobody is asked to type it.
  *
  * @param {string} type The kind of input to create.
  * @return {Object} The new input.
@@ -148,7 +133,7 @@ function createInput( type ) {
 		return {
 			type: 'assignment',
 			assignee_type: 'user',
-			meta_key: `wfp_${ inputId() }`,
+			meta_key: newAssignmentKey(),
 		};
 	}
 
@@ -683,30 +668,51 @@ export default function TransitionInspector( {
 							} ) }
 							renderConfig={ ( { item, update, problem } ) =>
 								'assignment' === item.type ? (
-									<AssignmentInputConfig
-										input={ item }
-										availableRoles={ availableRoles }
-										onUpdateInput={ ( field, value ) =>
-											update( { [ field ]: value } )
-										}
-										onToggleRoleFilter={ ( slug ) => {
-											const roles =
-												item.filter?.roles || [];
-											update( {
-												filter: {
-													...item.filter,
-													roles: roles.includes(
-														slug
-													)
-														? roles.filter(
-																( r ) =>
-																	r !== slug
-														  )
-														: [ ...roles, slug ],
-												},
-											} );
-										} }
-									/>
+									<>
+										{ /* The row says the key is wrong, and
+										     there is no key field to say it
+										     beside: the key is minted, so the
+										     fix is a fresh one. */ }
+										{ problem && (
+											<Notice
+												status="error"
+												isDismissible={ false }
+											>
+												{ __(
+													'This assignment has no key of its own, so the sequence can’t be saved. Remove it and add it again.',
+													'vip-workflows'
+												) }
+											</Notice>
+										) }
+										<AssignmentInputConfig
+											input={ item }
+											availableRoles={ availableRoles }
+											onUpdateInput={ ( field, value ) =>
+												update( { [ field ]: value } )
+											}
+											onToggleRoleFilter={ ( slug ) => {
+												const roles =
+													item.filter?.roles || [];
+												update( {
+													filter: {
+														...item.filter,
+														roles: roles.includes(
+															slug
+														)
+															? roles.filter(
+																	( r ) =>
+																		r !==
+																		slug
+															  )
+															: [
+																	...roles,
+																	slug,
+															  ],
+													},
+												} );
+											} }
+										/>
+									</>
 								) : (
 									<>
 										<TextControl

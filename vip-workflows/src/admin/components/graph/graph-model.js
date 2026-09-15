@@ -1402,6 +1402,65 @@ export function clearOutcome( stages, from, outcome ) {
 }
 
 // ---------------------------------------------------------------------------
+// Capture inputs — the ids and slot keys the editor mints instead of asking.
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a stable id for a capture input.
+ *
+ * Timestamp plus randomness rather than the counter `uniqueStageKey` uses: a
+ * stage key only has to be unique within its sequence, while these ids end up
+ * inside meta keys — a note's `wfp_{note_id}_{slug}`, an assignment's slot —
+ * that have to stay distinct from every other sequence's on the same site,
+ * including ones arriving later by import.
+ *
+ * @return {string} A fresh input id.
+ */
+export function inputId() {
+	return 'n' + Date.now() + Math.random().toString( 36 ).slice( 2, 7 );
+}
+
+/**
+ * A fresh assignment slot key.
+ *
+ * Minted, never typed or shown. It shares only the `wfp_n` prefix with the keys
+ * an import mints (`SequencesController::regenerate_assignment_keys()`), which
+ * have a format of their own.
+ *
+ * @return {string} A new slot key.
+ */
+export function newAssignmentKey() {
+	return `wfp_${ inputId() }`;
+}
+
+/**
+ * A transition's fields, ready to copy onto a second transition while the
+ * original stays.
+ *
+ * Copied verbatim, the assignment in them would declare the slot the original
+ * still declares — the duplicate `validateSequence` blocks Save on, with no key
+ * field left to fix it from. Nothing resolves a slot by its key except the
+ * transition declaring it, so the copy takes a slot of its own and keeps every
+ * other setting.
+ *
+ * @param {Object} fields Transition fields, without `to`.
+ * @return {Object} The same fields, each assignment on a fresh slot key.
+ */
+function withOwnSlots( fields ) {
+	if ( ! Array.isArray( fields.inputs ) ) {
+		return fields;
+	}
+	return {
+		...fields,
+		inputs: fields.inputs.map( ( input ) =>
+			'assignment' === input?.type
+				? { ...input, meta_key: newAssignmentKey() }
+				: input
+		),
+	};
+}
+
+// ---------------------------------------------------------------------------
 // Composite mutations — the canvas "add stage" affordances.
 // ---------------------------------------------------------------------------
 
@@ -1678,7 +1737,22 @@ export function reconnectEdge(
 		// `routeOutcome` keeps a transition the stage already had, fields and
 		// all, rather than overwriting it.
 		const copied = ! findTransition( stages, oldFrom, newTo );
-		const routed = routeOutcome( stages, oldFrom, outcome, newTo, fields );
+		// Whether another outcome still travels the old transition. Read before
+		// routing, which only ever changes this outcome's entry.
+		const source = stages.find( ( s ) => s.key === oldFrom );
+		const shared = Object.entries( source?.agent?.routing || {} ).some(
+			( [ key, target ] ) => key !== outcome && target === oldTo
+		);
+		// A shared transition stays behind (see below), so the copy's
+		// assignment takes a slot of its own rather than declaring the one the
+		// original still holds.
+		const routed = routeOutcome(
+			stages,
+			oldFrom,
+			outcome,
+			newTo,
+			shared ? withOwnSlots( fields ) : fields
+		);
 		// The endpoint MOVED, so the transition it travelled on moves with it.
 		// `routeOutcome` only ever adds one and un-routing deliberately leaves
 		// the old one in place (`clearOutcome`), so stopping here would leave
@@ -1692,10 +1766,6 @@ export function reconnectEdge(
 		// kept its own configuration, so this transition still holds the only
 		// copy of what was harvested) or when another outcome still travels it
 		// (removing it would take that route's transition out from under it).
-		const source = routed.find( ( s ) => s.key === oldFrom );
-		const shared = Object.entries( source?.agent?.routing || {} ).some(
-			( [ key, target ] ) => key !== outcome && target === oldTo
-		);
 		return {
 			stages:
 				copied && ! shared
@@ -2291,11 +2361,11 @@ export function validateSequence( {
 	 * writes the assignment into that slot. Two things break a slot, and the
 	 * server refuses the save for each — `invalid_assignment_key` and
 	 * `duplicate_assignment_key` — so both block Save here rather than warn.
-	 * The editor mints a key when it adds an assignment, so neither is typed
-	 * into being: a blank key arrives with a stored config, and a duplicate with
-	 * a gesture that carries a transition's configuration to a second
-	 * transition. Neither has a field to fix, so each names the fix that is
-	 * there — adding the assignment again mints it a key of its own.
+	 * The editor mints a key when it adds an assignment, and again when a
+	 * gesture copies one onto a second transition (`withOwnSlots`), so neither
+	 * fault is authored here: both arrive with a stored config. Neither has a
+	 * field to fix, so each names the fix that is there — adding the assignment
+	 * again mints it a key of its own.
 	 *
 	 * Not gated on `isPhase`: the server validates slots on every sequence type,
 	 * and a phase sequence can carry one in from an import even though the phase

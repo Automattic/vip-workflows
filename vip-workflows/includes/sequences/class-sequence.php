@@ -136,8 +136,9 @@ class Sequence {
 	 * Which matters because this is the one lock a client may re-judge. The gate
 	 * reads post meta, and an open block editor holds meta the database has not
 	 * seen yet — fields typed into the sidebar are editor-store edits until the
-	 * post is saved. Every other lock (role, capability, disabled tool) is a fact
-	 * only the server can settle. See src/editor/required-metadata.js.
+	 * post is saved. The other lock, a disabled required tool, is a fact only the
+	 * server can settle; a role or capability the user lacks drops the edge
+	 * rather than locking it. See src/editor/required-metadata.js.
 	 */
 	public const CODE_REQUIRED_METADATA = 'required_fields_missing';
 
@@ -529,7 +530,12 @@ class Sequence {
 	 * The transition gate treats a disabled required tool as a hard failure. Its
 	 * read models must therefore carry the same answer so the editor rail, board,
 	 * and My Queue do not offer a move the server will deterministically refuse.
-	 * An existing metadata lock keeps its more immediately useful reason.
+	 *
+	 * It replaces a required-metadata lock rather than deferring to one. That
+	 * lock is the one the editor re-judges against unsaved fields and releases
+	 * once they are filled (CODE_REQUIRED_METADATA), so a disabled tool hidden
+	 * under it would enable a move this gate still refuses. The tool lock carries
+	 * no code, and the editor takes it on trust.
 	 *
 	 * @param  array $transitions Transitions already filtered for the user.
 	 * @return array Transitions with disabled-tool locks projected.
@@ -538,10 +544,6 @@ class Sequence {
 		$settings = \VIPWorkflows\Abilities\AbilitySettings::get_instance();
 
 		foreach ( $transitions as &$transition ) {
-			if ( ! empty( $transition['_locked'] ) ) {
-				continue;
-			}
-
 			$disabled_tools = array();
 			foreach ( $transition['required_tools'] ?? array() as $tool_id ) {
 				if ( ! $settings->is_enabled( (string) $tool_id ) ) {
@@ -550,6 +552,7 @@ class Sequence {
 			}
 
 			if ( $disabled_tools ) {
+				unset( $transition['_locked_code'] );
 				$transition['_locked']        = true;
 				$transition['_locked_reason'] = sprintf(
 					/* translators: %s: list of required tool IDs. */

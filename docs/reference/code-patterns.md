@@ -338,7 +338,8 @@ $settings->update_tool_settings('seo-check', [
 ```php
 use VIPWorkflows\Admin\Settings;
 
-// Check if current user can bypass workflow rules (role restrictions, required fields)
+// Check if current user can bypass workflow rules (role restrictions, required
+// fields, and the publish-boundary veto on direct status changes)
 if (Settings::can_user_bypass_workflow()) {
     // User can transition past the sequence's own rules
 }
