@@ -545,6 +545,60 @@ describe( 'WorkflowPanel transition input popover', () => {
 		] );
 	} );
 
+	it( "preselects the post's existing role assignee for this input's slot", async () => {
+		await renderWith( [ assignmentTransition( 'role' ) ], [], {
+			assignments: {
+				wfp_a1_assignee: { value: 'editor', type: 'role' },
+			},
+		} );
+		await openPopoverFor( 'Assign reviewer' );
+
+		// The post is already assigned to Editor — the popover shows that
+		// rather than asking the user to re-pick from a blank slate.
+		expect(
+			screen.getByRole( 'button', { name: 'Editor' } )
+		).toHaveAttribute( 'aria-pressed', 'true' );
+		expect(
+			screen.getByRole( 'button', { name: 'Submit' } )
+		).toBeEnabled();
+
+		// Submitting as-is re-sends the existing assignee, e.g. to attach a
+		// note to it.
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
+		} );
+
+		expect( firedTransitions() ).toEqual( [
+			{
+				to_status: 'assigned',
+				acknowledge_warnings: false,
+				input_data: {
+					wfp_a1_assignee: 'editor',
+					wfp_a1_assignee__name: 'Assignee',
+				},
+			},
+		] );
+	} );
+
+	it( 'preselects an existing user assignee though its id was stored as a string', async () => {
+		// Stored assignment values pass through sanitize_text_field
+		// server-side, so a user id comes back as a numeric string — it
+		// must still match the combobox's numeric option id.
+		await renderWith( [ assignmentTransition( 'user' ) ], [], {
+			assignments: {
+				wfp_a1_assignee: { value: '7', type: 'user' },
+			},
+		} );
+		await openPopoverFor( 'Assign reviewer' );
+
+		expect(
+			await screen.findByDisplayValue( 'Jane Doe' )
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole( 'button', { name: 'Submit' } )
+		).toBeEnabled();
+	} );
+
 	/*
 	 * `agent` was an authoring option with no picker behind it. Picking it drew
 	 * an "Automated task" panel claiming an automated check was about to run,

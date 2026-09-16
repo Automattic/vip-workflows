@@ -670,6 +670,11 @@ export function WorkflowPanel( { children } ) {
 			input,
 			transitionLabel: transition.label,
 			anchor,
+			// The post's existing assignee for this input's slot, if any —
+			// so reopening the popover shows who is already assigned rather
+			// than asking the user to re-pick from scratch.
+			initialValue:
+				workflow?.assignments?.[ input.meta_key ]?.value ?? null,
 		} );
 	};
 
@@ -1233,6 +1238,17 @@ export function WorkflowPanel( { children } ) {
 						assignmentRequest.input.assignee_type || 'user'
 					}
 					roleFilter={ assignmentRequest.input.filter?.roles || [] }
+					initialValue={
+						// Stored assignment values pass through
+						// sanitize_text_field server-side, so a user id
+						// comes back as a numeric string — coerce it to
+						// match the id type the combobox's options use.
+						null !== assignmentRequest.initialValue &&
+						'user' ===
+							( assignmentRequest.input.assignee_type || 'user' )
+							? Number( assignmentRequest.initialValue )
+							: assignmentRequest.initialValue
+					}
 					notesLabel={ __( 'Notes (optional)', 'vip-workflows' ) }
 					notesRequired={ false }
 					onSubmit={ handleAssignmentSelect }

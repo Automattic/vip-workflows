@@ -208,27 +208,33 @@ function AssignableUserSelect( { roleFilter, value, onSelect } ) {
  * assignment, via one explicit Submit. When `notesLabel` is null there is
  * nothing to wait for, so a selection commits immediately, as before.
  *
- * @param {Object}   root0               Component props.
- * @param {string}   root0.title         The transition's label.
- * @param {?Element} root0.anchor        The rail button the popover anchors
- *                                       to.
- * @param {string}   root0.assigneeType  'user' or 'role'. Any other stored type
- *                                       has no picker and opens the
- *                                       misconfigured state instead.
- * @param {Array}    root0.roleFilter    Role slugs to filter users by.
- * @param {?string}  root0.notesLabel    Label for the optional notes field;
- *                                       null omits it and commits on
- *                                       selection.
- * @param {boolean}  root0.notesRequired Whether notes are required to commit.
- * @param {Function} root0.onSubmit      Called with (selectedValue, notes) on
- *                                       commit.
- * @param {Function} root0.onClose       Called on dismissal; nothing commits.
+ * @param {Object}           root0               Component props.
+ * @param {string}           root0.title         The transition's label.
+ * @param {?Element}         root0.anchor        The rail button the popover anchors
+ *                                               to.
+ * @param {string}           root0.assigneeType  'user' or 'role'. Any other stored type
+ *                                               has no picker and opens the
+ *                                               misconfigured state instead.
+ * @param {Array}            root0.roleFilter    Role slugs to filter users by.
+ * @param {?(string|number)} root0.initialValue  The post's current assignee for
+ *                                               this input's slot, if any — preselected
+ *                                               rather than asking the user to
+ *                                               re-pick an assignment that already
+ *                                               exists.
+ * @param {?string}          root0.notesLabel    Label for the optional notes field;
+ *                                               null omits it and commits on
+ *                                               selection.
+ * @param {boolean}          root0.notesRequired Whether notes are required to commit.
+ * @param {Function}         root0.onSubmit      Called with (selectedValue, notes) on
+ *                                               commit.
+ * @param {Function}         root0.onClose       Called on dismissal; nothing commits.
  */
 export function TransitionAssignmentPopover( {
 	title,
 	anchor,
 	assigneeType,
 	roleFilter = [],
+	initialValue = null,
 	notesLabel = null,
 	notesRequired = false,
 	onSubmit,
@@ -238,7 +244,7 @@ export function TransitionAssignmentPopover( {
 		( select ) => select( STORE_NAME ).getRoles(),
 		[]
 	);
-	const [ selectedValue, setSelectedValue ] = useState( null );
+	const [ selectedValue, setSelectedValue ] = useState( initialValue );
 	const [ notes, setNotes ] = useState( '' );
 
 	useEffect( () => {
