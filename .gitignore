@@ -20,3 +20,4 @@ tools/.vip-workflows-content.current.xml
 # Showcase capture output — generated images and the run log, never committed.
 showcase/out/
 capture-stderr.log
+.claude/launch.json
