@@ -269,7 +269,7 @@ src/
 │       ├── MetadataPanel.js                  # Editorial metadata fields
 │       ├── TransitionRail.js                 # Current stage and its transitions
 │       ├── WorkflowRequiredModal.js          # Required workflow prompt
-│       ├── TransitionInputPopover.js         # Transition input (note, or assignee + notes)
+│       ├── TransitionInputPopover.js         # Transition input (assignee + notes)
 │       ├── ToolResultModals.js               # Tool result display modals
 │       ├── CommandPalette.js                 # Command palette (Cmd+K)
 │       ├── BylineSelector.js                 # Byline selection

@@ -276,8 +276,8 @@ describe( 'What a phase sequence may not save without', () => {
 		// message lands twice — the notice, and the live region that reads it
 		// out — so the query takes both.
 		const [ notice ] = await screen.findAllByText( /hand off/i );
-		expect( notice ).toHaveTextContent( 'ideation' );
-		expect( notice ).toHaveTextContent( 'editorial' );
+		expect( notice ).toHaveTextContent( 'Ideation' );
+		expect( notice ).toHaveTextContent( 'Editorial' );
 		expect( writes ).toHaveLength( 0 );
 	} );
 

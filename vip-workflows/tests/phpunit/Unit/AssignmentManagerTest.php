@@ -45,8 +45,8 @@ class AssignmentManagerTest extends TestCase
 
     /**
      * A transition captures a list, and the assignment need not lead it. Reaching
-     * for `inputs[0]` would find whichever note the author happened to put first
-     * and write no assignment at all.
+     * for `inputs[0]` would find a retired note a stored sequence still carries
+     * ahead of it, and write no assignment at all.
      */
     public function test_process_transition_input_finds_an_assignment_after_a_note(): void
     {
@@ -112,7 +112,7 @@ class AssignmentManagerTest extends TestCase
     /**
      * An assignment nobody supplied a value for is skipped rather than written
      * empty — the writer dismissed the picker, and a slot holding nothing would
-     * satisfy no gate while looking like it had been filled.
+     * name no assignee while looking like it had been filled.
      */
     public function test_process_transition_input_skips_an_assignment_with_no_value(): void
     {
@@ -129,81 +129,5 @@ class AssignmentManagerTest extends TestCase
         );
 
         $this->assertSame(array(), $written);
-    }
-
-    // -------------------------------------------------------------------------
-    // user_satisfies_requirement — no assignment
-    // -------------------------------------------------------------------------
-
-    public function test_returns_false_when_assignment_missing(): void
-    {
-        Functions\when('get_post_meta')->justReturn(false);
-
-        $this->assertFalse(
-            $this->manager->user_satisfies_requirement(1, 1, [ 'meta_key' => 'ai_check', 'match' => 'completed' ])
-        );
-    }
-
-    // -------------------------------------------------------------------------
-    // user_satisfies_requirement — 'completed' match mode (agent gate)
-    // -------------------------------------------------------------------------
-
-    public function test_completed_match_with_completed_status_returns_true(): void
-    {
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'completed', 'type' => 'agent', 'value' => 'agent-1' ]);
-
-        $this->assertTrue(
-            $this->manager->user_satisfies_requirement(1, 0, [ 'meta_key' => 'ai_check', 'match' => 'completed' ])
-        );
-    }
-
-    public function test_completed_match_with_pending_status_returns_false(): void
-    {
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'pending', 'type' => 'agent', 'value' => 'agent-1' ]);
-
-        $this->assertFalse(
-            $this->manager->user_satisfies_requirement(1, 0, [ 'meta_key' => 'ai_check', 'match' => 'completed' ])
-        );
-    }
-
-    public function test_completed_match_with_expired_status_returns_false(): void
-    {
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'expired', 'type' => 'agent', 'value' => 'agent-1' ]);
-
-        $this->assertFalse(
-            $this->manager->user_satisfies_requirement(1, 0, [ 'meta_key' => 'ai_check', 'match' => 'completed' ])
-        );
-    }
-
-    // -------------------------------------------------------------------------
-    // user_satisfies_requirement — 'current_user' match mode (user gate)
-    // -------------------------------------------------------------------------
-
-    public function test_current_user_match_with_completed_assignment_returns_false(): void
-    {
-        // Non-pending assignments must not satisfy user-gate transitions.
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'completed', 'type' => 'user', 'value' => 42 ]);
-
-        $this->assertFalse(
-            $this->manager->user_satisfies_requirement(1, 42, [ 'meta_key' => 'editor', 'match' => 'current_user' ])
-        );
-    }
-
-    public function test_current_user_match_with_matching_user_returns_true(): void
-    {
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'pending', 'type' => 'user', 'value' => 42 ]);
-
-        $this->assertTrue(
-            $this->manager->user_satisfies_requirement(1, 42, [ 'meta_key' => 'editor', 'match' => 'current_user' ])
-        );
-    }
-
-    public function test_current_user_match_with_different_user_returns_false(): void
-    {
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'pending', 'type' => 'user', 'value' => 42 ]);
-
-        $this->assertFalse(
-            $this->manager->user_satisfies_requirement(1, 99, [ 'meta_key' => 'editor', 'match' => 'current_user' ])
-        );
     }
 }

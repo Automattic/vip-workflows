@@ -251,6 +251,11 @@ export function buildGraph( stages, options = {} ) {
 
 	const keys = new Set( stages.map( ( s ) => s.key ) );
 
+	// The projection options `drawnOutcomes` answers under, so the edge ids
+	// drawn here and the edge ids an error's target names are built from one
+	// rule rather than two that agree by coincidence.
+	const drawnAs = { isPhase, stageExists: ( key ) => keys.has( key ) };
+
 	// Stages with at least one incoming transition; the rest are entry points.
 	const hasIncoming = new Set();
 	stages.forEach( ( stage ) => {
@@ -365,9 +370,7 @@ export function buildGraph( stages, options = {} ) {
 			// and disabled, because the agent owns every way out of the stage.
 			// A routed one whose route publishes is disabled too
 			// (`isTransitionDisabled`), and keeps its per-outcome edges.
-			const claimed = routing
-				? outcomesRoutedTo( stage, transition.to )
-				: [];
+			const claimed = drawnOutcomes( stage, transition.to, drawnAs );
 			const disabled =
 				Boolean( routing ) &&
 				isTransitionDisabled(
@@ -1186,6 +1189,142 @@ export function publishSettingFixesRoute( stage, targetKey ) {
 }
 
 /**
+ * Every outcome an edge from `stage` to `targetKey` is drawn under.
+ *
+ * The one home of the canvas's edge-naming rule. `buildGraph` draws a
+ * transition once per outcome routed along it, once unattributed when no
+ * outcome claims it, and not at all when its target stage is gone — so anything
+ * that has to *name* the same edge (a validation error's target) asks here
+ * rather than re-deriving it. Re-derived, the rule
+ * drifts silently: a name built from a routing the drawing ignored points at an
+ * edge id nothing on the canvas holds, and selecting it highlights nothing.
+ *
+ * The routing itself is `outcomesRoutedTo`; this adds only what the drawing
+ * ignores — a phase sequence routes nothing by outcome, and an edge to a stage
+ * that is gone is not drawn.
+ *
+ * An empty answer means the edge carries no outcome, or is not drawn at all.
+ * The two are one answer for a caller that only wants a name — `edgeId` spells
+ * both `from->to`.
+ *
+ * `stageExists` absent reads as "exists", matching `describeTarget` and
+ * `claimedExits` in `StageInspector`: a caller that has no stage list to check
+ * against is asking about the routing alone.
+ *
+ * @param {Object}    stage                 The stage the transition leaves.
+ * @param {string}    targetKey             The transition's target stage key.
+ * @param {Object}    [options]             Projection options, as `buildGraph` takes them.
+ * @param {boolean}   [options.isPhase]     Phase sequence — no stage routes by outcome.
+ * @param {?Function} [options.stageExists] Whether a stage key is still on the canvas.
+ * @return {string[]} The outcomes, in `AGENT_OUTCOMES` order.
+ */
+export function drawnOutcomes(
+	stage,
+	targetKey,
+	{ isPhase = false, stageExists = null } = {}
+) {
+	if ( isPhase ) {
+		return [];
+	}
+	if ( stageExists && ! stageExists( targetKey ) ) {
+		return [];
+	}
+	return outcomesRoutedTo( stage, targetKey );
+}
+
+/**
+ * The one outcome an edge to `targetKey` is *named* by.
+ *
+ * The FIRST of `drawnOutcomes`, matching `variants[ 0 ]` in `buildGraph`: two
+ * outcomes sharing a destination draw two edges, and the fault belongs to the
+ * transition both travel, so either one leads to the same panel.
+ *
+ * @param {Object} stage     The stage the transition leaves.
+ * @param {string} targetKey The transition's target stage key.
+ * @param {Object} [options] Projection options — see `drawnOutcomes`.
+ * @return {?string} The outcome, or null when the edge carries none.
+ */
+export function drawnOutcome( stage, targetKey, options ) {
+	return drawnOutcomes( stage, targetKey, options )[ 0 ] || null;
+}
+
+/**
+ * A fault's location, as the editor's selection spells one.
+ *
+ * @param {string} key Stage key.
+ * @return {Object} A node target.
+ */
+const nodeTarget = ( key ) => ( { type: 'node', key } );
+
+/**
+ * @param {Object} stage      The stage the transition leaves.
+ * @param {Object} transition The transition itself.
+ * @param {Object} [options]  Projection options — see `drawnOutcomes`.
+ * @return {Object} An edge target, drawn the way the canvas draws it.
+ */
+const edgeTarget = ( stage, transition, options ) => ( {
+	type: 'edge',
+	from: stage.key,
+	to: transition.to,
+	outcome: drawnOutcome( stage, transition.to, options ),
+} );
+
+/**
+ * @param {string} region Status region.
+ * @return {Object} A region target.
+ */
+const regionTarget = ( region ) => ( { type: 'region', region } );
+
+/**
+ * The stage a target belongs to, for the node badge that has to paint it.
+ *
+ * A region target answers `''`: a status group is not a node, and the group's
+ * own fault — no entry checkpoint, or two — is about the group rather than
+ * about any one stage in it.
+ *
+ * @param {?Object} target A validation target.
+ * @return {string} Stage key, or `''`.
+ */
+function targetStageKey( target ) {
+	if ( target?.type === 'node' ) {
+		return target.key || '';
+	}
+	if ( target?.type === 'edge' ) {
+		return target.from || '';
+	}
+	return '';
+}
+
+/**
+ * A target's identity, for telling apart two faults that read the same.
+ *
+ * A message is not a fault's name. An unlabelled transition is named by its
+ * destination (`transition.label || transition.to`), so two stages each holding
+ * an unlabelled transition to the same place word their faults identically
+ * while pointing at two different transitions — two things to fix, in two
+ * places, each with its own way to it.
+ *
+ * A fault of the sequence itself answers `''`, as does one with nothing on the
+ * canvas to select: those have no place to point at, so the sentence is all
+ * they are, and two of them saying the same thing really are one thing to say.
+ *
+ * @param {?Object} target A validation target.
+ * @return {string} A stable id for the target, or `''` for a placeless fault.
+ */
+export function targetId( target ) {
+	if ( target?.type === 'node' ) {
+		return target.key ? `node:${ target.key }` : '';
+	}
+	if ( target?.type === 'edge' ) {
+		return `edge:${ edgeId( target.from, target.to, target.outcome ) }`;
+	}
+	if ( target?.type === 'region' ) {
+		return target.region ? `region:${ target.region }` : '';
+	}
+	return '';
+}
+
+/**
  * Point one of a stage agent's outcomes at a destination stage — what dragging
  * from an outcome handle onto another stage does.
  *
@@ -1260,6 +1399,64 @@ export function clearOutcome( stages, from, outcome ) {
 		return stages;
 	}
 	return setRouting( stages, from, { [ outcome ]: undefined } );
+}
+
+// ---------------------------------------------------------------------------
+// Capture inputs — the ids and slot keys the editor mints instead of asking.
+// ---------------------------------------------------------------------------
+
+/**
+ * Generate a stable id for a capture input.
+ *
+ * Timestamp plus randomness rather than the counter `uniqueStageKey` uses: a
+ * stage key only has to be unique within its sequence, while these ids end up
+ * inside an assignment's slot key, which has to stay distinct from every other
+ * sequence's on the same site, including ones arriving later by import.
+ *
+ * @return {string} A fresh input id.
+ */
+function inputId() {
+	return 'n' + Date.now() + Math.random().toString( 36 ).slice( 2, 7 );
+}
+
+/**
+ * A fresh assignment slot key.
+ *
+ * Minted, never typed or shown. It shares only the `wfp_n` prefix with the keys
+ * an import mints (`SequencesController::regenerate_assignment_keys()`), which
+ * have a format of their own.
+ *
+ * @return {string} A new slot key.
+ */
+export function newAssignmentKey() {
+	return `wfp_${ inputId() }`;
+}
+
+/**
+ * A transition's fields, ready to copy onto a second transition while the
+ * original stays.
+ *
+ * Copied verbatim, the assignment in them would declare the slot the original
+ * still declares — the duplicate `validateSequence` blocks Save on, with no key
+ * field left to fix it from. Nothing resolves a slot by its key except the
+ * transition declaring it, so the copy takes a slot of its own and keeps every
+ * other setting.
+ *
+ * @param {Object} fields Transition fields, without `to`.
+ * @return {Object} The same fields, each assignment on a fresh slot key.
+ */
+function withOwnSlots( fields ) {
+	if ( ! Array.isArray( fields.inputs ) ) {
+		return fields;
+	}
+	return {
+		...fields,
+		inputs: fields.inputs.map( ( input ) =>
+			'assignment' === input?.type
+				? { ...input, meta_key: newAssignmentKey() }
+				: input
+		),
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -1539,7 +1736,22 @@ export function reconnectEdge(
 		// `routeOutcome` keeps a transition the stage already had, fields and
 		// all, rather than overwriting it.
 		const copied = ! findTransition( stages, oldFrom, newTo );
-		const routed = routeOutcome( stages, oldFrom, outcome, newTo, fields );
+		// Whether another outcome still travels the old transition. Read before
+		// routing, which only ever changes this outcome's entry.
+		const source = stages.find( ( s ) => s.key === oldFrom );
+		const shared = Object.entries( source?.agent?.routing || {} ).some(
+			( [ key, target ] ) => key !== outcome && target === oldTo
+		);
+		// A shared transition stays behind (see below), so the copy's
+		// assignment takes a slot of its own rather than declaring the one the
+		// original still holds.
+		const routed = routeOutcome(
+			stages,
+			oldFrom,
+			outcome,
+			newTo,
+			shared ? withOwnSlots( fields ) : fields
+		);
 		// The endpoint MOVED, so the transition it travelled on moves with it.
 		// `routeOutcome` only ever adds one and un-routing deliberately leaves
 		// the old one in place (`clearOutcome`), so stopping here would leave
@@ -1553,10 +1765,6 @@ export function reconnectEdge(
 		// kept its own configuration, so this transition still holds the only
 		// copy of what was harvested) or when another outcome still travels it
 		// (removing it would take that route's transition out from under it).
-		const source = routed.find( ( s ) => s.key === oldFrom );
-		const shared = Object.entries( source?.agent?.routing || {} ).some(
-			( [ key, target ] ) => key !== outcome && target === oldTo
-		);
 		return {
 			stages:
 				copied && ! shared
@@ -1693,12 +1901,11 @@ export function disconnectEdge( stages, from, to, outcome = null ) {
  * Normalize an assignment slot key the way the server normalizes it, so the two
  * sides agree on which keys are the same key.
  *
- * Slot keys and the gates pointing at them are stored through PHP's
- * `sanitize_key()` — lowercase, then everything outside `[a-z0-9_-]` stripped —
- * and `SequencesController::validate_assignment_keys()` compares them after
- * that. Comparing the raw strings here would read a slot and a gate that differ
- * only in what sanitize_key strips as two different slots, and block a Save the
- * server would have accepted.
+ * Slot keys are stored through PHP's `sanitize_key()` — lowercase, then
+ * everything outside `[a-z0-9_-]` stripped — and
+ * `SequencesController::validate_assignment_keys()` compares them after that.
+ * Comparing the raw strings here would miss two slots that differ only in what
+ * sanitize_key strips, and pass a Save the server would refuse as a duplicate.
  *
  * @param {*} value Key as stored on the transition.
  * @return {string} The key as the server will compare it, empty when there is none.
@@ -1713,21 +1920,51 @@ function normalizeSlotKey( value ) {
 }
 
 /**
- * The slot key a transition's assignment gate points at.
+ * The hand-offs a phase sequence owes but has not drawn.
  *
- * `requires_assignment` is either `{ meta_key, match }` or the bare key as a
- * string — the shorthand `AssignmentManager::normalize_requirement()` accepts
- * and stored sequences still carry.
+ * Both the rule that refuses the save and the panel offering to draw one read
+ * this, so the two can never come to different answers about what is missing —
+ * a save blocked on a hand-off the phase panel does not offer, or a panel
+ * offering one the save is not waiting on, are the same bug facing two ways.
  *
- * @param {Object|string} requirement A transition's `requires_assignment`.
- * @return {string} The normalized key it names, empty when it names none.
+ * A hand-off whose phases are not both on the canvas is not reported. That
+ * sequence is missing a phase, which is its own error with its own fix; naming
+ * the line that would have joined them as well adds nothing to do, and there is
+ * no node to hang the offer on either.
+ *
+ * @param {Array} stages              Stage objects.
+ * @param {Array} requiredTransitions `{ from, to }` pairs, from
+ *                                    `/sequences/options`.
+ * @return {Array} The `{ from, to }` pairs that are owed and not drawn.
  */
-function gateSlotKey( requirement ) {
-	return normalizeSlotKey(
-		requirement && 'object' === typeof requirement
-			? requirement.meta_key
-			: requirement
+export function missingHandOffs( stages, requiredTransitions ) {
+	const present = ( key ) => stages.some( ( s ) => s.key === key );
+
+	return requiredTransitions.filter(
+		( { from, to } ) =>
+			present( from ) &&
+			present( to ) &&
+			! findTransition( stages, from, to )
 	);
+}
+
+/**
+ * Whether a transition is a hand-off the sequence owes, and so not the
+ * author's to remove.
+ *
+ * Asked by both the editor's delete handler and the transition panel deciding
+ * whether to offer Remove, so the two cannot disagree. Phase-only: the list is
+ * published for every editor, and a workflow sequence whose stages happen to
+ * share a phase's key owes nothing — the caller gates on the mode.
+ *
+ * @param {Array}  requiredTransitions `{ from, to }` pairs, from
+ *                                     `/sequences/options`.
+ * @param {string} from                Source phase key.
+ * @param {string} to                  Target phase key.
+ * @return {boolean} True when the pair is owed.
+ */
+export function isRequiredHandOff( requiredTransitions, from, to ) {
+	return requiredTransitions.some( ( t ) => t.from === from && t.to === to );
 }
 
 /**
@@ -1754,13 +1991,16 @@ function gateSlotKey( requirement ) {
  *                                               `allow_agent_publish`, used to
  *                                               warn on agent routes the
  *                                               runtime will hold.
- * @return {{ valid: boolean, errors: string[], warnings: Object }} Result.
- *         `errors` block Save; `warnings` is `{ stageKey: string[] }` for nodes.
- *         A rule the server would refuse the save for appears in both, so the
- *         author is stopped *and* shown which stage to open. `valid` is
- *         `errors.length === 0`, kept as part of this function's contract for
- *         callers that only need the yes/no — the editor is not one of them,
- *         since it gathers `errors` into the reasons it shows the author.
+ * @return {{ valid: boolean, errors: Array<Object>, warnings: Object }} Result.
+ *         `errors` block Save, each `{ message, target }` — `target` naming the
+ *         node, edge or region whose panel fixes it, or null for a fault that
+ *         belongs to the sequence rather than to anything on the canvas.
+ *         `warnings` is `{ stageKey: string[] }` for nodes. A rule the server
+ *         would refuse the save for appears in both, so the author is stopped
+ *         *and* shown which stage to open. `valid` is `errors.length === 0`,
+ *         kept as part of this function's contract for callers that only need
+ *         the yes/no — the editor is not one of them, since it gathers `errors`
+ *         into the reasons it shows the author.
  */
 export function validateSequence( {
 	name,
@@ -1773,6 +2013,14 @@ export function validateSequence( {
 	const errors = [];
 	const warnings = {};
 
+	// What an error is about, in the vocabulary the editor's selection already
+	// speaks (`{ type: 'node' | 'edge' | 'region', … }`), so reporting a fault
+	// and opening the panel that fixes it are the same value. A fault of the
+	// sequence itself — an unnamed sequence, no final stage — targets nothing,
+	// and says so by carrying null rather than by naming a stage at random.
+	const addError = ( message, target = null ) =>
+		errors.push( { message, target } );
+
 	const addWarning = ( key, message ) => {
 		warnings[ key ] = warnings[ key ] || [];
 		warnings[ key ].push( message );
@@ -1783,13 +2031,27 @@ export function validateSequence( {
 	// which node to open. A warning alone would let the author press Save into a
 	// 400 they cannot act on; an error alone would tell them what is wrong
 	// without saying where.
-	const addBlocker = ( key, message ) => {
-		errors.push( message );
-		addWarning( key || '', message );
+	//
+	// The node badge is keyed by stage either way: an edge's fault marks the
+	// stage it leaves, because that is the node the canvas can paint. Which
+	// transition it was stays on the error's target, where the stage panel's
+	// exit list reads it — the badge says a stage needs attention, the list says
+	// which way out of it does.
+	//
+	// Message first, matching `addError` rather than the `addWarning` above it.
+	// Nothing here is typed, and a target and a message are both objects-or-
+	// strings to a reader skimming three closures in twenty lines: passed the
+	// wrong way round, `addError` builds a well-formed `{ message, target }`
+	// with the halves swapped, every count-the-errors test still passes, and the
+	// editor crashes on Save rendering an object as a React child. One order for
+	// both is what keeps that from ever being a plausible slip.
+	const addBlocker = ( message, target ) => {
+		addError( message, target );
+		addWarning( targetStageKey( target ), message );
 	};
 
 	if ( ! ( name || '' ).trim() ) {
-		errors.push(
+		addError(
 			__(
 				'This sequence has no name. Click an empty part of the canvas and fill in Name in the Sequence panel.',
 				'vip-workflows'
@@ -1798,7 +2060,7 @@ export function validateSequence( {
 	}
 
 	if ( ! stages || stages.length === 0 ) {
-		errors.push(
+		addError(
 			__(
 				'This sequence has no stages, so there is nothing for a post to be in. Right-click the canvas to add one.',
 				'vip-workflows'
@@ -1808,6 +2070,14 @@ export function validateSequence( {
 	}
 
 	const keys = new Set( stages.map( ( s ) => s.key ) );
+
+	// The same projection options the canvas is drawn under, so an edge target
+	// names the edge `buildGraph` actually holds. A phase sequence routes no
+	// outcomes and a transition to a deleted stage draws no line at all — both
+	// answers have to come from `drawnOutcomes` rather than from the routing
+	// alone, or a fault targets an edge id nothing on the canvas or in the
+	// stage panel can match.
+	const drawnAs = { isPhase, stageExists: ( key ) => keys.has( key ) };
 
 	// Two stages sharing a key collapse to one status on save (and collide as
 	// React Flow node ids), silently dropping the second stage's transitions.
@@ -1825,7 +2095,6 @@ export function validateSequence( {
 	];
 	duplicateKeys.forEach( ( key ) => {
 		addBlocker(
-			key,
 			sprintf(
 				/* translators: %s: the stage key two stages share. */
 				__(
@@ -1833,7 +2102,8 @@ export function validateSequence( {
 					'vip-workflows'
 				),
 				key
-			)
+			),
+			nodeTarget( key )
 		);
 	} );
 
@@ -1858,7 +2128,7 @@ export function validateSequence( {
 	);
 
 	for ( const key of missingPhases ) {
-		errors.push(
+		addError(
 			sprintf(
 				/* translators: %s: required phase key */
 				__(
@@ -1870,29 +2140,22 @@ export function validateSequence( {
 		);
 	}
 
-	for ( const { from, to } of required ) {
-		// A hand-off between phases that are not both there is already reported
-		// as the missing phase; saying it a second way adds nothing to fix.
-		if ( missingPhases.has( from ) || missingPhases.has( to ) ) {
-			continue;
-		}
-
-		const source = stages.find( ( s ) => s.key === from );
-
-		if ( ! ( source.transitions || [] ).some( ( t ) => t.to === to ) ) {
-			addBlocker(
-				from,
-				sprintf(
-					/* translators: 1: source phase key, 2: target phase key */
-					__(
-						'Phase sequences must hand off from “%1$s” to “%2$s”. Drag from this phase to draw it.',
-						'vip-workflows'
-					),
-					from,
-					to
-				)
-			);
-		}
+	// A hand-off between phases that are not both there is already reported as
+	// the missing phase, and `missingHandOffs` leaves it out for that reason;
+	// saying it a second way adds nothing to fix.
+	for ( const { from, to } of missingHandOffs( stages, required ) ) {
+		addBlocker(
+			sprintf(
+				/* translators: 1: source phase label, 2: target phase label */
+				__(
+					'Phase sequences must hand off from “%1$s” to “%2$s”. Show “%1$s” to add it, or drag from it to “%2$s” on the canvas.',
+					'vip-workflows'
+				),
+				stageLabel( stages, from ),
+				stageLabel( stages, to )
+			),
+			nodeTarget( from )
+		);
 	}
 
 	/*
@@ -1965,28 +2228,29 @@ export function validateSequence( {
 		// breaks: a stage with no name is one writers meet as a blank on the
 		// board, a stage with no key is one the server refuses to store.
 		if ( ! stage.key && ! stage.label ) {
+			// No key is no address: nothing on the canvas can be selected by it,
+			// so the fault carries no target and the notice offers no way to it.
 			addBlocker(
-				'',
 				__(
 					'A stage on the canvas has neither a name nor a key. Open it and fill in both — the name is what writers see, the key is what the stage is stored under.',
 					'vip-workflows'
-				)
+				),
+				null
 			);
 		} else if ( ! stage.label ) {
 			addBlocker(
-				stage.key,
 				sprintf(
 					/* translators: %s: the stage's key, e.g. "in_review". */
 					__(
-						'The stage keyed “%s” has no name. Open it and fill in Name — it is what writers see on the board and on the buttons that move a post.',
+						'The stage keyed “%s” has no name. Open it and fill in Label — it is what writers see on the board and on the buttons that move a post.',
 						'vip-workflows'
 					),
 					stage.key
-				)
+				),
+				nodeTarget( stage.key )
 			);
 		} else if ( ! stage.key ) {
 			addBlocker(
-				'',
 				sprintf(
 					/* translators: %s: the stage's name, e.g. "In Review". */
 					__(
@@ -1994,7 +2258,8 @@ export function validateSequence( {
 						'vip-workflows'
 					),
 					stage.label
-				)
+				),
+				null
 			);
 		}
 
@@ -2130,27 +2395,21 @@ export function validateSequence( {
 	}
 
 	/*
-	 * Assignment slots and the gates that point at them.
+	 * Assignment slots.
 	 *
 	 * A transition whose input is an assignment declares a slot; taking it
-	 * writes the assignment into that slot. A transition's `requires_assignment`
-	 * is a pointer at one of those slots, and refuses the transition to anyone
-	 * the assignment does not name. Three things break that pair, and the server
-	 * refuses the save for each one — `invalid_assignment_key`,
-	 * `duplicate_assignment_key`, `invalid_requires_assignment` /
-	 * `unknown_assignment_key`. So all three block Save here rather than warn:
-	 * every one of them is a 400 waiting to happen, and the editor reaches two
-	 * of them on its own — flipping "Restrict to an assignee" on opens a gate
-	 * with no key yet, and picking the Assignment input type opens a slot with
-	 * no key yet.
+	 * writes the assignment into that slot. Two things break a slot, and the
+	 * server refuses the save for each — `invalid_assignment_key` and
+	 * `duplicate_assignment_key` — so both block Save here rather than warn.
+	 * The editor mints a key when it adds an assignment, and again when a
+	 * gesture copies one onto a second transition (`withOwnSlots`), so neither
+	 * fault is authored here: both arrive with a stored config. Neither has a
+	 * field to fix, so each names the fix that is there — adding the assignment
+	 * again mints it a key of its own.
 	 *
-	 * Not gated on `isPhase`: the server validates this wiring on every sequence
-	 * type, and a phase sequence can carry it in from an import even though the
-	 * phase inspector doesn't offer the controls.
-	 *
-	 * Two passes, the way the server walks it — every slot the sequence declares
-	 * first, then every gate against that set — because a gate may point at a
-	 * slot declared by a transition on any stage, not just its own.
+	 * Not gated on `isPhase`: the server validates slots on every sequence type,
+	 * and a phase sequence can carry one in from an import even though the phase
+	 * inspector doesn't offer the controls.
 	 */
 	const declaredSlots = new Set();
 
@@ -2174,77 +2433,35 @@ export function validateSequence( {
 
 				if ( '' === key ) {
 					addBlocker(
-						stage.key,
 						sprintf(
 							/* translators: %s: transition button label */
 							__(
-								'The “%s” transition assigns work but names no assignment key, so there is nowhere to record the assignment. Fill in its Assignment key.',
+								'The “%s” transition assigns work but names no assignment key, so there is nowhere to record the assignment. Remove its assignment and add it again.',
 								'vip-workflows'
 							),
 							transitionName
-						)
+						),
+						edgeTarget( stage, transition, drawnAs )
 					);
 					continue;
 				}
 
 				if ( declaredSlots.has( key ) ) {
 					addBlocker(
-						stage.key,
 						sprintf(
-							/* translators: 1: transition button label, 2: assignment key */
+							/* translators: %s: transition button label */
 							__(
-								'The “%1$s” transition assigns to “%2$s”, a key another transition already assigns — the second assignment would overwrite the first. Give this one a key of its own.',
+								'The “%s” transition assigns to the same slot as another transition — the second assignment would overwrite the first. Remove its assignment and add it again.',
 								'vip-workflows'
 							),
-							transitionName,
-							key
-						)
+							transitionName
+						),
+						edgeTarget( stage, transition, drawnAs )
 					);
 					continue;
 				}
 
 				declaredSlots.add( key );
-			}
-		}
-	}
-
-	for ( const stage of stages ) {
-		for ( const transition of stage.transitions || [] ) {
-			if ( ! transition.requires_assignment ) {
-				continue;
-			}
-
-			const transitionName = transition.label || transition.to;
-			const key = gateSlotKey( transition.requires_assignment );
-
-			if ( '' === key ) {
-				addBlocker(
-					stage.key,
-					sprintf(
-						/* translators: %s: transition button label */
-						__(
-							'The “%s” transition is restricted to an assignee but names no assignment key, so nobody could take it. Name the slot it should read, or turn the restriction off.',
-							'vip-workflows'
-						),
-						transitionName
-					)
-				);
-				continue;
-			}
-
-			if ( ! declaredSlots.has( key ) ) {
-				addBlocker(
-					stage.key,
-					sprintf(
-						/* translators: 1: transition button label, 2: assignment key */
-						__(
-							'The “%1$s” transition is restricted to assignment key “%2$s”, which no transition assigns — nobody could take it. Point it at a key another transition assigns.',
-							'vip-workflows'
-						),
-						transitionName,
-						key
-					)
-				);
 			}
 		}
 	}
@@ -2255,7 +2472,7 @@ export function validateSequence( {
 	// the stages content would pile up in are named, since those are the
 	// candidates, and the gesture that ends the flow is spelled out.
 	if ( ! isPhase && ! stages.some( ( s ) => s.is_terminal ) ) {
-		errors.push(
+		addError(
 			deadEnds.length > 0
 				? sprintf(
 						/* translators: %s: comma-separated stage names. */
@@ -2304,20 +2521,21 @@ export function validateSequence( {
 				Boolean( s.region_entry )
 			);
 			if ( entries.length === 0 ) {
-				errors.push(
+				addError(
 					sprintf(
 						/* translators: %s: status region name (e.g. Draft, Published) */
 						__(
-							'The “%s” status group has no entry checkpoint. Drag one of its stages onto the group’s top edge to set where posts entering that status land.',
+							'The “%s” status group has no entry checkpoint. Open its Post status panel and choose a stage under Entry checkpoint to set where posts entering that status land.',
 							'vip-workflows'
 						),
 						regionLabel( region )
-					)
+					),
+					regionTarget( region )
 				);
 				return;
 			}
 			if ( entries.length > 1 ) {
-				errors.push(
+				addError(
 					sprintf(
 						/* translators: 1: status region name, 2: comma-separated stage labels */
 						__(
@@ -2326,7 +2544,8 @@ export function validateSequence( {
 						),
 						regionLabel( region ),
 						entries.map( ( s ) => s.label || s.key ).join( ', ' )
-					)
+					),
+					regionTarget( region )
 				);
 			}
 		} );

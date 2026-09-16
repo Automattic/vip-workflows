@@ -335,12 +335,13 @@ class StatusManagerAgentGatingTest extends TestCase
     }
 
     /**
-     * The agent's own exit transition (agent_actor) skips the human ROLE and
-     * ASSIGNMENT checks — those describe which person may push a button, and no
-     * person is pushing one. It remains bound by the core capabilities of the
-     * actor it names: `user_can` is stubbed true here for a named actor, and
-     * wp_update_post is stubbed to fail so the test stops at the region-crossing
-     * commit, proving the workflow-configuration checks did not block it.
+     * The agent's own exit transition (agent_actor) skips the human ROLE check
+     * and the required-field gate — those describe which person may push a
+     * button, and no person is pushing one. It remains bound by the core
+     * capabilities of the actor it names: `user_can` is stubbed true here for a
+     * named actor, and wp_update_post is stubbed to fail so the test stops at
+     * the region-crossing commit, proving the workflow-configuration checks did
+     * not block it.
      */
     public function test_agent_actor_transition_skips_the_workflow_rules_but_not_capabilities(): void
     {

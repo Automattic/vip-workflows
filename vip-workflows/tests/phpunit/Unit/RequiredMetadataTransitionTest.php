@@ -561,12 +561,9 @@ class RequiredMetadataTransitionTest extends TestCase
     /**
      * A workflow-bypass role is not held by an empty required field.
      *
-     * The sibling gate on this transition — `requires_assignment` — has always
-     * deferred to `bypass_workflow_roles`, and it is the same kind of rule: a
-     * workflow requirement about the person performing the move, always within
-     * that person's reach. Holding one and waiving the other was an
-     * inconsistency rather than a decision, and it is the required-field gate
-     * that had no escape at all.
+     * It is a workflow requirement about the person performing the move, always
+     * within that person's reach — the kind of rule `bypass_workflow_roles`
+     * exists to waive.
      */
     public function test_workflow_bypass_role_is_not_held_by_an_empty_required_field(): void
     {

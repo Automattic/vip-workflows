@@ -2,10 +2,9 @@
  * InspectorFieldList — an ordered list an author adds to, orders and prunes.
  *
  * Three things in this editor have that shape: a sequence's metadata fields, the
- * inputs a transition captures on its way past, and the tools a transition
- * requires. The first two are the same object at different scopes — a named,
- * typed, optionally-required place to put a value — and the third is nothing of
- * the kind, which is the point. What they share is the list, not the item, so the
+ * assignment a transition captures on its way past, and the tools a transition
+ * requires. The first two are each a configured place to put a value under a
+ * storage key, and the third is nothing of the kind, which is the point. What they share is the list, not the item, so the
  * list lives here and the differences arrive as props.
  *
  * **Two of its halves are opt-in, because only a field definition has them.** A
@@ -35,9 +34,9 @@
  * keys. A duplicate storage key is a 400 on save
  * (`duplicate_metadata_field_key`, `duplicate_assignment_key`), and it used to
  * be reported only after the fact, naming the field by array index. The row that
- * has to change is flagged as it is typed, and the message repeats inside the
- * popover where the key field actually is — a problem hidden behind a closed
- * disclosure is not a report.
+ * has to change is flagged as it is typed, and the popover the row opens says
+ * what to do about it — a problem hidden behind a closed disclosure is not a
+ * report.
  *
  * @package
  */
@@ -169,7 +168,9 @@ function FieldRow( {
 	removeLabel,
 } ) {
 	const summary = describe( item, index );
-	const configurable = Boolean( renderConfig );
+	// Per row, not per list: an item that describes itself with a `tip` has
+	// nothing to configure, even in a list whose other items do.
+	const configurable = Boolean( renderConfig ) && ! summary.tip;
 
 	return (
 		<SortableFact
@@ -186,7 +187,7 @@ function FieldRow( {
 			label={ summary.label }
 			// A row whose key is wrong says so instead of saying what it
 			// captures: the setting is unreachable until the key is fixed, and
-			// the popover behind this row is where it gets fixed.
+			// the popover behind this row says how.
 			value={ problem ? problem.short : summary.value }
 			empty={ problem ? false : Boolean( summary.empty ) }
 			tip={ configurable ? undefined : summary.tip }
@@ -313,10 +314,10 @@ export default function InspectorFieldList( {
 	//
 	// It must not carry the key for a second reason: this doubles as the row's
 	// React key, and a key derived from the item's own content changes as the
-	// item is edited. A note's storage key is built from its name, so naming one
-	// remounted the row mid-keystroke and closed the popover the name was being
-	// typed into. Row identity is where a row sits; what it holds is free to
-	// change underneath it.
+	// item is edited. A metadata field's generated key follows its label, so
+	// labelling one would remount the row mid-keystroke and pull focus out of
+	// the field being typed into. Row identity is where a row sits; what it
+	// holds is free to change underneath it.
 	const sortId = ( item, index ) => String( index );
 
 	const updateItem = ( index, changes ) => {
@@ -417,11 +418,9 @@ export default function InspectorFieldList( {
  * button below an empty-state sentence reads as part of the sentence.
  *
  * The choice is made before there is a row: what KIND of field to add, or which
- * of the things this site offers. An option can be present and disabled — a
- * transition already carrying its one assignment — which says the kind exists
- * and is spoken for. That is the only thing `disabled` says here: something the
- * site cannot offer at all is left out by the caller rather than greyed out,
- * because a barred entry reads as a capability withheld from the reader.
+ * of the things this site offers. Something that cannot be added is left out by
+ * the caller rather than greyed out, because a barred entry reads as a
+ * capability withheld from the reader.
  *
  * **That reverses an earlier decision, and the reversal is the decision.** A
  * tool switched off site-wide used to be listed barred, on the reasoning that an
@@ -441,13 +440,13 @@ export default function InspectorFieldList( {
  *
  * One option collapses to one button, but only when there is nothing to read
  * about it. A menu exists so an author can read before choosing; an option
- * carrying a description — or a reason it is barred — has something to be read,
- * and a bare `+` that silently commits to it would be answering a question it
- * never asked. `alwaysMenu` says the option's name is itself that thing — a
- * destination, say, which a bare `+` would add without ever naming.
+ * carrying a description has something to be read, and a bare `+` that silently
+ * commits to it would be answering a question it never asked. `alwaysMenu` says
+ * the option's name is itself that thing — a destination, say, which a bare `+`
+ * would add without ever naming.
  *
  * @param {Object}   props              Component props.
- * @param {Array}    props.addOptions   What can be added: `{ label, value, description?, disabled? }`.
+ * @param {Array}    props.addOptions   What can be added: `{ label, value, description? }`.
  * @param {Function} props.onAdd        Adds one: ( optionValue ).
  * @param {string}   props.label        Accessible name for the control.
  * @param {boolean}  [props.alwaysMenu] Never collapse one option to a button.
@@ -461,12 +460,7 @@ export function InspectorFieldListAdd( {
 } ) {
 	const [ only ] = addOptions;
 
-	if (
-		! alwaysMenu &&
-		1 === addOptions.length &&
-		! only.description &&
-		! only.disabled
-	) {
+	if ( ! alwaysMenu && 1 === addOptions.length && ! only.description ) {
 		return (
 			<Button
 				icon={ plus }
@@ -496,7 +490,6 @@ export function InspectorFieldListAdd( {
 					<MenuItem
 						key={ option.value }
 						info={ option.description }
-						disabled={ Boolean( option.disabled ) }
 						onClick={ () => {
 							onClose();
 							onAdd( option.value );

@@ -195,7 +195,7 @@ already calls them **Tools**.
 
 ## Labels
 
-- **A setting takes a noun phrase.** `Minimum word count`, `Assignment key`,
+- **A setting takes a noun phrase.** `Minimum word count`, `Assignee type`,
   `Channel name`.
 - **An action takes a verb phrase**, from the [action vocabulary
   table](action-standard.md#vocabulary). `Add source`, `Retry`, `Discard`.

@@ -191,7 +191,7 @@ const STATUS_ALPHA = {
 			label: 'Legal check',
 			kind: 'normal',
 			_locked: true,
-			_locked_reason: 'Assigned to someone else.',
+			_locked_reason: 'Required checks are switched off: x/seo',
 		},
 	],
 	agent_pending: false,

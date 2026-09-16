@@ -3,9 +3,8 @@
  *
  * The same fields the old SequenceEditor crammed inline under each stage, now
  * scoped to one transition and grouped into plain-language sections: who may
- * act, what must be true first, what to capture, restrict to an assignee, who to
- * tell, where it shows. Reuses `AssignmentInputConfig` / `RequiresAssignmentConfig`
- * unchanged.
+ * act, what must be true first, who it assigns, who to tell, where it shows.
+ * Reuses `AssignmentInputConfig` unchanged.
  *
  * The component is controlled: it never mutates the transition, it computes the
  * next field values and calls `onChange( partialTransition )`, which the editor
@@ -54,11 +53,7 @@ import {
 import { Stack } from '@wordpress/ui';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { requirementText } from '../../../common/AgentRequirements';
-import {
-	AssignmentInputConfig,
-	RequiresAssignmentConfig,
-	expandRequiresAssignment,
-} from '../TransitionAssignmentConfig';
+import { AssignmentInputConfig } from '../TransitionAssignmentConfig';
 import InspectorShell from './InspectorShell';
 import InspectorSection from './InspectorSection';
 import InspectorChoiceRow from './InspectorChoiceRow';
@@ -70,90 +65,24 @@ import {
 	agentOutcomeLabel,
 	agentOutcomeNames,
 	derivedTransitionLabel,
+	newAssignmentKey,
 } from './graph-model';
 
 /**
- * The kinds of input a transition can be given.
+ * A new assignment input.
  *
- * `none` is not among them any more. A transition that captures nothing now has
- * an empty list, which is the same statement without a magic value in it — and
- * "None" was never a kind of input, it was the absence of one wearing the
- * costume of a choice.
- */
-const INPUT_TYPES = [
-	{ label: __( 'Text area', 'vip-workflows' ), value: 'textarea' },
-	{ label: __( 'Assignment', 'vip-workflows' ), value: 'assignment' },
-];
-
-/**
- * Name an input's kind, including one this build cannot author.
+ * Its slot key is minted here, at the moment it is added (`newAssignmentKey`),
+ * so the key is stable for the rest of the input's life and nobody is asked to
+ * type it.
  *
- * A stored `text` input predates the editor offering `textarea` and still
- * collects a value at runtime, so its row has to say what it is rather than
- * render blank — the same courtesy `assigneeTypeOptions` pays a retired
- * assignee type.
- *
- * @param {string} type The input's stored type.
- * @return {string} A human-readable name for it.
- */
-function inputTypeLabel( type ) {
-	return INPUT_TYPES.find( ( t ) => t.value === type )?.label || type;
-}
-
-/**
- * Generate a stable id for a capture input.
- *
- * The same generator the single textarea note used, now minting an id for every
- * input that needs one. Timestamp plus randomness rather than the counter
- * `uniqueStageKey` uses: a stage key only has to be unique within its sequence,
- * while these ids end up inside `wfp_{note_id}_{slug}` meta keys that have to
- * stay distinct from every other sequence's on the same site — including ones
- * arriving later by import.
- *
- * @return {string} A fresh input id.
- */
-function inputId() {
-	return 'n' + Date.now() + Math.random().toString( 36 ).slice( 2, 7 );
-}
-
-/**
- * The storage key a note writes its value under.
- *
- * Derived from the id and the name, never typed: the runtime rebuilds the same
- * string from the same two parts when it stores the value
- * (`WorkflowPanel.handleTextInput`), so the two must agree exactly.
- *
- * @param {string} id   The input's stable id.
- * @param {string} name The note's name, as typed.
- * @return {string} The meta key, or an empty string for an unnamed note.
- */
-function noteMetaKey( id, name ) {
-	const slug = ( name || '' )
-		.toLowerCase()
-		.replace( /[^a-z0-9]+/g, '_' )
-		.replace( /(^_|_$)/g, '' );
-
-	return slug ? `wfp_${ id }_${ slug }` : '';
-}
-
-/**
- * A new input of the requested kind.
- *
- * A note gets its id here, at the moment it is added, so the key derived from it
- * is stable for the rest of the input's life however often it is renamed. An
- * assignment gets no key: its key is the slot name a `requires_assignment` gate
- * elsewhere in the sequence points at, so it is the author's to choose, and
- * `validateSequence` blocks the save until they have.
- *
- * @param {string} type The kind of input to create.
  * @return {Object} The new input.
  */
-function createInput( type ) {
-	if ( 'assignment' === type ) {
-		return { type: 'assignment', assignee_type: 'user' };
-	}
-
-	return { type: 'textarea', note_id: inputId() };
+function createAssignment() {
+	return {
+		type: 'assignment',
+		assignee_type: 'user',
+		meta_key: newAssignmentKey(),
+	};
 }
 
 /**
@@ -232,6 +161,7 @@ export default function TransitionInspector( {
 	availableChannels,
 	onChange,
 	onRemove,
+	canRemove = true,
 	simplified = false,
 } ) {
 	const inputs = transition.inputs || [];
@@ -249,22 +179,19 @@ export default function TransitionInspector( {
 	// merges it through the graph model.
 	const updateInputs = ( next ) => onChange( { inputs: next } );
 
-	const addInput = ( type ) =>
-		updateInputs( [ ...inputs, createInput( type ) ] );
-
-	// A transition may declare at most one assignment — it is the slot
-	// `requires_assignment` gates on and the one `AssignmentManager` fills, so a
-	// second names nothing distinguishable. Offered but disabled once one exists,
-	// rather than withdrawn: the kind still exists, it is just spoken for, and a
-	// menu that silently loses an entry reads as a bug.
+	// A transition may declare at most one assignment — the cap the write gate
+	// enforces (`Sequence::normalize_transition_inputs()`) — so once it has one
+	// there is nothing left to add, and the section's Add control goes, the way
+	// the Tools section's does when the site has nothing more to offer.
 	const hasAssignment = inputs.some(
 		( input ) => 'assignment' === input.type
 	);
 
-	const addOptions = INPUT_TYPES.map( ( type ) => ( {
-		...type,
-		disabled: 'assignment' === type.value && hasAssignment,
-	} ) );
+	// Everything else on the list is a stored input the editor sidebar no
+	// longer collects — a retired note, or a kind this build does not know.
+	const uncollectedCount = inputs.filter(
+		( input ) => 'assignment' !== input.type
+	).length;
 
 	// One row per stored id, resolved against what this site offers. Every id
 	// gets a row, including one nothing answers to: the list is the stored array
@@ -337,27 +264,6 @@ export default function TransitionInspector( {
 		};
 	};
 
-	const toggleRequiresAssignment = ( enabled ) => {
-		onChange( {
-			requires_assignment: enabled
-				? { meta_key: '', match: 'current_user' }
-				: undefined,
-		} );
-	};
-
-	const updateRequiresAssignment = ( field, value ) => {
-		onChange( {
-			requires_assignment: {
-				// Expanded, not spread: a gate stored as the bare slot key is a
-				// string, and spreading one scatters it into { 0: 'l', 1: 'e', … }
-				// with no meta_key left — the gate severed by the act of editing
-				// its match mode.
-				...expandRequiresAssignment( transition.requires_assignment ),
-				[ field ]: value,
-			},
-		} );
-	};
-
 	// A channel nobody has set up notifies nobody: the dispatcher checks
 	// `is_configured()` before it sends and skips the ones that answer no. So it
 	// is left off the list rather than offered greyed out — a disabled row reads
@@ -392,19 +298,24 @@ export default function TransitionInspector( {
 
 	const subtitle = `${ sourceLabel } → ${ targetLabel }`;
 
-	// Collapsed-state gists, so the two sub-form sections read while shut. The
-	// capture section counts rather than names: a transition can hold several
-	// inputs now, and listing them would not fit on the heading line.
-	const captureSummary = inputs.length
-		? sprintf(
-				/* translators: %d: how many inputs the transition captures. */
-				_n( '%d input', '%d inputs', inputs.length, 'vip-workflows' ),
-				inputs.length
-		  )
-		: __( 'Nothing', 'vip-workflows' );
-	const assigneeSummary = transition.requires_assignment
-		? __( 'On', 'vip-workflows' )
-		: __( 'Off', 'vip-workflows' );
+	// Collapsed-state gist, so the section reads while shut. An input left to
+	// remove outranks the assignment: it is the one thing in here that needs the
+	// author, and a shut section saying "None" would hide it.
+	let assignmentSummary = __( 'None', 'vip-workflows' );
+	if ( uncollectedCount ) {
+		assignmentSummary = sprintf(
+			/* translators: %d: how many stored inputs are no longer collected. */
+			_n(
+				'%d input to remove',
+				'%d inputs to remove',
+				uncollectedCount,
+				'vip-workflows'
+			),
+			uncollectedCount
+		);
+	} else if ( hasAssignment ) {
+		assignmentSummary = __( '1 assignment', 'vip-workflows' );
+	}
 
 	return (
 		<InspectorShell
@@ -659,180 +570,152 @@ export default function TransitionInspector( {
 					/>
 				</InspectorSection>
 
+				{ /* Opens into a sub-form, so it stays shut until it holds
+				     something. */ }
 				{ ! simplified && (
-					<>
-						{ /* Both of these open into sub-forms, so they stay
-						     shut until they hold something. */ }
-						<InspectorSection
-							title={ __( 'What to capture', 'vip-workflows' ) }
-							summary={ captureSummary }
-							collapsible
-							defaultOpen={ inputs.length > 0 }
-							actions={
+					<InspectorSection
+						title={ __( 'Assignments', 'vip-workflows' ) }
+						summary={ assignmentSummary }
+						collapsible
+						defaultOpen={ inputs.length > 0 }
+						actions={
+							hasAssignment ? undefined : (
 								<InspectorFieldListAdd
-									addOptions={ addOptions }
-									onAdd={ addInput }
+									addOptions={ [
+										{
+											label: __(
+												'Assignment',
+												'vip-workflows'
+											),
+											value: 'assignment',
+										},
+									] }
+									onAdd={ () =>
+										updateInputs( [
+											...inputs,
+											createAssignment(),
+										] )
+									}
 									label={ __(
-										'Add an input',
+										'Add an assignment',
 										'vip-workflows'
 									) }
 								/>
+							)
+						}
+					>
+						<InspectorFieldList
+							items={ inputs }
+							onChange={ updateInputs }
+							// Only an assignment writes under its key, so only
+							// assignments can collide: an uncollected input
+							// writes nothing, and its stale key is no reason
+							// to flag a live assignment beside it.
+							keyOf={ ( item ) =>
+								'assignment' === item.type
+									? item.meta_key || ''
+									: ''
 							}
-						>
-							<InspectorFieldList
-								items={ inputs }
-								onChange={ updateInputs }
-								// A note's key is derived from its name, an
-								// assignment's is typed — but both write into
-								// the same place on the post, so both are
-								// checked for collisions as one.
-								keyOf={ ( item ) => item.meta_key || '' }
-								// "Started" is having been named — an input
-								// nobody has typed into yet is incomplete
-								// rather than wrong, and colouring it the
-								// instant it appears is validation nobody
-								// asked for.
-								//
-								// An assignment is the exception, and is
-								// started the moment it exists: its key is
-								// typed rather than derived from anything, and
-								// `validateSequence` blocks Save on a blank one
-								// from that same moment. A row that said
-								// nothing would leave the author with Save
-								// switched off and no field to point at.
-								isStarted={ ( item ) =>
-									'assignment' === item.type ||
-									Boolean( item.note_name || item.label )
-								}
-								describe={ ( item ) => ( {
-									label:
-										item.note_name ||
-										item.label ||
-										__( 'Untitled', 'vip-workflows' ),
-									value: inputTypeLabel( item.type ),
-								} ) }
-								renderConfig={ ( { item, update, problem } ) =>
-									'assignment' === item.type ? (
-										<AssignmentInputConfig
-											input={ item }
-											availableRoles={ availableRoles }
-											keyProblem={ problem?.full }
-											onUpdateInput={ ( field, value ) =>
-												update( { [ field ]: value } )
-											}
-											onToggleRoleFilter={ ( slug ) => {
-												const roles =
-													item.filter?.roles || [];
-												update( {
-													filter: {
-														...item.filter,
-														roles: roles.includes(
-															slug
-														)
-															? roles.filter(
-																	( r ) =>
-																		r !==
-																		slug
-															  )
-															: [
-																	...roles,
-																	slug,
-															  ],
-													},
-												} );
-											} }
-										/>
-									) : (
-										<>
-											<TextControl
-												__next40pxDefaultSize
-												__nextHasNoMarginBottom
-												label={ __(
-													'Note name',
+							// An assignment is started the moment it exists:
+							// its key is minted with it rather than derived
+							// from anything typed, so a blank one is a stored
+							// config `validateSequence` blocks Save on. A row
+							// that said nothing would leave the author with
+							// Save switched off and no row to point at.
+							isStarted={ ( item ) => 'assignment' === item.type }
+							// Anything else a stored sequence still carries —
+							// a retired note, or a kind this build does not
+							// know — stays on the list so the author can see
+							// and remove it. It has nothing to configure, so
+							// its row says why in a tip rather than opening a
+							// popover with nothing in it to focus.
+							describe={ ( item ) =>
+								'assignment' === item.type
+									? {
+											label:
+												item.label ||
+												__(
+													'Untitled',
 													'vip-workflows'
-												) }
-												value={ item.note_name || '' }
-												onChange={ ( v ) => {
-													// A note written by an
-													// import or an ability
-													// need not carry an id;
-													// minting one here is what
-													// keeps the derived key
-													// from reading
-													// `wfp_undefined_…` and
-													// the runtime from
-													// dead-ending on the
-													// missing id
-													// (`WorkflowPanel.handleTextInput`).
-													const id =
-														item.note_id ||
-														inputId();
-													update( {
-														note_id: id,
-														note_name: v,
-														meta_key: noteMetaKey(
-															id,
-															v
-														),
-													} );
-												} }
-												placeholder={ __(
-													'e.g. Review notes',
+												),
+											value: __(
+												'Assignment',
+												'vip-workflows'
+											),
+									  }
+									: {
+											label:
+												item.note_name ||
+												item.label ||
+												item.type ||
+												__(
+													'Untitled',
 													'vip-workflows'
-												) }
-												help={
-													problem?.full ||
-													__(
-														'Used as the label and to generate the storage key.',
-														'vip-workflows'
+												),
+											value: __(
+												'No longer collected',
+												'vip-workflows'
+											),
+											tip: __(
+												'The editor no longer asks for this input when the transition is taken, so it does nothing. Remove it.',
+												'vip-workflows'
+											),
+											invalid: true,
+									  }
+							}
+							renderConfig={ ( { item, update, problem } ) => (
+								<>
+									{ /* The row says the key is wrong, and there
+									     is no key field to say it beside: the
+									     key is minted, so the fix is a fresh
+									     one. */ }
+									{ problem && (
+										<Notice
+											status="error"
+											isDismissible={ false }
+										>
+											{ __(
+												'This assignment has no key of its own, so the sequence can’t be saved. Remove it and add it again.',
+												'vip-workflows'
+											) }
+										</Notice>
+									) }
+									<AssignmentInputConfig
+										input={ item }
+										availableRoles={ availableRoles }
+										onUpdateInput={ ( field, value ) =>
+											update( { [ field ]: value } )
+										}
+										onToggleRoleFilter={ ( slug ) => {
+											const roles =
+												item.filter?.roles || [];
+											update( {
+												filter: {
+													...item.filter,
+													roles: roles.includes(
+														slug
 													)
-												}
-											/>
-											<ToggleControl
-												__nextHasNoMarginBottom
-												label={ __(
-													'Required',
-													'vip-workflows'
-												) }
-												checked={ Boolean(
-													item.required
-												) }
-												onChange={ ( v ) =>
-													update( { required: v } )
-												}
-											/>
-										</>
-									)
-								}
-								removeLabel={ __(
-									'Remove input',
-									'vip-workflows'
-								) }
-								emptyLabel={ __(
-									'This transition captures nothing. Add an input to ask for a note or an assignment before the post moves on.',
-									'vip-workflows'
-								) }
-							/>
-						</InspectorSection>
-
-						<InspectorSection
-							title={ __(
-								'Restrict to an assignee',
+														? roles.filter(
+																( r ) =>
+																	r !== slug
+														  )
+														: [ ...roles, slug ],
+												},
+											} );
+										} }
+									/>
+								</>
+							) }
+							removeLabel={ __(
+								'Remove input',
 								'vip-workflows'
 							) }
-							summary={ assigneeSummary }
-							collapsible
-							defaultOpen={ Boolean(
-								transition.requires_assignment
+							emptyLabel={ __(
+								'This transition assigns nothing. Add an assignment to ask who takes the post on as it moves.',
+								'vip-workflows'
 							) }
-						>
-							<RequiresAssignmentConfig
-								transition={ transition }
-								onToggle={ toggleRequiresAssignment }
-								onUpdate={ updateRequiresAssignment }
-							/>
-						</InspectorSection>
-					</>
+						/>
+					</InspectorSection>
 				) }
 
 				{ /* Gone only when there is nothing to say: no channel worth
@@ -878,14 +761,22 @@ export default function TransitionInspector( {
 				     and correctly so: `clearOutcome` un-routes the one
 				     outcome that was selected and leaves the transition
 				     standing for whoever else was on it. */ }
-				<InspectorDangerZone
-					label={
-						outcome
-							? __( 'Remove this route', 'vip-workflows' )
-							: __( 'Remove transition', 'vip-workflows' )
-					}
-					onClick={ onRemove }
-				/>
+				{ /* A hand-off a phase sequence owes has no removal to offer:
+				     the sequence is invalid without it and the save says so, so
+				     the control could only ever hand the author a fault to undo.
+				     Absent rather than disabled — the phases either end of it
+				     aren't deletable and don't carry a greyed-out Delete
+				     explaining that, and this is the same fixture. */ }
+				{ canRemove && (
+					<InspectorDangerZone
+						label={
+							outcome
+								? __( 'Remove this route', 'vip-workflows' )
+								: __( 'Remove transition', 'vip-workflows' )
+						}
+						onClick={ onRemove }
+					/>
+				) }
 			</Stack>
 		</InspectorShell>
 	);

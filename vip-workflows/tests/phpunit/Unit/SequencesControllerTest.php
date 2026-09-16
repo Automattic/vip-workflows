@@ -756,8 +756,8 @@ class SequencesControllerTest extends TestCase
 
     /**
      * The same conversion runs BEFORE validate_assignment_keys(), so a
-     * legacy-shaped payload's `requires_assignment` gate is measured against the
-     * slots it actually declares rather than against none.
+     * legacy-shaped payload's slots are checked against each other rather than
+     * read as none.
      */
     public function test_create_item_sees_legacy_assignment_slots_when_validating(): void
     {
@@ -2050,12 +2050,10 @@ class SequencesControllerTest extends TestCase
     // =========================================================================
 
     /**
-     * An import mints fresh assignment slot keys, and the gates that point at
-     * them follow. Regenerating the slot alone left `requires_assignment` reading
-     * `_vip_workflows_assignment_{old_key}` — a slot nothing writes any more — so
-     * the gated transition failed closed, silently, for every user.
+     * An import mints fresh assignment slot keys rather than sharing the source
+     * sequence's, so the two sequences never write the same post meta.
      */
-    public function test_import_sequence_repoints_assignment_gates_at_regenerated_keys(): void
+    public function test_import_sequence_regenerates_assignment_slot_keys(): void
     {
         $captured = null;
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
@@ -2102,12 +2100,8 @@ class SequencesControllerTest extends TestCase
                                 'label'       => 'Review',
                                 'transitions' => array(
                                     array(
-                                        'to'                  => 'published',
-                                        'label'               => 'Approve',
-                                        'requires_assignment' => array(
-                                            'meta_key' => 'legal_reviewer',
-                                            'match'    => 'current_user',
-                                        ),
+                                        'to'    => 'published',
+                                        'label' => 'Approve',
                                     ),
                                 ),
                             ),
@@ -2125,100 +2119,42 @@ class SequencesControllerTest extends TestCase
 
         $stored   = json_decode( $captured['config'], true );
         $slot_key = $stored['statuses'][0]['transitions'][0]['inputs'][0]['meta_key'];
-        $gate_key = $stored['statuses'][1]['transitions'][0]['requires_assignment']['meta_key'];
 
         $this->assertNotSame( 'legal_reviewer', $slot_key, 'The imported slot gets its own key.' );
         $this->assertStringStartsWith( 'wfp_n', $slot_key );
-        $this->assertSame( $slot_key, $gate_key, 'The gate follows the slot it points at.' );
-        $this->assertSame( 'current_user', $stored['statuses'][1]['transitions'][0]['requires_assignment']['match'] );
     }
 
     /**
-     * The shorthand gate form — `requires_assignment: "legal_reviewer"` — is the
-     * same pointer written shorter (AssignmentManager::normalize_requirement),
-     * so it is re-pointed too.
+     * Import validates slot keys before it regenerates them, the same as
+     * create/update. Regeneration mints a fresh key per slot without reading the
+     * old one, so skipping the check would store the file's broken wiring rather
+     * than refuse it.
      */
-    public function test_import_sequence_repoints_shorthand_assignment_gate(): void
+    public function test_import_sequence_rejects_duplicate_assignment_keys(): void
     {
-        $captured = null;
-        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
-        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 );
-        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row() );
-        $this->wpdb->shouldReceive( 'insert' )->once()->andReturnUsing(
-            function ( $table, $data ) use ( &$captured ) {
-                $captured = $data;
-                return 1;
-            }
-        );
-        $this->wpdb->shouldReceive( 'update' )->andReturn( 1 );
-        $this->wpdb->insert_id = 1;
+        $this->wpdb->shouldReceive( 'insert' )->never();
 
         Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( 'wp_generate_password' )->justReturn( 'abcde' );
 
         $request = $this->create_mock_request(
             array(
                 'sequence_json' => array(
                     'type'   => 'workflow',
-                    'name'   => 'Imported Shorthand Gate',
+                    'name'   => 'Imported Duplicate Slots',
                     'config' => array(
                         'statuses' => array(
                             array(
                                 'key'         => 'draft',
                                 'label'       => 'Draft',
                                 'transitions' => array(
-                                    array(
-                                        'to'    => 'review',
-                                        'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ) ),
-                                    ),
+                                    array( 'to' => 'review', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ) ) ),
                                 ),
                             ),
                             array(
                                 'key'         => 'review',
                                 'label'       => 'Review',
                                 'transitions' => array(
-                                    array( 'to' => 'draft', 'requires_assignment' => 'legal_reviewer' ),
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            )
-        );
-
-        $response = $this->controller->import_sequence( $request );
-
-        $this->assertInstanceOf( 'WP_REST_Response', $response );
-
-        $stored   = json_decode( $captured['config'], true );
-        $slot_key = $stored['statuses'][0]['transitions'][0]['inputs'][0]['meta_key'];
-
-        $this->assertSame( $slot_key, $stored['statuses'][1]['transitions'][0]['requires_assignment'] );
-    }
-
-    /**
-     * An import whose gate points at a slot no transition assigns is rejected
-     * rather than persisted: the transition it gates could never be taken.
-     */
-    public function test_import_sequence_rejects_dangling_assignment_gate(): void
-    {
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-
-        $request = $this->create_mock_request(
-            array(
-                'sequence_json' => array(
-                    'type'   => 'workflow',
-                    'name'   => 'Imported Dangling Gate',
-                    'config' => array(
-                        'statuses' => array(
-                            array(
-                                'key'         => 'review',
-                                'label'       => 'Review',
-                                'transitions' => array(
-                                    array(
-                                        'to'                  => 'published',
-                                        'requires_assignment' => array( 'meta_key' => 'legal_reviewer' ),
-                                    ),
+                                    array( 'to' => 'draft', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ) ) ),
                                 ),
                             ),
                         ),
@@ -2230,7 +2166,7 @@ class SequencesControllerTest extends TestCase
         $response = $this->controller->import_sequence( $request );
 
         $this->assertInstanceOf( 'WP_Error', $response );
-        $this->assertSame( 'unknown_assignment_key', $response->get_error_code() );
+        $this->assertSame( 'duplicate_assignment_key', $response->get_error_code() );
     }
 
     /**
@@ -2326,6 +2262,7 @@ class SequencesControllerTest extends TestCase
                         'key'         => 'review',
                         'label'       => 'Review',
                         'transitions' => array(
+                            // A retired gate a stored sequence may still carry.
                             array( 'to' => 'draft', 'requires_assignment' => array( 'meta_key' => 'legal_reviewer', 'match' => 'current_user' ) ),
                         ),
                     ),
@@ -2340,6 +2277,8 @@ class SequencesControllerTest extends TestCase
         $stored = json_decode( $captured['config'], true );
         $inputs = $stored['statuses'][0]['transitions'][0]['inputs'];
 
+        $this->assertArrayNotHasKey( 'requires_assignment', $stored['statuses'][1]['transitions'][0], 'The allowlist drops a gate nothing enforces.' );
+
         $this->assertCount( 3, $inputs, 'Every input reaches storage.' );
         $this->assertSame(
             array( 'textarea', 'assignment', 'textarea' ),
@@ -2349,7 +2288,7 @@ class SequencesControllerTest extends TestCase
 
         $this->assertSame( 'Why', $inputs[0]['note_name'] );
         $this->assertTrue( $inputs[0]['required'] );
-        $this->assertSame( 'n1', $inputs[0]['note_id'] );
+        $this->assertArrayNotHasKey( 'note_id', $inputs[0], 'The allowlist drops a note id nothing reads.' );
 
         $this->assertSame( 'legal_reviewer', $inputs[1]['meta_key'] );
         $this->assertSame( 'user', $inputs[1]['assignee_type'] );
@@ -2453,7 +2392,7 @@ class SequencesControllerTest extends TestCase
                                 'key'         => 'review',
                                 'label'       => 'Review',
                                 'transitions' => array(
-                                    array( 'to' => 'draft', 'requires_assignment' => 'legal_reviewer' ),
+                                    array( 'to' => 'draft' ),
                                 ),
                             ),
                         ),
@@ -2476,47 +2415,11 @@ class SequencesControllerTest extends TestCase
         $slot_key = $transition['inputs'][0]['meta_key'];
         $this->assertNotSame( 'legal_reviewer', $slot_key, 'The imported slot still gets its own key.' );
         $this->assertStringStartsWith( 'wfp_n', $slot_key );
-        $this->assertSame(
-            $slot_key,
-            $stored['statuses'][1]['transitions'][0]['requires_assignment'],
-            'And the gate still follows the slot it points at.'
-        );
     }
 
     /**
-     * create_item refuses a gate pointing at a slot nothing assigns, proving the
-     * validator is wired into the create path.
-     */
-    public function test_create_item_rejects_dangling_assignment_gate(): void
-    {
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
-
-        $request = $this->create_mock_request(
-            array(
-                'name'     => 'Dangling Gate',
-                'type'     => Sequence::TYPE_WORKFLOW,
-                'statuses' => array(
-                    array(
-                        'key'         => 'review',
-                        'label'       => 'Review',
-                        'transitions' => array(
-                            array( 'to' => 'published', 'requires_assignment' => array( 'meta_key' => 'legal_reviewer' ) ),
-                        ),
-                    ),
-                ),
-            )
-        );
-
-        $response = $this->controller->create_item( $request );
-
-        $this->assertInstanceOf( 'WP_Error', $response );
-        $this->assertSame( 'unknown_assignment_key', $response->get_error_code() );
-    }
-
-    /**
-     * A slot with no key assigns nothing and gates nothing — a required field
-     * left empty, rejected rather than stored.
+     * A slot with no key assigns nothing — a required field left empty,
+     * rejected rather than stored.
      */
     public function test_validate_assignment_keys_rejects_slot_without_key(): void
     {
@@ -2536,33 +2439,11 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
-     * Toggling the gate on without naming a key leaves a transition nobody can
-     * take, so it is a save-time error rather than a silent dead end.
+     * Keys are compared after sanitize_key — the normalization the config is
+     * stored under — so two keys that differ only in case are caught as the one
+     * slot they would land on, not passed as two.
      */
-    public function test_validate_assignment_keys_rejects_gate_without_key(): void
-    {
-        $result = $this->controller->validate_assignment_keys(
-            array(
-                array(
-                    'key'         => 'review',
-                    'transitions' => array(
-                        array( 'to' => 'published', 'requires_assignment' => array( 'meta_key' => '', 'match' => 'current_user' ) ),
-                    ),
-                ),
-            )
-        );
-
-        $this->assertInstanceOf( 'WP_Error', $result );
-        $this->assertSame( 'invalid_requires_assignment', $result->get_error_code() );
-    }
-
-    /**
-     * Both sides are compared after sanitize_key — the normalization the config
-     * is stored under — so "Legal Reviewer" (which loses its space on write) and
-     * a hand-typed "legal_reviewer" are caught as the mismatch they are instead
-     * of silently becoming two slots.
-     */
-    public function test_validate_assignment_keys_catches_sanitize_normalized_mismatch(): void
+    public function test_validate_assignment_keys_catches_sanitize_normalized_duplicate(): void
     {
         $this->stub_real_sanitize_key();
 
@@ -2571,20 +2452,20 @@ class SequencesControllerTest extends TestCase
                 array(
                     'key'         => 'draft',
                     'transitions' => array(
-                        array( 'to' => 'review', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'Legal Reviewer' ) ) ),
+                        array( 'to' => 'review', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'Legal_Reviewer' ) ) ),
                     ),
                 ),
                 array(
                     'key'         => 'review',
                     'transitions' => array(
-                        array( 'to' => 'draft', 'requires_assignment' => array( 'meta_key' => 'legal_reviewer' ) ),
+                        array( 'to' => 'draft', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ) ) ),
                     ),
                 ),
             )
         );
 
         $this->assertInstanceOf( 'WP_Error', $result );
-        $this->assertSame( 'unknown_assignment_key', $result->get_error_code() );
+        $this->assertSame( 'duplicate_assignment_key', $result->get_error_code() );
     }
 
     // =========================================================================
@@ -2937,10 +2818,9 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
-     * A matched pair — one slot, one gate pointing at it — passes, in both the
-     * object and the shorthand string form.
+     * Slots with keys of their own pass.
      */
-    public function test_validate_assignment_keys_accepts_matched_pair(): void
+    public function test_validate_assignment_keys_accepts_distinct_slots(): void
     {
         $this->stub_real_sanitize_key();
 
@@ -2954,8 +2834,7 @@ class SequencesControllerTest extends TestCase
             array(
                 'key'         => 'review',
                 'transitions' => array(
-                    array( 'to' => 'published', 'requires_assignment' => array( 'meta_key' => 'legal_reviewer', 'match' => 'current_user' ) ),
-                    array( 'to' => 'draft', 'requires_assignment' => 'legal_reviewer' ),
+                    array( 'to' => 'draft', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'copy_editor' ) ) ),
                 ),
             ),
         );
