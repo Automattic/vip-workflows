@@ -1068,12 +1068,18 @@ export default function SequenceGraphEditor( {
 	// Add a stage that flows out of nothing yet — the canvas's own verb, as
 	// against `handleAddStageFromNode`, which grows one off a source handle. It
 	// lands in Draft (where content is created) and takes the selection, because
-	// what the author needs next is to name it and say where it leads.
-	const handleAddStage = useCallback( () => {
-		const result = addStage( stages );
-		setStages( result.stages );
-		setSelection( { type: 'node', key: result.key } );
-	}, [ stages ] );
+	// what the author needs next is to name it and say where it leads. The
+	// canvas menu names the region it was opened over, and takes the key back
+	// to put the node there.
+	const handleAddStage = useCallback(
+		( region = null ) => {
+			const result = addStage( stages, region ? { status: region } : {} );
+			setStages( result.stages );
+			setSelection( { type: 'node', key: result.key } );
+			return result.key;
+		},
+		[ stages ]
+	);
 
 	// Add a stage flowing out of an existing node — what dropping a connection on
 	// empty canvas does. Returns the new stage's key so the canvas can put the
@@ -1627,7 +1633,8 @@ export default function SequenceGraphEditor( {
 		onSettingsChange: setSettings,
 		metadataFields,
 		onMetadataChange: setMetadataFields,
-		onAddStage: isPhase ? undefined : handleAddStage,
+		// Wrapped: the list's add button passes its option value, not a region.
+		onAddStage: isPhase ? undefined : () => handleAddStage(),
 		stages,
 		onStagesChange: setStages,
 		onRemoveStage: handleDeleteStage,
@@ -1761,6 +1768,7 @@ export default function SequenceGraphEditor( {
 						onClearSelection={ clearSelection }
 						onDeleteNode={ handleDeleteStage }
 						onDeleteEdge={ handleDeleteTransition }
+						onAddStage={ isPhase ? undefined : handleAddStage }
 						onAddStageFromNode={
 							isPhase ? undefined : handleAddStageFromNode
 						}
