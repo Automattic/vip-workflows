@@ -220,6 +220,36 @@ class AssigneeSnapshotIntegrationTest extends TestCase
 	}
 
 	/**
+	 * An assignment explicitly submitted empty — the one way an optional
+	 * assignment popover has to clear one (AssignmentManager::unassign()) —
+	 * snapshots as "Unassigned" rather than resolving to nothing and
+	 * printing as a blank value next to the field's label.
+	 */
+	public function test_a_cleared_assignment_snapshots_as_unassigned(): void
+	{
+		$post_id = $this->make_workflow_post();
+
+		$result = ( new StatusManager() )->transition(
+			$post_id,
+			'status_2',
+			array(
+				'input_data' => array(
+					'reviewer'       => '',
+					'reviewer__name' => 'Reviewer',
+				),
+			)
+		);
+		$this->assertTrue( $result, 'The transition should commit.' );
+
+		$data = $this->latest_event_data( $post_id, 'status_transition' );
+
+		$this->assertSame(
+			array( array( 'label' => 'Reviewer', 'value' => 'Unassigned' ) ),
+			$data['notes']
+		);
+	}
+
+	/**
 	 * A free-text note riding alongside the assignment no longer displaces
 	 * it — both the assignee and the note survive into the audit row.
 	 */

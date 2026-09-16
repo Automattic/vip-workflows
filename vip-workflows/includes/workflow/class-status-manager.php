@@ -1794,11 +1794,19 @@ class StatusManager {
 				// The assignee is a raw id/slug; resolve it to the name it
 				// had at the moment of the transition — the same reasoning
 				// as snapshot_stage_label(): a later rename or role edit
-				// must not rewrite what this entry says.
+				// must not rewrite what this entry says. An explicit empty
+				// value is a clear rather than an assignment (see
+				// AssignmentManager::unassign()) — named outright rather
+				// than left to resolve to nothing and print as a blank
+				// value next to the field's label.
 				if ( $assignment_meta_key && $key === $assignment_meta_key ) {
-					$display_name = self::resolve_assignee_display_name( $assignee_type, $value );
-					if ( null !== $display_name ) {
-						$value = $display_name;
+					if ( '' === (string) $value ) {
+						$value = __( 'Unassigned', 'vip-workflows' );
+					} else {
+						$display_name = self::resolve_assignee_display_name( $assignee_type, $value );
+						if ( null !== $display_name ) {
+							$value = $display_name;
+						}
 					}
 				}
 
