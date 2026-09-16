@@ -987,7 +987,7 @@ class StatusManager {
 		);
 
 		// Log the transition.
-		$this->log_transition( $post_id, $current_stage, $to_status, $options, $context );
+		$this->log_transition( $post_id, $current_stage, $to_status, $options, $context, $transition_config );
 
 		// Dispatch the stage-change events. Fired here (after any region-status
 		// write is committed and stage meta is written) rather than from
@@ -1727,20 +1727,72 @@ class StatusManager {
 	}
 
 	/**
+	 * Resolve an assignment input's raw value to the display name it had at
+	 * the moment of the transition.
+	 *
+	 * Storage differs by assignee type — a user id, a role slug, or an
+	 * ability id — so the type decides how the value is looked up.
+	 *
+	 * @param  string|null $assignee_type 'user', 'role', or 'agent'; null when
+	 *                                    the transition declares no assignment
+	 *                                    input.
+	 * @param  mixed       $value         The raw stored value.
+	 * @return string|null Display name, or null when it cannot be resolved
+	 *                      (unknown type, deleted user, retired role/ability).
+	 */
+	private static function resolve_assignee_display_name( ?string $assignee_type, $value ): ?string {
+		if ( null === $assignee_type || '' === (string) $value ) {
+			return null;
+		}
+
+		if ( 'user' === $assignee_type ) {
+			$actor = Actor::from_user( $value );
+			return $actor['display_name'] ?? null;
+		}
+
+		if ( 'role' === $assignee_type ) {
+			$roles = wp_roles()->roles;
+			return isset( $roles[ $value ]['name'] ) ? translate_user_role( $roles[ $value ]['name'] ) : null;
+		}
+
+		if ( 'agent' === $assignee_type && function_exists( 'wp_get_ability' ) ) {
+			$ability = wp_get_ability( $value );
+			return $ability ? $ability->get_label() : null;
+		}
+
+		return null;
+	}
+
+	/**
 	 * Log a status transition.
 	 *
-	 * @param int    $post_id     Post ID.
-	 * @param string $from_status From status.
-	 * @param string $to_status   To status.
-	 * @param array  $options     Additional options.
-	 * @param array  $context     Stage-change context ('cause', 'committed_status', 'previous_status') — the same array passed to dispatch_stage_change().
+	 * @param int        $post_id           Post ID.
+	 * @param string     $from_status       From status.
+	 * @param string     $to_status         To status.
+	 * @param array      $options           Additional options.
+	 * @param array      $context           Stage-change context ('cause', 'committed_status', 'previous_status') — the same array passed to dispatch_stage_change().
+	 * @param array|null $transition_config The edge's authored config, when there is one — used to resolve the assignment input's assignee to a display name. Null for a revert, which carries no input to resolve.
 	 */
-	private function log_transition( int $post_id, string $from_status, string $to_status, array $options, array $context ): void {
+	private function log_transition( int $post_id, string $from_status, string $to_status, array $options, array $context, ?array $transition_config = null ): void {
 		global $wpdb;
 
 		$sequence = $this->get_sequence_for_post( $post_id );
 
 		$post = get_post( $post_id );
+
+		// The transition's assignment input, if it declares one — identifies
+		// which input_data key holds the assignee and what kind of value it
+		// stores (user id, role slug, agent id), so its raw value below can be
+		// resolved to a display name.
+		$assignment_meta_key = null;
+		$assignee_type       = null;
+		foreach ( ( $transition_config['inputs'] ?? array() ) as $candidate_input ) {
+			if ( isset( $candidate_input['type'] ) && 'assignment' === $candidate_input['type'] ) {
+				$assignment_meta_key = $candidate_input['meta_key'] ?? null;
+				$assignee_type       = $candidate_input['assignee_type'] ?? null;
+				break;
+			}
+		}
 
 		// Extract note content from input_data.
 		$notes = array();
@@ -1750,10 +1802,18 @@ class StatusManager {
 				if ( strpos( $key, '__name' ) !== false ) {
 					continue;
 				}
-				// Skip assignment metadata (if there's a corresponding _notes key, this is just the assignment value).
-				if ( isset( $options['input_data'][ $key . '_notes' ] ) ) {
-					continue;
+
+				// The assignee is a raw id/slug; resolve it to the name it
+				// had at the moment of the transition — the same reasoning
+				// as snapshot_stage_label(): a later rename or role edit
+				// must not rewrite what this entry says.
+				if ( $assignment_meta_key && $key === $assignment_meta_key ) {
+					$display_name = self::resolve_assignee_display_name( $assignee_type, $value );
+					if ( null !== $display_name ) {
+						$value = $display_name;
+					}
 				}
+
 				// Get the display name if available.
 				$name_key = $key . '__name';
 				$label = isset( $options['input_data'][ $name_key ] ) ? $options['input_data'][ $name_key ] : $key;
