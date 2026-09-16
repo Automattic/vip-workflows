@@ -112,9 +112,11 @@ function TransitionInputPopover( { title, anchor, onClose, children } ) {
  * @param {?number}  root0.value      The currently selected user's id, so a
  *                                    prior selection stays shown while the
  *                                    notes field below it is filled in.
+ * @param {boolean}  root0.required   Whether a user must be chosen; only
+ *                                    changes the field's own label.
  * @param {Function} root0.onSelect   Called with the chosen user's id.
  */
-function AssignableUserSelect( { roleFilter, value, onSelect } ) {
+function AssignableUserSelect( { roleFilter, value, required, onSelect } ) {
 	const [ users, setUsers ] = useState( [] );
 	const [ search, setSearch ] = useState( '' );
 	const [ loading, setLoading ] = useState( true );
@@ -185,7 +187,11 @@ function AssignableUserSelect( { roleFilter, value, onSelect } ) {
 		<ComboboxControl
 			__next40pxDefaultSize
 			__nextHasNoMarginBottom
-			label={ __( 'Select user', 'vip-workflows' ) }
+			label={
+				required
+					? __( 'Select user', 'vip-workflows' )
+					: __( 'Select user (optional)', 'vip-workflows' )
+			}
 			value={ value }
 			onChange={ onSelect }
 			options={ users.map( ( user ) => ( {
@@ -208,6 +214,13 @@ function AssignableUserSelect( { roleFilter, value, onSelect } ) {
  * assignment, via one explicit Submit. When `notesLabel` is null there is
  * nothing to wait for, so a selection commits immediately, as before.
  *
+ * `required` governs whether an assignee must be chosen at all. When it is
+ * false, the field's own label says so, Submit works with nothing selected,
+ * and — because `initialValue` can preselect an assignment the post already
+ * carries — a Clear action appears whenever there is a selection to give up,
+ * so declining to assign the post to anyone is always reachable, not just
+ * declining to change who it is currently assigned to.
+ *
  * @param {Object}           root0               Component props.
  * @param {string}           root0.title         The transition's label.
  * @param {?Element}         root0.anchor        The rail button the popover anchors
@@ -221,6 +234,12 @@ function AssignableUserSelect( { roleFilter, value, onSelect } ) {
  *                                               rather than asking the user to
  *                                               re-pick an assignment that already
  *                                               exists.
+ * @param {boolean}          root0.required      Whether an assignee must be
+ *                                               chosen to commit. When false,
+ *                                               Submit works with nothing
+ *                                               selected, and a selection
+ *                                               (including one carried in by
+ *                                               `initialValue`) can be cleared.
  * @param {?string}          root0.notesLabel    Label for the optional notes field;
  *                                               null omits it and commits on
  *                                               selection.
@@ -235,6 +254,7 @@ export function TransitionAssignmentPopover( {
 	assigneeType,
 	roleFilter = [],
 	initialValue = null,
+	required = false,
 	notesLabel = null,
 	notesRequired = false,
 	onSubmit,
@@ -266,8 +286,9 @@ export function TransitionAssignmentPopover( {
 		}
 	};
 
-	const canSubmit =
-		null !== selectedValue && ( ! notesRequired || notes.trim() );
+	const canSubmit = required
+		? null !== selectedValue && ( ! notesRequired || notes.trim() )
+		: ! notesRequired || notes.trim();
 
 	const handleSubmit = () => {
 		if ( ! canSubmit ) {
@@ -288,24 +309,35 @@ export function TransitionAssignmentPopover( {
 					<AssignableUserSelect
 						roleFilter={ roleFilter }
 						value={ selectedValue }
+						required={ required }
 						onSelect={ handleSelect }
 					/>
 				) : (
-					<Stack
-						className="vip-workflows-transition-popover__roles"
-						direction="column"
-						gap="sm"
-					>
-						{ ( roles || [] ).map( ( role ) => (
-							<Button
-								key={ role.slug }
-								className="vip-workflows-transition-popover__role"
-								isPressed={ role.slug === selectedValue }
-								onClick={ () => handleSelect( role.slug ) }
-							>
-								{ role.name }
-							</Button>
-						) ) }
+					<Stack direction="column" gap="xs">
+						<Text variant="body-sm">
+							{ required
+								? __( 'Select a role', 'vip-workflows' )
+								: __(
+										'Select a role (optional)',
+										'vip-workflows'
+								  ) }
+						</Text>
+						<Stack
+							className="vip-workflows-transition-popover__roles"
+							direction="column"
+							gap="sm"
+						>
+							{ ( roles || [] ).map( ( role ) => (
+								<Button
+									key={ role.slug }
+									className="vip-workflows-transition-popover__role"
+									isPressed={ role.slug === selectedValue }
+									onClick={ () => handleSelect( role.slug ) }
+								>
+									{ role.name }
+								</Button>
+							) ) }
+						</Stack>
 					</Stack>
 				) }
 				{ notesLabel && (
@@ -326,6 +358,14 @@ export function TransitionAssignmentPopover( {
 							) }
 						/>
 						<ActionRow>
+							{ ! required && null !== selectedValue && (
+								<Button
+									variant="tertiary"
+									onClick={ () => setSelectedValue( null ) }
+								>
+									{ __( 'Clear', 'vip-workflows' ) }
+								</Button>
+							) }
 							<Button
 								variant="primary"
 								onClick={ handleSubmit }

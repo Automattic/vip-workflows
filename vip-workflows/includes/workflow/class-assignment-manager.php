@@ -107,6 +107,42 @@ class AssignmentManager {
 	}
 
 	/**
+	 * Clear an assignment slot.
+	 *
+	 * Only an optional assignment input can ever reach this — a required one
+	 * has no client-side path to submitting empty (see
+	 * `TransitionAssignmentPopover`'s `required` prop) — but this method
+	 * itself does not enforce that; it clears whatever slot it is asked to,
+	 * on the assumption that whoever called it already decided the slot may
+	 * be empty.
+	 *
+	 * A no-op, not an error, when the slot was never assigned: this is
+	 * "reach a state with nothing here", not "undo a specific assignment".
+	 *
+	 * @param int    $post_id  Post ID.
+	 * @param string $meta_key Assignment slot key.
+	 */
+	public function unassign( int $post_id, string $meta_key ): void {
+		$storage_key = $this->get_storage_key( $meta_key );
+		$existing    = get_post_meta( $post_id, $storage_key, true );
+
+		if ( ! is_array( $existing ) ) {
+			return;
+		}
+
+		delete_post_meta( $post_id, $storage_key );
+
+		/**
+		 * Fires when an assignment is cleared.
+		 *
+		 * @param int    $post_id           Post ID.
+		 * @param string $meta_key          Assignment slot key.
+		 * @param array  $former_assignment The assignment that was in the slot before it was cleared.
+		 */
+		do_action( 'vip_workflows_assignment_removed', $post_id, $meta_key, $existing );
+	}
+
+	/**
 	 * Get an assignment.
 	 *
 	 * @param  int    $post_id  Post ID.
@@ -223,6 +259,14 @@ class AssignmentManager {
 	 *
 	 * Called by StatusManager::transition().
 	 *
+	 * A slot's key ABSENT from `$input_data` is left untouched — the caller
+	 * (a REST client, an ability, a revert) simply had nothing to say about
+	 * it, most commonly because the transition carries no assignment input
+	 * at all. A slot's key PRESENT but empty is an explicit instruction to
+	 * clear it — the one way an optional assignment popover has to submit
+	 * "no one" after a prior assignment, which `array_key_exists()` is what
+	 * tells apart from "nothing submitted".
+	 *
 	 * @param int   $post_id    Post ID.
 	 * @param array $transition Transition config from sequence.
 	 * @param array $input_data User-provided input data.
@@ -247,12 +291,14 @@ class AssignmentManager {
 			$meta_key      = $input_config['meta_key'] ?? null;
 			$assignee_type = $input_config['assignee_type'] ?? 'user';
 
-			if ( ! $meta_key ) {
+			if ( ! $meta_key || ! array_key_exists( $meta_key, $input_data ) ) {
 				continue;
 			}
 
-			$assigned_value = $input_data[ $meta_key ] ?? null;
+			$assigned_value = $input_data[ $meta_key ];
+
 			if ( ! $assigned_value ) {
+				$this->unassign( $post_id, $meta_key );
 				continue;
 			}
 
