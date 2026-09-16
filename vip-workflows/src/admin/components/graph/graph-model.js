@@ -2242,7 +2242,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: the stage's key, e.g. "in_review". */
 					__(
-						'The stage keyed “%s” has no name. Open it and fill in Name — it is what writers see on the board and on the buttons that move a post.',
+						'The stage keyed “%s” has no name. Open it and fill in Label — it is what writers see on the board and on the buttons that move a post.',
 						'vip-workflows'
 					),
 					stage.key
@@ -2525,7 +2525,7 @@ export function validateSequence( {
 					sprintf(
 						/* translators: %s: status region name (e.g. Draft, Published) */
 						__(
-							'The “%s” status group has no entry checkpoint. Drag one of its stages onto the group’s top edge to set where posts entering that status land.',
+							'The “%s” status group has no entry checkpoint. Open its Post status panel and choose a stage under Entry checkpoint to set where posts entering that status land.',
 							'vip-workflows'
 						),
 						regionLabel( region )
