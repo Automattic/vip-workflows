@@ -56,6 +56,25 @@ related:
 > with a few spots flagged where the shipped behavior itself diverged from
 > what this spec proposed.
 
+> **Second evolution (2026-09-15, `#22`, "Simplify the transition rail and
+> align AI publishing routes").** The per-tool-row design this spec proposed,
+> and which the 2026-09-14 pass above confirmed had shipped, was itself
+> removed one day later. `TransitionRail.js` dropped from 1263 to 606 lines:
+> every required tool's status dot, ad-hoc run button, and issue list is gone
+> from the rail, along with the per-post abilities/ability-results fetches,
+> the run handler, both result modals' wiring inside the rail, the stale-check
+> comparison, and the results-refetch counter. The rail now renders moves
+> only — a transition button, and, when locked, its `_locked_reason` as plain
+> text underneath. Running a tool ad hoc still works, from the command
+> palette, which keeps its own copy of both result modals
+> (`CommandPalette.js`, unaffected by this change). **The "Checks are
+> dependencies, not nodes" and "Check state, staleness included" sections
+> below describe design proposed here and confirmed shipped on 2026-09-14 —
+> read them as an accurate record of that intermediate state, not of
+> `TransitionRail.js` today.** The same commit also changed what happens when
+> an agent's route would publish without permission — see the note under
+> **Agent stages** below.
+
 ## What Changes
 
 The block editor sidebar currently answers "how do I move this post" in two
@@ -197,23 +216,24 @@ The button uses `accessibleWhenDisabled` (`TransitionRail.js:1085`), so it
 renders `aria-disabled` and stays in the tab order beside its explanation,
 rather than the `disabled` attribute the old, removed button used.
 
-**A failing cached check does not disable a transition.** `transition()` runs
+**A failing check does not disable a transition.** `transition()` runs
 `run_transition_tools()` fresh on every attempt
-(`class-status-manager.php:888`) — the cached result may predate the last
-edit, and the server re-runs it regardless. A button that refuses a move the
-server would allow is worse than one that fires and returns the block message.
-The transition stays live; the failing check is visible directly beneath it;
-and if the server does block, the `tool_check_failed` error already carries
-`hard_failures` and `soft_warnings` (`class-status-manager.php:2279-2284`) —
-the rail updates its check rows from that payload, so the indicator and the
-refusal agree.
+(`class-status-manager.php:916`) — the rail carries no cached opinion about a
+transition's tools at all now (see the removal notes above), so a button is
+either live or `_locked`, never "probably going to fail." A refusal comes
+back as the `tool_check_failed` error, carrying `hard_failures` and
+`soft_warnings` (`class-status-manager.php:2307-2308`), which the panel
+above the rail renders as the blocked-transition dialog — the mechanism this
+spec's **Why** section originally argued should replace two out-of-sync
+displays with one; it now does so by removing the second display entirely
+rather than keeping it in sync.
 
 One asymmetry worth naming: a user who passes
 `Settings::can_user_bypass_tool_checks()` never runs the tools at all
-(`class-status-manager.php:887`). For them the check rows are pure disclosure
-— accurate about the sequence, silent about their own next click. The rail
-does not vary its rendering by bypass capability; the checks describe the
-move, not the mover.
+(`class-status-manager.php:915`). Since the rail shows nothing about tools
+either way now, this has no separate visible consequence in the sidebar —
+worth noting only because it's still true of the server, and the "Included
+tools" audit-log record still reflects it.
 
 ### Order, and the retired bypass group
 
@@ -273,6 +293,28 @@ authored transitions for their labels. The run plays in three beats:
    visually-hidden `role="status"` region announces the move — nobody
    clicked, so nothing else anchors the change.
 
+> **Held publish routes (2026-09-15, `#22`).** An outcome that would cross
+> into the `publish` or `private` region without the sequence's
+> `allow_agent_publish` setting is a held route
+> (`StageAgentRunner::holds_publication()`,
+> `class-stage-agent-runner.php:714-731`) — mirrored on the canvas by
+> `heldPublishOutcomes()` (`graph-model.js:1129`). While the agent owns the
+> stage, `StatusManager::agent_routed_targets()`
+> (`class-status-manager.php:421-455`) leaves a held target out of the
+> routing this section describes, so the rail never renders it as a routed
+> outcome at all — not "disabled", simply absent, same as any other unrouted
+> transition. Once the stage is released (run finished, failed with no
+> resolvable origin, or a warnings-pending move), the same method reads the
+> post ID and lets the held target back in, so a post whose only routes
+> publish is never stranded. The sequence editor treats the held route as an
+> unrouted leftover the rest of the time it's held: a greyed dotted edge,
+> disabled in both inspectors (`StageInspector.js:553-556` renders
+> `"%s (disabled)"`; `TransitionInspector.js:369-381` carries the explanatory
+> copy naming the setting), out of the transition count, with a non-blocking
+> stage warning. "Let AI stages publish" is suggested only when a pass alone
+> would take the held route; a fail/error route the UI instead suggests
+> rerouting, since the setting would let a failed or errored run publish too.
+
 Beat 2 needs data the payload does not carry — see **The one server change**.
 A run that fails in place keeps the failed treatment in the panel above the
 rail, but the exits do NOT return *(revised after shipping — the original
@@ -285,6 +327,16 @@ no longer defines) releases the stage's transitions — and then only the ones
 `agent.routing` names; unrouted transitions are never offered in any state.
 
 ### Checks are dependencies, not nodes
+
+> **Removed 2026-09-15 (`#22`).** Everything in this subsection describes the
+> per-tool rows this spec proposed and which shipped — they no longer render.
+> A required tool disabled site-wide still reaches the rail as a `_locked`
+> transition carrying its reason (`Sequence::lock_disabled_required_tools`),
+> and renders exactly like any other locked transition (see **Blocked
+> transitions** above); nothing else about a tool's status shows in the rail.
+> The reasoning below (results are shared per post+ability, severity is per
+> issue) is still true of the underlying data — it's just no longer
+> surfaced here.
 
 Each transition's `required_tools` render as rows nested under its button —
 **no edge, no arrowhead**. Each row is:
@@ -312,34 +364,40 @@ the rail lists it under both and running it anywhere updates every listing.
 The corollary is a rule the component must hold: two transitions requiring
 the same check are always both blocked or both fine.
 
-> **Shipped behavior diverged here.** This spec's "omitted, not greyed"
-> principle did not ship as written. `run_transition_tools()` no longer
-> silently skips a disabled required tool — it now adds a `tool_disabled`
-> **hard failure** that blocks the transition
-> (`class-status-manager.php:2195-2203`), the opposite of "the transition
-> proceeds as though the check ran." On the frontend, `TransitionRail.js`
-> also does not omit a disabled tool's row: `abilitiesById` includes it
-> (built from the unfiltered ability list, `TransitionRail.js:502-508`), so
-> `renderCheck` renders it with a disabled, `accessibleWhenDisabled` button
-> rather than skipping it (`TransitionRail.js:846-854`). The abilities
-> endpoint still just annotates `enabled` without filtering
-> (`class-abilities-controller.php:219`, unchanged) — but nothing downstream
-> filters on it either, so a disabled required tool is now visibly blocking
-> rather than invisible. Worth a deliberate decision on whether to revisit,
-> not treated as settled by this note.
+> **Shipped behavior diverged here, then the frontend half of it was removed
+> anyway.** This spec's "omitted, not greyed" principle did not ship as
+> written. `run_transition_tools()` never silently skipped a disabled
+> required tool — it adds a `tool_disabled` **hard failure** that blocks the
+> transition (`class-status-manager.php:2219-2226`), the opposite of "the
+> transition proceeds as though the check ran." That server-side rule is
+> still current. What's no longer true is the frontend half this note
+> originally described: `TransitionRail.js` no longer renders per-tool rows
+> at all (2026-09-15, `#22` — see the section note above), so a disabled
+> required tool doesn't render as a blocking row, either — it's simply a
+> `_locked` transition like any other. The underlying question this note
+> raised (blocking vs. informational for a site-wide-disabled tool) is
+> answered the same way either UI shows it: a disabled required tool blocks
+> the move.
 
 **Severity is per issue, and its site-wide half is only half.** `check_modes`
 is a site option keyed ability → check key → `soft`|`hard`
 (`class-ability-settings.php:86-89`): the sequence picks *which* checks gate
 a move, Settings picks how hard each bites, everywhere at once. But a tool
 can also declare an issue `error`/`hard` itself, and the server honours that
-(`class-status-manager.php:2239-2243`) — so one run can return a mix. The
+(`class-status-manager.php:2265-2268`) — so one run can return a mix. The
 details render one roll-up line above the issues ("Blocks this move." /
 "Warns before moving.") and mark individual lines only when they differ from
 it. The roll-up is a statement about site configuration plus the tool's own
 grading, never about this transition specifically.
 
 ### Check state, staleness included
+
+> **Removed 2026-09-15 (`#22`), along with the rest of "Checks are
+> dependencies, not nodes" above.** The per-ability fetch, the staleness
+> comparison, and the ring/fill/hollow marks described below no longer exist
+> in `TransitionRail.js`. A stale-or-fresh distinction has no home in the
+> rail today; the server still re-runs every check at transition time
+> regardless, so a stale pass was never load-bearing, only informational.
 
 > **Shipped, and the under-fetch it warns about is resolved.** `TransitionRail.js`
 > issues one `GET /posts/{id}/ability-results?ability_id=...&limit=1` request
@@ -437,9 +495,11 @@ is absent.
   `__experimentalIsFocusable`) so they carry `aria-disabled` and stay in the
   tab order, keeping the helper text that explains *why* within keyboard
   reach.
-- A visually-hidden `role="status"` region announces every move, whether
-  user-initiated or agent-routed. It matters most for the agent case: nobody
-  clicked, so there is no expectation of change to anchor to.
+- Every move is announced via `@wordpress/a11y`'s `speak()` (a polite live
+  region core manages, not a `role="status"` element this component owns —
+  changed since this spec was written), whether user-initiated or
+  agent-routed. It matters most for the agent case: nobody clicked, so there
+  is no expectation of change to anchor to.
 - The clicked transition shows busy; every other transition is
   `aria-disabled` for the duration.
 - The rail SVG is `aria-hidden="true" focusable="false"`.
@@ -454,19 +514,25 @@ where the shipped result is verified.
 - **New** `src/editor/components/TransitionRail.js` + `.css` — the component,
   its geometry helper (a pure function from measured rows to path data, so it
   can be unit-tested against fixtures), and its styles. Shipped at 1263 and
-  365 lines respectively.
+  365 lines respectively; **as of 2026-09-15 (`#22`), down to 606 and 159**
+  after the per-tool-row removal.
 - **Edit** `src/editor/components/WorkflowPanel.js` — remove
   `renderTransitionButton` and the transitions render block; mount the rail.
   `handleTransitionClick`, the warnings/input/assignment modals, the
   agent-interrupt confirm, and the polling stay put; the rail calls into
   them. `groupTransitions` moves with the rail. Confirmed: both functions are
-  gone from `WorkflowPanel.js`; `<TransitionRail` mounts at `:1169`.
+  gone from `WorkflowPanel.js`; `<TransitionRail` now mounts at `:1080` (the
+  file itself has grown to 1246 lines from unrelated work since).
 - **Remove** `src/editor/components/ToolsPanel.js` — its job moves into the
   rail. Confirmed removed. **Keep** `ToolResultModals.js`: `CommandPalette.js`
   imports it (`CommandPalette.js:19`, unchanged) and runs abilities through
-  its own fetch (`:54`, `:141`), so it is unaffected by the panel's removal.
-  Keep the `VISIBLE_ISSUE_COUNT` disclosure behaviour inside the rail's
-  details area (shipped at `TransitionRail.js:78`).
+  its own fetch, so it is unaffected by the panel's removal. **The
+  `VISIBLE_ISSUE_COUNT` disclosure this bullet promised to keep did not
+  survive either** — it shipped inside the rail's per-tool details area, and
+  that whole area was removed on 2026-09-15 (`#22`) along with it; no
+  `VISIBLE_ISSUE_COUNT` constant exists anywhere in the codebase today. A
+  long issue list is once again whatever `ToolResultModals.js` renders
+  in full, same as before this spec.
 - **Edit** `src/editor/index.js` — drop the `<ToolsPanel>` mount at `:160`.
   Confirmed: no `ToolsPanel` reference remains in `index.js`.
 - **Edit** `src/editor/style.css` — the `vip-workflows-panel__progress-*`
@@ -498,14 +564,28 @@ where the shipped result is verified.
 - **The five degenerate states render distinctly**: terminal, dead end, agent
   running, all-locked, and blocked-by-check. They are not interchangeable,
   and a naive implementation collapses them into one blank box reading "dead
-  end". Add the sixth: edges declared but role-filtered away.
+  end". Add the sixth: edges declared but role-filtered away. **"Blocked-by-
+  check" has no meaning to test for any more** (2026-09-15, `#22`) — with no
+  per-tool rows, a transition is either offered or `_locked`; there is no
+  third, check-failing-but-not-locked visual state left to distinguish.
 - A check required by two transitions renders twice and both rows update when
-  it runs once.
-- A disabled tool is omitted rather than greyed. **Did not ship this way** —
-  see the shipped-behavior note under "Checks are dependencies, not nodes"
-  above; a disabled required tool now renders greyed/disabled and blocks the
-  transition server-side, the opposite of this test's premise.
-- A stale pass renders as stale, not passed.
+  it runs once. **Gone with the per-tool rows** (2026-09-15, `#22`) —
+  `transition-rail-checks.test.js` shrank from 376 lines to a fraction of
+  that in the same commit, and this scenario no longer has UI to assert
+  against.
+- A disabled tool is omitted rather than greyed. **Did not ship this way, and
+  is now moot besides** — see the shipped-behavior note under "Checks are
+  dependencies, not nodes" above: it first shipped as a blocking row, then
+  the row itself was removed on 2026-09-15 (`#22`); a disabled required tool
+  is simply a `_locked` transition now, same as any other lock.
+- A stale pass renders as stale, not passed. **Gone with the staleness
+  comparison** (2026-09-15, `#22`) — `isBefore()`, the helper this rested on,
+  was deleted from `src/common/datetime.js` along with its dedicated test
+  coverage (`datetime.test.js` lost 50 lines in the same commit); there is
+  no stale/fresh distinction left in the rail to test. `transition-rail-
+  flash.test.js` was also removed in the same commit, but that covered the
+  agent three-beat flash (see **The one server change**), a separate
+  concern this doc's own banner already distinguishes.
 - Existing suites per `docs/TESTING.md` (PHPCS, PHPUnit, and Jest on GitHub
   Actions). Playwright coverage for the agent three-beat sequence
   if the e2e suite has a reasonable home for it — the agent-stage e2e spec is
