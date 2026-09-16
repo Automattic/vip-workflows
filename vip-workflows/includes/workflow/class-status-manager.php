@@ -1730,8 +1730,9 @@ class StatusManager {
 	 * Resolve an assignment input's raw value to the display name it had at
 	 * the moment of the transition.
 	 *
-	 * Storage differs by assignee type — a user id, a role slug, or an
-	 * ability id — so the type decides how the value is looked up.
+	 * Delegates to `AssignmentManager::describe_assignee()` — the one place
+	 * that knows how each assignee type's stored value maps to a display
+	 * name — rather than re-deciding by type here too.
 	 *
 	 * @param  string|null $assignee_type 'user', 'role', or 'agent'; null when
 	 *                                    the transition declares no assignment
@@ -1745,22 +1746,9 @@ class StatusManager {
 			return null;
 		}
 
-		if ( 'user' === $assignee_type ) {
-			$actor = Actor::from_user( $value );
-			return $actor['display_name'] ?? null;
-		}
+		$assignee = ( new AssignmentManager() )->describe_assignee( $assignee_type, $value );
 
-		if ( 'role' === $assignee_type ) {
-			$roles = wp_roles()->roles;
-			return isset( $roles[ $value ]['name'] ) ? translate_user_role( $roles[ $value ]['name'] ) : null;
-		}
-
-		if ( 'agent' === $assignee_type && function_exists( 'wp_get_ability' ) ) {
-			$ability = wp_get_ability( $value );
-			return $ability ? $ability->get_label() : null;
-		}
-
-		return null;
+		return $assignee['display_name'] ?? null;
 	}
 
 	/**
@@ -1806,11 +1794,19 @@ class StatusManager {
 				// The assignee is a raw id/slug; resolve it to the name it
 				// had at the moment of the transition — the same reasoning
 				// as snapshot_stage_label(): a later rename or role edit
-				// must not rewrite what this entry says.
+				// must not rewrite what this entry says. An explicit empty
+				// value is a clear rather than an assignment (see
+				// AssignmentManager::unassign()) — named outright rather
+				// than left to resolve to nothing and print as a blank
+				// value next to the field's label.
 				if ( $assignment_meta_key && $key === $assignment_meta_key ) {
-					$display_name = self::resolve_assignee_display_name( $assignee_type, $value );
-					if ( null !== $display_name ) {
-						$value = $display_name;
+					if ( '' === (string) $value ) {
+						$value = __( 'Unassigned', 'vip-workflows' );
+					} else {
+						$display_name = self::resolve_assignee_display_name( $assignee_type, $value );
+						if ( null !== $display_name ) {
+							$value = $display_name;
+						}
 					}
 				}
 
