@@ -18,11 +18,12 @@
    and a rounded square in a list two clicks away. The shape belongs to <Avatar>,
    because it belongs to the person rather than to whatever is drawing them. */
 
-/* The two actors that are not people, each in its own tone: the AI purple this
-   plugin uses everywhere for agent work, and info blue for the site itself. The
-   surface and glyph colour are all that separate either from a person's avatar —
-   same box, same size, same radius — which is what lets a column of mixed actors
-   scan as one column. */
+/* The three actors that are not one person, each in its own tone: the AI
+   purple this plugin uses everywhere for agent work, info blue for the site
+   itself, and success green for a role (a bucket of possible people, not a
+   single one). The surface and glyph colour are all that separate any of them
+   from a person's avatar — same box, same size, same radius — which is what
+   lets a column of mixed actors scan as one column. */
 .vip-workflows-dataview-avatar--agent {
 	background: var(--vip-workflows-color-bg-ai-weak);
 	color: var(--vip-workflows-color-fg-ai);
@@ -35,4 +36,9 @@
 .vip-workflows-dataview-avatar--system {
 	background: var(--wpds-color-background-surface-info-weak);
 	color: var(--wpds-color-foreground-content-info-weak);
+}
+
+.vip-workflows-dataview-avatar--role {
+	background: var(--wpds-color-background-surface-success-weak);
+	color: var(--wpds-color-foreground-content-success-weak);
 }
