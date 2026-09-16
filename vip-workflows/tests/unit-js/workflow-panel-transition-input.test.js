@@ -499,38 +499,36 @@ describe( 'WorkflowPanel transition input popover', () => {
 		] );
 	} );
 
-	it( 'role assignment: lists roles, Back returns to them, and empty notes are omitted', async () => {
+	it( 'role assignment: lists roles, selecting one marks it, and empty notes are omitted', async () => {
 		await renderWith( [ assignmentTransition( 'role' ) ] );
 		await openPopoverFor( 'Assign reviewer' );
 
-		// The role list.
-		expect(
-			screen.getByRole( 'button', { name: 'Editor' } )
-		).toBeInTheDocument();
+		// The role list and the notes field render together from the start —
+		// there is no separate step to reach.
+		const editorButton = screen.getByRole( 'button', { name: 'Editor' } );
+		expect( editorButton ).toBeInTheDocument();
 		expect(
 			screen.getByRole( 'button', { name: 'Author' } )
 		).toBeInTheDocument();
-
-		// Picking a role reaches the notes step; Back returns to the list.
-		await act( async () => {
-			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
-		} );
 		expect(
 			screen.getByRole( 'textbox', { name: 'Notes (optional)' } )
 		).toBeInTheDocument();
-		await act( async () => {
-			fireEvent.click( screen.getByRole( 'button', { name: 'Back' } ) );
-		} );
+
+		// Nothing is selected yet, so committing is not yet possible.
 		expect(
-			screen.getByRole( 'button', { name: 'Editor' } )
-		).toBeInTheDocument();
+			screen.getByRole( 'button', { name: 'Submit' } )
+		).toBeDisabled();
+
+		// Picking a role marks it selected rather than committing or
+		// navigating away, so another role can still be picked before Submit.
+		await act( async () => {
+			fireEvent.click( editorButton );
+		} );
+		expect( editorButton ).toHaveAttribute( 'aria-pressed', 'true' );
 		expect( firedTransitions() ).toEqual( [] );
 
 		// Committing without notes sends the assignment and the name its
 		// history row reads — not the minted key.
-		await act( async () => {
-			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
-		} );
 		await act( async () => {
 			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
 		} );
