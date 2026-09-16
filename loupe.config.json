@@ -1,0 +1,17 @@
+{
+  "extends": "wpds",
+  "namespaces": {
+    "project": [
+      "vip-",
+      "wf-",
+      "workflow-"
+    ]
+  },
+  "designSystem": {
+    "tokenSources": [
+      "vip-workflows/node_modules/@wordpress/theme/src/prebuilt/css/design-tokens.css",
+      "vip-workflows/node_modules/@wordpress/theme/build-style",
+      "vip-workflows/node_modules/@wordpress/components/build-style"
+    ]
+  }
+}
