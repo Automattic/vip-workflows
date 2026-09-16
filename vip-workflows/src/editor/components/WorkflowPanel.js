@@ -574,8 +574,14 @@ export function WorkflowPanel( { children } ) {
 
 		// Named the way a note is: the history labels each value by its
 		// `__name`, and falls back to the raw key — a minted `wfp_n…` id.
+		//
+		// `selectedValue` is only null for an optional assignment Submitted
+		// empty (or explicitly Cleared) — `?? ''` sends that as an explicit
+		// empty value rather than omitting the key, so the server can tell
+		// "clear this assignment" apart from "this transition carries no
+		// assignment input at all" (an absent key is left untouched).
 		const inputData = {
-			[ metaKey ]: selectedValue,
+			[ metaKey ]: selectedValue ?? '',
 			[ `${ metaKey }__name` ]:
 				assignmentRequest.input.label ||
 				__( 'Assignee', 'vip-workflows' ),
@@ -1249,6 +1255,7 @@ export function WorkflowPanel( { children } ) {
 							? Number( assignmentRequest.initialValue )
 							: assignmentRequest.initialValue
 					}
+					required={ !! assignmentRequest.input.required }
 					notesLabel={ __( 'Notes (optional)', 'vip-workflows' ) }
 					notesRequired={ false }
 					onSubmit={ handleAssignmentSelect }
