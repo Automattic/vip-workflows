@@ -256,6 +256,13 @@ class AssignmentManager {
 				continue;
 			}
 
+			// The value arrives from the transition input, so confirm it resolves
+			// to a real target for its type before it is stored and its on-assign
+			// side effects run.
+			if ( ! $this->is_valid_assignee( $assignee_type, $assigned_value ) ) {
+				continue;
+			}
+
 			$this->assign( $post_id, $meta_key, $assigned_value, $assignee_type, $input_config );
 		}
 	}
@@ -263,6 +270,26 @@ class AssignmentManager {
 	// =========================================================================
 	// Private Helpers
 	// =========================================================================
+
+	/**
+	 * Whether an assignee value resolves to a real target for its type.
+	 *
+	 * @param  string $assignee_type Assignee type (user, role, agent, ...).
+	 * @param  mixed  $value         Assignee value from the transition input.
+	 * @return bool
+	 */
+	private function is_valid_assignee( string $assignee_type, $value ): bool {
+		switch ( $assignee_type ) {
+			case 'user':
+				return (int) $value > 0 && (bool) get_userdata( (int) $value );
+			case 'role':
+				return is_string( $value ) && wp_roles()->is_role( $value );
+			default:
+				// Other types (e.g. agent) resolve through their registered
+				// handler; require a non-empty scalar identifier.
+				return is_scalar( $value ) && '' !== (string) $value;
+		}
+	}
 
 	/**
 	 * Get the storage meta key for an assignment.
