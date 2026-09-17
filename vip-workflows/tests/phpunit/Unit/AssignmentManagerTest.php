@@ -35,6 +35,8 @@ class AssignmentManagerTest extends TestCase
     {
         Functions\when('current_time')->justReturn('2026-01-01 00:00:00');
         Functions\when('get_current_user_id')->justReturn(1);
+        // Assignee values are validated before they are written; resolve them.
+        Functions\when('get_userdata')->justReturn((object) array( 'ID' => 7 ));
         Functions\when('update_post_meta')->alias(
             function ($post_id, $key, $value) use (&$written) {
                 $written[$key] = $value;
