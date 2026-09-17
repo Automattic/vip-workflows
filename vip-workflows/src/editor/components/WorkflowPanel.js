@@ -863,7 +863,7 @@ export function WorkflowPanel( { children } ) {
 				>
 					<Text variant="body-md">
 						{ __(
-							'This post belongs to a workflow that no longer exists, so its status cannot be changed.',
+							'This post’s workflow was deleted, so its status is locked.',
 							'vip-workflows'
 						) }
 					</Text>
@@ -1120,7 +1120,7 @@ export function WorkflowPanel( { children } ) {
 					] }
 				>
 					{ __(
-						'The AI agent updated this post. Reload to see its changes — this discards your unsaved edits.',
+						'The agent updated this post. Reloading discards unsaved edits.',
 						'vip-workflows'
 					) }
 				</DismissibleNotice>

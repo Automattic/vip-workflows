@@ -163,7 +163,7 @@ describe( 'Tools screen shape', () => {
 
 		expect(
 			await screen.findByText(
-				'No helper tools yet. Add one with the Abilities API — see Add custom tools.'
+				'No helper tools yet. See Add custom tools.'
 			)
 		).toBeInTheDocument();
 	} );

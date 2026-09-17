@@ -697,7 +697,7 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->assertSame( 'unrouted_agent_exit', $result->get_error_code() );
         // The destination IS routed, so the refusal names the setting holding it
         // rather than calling it unrouted.
-        $this->assertStringContainsString( 'Let AI stages publish', $result->get_error_message() );
+        $this->assertStringContainsString( 'sequence settings', $result->get_error_message() );
         $this->assertStringNotContainsString( 'only the destinations its outcomes route to', $result->get_error_message() );
     }
 

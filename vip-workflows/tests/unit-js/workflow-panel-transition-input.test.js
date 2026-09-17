@@ -623,7 +623,7 @@ describe( 'WorkflowPanel transition input popover', () => {
 				} )
 			).toBe( popover() );
 			expect(
-				screen.getByText( /assignee of type “agent”/ )
+				screen.getByText( /“agent” assignees/ )
 			).toBeInTheDocument();
 			expect( consoleError ).toHaveBeenCalledWith(
 				expect.stringContaining( 'assignee_type "agent"' )
@@ -662,7 +662,7 @@ describe( 'WorkflowPanel transition input popover', () => {
 			await openPopoverFor( 'Assign reviewer' );
 
 			expect(
-				screen.getByText( /assignee of type “wombat”/ )
+				screen.getByText( /“wombat” assignees/ )
 			).toBeInTheDocument();
 			expect( firedTransitions() ).toEqual( [] );
 		} );

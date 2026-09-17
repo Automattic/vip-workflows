@@ -102,7 +102,7 @@ function register_agent_meta( $registry ): void {
 		'workflow-agent-tag-sanity-check',
 		array(
 			'label'        => __( 'Tag sanity check', 'workflow-agent-tag-sanity-check' ),
-			'description'  => __( "Checks that a post's tags make sense for its content. Does not modify tags.", 'workflow-agent-tag-sanity-check' ),
+			'description'  => __( 'Checks that tags fit the post, without changing them.', 'workflow-agent-tag-sanity-check' ),
 			'icon'         => 'tag',
 			'ability_ids'  => array( 'workflow-agent-tag-sanity-check/tag-sanity-check' ),
 			'capabilities' => array( 'stage' ),

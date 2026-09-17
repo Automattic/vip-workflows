@@ -142,7 +142,7 @@ function StageAgentWarning( { agent, abilityId } ) {
 					{ sprintf(
 						/* translators: %s: ability id, e.g. "workflow-agent-copy-edit/copy-edit". */
 						__(
-							'“%s” is no longer available on this site, so posts entering this stage will error — following the on-error route if one is set, stopping here otherwise.',
+							'“%s” is unavailable, so posts here will error.',
 							'vip-workflows'
 						),
 						abilityId
@@ -168,7 +168,7 @@ function StageAgentWarning( { agent, abilityId } ) {
 			/>
 			<Text variant="body-md">
 				{ __(
-					'Until this is set up, a post entering this stage errors — following the on-error route if one is set, stopping here otherwise.',
+					'Until this is set up, posts here will error.',
 					'vip-workflows'
 				) }
 			</Text>
@@ -561,7 +561,7 @@ export default function StageInspector( {
 			? sprintf(
 					/* translators: %s: post status label (e.g. Pending Review) */
 					__(
-						'This stage is where “%s” seats a post that arrives from outside the workflow. Moving it to another status leaves that one with no entry checkpoint, and Save is blocked until a stage takes it.',
+						'Changing this leaves “%s” with no entry checkpoint.',
 						'vip-workflows'
 					),
 					regionLabel( region )
@@ -688,7 +688,7 @@ export default function StageInspector( {
 							selectLabel={ sprintf(
 								/* translators: 1: Yes or No, 2: post status label (e.g. Pending Review) */
 								__(
-									'Entry checkpoint: %1$s. Open the “%2$s” post status options, where it is set',
+									'Entry checkpoint: %1$s. Open the “%2$s” post status options',
 									'vip-workflows'
 								),
 								stage.region_entry
@@ -868,7 +868,7 @@ export default function StageInspector( {
 							sortable
 							removeLabel={ __( 'Remove exit', 'vip-workflows' ) }
 							emptyLabel={ __(
-								'Nothing leaves this stage yet. Add an exit above, or drag from one of the stage\u2019s handles on the canvas.',
+								'No exits yet. Add one or drag from a handle.',
 								'vip-workflows'
 							) }
 						/>

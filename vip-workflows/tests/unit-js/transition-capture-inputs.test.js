@@ -56,9 +56,7 @@ describe( 'Transition capture inputs', () => {
 	it( 'says the transition captures nothing, rather than offering a "None" type', () => {
 		renderInspector( { to: 'review' } );
 
-		expect(
-			screen.getByText( /This transition captures nothing/ )
-		).toBeInTheDocument();
+		expect( screen.getByText( /No inputs yet/ ) ).toBeInTheDocument();
 		expect( screen.queryByLabelText( 'Input type' ) ).toBeNull();
 	} );
 

@@ -173,7 +173,7 @@ export default function Settings() {
 			] }
 			title={ __( 'Settings', 'vip-workflows' ) }
 			subtitle={ __(
-				'How workflows behave site-wide: enforcement, permissions, AI and integrations.',
+				'How workflows behave site-wide.',
 				'vip-workflows'
 			) }
 			constrained

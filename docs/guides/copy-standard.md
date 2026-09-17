@@ -28,9 +28,10 @@ The measured findings behind every rule are in [Appendix A](#appendix-a--audit-f
 | Capitalization | **Sentence case** for everything the plugin writes: labels, headings, buttons, badges, column headers, event names, status names. Four carve-outs only — see [Capitalization](#capitalization). |
 | One name per concept | A thing has **one** user-facing name across every surface. The editor and the admin never call the same object different things. |
 | Labels | A noun phrase for a setting, a verb phrase for an action. No terminal period. Never a sentence. |
-| Helper text | Only what a person would otherwise get wrong — a format, a constraint, a consequence. **About 50 characters**, one sentence, terminal period. Never documents the feature. |
+| Length | **About 50 characters, one sentence** for what is read while working: help, inline notices, empty states, descriptions. **About 100, at most two sentences** for what is read because something stopped: errors, validation, confirmations. See [Length](#length). |
+| Helper text | Only what a person would otherwise get wrong — a format, a constraint, a consequence. One sentence, terminal period. Never documents the feature. |
 | Help coverage | No quota. A control whose label is enough carries no `help`. |
-| Errors | Full sentence, terminal period, says **what happened and what to do next**. Never bare `Failed to X`. |
+| Errors | Full sentence, terminal period, says **what happened and what to do next** — nothing else. Never bare `Failed to X`. |
 | Permission errors | `Sorry, you are not allowed to …` — core's exact idiom, verbatim. |
 | Empty states | Name what is absent, then give the way out. `No X yet.` alone is half a string. |
 | Machine copy ≠ human copy | A string read by a language model and a string read by a person are **different strings**. Never let one field serve both. |
@@ -216,6 +217,51 @@ already calls them **Tools**.
 
 ---
 
+## Length
+
+**Two limits, set by why the reader is looking.**
+
+| Read… | Kind | Limit |
+|---|---|---|
+| **while working** | `help`, state messages under an input, inline notices in a panel or inspector, empty states, page subtitles, panel and section descriptions | **About 50 characters**, one sentence |
+| **because something stopped them** | errors, validation messages, confirmation dialog bodies | **About 100 characters**, at most two sentences |
+
+Count the English source string as written. Past the limit, the copy is doing
+another job — documenting the feature, or narrating the mechanism behind a
+message. Explanation belongs in documentation, not in the surface.
+
+- **Say what is wrong and the way out. Nothing else.** The causal chain — *"because
+  X, so Y, which means Z"* — is the first thing to cut. So are parentheticals and
+  em-dash asides.
+- **The surface already says where you are.** A notice inside the transition
+  inspector does not open with *"This transition…"*; a message pinned to a stage
+  does not name the stage.
+- **A confirmation keeps its consequence.** *"Publishes it now."*, *"This cannot
+  be undone."*, *"Discards unsaved changes."* stay. How the plugin arrives at the
+  consequence goes.
+- **A subtitle or description that restates the title is deleted**, not
+  shortened.
+
+```
+Bad (289):  The agent’s “%1$s” route leads to a stage that publishes (%2$s), but
+            this sequence doesn’t allow AI stages to publish, so the route is
+            disabled and posts will stop here instead. Turn on “Let AI stages
+            publish” in the sequence settings, or route it to a stage before
+            publishing.
+Good (~95): “%1$s” route publishes, which AI stages can’t do. Allow it in
+            sequence settings or reroute.
+```
+
+Exempt: strings a language model reads (see [Machine copy and human
+copy](#machine-copy-and-human-copy-are-different-strings)), placeholder example
+content, and developer reference inside a disclosure the reader opens on purpose.
+
+`CopyStandardTest` fails any human-facing translatable string past a hard ceiling
+well above both limits. It catches the paragraph, not the 60-character help
+line; the limits above are still a review question.
+
+---
+
 ## Helper text
 
 **Helper text is for what a person would otherwise get wrong: a format, a
@@ -231,9 +277,9 @@ sentence, ending in a period. Most controls need none.**
 />
 ```
 
-- **Past ~50 characters, the help is doing another job.** It is documenting a
-  feature in place, or the control needs so much explanation that the control is
-  the problem. Explanation belongs in documentation, a tooltip, or another
+- **Past ~50 characters ([Length](#length)), the help is doing another job.** It
+  is documenting a feature in place, or the control needs so much explanation
+  that the control is the problem. Explanation belongs in documentation, a tooltip, or another
   disclosure the reader opens on purpose. Helper text is read *while the user is
   deciding*; a paragraph under a select is not read at all, and it can take up
   more room than the control it describes.
@@ -340,7 +386,11 @@ works — keep it:
 No checklist items yet. Add one below.
 ```
 
-Name what is absent, then the way out. What to retire:
+Name what is absent, then the way out, in about 50 characters. What to retire:
+
+- **The tutorial.** `Nothing leaves this stage yet. Add an exit above, or drag
+  from one of the stage’s handles on the canvas.` names every way out. One is
+  enough: `No exits yet. Add one or drag from a handle.`
 
 - **Dead ends.** `No check tools are registered.` `No configurable prompts are
   registered.` `No experiments are available.` — true, and the reader is left
@@ -437,6 +487,7 @@ is not.
 - [ ] Every `settings_schema` field declares an explicit `label`.
 - [ ] Helper text only where a person would otherwise get it wrong; about 50 characters, one sentence, terminal period.
 - [ ] No help text that restates its label; no template-variable dumps.
+- [ ] Inline notices, empty states and descriptions about 50 characters; errors, validation and confirmations about 100, at most two sentences.
 - [ ] Errors are full sentences with a next step; no bare `Failed to …`; no raw `%s` upstream text spliced in.
 - [ ] Permission errors read `Sorry, you are not allowed to …`.
 - [ ] No `Please`, no `successfully`, no emoji.
@@ -506,8 +557,10 @@ Worth recording, because the sweeps that produced it should not be undone:
 - **Error prose is specific and consequence-first** where it was written
   deliberately: *"This post's author cannot edit posts, so the AI agent was not
   run. Reassign the post to a user who can edit it, or move it back to the
-  previous stage."* That is the model for every error in this plugin — cause,
-  effect, and two ways out.
+  previous stage."* Cause, effect, and two ways out — the shape every error
+  keeps. The length pass later cut it to *"The author cannot edit posts, so the
+  agent didn’t run. Reassign the post or move it back."*: the same shape, in
+  about 90 characters.
 - **Model-facing and human-facing strings were already separated** in
   `input_schema` / `output_schema`. Finding 3 was the one place the wall was
   missing, not a systemic failure.

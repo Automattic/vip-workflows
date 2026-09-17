@@ -1800,7 +1800,7 @@ export function validateSequence( {
 	if ( ! stages || stages.length === 0 ) {
 		errors.push(
 			__(
-				'This sequence has no stages, so there is nothing for a post to be in. Right-click the canvas to add one.',
+				'This sequence has no stages. Right-click the canvas to add one.',
 				'vip-workflows'
 			)
 		);
@@ -1829,7 +1829,7 @@ export function validateSequence( {
 			sprintf(
 				/* translators: %s: the stage key two stages share. */
 				__(
-					'Two stages share the key “%s”, so saving would collapse them into one and drop the second stage’s transitions. Open one of them and give it a key of its own.',
+					'Two stages share the key “%s”. Give one of them a key of its own.',
 					'vip-workflows'
 				),
 				key
@@ -1926,7 +1926,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: ability id of the agent the stage references. */
 					__(
-						'Agent “%s” is not available on this site; posts entering this stage will error — following the on-error route if one is set, stopping here otherwise.',
+						'Agent “%s” is not available on this site. Posts here will error.',
 						'vip-workflows'
 					),
 					abilityId
@@ -1941,7 +1941,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: agent name, e.g. "Copy Edit". */
 					__(
-						'Agent “%s” needs setup; until it is configured, posts entering this stage will error — following the on-error route if one is set, stopping here otherwise.',
+						'Agent “%s” needs setup. Until then, posts here will error.',
 						'vip-workflows'
 					),
 					entry.label
@@ -1968,7 +1968,7 @@ export function validateSequence( {
 			addBlocker(
 				'',
 				__(
-					'A stage on the canvas has neither a name nor a key. Open it and fill in both — the name is what writers see, the key is what the stage is stored under.',
+					'A stage has no name or key. Open it and fill in both.',
 					'vip-workflows'
 				)
 			);
@@ -1978,7 +1978,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: the stage's key, e.g. "in_review". */
 					__(
-						'The stage keyed “%s” has no name. Open it and fill in Name — it is what writers see on the board and on the buttons that move a post.',
+						'The stage keyed “%s” has no name. Open it and fill in Name.',
 						'vip-workflows'
 					),
 					stage.key
@@ -1990,7 +1990,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: the stage's name, e.g. "In Review". */
 					__(
-						'Stage “%s” has no key, so there is nothing to store it under. Open it and fill in Key.',
+						'Stage “%s” has no key. Open it and fill in Key.',
 						'vip-workflows'
 					),
 					stage.label
@@ -2023,7 +2023,7 @@ export function validateSequence( {
 				stage.key,
 				isAgentStage( stage )
 					? __(
-							'The agent has no outcome routed anywhere and the stage is not marked final — content cannot leave it. Drag from the stage’s outcome handles to route it.',
+							'The agent has no outcome routed anywhere. Drag from an outcome handle to route one.',
 							'vip-workflows'
 					  )
 					: __(
@@ -2068,7 +2068,7 @@ export function validateSequence( {
 						sprintf(
 							/* translators: 1: agent outcome label, 2: target stage key */
 							__(
-								'The agent’s “%1$s” route has no transition to travel on (%2$s). Re-drag the handle onto that stage.',
+								'“%1$s” route has no transition to travel on (%2$s). Re-drag its handle.',
 								'vip-workflows'
 							),
 							agentOutcomeLabel( outcome ),
@@ -2087,22 +2087,20 @@ export function validateSequence( {
 					stage.key,
 					publishSettingFixesRoute( stage, routing[ outcome ] )
 						? sprintf(
-								/* translators: 1: agent outcome label, 2: target stage key */
+								/* translators: %s: agent outcome label */
 								__(
-									'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Turn on “Let AI stages publish” in the sequence settings, or route it to a stage before publishing.',
+									'“%s” route publishes, which AI stages can’t do. Allow it in sequence settings or reroute.',
 									'vip-workflows'
 								),
-								agentOutcomeLabel( outcome ),
-								routing[ outcome ]
+								agentOutcomeLabel( outcome )
 						  )
 						: sprintf(
-								/* translators: 1: agent outcome label, 2: target stage key */
+								/* translators: %s: agent outcome label */
 								__(
-									'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Route it to a stage before publishing.',
+									'“%s” route publishes, which AI stages can’t do. Route it to a stage before publishing.',
 									'vip-workflows'
 								),
-								agentOutcomeLabel( outcome ),
-								routing[ outcome ]
+								agentOutcomeLabel( outcome )
 						  )
 				);
 			}
@@ -2178,7 +2176,7 @@ export function validateSequence( {
 						sprintf(
 							/* translators: %s: transition button label */
 							__(
-								'The “%s” transition assigns work but names no assignment key, so there is nowhere to record the assignment. Fill in its Assignment key.',
+								'The “%s” transition assigns work but has no assignment key. Fill one in.',
 								'vip-workflows'
 							),
 							transitionName
@@ -2193,7 +2191,7 @@ export function validateSequence( {
 						sprintf(
 							/* translators: 1: transition button label, 2: assignment key */
 							__(
-								'The “%1$s” transition assigns to “%2$s”, a key another transition already assigns — the second assignment would overwrite the first. Give this one a key of its own.',
+								'The “%1$s” transition reuses the assignment key “%2$s”. Give it a key of its own.',
 								'vip-workflows'
 							),
 							transitionName,
@@ -2223,7 +2221,7 @@ export function validateSequence( {
 					sprintf(
 						/* translators: %s: transition button label */
 						__(
-							'The “%s” transition is restricted to an assignee but names no assignment key, so nobody could take it. Name the slot it should read, or turn the restriction off.',
+							'The “%s” transition is restricted to an assignee but has no assignment key. Pick one.',
 							'vip-workflows'
 						),
 						transitionName
@@ -2238,7 +2236,7 @@ export function validateSequence( {
 					sprintf(
 						/* translators: 1: transition button label, 2: assignment key */
 						__(
-							'The “%1$s” transition is restricted to assignment key “%2$s”, which no transition assigns — nobody could take it. Point it at a key another transition assigns.',
+							'The “%1$s” transition is restricted to “%2$s”, a key no transition assigns. Pick another.',
 							'vip-workflows'
 						),
 						transitionName,
@@ -2260,8 +2258,8 @@ export function validateSequence( {
 				? sprintf(
 						/* translators: %s: comma-separated stage names. */
 						_n(
-							'Nothing ends this sequence: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there.',
-							'Nothing ends this sequence: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the End node.',
+							'Nothing ends this sequence: %s has no way out. Drag from it to the End node.',
+							'Nothing ends this sequence: %s have no way out. Drag from one to the End node.',
 							deadEnds.length,
 							'vip-workflows'
 						),
@@ -2276,7 +2274,7 @@ export function validateSequence( {
 							.join( ', ' )
 				  )
 				: __(
-						'Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to the End node.',
+						'Nothing ends this sequence. Drag from the stage that should finish it to the End node.',
 						'vip-workflows'
 				  )
 		);
@@ -2308,7 +2306,7 @@ export function validateSequence( {
 					sprintf(
 						/* translators: %s: status region name (e.g. Draft, Published) */
 						__(
-							'The “%s” status group has no entry checkpoint. Drag one of its stages onto the group’s top edge to set where posts entering that status land.',
+							'The “%s” status group has no entry checkpoint. Drag one of its stages onto the group’s top edge.',
 							'vip-workflows'
 						),
 						regionLabel( region )
@@ -2397,7 +2395,7 @@ export function validateSequence( {
 				addWarning(
 					stage.key,
 					__(
-						'No transition leads here and this is not its status group’s entry checkpoint, so no post can ever reach this stage.',
+						'No transition leads here, so no post can ever reach this stage. Draw one into it.',
 						'vip-workflows'
 					)
 				);
@@ -2410,7 +2408,7 @@ export function validateSequence( {
 			addWarning(
 				stages[ 0 ].key,
 				__(
-					'The flow entry is outside the “draft” status region — new content starts as a draft and will land at the draft region’s entry stage instead.',
+					'New posts start as drafts, so they skip this stage. Move it into the “Draft” status group.',
 					'vip-workflows'
 				)
 			);

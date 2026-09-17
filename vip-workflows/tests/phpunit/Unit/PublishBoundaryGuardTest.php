@@ -365,10 +365,10 @@ class PublishBoundaryGuardTest extends TestCase
         $this->assertCount( 1, $this->transients );
 
         $message = (string) reset( $this->transients );
-        $this->assertStringContainsString( "'Test Post'", $message );
-        $this->assertStringContainsString( "'Test Workflow'", $message );
-        $this->assertStringContainsString( 'remove it from the workflow (this is logged)', $message );
-        $this->assertStringContainsString( 'move it through the workflow to a published stage', $message );
+        $this->assertStringContainsString( '“Test Post”', $message );
+        $this->assertStringContainsString( '“Test Workflow”', $message );
+        $this->assertStringContainsString( 'remove it from the workflow', $message );
+        $this->assertStringContainsString( 'Move it to a published stage', $message );
     }
 
     /**
@@ -716,7 +716,7 @@ class PublishBoundaryGuardTest extends TestCase
 
         $this->assertInstanceOf( \WP_Error::class, $result );
         $this->assertSame( 'vip_workflows_publish_boundary', $result->get_error_code() );
-        $this->assertStringContainsString( "'Test Workflow'", $result->get_error_message() );
+        $this->assertStringContainsString( '“Test Workflow”', $result->get_error_message() );
         $this->assertSame( 409, $result->get_error_data()['status'] );
     }
 

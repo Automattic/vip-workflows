@@ -355,7 +355,7 @@ export function MyQueuePage() {
 								className="vip-workflows-description"
 							>
 								{ __(
-									'Check back later or visit the full Queue page for team-wide items.',
+									'See the Queue page for team-wide posts.',
 									'vip-workflows'
 								) }
 							</Text>

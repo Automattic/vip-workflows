@@ -792,7 +792,7 @@ class StageAgentRunnerExecuteTest extends TestCase
         // The held run's forward transitions stay withheld, so the message must
         // send the editor to the sequence setting, not to a manual transition.
         $this->assertSame( 'failed', $job['status'] );
-        $this->assertStringContainsString( 'Let AI stages publish', $job['error'] );
+        $this->assertStringContainsString( 'sequence settings', $job['error'] );
         $this->assertStringNotContainsString( 'transition it yourself', $job['error'] );
     }
 
@@ -859,7 +859,7 @@ class StageAgentRunnerExecuteTest extends TestCase
         // Turning the setting on would publish every errored run, so the message
         // sends the author to reroute errors instead.
         $this->assertSame( 'failed', $job['status'] );
-        $this->assertStringNotContainsString( 'Let AI stages publish', $job['error'] );
+        $this->assertStringNotContainsString( 'sequence settings', $job['error'] );
     }
 
     /**

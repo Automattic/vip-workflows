@@ -481,7 +481,7 @@ describe( 'ideation panel — starting the seed analysis over', () => {
 
 		const dialog = await screen.findByRole( 'dialog' );
 		expect(
-			within( dialog ).getByText( /Pinned board cards will be lost/ )
+			within( dialog ).getByText( /including pinned ones/ )
 		).toBeInTheDocument();
 	} );
 

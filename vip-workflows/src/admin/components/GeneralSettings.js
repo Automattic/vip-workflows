@@ -220,7 +220,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 							},
 							{
 								label: __(
-									'Recommend — users can skip and continue without a workflow',
+									'Recommend — users can skip selecting a workflow',
 									'vip-workflows'
 								),
 								value: 'recommend',

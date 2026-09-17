@@ -403,7 +403,7 @@ class StageAgentRunner implements ModuleInterface {
 				$post_id,
 				$stage_key,
 				$ability_id,
-				__( 'This post’s author cannot edit posts, so the AI agent was not run. Reassign the post to a user who can edit it, or move it back to the previous stage.', 'vip-workflows' ),
+				__( 'The author cannot edit posts, so the agent didn’t run. Reassign the post or move it back.', 'vip-workflows' ),
 				$from_stage
 			);
 			return;
@@ -469,7 +469,7 @@ class StageAgentRunner implements ModuleInterface {
 				$ability_id,
 				sprintf(
 					/* translators: %s: agent outcome key (pass or fail). */
-					__( 'This stage routes no destination for the "%s" outcome, so the post stopped here. Route it in the sequence editor, or move the post back.', 'vip-workflows' ),
+					__( 'No route for the “%s” outcome. Add one in the sequence editor, or move the post back.', 'vip-workflows' ),
 					$outcome
 				),
 				$from_stage
@@ -778,7 +778,7 @@ class StageAgentRunner implements ModuleInterface {
 
 			return sprintf(
 				/* translators: %s: destination stage key. */
-				__( 'The agent routed this post to "%s", a stage the sequence does not define a region for, so it stopped here. Fix the stage in the sequence editor, or move the post back.', 'vip-workflows' ),
+				__( 'Stage “%s” has no status. Fix it in the sequence editor, or move the post back.', 'vip-workflows' ),
 				$to_key
 			);
 		}
@@ -793,9 +793,8 @@ class StageAgentRunner implements ModuleInterface {
 		// something nobody could reach.
 		if ( 'error' === $outcome ) {
 			return sprintf(
-				/* translators: 1: destination stage key, 2: the error the run reported. */
-				__( 'The agent run failed, and this stage routes errors to "%1$s", which publishes. This sequence doesn’t allow AI stages to publish, so the post stopped here. Edit the sequence to route errors to a stage before publishing. The agent reported: %2$s', 'vip-workflows' ),
-				$to_key,
+				/* translators: %s: the error the run reported. */
+				__( 'The error route publishes, which AI stages can’t do. Reroute it. Error: %s', 'vip-workflows' ),
 				'' !== $error ? $error : __( 'no detail given', 'vip-workflows' )
 			);
 		}
@@ -804,18 +803,16 @@ class StageAgentRunner implements ModuleInterface {
 
 		if ( is_array( $routing ) && self::publish_setting_fixes_route( $routing, $to_key ) ) {
 			return sprintf(
-				/* translators: 1: agent outcome key (pass or fail), 2: destination stage key. */
-				__( 'The AI agent returned "%1$s", which routes to "%2$s" — a stage that publishes. This sequence doesn’t allow AI stages to publish, so the post stopped here. Edit the sequence to turn on "Let AI stages publish", or route "%1$s" to a stage before publishing.', 'vip-workflows' ),
-				$outcome,
-				$to_key
+				/* translators: %s: agent outcome key (pass or fail). */
+				__( '“%s” route publishes, which AI stages can’t do. Allow it in sequence settings or reroute.', 'vip-workflows' ),
+				$outcome
 			);
 		}
 
 		return sprintf(
-			/* translators: 1: agent outcome key (pass or fail), 2: destination stage key. */
-			__( 'The AI agent returned "%1$s", which routes to "%2$s" — a stage that publishes. This sequence doesn’t allow AI stages to publish, so the post stopped here. Edit the sequence to route "%1$s" to a stage before publishing.', 'vip-workflows' ),
-			$outcome,
-			$to_key
+			/* translators: %s: agent outcome key (pass or fail). */
+			__( '“%s” route publishes, which AI stages can’t do. Route it to a stage before publishing.', 'vip-workflows' ),
+			$outcome
 		);
 	}
 

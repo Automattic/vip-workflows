@@ -79,14 +79,14 @@ export function NotificationsApp( {
 			<SettingsSection
 				title={ __( 'Event routing', 'vip-workflows' ) }
 				description={ __(
-					'Choose which channels receive each event. Only a configured channel can be selected — set one up on the Channels tab first.',
+					'Only channels configured on the Channels tab appear.',
 					'vip-workflows'
 				) }
 			>
 				{ 0 === configuredChannels.length ? (
 					<Notice status="warning" isDismissible={ false }>
 						{ __(
-							'No notification channel is configured yet, so no event can be routed anywhere.',
+							'No configured channels. Set one up on the Channels tab.',
 							'vip-workflows'
 						) }
 					</Notice>
@@ -248,7 +248,7 @@ export function NotificationsApp( {
 			<SettingsSection
 				title={ __( 'Debug mode', 'vip-workflows' ) }
 				description={ __(
-					'Mirror every event to the channels selected here, whatever the routing above says. Useful while testing a new channel.',
+					'Sends every event to these channels, ignoring routing.',
 					'vip-workflows'
 				) }
 			>

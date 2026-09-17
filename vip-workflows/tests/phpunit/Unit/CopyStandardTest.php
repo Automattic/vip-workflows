@@ -13,6 +13,9 @@
  * - `Please`, which the plugin does not say.
  * - `...` where `…` belongs, the one typography rule that drifted by language.
  * - `You do not have permission`, where core says `Sorry, you are not allowed`.
+ * - A paragraph. The length limits (about 50 and about 100 characters) are
+ *   still review questions, but nothing a person reads runs past a ceiling
+ *   well above both.
  *
  * @package VIPWorkflows\Tests\Unit
  */
@@ -34,6 +37,28 @@ class CopyStandardTest extends PHPUnitTestCase
     private const EXTENSIONS = array( 'php', 'js', 'jsx' );
 
     private const SKIPPED_DIRS = array( 'node_modules', 'vendor', 'build', 'dist' );
+
+    /**
+     * Past this, a string a person reads is a paragraph. Well above the ~100
+     * limit for errors and confirmations, so it fails on drift, not on judgement.
+     */
+    private const LENGTH_CEILING = 120;
+
+    /**
+     * Strings over the ceiling that no person reads in passing, by the start of
+     * the string. Ability registrations under an `abilities/` directory are
+     * skipped wholesale: their descriptions and schemas are written for a model.
+     */
+    private const LENGTH_EXEMPT = array(
+        // Developer reference inside the how-to modals, opened on purpose.
+        'Agents can provide research, story discovery',
+        'Notification channels deliver workflow events',
+        'Override get_settings_schema() to define fields',
+        // `_doing_it_wrong()` notices, written for the plugin developer.
+        'The permission_callback for ability',
+        // REST schema descriptions, read by API clients.
+        'Serialized availability.',
+    );
 
     /**
      * Translatable string literals, as one blob per file.
@@ -154,6 +179,37 @@ class CopyStandardTest extends PHPUnitTestCase
             $offenders,
             "Use `…`, not three periods. The two used to split by language: PHP wrote "
                 . "`Processing...` while JS wrote `Processing…`.\n"
+                . print_r( $offenders, true )
+        );
+    }
+
+    public function test_no_paragraphs(): void
+    {
+        $offenders = array();
+
+        foreach ( $this->translatable_strings() as $relative => $strings ) {
+            if ( str_contains( $relative, '/abilities/' ) ) {
+                continue;
+            }
+            foreach ( $strings as $string ) {
+                if ( mb_strlen( stripslashes( $string ) ) <= self::LENGTH_CEILING ) {
+                    continue;
+                }
+                foreach ( self::LENGTH_EXEMPT as $prefix ) {
+                    if ( str_starts_with( $string, $prefix ) ) {
+                        continue 2;
+                    }
+                }
+                $offenders[ $relative ][] = $string;
+            }
+        }
+
+        $this->assertSame(
+            array(),
+            $offenders,
+            "Past about 100 characters, copy is documenting the feature or narrating the "
+                . "mechanism. Say what is wrong and the way out — see Length in "
+                . "docs/guides/copy-standard.md.\n"
                 . print_r( $offenders, true )
         );
     }

@@ -67,7 +67,7 @@ function execute_seo_check( ?array $input = null ) {
 			'check_key' => 'min_words',
 			'message'   => sprintf(
 			/* translators: 1: Current word count, 2: Minimum word count */
-				__( 'Content is short (%1$d words). Aim for at least %2$d words for better SEO.', 'vip-workflows' ),
+				__( 'Content is %1$d words. Aim for at least %2$d.', 'vip-workflows' ),
 				$word_count,
 				$min_words
 			),
@@ -75,7 +75,7 @@ function execute_seo_check( ?array $input = null ) {
 		);
 		$suggestions[] = array(
 			'type'    => 'add_content',
-			'message' => __( 'Expand the content with more details, examples, or related information.', 'vip-workflows' ),
+			'message' => __( 'Add detail, examples, or related information.', 'vip-workflows' ),
 		);
 	}
 
@@ -94,7 +94,7 @@ function execute_seo_check( ?array $input = null ) {
 		$score   -= 5;
 		$issues[] = array(
 			'type'     => 'title_long',
-			'message'  => __( 'Title may be truncated in search results (over 60 characters).', 'vip-workflows' ),
+			'message'  => __( 'Title may be truncated (over 60 characters).', 'vip-workflows' ),
 			'severity' => 'info',
 		);
 	}
@@ -108,7 +108,7 @@ function execute_seo_check( ?array $input = null ) {
 		$score   -= 10;
 		$issues[] = array(
 			'type'     => 'no_headings',
-			'message'  => __( 'No headings found. Use H2-H4 tags to structure content.', 'vip-workflows' ),
+			'message'  => __( 'No headings found. Use H2-H4 to structure content.', 'vip-workflows' ),
 			'severity' => 'warning',
 		);
 		$suggestions[] = array(
@@ -137,7 +137,7 @@ function execute_seo_check( ?array $input = null ) {
 		$issues[] = array(
 			'type'      => 'no_images',
 			'check_key' => 'min_images',
-			'message'   => __( 'No images found. Adding relevant images can improve engagement.', 'vip-workflows' ),
+			'message'   => __( 'No images found. Add relevant images.', 'vip-workflows' ),
 			'severity'  => 'info',
 		);
 	}
@@ -149,7 +149,7 @@ function execute_seo_check( ?array $input = null ) {
 			'check_key' => 'min_images',
 			'message'   => sprintf(
 			/* translators: %d: Number of images missing alt text */
-				__( '%d image(s) missing alt text. Alt text improves accessibility and SEO.', 'vip-workflows' ),
+				__( '%d image(s) missing alt text.', 'vip-workflows' ),
 				$images_without_alt
 			),
 			'severity'  => 'warning',
@@ -196,7 +196,7 @@ function execute_seo_check( ?array $input = null ) {
 			$issues[] = array(
 				'type'      => 'no_meta_description',
 				'check_key' => 'check_meta',
-				'message'   => __( 'No meta description set. This appears in search results.', 'vip-workflows' ),
+				'message'   => __( 'No meta description set. Add one for search results.', 'vip-workflows' ),
 				'severity'  => 'warning',
 			);
 		} elseif ( $meta_length < 120 ) {
@@ -258,7 +258,7 @@ function execute_seo_check( ?array $input = null ) {
 			$score   -= 5;
 			$issues[] = array(
 				'type'     => 'keyword_density_low',
-				'message'  => __( 'Keyword density is low. Consider using the keyword more naturally.', 'vip-workflows' ),
+				'message'  => __( 'Keyword density is low. Use the keyword more often.', 'vip-workflows' ),
 				'severity' => 'info',
 			);
 		}

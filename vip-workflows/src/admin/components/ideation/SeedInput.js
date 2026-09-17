@@ -65,7 +65,7 @@ export default function SeedInput( { onSubmit, isSubmitting } ) {
 					className="vip-workflows-ideation-seed__subtitle"
 				>
 					{ __(
-						'Describe your idea in a sentence or two. Our agents will find related articles, external sources, and context to help you develop it.',
+						'Describe your idea in a sentence or two.',
 						'vip-workflows'
 					) }
 				</Text>

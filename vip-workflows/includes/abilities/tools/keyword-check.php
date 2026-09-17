@@ -190,7 +190,7 @@ function execute_keyword_check( ?array $input = null ) {
 	if ( ! empty( $issues ) ) {
 		$suggestions[] = array(
 			'type'    => 'review_content',
-			'message' => __( 'Review and remove or replace the flagged words before publishing.', 'vip-workflows' ),
+			'message' => __( 'Replace or remove the flagged words.', 'vip-workflows' ),
 		);
 	}
 

@@ -133,9 +133,7 @@ describe( 'Agents screen shape', () => {
 		await renderAgents( [ agent() ] );
 
 		expect(
-			screen.getByText(
-				'Agents run when a post enters a stage, and route it onward by what they find.'
-			)
+			screen.getByText( 'Agents run when a post enters a stage.' )
 		).toBeInTheDocument();
 		expect(
 			screen.queryByText( /Agents provide research, story discovery/ )
@@ -181,7 +179,7 @@ describe( 'Agents screen shape', () => {
 
 		expect(
 			screen.getByText(
-				'No agent plugins installed. Agents arrive as separate plugins.'
+				'No agent plugins installed. Agents ship as plugins.'
 			)
 		).not.toBeVisible();
 
@@ -190,7 +188,7 @@ describe( 'Agents screen shape', () => {
 		await waitFor( () =>
 			expect(
 				screen.getByText(
-					'No agent plugins installed. Agents arrive as separate plugins.'
+					'No agent plugins installed. Agents ship as plugins.'
 				)
 			).toBeVisible()
 		);
@@ -214,7 +212,7 @@ describe( 'Agents screen shape', () => {
 
 		expect(
 			screen.getByText(
-				'No agent plugins installed. Agents arrive as separate plugins.'
+				'No agent plugins installed. Agents ship as plugins.'
 			)
 		).toBeVisible();
 	} );

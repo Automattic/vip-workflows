@@ -58,10 +58,10 @@ export function regionLabel( region ) {
 }
 
 /**
- * What a region means, and where its entry checkpoint fits, for the top of the
- * region inspector. A whole sentence per region rather than a label dropped into
- * a template: each status reads in its own form (drafts, pending review,
- * published), and translators get a full sentence.
+ * Where a region's entry checkpoint fits, for the top of the region inspector.
+ * A whole sentence per region rather than a label dropped into a template: each
+ * status reads in its own form (draft, review, private, published), and
+ * translators get a full sentence.
  *
  * @param {string} region Region slug.
  * @return {string} Summary, or an empty string for an unknown region.
@@ -70,22 +70,22 @@ export function regionSummary( region ) {
 	switch ( region ) {
 		case 'draft':
 			return __(
-				'Stages here are drafts. A post set to draft outside the sequence starts at the entry checkpoint.',
+				'Posts set to draft elsewhere start at the entry checkpoint.',
 				'vip-workflows'
 			);
 		case 'pending':
 			return __(
-				'Stages here are pending review. A post set to pending review outside the sequence starts at the entry checkpoint.',
+				'Posts sent for review elsewhere start at the entry checkpoint.',
 				'vip-workflows'
 			);
 		case 'private':
 			return __(
-				'Stages here are private. A post made private outside the sequence starts at the entry checkpoint.',
+				'Posts made private elsewhere start at the entry checkpoint.',
 				'vip-workflows'
 			);
 		case 'publish':
 			return __(
-				'Stages here are published. A post published outside the sequence starts at the entry checkpoint.',
+				'Posts published elsewhere start at the entry checkpoint.',
 				'vip-workflows'
 			);
 		default:

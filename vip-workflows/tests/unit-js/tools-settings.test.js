@@ -202,7 +202,7 @@ describe( 'Tools page — a tool that cannot run', () => {
 
 		expect(
 			requirements( container ).getByText(
-				'This tool has required settings that are not yet configured.'
+				'Some required settings are not configured.'
 			)
 		).toBeInTheDocument();
 	} );

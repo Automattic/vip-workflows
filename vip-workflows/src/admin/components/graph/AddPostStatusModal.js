@@ -46,7 +46,7 @@ export default function AddPostStatusModal( { available, onAdd, onClose } ) {
 				/>
 				<Text variant="body-sm" render={ <p /> }>
 					{ __(
-						'Adds an empty group for this status. Move stages into it using their Post status control or by dragging. Transitions between groups change a post’s status.',
+						'Adds an empty group to move stages into.',
 						'vip-workflows'
 					) }
 				</Text>

@@ -153,8 +153,8 @@ function check_availability(): bool|Availability {
 			RequirementGroup::all(
 				RequirementFactory::dependency(
 					'plugin:wp-parsely',
-					__( 'The Parse.ly plugin (wp-parsely) is not active. Parse.ly capabilities cannot run without it.', 'workflow-parsely' ),
-					__( 'Parse.ly is not set up. Ask an administrator to activate the Parse.ly plugin.', 'workflow-parsely' ),
+					__( 'The Parse.ly plugin is not active. See Plugins.', 'workflow-parsely' ),
+					__( 'Parse.ly is not set up. Ask an administrator.', 'workflow-parsely' ),
 					$sources
 				)
 			)
@@ -165,8 +165,8 @@ function check_availability(): bool|Availability {
 		RequirementGroup::all(
 			RequirementFactory::dependency(
 				'credentials:parsely',
-				__( 'Parse.ly is missing its Site ID or API Secret. Add both under Settings → Parse.ly.', 'workflow-parsely' ),
-				__( 'Parse.ly is not connected. Ask an administrator to finish setting it up.', 'workflow-parsely' ),
+				__( 'Add the Site ID and API Secret in Settings → Parse.ly.', 'workflow-parsely' ),
+				__( 'Parse.ly is not connected. Ask an administrator.', 'workflow-parsely' ),
 				$sources
 			)
 		)
@@ -209,8 +209,8 @@ function check_suggestions_availability(): bool|Availability {
 		RequirementGroup::all(
 			RequirementFactory::dependency(
 				'entitlement:parsely-suggestions',
-				__( 'This Parse.ly Site ID does not include Suggestions API access, so Smart Linking and headline suggestions cannot run. The Site ID and secret are correct; the feature is not enabled on the account. Ask Parse.ly to enable Content Helper for it.', 'workflow-parsely' ),
-				__( 'Parse.ly smart linking and headline suggestions are not enabled for this site. Ask an administrator to have the feature turned on.', 'workflow-parsely' ),
+				__( 'Site ID is correct, but Content Helper is off. Ask Parse.ly.', 'workflow-parsely' ),
+				__( 'Parse.ly suggestions are off. Ask an administrator.', 'workflow-parsely' ),
 				array( __( 'Parse.ly', 'workflow-parsely' ) )
 			)
 		)
@@ -240,7 +240,7 @@ function register_assistant_meta( $registry ): void {
 		'parsely',
 		array(
 			'label'          => __( 'Parse.ly', 'workflow-parsely' ),
-			'description'    => __( 'Smart linking, headline suggestions, trending topics and audience performance data from Parse.ly.', 'workflow-parsely' ),
+			'description'    => __( 'Smart linking, headlines, trends and audience data.', 'workflow-parsely' ),
 			'icon'           => 'chart-line',
 			'ability_ids'    => array(
 				Abilities\SmartLinking::ABILITY_ID,

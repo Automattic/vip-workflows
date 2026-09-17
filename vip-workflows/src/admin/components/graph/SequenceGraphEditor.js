@@ -97,8 +97,8 @@ function describeRepair( { dropped }, stages ) {
 	return sprintf(
 		/* translators: 1: number of transitions, 2: comma-separated list of transitions, each "From → To". */
 		_n(
-			'%1$d transition was removed because the stage already had one to the same place, and its label, roles, required tools and notifications went with it: %2$s.',
-			'%1$d transitions were removed because the stage already had ones to the same places, and their labels, roles, required tools and notifications went with them: %2$s.',
+			'Removed %1$d duplicate transition and its settings: %2$s.',
+			'Removed %1$d duplicate transitions and their settings: %2$s.',
 			dropped.length,
 			'vip-workflows'
 		),
@@ -683,7 +683,7 @@ export default function SequenceGraphEditor( {
 						sprintf(
 							/* translators: %s: comma-separated post type slugs */
 							__(
-								'Warning: this sequence references post types that no longer exist: %s. Select valid post types and save.',
+								'These post types no longer exist: %s. Select valid ones and save.',
 								'vip-workflows'
 							),
 							stale.join( ', ' )
@@ -816,7 +816,7 @@ export default function SequenceGraphEditor( {
 		if ( ! isPhase && selectedPostTypes.length === 0 ) {
 			reasons.push(
 				__(
-					'This sequence is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types.',
+					'No post type selected. Click an empty part of the canvas and choose one under Post types.',
 					'vip-workflows'
 				)
 			);
@@ -1724,7 +1724,7 @@ export default function SequenceGraphEditor( {
 								{ sprintf(
 									/* translators: %s: comma-separated stage keys. */
 									__(
-										'These stages have no status region and cannot be used until one is set: %s. Assigning the default puts them in Draft; drag any of them into another status’s section of the canvas afterwards.',
+										'These stages have no status and can’t be used: %s. Assigning the default puts them in Draft.',
 										'vip-workflows'
 									),
 									missingRegions.join( ', ' )

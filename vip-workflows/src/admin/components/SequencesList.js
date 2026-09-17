@@ -41,7 +41,7 @@ const BREADCRUMBS = [
 ];
 const TITLE = __( 'Sequences', 'vip-workflows' );
 const SUBTITLE = __(
-	'A sequence is the set of stages a post moves through, and the routes between them.',
+	'Each sequence is the stages a post moves through.',
 	'vip-workflows'
 );
 

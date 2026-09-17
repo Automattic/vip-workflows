@@ -708,7 +708,7 @@ export default function MoodBoard( {
 							className="vip-workflows-ideation-generate-modal__hint"
 						>
 							{ __(
-								'Describe the image you want to generate. Be specific about style, subject, and composition.',
+								'Be specific about style, subject, and composition.',
 								'vip-workflows'
 							) }
 						</Text>

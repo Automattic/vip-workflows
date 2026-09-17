@@ -563,7 +563,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
         // One vetoed post aborts before the loop's result is ever applied.
         $this->assertStringContainsString( 'if (vetoed.length) {', $script );
         $this->assertStringContainsString(
-            'Deselect them, or remove them from their workflows first.',
+            'Deselect them to continue.',
             $script
         );
     }
@@ -635,7 +635,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
         $this->assertStringContainsString( 'function blockMisconfigured()', $script );
         $this->assertStringContainsString( 'return blockMisconfigured();', $script );
         $this->assertStringContainsString( 'guard.strings.stageMisconfigured', $script );
-        $this->assertStringContainsString( 'ask an administrator to fix', $script );
+        $this->assertStringContainsString( 'Ask an administrator to fix', $script );
     }
 
     /**
@@ -686,7 +686,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
         $this->assertStringContainsString( 'guard.strings.bulkVetoUnpublish', $script );
         // Direction comes from the shared region map, never a second copy of it.
         $this->assertStringContainsString( "api.statusToRegion(targetStatus) === 'publish'", $script );
-        $this->assertStringContainsString( 'published status can\u2019t be changed directly', $script );
+        $this->assertStringContainsString( 'can\u2019t be unpublished while in workflows', $script );
     }
 
     /**

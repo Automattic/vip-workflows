@@ -278,9 +278,9 @@ describe( 'StageInspector transition read-out', () => {
 		// has to name what is empty itself — and it carries both ways of
 		// filling it, which are most needed on exactly this stage. The drag is
 		// named second now: it is the one an author might not be able to make.
-		expect(
-			screen.getByText( /Nothing leaves this stage yet/ )
-		).toHaveTextContent( 'Add an exit above, or drag from one of the' );
+		expect( screen.getByText( /No exits yet/ ) ).toHaveTextContent(
+			'Add one or drag from a handle'
+		);
 	} );
 
 	it( 'marks a transition the stage’s agent has taken over', () => {
@@ -1109,7 +1109,7 @@ describe( 'StageInspector panel structure', () => {
 			).toBeInTheDocument();
 			expect(
 				screen.getByText(
-					/following the on-error route if one is set, stopping here otherwise/
+					/Until this is set up, posts here will error/
 				)
 			).toBeInTheDocument();
 		} );
@@ -1124,7 +1124,7 @@ describe( 'StageInspector panel structure', () => {
 			);
 
 			expect(
-				screen.getByText( /no longer available on this site/ )
+				screen.getByText( /is unavailable, so posts here will error/ )
 			).toBeInTheDocument();
 		} );
 
@@ -1156,7 +1156,7 @@ describe( 'StageInspector panel structure', () => {
 			);
 
 			expect(
-				screen.queryByText( /following the on-error route/ )
+				screen.queryByText( /posts here will error/ )
 			).not.toBeInTheDocument();
 		} );
 	} );

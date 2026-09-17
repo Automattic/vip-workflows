@@ -177,10 +177,7 @@ function toolProblem( tool ) {
 	if ( ! tool ) {
 		return {
 			short: __( 'Missing', 'vip-workflows' ),
-			full: __(
-				'No tool with this id is registered on this site — its plugin may be inactive. Saving this sequence drops it from the transition.',
-				'vip-workflows'
-			),
+			full: __( 'Tool not found. Saving removes it.', 'vip-workflows' ),
 		};
 	}
 
@@ -188,7 +185,7 @@ function toolProblem( tool ) {
 		return {
 			short: __( 'Turned off', 'vip-workflows' ),
 			full: __(
-				'This tool is turned off for the whole site under Workflows → Tools, so this transition skips it and the check never runs.',
+				'Turned off site-wide, so this check is skipped.',
 				'vip-workflows'
 			),
 		};
@@ -203,7 +200,7 @@ function toolProblem( tool ) {
 			full:
 				requirementText( tool.availability.groups ) ||
 				__(
-					'This tool has required settings that are not yet configured.',
+					'Some required settings are not configured.',
 					'vip-workflows'
 				),
 		};
@@ -441,7 +438,7 @@ export default function TransitionInspector( {
 				{ disabled && ! publishHeld && (
 					<Notice status="warning" isDismissible={ false }>
 						{ __(
-							'This transition is disabled. An agent runs this stage and routes content onward by outcome, so nobody can use this. It keeps its settings — routing an outcome along it, or removing the stage’s agent, makes it live again.',
+							'The stage’s agent routes by outcome. Route an outcome here or remove the agent.',
 							'vip-workflows'
 						) }
 					</Notice>
@@ -455,7 +452,7 @@ export default function TransitionInspector( {
 							? sprintf(
 									/* translators: %s: destination stage name. */
 									__(
-										'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so the agent stops instead of taking it. It keeps its settings — turning on “Let AI stages publish” in the sequence settings makes it live again, or route this outcome to a stage before publishing.',
+										'%s publishes, which AI stages can’t do. Allow it in sequence settings or reroute.',
 										'vip-workflows'
 									),
 									targetLabel
@@ -463,7 +460,7 @@ export default function TransitionInspector( {
 							: sprintf(
 									/* translators: %s: destination stage name. */
 									__(
-										'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so the agent stops instead of taking it. It keeps its settings — route failures and errors to a stage before publishing; turning on “Let AI stages publish” would publish failed runs too.',
+										'%s publishes, which AI stages can’t do. Reroute it; allowing it would publish failed runs too.',
 										'vip-workflows'
 									),
 									targetLabel
@@ -482,7 +479,7 @@ export default function TransitionInspector( {
 						{ sprintf(
 							/* translators: 1: comma-separated agent outcome names, e.g. "On pass, On fail"; 2: destination stage name. */
 							__(
-								'%1$s all lead to %2$s along this one transition, so everything below applies to all of them. Giving an outcome its own roles, tools, notifications or assignment means routing it to a stage of its own.',
+								'%1$s all lead to %2$s, so settings below apply to all of them.',
 								'vip-workflows'
 							),
 							agentOutcomeNames( sharedOutcomes ),
@@ -524,7 +521,7 @@ export default function TransitionInspector( {
 							value={ to }
 							options={ toOptions }
 							help={ __(
-								'Where content goes when this transition is used. “End of workflow” makes the stage it leaves a final one and drops this transition, settings and all — a final stage exits the flow rather than moving content on.',
+								'“End of workflow” removes this transition and its settings.',
 								'vip-workflows'
 							) }
 							onChange={ ( next ) => onRepoint( from, next ) }
@@ -652,7 +649,7 @@ export default function TransitionInspector( {
 										'vip-workflows'
 								  )
 								: __(
-										'This transition runs no tools. Add one to check the post before it moves on.',
+										'No tools yet. Add one to check the post first.',
 										'vip-workflows'
 								  )
 						}
@@ -809,7 +806,7 @@ export default function TransitionInspector( {
 									'vip-workflows'
 								) }
 								emptyLabel={ __(
-									'This transition captures nothing. Add an input to ask for a note or an assignment before the post moves on.',
+									'No inputs yet. Add one to ask for a note or assignee.',
 									'vip-workflows'
 								) }
 							/>

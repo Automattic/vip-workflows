@@ -177,7 +177,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 				) : (
 					<Text variant="body-sm" render={ <p /> }>
 						{ __(
-							'Upload images, PDFs, or documents to add to your workspace.',
+							'Upload images, PDFs, or documents.',
 							'vip-workflows'
 						) }
 					</Text>

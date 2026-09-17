@@ -97,13 +97,10 @@ describe( 'RegionInspector remove action', () => {
 describe( 'RegionInspector summary', () => {
 	// Each status is described in its own form, not as a label in a template.
 	it.each( [
-		[ 'draft', /^Stages here are drafts\. A post set to draft outside/ ],
-		[
-			'pending',
-			/^Stages here are pending review\. A post set to pending/,
-		],
-		[ 'private', /^Stages here are private\. A post made private outside/ ],
-		[ 'publish', /^Stages here are published\. A post published outside/ ],
+		[ 'draft', /^Posts set to draft elsewhere/ ],
+		[ 'pending', /^Posts sent for review elsewhere/ ],
+		[ 'private', /^Posts made private elsewhere/ ],
+		[ 'publish', /^Posts published elsewhere/ ],
 	] )( 'describes %s in its own words', ( region, summary ) => {
 		renderInspector( true, region );
 

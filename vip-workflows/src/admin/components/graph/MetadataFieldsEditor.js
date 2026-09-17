@@ -205,7 +205,7 @@ export default function MetadataFieldsEditor( { fields, onChange } ) {
 			) }
 			removeLabel={ __( 'Remove field', 'vip-workflows' ) }
 			emptyLabel={ __(
-				'This sequence has no metadata fields. Add one to collect a value alongside every post that travels it.',
+				'No fields yet. Add one to collect a value per post.',
 				'vip-workflows'
 			) }
 		/>

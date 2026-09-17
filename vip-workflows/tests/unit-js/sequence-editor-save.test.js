@@ -1240,7 +1240,7 @@ describe( 'A save the editor refuses', () => {
 		expect( writes ).toHaveLength( 0 );
 		expect( refusal() ).toContain( '2 things need fixing' );
 		expect( refusal() ).toContain( 'fill in Name in the Sequence panel' );
-		expect( refusal() ).toContain( 'attached to no post type' );
+		expect( refusal() ).toContain( 'No post type selected' );
 	} );
 
 	it( 'drops each reason as it is fixed, and goes away with the last', async () => {

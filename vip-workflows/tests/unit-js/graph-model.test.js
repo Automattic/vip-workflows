@@ -1963,7 +1963,7 @@ describe( 'validateSequence for AI stages', () => {
 			stages: agentStages( { pass: 'done' } ),
 		} );
 		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
-			'Let AI stages publish'
+			'sequence settings'
 		);
 		expect( result.errors ).toEqual( [] );
 	} );
@@ -1978,13 +1978,13 @@ describe( 'validateSequence for AI stages', () => {
 			} ).warnings.review.join( ' ' );
 
 		expect( warn( { pass: 'done', fail: 'draft' } ) ).toContain(
-			'Let AI stages publish'
+			'sequence settings'
 		);
 		expect( warn( { pass: 'draft', error: 'done' } ) ).not.toContain(
-			'Let AI stages publish'
+			'sequence settings'
 		);
 		expect( warn( { pass: 'done', fail: 'done' } ) ).not.toContain(
-			'Let AI stages publish'
+			'sequence settings'
 		);
 	} );
 
@@ -2018,7 +2018,7 @@ describe( 'validateSequence for AI stages', () => {
 			stages: agentStages( { pass: 'done' } ),
 		} );
 		const warnings = ( result.warnings.review || [] ).join( ' ' );
-		expect( warnings ).toContain( 'the route is disabled' );
+		expect( warnings ).toContain( 'which AI stages can’t do' );
 		expect( warnings ).not.toContain( 'no outcome routed anywhere' );
 	} );
 
@@ -2052,7 +2052,7 @@ describe( 'validateSequence for AI stages', () => {
 
 		expect( result.warnings.featured || [] ).toEqual( [] );
 		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
-			'Let AI stages publish'
+			'sequence settings'
 		);
 	} );
 

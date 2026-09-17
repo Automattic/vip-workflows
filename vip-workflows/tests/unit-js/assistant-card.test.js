@@ -292,9 +292,7 @@ describe( 'AssistantCard availability requirements', () => {
 
 		// The generic dead-end copy this feature replaces must be gone.
 		expect(
-			screen.queryByText(
-				'This agent has required settings that are not yet configured.'
-			)
+			screen.queryByText( 'Some required settings are not configured.' )
 		).not.toBeInTheDocument();
 	} );
 
@@ -407,9 +405,7 @@ describe( 'AssistantCard availability requirements', () => {
 		const { container } = renderCard( unavailableAssistant( [] ) );
 
 		expect(
-			screen.getByText(
-				'This agent has required settings that are not yet configured.'
-			)
+			screen.getByText( 'Some required settings are not configured.' )
 		).toBeInTheDocument();
 		expect(
 			container.querySelector( '.components-notice.is-warning' )

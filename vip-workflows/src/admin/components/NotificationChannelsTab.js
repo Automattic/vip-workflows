@@ -563,7 +563,7 @@ export function useNotificationSettings() {
 			hasUnsavedChanges &&
 			! ( await confirm(
 				__(
-					'Adding a channel reloads this page, which discards the unsaved changes on it. Add the channel anyway?',
+					'Adding a channel reloads the page and discards unsaved changes.',
 					'vip-workflows'
 				),
 				{ confirmLabel: addLabel }
@@ -618,7 +618,7 @@ export function useNotificationSettings() {
 					sprintf(
 						/* translators: %s: channel id. */
 						__(
-							'“%s” is not in this group’s destinations, so there was nothing to delete. Reload the page to see the current channels.',
+							'“%s” was not found, so nothing was deleted. Reload the page to see current channels.',
 							'vip-workflows'
 						),
 						channelId

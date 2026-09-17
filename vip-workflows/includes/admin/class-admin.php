@@ -593,7 +593,7 @@ class Admin implements ModuleInterface {
 		<div class="notice notice-error">
 			<p>
 				<strong><?php esc_html_e( 'VIP Workflows:', 'vip-workflows' ); ?></strong>
-				<?php esc_html_e( 'These sequences could not be upgraded and are not usable until someone fixes them in the Sequence editor. Their stages still have no status region, so any post that reaches one will fail.', 'vip-workflows' ); ?>
+				<?php esc_html_e( 'These sequences could not be upgraded and are unusable. Fix them in the Sequence editor.', 'vip-workflows' ); ?>
 			</p>
 			<ul style="list-style: disc; margin-left: 2em;">
 				<?php foreach ( $failed as $sequence ) : ?>
@@ -612,7 +612,7 @@ class Admin implements ModuleInterface {
 		<div class="notice notice-warning">
 			<p>
 				<strong><?php esc_html_e( 'VIP Workflows:', 'vip-workflows' ); ?></strong>
-					<?php esc_html_e( 'This upgrade gave every workflow stage a status region, and made a stage hold at most one transition per target. These sequences had to be changed to fit. The changes are safe, but they change how the sequences behave — confirm them in the Sequence editor.', 'vip-workflows' ); ?>
+					<?php esc_html_e( 'This upgrade changed how these sequences behave. Confirm them in the Sequence editor.', 'vip-workflows' ); ?>
 			</p>
 			<ul style="list-style: disc; margin-left: 2em;">
 				<?php foreach ( $changed as $sequence ) : ?>
@@ -640,7 +640,7 @@ class Admin implements ModuleInterface {
 							echo esc_html(
 								sprintf(
 									/* translators: %s: comma-separated transitions. */
-									__( 'Transitions removed, because the sequence was stored with a stage holding two to the same target. Their roles, required tools and notifications went with them: %s.', 'vip-workflows' ),
+									__( 'Duplicate transitions removed, with their roles, required tools and notifications: %s.', 'vip-workflows' ),
 									implode( ', ', array_map( array( self::class, 'describe_dropped_transition' ), $dropped ) )
 								)
 							);

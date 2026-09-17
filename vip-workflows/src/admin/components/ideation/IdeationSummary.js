@@ -107,7 +107,7 @@ export default function IdeationSummary( {
 			>
 				{ hasPinnedSources
 					? __(
-							'No summary yet. Click "Generate summary" to create one from your pinned sources.',
+							'No summary yet. Generate one from pinned sources.',
 							'vip-workflows'
 					  )
 					: __(

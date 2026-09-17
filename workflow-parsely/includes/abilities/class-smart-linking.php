@@ -171,7 +171,7 @@ class SmartLinking {
 	public static function no_related_content_error(): WP_Error {
 		return new WP_Error(
 			'workflow_parsely_no_related_content',
-			__( 'Parse.ly has no related content for this topic yet, so there is nothing to link to. If every post reports this, check the Site ID and API Secret under Settings → Parse.ly.', 'workflow-parsely' )
+			__( 'Parse.ly has no related content yet. If every post says this, check the Site ID in Settings → Parse.ly.', 'workflow-parsely' )
 		);
 	}
 

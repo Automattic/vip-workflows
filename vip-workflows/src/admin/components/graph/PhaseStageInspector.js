@@ -25,7 +25,7 @@ export default function PhaseStageInspector( { stage } ) {
 				className="wf-inspector__help"
 			>
 				{ __(
-					'Phases are fixed. Select the connection between phases to configure how content moves from Ideation into the editorial workflow.',
+					'Phases are fixed. Configure the connection between them.',
 					'vip-workflows'
 				) }
 			</Text>

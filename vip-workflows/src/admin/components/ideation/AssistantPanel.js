@@ -253,7 +253,7 @@ function SeedAnalystRestart( { onRestart, disabled } ) {
 
 		const proceed = await confirm(
 			__(
-				'Re-running replaces the seed analysis and every board card, and re-runs every research agent. Pinned board cards will be lost. Sources stay on the board, and anything an agent finds again lands on the source it already added rather than a copy.',
+				'Replaces the seed analysis and every board card, including pinned ones. Sources stay.',
 				'vip-workflows'
 			),
 			{
@@ -476,7 +476,7 @@ export default function AssistantPanel( {
 						className="vip-workflows-ideation-panel__mentor-placeholder"
 					>
 						{ __(
-							'Auto-refresh is paused. Click "Refresh guidance" to run manually.',
+							'Auto-refresh is paused. Click “Refresh guidance”.',
 							'vip-workflows'
 						) }
 					</Text>

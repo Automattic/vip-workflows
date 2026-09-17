@@ -36,7 +36,7 @@ export default function Tools() {
 			] }
 			title={ __( 'Tools', 'vip-workflows' ) }
 			subtitle={ __(
-				'Tools check a post before it moves. A transition can require any of them.',
+				'Tools check a post before it moves.',
 				'vip-workflows'
 			) }
 			actions={

@@ -678,9 +678,9 @@ class StatusManager {
 				if ( ! in_array( $to_status, $routing, true ) ) {
 					$message = __( 'This stage belongs to an AI agent; only the destinations its outcomes route to can be taken.', 'vip-workflows' );
 				} elseif ( StageAgentRunner::publish_setting_fixes_route( $routing, $to_status ) ) {
-					$message = __( 'This stage belongs to an AI agent, and its route to this destination publishes. This sequence doesn’t allow AI stages to publish, so the route stays closed while the agent owns this stage. Edit the sequence to route that outcome to a stage before publishing, or turn on "Let AI stages publish".', 'vip-workflows' );
+					$message = __( 'This route publishes, which AI stages can’t do. Allow it in sequence settings or reroute.', 'vip-workflows' );
 				} else {
-					$message = __( 'This stage belongs to an AI agent, and its route to this destination publishes. This sequence doesn’t allow AI stages to publish, so the route stays closed while the agent owns this stage. Edit the sequence to route that outcome to a stage before publishing.', 'vip-workflows' );
+					$message = __( 'This route publishes, which AI stages can’t do. Route it to a stage before publishing.', 'vip-workflows' );
 				}
 
 				return new \WP_Error( 'unrouted_agent_exit', $message, array( 'status' => 403 ) );
@@ -727,7 +727,7 @@ class StatusManager {
 				'stage_region_missing',
 				sprintf(
 					/* translators: %s: the underlying reason, naming the stage. */
-					__( 'This workflow cannot be used until its stages have status regions: %s Open the sequence and assign the missing ones.', 'vip-workflows' ),
+					__( 'Some stages have no status: %s Assign them in the sequence editor.', 'vip-workflows' ),
 					$e->getMessage()
 				),
 				array( 'status' => 409 )
@@ -1123,7 +1123,7 @@ class StatusManager {
 				'transition_conflict',
 				sprintf(
 					/* translators: 1: stage the transition started from, 2: stage the post is in now. */
-					__( 'This post moved to another stage while your change was being applied: it started at "%1$s" and is now at "%2$s". Reload and try again.', 'vip-workflows' ),
+					__( 'This post moved from “%1$s” to “%2$s” in the meantime. Reload and try again.', 'vip-workflows' ),
 					$expected_stage,
 					$actual_stage
 				),
@@ -2084,7 +2084,7 @@ class StatusManager {
 				'unmodeled_post_status',
 				sprintf(
 					/* translators: 1: sequence name. 2: post status label, e.g. "Pending Review". */
-					__( 'The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post’s status, or choose a sequence that covers it.', 'vip-workflows' ),
+					__( 'The “%1$s” sequence has no %2$s stage. Change the post’s status, or choose another sequence.', 'vip-workflows' ),
 					$sequence->name,
 					$region_label
 				),

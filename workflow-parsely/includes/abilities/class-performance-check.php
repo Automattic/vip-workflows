@@ -628,7 +628,7 @@ class PerformanceCheck {
 			'status'      => 'pass',
 			'detail'      => 'not_yet_computed',
 			'issues'      => array(),
-			'summary'     => __( 'The comparison with past performance is still being gathered and will be ready shortly.', 'workflow-parsely' ),
+			'summary'     => __( 'Still gathering past performance. Check back shortly.', 'workflow-parsely' ),
 			'count'       => 0,
 			'multiplier'  => null,
 			'confidence'  => 'no_precedent',
@@ -695,7 +695,7 @@ class PerformanceCheck {
 				'status'      => 'pass',
 				'detail'      => 'no_precedent',
 				'issues'      => array(),
-				'summary'     => __( 'No comparable coverage in the archive, so there is no performance history to compare against. This may be new ground.', 'workflow-parsely' ),
+				'summary'     => __( 'No comparable coverage in the archive. This may be new ground.', 'workflow-parsely' ),
 				'count'       => 0,
 				'multiplier'  => null,
 				'confidence'  => 'no_precedent',
@@ -790,8 +790,8 @@ class PerformanceCheck {
 		return sprintf(
 			/* translators: 1: article count, 2: median value, 3: metric name, 4: window in days. */
 			_n(
-				'Based on %1$d comparable article, %2$s %3$s in its first %4$d days.',
-				'Based on %1$d comparable articles, typically %2$s %3$s in their first %4$d days.',
+				'%1$d comparable article, %2$s %3$s in its first %4$d days.',
+				'%1$d comparable articles, typically %2$s %3$s in their first %4$d days.',
 				$signal['count'],
 				'workflow-parsely'
 			),

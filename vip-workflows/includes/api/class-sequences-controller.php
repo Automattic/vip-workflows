@@ -1691,7 +1691,7 @@ class SequencesController extends WP_REST_Controller {
 						'invalid_status_agent_routing_target',
 						sprintf(
 							/* translators: 1: stage key, 2: outcome name, 3: target stage key */
-							__( 'Stage "%1$s" routes the agent outcome "%2$s" to "%3$s", which is not a configured transition of that stage.', 'vip-workflows' ),
+							__( 'Stage “%1$s” routes agent outcome “%2$s” to “%3$s” with no transition to travel on.', 'vip-workflows' ),
 							$stage_key,
 							$outcome,
 							$target
@@ -1887,7 +1887,7 @@ class SequencesController extends WP_REST_Controller {
 							'invalid_assignment_key',
 							sprintf(
 								/* translators: %s: stage key */
-								__( 'Stage "%s" has a transition that assigns work without an assignment key. Every assignment slot needs one.', 'vip-workflows' ),
+								__( 'Stage “%s” has a transition that assigns work but no assignment key. Add one.', 'vip-workflows' ),
 								$stage_key
 							),
 							array( 'status' => 400 )
@@ -1899,7 +1899,7 @@ class SequencesController extends WP_REST_Controller {
 							'duplicate_assignment_key',
 							sprintf(
 								/* translators: %s: duplicate assignment key */
-								__( 'Duplicate assignment key: "%s". Two transitions assigning the same key overwrite each other’s assignment.', 'vip-workflows' ),
+								__( 'Two transitions share the assignment key “%s”. Give one of them a key of its own.', 'vip-workflows' ),
 								$key
 							),
 							array( 'status' => 400 )
@@ -1933,7 +1933,7 @@ class SequencesController extends WP_REST_Controller {
 						'invalid_requires_assignment',
 						sprintf(
 							/* translators: %s: stage key */
-							__( 'Stage "%s" has a transition restricted to an assignee but names no assignment key, so nobody can take it.', 'vip-workflows' ),
+							__( 'Stage “%s” has a transition restricted to an assignee but no assignment key. Add one.', 'vip-workflows' ),
 							$stage_key
 						),
 						array( 'status' => 400 )
@@ -1945,7 +1945,7 @@ class SequencesController extends WP_REST_Controller {
 						'unknown_assignment_key',
 						sprintf(
 							/* translators: 1: stage key, 2: assignment key */
-							__( 'Stage "%1$s" has a transition restricted to assignment key "%2$s", which no transition assigns. Nobody could take that transition.', 'vip-workflows' ),
+							__( 'Stage “%1$s” has a transition restricted to “%2$s”, a key no transition assigns.', 'vip-workflows' ),
 							$stage_key,
 							$referenced
 						),
@@ -2026,7 +2026,7 @@ class SequencesController extends WP_REST_Controller {
 						esc_html(
 							sprintf(
 								/* translators: 1: stage key, 2: assignment key */
-								__( 'Stage "%1$s" has a transition restricted to assignment key "%2$s", which no transition assigns, so the gate cannot be re-pointed at the imported slot.', 'vip-workflows' ),
+								__( 'Stage “%1$s” has a transition restricted to “%2$s”, a key no transition assigns.', 'vip-workflows' ),
 								$this->status_key( $status ),
 								$referenced
 							)

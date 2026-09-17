@@ -36,7 +36,7 @@ export default function Agents() {
 			] }
 			title={ __( 'Agents', 'vip-workflows' ) }
 			subtitle={ __(
-				'Agents run when a post enters a stage, and route it onward by what they find.',
+				'Agents run when a post enters a stage.',
 				'vip-workflows'
 			) }
 			actions={

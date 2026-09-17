@@ -97,7 +97,7 @@ class AiImageProvider implements MediaProviderInterface, MediaProviderRequiremen
 		if ( ! $this->has_ai_client() ) {
 			return RequirementFactory::unsupported_environment(
 				'dependency:ai-client',
-				__( 'The WordPress AI client is not available on this site, so images cannot be generated.', 'vip-workflows' ),
+				__( 'The WordPress AI client is not available.', 'vip-workflows' ),
 				__( 'AI image generation is not available on this site.', 'vip-workflows' ),
 				array( $this->get_name() )
 			);

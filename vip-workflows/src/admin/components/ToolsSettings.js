@@ -305,7 +305,7 @@ function ToolCard( { ability, onUpdate, onDirtyChange, registerSave } ) {
 							 */
 							<Text variant="body-md">
 								{ __(
-									'This tool has required settings that are not yet configured.',
+									'Some required settings are not configured.',
 									'vip-workflows'
 								) }
 							</Text>
@@ -449,7 +449,7 @@ export function useToolsSettings() {
 			name: 'check',
 			title: __( 'Checks', 'vip-workflows' ),
 			empty: __(
-				'No check tools yet. Add one with the Abilities API — see Add custom tools.',
+				'No check tools yet. See Add custom tools.',
 				'vip-workflows'
 			),
 		},
@@ -462,7 +462,7 @@ export function useToolsSettings() {
 			name: 'helper',
 			title: __( 'Helpers', 'vip-workflows' ),
 			empty: __(
-				'No helper tools yet. Add one with the Abilities API — see Add custom tools.',
+				'No helper tools yet. See Add custom tools.',
 				'vip-workflows'
 			),
 		},

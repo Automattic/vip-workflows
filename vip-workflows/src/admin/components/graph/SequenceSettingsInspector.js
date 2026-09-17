@@ -195,7 +195,7 @@ export default function SequenceSettingsInspector( {
 								'vip-workflows'
 							) }
 							emptyLabel={ __(
-								'This sequence has no stages. Add one to create the first step content moves through.',
+								'No stages yet. Add one to start.',
 								'vip-workflows'
 							) }
 						/>
