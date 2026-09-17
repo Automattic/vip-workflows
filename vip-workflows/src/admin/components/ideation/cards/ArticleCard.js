@@ -6,6 +6,7 @@
  */
 
 import { __ } from '@wordpress/i18n';
+import { isSafeUrl } from '../../../../common/safe-url';
 import { Button, Notice } from '@wordpress/components';
 import { Badge, Card, Link, Stack, Text } from '@wordpress/ui';
 import { external } from '@wordpress/icons';
@@ -184,7 +185,14 @@ export default function ArticleCard( {
 							   the card's own click.
 							 */ }
 							{ card.url && ! isArchive ? (
-								<Link href={ card.url } openInNewTab>
+								<Link
+									href={
+										isSafeUrl( card.url )
+											? card.url
+											: undefined
+									}
+									openInNewTab
+								>
 									{ card.domain ||
 										__( 'Open source', 'vip-workflows' ) }
 								</Link>
@@ -270,7 +278,11 @@ export default function ArticleCard( {
 								<Button
 									variant="tertiary"
 									icon={ external }
-									href={ card.url }
+									href={
+										isSafeUrl( card.url )
+											? card.url
+											: undefined
+									}
 									target="_blank"
 								>
 									{ __( 'Open source', 'vip-workflows' ) }

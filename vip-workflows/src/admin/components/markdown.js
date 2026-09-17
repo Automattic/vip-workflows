@@ -26,36 +26,11 @@
 
 import './markdown.css';
 
-/**
- * Schemes permitted in a link or image URL.
- *
- * Anything else — `javascript:`, `data:`, `vbscript:`, `file:` — renders as text
- * rather than as a link, so a crafted URL in model output or a scraped page
- * cannot become a clickable payload. Protocol-relative (`//host`) and
- * root-relative (`/path`) URLs are allowed: they inherit the admin's own origin.
- */
-const SAFE_SCHEME = /^(?:https?:|mailto:|tel:|#|\/)/i;
+// isSafeUrl lives in the shared url helper so every href/src sink uses one
+// allowlist; re-exported here for existing importers and the markdown tests.
+import { isSafeUrl } from '../../common/safe-url';
 
-/**
- * Whether a URL is safe to put in an href or src.
- *
- * @param {string} url Candidate URL.
- * @return {boolean} True when the URL may be linked.
- */
-export function isSafeUrl( url ) {
-	const trimmed = ( url || '' ).trim();
-
-	if ( ! trimmed ) {
-		return false;
-	}
-
-	// Control characters are stripped by browsers before scheme matching, so
-	// `java\0script:` and `java\nscript:` would slip a naive test.
-	// eslint-disable-next-line no-control-regex
-	const normalized = trimmed.replace( /[\s\u0000-\u001f\u007f-\u009f]/g, '' );
-
-	return SAFE_SCHEME.test( normalized );
-}
+export { isSafeUrl };
 
 // Inline constructs, ordered so longer delimiters win: `***x***` before `**x**`
 // before `*x*`, and image before link so `![alt](src)` is not read as a link.
