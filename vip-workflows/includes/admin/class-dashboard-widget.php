@@ -128,7 +128,7 @@ class DashboardWidget {
 							<?php // The pill's text and its wash are both the stage's own color; the stylesheet owns everything else. ?>
 							<span
 								class="vip-workflows-dashboard__status"
-								style="--vip-workflows-stage-color: <?php echo esc_attr( $item['status']['color'] ?? StagePalette::DEFAULT_COLOR ); ?>"
+								style="--vip-workflows-stage-color: <?php echo esc_attr( StagePalette::normalize( $item['status']['color'] ?? '' ) ); ?>"
 							>
 					<?php echo esc_html( $item['status']['label'] ?? $item['status']['key'] ); ?>
 							</span>
