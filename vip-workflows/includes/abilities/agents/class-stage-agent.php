@@ -105,6 +105,11 @@ class StageAgent {
 	 * @return string|\WP_Error Generated text (trimmed) or error.
 	 */
 	public static function generate( string $prompt, int $max_tokens = 6000 ) {
+		$rate_limited = self::check_rate_limit();
+		if ( is_wp_error( $rate_limited ) ) {
+			return $rate_limited;
+		}
+
 		$request_options = new RequestOptions();
 		$request_options->setTimeout( self::REQUEST_TIMEOUT );
 
@@ -143,6 +148,48 @@ class StageAgent {
 		}
 
 		return $response;
+	}
+
+	/**
+	 * Hold interactive AI runs to a per-user hourly ceiling.
+	 *
+	 * Each generate() call spends the operator's configured provider budget.
+	 * Unattended stage-agent runs (cron) are exempt: they are bounded by the
+	 * workflow that scheduled them. An interactive caller — a logged-in user
+	 * invoking an AI ability over REST — is held to a per-user hourly count,
+	 * filterable via `vip_workflows_ai_hourly_limit` (0 disables the ceiling).
+	 *
+	 * @return true|\WP_Error True when under the ceiling, WP_Error at the limit.
+	 */
+	private static function check_rate_limit() {
+		if ( wp_doing_cron() ) {
+			return true;
+		}
+
+		$user_id = get_current_user_id();
+		if ( $user_id <= 0 ) {
+			return true;
+		}
+
+		$limit = (int) apply_filters( 'vip_workflows_ai_hourly_limit', 60 );
+		if ( $limit <= 0 ) {
+			return true;
+		}
+
+		$key   = 'vip_workflows_ai_rate_' . $user_id;
+		$count = (int) get_transient( $key );
+
+		if ( $count >= $limit ) {
+			return new \WP_Error(
+				'vip_workflows_ai_rate_limited',
+				__( 'This account has reached its hourly limit for AI runs. Try again later.', 'vip-workflows' ),
+				array( 'status' => 429 )
+			);
+		}
+
+		set_transient( $key, $count + 1, HOUR_IN_SECONDS );
+
+		return true;
 	}
 
 	/**
