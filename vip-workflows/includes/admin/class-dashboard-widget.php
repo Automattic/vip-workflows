@@ -144,7 +144,7 @@ class DashboardWidget {
 			<div class="vip-workflows-dashboard__summary">
 		<?php foreach ( $sequences as $sequence ) : ?>
 			<?php
-			$total = array_sum( \VIPWorkflows\Workflow\StageQuery::counts_by_stage( $sequence ) );
+			$total = array_sum( \VIPWorkflows\Workflow\StageQuery::counts_by_stage( $sequence, \VIPWorkflows\Workflow\StageQuery::author_scope_for_current_user() ) );
 			?>
 					<div class="vip-workflows-dashboard__sequence">
 						<strong><?php echo esc_html( $sequence->name ); ?></strong>

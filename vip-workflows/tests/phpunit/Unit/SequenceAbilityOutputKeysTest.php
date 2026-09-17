@@ -64,6 +64,11 @@ namespace VIPWorkflows\Tests\Unit {
 				define( 'DAY_IN_SECONDS', 86400 );
 			}
 
+			// The workflow-summary tool scopes its aggregate by the caller's
+			// capability, so resolve the capability helpers for the executed path.
+			Functions\when( 'current_user_can' )->justReturn( true );
+			Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
 			\WP_Query::$next_posts = array();
 		}
 
