@@ -31,6 +31,9 @@ class StageAgentsBatchTest extends TestCase
     {
         parent::setUp();
 
+        // generate() applies a per-user AI rate ceiling; cron context is exempt.
+        Functions\when( 'wp_doing_cron' )->justReturn( true );
+
         require_once dirname( __DIR__, 4 ) . '/workflow-agent-copy-edit/workflow-agent-copy-edit.php';
         require_once dirname( __DIR__, 4 ) . '/workflow-agent-tag-sanity-check/workflow-agent-tag-sanity-check.php';
 

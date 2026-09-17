@@ -42,6 +42,9 @@ class StageAgentSamplingTest extends TestCase
     {
         parent::setUp();
 
+        // generate() applies a per-user AI rate ceiling; cron context is exempt.
+        Functions\when( 'wp_doing_cron' )->justReturn( true );
+
         // Pin the per-run verdict nonce (StageAgent::verdict_token) so the stubbed
         // model can echo it as the pass verdict. These tests execute an agent end
         // to end, so they walk that path even though they assert on the sampling
