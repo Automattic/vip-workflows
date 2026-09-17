@@ -6,6 +6,7 @@
  */
 
 import { useState, useCallback } from '@wordpress/element';
+import { isSafeUrl } from '../../../../common/safe-url';
 import { __ } from '@wordpress/i18n';
 import { Button, Notice } from '@wordpress/components';
 import { Badge, Card, Link, Stack, Text } from '@wordpress/ui';
@@ -355,7 +356,14 @@ export default function ImageCard( {
 								<Badge intent="none">{ card.domain }</Badge>
 							) }
 							{ sourceUrl && (
-								<Link href={ sourceUrl } openInNewTab>
+								<Link
+									href={
+										isSafeUrl( sourceUrl )
+											? sourceUrl
+											: undefined
+									}
+									openInNewTab
+								>
 									{ card.domain || sourceUrl }
 								</Link>
 							) }
@@ -388,7 +396,11 @@ export default function ImageCard( {
 								<Button
 									variant="tertiary"
 									icon={ external }
-									href={ sourceUrl }
+									href={
+										isSafeUrl( sourceUrl )
+											? sourceUrl
+											: undefined
+									}
 									target="_blank"
 								>
 									{ __( 'Open source', 'vip-workflows' ) }
@@ -398,7 +410,11 @@ export default function ImageCard( {
 								<Button
 									variant="tertiary"
 									icon={ external }
-									href={ imageUrl }
+									href={
+										isSafeUrl( imageUrl )
+											? imageUrl
+											: undefined
+									}
 									target="_blank"
 								>
 									{ __( 'Open full image', 'vip-workflows' ) }
