@@ -127,8 +127,12 @@ function lineOf(text, index) {
 }
 
 // ── suppression parsing ──────────────────────────────────────────────────────
-// Strict grammar: `wpds-allow R2,R3 -- reason`. Anything looser → R0.
-const STRICT = /wpds-allow\s+(R\d+(?:\s*,\s*R\d+)*)\s*--\s*(\S.*?)(?:\*\/|-->|\}|$)/;
+// Strict grammar: `wpds-allow R2,R3 -- reason`. Anything looser → R0. Loupe's
+// `family/rule` ids share the keyword, so they parse too; they mute nothing here.
+const RULE_ID = String.raw`(?:R\d+|[a-z]+\/[a-z-]+)`;
+const STRICT = new RegExp(
+	String.raw`wpds-allow\s+(${RULE_ID}(?:\s*,\s*${RULE_ID})*)\s*--\s*(\S.*?)(?:\*\/|-->|\}|$)`
+);
 const ANY_ALLOW = /wpds-allow(?:-file)?\b|wpds-disable\b/;
 
 /**
