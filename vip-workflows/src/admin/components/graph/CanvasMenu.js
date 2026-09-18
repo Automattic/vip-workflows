@@ -25,7 +25,7 @@ import {
 	useRef,
 	useState,
 } from '@wordpress/element';
-import { Icon } from '@wordpress/components';
+import { Icon } from '@wordpress/ui';
 
 /**
  * Indexes of the items keyboard focus can land on.

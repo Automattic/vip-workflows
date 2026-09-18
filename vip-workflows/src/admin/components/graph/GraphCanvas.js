@@ -85,7 +85,7 @@ import {
 	useReactFlow,
 	useStoreApi,
 } from '@xyflow/react';
-import { Icon } from '@wordpress/components';
+import { Icon } from '@wordpress/ui';
 import { rotateLeft, plus, trash } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import StageNode from './StageNode';

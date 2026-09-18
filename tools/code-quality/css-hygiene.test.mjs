@@ -117,6 +117,24 @@ export default function C() {
 	});
 });
 
+describe('suppression grammar', { skip }, () => {
+	it('accepts loupe rule ids but still rejects a directive with no reason', () => {
+		const root = fixture(
+			`export default function C() {
+	// wpds-allow system/inline-style -- the transform is measured at drag time
+	// wpds-allow system/override
+	return null;
+}
+`,
+			''
+		);
+		const r0 = analyze(root).filter((f) => f.rule === 'R0');
+
+		assert.equal(r0.length, 1);
+		assert.match(r0[0].message, /wpds-allow system\/override$/);
+	});
+});
+
 describe('override attribution', { skip }, () => {
 	const r6of = (findings) => findings.filter((f) => f.rule === 'R6');
 

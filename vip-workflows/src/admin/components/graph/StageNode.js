@@ -33,8 +33,7 @@
 
 import { memo } from '@wordpress/element';
 import { Handle, Position, useConnection } from '@xyflow/react';
-import { Icon } from '@wordpress/components';
-import { Stack, Text, VisuallyHidden } from '@wordpress/ui';
+import { Icon, Stack, Text, VisuallyHidden } from '@wordpress/ui';
 import { published, caution, login } from '@wordpress/icons';
 import { __, _n, sprintf } from '@wordpress/i18n';
 import { agentOutcomeLabel } from './graph-model';

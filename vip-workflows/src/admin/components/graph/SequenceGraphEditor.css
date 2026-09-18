@@ -636,7 +636,7 @@
 	background: var( --wpds-color-background-surface-neutral );
 	border: 1px solid var( --wpds-color-stroke-surface-neutral );
 	border-radius: var( --vip-workflows-border-radius-full );
-	cursor: pointer;
+	cursor: var( --wpds-cursor-control );
 	pointer-events: auto;
 }
 
@@ -749,7 +749,7 @@
 	border-radius: var( --wpds-border-radius-sm );
 	color: var( --wpds-color-foreground-content-neutral );
 	text-align: left;
-	cursor: pointer;
+	cursor: var( --wpds-cursor-control );
 }
 
 .wf-canvas-menu__item:hover:not( :disabled ) {
@@ -865,6 +865,7 @@
    constants the underpass ghost uses — one texture for "this line is not the
    thing it looks like", and one place it is measured. */
 .wf-sequence-editor .react-flow__edge.is-disabled {
+	/* wpds-allow R6 -- React Flow's edge wrapper, not a Button; loupe binds the shared is-disabled state class to the transition pill */
 	color: var( --wpds-color-stroke-surface-neutral );
 }
 
@@ -1044,6 +1045,7 @@
 }
 
 .wf-edge-overlay .is-disabled {
+	/* wpds-allow R6 -- first-party SVG groups in EdgeOverlay, not a Button; loupe binds the shared is-disabled state class to the transition pill */
 	color: var( --wpds-color-stroke-surface-neutral );
 }
 
@@ -1052,6 +1054,7 @@
    the neutral the shared-transition mark is drawn in instead, which carries
    the same white glyph legibly. */
 .wf-edge-overlay .wf-edge-overlay__outcome.is-disabled {
+	/* wpds-allow R6 -- an SVG outcome group in EdgeOverlay, not a Button; loupe binds the shared is-disabled state class to the transition pill */
 	color: var( --wpds-color-stroke-surface-neutral-strong );
 }
 
@@ -1150,6 +1153,7 @@
 }
 
 .wf-edge-anchors > g.is-disabled {
+	/* wpds-allow R6 -- an SVG group in EdgeAnchors, not a Button; loupe binds the shared is-disabled state class to the transition pill */
 	color: var( --wpds-color-stroke-surface-neutral );
 }
 
@@ -1261,6 +1265,7 @@
 
    The WPDS Button supplies the keyboard behavior, small size and focus ring;
    this canvas-specific surface supplies the pill's geometry and appearance. */
+/* wpds-allow R6 -- known-fragile coupling to Button's own .components-button class; Button supplies keyboard behavior, size and focus ring but no layout API, so the pill's absolute position, max-width and shape have nowhere else to live */
 .wf-transition-edge__pill.components-button {
 	position: absolute;
 	top: 0; /* wpds-allow R2 -- zero needs no token */
@@ -1298,7 +1303,9 @@
 }
 
 .wf-transition-edge__pill:hover {
+	/* wpds-allow R6 -- Button exposes no hover-color prop; the pill already replaces Button's chrome above, so its hover tint has nowhere else to live */
 	color: var( --wpds-color-foreground-interactive-brand );
+	/* wpds-allow R6 -- the matching hover border, for the same reason */
 	border-color: var( --wpds-color-stroke-interactive-brand );
 }
 
@@ -1306,6 +1313,7 @@
    match the dotted line, not suppressed: this is the enlarged target, and these
    are the edges most likely to be selected in order to be deleted. */
 .wf-transition-edge__pill.is-disabled {
+	/* wpds-allow R6 -- Button's disabled prop would also block clicks, but a held-but-unused transition must stay selectable for deletion; the muted-not-disabled tone has no prop */
 	color: var( --wpds-color-foreground-content-neutral-weak );
 }
 
@@ -1315,6 +1323,7 @@
    reach it through the portal, so moving onto it never leaves the edge. */
 .wf-transition-edge__pill.is-visible,
 .wf-transition-edge__pill:focus-visible {
+	/* wpds-allow R6 -- Button has no hidden-until-hovered/selected visibility prop; this reveal pairs with the opacity: 0 base state above */
 	opacity: 1;
 	pointer-events: auto;
 }

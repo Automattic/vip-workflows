@@ -96,7 +96,7 @@
 
 import { memo } from '@wordpress/element';
 import { ViewportPortal, useStore } from '@xyflow/react';
-import { Icon } from '@wordpress/components';
+import { Icon } from '@wordpress/ui';
 import { useEdgePlans } from './EdgePlanProvider';
 import { useSourceHandles } from './source-handles';
 import { arrowTip, outward } from './edge-geometry';
