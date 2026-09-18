@@ -15,8 +15,7 @@
  * @package
  */
 
-import { Icon } from '@wordpress/components';
-import { Stack, Text, Tooltip } from '@wordpress/ui';
+import { Icon, Stack, Text, Tooltip } from '@wordpress/ui';
 import { dragHandle, info } from '@wordpress/icons';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -218,6 +217,7 @@ export function SortableFact( {
 	} = useSortable( { id } );
 
 	return (
+		// wpds-allow system/inline-style -- dnd-kit measures the drag transform and transition at runtime; no prop or stylesheet can carry them
 		<Stack
 			render={ <li /> }
 			align="center"

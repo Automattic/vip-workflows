@@ -817,6 +817,7 @@ export default function StageInspector( {
 												) : undefined
 											}
 										>
+											{ /* wpds-allow R7 -- an empty, aria-hidden colour dot; there is no text for <Text> to carry */ }
 											<span
 												className="wf-stage-inspector__route-dot"
 												aria-hidden="true"

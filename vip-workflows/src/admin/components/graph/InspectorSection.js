@@ -23,8 +23,7 @@
  */
 
 import { Children, useState } from '@wordpress/element';
-import { Collapsible, Stack, Text } from '@wordpress/ui';
-import { Icon } from '@wordpress/components';
+import { Collapsible, Icon, Stack, Text } from '@wordpress/ui';
 import { chevronRight } from '@wordpress/icons';
 
 // The title, shared by both variants so they can't drift apart. `heading-md`

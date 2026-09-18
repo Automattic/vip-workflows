@@ -29,6 +29,7 @@ export default function AddPostStatusModal( { available, onAdd, onClose } ) {
 	const options = regionOptions( available );
 
 	return (
+		// wpds-allow patterns/duplicate-composite -- a form modal that picks a post status, not a destructive yes/no confirmation; ConfirmDialog has no field to choose with
 		<Modal
 			title={ __( 'Add post status', 'vip-workflows' ) }
 			onRequestClose={ onClose }

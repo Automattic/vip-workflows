@@ -23,6 +23,7 @@
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow: hidden;
+	/* wpds-allow R6 -- <Card> (@wordpress/ui) exposes only children and div passthrough, no shadow/elevation prop; this is the panel's resting elevation over the canvas described above */
 	box-shadow: var( --vip-workflows-elevation-md );
 	/* The wrapper turns pointer events off so the empty space it spans below a
 	   collapsed panel doesn't swallow canvas clicks; the card takes them back. */
@@ -198,7 +199,7 @@
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
 	border: 0; /* wpds-allow R6 -- Collapsible.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
 	background: none; /* wpds-allow R6 -- the same UA button box; the section supplies the surface */
-	cursor: pointer;
+	cursor: var( --wpds-cursor-control );
 	text-align: start;
 	color: inherit; /* wpds-allow R6 -- same: `buttontext` would cut the title and chevron off from the row's own tone, and the trigger exposes no color prop */
 }
@@ -341,6 +342,7 @@
    a row that has been filled in. The field's own help text says which; only the
    tone is set here. One rule for both inspectors, so the flag reads the same
    wherever a key is typed. */
+/* wpds-allow R6 -- .components-base-control__help is BaseControl's library-internal help node; BaseControl exposes no validity/tone prop, so the caution colour has to land on the markup it renders */
 .wf-stage-inspector__key--collides .components-base-control__help,
 .wf-metadata-field__key--invalid .components-base-control__help {
 	/* wpds-allow R6 -- TextControl exposes no validity or tone prop, so the caution colour has to land on the help element it renders */
@@ -433,11 +435,13 @@
 	opacity: 1;
 }
 
+/* wpds-allow R6 -- .components-button is Button's library-internal render class; Button exposes isDestructive but no visibility/opacity prop, so the hover-reveal state has to target the class it renders */
 .wf-inspector-field-list .wf-inspector__fact > .components-button.is-destructive {
 	/* wpds-allow R6 -- <Button> exposes no opacity prop */
 	opacity: 0;
 }
 
+/* wpds-allow R6 -- same library-internal coupling as above: Button exposes no visibility/opacity prop to reveal the remove button on hover/focus */
 .wf-inspector-field-list .wf-inspector__fact:hover > .components-button.is-destructive,
 .wf-inspector-field-list .wf-inspector__fact:focus-within > .components-button.is-destructive {
 	/* wpds-allow R6 -- reveals the remove button */
@@ -468,7 +472,7 @@
 	background: none; /* wpds-allow R6 -- same: the UA button surface, which the row supplies instead */
 	color: inherit; /* wpds-allow R6 -- <Stack> exposes no color prop, and `buttontext` would cut the row's own tone off from the text inside it */
 	text-align: start;
-	cursor: pointer;
+	cursor: var( --wpds-cursor-control );
 }
 
 /* Says it is a target, without giving three or four rows the weight of buttons
