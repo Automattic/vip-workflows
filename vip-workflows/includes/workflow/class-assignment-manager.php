@@ -256,15 +256,74 @@ class AssignmentManager {
 				continue;
 			}
 
-			// The value arrives from the transition input, so confirm it resolves
-			// to a real target for its type before it is stored and its on-assign
-			// side effects run.
-			if ( ! $this->is_valid_assignee( $assignee_type, $assigned_value ) ) {
+			$this->assign( $post_id, $meta_key, $assigned_value, $assignee_type, $input_config );
+		}
+	}
+
+	/**
+	 * Validate supplied assignees before a transition changes any post state.
+	 *
+	 * StatusManager calls this before tools, publishing, and process_transition_input().
+	 *
+	 * Missing values and explicit empty selections are handled by the transition's
+	 * required/optional input rules. Other values must identify a valid assignee.
+	 *
+	 * @param  array $transition Transition config from sequence.
+	 * @param  array $input_data User-provided input data.
+	 * @return true|\WP_Error True when all supplied assignees are valid.
+	 */
+	public function validate_transition_assignees( array $transition, array $input_data ) {
+		$inputs = $transition['inputs'] ?? array();
+		if ( ! is_array( $inputs ) ) {
+			return true;
+		}
+
+		foreach ( $inputs as $input_config ) {
+			if ( ! is_array( $input_config ) || 'assignment' !== ( $input_config['type'] ?? '' ) ) {
 				continue;
 			}
 
-			$this->assign( $post_id, $meta_key, $assigned_value, $assignee_type, $input_config );
+			$meta_key = $input_config['meta_key'] ?? null;
+			if ( ! $meta_key || ! array_key_exists( $meta_key, $input_data ) ) {
+				continue;
+			}
+
+			$value = $input_data[ $meta_key ];
+			if ( null === $value || '' === $value ) {
+				continue;
+			}
+
+			$assignee_type = $input_config['assignee_type'] ?? 'user';
+			if ( $this->is_valid_assignee( $assignee_type, $value ) ) {
+				continue;
+			}
+
+			switch ( $assignee_type ) {
+				case 'user':
+					/* translators: %s: Assignment field label. */
+					$message = __( 'Choose an existing user for “%s” before continuing.', 'vip-workflows' );
+					break;
+				case 'role':
+					/* translators: %s: Assignment field label. */
+					$message = __( 'Choose a registered role for “%s” before continuing.', 'vip-workflows' );
+					break;
+				default:
+					/* translators: %s: Assignment field label. */
+					$message = __( 'Enter a valid assignee identifier for “%s” before continuing.', 'vip-workflows' );
+			}
+
+			return new \WP_Error(
+				'invalid_assignee',
+				sprintf( $message, $input_config['label'] ?? $meta_key ),
+				array(
+					'status'        => 422,
+					'meta_key'      => $meta_key,
+					'assignee_type' => $assignee_type,
+				)
+			);
 		}
+
+		return true;
 	}
 
 	// =========================================================================
@@ -281,13 +340,18 @@ class AssignmentManager {
 	private function is_valid_assignee( string $assignee_type, $value ): bool {
 		switch ( $assignee_type ) {
 			case 'user':
-				return (int) $value > 0 && (bool) get_userdata( (int) $value );
+				// Casting first would turn values such as "7invalid" into user 7.
+				if ( ! ( is_int( $value ) || is_string( $value ) ) || ! preg_match( '/^[1-9][0-9]*$/D', (string) $value ) ) {
+					return false;
+				}
+				$user_id = filter_var( $value, FILTER_VALIDATE_INT, array( 'options' => array( 'min_range' => 1 ) ) );
+				return false !== $user_id && (bool) get_userdata( $user_id );
 			case 'role':
 				return is_string( $value ) && wp_roles()->is_role( $value );
 			default:
 				// Other types (e.g. agent) resolve through their registered
-				// handler; require a non-empty scalar identifier.
-				return is_scalar( $value ) && '' !== (string) $value;
+				// handler; require a non-empty string or integer identifier.
+				return ( is_string( $value ) || is_int( $value ) ) && ! empty( $value ) && '' !== trim( (string) $value );
 		}
 	}
 
