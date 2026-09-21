@@ -83,11 +83,12 @@ class AssignmentManager {
 	public function assign( int $post_id, string $meta_key, $value, string $assignee_type, array $config = array() ): void {
 		$storage_key = $this->get_storage_key( $meta_key );
 
+		// Preserve ordering when multiple assignments occur within one second.
 		$assignment = array(
 			'value'       => $value,
 			'type'        => $assignee_type,
 			'status'      => self::STATUS_PENDING,
-			'assigned_at' => current_time( 'mysql' ),
+			'assigned_at' => current_time( 'Y-m-d H:i:s.u' ),
 			'assigned_by' => get_current_user_id(),
 		);
 
@@ -180,6 +181,96 @@ class AssignmentManager {
 		}
 
 		return $assignments;
+	}
+
+	/**
+	 * The post's current assignment — whichever pending assignment, across
+	 * every slot and every assignee type, was made most recently.
+	 *
+	 * A post can carry several assignment slots at once (one per transition
+	 * that has asked for one), and only one deserves the "Assigned to"
+	 * spotlight in the sidebar and the board. Picking "the first pending
+	 * USER assignment found" — the previous rule — discarded every role or
+	 * agent assignment outright and did not even track recency among users;
+	 * a post with three assignments could show the oldest one forever.
+	 *
+	 * @param  int $post_id Post ID.
+	 * @return array{meta_key: string, assignment: array}|null The slot key and its
+	 *                      assignment, or null when nothing is pending.
+	 */
+	public function get_current( int $post_id ): ?array {
+		$current = null;
+
+		foreach ( $this->get_all( $post_id ) as $meta_key => $assignment ) {
+			if ( self::STATUS_PENDING !== ( $assignment['status'] ?? null ) ) {
+				continue;
+			}
+
+			$assigned_at = $assignment['assigned_at'] ?? '';
+			if ( null === $current || $assigned_at > ( $current['assignment']['assigned_at'] ?? '' ) ) {
+				$current = array(
+					'meta_key'   => $meta_key,
+					'assignment' => $assignment,
+				);
+			}
+		}
+
+		return $current;
+	}
+
+	/**
+	 * Describe an assignment's stored value as the client-facing shape every
+	 * route already serves an actor in.
+	 *
+	 * A user resolves through `Actor::from_user()` — the same shape a post's
+	 * author or an event's actor gets. A role or an agent has no single
+	 * person behind it, so each gets a parallel shape naming what it is
+	 * rather than borrowing a person's. This is a display description of an
+	 * assignment's target, not a claim about who acted — `Actor`'s own,
+	 * narrower job, which is deliberately not asked to answer this.
+	 *
+	 * @param  string $assignee_type 'user', 'role', or 'agent'.
+	 * @param  mixed  $value         The raw stored value.
+	 * @return array|null The description, or null when it cannot be
+	 *                     resolved (unknown type, deleted user, retired
+	 *                     role/agent).
+	 */
+	public function describe_assignee( string $assignee_type, $value ): ?array {
+		if ( 'user' === $assignee_type ) {
+			return Actor::from_user( $value );
+		}
+
+		if ( 'role' === $assignee_type ) {
+			$roles = wp_roles()->roles;
+			if ( ! isset( $roles[ $value ]['name'] ) ) {
+				return null;
+			}
+
+			return array(
+				'id'           => 0,
+				'type'         => 'role',
+				'display_name' => translate_user_role( $roles[ $value ]['name'] ),
+				'agent_actor'  => null,
+				'avatar'       => null,
+			);
+		}
+
+		if ( 'agent' === $assignee_type ) {
+			$agents = ( new AgentRunner() )->get_registered_agents();
+			if ( ! isset( $agents[ $value ] ) ) {
+				return null;
+			}
+
+			return array(
+				'id'           => 0,
+				'type'         => 'agent',
+				'display_name' => $agents[ $value ]['label'] ?? (string) $value,
+				'agent_actor'  => (string) $value,
+				'avatar'       => null,
+			);
+		}
+
+		return null;
 	}
 
 	/**
