@@ -258,14 +258,25 @@ class AssigneeSnapshotIntegrationTest extends TestCase
 	}
 
 	/**
-	 * An assignee id that no longer resolves to a user (deleted, or never
-	 * valid) records the raw stored value rather than losing the row.
+	 * An invalid assignee rejects the transition without replacing an existing
+	 * assignment or recording a successful status transition.
 	 */
-	public function test_an_unresolvable_assignee_falls_back_to_the_raw_value(): void
-	{
-		$post_id = $this->make_workflow_post();
+	public function test_an_unresolvable_assignee_rejects_the_transition_without_changes(): void {
+		global $wpdb;
 
-		( new StatusManager() )->transition(
+		$post_id        = $this->make_workflow_post();
+		$assignment_key = '_vip_workflows_assignment_reviewer';
+		$assignment     = array(
+			'value'       => $this->author_id,
+			'type'        => 'user',
+			'status'      => 'pending',
+			'assigned_at' => current_time( 'mysql' ),
+			'assigned_by' => $this->author_id,
+		);
+		update_post_meta( $post_id, $assignment_key, $assignment );
+		$this->assertFalse( get_userdata( 999999 ), 'The submitted assignee must not resolve to a user.' );
+
+		$result = ( new StatusManager() )->transition(
 			$post_id,
 			'status_2',
 			array(
@@ -276,11 +287,27 @@ class AssigneeSnapshotIntegrationTest extends TestCase
 			)
 		);
 
-		$data = $this->latest_event_data( $post_id, 'status_transition' );
+		$this->assertWPError( $result );
+		$this->assertSame( 'invalid_assignee', $result->get_error_code() );
+		$this->assertSame( 422, $result->get_error_data()['status'] );
+		$this->assertSame( 'reviewer', $result->get_error_data()['meta_key'] );
+		$this->assertSame( 'status_1', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
+		$this->assertSame( 'draft', get_post_status( $post_id ) );
+		$this->assertSame( $assignment, get_post_meta( $post_id, $assignment_key, true ) );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Inspect the real audit table after the rejected transition.
+		$transition_count = $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM %i WHERE post_id = %d AND event_type = %s',
+				Schema::get_table_name( 'workflows_events' ),
+				$post_id,
+				'status_transition'
+			)
+		);
 		$this->assertSame(
-			array( array( 'label' => 'Reviewer', 'value' => 999999 ) ),
-			$data['notes']
+			0,
+			(int) $transition_count,
+			'A rejected assignment must not create a successful transition audit row.'
 		);
 	}
 }
