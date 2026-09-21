@@ -109,12 +109,8 @@ class AssignmentManager {
 	/**
 	 * Clear an assignment slot.
 	 *
-	 * Only an optional assignment input can ever reach this — a required one
-	 * has no client-side path to submitting empty (see
-	 * `TransitionAssignmentPopover`'s `required` prop) — but this method
-	 * itself does not enforce that; it clears whatever slot it is asked to,
-	 * on the assumption that whoever called it already decided the slot may
-	 * be empty.
+	 * The caller decides whether the slot may be empty. Transitions validate
+	 * required assignments before committing any changes.
 	 *
 	 * A no-op, not an error, when the slot was never assigned: this is
 	 * "reach a state with nothing here", not "undo a specific assignment".
@@ -255,9 +251,52 @@ class AssignmentManager {
 	// =========================================================================
 
 	/**
+	 * Validate required assignment input before a transition has side effects.
+	 *
+	 * An existing assignment does not satisfy a required input: the caller must
+	 * explicitly submit the assignee it wants to keep or select.
+	 *
+	 * @param  array $transition Transition config from sequence.
+	 * @param  array $input_data User-provided input data.
+	 * @return true|\WP_Error True when required assignments are supplied.
+	 */
+	public function validate_transition_input( array $transition, array $input_data ) {
+		$inputs = $transition['inputs'] ?? array();
+
+		if ( ! is_array( $inputs ) ) {
+			return true;
+		}
+
+		foreach ( $inputs as $input_config ) {
+			if ( ! is_array( $input_config ) || 'assignment' !== ( $input_config['type'] ?? '' ) || empty( $input_config['required'] ) ) {
+				continue;
+			}
+
+			$meta_key = $input_config['meta_key'] ?? '';
+
+			if ( empty( $input_data[ $meta_key ] ) ) {
+				return new \WP_Error(
+					'required_assignment_missing',
+					sprintf(
+						/* translators: %s: Assignment field label. */
+						__( 'Choose an assignee for “%s” in the post editor before continuing.', 'vip-workflows' ),
+						$input_config['label'] ?? $meta_key
+					),
+					array(
+						'status'   => 422,
+						'meta_key' => $meta_key,
+					)
+				);
+			}
+		}
+
+		return true;
+	}
+
+	/**
 	 * Process assignment input from a transition.
 	 *
-	 * Called by StatusManager::transition().
+	 * Called by StatusManager::transition() after validate_transition_input().
 	 *
 	 * A slot's key ABSENT from `$input_data` is left untouched — the caller
 	 * (a REST client, an ability, a revert) simply had nothing to say about
