@@ -574,8 +574,14 @@ export function WorkflowPanel( { children } ) {
 
 		// Named the way a note is: the history labels each value by its
 		// `__name`, and falls back to the raw key — a minted `wfp_n…` id.
+		//
+		// `selectedValue` is only null for an optional assignment Submitted
+		// empty (or explicitly Cleared) — `?? ''` sends that as an explicit
+		// empty value rather than omitting the key, so the server can tell
+		// "clear this assignment" apart from "this transition carries no
+		// assignment input at all" (an absent key is left untouched).
 		const inputData = {
-			[ metaKey ]: selectedValue,
+			[ metaKey ]: selectedValue ?? '',
 			[ `${ metaKey }__name` ]:
 				assignmentRequest.input.label ||
 				__( 'Assignee', 'vip-workflows' ),
@@ -670,6 +676,11 @@ export function WorkflowPanel( { children } ) {
 			input,
 			transitionLabel: transition.label,
 			anchor,
+			// The post's existing assignee for this input's slot, if any —
+			// so reopening the popover shows who is already assigned rather
+			// than asking the user to re-pick from scratch.
+			initialValue:
+				workflow?.assignments?.[ input.meta_key ]?.value ?? null,
 		} );
 	};
 
@@ -1233,6 +1244,18 @@ export function WorkflowPanel( { children } ) {
 						assignmentRequest.input.assignee_type || 'user'
 					}
 					roleFilter={ assignmentRequest.input.filter?.roles || [] }
+					initialValue={
+						// Stored assignment values pass through
+						// sanitize_text_field server-side, so a user id
+						// comes back as a numeric string — coerce it to
+						// match the id type the combobox's options use.
+						null !== assignmentRequest.initialValue &&
+						'user' ===
+							( assignmentRequest.input.assignee_type || 'user' )
+							? Number( assignmentRequest.initialValue )
+							: assignmentRequest.initialValue
+					}
+					required={ !! assignmentRequest.input.required }
 					notesLabel={ __( 'Notes (optional)', 'vip-workflows' ) }
 					notesRequired={ false }
 					onSubmit={ handleAssignmentSelect }

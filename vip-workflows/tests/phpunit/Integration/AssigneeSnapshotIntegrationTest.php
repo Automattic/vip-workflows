@@ -22,6 +22,7 @@ namespace VIPWorkflows\Tests\Integration;
 
 use VIPWorkflows\Sequences\SequenceRepository;
 use VIPWorkflows\Database\Schema;
+use VIPWorkflows\Workflow\AssignmentManager;
 use VIPWorkflows\Workflow\StatusManager;
 
 /**
@@ -224,29 +225,74 @@ class AssigneeSnapshotIntegrationTest extends TestCase
 	 * assignment popover has to clear one (AssignmentManager::unassign()) —
 	 * snapshots as "Unassigned" rather than resolving to nothing and
 	 * printing as a blank value next to the field's label.
+	 *
+	 * @dataProvider cleared_assignment_values
+	 * @param mixed $value Explicit empty assignment input.
 	 */
-	public function test_a_cleared_assignment_snapshots_as_unassigned(): void
-	{
-		$post_id = $this->make_workflow_post();
+	public function test_a_cleared_assignment_snapshots_as_unassigned( $value ): void {
+		$post_id            = $this->make_workflow_post();
+		$assignment_manager = new AssignmentManager();
+		$assignment_manager->assign( $post_id, 'reviewer', $this->author_id, 'user' );
+		$this->assertNotNull( $assignment_manager->get( $post_id, 'reviewer' ) );
 
 		$result = ( new StatusManager() )->transition(
 			$post_id,
 			'status_2',
 			array(
 				'input_data' => array(
-					'reviewer'       => '',
+					'reviewer'       => $value,
 					'reviewer__name' => 'Reviewer',
 				),
 			)
 		);
 		$this->assertTrue( $result, 'The transition should commit.' );
+		$this->assertFalse( metadata_exists( 'post', $post_id, '_vip_workflows_assignment_reviewer' ) );
+		$this->assertSame( 'status_2', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
 
 		$data = $this->latest_event_data( $post_id, 'status_transition' );
 
 		$this->assertSame(
-			array( array( 'label' => 'Reviewer', 'value' => 'Unassigned' ) ),
+			array(
+				array(
+					'label' => 'Reviewer',
+					'value' => 'Unassigned',
+				),
+			),
 			$data['notes']
 		);
+	}
+
+	/**
+	 * Explicit empty inputs both clear an optional assignment.
+	 *
+	 * @return array
+	 */
+	public static function cleared_assignment_values(): array {
+		return array(
+			'empty string' => array( '' ),
+			'null'         => array( null ),
+		);
+	}
+
+	/**
+	 * Omitting an optional assignment preserves it without recording a clear.
+	 */
+	public function test_an_omitted_assignment_is_preserved_without_an_unassigned_snapshot(): void {
+		$post_id            = $this->make_workflow_post();
+		$assignment_manager = new AssignmentManager();
+		$assignment_manager->assign( $post_id, 'reviewer', $this->author_id, 'user' );
+		$existing = $assignment_manager->get( $post_id, 'reviewer' );
+
+		$result = ( new StatusManager() )->transition(
+			$post_id,
+			'status_2',
+			array( 'input_data' => array( 'reviewer__name' => 'Reviewer' ) )
+		);
+
+		$this->assertTrue( $result, 'The transition should commit.' );
+		$this->assertSame( $existing, $assignment_manager->get( $post_id, 'reviewer' ) );
+		$this->assertSame( 'status_2', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
+		$this->assertSame( array(), $this->latest_event_data( $post_id, 'status_transition' )['notes'] );
 	}
 
 	/**

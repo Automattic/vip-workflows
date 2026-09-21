@@ -112,7 +112,9 @@ class AssignmentManagerTest extends TestCase
     /**
      * An assignment nobody supplied a value for is skipped rather than written
      * empty — the writer dismissed the picker, and a slot holding nothing would
-     * name no assignee while looking like it had been filled.
+     * name no assignee while looking like it had been filled. This is the
+     * ABSENT-key case: the transition itself may carry no assignment input,
+     * so `input_data` never mentioning the slot must not touch it.
      */
     public function test_process_transition_input_skips_an_assignment_with_no_value(): void
     {
@@ -129,5 +131,98 @@ class AssignmentManagerTest extends TestCase
         );
 
         $this->assertSame(array(), $written);
+    }
+
+    // -------------------------------------------------------------------------
+    // process_transition_input / unassign — clearing an optional assignment
+    // -------------------------------------------------------------------------
+
+    /**
+     * Stub get_post_meta/delete_post_meta for unassign(), seeded with an
+     * existing assignment.
+     *
+     * @param array $existing Assignment array `get_post_meta` should answer
+     *                        with for any key (simulates one already stored).
+     * @param array $deleted  Filled with every storage key delete_post_meta
+     *                        was called with.
+     */
+    private function capture_unassign(array $existing, array &$deleted): void
+    {
+        Functions\when('get_post_meta')->alias(
+            function ($post_id, $key, $single) use ($existing) {
+                return $existing;
+            }
+        );
+        Functions\when('delete_post_meta')->alias(
+            function ($post_id, $key) use (&$deleted) {
+                $deleted[] = $key;
+                return true;
+            }
+        );
+    }
+
+    /**
+     * An explicit empty value — present in input_data, unlike the "skipped"
+     * case above — clears whatever was previously assigned. This is the one
+     * way an optional assignment popover has to submit "no one" after a
+     * prior assignment.
+     */
+    public function test_process_transition_input_clears_an_assignment_submitted_empty(): void
+    {
+        $written = array();
+        $this->capture_assignments($written);
+        $deleted = array();
+        $this->capture_unassign(
+            array( 'value' => 7, 'type' => 'user', 'status' => 'pending' ),
+            $deleted
+        );
+
+        $this->manager->process_transition_input(
+            42,
+            array(
+                'to'     => 'review',
+                'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ) ),
+            ),
+            array( 'legal_reviewer' => '' )
+        );
+
+        $this->assertSame(array(), $written, 'Clearing must not also write a new assignment.');
+        $this->assertSame(array( '_vip_workflows_assignment_legal_reviewer' ), $deleted);
+    }
+
+    /**
+     * unassign() deletes the slot's post meta when something was there.
+     */
+    public function test_unassign_deletes_an_existing_assignment(): void
+    {
+        $deleted = array();
+        $this->capture_unassign(
+            array( 'value' => 7, 'type' => 'user', 'status' => 'pending' ),
+            $deleted
+        );
+
+        $this->manager->unassign(42, 'legal_reviewer');
+
+        $this->assertSame(array( '_vip_workflows_assignment_legal_reviewer' ), $deleted);
+    }
+
+    /**
+     * unassign() is a no-op, not an error, when the slot was never assigned —
+     * "reach a state with nothing here", not "undo a specific assignment".
+     */
+    public function test_unassign_is_a_noop_when_nothing_was_assigned(): void
+    {
+        $deleted = array();
+        Functions\when('get_post_meta')->justReturn('');
+        Functions\when('delete_post_meta')->alias(
+            function ($post_id, $key) use (&$deleted) {
+                $deleted[] = $key;
+                return true;
+            }
+        );
+
+        $this->manager->unassign(42, 'legal_reviewer');
+
+        $this->assertSame(array(), $deleted);
     }
 }
