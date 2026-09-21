@@ -41,11 +41,12 @@
 	transition: all 0.15s ease;
 }
 
-.vip-workflows-transition-popover__role.components-button:hover {
-	/* wpds-allow R6 -- hover tone for the reshaped row; <Button> exposes no surface-color prop. */
+.vip-workflows-transition-popover__role.components-button:hover,
+.vip-workflows-transition-popover__role.components-button.is-pressed {
+	/* wpds-allow R6 -- hover/selected tone for the reshaped row; <Button> exposes no surface-color prop. */
 	background: var(--wpds-color-background-interactive-brand-strong);
-	/* wpds-allow R6 -- hover tone for the reshaped row; <Button> exposes no color prop. */
+	/* wpds-allow R6 -- hover/selected tone for the reshaped row; <Button> exposes no color prop. */
 	color: var(--wpds-color-foreground-interactive-brand-strong);
-	/* wpds-allow R6 -- hover tone for the reshaped row; <Button> exposes no border prop. */
+	/* wpds-allow R6 -- hover/selected tone for the reshaped row; <Button> exposes no border prop. */
 	border-color: var(--wpds-color-stroke-interactive-brand);
 }
