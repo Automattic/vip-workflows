@@ -71,7 +71,9 @@ the sidebar's own readouts and split one feature across two places.
 
 **Key Features**:
 - Color-coded stages, with the rail drawing the current one and the routes out
-- Required-check state shown against each transition before it is pressed
+- A transition disabled site-wide by an administrator shows locked with its
+  reason; otherwise every transition offers the move with no per-tool state
+  drawn against it (see `TransitionRail.js` above)
 - Assignment autocomplete with user search
 
 ### Story Ideation UI (React)

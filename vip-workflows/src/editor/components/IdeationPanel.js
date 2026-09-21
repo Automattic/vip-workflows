@@ -20,6 +20,7 @@
  */
 
 import { useState, useEffect } from '@wordpress/element';
+import { isSafeUrl } from '../../common/safe-url';
 import { ExternalLink } from '@wordpress/components';
 import { Card, Text } from '@wordpress/ui';
 import apiFetch from '@wordpress/api-fetch';
@@ -88,7 +89,13 @@ export function IdeationPanel( { postId } ) {
 					<Card.Header>
 						<Card.Title>
 							{ source.url ? (
-								<ExternalLink href={ source.url }>
+								<ExternalLink
+									href={
+										isSafeUrl( source.url )
+											? source.url
+											: undefined
+									}
+								>
 									{ source.title }
 								</ExternalLink>
 							) : (
@@ -133,7 +140,13 @@ export function IdeationPanel( { postId } ) {
 								className="vip-workflows-ideation__item-title"
 							>
 								{ item.url ? (
-									<ExternalLink href={ item.url }>
+									<ExternalLink
+										href={
+											isSafeUrl( item.url )
+												? item.url
+												: undefined
+										}
+									>
 										{ item.title }
 									</ExternalLink>
 								) : (
@@ -165,7 +178,9 @@ export function IdeationPanel( { postId } ) {
 
 			{ ideation.url && (
 				<ExternalLink
-					href={ ideation.url }
+					href={
+						isSafeUrl( ideation.url ) ? ideation.url : undefined
+					}
 					className="vip-workflows-ideation__workspace"
 				>
 					{ __( 'Open in Ideation', 'vip-workflows' ) }

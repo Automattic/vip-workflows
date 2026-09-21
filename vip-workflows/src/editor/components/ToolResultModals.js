@@ -7,6 +7,7 @@
  */
 
 import { Modal, Button, Icon, Notice } from '@wordpress/components';
+import { isSafeUrl } from '../../common/safe-url';
 import { Badge, Link, Stack, Text } from '@wordpress/ui';
 import { published, cancelCircleFilled } from '@wordpress/icons';
 import { __ } from '@wordpress/i18n';
@@ -397,7 +398,11 @@ export function HelperResultModal( {
 										<span className="vip-workflows-results-modal__suggestion-meta">
 											{ href ? (
 												<Link
-													href={ href }
+													href={
+														isSafeUrl( href )
+															? href
+															: undefined
+													}
 													openInNewTab
 													rel="noopener noreferrer"
 												>
