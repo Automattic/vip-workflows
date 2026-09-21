@@ -95,6 +95,9 @@ class WorkflowController extends WP_REST_Controller {
 						'input_data' => array(
 							'description'       => 'Key-value data collected from transition inputs.',
 							'type'              => 'object',
+							// Validate raw values before sanitization can coerce them into IDs or empty selections.
+							'additionalProperties' => array( 'type' => array( 'string', 'integer', 'null' ) ),
+							'validate_callback' => 'rest_validate_request_arg',
 							'default'           => array(),
 							'sanitize_callback' => function ( $data ) {
 								if ( ! is_array( $data ) ) {

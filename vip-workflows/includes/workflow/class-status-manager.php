@@ -816,6 +816,14 @@ class StatusManager {
 
 		$acknowledge_warnings = ! empty( $options['acknowledge_warnings'] );
 
+		// Reject invalid targets before tools run or post/stage changes commit.
+		if ( is_array( $transition_config ) ) {
+			$assignee_validation = ( new AssignmentManager() )->validate_transition_assignees( $transition_config, $options['input_data'] ?? array() );
+			if ( is_wp_error( $assignee_validation ) ) {
+				return $assignee_validation;
+			}
+		}
+
 		// Interrupting a running stage agent is a confirm, not a block.
 		//
 		// The agent runs on the user's behalf, so anyone who may perform this
