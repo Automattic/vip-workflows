@@ -6,6 +6,7 @@
  */
 
 import { __ } from '@wordpress/i18n';
+import { isSafeUrl } from '../../../../common/safe-url';
 import { Button, Notice, Spinner, Icon } from '@wordpress/components';
 import { Badge, Card, Stack, Text } from '@wordpress/ui';
 import { external, caution } from '@wordpress/icons';
@@ -405,7 +406,11 @@ export default function DocumentCard( {
 								<Button
 									variant="tertiary"
 									icon={ external }
-									href={ card.url }
+									href={
+										isSafeUrl( card.url )
+											? card.url
+											: undefined
+									}
 									target="_blank"
 								>
 									{ __( 'Open file', 'vip-workflows' ) }
