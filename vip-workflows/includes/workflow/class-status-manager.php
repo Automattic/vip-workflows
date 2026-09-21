@@ -736,8 +736,8 @@ class StatusManager {
 			);
 		}
 
-		// Null for a revert — a go-back has no authored edge, so it carries no
-		// label, tools or inputs.
+		// A failed-agent revert may have no matching authored edge and does not
+		// collect assignment inputs.
 		$transition_config = $sequence->get_transition( $current_stage, $to_status );
 
 		/*
@@ -801,6 +801,17 @@ class StatusManager {
 				__( 'Sorry, you are not allowed to make this transition.', 'vip-workflows' ),
 				array( 'status' => 403 )
 			);
+		}
+
+		// Reject incomplete assignments before tools run or any post state changes.
+		// A failed-agent revert does not collect inputs, even if an authored edge
+		// happens to connect the same stages.
+		$assignment_manager = new AssignmentManager();
+		if ( ! $is_revert && is_array( $transition_config ) ) {
+			$assignment_validation = $assignment_manager->validate_transition_input( $transition_config, $options['input_data'] ?? array() );
+			if ( is_wp_error( $assignment_validation ) ) {
+				return $assignment_validation;
+			}
 		}
 
 		$acknowledge_warnings = ! empty( $options['acknowledge_warnings'] );
@@ -966,10 +977,10 @@ class StatusManager {
 			}
 		}
 
-		// Process new assignment input if present. A revert has no transition
-		// config (see above) and therefore no input to process.
+		// Process submitted assignment input for an authored edge. A failed-agent
+		// revert supplies no inputs, so existing assignments remain untouched.
 		if ( is_array( $transition_config ) ) {
-			( new AssignmentManager() )->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array() );
+			$assignment_manager->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array() );
 		}
 
 		// Store transition input data if provided.
