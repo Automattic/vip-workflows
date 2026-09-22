@@ -14,10 +14,11 @@
  * throws on a malformed graph). Anything this reports valid is what the repository
  * would accept, by construction.
  *
- * Only the first rule a config breaks is reported, because that is what a write
- * reports. The three controller checks run in create_item()'s order; import
- * happens to ask in another, so a config breaking two of them can be named by a
- * different one of the two depending on which path is asked.
+ * Every independent check runs and contributes, so a config that breaks more than
+ * one category (metadata, agents, assignments, and the stage graph) is named by
+ * all of them in a single pass — a caller fixes everything it reports and
+ * re-validates once, rather than peeling errors off one at a time. Within a
+ * single category the underlying check still reports its own first error.
  *
  * @package VIPWorkflows
  */
@@ -116,23 +117,22 @@ function execute_validate_sequence( ?array $input = null ) {
 		$errors[] = $e->getMessage();
 	}
 
+	// Each independent check runs and contributes, so a caller sees every category
+	// it breaks in one pass rather than fixing one, re-validating, and finding the
+	// next. The checks are read-only and order-independent.
 	$metadata_check = $controller->validate_metadata_fields( $config['metadata_fields'] ?? array() );
 	if ( is_wp_error( $metadata_check ) ) {
 		$errors[] = $metadata_check->get_error_message();
 	}
 
-	if ( empty( $errors ) ) {
-		$agent_check = $controller->validate_status_agents( $statuses );
-		if ( is_wp_error( $agent_check ) ) {
-			$errors[] = $agent_check->get_error_message();
-		}
+	$agent_check = $controller->validate_status_agents( $statuses );
+	if ( is_wp_error( $agent_check ) ) {
+		$errors[] = $agent_check->get_error_message();
 	}
 
-	if ( empty( $errors ) ) {
-		$assignment_check = $controller->validate_assignment_keys( $statuses );
-		if ( is_wp_error( $assignment_check ) ) {
-			$errors[] = $assignment_check->get_error_message();
-		}
+	$assignment_check = $controller->validate_assignment_keys( $statuses );
+	if ( is_wp_error( $assignment_check ) ) {
+		$errors[] = $assignment_check->get_error_message();
 	}
 
 	// Phase sequences carry a `phases` graph rather than stages with regions, and the
@@ -164,15 +164,14 @@ function execute_validate_sequence( ?array $input = null ) {
 
 	// Only worth asking what the write gate would normalize once the config has
 	// something to normalize: a write that fails the controller gate never reaches it.
-	if ( empty( $errors ) ) {
-		try {
-			$normalized_config = Sequence::prepare_config_for_write( $config, $type );
-		} catch ( \InvalidArgumentException $e ) {
-			// The gate reports the first rule a config breaks, not every rule. That is
-			// the gate's contract, and reproducing the rules here to collect them all
-			// would be the duplicate validator this ability exists to avoid.
-			$errors[] = $e->getMessage();
-		}
+	// The stage-graph gate runs regardless of the controller checks, so its error
+	// joins theirs in one pass. It still reports the FIRST graph rule broken (the
+	// gate's own contract); collecting every graph rule here would reproduce the
+	// gate — the duplicate validator this ability exists to avoid.
+	try {
+		$normalized_config = Sequence::prepare_config_for_write( $config, $type );
+	} catch ( \InvalidArgumentException $e ) {
+		$errors[] = $e->getMessage();
 	}
 
 	return array(
@@ -298,7 +297,7 @@ function register_validate_sequence(): void {
 					),
 					'errors'                => array(
 						'type'        => 'array',
-						'description' => __( 'Why the configuration was rejected. The gate reports the first rule broken, so fixing one error may reveal another.', 'vip-workflows' ),
+						'description' => __( 'Why the configuration was rejected. Every category the config breaks (metadata, agents, assignments, and the stage graph) is reported in one pass; within a category the first rule broken is reported.', 'vip-workflows' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 					'normalization'         => array(

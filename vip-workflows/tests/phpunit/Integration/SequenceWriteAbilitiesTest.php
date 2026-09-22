@@ -593,6 +593,37 @@ class SequenceWriteAbilitiesTest extends TestCase
         $this->assertSame( array(), $this->get_configuration_events( $sequence->id ) );
     }
 
+    public function test_validate_reports_every_broken_category_in_one_pass(): void
+    {
+        // Breaks the metadata check (unknown field type) AND the stage graph (a
+        // dangling transition target). With the short-circuits removed both must
+        // be reported from a single call, not one-at-a-time across re-validations.
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'config' => array(
+                    'metadata_fields' => array(
+                        array( 'key' => 'x', 'label' => 'X', 'type' => 'bogus' ),
+                    ),
+                    'statuses' => array(
+                        array(
+                            'key'         => 'writing',
+                            'label'       => 'Writing',
+                            'transitions' => array( array( 'to' => 'nowhere' ) ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertFalse( $result['valid'] );
+        $this->assertGreaterThanOrEqual(
+            2,
+            count( $result['errors'] ),
+            'A config that breaks the metadata check and the stage graph should report both.'
+        );
+        $this->assertStringContainsString( 'nowhere', implode( "\n", $result['errors'] ) );
+    }
+
     public function test_validate_returns_the_normalized_config_and_describes_the_changes(): void
     {
         $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
