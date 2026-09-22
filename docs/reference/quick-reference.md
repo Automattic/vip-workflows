@@ -57,8 +57,13 @@ apply_filters('vip_workflows_media_providers', $providers);
 
 ```
 # Sequences (type: workflow/editorial, phase)
-GET/POST    /vip-workflows/v1/sequences
-GET/PUT/DEL /vip-workflows/v1/sequences/{id}
+GET/POST    /vip-workflows/v1/sequences                      # POST create: FLAT body {name*, statuses*, ...}; manage_options
+GET/PUT/DEL /vip-workflows/v1/sequences/{id}                 # PUT/PATCH is a FULL replacement; manage_options
+POST        /vip-workflows/v1/sequences/import               # WRAPPED body {sequence_json:{type,name,config}}; creates a DRAFT; manage_options
+GET         /vip-workflows/v1/sequences/{id}/export          # WRAPPED {name,type,description,config} (import shape); edit_posts
+GET         /vip-workflows/v1/sequences/options              # eligible post types + phase graph; edit_posts
+GET         /vip-workflows/v1/sequences/{id}/stats           # per-stage counts (author-scoped); edit_posts
+POST        /vip-workflows/v1/sequences/{id}/repair-regions  # normalize a stored region shape; manage_options
 
 # Workflow
 GET         /vip-workflows/v1/workflow/post/{id}/status
@@ -114,6 +119,8 @@ GET         /vip-workflows/v1/audit-log/users
 > **AI Agent chat endpoints are not in this repo.** They were extracted to the standalone `vip-ai-agent` plugin (2026-07-09); see [`docs/specs/shipped/ai-agent.md`](../specs/shipped/ai-agent.md).
 >
 > **There is no Jobs REST namespace.** An earlier job-registry framework (`/jobs`, `/jobs/{id}/settings`, `/jobs/{id}/run`) was removed — see [architecture.md §7](architecture.md#7-scheduled-cleanup). The only scheduled work today is the nightly `Maintenance\Cleanup` routine, which has no settings or run-now endpoint.
+
+> **Authoring a sequence without the UI.** Two JSON shapes: create with the **FLAT** shape (`POST /sequences`, or the `vip-workflows/create-sequence` ability) — see [`docs/examples/editorial-review.flat.json`](../examples/editorial-review.flat.json); import or round-trip with the **WRAPPED** shape (`POST /sequences/import`, the shape `/export` emits) — see [`docs/examples/editorial-review.wrapped.json`](../examples/editorial-review.wrapped.json). Import always creates a **draft**, so activate it afterwards. Writes need `manage_options`; `export`/`options`/`stats` need only `edit_posts`. For the field-by-field shape and the region rules, follow the `create-vip-workflows-sequence` skill or the canonical template `includes/sequences/templates/editorial-basic.json`.
 
 ---
 
