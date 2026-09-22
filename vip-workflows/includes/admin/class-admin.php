@@ -737,6 +737,7 @@ class Admin implements ModuleInterface {
 			'agent'                => 'skills/create-agent/SKILL.md',
 			'tool'                 => 'skills/create-tool/SKILL.md',
 			'notification-channel' => 'skills/create-notification-channel/SKILL.md',
+			'sequence'             => 'skills/create-sequence/SKILL.md',
 		);
 
 		foreach ( $map as $type => $relative_path ) {
