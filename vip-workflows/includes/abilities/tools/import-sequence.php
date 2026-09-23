@@ -70,7 +70,7 @@ function register_import_sequence(): void {
 		'vip-workflows/import-sequence',
 		array(
 			'label'               => __( 'Import sequence', 'vip-workflows' ),
-			'description'         => __( 'Imports a workflow sequence from an exported JSON definition. The imported sequence is created as a draft.', 'vip-workflows' ),
+			'description'         => __( 'Imports a workflow sequence from a WRAPPED envelope — {type, name, description, config} with the stages under config.statuses — the shape the export endpoint emits, not the FLAT create-sequence body. The imported sequence is created as a draft; activate it afterwards.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',

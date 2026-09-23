@@ -111,7 +111,7 @@ function register_create_sequence(): void {
 		'vip-workflows/create-sequence',
 		array(
 			'label'               => __( 'New sequence', 'vip-workflows' ),
-			'description'         => __( 'Creates a new workflow sequence with its statuses, transitions, and metadata fields.', 'vip-workflows' ),
+			'description'         => __( 'Creates a new workflow sequence from a FLAT body: name and statuses at the top level (plus optional post_types, settings, metadata_fields). This is not the WRAPPED {type,name,config} shape that import-sequence takes. Defaults to active; pass status:draft to stage it.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -178,7 +178,7 @@ function register_create_sequence(): void {
 								),
 								'status'          => array(
 									'type'        => 'string',
-									'description' => __( 'Core status region this stage lives in. Defaults to "draft".', 'vip-workflows' ),
+									'description' => __( 'Core status region this stage lives in: one of "draft", "pending", "private", "publish". Defaults to "draft"; a value outside these is rejected.', 'vip-workflows' ),
 									'enum'        => Sequence::EDITORIAL_STATUSES,
 								),
 								'region_entry'    => array(
