@@ -151,15 +151,17 @@ class StageAgent {
 	}
 
 	/**
-	 * Hold interactive AI runs to a per-user hourly ceiling.
+	 * Hold interactive AI runs to an optional per-user hourly ceiling.
 	 *
-	 * Each generate() call spends the operator's configured provider budget.
-	 * Unattended stage-agent runs (cron) are exempt: they are bounded by the
-	 * workflow that scheduled them. An interactive caller — a logged-in user
-	 * invoking an AI ability over REST — is held to a per-user hourly count,
-	 * filterable via `vip_workflows_ai_hourly_limit` (0 disables the ceiling).
+	 * The ceiling is off by default: interactive runs are uncapped unless a
+	 * site opts in. Each generate() call spends the operator's configured
+	 * provider budget, so a site that wants a runaway guard filters
+	 * `vip_workflows_ai_hourly_limit` to a positive number of runs per user
+	 * per hour; the default of 0 (any value of 0 or less) leaves runs uncapped.
+	 * Unattended stage-agent runs (cron) are always exempt: they are bounded by
+	 * the workflow that scheduled them.
 	 *
-	 * @return true|\WP_Error True when under the ceiling, WP_Error at the limit.
+	 * @return true|\WP_Error True when uncapped or under the ceiling, WP_Error at the limit.
 	 */
 	private static function check_rate_limit() {
 		if ( wp_doing_cron() ) {
@@ -171,7 +173,7 @@ class StageAgent {
 			return true;
 		}
 
-		$limit = (int) apply_filters( 'vip_workflows_ai_hourly_limit', 60 );
+		$limit = (int) apply_filters( 'vip_workflows_ai_hourly_limit', 0 );
 		if ( $limit <= 0 ) {
 			return true;
 		}
