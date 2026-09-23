@@ -54,42 +54,52 @@ See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarc
     {
       "key": "draft",
       "label": "Draft",
-      "color": "#3498db",
+      "status": "draft",
+      "region_entry": true,
       "transitions": [
         {
           "to": "review",
-          "label": "Submit for Review",
-          "required_tools": ["readability"]
+          "label": "Submit for review",
+          "required_tools": ["vip-workflows/readability"]
         }
       ]
     },
     {
       "key": "review",
-      "label": "In Review",
-      "color": "#f39c12",
+      "label": "In review",
+      "status": "draft",
       "transitions": [
         {
-          "to": "approved",
+          "to": "published",
           "label": "Approve",
           "allowed_roles": ["editor", "administrator"]
         },
         {
           "to": "draft",
-          "label": "Request Changes",
+          "label": "Request changes",
           "inputs": [
             {
               "type": "assignment",
-              "meta_key": "wfp_n1726000000abcde",
+              "meta_key": "reviewer",
               "assignee_type": "user",
               "label": "Who makes the changes?"
             }
           ]
         }
       ]
+    },
+    {
+      "key": "published",
+      "label": "Published",
+      "status": "publish",
+      "region_entry": true,
+      "is_terminal": true
     }
   ]
 }
 ```
+
+> This is the config **core**. In a FLAT create body it sits at the top level next to `name`; in a WRAPPED import/export envelope it sits under `config`. For the field-by-field shape and the region rules, see [sequence-schema.md](sequence-schema.md).
 
 **Workflow sequences can**:
 - Apply to any registered post type (`post`, `page`, or a CPT the site registers)
