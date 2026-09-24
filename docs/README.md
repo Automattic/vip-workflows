@@ -6,7 +6,7 @@
 - [Local development](local-development.md) — install, build, and run the project.
 - [Testing](../vip-workflows/docs/TESTING.md) — unit, integration, and end-to-end test environments.
 - [Extending VIP Workflows](guides/extending-vip-workflows.md) — supported extension points and examples.
-- [Authoring a sequence without the UI](guides/authoring-a-sequence-without-the-ui.md) — design a workflow as JSON and create it via REST/CLI.
+- [Authoring a sequence without the UI](guides/authoring-a-sequence-without-the-ui.md) — design a workflow as JSON and create it over REST, MCP, or `wp eval-file`.
 
 ## Reference
 
