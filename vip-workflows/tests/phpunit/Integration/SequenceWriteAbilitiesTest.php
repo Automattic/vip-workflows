@@ -593,6 +593,116 @@ class SequenceWriteAbilitiesTest extends TestCase
         $this->assertSame( array(), $this->get_configuration_events( $sequence->id ) );
     }
 
+    public function test_validate_reports_every_broken_category_in_one_pass(): void
+    {
+        // Breaks the metadata check (unknown field type) AND the stage graph (a
+        // dangling transition target). With the short-circuits removed both must
+        // be reported from a single call, not one-at-a-time across re-validations.
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'config' => array(
+                    'metadata_fields' => array(
+                        array( 'key' => 'x', 'label' => 'X', 'type' => 'bogus' ),
+                    ),
+                    'statuses' => array(
+                        array(
+                            'key'         => 'writing',
+                            'label'       => 'Writing',
+                            'transitions' => array( array( 'to' => 'nowhere' ) ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertFalse( $result['valid'] );
+        $this->assertCount( 2, $result['errors'], 'A config that breaks the metadata check and the stage graph should report exactly both.' );
+        $this->assertStringContainsString( 'invalid type', $result['errors'][0], 'The metadata error keeps first place, as on a write.' );
+        $this->assertStringContainsString( 'nowhere', $result['errors'][1] );
+        $this->assertNull( $result['normalized_config'] );
+    }
+
+    public function test_validate_withholds_the_normalized_config_while_any_category_rejects(): void
+    {
+        // The graph is fine (the gate only defaults a region), but the metadata
+        // check rejects. The gate still runs, so its normalization is described,
+        // yet the config it would write is withheld: it carries the rejected field.
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'config' => array(
+                    'metadata_fields' => array(
+                        array( 'key' => 'x', 'label' => 'X', 'type' => 'bogus' ),
+                    ),
+                    'statuses' => array(
+                        array( 'key' => 'writing', 'label' => 'Writing' ),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertFalse( $result['valid'] );
+        $this->assertCount( 1, $result['errors'] );
+        $this->assertStringContainsString( 'invalid type', $result['errors'][0] );
+        $this->assertNull( $result['normalized_config'] );
+        $this->assertStringContainsString( 'no status region', implode( "\n", $result['normalization'] ) );
+    }
+
+    public function test_validate_withholds_the_normalized_config_for_a_rejected_phase_sequence(): void
+    {
+        // Phase sequences take the early return, which is exempt from the stage
+        // rules but not from the controller checks — so it withholds the config
+        // on rejection exactly as the stage path does.
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'type'   => 'phase',
+                'config' => array(
+                    'metadata_fields' => array(
+                        array( 'key' => 'x', 'label' => 'X', 'type' => 'bogus' ),
+                    ),
+                    'phases' => array(
+                        array( 'key' => 'ideation', 'label' => 'Ideation' ),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertFalse( $result['valid'] );
+        $this->assertCount( 1, $result['errors'] );
+        $this->assertStringContainsString( 'invalid type', $result['errors'][0] );
+        $this->assertNull( $result['normalized_config'] );
+    }
+
+    public function test_validate_names_a_rule_once_when_two_gates_apply_it(): void
+    {
+        // normalize_input_shape() and the write gate both apply the transition
+        // input shape rule to the same transition. The broken rule is named once.
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'config' => array(
+                    'statuses' => array(
+                        array(
+                            'key'         => 'writing',
+                            'label'       => 'Writing',
+                            'transitions' => array(
+                                array(
+                                    'to'     => 'live',
+                                    'input'  => array( 'type' => 'none' ),
+                                    'inputs' => array(),
+                                ),
+                            ),
+                        ),
+                        array( 'key' => 'live', 'label' => 'Live', 'status' => 'publish' ),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertFalse( $result['valid'] );
+        $this->assertCount( 1, $result['errors'] );
+        $this->assertStringContainsString( 'declares both "input" and "inputs"', $result['errors'][0] );
+        $this->assertNull( $result['normalized_config'] );
+    }
+
     public function test_validate_returns_the_normalized_config_and_describes_the_changes(): void
     {
         $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
