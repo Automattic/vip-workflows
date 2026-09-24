@@ -237,7 +237,7 @@ function register_create_sequence(): void {
 										),
 										'routing'    => array(
 											'type'        => 'object',
-											'description' => __( 'Maps agent outcomes to destination status keys. Each target must be a configured transition of this status. "error" is required.', 'vip-workflows' ),
+											'description' => __( 'Maps agent outcomes to destination status keys. Each target must be a configured transition of this status. Every outcome is optional: an outcome with no target falls back to the "error" destination, and without that the post stays at this status.', 'vip-workflows' ),
 											'properties'  => array(
 												'pass'  => array( 'type' => 'string' ),
 												'fail'  => array( 'type' => 'string' ),
