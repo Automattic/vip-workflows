@@ -51,6 +51,16 @@ registers a `sequence_json` argument the same way. Both then validate `name` and
 `config.statuses` with imperative checks (`empty()` tests plus the agent and
 assignment validators).
 
+A seventh copy lives in the browser. The graph canvas re-declares the region
+model in JavaScript — `REGION_ORDER` in
+`vip-workflows/src/admin/components/graph/regions.js` repeats the four values of
+`Sequence::EDITORIAL_STATUSES` in order, and its own comment says it "mirrors
+`Sequence::EDITORIAL_STATUSES` on the server". `graph-model.js` re-encodes the
+one-entry-per-region rule alongside it. A PHP-side builder cannot reach these,
+so whatever Section 4 ships has to decide whether the JS reads a generated
+artifact or stays a hand-maintained mirror with a test that fails when the two
+disagree.
+
 Two facts make this fragile:
 
 - **The three full copies have already drifted.** The REST copy declares `agent`
