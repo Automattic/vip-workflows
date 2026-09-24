@@ -89,11 +89,10 @@ function execute_validate_sequence( ?array $input = null ) {
 
 	// The controller gate, which create_item()/update_item()/import_sequence()
 	// run for EVERY sequence type — so it runs here before the phase branch
-	// below, which is exempt from the stage rules and from nothing else. Each
-	// check is its own statement rather than an entry in one array, because an
-	// array literal evaluates every call before anything can look at the first
-	// answer: this stops at the rule the config actually breaks, the way a write
-	// does.
+	// below, which is exempt from the stage rules and from nothing else. Unlike
+	// a write, which stops at the first rule broken, every check here runs and
+	// contributes its own first error, so one call names every category the
+	// config breaks.
 	//
 	// A phase sequence stores its graph under `phases` and hands it to the write
 	// path through the same `statuses` REST field, so the gate sees one array
@@ -147,7 +146,9 @@ function execute_validate_sequence( ?array $input = null ) {
 			'normalization'         => array(),
 			'stages_missing_region' => array(),
 			'regions_missing_entry' => array(),
-			'normalized_config'     => $config,
+			// Withheld on rejection for the same reason as the stage path below:
+			// a config a controller check refused is not one a caller may write.
+			'normalized_config'     => empty( $errors ) ? $config : null,
 			'notes'                 => array(
 				__( 'Phase sequences are exempt from the stage graph rules; the write gate normalizes nothing for them.', 'vip-workflows' ),
 			),
@@ -162,8 +163,6 @@ function execute_validate_sequence( ?array $input = null ) {
 
 	$normalized_config = null;
 
-	// Only worth asking what the write gate would normalize once the config has
-	// something to normalize: a write that fails the controller gate never reaches it.
 	// The stage-graph gate runs regardless of the controller checks, so its error
 	// joins theirs in one pass. It still reports the FIRST graph rule broken (the
 	// gate's own contract); collecting every graph rule here would reproduce the
@@ -174,6 +173,15 @@ function execute_validate_sequence( ?array $input = null ) {
 		$errors[] = $e->getMessage();
 	}
 
+	// The gate applies the transition-input shape rule that normalize_input_shape()
+	// already applied above, to the same transitions, so a config that breaks it
+	// would be named twice in the same words. One sentence per rule broken.
+	$errors = array_values( array_unique( $errors ) );
+
+	// What the gate would write is offered only once nothing rejects the config: a
+	// normalized config that still carries a rejected metadata field or agent is
+	// not something a caller may write. The normalization list stays, because it
+	// describes the stages the gate did accept.
 	return array(
 		'sequence_id'           => $source_id,
 		'type'                  => $type,
@@ -184,7 +192,7 @@ function execute_validate_sequence( ?array $input = null ) {
 			: describe_sequence_normalization( $statuses, $normalized_config['statuses'] ?? array() ),
 		'stages_missing_region' => $stages_missing_region,
 		'regions_missing_entry' => $regions_missing_entry,
-		'normalized_config'     => $normalized_config,
+		'normalized_config'     => empty( $errors ) ? $normalized_config : null,
 		'notes'                 => array(),
 	);
 }
@@ -302,7 +310,7 @@ function register_validate_sequence(): void {
 					),
 					'normalization'         => array(
 						'type'        => 'array',
-						'description' => __( 'What the write gate would silently change (defaulted status regions, auto-assigned region entry checkpoints, normalized keys).', 'vip-workflows' ),
+						'description' => __( 'What the write gate would silently change (defaulted status regions, auto-assigned region entry checkpoints, normalized keys). Reported whenever the stage graph passes the gate, even when another category was rejected.', 'vip-workflows' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 					'stages_missing_region' => array(
@@ -317,7 +325,7 @@ function register_validate_sequence(): void {
 					),
 					'normalized_config'     => array(
 						'type'        => array( 'object', 'null' ),
-						'description' => __( 'The configuration as it would be persisted, or null when it was rejected.', 'vip-workflows' ),
+						'description' => __( 'The configuration as it would be persisted, or null when any category rejected it.', 'vip-workflows' ),
 					),
 					'notes'                 => array(
 						'type'        => 'array',
