@@ -21,6 +21,7 @@ use Brain\Monkey\Functions;
 // other test file happens to pull it in, so this file does not depend on
 // execution order.
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/functions.php';
+require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/create-sequence.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/update-sequence.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/activate-sequence.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/validate-sequence.php';
@@ -57,6 +58,7 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
             }
         );
 
+        \VIPWorkflows\Abilities\Tools\register_create_sequence();
         \VIPWorkflows\Abilities\Tools\register_update_sequence();
         \VIPWorkflows\Abilities\Tools\register_activate_sequence();
         \VIPWorkflows\Abilities\Tools\register_validate_sequence();
@@ -208,5 +210,48 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
 
         $this->assertFalse( $annotations['readonly'] );
         $this->assertTrue( $annotations['destructive'] );
+    }
+
+    /**
+     * The stage schema is hand-copied between create and update, so the two
+     * can describe the same field differently without anything noticing. Pin
+     * the two descriptions that have drifted before, so the next edit to one
+     * has to be made to the other.
+     *
+     * @return void
+     */
+    public function test_create_and_update_describe_the_shared_stage_fields_identically(): void
+    {
+        $create = $this->registered['vip-workflows/create-sequence']['input_schema']['properties']['statuses']['items']['properties'];
+        $update = $this->registered['vip-workflows/update-sequence']['input_schema']['properties']['statuses']['items']['properties'];
+
+        $this->assertSame(
+            $create['status']['enum'],
+            $update['status']['enum'],
+            'create-sequence and update-sequence must offer the same status regions.'
+        );
+        $this->assertSame(
+            $create['status']['description'],
+            $update['status']['description'],
+            'create-sequence and update-sequence must describe the status region identically.'
+        );
+
+        $create_routing = $create['transitions']['items']['properties']['agent']['properties']['routing'] ?? null;
+        $update_routing = $update['transitions']['items']['properties']['agent']['properties']['routing'] ?? null;
+        if ( null === $create_routing ) {
+            $create_routing = $create['agent']['properties']['routing'];
+            $update_routing = $update['agent']['properties']['routing'];
+        }
+
+        $this->assertSame(
+            $create_routing['description'],
+            $update_routing['description'],
+            'create-sequence and update-sequence must describe agent routing identically.'
+        );
+        $this->assertSame(
+            array_keys( $create_routing['properties'] ),
+            array_keys( $update_routing['properties'] ),
+            'create-sequence and update-sequence must offer the same agent routing outcomes.'
+        );
     }
 }
