@@ -1,6 +1,6 @@
 {
 	"type": "workflow",
-	"name": "Editorial Review",
+	"name": "Editorial Review (example)",
 	"description": "Draft, editorial review, ready to publish, then post-publish promotion, with editorial metadata fields.",
 	"config": {
 		"version": "2.0",
