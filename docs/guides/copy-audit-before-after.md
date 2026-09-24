@@ -52,7 +52,7 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Headline Suggestions | Headline suggestions | `class-headline-suggestions.php` |
 | Import Sequence | Import sequence | `import-sequence.php` |
 | In Pipeline | In pipeline | `RecentProjects.js` |
-| In Review | In review | `editorial-review-sequence.json` |
+| In Review | In review | `class-seeder.php` |
 | Kanban Board | Kanban board | `KanbanBoard.js` |
 | Key Event | Key event | `PromptPreviewModal.js` |
 | Key Points | Key points | `IdeationSummary.js` |
@@ -74,15 +74,15 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Pre-publish Checklist | Pre-publish checklist | `class-checklist-tool.php` |
 | Project Name | Project name | `ProjectEditModal.js` |
 | Project Summary | Project summary | `IdeationSummary.js` |
-| Publish Now | Publish now | `editorial-review-sequence.json` |
+| Publish Now | Publish now | `class-seeder.php` |
 | Published Only | Published only | `Calendar.js` |
 | Readability Analysis | Readability analysis | `readability.php` |
 | Ready to Publish | Ready to publish | `multimedia-sequence.json` |
 | Remove From Workflow | Remove from workflow | `remove-from-workflow.php` |
-| Request Changes | Request changes | `editorial-review-sequence.json` |
+| Request Changes | Request changes | `class-seeder.php` |
 | Seed Analyst | Seed analyst | `class-seed-analyst.php` |
 | Select a Workflow | Select a workflow | `WorkflowRequiredModal.js` |
-| Send Back for Review | Send back for review | `editorial-review-sequence.json` |
+| Send Back for Review | Send back for review | `class-seeder.php` |
 | SEO Check | SEO check | `seo-check.php` |
 | Sequence Activated | Sequence activated | `class-status-manager.php` |
 | Sequence Deactivated | Sequence deactivated | `class-status-manager.php` |
@@ -95,7 +95,7 @@ Rules and rationale: [`copy-standard.md`](copy-standard.md). Test-only changes a
 | Smart Linking Check | Smart linking check | `class-smart-linking-agent.php` |
 | Source Detail | Source detail | `ArticleCard.js` |
 | Stage Changed | Stage changed | `class-notification-dispatcher.php` |
-| Submit for Review | Submit for review | `editorial-review-sequence.json` |
+| Submit for Review | Submit for review | `class-seeder.php` |
 | Tag Sanity Check | Tag sanity check | `workflow-agent-tag-sanity-check.php` |
 | Test Email | Test email | `class-email-channel.php` |
 | Test Message | Test message | `class-slack-channel.php` |
@@ -365,8 +365,8 @@ These were hardcoded English inside an inline script and could not be translated
 | Before | After | Where |
 |---|---|---|
 | A Slack emoji shortcode, or an https image URL | A Slack emoji shortcode, or an https image URL. | `NotificationChannelsTab.js` |
-| Approved and awaiting publication | Approved and awaiting publication. | `editorial-review-sequence.json` |
-| Author is writing the content | Author is writing the content. | `editorial-review-sequence.json` |
-| Content is live | Content is live. | `editorial-review-sequence.json` |
-| Editor is reviewing the content | Editor is reviewing the content. | `editorial-review-sequence.json` |
-| Standard editorial workflow for blog posts and articles | Standard editorial workflow for blog posts and articles. | `editorial-review-sequence.json` |
+| Approved and awaiting publication | Approved and awaiting publication. | `class-seeder.php` |
+| Author is writing the content | Author is writing the content. | `class-seeder.php` |
+| Content is live | Content is live. | `class-seeder.php` |
+| Editor is reviewing the content | Editor is reviewing the content. | `class-seeder.php` |
+| Standard editorial workflow for blog posts and articles | Standard editorial workflow for blog posts and articles. | `editorial-review-sequence.json` (since removed; `class-seeder.php` still carries this one unpunctuated) |
