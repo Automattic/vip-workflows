@@ -73,7 +73,7 @@ Two things to get right (see the [region model](../reference/sequence-schema.md#
 curl -s -u "$USER:$APP_PASSWORD" "$SITE/wp-json/vip-workflows/v1/sequences/options"
 ```
 
-The `post_types` array lists the post types a sequence may target.
+The `post_types` array lists the post types a sequence may target, as `{ "value": "post", "label": "Posts" }` objects. Your config's `post_types` takes the `value` slugs, not the objects.
 
 ## 3. Dry-run it
 

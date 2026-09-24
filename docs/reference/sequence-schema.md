@@ -80,7 +80,7 @@ A transition may capture inputs; at most **one** may be an assignment:
 ```
 
 - `meta_key` must be **unique across the whole sequence**. Import regenerates these keys, so a hand-authored `meta_key` survives create but is replaced on import.
-- `assignee_type` is `user` or `role` — the two values the editor offers a picker for. Other strings are stored as given and not validated at write time, so use one only when an extension handles it.
+- `assignee_type` is `user`, `role`, or `agent` — the three `AssignmentManager::get_assignee_types()` registers, extensible through the `vip_workflows_assignee_types` filter. The editor offers a picker for `user` and `role`. Other strings are stored as given and not validated at write time, so use one only when an extension handles it.
 - The legacy singular `input` key is refused alongside `inputs`; use `inputs` (plural).
 
 ## Metadata fields (`metadata_fields[]`)
