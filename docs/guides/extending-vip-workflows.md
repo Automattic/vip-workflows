@@ -14,6 +14,7 @@ VIP Workflows is designed to be extended. You don't fork it; you ship a small Wo
 | Add a signal to story prompts another plugin fetched | Filter `vip_workflows_discovery_prompts` — cached reads only ([`reference/extension-points.md`](../reference/extension-points.md#10-discovery-prompt-enrichment)) |
 | Add an admin page under the Workflow shell | Standard `add_submenu_page` with parent slug `vip-workflows` (see [`vip-workflows/docs/PLUGIN-INTEGRATION.md`](../../vip-workflows/docs/PLUGIN-INTEGRATION.md)) |
 | Add a new internal subsystem to the core plugin | Implement `ModuleInterface`, register via `vip_workflows_register_modules` ([`specs/shipped/module-registry.md`](../specs/shipped/module-registry.md)) |
+| Ship or script an editorial workflow without the graph editor | Author the sequence JSON and create it over REST or the Abilities API (see [`vip-workflows/skills/create-sequence/SKILL.md`](../../vip-workflows/skills/create-sequence/SKILL.md)) |
 
 ## Extension plugin anatomy
 
@@ -47,6 +48,7 @@ The `vip-workflows/skills/` directory contains copy-pasteable SKILL docs written
 - **[create-agent/SKILL.md](../../vip-workflows/skills/create-agent/SKILL.md)** — Scaffolds a research, discovery, combined, or stage-capable agent. Covers input/output schemas, agent manifests, `stage_eligible`, and returning pinnable cards or stage outcomes.
 - **[create-tool/SKILL.md](../../vip-workflows/skills/create-tool/SKILL.md)** — Scaffolds a check or helper tool. Covers `AbilityResult`, hard/soft enforcement, `settings_schema` for configurable fields, modal UI for helpers.
 - **[create-notification-channel/SKILL.md](../../vip-workflows/skills/create-notification-channel/SKILL.md)** — Scaffolds a channel plugin. Covers `NotificationChannel` base class, filter registration, per-user config, template rendering.
+- **[create-sequence/SKILL.md](../../vip-workflows/skills/create-sequence/SKILL.md)** — Authors a workflow (sequence) as JSON without the graph editor. Covers the introspect → draft → validate → create → activate loop, the status-region model, and the FLAT vs WRAPPED request shapes.
 
 ## Adding an admin page
 
