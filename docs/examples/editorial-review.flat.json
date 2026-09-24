@@ -1,0 +1,71 @@
+{
+	"name": "Editorial Review (example)",
+	"type": "workflow",
+	"description": "Draft, editorial review, ready to publish, then post-publish promotion, with editorial metadata fields.",
+	"post_types": [ "post" ],
+	"settings": {
+		"allow_skip": false
+	},
+	"statuses": [
+		{
+			"key": "draft",
+			"label": "Draft",
+			"status": "draft",
+			"region_entry": true,
+			"transitions": [
+				{ "to": "review", "label": "Submit for review" }
+			]
+		},
+		{
+			"key": "review",
+			"label": "In review",
+			"status": "draft",
+			"transitions": [
+				{ "to": "ready", "label": "Approve", "required_tools": [ "vip-workflows/readability" ] },
+				{ "to": "draft", "label": "Request changes" }
+			]
+		},
+		{
+			"key": "ready",
+			"label": "Ready to publish",
+			"status": "draft",
+			"transitions": [
+				{ "to": "publish", "label": "Publish now", "allowed_roles": [ "editor", "administrator" ] },
+				{ "to": "review", "label": "Send back for review" }
+			]
+		},
+		{
+			"key": "publish",
+			"label": "Published",
+			"status": "publish",
+			"region_entry": true,
+			"transitions": [
+				{ "to": "promote", "label": "Promote" }
+			]
+		},
+		{
+			"key": "promote",
+			"label": "Promote",
+			"status": "publish",
+			"is_terminal": true,
+			"transitions": []
+		}
+	],
+	"metadata_fields": [
+		{
+			"key": "content_pillar",
+			"label": "Content pillar",
+			"type": "select",
+			"options": [ "News", "Opinion", "Analysis", "Feature" ],
+			"required": false,
+			"searchable": true
+		},
+		{
+			"key": "seo_focus_keyword",
+			"label": "SEO focus keyword",
+			"type": "text",
+			"required": false,
+			"searchable": true
+		}
+	]
+}
