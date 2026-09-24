@@ -118,7 +118,9 @@ function execute_validate_sequence( ?array $input = null ) {
 
 	// Each independent check runs and contributes, so a caller sees every category
 	// it breaks in one pass rather than fixing one, re-validating, and finding the
-	// next. The checks are read-only and order-independent.
+	// next. The checks are read-only, but not order-independent: the two that read
+	// `$statuses` need the conversion above to have happened, because on the legacy
+	// shape an assignment slot is invisible to validate_assignment_keys().
 	$metadata_check = $controller->validate_metadata_fields( $config['metadata_fields'] ?? array() );
 	if ( is_wp_error( $metadata_check ) ) {
 		$errors[] = $metadata_check->get_error_message();
