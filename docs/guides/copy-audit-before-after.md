@@ -369,4 +369,4 @@ These were hardcoded English inside an inline script and could not be translated
 | Author is writing the content | Author is writing the content. | `class-seeder.php` |
 | Content is live | Content is live. | `class-seeder.php` |
 | Editor is reviewing the content | Editor is reviewing the content. | `class-seeder.php` |
-| Standard editorial workflow for blog posts and articles | Standard editorial workflow for blog posts and articles. | `class-seeder.php` |
+| Standard editorial workflow for blog posts and articles | Standard editorial workflow for blog posts and articles. | `editorial-review-sequence.json` (since removed; `class-seeder.php` still carries this one unpunctuated) |
