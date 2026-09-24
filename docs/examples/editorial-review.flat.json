@@ -1,7 +1,7 @@
 {
 	"name": "Editorial Review",
 	"type": "workflow",
-	"description": "Draft, editorial review, ready-to-publish, then post-publish promotion. FLAT shape: POST it to /wp-json/vip-workflows/v1/sequences (or the create-sequence ability).",
+	"description": "Draft, editorial review, ready to publish, then post-publish promotion, with editorial metadata fields.",
 	"post_types": [ "post" ],
 	"settings": {
 		"allow_skip": false

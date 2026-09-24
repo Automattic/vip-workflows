@@ -1,7 +1,7 @@
 {
 	"type": "workflow",
 	"name": "Editorial Review",
-	"description": "Draft, editorial review, ready-to-publish, then post-publish promotion. WRAPPED shape: POST it to /wp-json/vip-workflows/v1/sequences/import (this is also the shape /sequences/{id}/export emits). Import always creates a draft; activate it afterwards.",
+	"description": "Draft, editorial review, ready to publish, then post-publish promotion, with editorial metadata fields.",
 	"config": {
 		"version": "2.0",
 		"post_types": [ "post" ],
