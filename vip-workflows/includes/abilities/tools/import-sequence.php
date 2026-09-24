@@ -2,9 +2,11 @@
 /**
  * Import Sequence ability.
  *
- * Imports a workflow sequence from an exported JSON definition. Thin adapter over
- * SequencesController::import_sequence() so slug dedup, metadata validation,
- * assignment-meta regeneration, and the phase-type Ideation gate are reused.
+ * Imports a workflow sequence from the WRAPPED envelope the export endpoint
+ * emits — {type, name, description, config}, passed under `sequence_json`. Thin
+ * adapter over SequencesController::import_sequence() so slug dedup, metadata
+ * validation, assignment-meta regeneration, and the phase-type Ideation gate are
+ * reused.
  *
  * @package VIPWorkflows
  */
