@@ -59,7 +59,7 @@ apply_filters('vip_workflows_media_providers', $providers);
 # Sequences (type: workflow/editorial, phase)
 GET/POST    /vip-workflows/v1/sequences                      # POST create: FLAT body {name*, statuses*, ...}; manage_options
 GET/PUT/DEL /vip-workflows/v1/sequences/{id}                 # PUT/PATCH is a FULL replacement; manage_options
-POST        /vip-workflows/v1/sequences/import               # WRAPPED body {sequence_json:{type,name,config}}; creates a DRAFT; manage_options
+POST        /vip-workflows/v1/sequences/import               # WRAPPED under a key: {sequence_json:{type,name,description?,config}, name?:override}; creates a DRAFT; manage_options
 GET         /vip-workflows/v1/sequences/{id}/export          # WRAPPED {name,type,description,config} (import shape); edit_posts
 GET         /vip-workflows/v1/sequences/options              # eligible post types + phase graph; edit_posts
 GET         /vip-workflows/v1/sequences/{id}/stats           # per-stage counts (author-scoped); edit_posts
