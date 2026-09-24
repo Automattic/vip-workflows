@@ -36,4 +36,5 @@
 
 - [Shipped feature specifications](specs/README.md)
 - [Multimedia sequence demo](demos/multimedia-sequence.json)
+- [Sequence examples](examples/) — the Editorial Review pipeline in the FLAT and WRAPPED shapes.
 - [Plugin integration](../vip-workflows/docs/PLUGIN-INTEGRATION.md)

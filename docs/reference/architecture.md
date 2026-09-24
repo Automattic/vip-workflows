@@ -48,7 +48,6 @@ See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarc
 
 ```json
 {
-  "version": "2.0",
   "post_types": ["post"],
   "statuses": [
     {
