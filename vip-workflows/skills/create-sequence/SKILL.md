@@ -3,8 +3,7 @@ name: create-vip-workflows-sequence
 description: >-
   Author a VIP Workflows editorial workflow (a "sequence") as JSON and create it
   without the UI. Use when the user wants to design, script, or import a workflow
-  through the REST API, the Abilities API / MCP, or WP-CLI rather than the graph
-  editor.
+  through the REST API or the Abilities API / MCP rather than the graph editor.
 ---
 # Author a VIP Workflows Sequence Without the UI
 
@@ -15,12 +14,63 @@ A workflow is a **sequence**: a JSON config of stages, transitions, required too
 ## 1. Introspect
 
 - `GET /wp-json/vip-workflows/v1/sequences/options` -> the post types a sequence may attach to, and the phase-transition graph.
-- The `vip-workflows/get-sequences` ability -> the shape of sequences that already exist, to copy.
+- The `vip-workflows/get-sequences` ability -> the **active** sequences: id, name, type, and a stage summary (key, label, region, entry flag). Two limits to know: draft sequences are not listed at all (every import lands as a draft, so use the id the import returned), and the stage summary omits transitions, tools, roles, inputs, agents and metadata fields — a config built from it would have stages with no exits. Use it to find a sequence, not to copy one.
+- To copy an existing sequence's full config, `GET /wp-json/vip-workflows/v1/sequences/{id}/export` -> the WRAPPED envelope with every field (section 4).
 - The `vip-workflows/create-sequence` and `vip-workflows/validate-sequence` ability input schemas describe every field; read them before drafting.
 
-## 2. Draft from the canonical template
+## 2. Draft from the canonical starter
 
-Start from `includes/sequences/templates/editorial-basic.json` (a valid, dependency-free Draft -> Review -> Published starter) and adapt it. For an agent-driven stage, copy the pattern in `tests/fixtures/ai-copy-desk-workflow.json`.
+Start from this valid, dependency-free Draft -> Review -> Published starter and adapt it. It is the FLAT shape (section 4), ready for `create-sequence` as-is. If you have the plugin source to hand, the same file ships at `includes/sequences/templates/editorial-basic.json`, and `docs/examples/` holds a fuller pipeline in both shapes.
+
+```json
+{
+	"name": "Editorial Basic",
+	"type": "workflow",
+	"post_types": [ "post" ],
+	"settings": {
+		"allow_skip": false
+	},
+	"statuses": [
+		{
+			"key": "draft",
+			"label": "Draft",
+			"status": "draft",
+			"region_entry": true,
+			"transitions": [
+				{ "to": "review", "label": "Submit for review" }
+			]
+		},
+		{
+			"key": "review",
+			"label": "In review",
+			"status": "draft",
+			"transitions": [
+				{ "to": "published", "label": "Approve" },
+				{ "to": "draft", "label": "Request changes" }
+			]
+		},
+		{
+			"key": "published",
+			"label": "Published",
+			"status": "publish",
+			"region_entry": true,
+			"is_terminal": true,
+			"transitions": []
+		}
+	],
+	"metadata_fields": [
+		{
+			"key": "seo_focus_keyword",
+			"label": "SEO focus keyword",
+			"type": "text",
+			"required": false,
+			"searchable": true
+		}
+	]
+}
+```
+
+For an agent-driven stage, export a sequence that already has one, or copy the pattern in the plugin source at `vip-workflows/tests/fixtures/ai-copy-desk-workflow.json` (a WRAPPED file: lift the stage out of `config.statuses`).
 
 ## 3. The region model (the part that trips people up)
 
@@ -32,10 +82,14 @@ Each **region you use** needs exactly **one** `region_entry: true` stage — the
 
 There are two on-the-wire shapes. Use the right one for the channel:
 
-- **FLAT** — top-level `name` + `statuses` (plus `post_types`, `settings`, `metadata_fields`). Used by `POST /wp-json/vip-workflows/v1/sequences` and the `vip-workflows/create-sequence` ability. See `docs/examples/editorial-review.flat.json`.
-- **WRAPPED** — `{ "type", "name", "description", "config": { "statuses", ... } }`. Used by `POST /sequences/import` and the `vip-workflows/import-sequence` ability, and it is the shape `GET /sequences/{id}/export` emits. See `docs/examples/editorial-review.wrapped.json`.
+- **FLAT** — top-level `name` + `statuses` (plus `type`, `description`, `post_types`, `settings`, `metadata_fields`). This is the request body for `POST /wp-json/vip-workflows/v1/sequences` and the input of the `vip-workflows/create-sequence` ability. The starter above is FLAT.
+- **WRAPPED** — the envelope `{ "type", "name", "description", "config": { "statuses", ... } }`. It is what `GET /sequences/{id}/export` emits, and what import consumes — but **not as the body itself**. Both import channels take the envelope as the value of a `sequence_json` parameter:
+  - `POST /wp-json/vip-workflows/v1/sequences/import` with body `{ "sequence_json": { ...envelope... } }`;
+  - the `vip-workflows/import-sequence` ability with input `{ "sequence_json": { ...envelope... }, "name": "optional override" }`.
 
-The `statuses`/`post_types`/`settings`/`metadata_fields` payload is identical in both; only the envelope differs. Feeding a WRAPPED body to create (or a FLAT body to import) fails.
+  So to re-import an export, wrap the exported document in `sequence_json`.
+
+The `statuses`/`post_types`/`settings`/`metadata_fields` payload is identical in both; only the envelope differs. Feeding a WRAPPED envelope to create, an envelope to import without the `sequence_json` wrapper, or a FLAT body to import all fail.
 
 ## 5. Field reference (quick)
 
@@ -52,10 +106,12 @@ Call `vip-workflows/validate-sequence` (read-only, idempotent) with your propose
 ## 7. Create, then activate
 
 - `vip-workflows/create-sequence` (or `POST /sequences`, FLAT) creates the sequence and defaults it to **active**. Pass `status: "draft"` to stage it first.
-- `vip-workflows/import-sequence` (or `POST /sequences/import`, WRAPPED) always creates a **draft** — then call `vip-workflows/activate-sequence` with `active: true` to make it live. Activation is refused if the stored config is invalid.
+- `vip-workflows/import-sequence` (or `POST /sequences/import`), with the WRAPPED envelope under `sequence_json`, always creates a **draft** — then call `vip-workflows/activate-sequence` with `active: true` to make it live. Activation is refused if the stored config is invalid.
 - `vip-workflows/update-sequence` (or `PUT /sequences/{id}`) is a **full replacement**: any field you omit is cleared. Read/validate the stored config first.
 
-All of the create/update/import/activate abilities require `manage_options`; export and options require only `edit_posts`.
+From PHP (`wp eval-file`, an activation hook, a migration) call the same abilities with `wp_get_ability( 'vip-workflows/create-sequence' )->execute( $config )`. The plugin source carries a worked example at `vip-workflows/tests/fixtures/import-ai-copy-desk.php`.
+
+The create, update, import, activate and validate abilities all require `manage_options` (validate is read-only but returns the full stored configuration); export and options require only `edit_posts`.
 
 ## 8. Verify
 

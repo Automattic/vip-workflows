@@ -68,7 +68,7 @@ class SkillFilesTest extends TestCase
 		$contents = file_get_contents( $this->plugin_dir() . '/skills/create-sequence/SKILL.md' );
 
 		$this->assertStringContainsString( 'name: create-vip-workflows-sequence', $contents );
-		foreach ( array( 'region_entry', 'exactly', 'validate-sequence', 'activate-sequence', 'FLAT', 'WRAPPED' ) as $needle ) {
+		foreach ( array( 'region_entry', 'exactly', 'validate-sequence', 'activate-sequence', 'FLAT', 'WRAPPED', 'sequence_json', '"key": "draft"' ) as $needle ) {
 			$this->assertStringContainsString( $needle, $contents, "create-sequence skill should mention {$needle}" );
 		}
 	}
