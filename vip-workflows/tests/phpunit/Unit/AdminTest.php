@@ -189,6 +189,64 @@ class AdminTest extends TestCase
     }
 
     /**
+     * Every screen that renders an install button must carry the skill bodies.
+     *
+     * InstallSkillButton returns null when its content is missing, so a screen
+     * missing from the list loses the download silently — no error, no empty
+     * state, just an absent button. Notifications was in exactly that state:
+     * Notifications.js passes skillType="notification-channel" to HowToModal,
+     * but the enqueue gate named only the Tools and Agents screens.
+     *
+     * @dataProvider skill_screen_provider
+     */
+    public function test_skill_screens_carry_the_skill_bodies( string $hook_suffix ): void
+    {
+        $this->assertTrue(
+            Admin::screen_carries_skills( $hook_suffix ),
+            "The '{$hook_suffix}' screen renders an install button, so it must receive the skill bodies."
+        );
+    }
+
+    /**
+     * The hook suffix of every screen that passes a skillType to HowToModal.
+     *
+     * @return array<string, array{0: string}>
+     */
+    public static function skill_screen_provider(): array
+    {
+        return array(
+            'tools'         => array( 'workflows_page_vip-workflows-tools' ),
+            'agents'        => array( 'workflows_page_vip-workflows-agents' ),
+            'notifications' => array( 'workflows_page_vip-workflows-notifications' ),
+        );
+    }
+
+    /**
+     * The payload is inlined into the page, so screens with no install button
+     * must not pay for it.
+     *
+     * @dataProvider non_skill_hook_provider
+     */
+    public function test_other_screens_do_not_carry_the_skill_bodies( string $hook_suffix ): void
+    {
+        $this->assertFalse(
+            Admin::screen_carries_skills( $hook_suffix ),
+            "The '{$hook_suffix}' screen has no install button and should not receive the skill bodies."
+        );
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function non_skill_hook_provider(): array
+    {
+        return array(
+            'workflows landing page' => array( 'toplevel_page_vip-workflows' ),
+            'unrelated core page'    => array( 'plugins.php' ),
+        );
+    }
+
+    /**
      * @return array<string, array{0: string}>
      */
     public static function foreign_hook_provider(): array
