@@ -35,3 +35,7 @@
 - [Shipped feature specifications](specs/README.md)
 - [Multimedia sequence demo](demos/multimedia-sequence.json)
 - [Plugin integration](../vip-workflows/docs/PLUGIN-INTEGRATION.md)
+
+## Proposals
+
+- [RFC: A single source of truth for the sequence schema](proposals/sequence-schema-single-source-of-truth.md) — open for discussion.
