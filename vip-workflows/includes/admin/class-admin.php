@@ -448,9 +448,12 @@ class Admin implements ModuleInterface {
 			'experiments' => $this->get_experiment_flags(),
 		);
 
+		// Only the screens that render an install button carry the skill bodies;
+		// they are inlined into the page, so every other screen pays nothing.
 		if (
 			str_contains( $hook_suffix, 'vip-workflows-tools' )
 			|| str_contains( $hook_suffix, 'vip-workflows-agents' )
+			|| str_contains( $hook_suffix, 'vip-workflows-sequences' )
 		) {
 			$localize_data['skills'] = $this->load_skill_files();
 		}
@@ -737,6 +740,7 @@ class Admin implements ModuleInterface {
 			'agent'                => 'skills/create-agent/SKILL.md',
 			'tool'                 => 'skills/create-tool/SKILL.md',
 			'notification-channel' => 'skills/create-notification-channel/SKILL.md',
+			'sequence'             => 'skills/create-sequence/SKILL.md',
 		);
 
 		foreach ( $map as $type => $relative_path ) {

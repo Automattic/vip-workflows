@@ -36,6 +36,7 @@ class SkillFilesTest extends TestCase
 			'skills/create-agent/SKILL.md',
 			'skills/create-tool/SKILL.md',
 			'skills/create-notification-channel/SKILL.md',
+			'skills/create-sequence/SKILL.md',
 		);
 
 		foreach ( $expected as $relative ) {
@@ -60,6 +61,16 @@ class SkillFilesTest extends TestCase
 
 		$this->assertStringContainsString( 'name: create-vip-workflows-agent', $contents );
 		$this->assertStringNotContainsString( 'create-vip-workflows-assistant', $contents );
+	}
+
+	public function test_sequence_skill_teaches_the_no_ui_loop(): void
+	{
+		$contents = file_get_contents( $this->plugin_dir() . '/skills/create-sequence/SKILL.md' );
+
+		$this->assertStringContainsString( 'name: create-vip-workflows-sequence', $contents );
+		foreach ( array( 'region_entry', 'exactly', 'validate-sequence', 'activate-sequence', 'FLAT', 'WRAPPED', 'sequence_json', '"key": "draft"' ) as $needle ) {
+			$this->assertStringContainsString( $needle, $contents, "create-sequence skill should mention {$needle}" );
+		}
 	}
 
 	public function test_agent_skill_uses_agent_plugin_naming_convention(): void
