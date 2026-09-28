@@ -12,6 +12,7 @@ Use the smallest reference that covers the task:
 | [Admin UI](reference/admin-ui.md) | React applications and admin surfaces |
 | [Extension points](reference/extension-points.md) | Hooks, registries, modules, tools, providers, and REST extensions |
 | [Quick reference](reference/quick-reference.md) | Common APIs, hooks, endpoints, and debugging queries |
+| [Sequence schema](reference/sequence-schema.md) | Field-by-field reference for authoring a workflow (sequence) config without the UI |
 | [AI models](reference/ai-supported-models.md) | Provider support and AI failure modes |
 
 Read the relevant source and tests before changing behavior. Required data remains required: report malformed state rather than adding silent fallback or repair logic. Shared functionality belongs in `vip-workflows/includes/integrations/`, and generated assets under `vip-workflows/build/` are not edited directly.
