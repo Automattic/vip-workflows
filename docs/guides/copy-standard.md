@@ -390,8 +390,7 @@ bans them and the checkmark is doing an icon's job.
 
 ## Bundled content is product copy
 
-`vip-workflows/includes/database/class-seeder.php` and
-`editorial-review-sequence.json` define the default *Editorial Review* sequence —
+`vip-workflows/includes/database/class-seeder.php` defines the default *Editorial Review* sequence —
 the first workflow every new site sees, and the template most sites edit rather
 than replace. Every label in it is Title Case:
 
@@ -472,7 +471,7 @@ All of it is fixed except finding 2, which is deferred; the table is the record 
 | 13 | `...` instead of `…` | 7 (all PHP; JS was already consistent) |
 | 14 | Template-variable dumps as helper text | 9 prompt descriptions, duplicating a `variables` array the registry already models and REST already returns |
 | 15 | `successfully` in success messages | 4 |
-| 16 | Bundled default sequence entirely Title Case | 6 labels in `class-seeder.php` + `editorial-review-sequence.json` |
+| 16 | Bundled default sequence entirely Title Case | 6 labels in `class-seeder.php` |
 | 17 | Emoji in a label | 1 |
 | 18 | Action-vocabulary violations | **1** (`Start over` → `Discard`) |
 | 19 | Vacuous page subtitles restating the page title | 5 |
