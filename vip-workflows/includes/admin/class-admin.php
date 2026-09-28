@@ -423,6 +423,44 @@ class Admin implements ModuleInterface {
 	}
 
 	/**
+	 * The screens whose page carries the skill bodies.
+	 *
+	 * A skill's SKILL.md is inlined into the page it is offered from, so only the
+	 * screens that render an install button pay for it. Every entry here has a
+	 * screen that passes a `skillType` to HowToModal, and every such screen needs
+	 * an entry: InstallSkillButton renders nothing at all when its content is
+	 * missing, so a screen left out loses the download with no error anywhere.
+	 *
+	 * @var string[]
+	 */
+	private const SKILL_SCREENS = array(
+		'vip-workflows-tools',
+		'vip-workflows-agents',
+		'vip-workflows-sequences',
+		'vip-workflows-notifications',
+	);
+
+	/**
+	 * Whether this admin screen offers a skill download.
+	 *
+	 * Matched the way enqueue_scripts() matches the plugin's own pages: a submenu
+	 * hook is `workflows_page_vip-workflows-*`, so the slug is a substring rather
+	 * than the whole suffix.
+	 *
+	 * @param  string $hook_suffix Current page hook.
+	 * @return bool True when the page should receive the skill bodies.
+	 */
+	public static function screen_carries_skills( string $hook_suffix ): bool {
+		foreach ( self::SKILL_SCREENS as $screen ) {
+			if ( str_contains( $hook_suffix, $screen ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Enqueue admin scripts and styles.
 	 * Loads on all VIP Workflows pages, including plugin-registered submenus.
 	 *
@@ -448,13 +486,7 @@ class Admin implements ModuleInterface {
 			'experiments' => $this->get_experiment_flags(),
 		);
 
-		// Only the screens that render an install button carry the skill bodies;
-		// they are inlined into the page, so every other screen pays nothing.
-		if (
-			str_contains( $hook_suffix, 'vip-workflows-tools' )
-			|| str_contains( $hook_suffix, 'vip-workflows-agents' )
-			|| str_contains( $hook_suffix, 'vip-workflows-sequences' )
-		) {
+		if ( self::screen_carries_skills( $hook_suffix ) ) {
 			$localize_data['skills'] = $this->load_skill_files();
 		}
 
