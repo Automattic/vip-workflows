@@ -165,7 +165,7 @@ function register_update_sequence(): void {
 		UPDATE_SEQUENCE_ABILITY_ID,
 		array(
 			'label'               => __( 'Update sequence', 'vip-workflows' ),
-			'description'         => __( 'Replaces the configuration of an existing workflow sequence — its statuses, transitions, required tools, role permissions and metadata fields. This is a full replacement, not a patch: any field you omit is cleared, so read the sequence first (Validate Sequence returns its stored configuration). Cannot change whether the sequence is active; use Activate Sequence for that.', 'vip-workflows' ),
+			'description'         => __( 'Replaces the configuration of an existing workflow sequence — its statuses, transitions, required tools, role permissions and metadata fields. Takes a FLAT body: name and statuses at the top level, plus optional description, post_types, settings, metadata_fields — not the WRAPPED {type,name,config} shape. Unlike create-sequence it accepts no type and no status. This is a full replacement, not a patch: any field you omit is cleared, so read the sequence first (Validate Sequence returns its stored configuration). Cannot change whether the sequence is active; use Activate Sequence for that.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -225,7 +225,7 @@ function register_update_sequence(): void {
 								),
 								'status'         => array(
 									'type'        => 'string',
-									'description' => __( 'Core status region this stage lives in. Defaults to "draft".', 'vip-workflows' ),
+									'description' => __( 'Core status region this stage lives in: one of "draft", "pending", "private", "publish". Defaults to "draft"; a value outside these is rejected.', 'vip-workflows' ),
 									'enum'        => Sequence::EDITORIAL_STATUSES,
 								),
 								'region_entry'   => array(
@@ -284,7 +284,7 @@ function register_update_sequence(): void {
 										),
 										'routing'    => array(
 											'type'        => 'object',
-											'description' => __( 'Maps agent outcomes to destination status keys. Each target must be a configured transition of this status. "error" is required.', 'vip-workflows' ),
+											'description' => __( 'Maps agent outcomes to destination status keys. Each target must be a configured transition of this status. Every outcome is optional: an outcome with no target falls back to the "error" destination, and without that the post stays at this status.', 'vip-workflows' ),
 											'properties'  => array(
 												'pass'  => array( 'type' => 'string' ),
 												'fail'  => array( 'type' => 'string' ),
