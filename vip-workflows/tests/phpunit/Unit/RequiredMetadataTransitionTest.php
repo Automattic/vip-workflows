@@ -28,6 +28,7 @@ use Brain\Monkey\Functions;
 use Mockery;
 use VIPWorkflows\Sequences\Sequence;
 use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Telemetry\Tracker;
 use VIPWorkflows\Workflow\PostTypeManager;
 use VIPWorkflows\Workflow\StatusManager;
 
@@ -92,9 +93,10 @@ class RequiredMetadataTransitionTest extends TestCase
      * @param  array  $metadata_fields Field configs for the sequence.
      * @param  string $from_region     Region the `draft` stage sits in.
      * @param  string $to_region       Region the `review` stage sits in.
+     * @param  array  $required_tools  Tool ids the draft -> review transition requires.
      * @return Sequence
      */
-    private function sequence_with_fields( array $metadata_fields, string $from_region = 'draft', string $to_region = 'publish' ): Sequence
+    private function sequence_with_fields( array $metadata_fields, string $from_region = 'draft', string $to_region = 'publish', array $required_tools = array() ): Sequence
     {
         $config = array(
             'statuses'        => array(
@@ -103,7 +105,10 @@ class RequiredMetadataTransitionTest extends TestCase
                     'label'        => 'Draft',
                     'status'       => $from_region,
                     'region_entry' => true,
-                    'transitions'  => array( array( 'to' => 'review', 'label' => 'Submit for Review' ) ),
+                    'transitions'  => array(
+                        array( 'to' => 'review', 'label' => 'Submit for Review' )
+                        + ( $required_tools ? array( 'required_tools' => $required_tools ) : array() ),
+                    ),
                 ),
                 array(
                     'key'          => 'review',
@@ -147,11 +152,12 @@ class RequiredMetadataTransitionTest extends TestCase
      * @param array  $meta            Stored post meta, keyed by full meta key.
      * @param string $from_region     Region the `draft` stage sits in.
      * @param string $to_region       Region the `review` stage sits in.
+     * @param array  $required_tools  Tool ids the draft -> review transition requires.
      */
-    private function stub_transition( array $metadata_fields, array $meta = array(), string $from_region = 'draft', string $to_region = 'publish' ): void
+    private function stub_transition( array $metadata_fields, array $meta = array(), string $from_region = 'draft', string $to_region = 'publish', array $required_tools = array() ): void
     {
         $this->stub_transition_from(
-            $this->sequence_with_fields( $metadata_fields, $from_region, $to_region ),
+            $this->sequence_with_fields( $metadata_fields, $from_region, $to_region, $required_tools ),
             'draft',
             $meta
         );
@@ -406,6 +412,177 @@ class RequiredMetadataTransitionTest extends TestCase
 
         $this->assertCount( 1, $blocked );
         $this->assertStringContainsString( 'Section', $blocked[0]['event_data'] );
+    }
+
+    // =========================================================================
+    // Product telemetry
+    // =========================================================================
+
+    /**
+     * Install the recording double and return it.
+     *
+     * @return RecordingTelemetry
+     */
+    private function telemetry(): RecordingTelemetry
+    {
+        $telemetry = new RecordingTelemetry();
+        Tracker::set_telemetry( $telemetry );
+
+        return $telemetry;
+    }
+
+    /**
+     * A refusal is reported with how many fields were missing and nothing about
+     * which: labels are authored by the customer.
+     */
+    public function test_a_blocked_gate_reports_how_many_fields_were_missing(): void
+    {
+        $telemetry = $this->telemetry();
+        $this->stub_transition(
+            array(
+                self::text_field( 'section', 'Section', true ),
+                self::text_field( 'desk', 'Desk', true ),
+            )
+        );
+
+        $this->status_manager->transition( 1, 'review' );
+
+        $events = $telemetry->of( 'transition_gate_finished' );
+        $this->assertCount( 1, $events );
+        $this->assertSame(
+            array(
+                'gate'       => 'required_metadata',
+                'result'     => 'blocked',
+                'hard_count' => 2,
+                'initiator'  => 'user',
+            ),
+            $events[0]['properties']
+        );
+        $this->assertSame( 5, $events[0]['user'] );
+    }
+
+    /**
+     * A gate that ran and found nothing missing is reported too: it is the
+     * denominator for how often the gate blocks.
+     */
+    public function test_a_passed_gate_is_reported(): void
+    {
+        $telemetry = $this->telemetry();
+        $this->stub_transition(
+            array( self::text_field( 'section', 'Section', true ) ),
+            array( self::meta_key( 'section' ) => 'Politics' )
+        );
+
+        $this->status_manager->transition( 1, 'review' );
+
+        $events = $telemetry->of( 'transition_gate_finished' );
+        $this->assertCount( 1, $events );
+        $this->assertSame( 'passed', $events[0]['properties']['result'] );
+        $this->assertSame( 0, $events[0]['properties']['hard_count'] );
+    }
+
+    /**
+     * A user whose role skips the gate is reported as having skipped it, so a
+     * site where everyone bypasses does not read as one where nothing is
+     * missing. No counts: nothing was checked.
+     */
+    public function test_a_bypassed_gate_is_reported_without_counts(): void
+    {
+        $telemetry = $this->telemetry();
+        $this->stub_transition( array( self::text_field( 'section', 'Section', true ) ) );
+        $this->stub_bypass_roles( array( 'chief' ), array() );
+
+        $this->status_manager->transition( 1, 'review' );
+
+        $events = $telemetry->of( 'transition_gate_finished' );
+        $this->assertCount( 1, $events );
+        $this->assertSame(
+            array(
+                'gate'      => 'required_metadata',
+                'result'    => 'bypassed',
+                'initiator' => 'user',
+            ),
+            $events[0]['properties']
+        );
+    }
+
+    /**
+     * A user whose role skips the required-tools gate is reported as having
+     * skipped it, with how many tools that was: otherwise a site where every
+     * administrator bypasses reads as one whose checks never fire.
+     */
+    public function test_a_bypassed_tools_gate_is_reported_with_how_many_tools_it_skipped(): void
+    {
+        $telemetry = $this->telemetry();
+        $this->stub_transition( array(), array(), 'draft', 'draft', array( 'a/check', 'b/check' ) );
+        $this->stub_bypass_roles( array(), array( 'chief' ) );
+
+        $this->assertTrue( $this->status_manager->transition( 1, 'review' ) );
+
+        $events = $telemetry->of( 'transition_gate_finished' );
+        $this->assertCount( 1, $events );
+        $this->assertSame(
+            array(
+                'gate'           => 'tools',
+                'result'         => 'bypassed',
+                'tools_required' => 2,
+                'initiator'      => 'user',
+            ),
+            $events[0]['properties']
+        );
+    }
+
+    /**
+     * With no required field there is no gate: reporting "passed" on every move
+     * into publish would count something that never ran.
+     */
+    public function test_a_sequence_with_no_required_field_reports_nothing(): void
+    {
+        $telemetry = $this->telemetry();
+        $this->stub_transition( array( self::text_field( 'section', 'Section', false ) ) );
+
+        $this->status_manager->transition( 1, 'review' );
+
+        $this->assertSame( array(), $telemetry->events );
+    }
+
+    /**
+     * The gate only applies on a crossing into publish, so a move that never
+     * reaches it reports nothing.
+     */
+    public function test_a_move_outside_the_gates_scope_reports_nothing(): void
+    {
+        $telemetry = $this->telemetry();
+        $this->stub_transition( array( self::text_field( 'section', 'Section', true ) ), array(), 'draft', 'pending' );
+
+        $this->status_manager->transition( 1, 'review' );
+
+        $this->assertSame( array(), $telemetry->events );
+    }
+
+    /**
+     * An agent's exit transition skips this gate entirely, so it is neither
+     * passed nor bypassed and reports nothing.
+     */
+    public function test_an_agent_transition_skips_the_gate_and_reports_nothing(): void
+    {
+        $telemetry = $this->telemetry();
+        $this->stub_transition( array( self::text_field( 'section', 'Section', true ) ) );
+        Functions\when( 'user_can' )->alias(
+            fn( $user_id, $capability, $post_id = null ) => 7 === $user_id
+                && ( ( 'edit_post' === $capability && 1 === $post_id ) || 'publish_posts' === $capability )
+        );
+
+        $this->status_manager->transition(
+            1,
+            'review',
+            array(
+                'agent_actor'      => 'test/agent',
+                'agent_actor_user' => 7,
+            )
+        );
+
+        $this->assertSame( array(), $telemetry->events );
     }
 
     // =========================================================================
