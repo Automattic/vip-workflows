@@ -11,6 +11,7 @@ namespace VIPWorkflows\Abilities;
 
 use VIPWorkflows\API\AvailabilitySerializer;
 use VIPWorkflows\Automation\EventBus;
+use VIPWorkflows\Telemetry\Tracker;
 
 /**
  * Executes abilities and stores results.
@@ -127,6 +128,7 @@ class AbilityExecutor {
 				$result->unmet_requirements = AvailabilitySerializer::to_persistable( $availability );
 				$result->post_id            = $this->resolve_post_id( $input );
 				$this->repository->save( $result );
+				$this->record_direct_run( $context, $result, true );
 				return $result;
 			}
 		}
@@ -185,7 +187,35 @@ class AbilityExecutor {
 			array( 'post_id' => $result->post_id )
 		);
 
+		$this->record_direct_run( $context, $result, false );
+
 		return $result;
+	}
+
+	/**
+	 * Record a tool run directly by a person (not from a gate or an agent).
+	 *
+	 * @param string        $context     Surface the run was invoked from.
+	 * @param AbilityResult $result      The run's result.
+	 * @param bool          $unavailable Whether the ability was not configured, so never ran.
+	 */
+	private function record_direct_run( string $context, AbilityResult $result, bool $unavailable ): void {
+		if ( '' !== $context || ! Tracker::is_available() ) {
+			return;
+		}
+
+		$issues = $result->output['issues'] ?? array();
+
+		Tracker::record(
+			'tool_run_finished',
+			array(
+				'success'     => $result->success,
+				'unavailable' => $unavailable,
+				'issue_count' => is_array( $issues ) ? count( $issues ) : 0,
+				'duration_ms' => $unavailable ? null : $result->duration_ms,
+				'initiator'   => 'user',
+			)
+		);
 	}
 
 	/**

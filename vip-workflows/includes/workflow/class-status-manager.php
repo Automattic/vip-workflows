@@ -16,6 +16,7 @@ use VIPWorkflows\Database\Schema;
 use VIPWorkflows\Abilities\AbilityExecutor;
 use VIPWorkflows\Abilities\AbilitySettings;
 use VIPWorkflows\Workflow\AssignmentManager;
+use VIPWorkflows\Telemetry\Tracker;
 
 /**
  * Manages workflow status transitions for posts.
@@ -926,14 +927,46 @@ class StatusManager {
 			$metadata_check = $this->check_required_metadata( $post_id, $sequence );
 
 			if ( is_wp_error( $metadata_check ) ) {
+				$missing = $metadata_check->get_error_data()['hard_failures'] ?? array();
+				$this->record_gate(
+					array(
+						'gate'       => 'required_metadata',
+						'result'     => 'blocked',
+						'hard_count' => count( $missing ),
+					)
+				);
 				$this->log_blocked_transition( $post_id, $current_stage, $to_status, $metadata_check );
 				return $metadata_check;
 			}
+
+			if ( $this->reports_metadata_gate( $sequence ) ) {
+				$this->record_gate(
+					array(
+						'gate'       => 'required_metadata',
+						'result'     => 'passed',
+						'hard_count' => 0,
+					)
+				);
+			}
+		} elseif ( Sequence::crosses_into_publish( $from_region, $to_region ) && ! $is_agent_actor && ! $is_revert && $this->reports_metadata_gate( $sequence ) ) {
+			// Only a bypass role reaches here.
+			$this->record_gate(
+				array(
+					'gate'   => 'required_metadata',
+					'result' => 'bypassed',
+				)
+			);
 		}
 
 		// Run required tools and check for hard failures (unless user can bypass).
 		if ( ! \VIPWorkflows\Admin\Settings::can_user_bypass_tool_checks() ) {
-			$tool_check = $this->run_transition_tools( $post_id, $transition_config, $acknowledge_warnings );
+			$tool_check = $this->run_transition_tools(
+				$post_id,
+				$transition_config,
+				$acknowledge_warnings,
+				$is_agent_actor ? 'agent' : 'user',
+				$is_agent_actor ? (int) ( $options['agent_actor_user'] ?? 0 ) : 0
+			);
 
 			if ( is_wp_error( $tool_check ) ) {
 				$this->log_blocked_transition( $post_id, $current_stage, $to_status, $tool_check );
@@ -943,6 +976,16 @@ class StatusManager {
 			if ( is_array( $tool_check ) && ! empty( $tool_check['warnings_pending'] ) ) {
 				return $tool_check;
 			}
+		} elseif ( ! empty( $transition_config['required_tools'] ) ) {
+			$this->record_gate(
+				array(
+					'gate'           => 'tools',
+					'result'         => 'bypassed',
+					'tools_required' => count( $transition_config['required_tools'] ),
+				),
+				$is_agent_actor ? 'agent' : 'user',
+				$is_agent_actor ? (int) ( $options['agent_actor_user'] ?? 0 ) : 0
+			);
 		}
 
 		// The committed post_status BEFORE this transition writes anything —
@@ -2255,12 +2298,14 @@ class StatusManager {
 	/**
 	 * Run required tools for a transition and check for hard failures.
 	 *
-	 * @param  int   $post_id              Post ID.
-	 * @param  array $transition_config    Transition configuration from sequence.
-	 * @param  bool  $acknowledge_warnings Whether user has acknowledged warnings.
+	 * @param  int    $post_id              Post ID.
+	 * @param  array  $transition_config    Transition configuration from sequence.
+	 * @param  bool   $acknowledge_warnings Whether user has acknowledged warnings.
+	 * @param  string $initiator            'user' or 'agent', for telemetry.
+	 * @param  int    $as_user              User to record telemetry as, or 0 for the current user.
 	 * @return true|array|\WP_Error True if all pass, array with warnings_pending, or WP_Error if blocked.
 	 */
-	private function run_transition_tools( int $post_id, ?array $transition_config, bool $acknowledge_warnings = false ) {
+	private function run_transition_tools( int $post_id, ?array $transition_config, bool $acknowledge_warnings = false, string $initiator = 'user', int $as_user = 0 ) {
 		// No transition config or no required tools = pass.
 		if ( ! $transition_config || empty( $transition_config['required_tools'] ) ) {
 			return true;
@@ -2269,6 +2314,7 @@ class StatusManager {
 		$required_tools = $transition_config['required_tools'];
 		$executor       = new AbilityExecutor();
 		$settings       = AbilitySettings::get_instance();
+		$started        = microtime( true );
 
 		/*
 		 * Only pass schema-valid input to abilities. Transition-eligible abilities
@@ -2374,6 +2420,8 @@ class StatusManager {
 
 		// If there are hard failures, block the transition.
 		if ( ! empty( $hard_failures ) ) {
+			$this->record_tool_gate( 'blocked', $required_tools, $hard_failures, $soft_warnings, $started, $initiator, $as_user );
+
 			return new \WP_Error(
 				'tool_check_failed',
 				__( 'Transition blocked by required checks.', 'vip-workflows' ),
@@ -2387,6 +2435,8 @@ class StatusManager {
 
 		// If only soft warnings and user hasn't acknowledged them, return for confirmation.
 		if ( ! empty( $soft_warnings ) && ! $acknowledge_warnings ) {
+			$this->record_tool_gate( 'warnings_pending', $required_tools, $hard_failures, $soft_warnings, $started, $initiator, $as_user );
+
 			return array(
 				'warnings_pending' => true,
 				'soft_warnings'    => $soft_warnings,
@@ -2398,7 +2448,78 @@ class StatusManager {
 			$this->log_tool_warnings( $post_id, $transition_config['to'] ?? 'unknown', $soft_warnings );
 		}
 
+		$this->record_tool_gate( empty( $soft_warnings ) ? 'passed' : 'warnings_acknowledged', $required_tools, $hard_failures, $soft_warnings, $started, $initiator, $as_user );
+
 		return true;
+	}
+
+	/**
+	 * Record the outcome of a required-tools gate, as counts.
+	 *
+	 * @param string $result         passed | blocked | warnings_pending | warnings_acknowledged.
+	 * @param array  $required_tools The transition's required tool ids.
+	 * @param array  $hard_failures  The gate's blocking failures.
+	 * @param array  $soft_warnings  The gate's warnings.
+	 * @param float  $started        microtime( true ) when the gate began.
+	 * @param string $initiator      'user' or 'agent'.
+	 * @param int    $as_user        User to record telemetry as, or 0 for the current user.
+	 */
+	private function record_tool_gate( string $result, array $required_tools, array $hard_failures, array $soft_warnings, float $started, string $initiator, int $as_user ): void {
+		if ( ! Tracker::is_available() ) {
+			return;
+		}
+
+		$errored = count(
+			array_filter(
+				$hard_failures,
+				static fn( $failure ) => in_array( $failure['key'] ?? '', array( 'execution_error', 'tool_disabled' ), true )
+			)
+		);
+
+		$this->record_gate(
+			array(
+				'gate'           => 'tools',
+				'result'         => $result,
+				'hard_count'     => count( $hard_failures ) - $errored,
+				'soft_count'     => count( $soft_warnings ),
+				'tools_required' => count( $required_tools ),
+				'tools_errored'  => $errored,
+				'duration_ms'    => (int) ( ( microtime( true ) - $started ) * 1000 ),
+			),
+			$initiator,
+			$as_user
+		);
+	}
+
+	/**
+	 * Whether the required-fields gate should be recorded: telemetry is loaded and the sequence requires a field.
+	 *
+	 * @param  Sequence $sequence The sequence the post is seated in.
+	 * @return bool
+	 */
+	private function reports_metadata_gate( Sequence $sequence ): bool {
+		if ( ! Tracker::is_available() ) {
+			return false;
+		}
+
+		foreach ( $sequence->get_metadata_fields() as $field ) {
+			if ( ! empty( $field['required'] ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Record a transition gate event.
+	 *
+	 * @param array  $properties Event properties.
+	 * @param string $initiator  'user' or 'agent'.
+	 * @param int    $as_user    User to record telemetry as, or 0 for the current user.
+	 */
+	private function record_gate( array $properties, string $initiator = 'user', int $as_user = 0 ): void {
+		Tracker::record( 'transition_gate_finished', array_merge( $properties, array( 'initiator' => $initiator ) ), $as_user > 0 ? $as_user : null );
 	}
 
 	/**

@@ -125,6 +125,10 @@ abstract class TestCase extends YoastTestCase
         ( new \ReflectionProperty( \VIPWorkflows\Integrations\GuidelineContextProvider::class, 'reported' ) )
             ->setValue( null, array() );
 
+        // The shared Telemetry double a test installed; a leftover one would
+        // record a later test's events.
+        \VIPWorkflows\Telemetry\Tracker::set_telemetry( null );
+
         // Ability id whose agent run is currently attributed; a leftover value
         // mis-attributes revisions in a later test.
         ( new \ReflectionProperty( \VIPWorkflows\Workflow\StageAgentRunner::class, 'acting_ability_id' ) )

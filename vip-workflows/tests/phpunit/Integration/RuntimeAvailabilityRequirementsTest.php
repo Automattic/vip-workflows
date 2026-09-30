@@ -31,6 +31,8 @@ use VIPWorkflows\Abilities\Requirement;
 use VIPWorkflows\Abilities\RequirementFactory;
 use VIPWorkflows\Abilities\RequirementGroup;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Telemetry\Tracker;
+use VIPWorkflows\Tests\Unit\RecordingTelemetry;
 
 /**
  * @covers \VIPWorkflows\Abilities\AbilityExecutor::execute
@@ -103,6 +105,7 @@ class RuntimeAvailabilityRequirementsTest extends TestCase
     public function tear_down(): void
     {
         Credentials::get_instance()->set_backend( null );
+        Tracker::set_telemetry( null );
 
         parent::tear_down();
     }
@@ -383,5 +386,38 @@ class RuntimeAvailabilityRequirementsTest extends TestCase
         $this->assertSame( 'Ability is not configured.', $result->error );
         $this->assertSame( array(), $result->unmet_requirements );
         $this->assertSame( array(), $result->output, 'output is the ability\'s schema-shaped payload; a gated ability produced none.' );
+    }
+
+    public function test_a_direct_run_of_an_unconfigured_ability_is_reported_as_unavailable(): void
+    {
+        $this->become_administrator();
+        $telemetry = new RecordingTelemetry();
+        Tracker::set_telemetry( $telemetry );
+
+        ( new AbilityExecutor() )->execute( self::STRUCTURED_ABILITY, array( 'post_id' => self::factory()->post->create() ) );
+
+        $events = $telemetry->of( 'tool_run_finished' );
+        $this->assertCount( 1, $events );
+        // It never ran, so there is no duration to report.
+        $this->assertSame(
+            array(
+                'success'     => false,
+                'unavailable' => true,
+                'issue_count' => 0,
+                'initiator'   => 'user',
+            ),
+            $events[0]['properties']
+        );
+    }
+
+    public function test_an_unconfigured_ability_run_by_an_agent_is_not_reported_as_a_tool_run(): void
+    {
+        $this->become_administrator();
+        $telemetry = new RecordingTelemetry();
+        Tracker::set_telemetry( $telemetry );
+
+        ( new AbilityExecutor() )->execute( self::STRUCTURED_ABILITY, array( 'post_id' => self::factory()->post->create() ), 'agent' );
+
+        $this->assertSame( array(), $telemetry->events );
     }
 }
