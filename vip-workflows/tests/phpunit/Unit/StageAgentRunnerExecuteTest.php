@@ -14,6 +14,7 @@ use Mockery;
 use VIPWorkflows\Abilities\AbilityExecutor;
 use VIPWorkflows\Abilities\AbilityResult;
 use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Telemetry\Tracker;
 use VIPWorkflows\Workflow\StageAgentRunner;
 use VIPWorkflows\Workflow\StatusManager;
 
@@ -1349,5 +1350,280 @@ class StageAgentRunnerExecuteTest extends TestCase
             $seen['agent_actor_user'],
             'the named actor is the post author the runner resolved and impersonated'
         );
+    }
+
+    // =========================================================================
+    // Product telemetry
+    // =========================================================================
+
+    /**
+     * Simulated current user id, for the telemetry tests.
+     *
+     * @var int
+     */
+    private int $telemetry_user = 0;
+
+    /**
+     * Install the recording double, and make the current user something a run can
+     * change, since the library reads it when an event is recorded.
+     *
+     * @return RecordingTelemetry
+     */
+    private function install_telemetry(): RecordingTelemetry
+    {
+        $this->telemetry_user = 0; // Cron: nobody is logged in.
+        Functions\when( 'get_current_user_id' )->alias( fn() => $this->telemetry_user );
+        Functions\when( 'wp_set_current_user' )->alias(
+            function ( int $id ) {
+                $this->telemetry_user = $id;
+            }
+        );
+
+        $telemetry = new RecordingTelemetry();
+        Tracker::set_telemetry( $telemetry );
+
+        return $telemetry;
+    }
+
+    /**
+     * The single agent_run_finished event a run produced.
+     *
+     * @param RecordingTelemetry $telemetry The double.
+     * @return array
+     */
+    private function run_event( RecordingTelemetry $telemetry ): array
+    {
+        $events = $telemetry->of( 'agent_run_finished' );
+        $this->assertCount( 1, $events, 'A run that concludes is exactly one event.' );
+
+        return $events[0];
+    }
+
+    /**
+     * Drive one run through a status manager that answers `transition` with
+     * $transition_returns.
+     *
+     * @param array                 $routing            Stage routing map.
+     * @param AbilityResult|\Throwable $agent_returns   What the agent's ability does.
+     * @param mixed                 $transition_returns What StatusManager::transition() returns.
+     */
+    private function run_with( array $routing, $agent_returns, $transition_returns = true ): void
+    {
+        $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )->andReturn( $this->ai_sequence( $routing ) );
+        $status_manager->shouldReceive( 'transition' )->andReturn( $transition_returns );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        if ( $agent_returns instanceof \Throwable ) {
+            $executor->shouldReceive( 'execute' )->andThrow( $agent_returns );
+        } else {
+            $executor->shouldReceive( 'execute' )->andReturn( $agent_returns );
+        }
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+    }
+
+    public function test_a_routed_run_reports_its_verdict_duration_and_chain(): void
+    {
+        $telemetry = $this->install_telemetry();
+        $result    = self::make_result( true, array( 'status' => 'pass', 'summary' => 'ok' ) );
+
+        $result->duration_ms = 120;
+
+        $this->run_with( array( 'pass' => 'review', 'fail' => 'draft' ), $result );
+
+        $event = $this->run_event( $telemetry );
+
+        // No ability id and no message: customers can create many agents whose
+        // names mean nothing in aggregate, and a summary is content.
+        $this->assertSame(
+            array(
+                'outcome'      => 'pass',
+                'disposition'  => 'routed',
+                'duration_ms'  => 120,
+                'chain_length' => 1,
+                'initiator'    => 'agent',
+            ),
+            $event['properties']
+        );
+        $this->assertSame( 7, $event['user'], 'recorded as the user the run acted for, not as nobody' );
+        $this->assertSame( 0, $this->telemetry_user, 'and the cron context is restored afterwards' );
+    }
+
+    public function test_a_fail_verdict_that_routes_is_still_a_run_that_succeeded(): void
+    {
+        $telemetry = $this->install_telemetry();
+
+        $this->run_with( array( 'pass' => 'review', 'fail' => 'draft' ), self::make_result( true, array( 'status' => 'fail' ) ) );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'fail', $properties['outcome'] );
+        $this->assertSame( 'routed', $properties['disposition'] );
+    }
+
+    public function test_an_error_sent_down_the_error_route_is_reported_as_error_routed(): void
+    {
+        $telemetry = $this->install_telemetry();
+
+        $this->run_with( array( 'pass' => 'review', 'error' => 'needs_human' ), new \InvalidArgumentException( 'boom' ) );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'error', $properties['outcome'] );
+        $this->assertSame( 'error_routed', $properties['disposition'] );
+        $this->assertArrayNotHasKey( 'stop_reason', $properties, 'it did not stop; it was routed' );
+    }
+
+    public function test_an_error_with_no_error_route_stops_in_place(): void
+    {
+        $telemetry = $this->install_telemetry();
+
+        $this->run_with( array( 'pass' => 'review' ), new \InvalidArgumentException( 'boom' ) );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'error', $properties['outcome'] );
+        $this->assertSame( 'stopped_in_place', $properties['disposition'] );
+        $this->assertSame( 'execution_error', $properties['stop_reason'] );
+    }
+
+    public function test_a_verdict_the_stage_does_not_route_stops_in_place(): void
+    {
+        $telemetry = $this->install_telemetry();
+
+        $this->run_with( array( 'pass' => 'review' ), self::make_result( true, array( 'status' => 'fail' ) ) );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'fail', $properties['outcome'] );
+        $this->assertSame( 'stopped_in_place', $properties['disposition'] );
+        $this->assertSame( 'unrouted_outcome', $properties['stop_reason'] );
+    }
+
+    public function test_a_run_held_for_warnings_reports_that_and_not_a_stop(): void
+    {
+        $telemetry = $this->install_telemetry();
+
+        $this->run_with(
+            array( 'pass' => 'review' ),
+            self::make_result( true, array( 'status' => 'pass' ) ),
+            array( 'warnings_pending' => true, 'soft_warnings' => array() )
+        );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'pass', $properties['outcome'] );
+        $this->assertSame( 'held_for_warnings', $properties['disposition'] );
+        $this->assertArrayNotHasKey( 'stop_reason', $properties );
+    }
+
+    public function test_an_exit_transition_that_is_refused_stops_in_place(): void
+    {
+        $telemetry = $this->install_telemetry();
+
+        $this->run_with(
+            array( 'pass' => 'review' ),
+            self::make_result( true, array( 'status' => 'pass' ) ),
+            new \WP_Error( 'tool_check_failed', 'Blocked.' )
+        );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'pass', $properties['outcome'] );
+        $this->assertSame( 'stopped_in_place', $properties['disposition'] );
+        $this->assertSame( 'exit_refused', $properties['stop_reason'] );
+    }
+
+    public function test_the_loop_guard_reports_the_chain_that_tripped_it_and_no_verdict(): void
+    {
+        $telemetry = $this->install_telemetry();
+        Functions\when( 'get_post_meta' )->alias(
+            function ( $post_id, $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
+                    return 'ai_desk';
+                }
+                return StageAgentRunner::CHAIN_META === $key ? StageAgentRunner::MAX_CHAIN : '';
+            }
+        );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ) );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->never();
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $event = $this->run_event( $telemetry );
+        $this->assertSame(
+            array(
+                'disposition'  => 'stopped_in_place',
+                'stop_reason'  => 'loop_guard',
+                'chain_length' => StageAgentRunner::MAX_CHAIN + 1,
+                'initiator'    => 'agent',
+            ),
+            $event['properties'],
+            'the agent never ran, so there is no outcome and no duration'
+        );
+        // It stopped before an owner was resolved, so it falls back to the post's author.
+        $this->assertSame( 7, $event['user'] );
+    }
+
+    public function test_a_post_whose_author_cannot_edit_reports_no_actor(): void
+    {
+        $telemetry = $this->install_telemetry();
+        Functions\when( 'user_can' )->justReturn( false );
+
+        $this->run_with( array( 'pass' => 'review' ), self::make_result( true, array( 'status' => 'pass' ) ) );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'stopped_in_place', $properties['disposition'] );
+        $this->assertSame( 'no_actor', $properties['stop_reason'] );
+        $this->assertArrayNotHasKey( 'outcome', $properties );
+    }
+
+    public function test_an_ability_that_never_ran_reports_no_duration(): void
+    {
+        $telemetry = $this->install_telemetry();
+        $result    = self::make_result( false );
+
+        // An ability that was not configured comes back a failure with unmet
+        // requirements and the default 0 for a duration it never had.
+        $result->unmet_requirements = array( array( 'satisfy' => 'all', 'requirements' => array() ) );
+
+        $this->run_with( array( 'pass' => 'review' ), $result );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'error', $properties['outcome'] );
+        $this->assertArrayNotHasKey( 'duration_ms', $properties );
+    }
+
+    public function test_a_run_abandoned_because_the_post_moved_on_reports_nothing(): void
+    {
+        $telemetry = $this->install_telemetry();
+        $this->stub_meta( 'somewhere_else' );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ) );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->never();
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $this->assertSame( array(), $telemetry->events, 'it was cancelled, not concluded' );
+    }
+
+    public function test_a_stale_failure_that_leaves_the_newer_job_alone_reports_nothing(): void
+    {
+        $telemetry = $this->install_telemetry();
+        Functions\when( 'get_post_meta' )->justReturn( array( 'stage_key' => 'next_ai_stage', 'status' => 'pending' ) );
+
+        $method = new \ReflectionMethod( StageAgentRunner::class, 'fail_in_place' );
+        $method->invoke( new StageAgentRunner(), 42, 'ai_desk', 'test/agent', 'stale failure', '', array( 'stop_reason' => 'execution_error' ) );
+
+        $this->assertSame( array(), $telemetry->events, 'nothing was recorded on the post, so nothing concluded' );
     }
 }
