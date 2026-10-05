@@ -42,6 +42,28 @@ use VIPWorkflows\Workflow\StatusManager;
 class StatusManagerAgentGatingTest extends TestCase
 {
     /**
+     * Stub get_gmt_from_date() for a UTC site.
+     *
+     * has_pending_agent_job() converts the site-local queued_at to a UTC
+     * timestamp with get_gmt_from_date(). The base TestCase stamps
+     * current_time( 'mysql' ) with gmdate(), i.e. a UTC site, so local and
+     * GMT coincide here. This mirrors core: parse in the site timezone,
+     * return false for an unparseable string. The non-UTC case is covered
+     * by the SiteTimezoneTimestampsIntegrationTest integration test.
+     */
+    protected function set_up()
+    {
+        parent::set_up();
+
+        Functions\when( 'get_gmt_from_date' )->alias(
+            function ( $date, $format = 'Y-m-d H:i:s' ) {
+                $datetime = date_create( (string) $date, new \DateTimeZone( 'UTC' ) );
+                return false === $datetime ? false : $datetime->format( $format );
+            }
+        );
+    }
+
+    /**
      * Build a StatusManager without running its constructor (avoids DB wiring).
      *
      * @return StatusManager
@@ -141,6 +163,25 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->assertSame( 'failed', $written['status'] );
         $this->assertSame( 'Agent run timed out.', $written['error'] );
         $this->assertSame( 'draft', $written['from_stage'] );
+    }
+
+    /**
+     * An unparseable queued_at is treated as stale, as it was when strtotime()
+     * failed: get_gmt_from_date() returns false, which casts to 0.
+     */
+    public function test_unparseable_queued_at_is_stale(): void
+    {
+        Functions\when( 'get_post_meta' )->justReturn(
+            array(
+                'stage_key'  => 'ai_desk',
+                'status'     => 'pending',
+                'ability_id' => 'x',
+                'queued_at'  => 'not a date',
+            )
+        );
+        Functions\when( 'update_post_meta' )->justReturn( true );
+
+        $this->assertFalse( $this->status_manager()->has_pending_agent_job( 42, 'ai_desk' ) );
     }
 
     /**

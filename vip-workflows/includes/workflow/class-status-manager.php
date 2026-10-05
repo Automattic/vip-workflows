@@ -169,8 +169,11 @@ class StatusManager {
 			return false;
 		}
 
-		$queued_at = strtotime( (string) ( $job['queued_at'] ?? '' ) );
-		if ( ! $queued_at || ( current_time( 'timestamp' ) - $queued_at ) > StageAgentRunner::PENDING_TTL ) {
+		// queued_at is stamped with current_time( 'mysql' ), site-local time;
+		// convert it to a real UTC timestamp so it compares against time().
+		$raw       = (string) ( $job['queued_at'] ?? '' );
+		$queued_at = '' === $raw ? 0 : (int) get_gmt_from_date( $raw, 'U' );
+		if ( ! $queued_at || ( time() - $queued_at ) > StageAgentRunner::PENDING_TTL ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( sprintf( 'VIP Workflows: agent job for post %d at stage "%s" timed out (queued_at: %s).', $post_id, $stage, (string) ( $job['queued_at'] ?? '' ) ) );
 
