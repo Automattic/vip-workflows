@@ -262,6 +262,7 @@ class MediaProcessor {
 		$body .= '--' . $boundary . "\r\n";
 		$body .= 'Content-Disposition: form-data; name="file"; filename="' . basename( $file_path ) . '"' . "\r\n";
 		$body .= 'Content-Type: ' . mime_content_type( $file_path ) . "\r\n\r\n";
+		// phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown -- local uploaded media file for transcription
 		$body .= file_get_contents( $file_path ) . "\r\n";
 		$body .= '--' . $boundary . '--' . "\r\n";
 

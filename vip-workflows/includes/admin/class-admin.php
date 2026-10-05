@@ -778,7 +778,7 @@ class Admin implements ModuleInterface {
 		foreach ( $map as $type => $relative_path ) {
 			$path = VIP_WORKFLOWS_PLUGIN_DIR . $relative_path;
 			if ( file_exists( $path ) ) {
-				$skills[ $type ] = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+				$skills[ $type ] = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents, WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown -- local file bundled in plugin directory
 			}
 		}
 
