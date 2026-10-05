@@ -1149,6 +1149,7 @@ class IdeationOrchestrator {
 				}
 			}
 
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_ideation_sources; write, nothing to cache
 			$inserted = $wpdb->insert(
 				$table,
 				array(
