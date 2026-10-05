@@ -1451,7 +1451,7 @@ class SequencesController extends WP_REST_Controller {
 
 		// Check for existing sequences with this slug (any status, any version).
 		$table = $wpdb->prefix . 'vip_sequences';
-		while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE slug = %s", $slug ) ) > 0 ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE slug = %s", $slug ) ) > 0 ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_sequences; live read, not cached
 			$slug = $base_slug . '-' . $counter;
 			++$counter;
 		}
