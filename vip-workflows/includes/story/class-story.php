@@ -207,6 +207,7 @@ class Story implements ModuleInterface {
 
 		$table = $wpdb->prefix . 'vip_story_objects';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; write, nothing to cache
 		$wpdb->replace(
 			$table,
 			array(
@@ -233,6 +234,7 @@ class Story implements ModuleInterface {
 		$table = $wpdb->prefix . 'vip_story_objects';
 
 		if ( $type ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; live read, not cached
 			return $wpdb->get_results(
 				$wpdb->prepare(
 					'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d AND object_type = %s ORDER BY added_at ASC',
@@ -245,6 +247,7 @@ class Story implements ModuleInterface {
 			return $results ? $results : array();
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; live read, not cached
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d ORDER BY added_at ASC',
