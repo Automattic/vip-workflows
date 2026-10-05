@@ -45,6 +45,7 @@ class SourceProcessingJob implements ModuleInterface {
 		global $wpdb;
 		$sources_table = $wpdb->prefix . 'vip_ideation_sources';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; live read, not cached
 		$source = $wpdb->get_row(
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE project_id = %d AND source_id = %s',
@@ -63,6 +64,7 @@ class SourceProcessingJob implements ModuleInterface {
 			return;
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$wpdb->update(
 			$sources_table,
 			array(
@@ -136,6 +138,7 @@ class SourceProcessingJob implements ModuleInterface {
 
 		$update_data['ai_analysis'] = wp_json_encode( $ai_analysis );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$updated = $wpdb->update(
 			$sources_table,
 			$update_data,
@@ -180,6 +183,7 @@ class SourceProcessingJob implements ModuleInterface {
 		global $wpdb;
 		$sources_table = $wpdb->prefix . 'vip_ideation_sources';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$wpdb->update(
 			$sources_table,
 			array(
