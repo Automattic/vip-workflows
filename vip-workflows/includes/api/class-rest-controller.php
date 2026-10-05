@@ -99,8 +99,8 @@ class RestController {
 		);
 
 		foreach ( $required_tables as $table ) {
-			$full_name = $wpdb->prefix . $table;
-			$exists    = $wpdb->get_var(
+			$full_name              = $wpdb->prefix . $table;
+			$exists                 = $wpdb->get_var(
 				$wpdb->prepare( 'SHOW TABLES LIKE %s', $wpdb->esc_like( $full_name ) )
 			) === $full_name;
 			$tables_exist[ $table ] = $exists;
@@ -116,10 +116,10 @@ class RestController {
 
 		return new \WP_REST_Response(
 			array(
-				'status'          => 'ok',
-				'version'         => VIP_WORKFLOWS_VERSION,
-				'db_version'      => get_option( 'vip_workflows_db_version', 'not installed' ),
-				'tables_exist'    => $tables_exist,
+				'status'         => 'ok',
+				'version'        => VIP_WORKFLOWS_VERSION,
+				'db_version'     => get_option( 'vip_workflows_db_version', 'not installed' ),
+				'tables_exist'   => $tables_exist,
 				'sequence_count' => $sequence_count,
 			)
 		);

@@ -93,7 +93,7 @@ class AbilitiesController extends WP_REST_Controller {
 				 * options array, so nesting it in the handler registers a schema that
 				 * OPTIONS and the route index never report.
 				 */
-				'schema'              => array( $this, 'get_public_item_schema' ),
+				'schema' => array( $this, 'get_public_item_schema' ),
 			)
 		);
 
@@ -124,28 +124,28 @@ class AbilitiesController extends WP_REST_Controller {
 				'callback'            => array( $this, 'run_ability' ),
 				'permission_callback' => array( $this, 'run_ability_permissions_check' ),
 				'args'                => array(
-					'id'           => array(
+					'id'        => array(
 						'description'       => __( 'Ability ID.', 'vip-workflows' ),
 						'type'              => 'string',
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
 					),
-					'post_id'      => array(
+					'post_id'   => array(
 						'description'       => __( 'Post ID to analyze.', 'vip-workflows' ),
 						'type'              => 'integer',
 						'sanitize_callback' => 'absint',
 					),
-					'content'      => array(
+					'content'   => array(
 						'description'       => __( 'Content to analyze (if no post_id).', 'vip-workflows' ),
 						'type'              => 'string',
 						'sanitize_callback' => 'wp_kses_post',
 					),
-					'selection'    => array(
+					'selection' => array(
 						'description'       => __( 'Selected text subset.', 'vip-workflows' ),
 						'type'              => 'string',
 						'sanitize_callback' => 'wp_kses_post',
 					),
-					'options'      => array(
+					'options'   => array(
 						'description' => __( 'Ability-specific options.', 'vip-workflows' ),
 						'type'        => 'object',
 						'default'     => array(),
@@ -256,9 +256,9 @@ class AbilitiesController extends WP_REST_Controller {
 					}
 
 					if ( in_array( $context, array( 'workflow', 'phase' ), true ) ) {
-						$ability_settings    = $settings->get( $ability['id'] );
-						$meta_eligible       = $ability['meta']['transition_eligible'] ?? false;
-						$settings_eligible   = $ability_settings['transition_eligible'] ?? $meta_eligible;
+						$ability_settings  = $settings->get( $ability['id'] );
+						$meta_eligible     = $ability['meta']['transition_eligible'] ?? false;
+						$settings_eligible = $ability_settings['transition_eligible'] ?? $meta_eligible;
 						if ( ! $settings_eligible ) {
 							return false;
 						}
@@ -272,7 +272,7 @@ class AbilitiesController extends WP_REST_Controller {
 
 		// Add check_modes from settings to each ability.
 		foreach ( $data as &$ability ) {
-			$ability_settings = $settings->get( $ability['id'] );
+			$ability_settings       = $settings->get( $ability['id'] );
 			$ability['check_modes'] = $ability_settings['check_modes'] ?? array();
 		}
 		unset( $ability );
@@ -291,7 +291,7 @@ class AbilitiesController extends WP_REST_Controller {
 							$tool_transition_map[ $tool_id ] = array();
 						}
 						$tool_transition_map[ $tool_id ][] = array(
-							'to' => $transition['to'],
+							'to'    => $transition['to'],
 							// Already run through transition_label() upstream, so
 							// the sidebar and this listing agree by construction.
 							// Re-deriving it here dereferenced an unassigned

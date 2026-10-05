@@ -1029,7 +1029,7 @@ class Schema {
 	protected static function repair_fabricated_stage_labels(): int {
 		global $wpdb;
 
-		$events_table     = self::get_table_name( 'workflows_events' );
+		$events_table    = self::get_table_name( 'workflows_events' );
 		$sequences_table = $wpdb->prefix . 'vip_sequences';
 
 		// `_` is a single-character LIKE wildcard, so this only narrows the scan;
@@ -1091,7 +1091,7 @@ class Schema {
 			}
 
 			$sequence_name = (string) ( $data['sequence_name'] ?? '' );
-			$stage_labels   = $labels_by_name[ $sequence_name ] ?? null;
+			$stage_labels  = $labels_by_name[ $sequence_name ] ?? null;
 
 			if ( null === $stage_labels ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log

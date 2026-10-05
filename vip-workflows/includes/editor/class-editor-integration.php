@@ -96,10 +96,10 @@ class EditorIntegration implements ModuleInterface {
 		$post    = get_post( $post_id );
 
 		// Get workflow info for this post.
-		$status_manager  = Plugin::get_instance()->get_status_manager();
+		$status_manager = Plugin::get_instance()->get_status_manager();
 		$sequence       = $status_manager ? $status_manager->get_sequence_for_post( $post_id ) : null;
-		$current_status  = $status_manager && $sequence ? $status_manager->get_current_status( $post_id ) : null;
-		$transitions     = $status_manager && $sequence ? $status_manager->get_available_transitions( $post_id ) : array();
+		$current_status = $status_manager && $sequence ? $status_manager->get_current_status( $post_id ) : null;
+		$transitions    = $status_manager && $sequence ? $status_manager->get_available_transitions( $post_id ) : array();
 
 		// Check if this specific post is in a workflow (has sequence assigned).
 		$has_workflow = (bool) $sequence;
@@ -136,7 +136,7 @@ class EditorIntegration implements ModuleInterface {
 					'hasWorkflow'         => $has_workflow,
 					'showWorkflowModal'   => $show_workflow_modal,
 					'workflowEnforcement' => $enforcement_mode, // 'require', 'recommend', or false.
-					'sequence'           => $sequence ? array(
+					'sequence'            => $sequence ? array(
 						'id'       => $sequence->id,
 						'name'     => $sequence->name,
 						'slug'     => $sequence->slug,

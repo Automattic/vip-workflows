@@ -105,7 +105,7 @@ class Notification {
 
 		$post_title = $this->get( 'post_title' );
 		if ( $post_title ) {
-			$url = $this->get_post_url();
+			$url      = $this->get_post_url();
 			$fields[] = array(
 				'title' => __( 'Post', 'vip-workflows' ),
 				'value' => $url ? "<{$url}|{$post_title}>" : $post_title,

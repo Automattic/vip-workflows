@@ -104,11 +104,11 @@ class DiscoveryController extends WP_REST_Controller {
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
 					),
-					'text' => array(
+					'text'     => array(
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
 					),
-					'filters' => array(
+					'filters'  => array(
 						'type' => 'string',
 					),
 				),
@@ -145,7 +145,7 @@ class DiscoveryController extends WP_REST_Controller {
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
 					),
-					'prompt' => array(
+					'prompt'   => array(
 						'type'     => 'object',
 						'required' => true,
 					),
@@ -235,9 +235,9 @@ class DiscoveryController extends WP_REST_Controller {
 			if ( ! empty( $prompts ) ) {
 				$grouped[] = array(
 					'provider' => array(
-						'slug'  => $slug,
-						'label' => $provider['label'],
-						'icon'  => $provider['icon'],
+						'slug'     => $slug,
+						'label'    => $provider['label'],
+						'icon'     => $provider['icon'],
 
 						/*
 						 * The screen needs these to know which affordances a
@@ -247,7 +247,7 @@ class DiscoveryController extends WP_REST_Controller {
 						 */
 						'features' => $provider['features'],
 					),
-					'prompts' => $prompts,
+					'prompts'  => $prompts,
 				);
 			}
 		}

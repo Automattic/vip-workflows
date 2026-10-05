@@ -71,7 +71,7 @@ class SourceProcessingJob implements ModuleInterface {
 			),
 			array(
 				'project_id' => $project_id,
-				'source_id' => $source_id,
+				'source_id'  => $source_id,
 			),
 			array( '%s', '%s' ),
 			array( '%d', '%s' )
@@ -141,7 +141,7 @@ class SourceProcessingJob implements ModuleInterface {
 			$update_data,
 			array(
 				'project_id' => $project_id,
-				'source_id' => $source_id,
+				'source_id'  => $source_id,
 			),
 			array_fill( 0, count( $update_data ), '%s' ),
 			array( '%d', '%s' )
@@ -189,7 +189,7 @@ class SourceProcessingJob implements ModuleInterface {
 			),
 			array(
 				'project_id' => $project_id,
-				'source_id' => $source_id,
+				'source_id'  => $source_id,
 			),
 			array( '%s', '%s', '%s' ),
 			array( '%d', '%s' )

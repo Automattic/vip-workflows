@@ -805,7 +805,7 @@ class StageAgent {
 				}
 			)
 		);
-		$anchors = self::anchor_index_by_note_id( $blocks );
+		$anchors  = self::anchor_index_by_note_id( $blocks );
 
 		// Anchor-aware idempotent no-op: both the body and the block it anchors
 		// to must already match, so re-flagging the same claim on a different

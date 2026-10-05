@@ -405,7 +405,7 @@ final class Plugin {
 	 */
 	private function register_metadata_fields(): void {
 		$repository = new SequenceRepository();
-		$sequences = $repository->get_all( array( 'status' => 'active' ) );
+		$sequences  = $repository->get_all( array( 'status' => 'active' ) );
 
 		$targeted_post_types = array();
 

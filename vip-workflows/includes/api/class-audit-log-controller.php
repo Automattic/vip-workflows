@@ -373,13 +373,13 @@ class AuditLogController extends WP_REST_Controller {
 		}
 
 		return array(
-			'id'              => (int) $event->id,
-			'event_type'      => $event->event_type,
+			'id'               => (int) $event->id,
+			'event_type'       => $event->event_type,
 			'event_type_label' => $this->get_event_type_label( $event->event_type ),
-			'event_data'      => $event_data,
-			'actor'           => $actor,
-			'post'            => $post,
-			'created_at'      => $event->created_at,
+			'event_data'       => $event_data,
+			'actor'            => $actor,
+			'post'             => $post,
+			'created_at'       => $event->created_at,
 			'created_at_human' => human_time_diff( strtotime( $event->created_at ), current_time( 'timestamp' ) ) . ' ' . __( 'ago', 'vip-workflows' ),
 		);
 	}

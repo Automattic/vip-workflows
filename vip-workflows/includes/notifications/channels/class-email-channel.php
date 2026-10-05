@@ -119,13 +119,13 @@ class EmailChannel extends NotificationChannel {
 	 * @param array $input Input data.
 	 */
 	public function sanitize_settings( array $input ): array {
-		$sanitized                   = array();
-		$sanitized['notify_author']  = ! empty( $input['notify_author'] );
-		$sanitized['notify_admins']  = ! empty( $input['notify_admins'] );
+		$sanitized                  = array();
+		$sanitized['notify_author'] = ! empty( $input['notify_author'] );
+		$sanitized['notify_admins'] = ! empty( $input['notify_admins'] );
 
 		if ( ! empty( $input['additional_recipients'] ) ) {
-			$lines  = explode( "\n", $input['additional_recipients'] );
-			$emails = array_filter(
+			$lines                              = explode( "\n", $input['additional_recipients'] );
+			$emails                             = array_filter(
 				array_map(
 					function ( $line ) {
 							$email = sanitize_email( trim( $line ) );
@@ -163,7 +163,7 @@ class EmailChannel extends NotificationChannel {
 		if ( ! empty( $settings['notify_admins'] ) ) {
 			$admins = get_users(
 				array(
-					'role' => 'administrator',
+					'role'   => 'administrator',
 					'fields' => array( 'user_email' ),
 				)
 			);
@@ -228,7 +228,7 @@ class EmailChannel extends NotificationChannel {
 				<p style="margin-top: 20px; font-size: 12px; color: #666;">
 		<?php
 		printf(
-		 /* translators: %s: site name */
+		/* translators: %s: site name */
 			esc_html__( 'Sent by VIP Workflows on %s', 'vip-workflows' ),
 			esc_html( get_bloginfo( 'name' ) )
 		);

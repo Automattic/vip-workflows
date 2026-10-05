@@ -128,7 +128,7 @@ function execute_readability( ?array $input = null ) {
 
 	// Check sentence length.
 	if ( $avg_sentence_length > 20 ) {
-		$issues[] = array(
+		$issues[]      = array(
 			'type'     => 'long_sentences',
 			'message'  => sprintf(
 			/* translators: %s: Average sentence length */

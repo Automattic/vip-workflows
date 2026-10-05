@@ -22,7 +22,7 @@ namespace VIPWorkflows\Abilities\Tools;
  * @return array|\WP_Error Result data or error.
  */
 function execute_import_sequence( ?array $input = null ) {
-	$input          = $input ?? array();
+	$input         = $input ?? array();
 	$sequence_json = $input['sequence_json'] ?? null;
 
 	if ( ! is_array( $sequence_json ) ) {
@@ -41,7 +41,7 @@ function execute_import_sequence( ?array $input = null ) {
 		return $response;
 	}
 
-	$data      = $response->get_data();
+	$data     = $response->get_data();
 	$sequence = is_array( $data ) ? ( $data['sequence'] ?? null ) : null;
 
 	// Per the no-fallback rule, a success response missing the prepared sequence
@@ -83,7 +83,7 @@ function register_import_sequence(): void {
 						'type'        => 'object',
 						'description' => __( 'The exported sequence object (as produced by the export endpoint): must include type, name, and config.statuses.', 'vip-workflows' ),
 					),
-					'name'           => array(
+					'name'          => array(
 						'type'        => 'string',
 						'description' => __( 'Optional name override for the imported sequence. Defaults to the name in the JSON.', 'vip-workflows' ),
 					),

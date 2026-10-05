@@ -157,7 +157,7 @@ class AbilityResultRepository {
 		$result->error              = $decoded['_error'] ?? null;
 		$result->unmet_requirements = (array) ( $decoded['_unmet_requirements'] ?? array() );
 		unset( $decoded['_error'], $decoded['_unmet_requirements'] );
-		$result->output             = $decoded;
+		$result->output = $decoded;
 
 		return $result;
 	}

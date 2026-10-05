@@ -190,8 +190,8 @@ class AssistantRegistry {
 			$entry_abilities = array();
 			foreach ( $manifest['ability_ids'] as $id ) {
 				if ( isset( $abilities[ $id ] ) ) {
-					$entry_abilities[ $id ]  = $abilities[ $id ];
-					$claimed_ability_ids[]   = $id;
+					$entry_abilities[ $id ] = $abilities[ $id ];
+					$claimed_ability_ids[]  = $id;
 				}
 			}
 
@@ -618,23 +618,23 @@ class AssistantRegistry {
 		$first_ability_id = $abilities ? array_key_first( $abilities ) : null;
 
 		return array(
-			'slug'            => $slug,
-			'label'           => $manifest['label'],
-			'description'     => $manifest['description'],
-			'icon'            => $manifest['icon'],
-			'capabilities'    => $capabilities,
+			'slug'                  => $slug,
+			'label'                 => $manifest['label'],
+			'description'           => $manifest['description'],
+			'icon'                  => $manifest['icon'],
+			'capabilities'          => $capabilities,
 			'available_in_ai_stage' => in_array( 'stage', $capabilities, true ),
-			'ability_ids'     => array_keys( $abilities ),
-			'provider_slugs'  => array_keys( $providers ),
-			'enabled'         => empty( $enabled_values ) ? true : ! in_array( false, $enabled_values, true ),
-			'available'       => empty( $available_values ) ? true : ! in_array( false, $available_values, true ),
-			'availability'         => $this->aggregate_availability( $availabilities ),
-			'availability_sources' => $sources,
-			'availability_state'   => $this->derive_availability_state( $sources ),
-			'options'         => $options,
-			'settings_schema' => $settings_schema,
-			'display_order'   => $display_order,
-			'origin'          => $first_ability_id && str_starts_with( $first_ability_id, 'vip-workflows/' ) ? 'built-in' : 'plugin',
+			'ability_ids'           => array_keys( $abilities ),
+			'provider_slugs'        => array_keys( $providers ),
+			'enabled'               => empty( $enabled_values ) ? true : ! in_array( false, $enabled_values, true ),
+			'available'             => empty( $available_values ) ? true : ! in_array( false, $available_values, true ),
+			'availability'          => $this->aggregate_availability( $availabilities ),
+			'availability_sources'  => $sources,
+			'availability_state'    => $this->derive_availability_state( $sources ),
+			'options'               => $options,
+			'settings_schema'       => $settings_schema,
+			'display_order'         => $display_order,
+			'origin'                => $first_ability_id && str_starts_with( $first_ability_id, 'vip-workflows/' ) ? 'built-in' : 'plugin',
 		);
 	}
 

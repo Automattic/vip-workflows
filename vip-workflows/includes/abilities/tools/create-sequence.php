@@ -144,86 +144,86 @@ function register_create_sequence(): void {
 							'type'       => 'object',
 							'required'   => array( 'key', 'label' ),
 							'properties' => array(
-								'key'             => array(
+								'key'            => array(
 									'type'        => 'string',
 									'description' => __( 'Machine key for the status.', 'vip-workflows' ),
 								),
-								'label'           => array(
+								'label'          => array(
 									'type'        => 'string',
 									'description' => __( 'Human-readable status label.', 'vip-workflows' ),
 								),
-								'color'           => array(
+								'color'          => array(
 									'type'        => 'string',
 									'description' => __( 'Hex color for the status.', 'vip-workflows' ),
 								),
-								'is_terminal'     => array(
+								'is_terminal'    => array(
 									'type'        => 'boolean',
 									'description' => __( 'Whether this is a terminal status.', 'vip-workflows' ),
 								),
-								'is_initial'      => array(
+								'is_initial'     => array(
 									'type'        => 'boolean',
 									'description' => __( 'Whether this is the initial status.', 'vip-workflows' ),
 								),
-								'is_dead_end'     => array(
+								'is_dead_end'    => array(
 									'type'        => 'boolean',
 									'description' => __( 'Whether this status is a dead end (no outgoing transitions).', 'vip-workflows' ),
 								),
-								'is_in_progress'  => array(
+								'is_in_progress' => array(
 									'type'        => 'boolean',
 									'description' => __( 'Whether this status represents active, in-progress work.', 'vip-workflows' ),
 								),
-								'creates_post'    => array(
+								'creates_post'   => array(
 									'type'        => 'boolean',
 									'description' => __( 'Whether entering this status creates a post.', 'vip-workflows' ),
 								),
-								'status'          => array(
+								'status'         => array(
 									'type'        => 'string',
 									'description' => __( 'Core status region this stage lives in: one of "draft", "pending", "private", "publish". Defaults to "draft"; a value outside these is rejected.', 'vip-workflows' ),
 									'enum'        => Sequence::EDITORIAL_STATUSES,
 								),
-								'region_entry'    => array(
+								'region_entry'   => array(
 									'type'        => 'boolean',
 									'description' => __( 'Marks this stage as the entry checkpoint of its status region — where core-driven status changes re-seat the post. It does not constrain where a transition may point. At most one per region; defaults to the first stage in the region.', 'vip-workflows' ),
 								),
-								'transitions'     => array(
+								'transitions'    => array(
 									'type'        => 'array',
 									'description' => __( 'Allowed transitions from this status.', 'vip-workflows' ),
 									'items'       => array(
 										'type'       => 'object',
 										'required'   => array( 'to' ),
 										'properties' => array(
-											'to'                  => array(
-												'type'        => 'string',
+											'to'     => array(
+												'type' => 'string',
 												'description' => __( 'Target status key.', 'vip-workflows' ),
 											),
-											'label'               => array(
-												'type'        => 'string',
+											'label'  => array(
+												'type' => 'string',
 												'description' => __( 'Transition label.', 'vip-workflows' ),
 											),
-											'required_tools'      => array(
-												'type'        => 'array',
+											'required_tools' => array(
+												'type' => 'array',
 												'description' => __( 'Ability IDs required before this transition.', 'vip-workflows' ),
 											),
-											'allowed_roles'       => array(
-												'type'        => 'array',
+											'allowed_roles' => array(
+												'type' => 'array',
 												'description' => __( 'Roles permitted to perform this transition.', 'vip-workflows' ),
 											),
-											'notifications'       => array(
-												'type'        => 'array',
+											'notifications' => array(
+												'type' => 'array',
 												'description' => __( 'Notification channel keys to fire on this transition.', 'vip-workflows' ),
 											),
-											'show_in_queue'       => array(
-												'type'        => 'boolean',
+											'show_in_queue' => array(
+												'type' => 'boolean',
 												'description' => __( 'Whether to surface this transition in the queue.', 'vip-workflows' ),
 											),
-											'inputs'              => array(
-												'type'        => 'array',
+											'inputs' => array(
+												'type' => 'array',
 												'description' => __( 'Inputs collected during this transition. Only "assignment" inputs are collected, at most one per transition.', 'vip-workflows' ),
 											),
 										),
 									),
 								),
-								'agent'           => array(
+								'agent'          => array(
 									'type'        => 'object',
 									'description' => __( 'Optional AI-stage config. When set, an agent runs when a post enters this status and routes the exit transition based on its outcome.', 'vip-workflows' ),
 									'properties'  => array(

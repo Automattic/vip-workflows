@@ -104,7 +104,7 @@ class SequenceRepository {
 
 		foreach ( $ids as $id ) {
 			$cache_key = self::cache_key( 'sequence_' . $id );
-			$cached = $cached_sequences[ $cache_key ];
+			$cached    = $cached_sequences[ $cache_key ];
 			if ( false !== $cached ) {
 				if ( $cached instanceof Sequence ) {
 					$result[ $id ] = $cached;
@@ -130,11 +130,11 @@ class SequenceRepository {
 			$found_ids     = array();
 			$cache_entries = array();
 			foreach ( $rows as $row ) {
-				$sequence                                  = Sequence::from_row( $row );
-				$cache_key                                 = self::cache_key( 'sequence_' . $sequence->id );
-				$result[ $sequence->id ]                   = $sequence;
-				$found_ids[]                               = $sequence->id;
-				$cache_entries[ $cache_key ]               = $sequence;
+				$sequence                    = Sequence::from_row( $row );
+				$cache_key                   = self::cache_key( 'sequence_' . $sequence->id );
+				$result[ $sequence->id ]     = $sequence;
+				$found_ids[]                 = $sequence->id;
+				$cache_entries[ $cache_key ] = $sequence;
 			}
 
 			foreach ( $uncached as $id ) {
@@ -250,11 +250,11 @@ class SequenceRepository {
 		global $wpdb;
 
 		$defaults = array(
-			'type'         => null, // Filter by type (workflow, phase).
-			'status'       => null,
-			'latest_only'  => true, // Only return the latest version of each sequence.
-			'orderby'      => 'name',
-			'order'        => 'ASC',
+			'type'        => null, // Filter by type (workflow, phase).
+			'status'      => null,
+			'latest_only' => true, // Only return the latest version of each sequence.
+			'orderby'     => 'name',
+			'order'       => 'ASC',
 		);
 
 		$args = wp_parse_args( $args, $defaults );

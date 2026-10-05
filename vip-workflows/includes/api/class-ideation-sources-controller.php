@@ -237,23 +237,23 @@ class IdeationSourcesController extends WP_REST_Controller {
 		$inserted = $wpdb->insert(
 			$table,
 			array(
-				'project_id'    => $project_id,
-				'source_id'     => $source_id,
-				'url'           => $url,
-				'title'         => '' !== $title ? $title : null,
-				'domain'        => $domain,
-				'favicon'       => null,
-				'image'         => ! empty( $meta['image'] ) ? (string) $meta['image'] : null,
-				'published_at'  => $published_at,
-				'author'        => ! empty( $meta['author'] ) ? (string) $meta['author'] : null,
-				'excerpt'       => '' !== $description ? $description : null,
-				'content'       => '' !== $description ? $description : null,
-				'source_type'   => 'article',
-				'origin'        => 'manual',
-				'notes'         => '' !== $notes ? $notes : null,
-				'added_by'      => $user_id,
-				'added_at'      => $now,
-				'updated_at'    => $now,
+				'project_id'   => $project_id,
+				'source_id'    => $source_id,
+				'url'          => $url,
+				'title'        => '' !== $title ? $title : null,
+				'domain'       => $domain,
+				'favicon'      => null,
+				'image'        => ! empty( $meta['image'] ) ? (string) $meta['image'] : null,
+				'published_at' => $published_at,
+				'author'       => ! empty( $meta['author'] ) ? (string) $meta['author'] : null,
+				'excerpt'      => '' !== $description ? $description : null,
+				'content'      => '' !== $description ? $description : null,
+				'source_type'  => 'article',
+				'origin'       => 'manual',
+				'notes'        => '' !== $notes ? $notes : null,
+				'added_by'     => $user_id,
+				'added_at'     => $now,
+				'updated_at'   => $now,
 			),
 			array(
 				'%d',
@@ -434,20 +434,20 @@ class IdeationSourcesController extends WP_REST_Controller {
 		$inserted = $wpdb->insert(
 			$table,
 			array(
-				'project_id'          => $project_id,
-				'source_id'           => $source_id,
-				'url'                 => $attach_url ? $attach_url : null,
-				'title'               => $attachment->post_title,
-				'domain'              => null,
-				'source_type'         => 'document',
-				'origin'              => 'manual',
-				'attachment_id'       => $attachment_id,
-				'file_type'           => $attachment->post_mime_type,
-				'file_size'           => $file_size,
-				'processing_status'   => 'pending',
-				'added_by'            => $user_id,
-				'added_at'            => $now,
-				'updated_at'          => $now,
+				'project_id'        => $project_id,
+				'source_id'         => $source_id,
+				'url'               => $attach_url ? $attach_url : null,
+				'title'             => $attachment->post_title,
+				'domain'            => null,
+				'source_type'       => 'document',
+				'origin'            => 'manual',
+				'attachment_id'     => $attachment_id,
+				'file_type'         => $attachment->post_mime_type,
+				'file_size'         => $file_size,
+				'processing_status' => 'pending',
+				'added_by'          => $user_id,
+				'added_at'          => $now,
+				'updated_at'        => $now,
 			),
 			array(
 				'%d',
@@ -572,7 +572,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		$notes_param = $request->get_param( 'notes' );
 		$tags_param  = $request->get_param( 'tags' );
 
-		$data = array(
+		$data    = array(
 			'updated_at' => current_time( 'mysql' ),
 		);
 		$formats = array( '%s' );
@@ -690,9 +690,9 @@ class IdeationSourcesController extends WP_REST_Controller {
 
 		return new WP_REST_Response(
 			array(
-				'summary'    => $result['summary'],
+				'summary'     => $result['summary'],
 				'analyzed_at' => $result['analyzed_at'],
-				'source'     => $this->format_source_row( $fresh ),
+				'source'      => $this->format_source_row( $fresh ),
 			)
 		);
 	}
@@ -734,8 +734,8 @@ class IdeationSourcesController extends WP_REST_Controller {
 			$table,
 			array(
 				'processing_status' => 'pending',
-				'ai_analysis'     => wp_json_encode( $ai_analysis ),
-				'updated_at'      => current_time( 'mysql' ),
+				'ai_analysis'       => wp_json_encode( $ai_analysis ),
+				'updated_at'        => current_time( 'mysql' ),
 			),
 			array(
 				'project_id' => $project_id,
@@ -796,7 +796,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 	 */
 	private function format_source_row( array $row ): array {
 		if ( isset( $row['ai_analysis'] ) && is_string( $row['ai_analysis'] ) && '' !== $row['ai_analysis'] ) {
-			$decoded = json_decode( $row['ai_analysis'], true );
+			$decoded            = json_decode( $row['ai_analysis'], true );
 			$row['ai_analysis'] = is_array( $decoded ) ? $decoded : null;
 		}
 

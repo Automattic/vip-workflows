@@ -29,11 +29,11 @@ use VIPWorkflows\Story\Story;
 class IdeationOrchestrator {
 
 	private const META_ASSISTANT_PREFIX = '_vip_ideation_asst_';
-	private const META_SEED_ANALYSIS   = '_vip_ideation_seed_analysis';
-	private const META_BOARD_CARDS   = '_vip_ideation_board_cards';
-	private const META_PINNED        = '_vip_ideation_pinned_cards';
-	private const META_DISMISSED     = '_vip_ideation_dismissed_cards';
-	private const META_QUERY_LOG     = '_vip_ideation_query_log';
+	private const META_SEED_ANALYSIS    = '_vip_ideation_seed_analysis';
+	private const META_BOARD_CARDS      = '_vip_ideation_board_cards';
+	private const META_PINNED           = '_vip_ideation_pinned_cards';
+	private const META_DISMISSED        = '_vip_ideation_dismissed_cards';
+	private const META_QUERY_LOG        = '_vip_ideation_query_log';
 
 	private const BOARD_CARD_TYPES = array( 'tag-cloud', 'entity', 'news-angle' );
 
@@ -362,7 +362,7 @@ class IdeationOrchestrator {
 		if ( ! $ability ) {
 			return array(
 				'status' => 'failed',
-				'error' => __( 'Unknown research agent.', 'vip-workflows' ),
+				'error'  => __( 'Unknown research agent.', 'vip-workflows' ),
 			);
 		}
 
@@ -413,14 +413,14 @@ class IdeationOrchestrator {
 				$input['query'] = $query;
 			}
 
-			$start      = microtime( true );
-			$raw_output = $ability->execute( $input );
+			$start       = microtime( true );
+			$raw_output  = $ability->execute( $input );
 			$duration_ms = (int) ( ( microtime( true ) - $start ) * 1000 );
 
 			if ( is_wp_error( $raw_output ) ) {
 				$result = array(
 					'status' => 'failed',
-					'error' => $raw_output->get_error_message(),
+					'error'  => $raw_output->get_error_message(),
 				);
 				$this->set_assistant_status( $project_id, $assistant_id, 'failed' );
 				$this->update_assistant_meta( $project_id, $assistant_id, $result );
@@ -629,7 +629,7 @@ class IdeationOrchestrator {
 		unset( $card );
 
 		foreach ( $board_cards as &$card ) {
-			$card_id = $card['card_id'] ?? $card['type'] ?? '';
+			$card_id             = $card['card_id'] ?? $card['type'] ?? '';
 			$card['card_status'] = 'default';
 			if ( in_array( $card_id, $pinned_ids, true ) ) {
 				$card['card_status'] = 'pinned';
@@ -1216,8 +1216,8 @@ class IdeationOrchestrator {
 	 * @param string $status Status value.
 	 */
 	private function set_assistant_status( int $project_id, string $assistant_id, string $status ): void {
-		$statuses = get_post_meta( $project_id, '_vip_ideation_assistant_statuses', true );
-		$statuses = json_decode( $statuses ? $statuses : '{}', true );
+		$statuses                  = get_post_meta( $project_id, '_vip_ideation_assistant_statuses', true );
+		$statuses                  = json_decode( $statuses ? $statuses : '{}', true );
 		$statuses[ $assistant_id ] = array(
 			'status'     => $status,
 			'updated_at' => current_time( 'mysql' ),

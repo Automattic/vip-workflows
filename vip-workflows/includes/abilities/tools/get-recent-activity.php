@@ -44,9 +44,9 @@ function execute_get_recent_activity( ?array $input = null ) {
 	$events = array();
 
 	foreach ( $results as $row ) {
-		$data   = json_decode( $row->event_data, true );
-		$data   = $data ? $data : array();
-		$post   = get_post( (int) $row->post_id );
+		$data = json_decode( $row->event_data, true );
+		$data = $data ? $data : array();
+		$post = get_post( (int) $row->post_id );
 
 		if ( ! $post || ! current_user_can( 'edit_post', $post->ID ) ) {
 			continue;

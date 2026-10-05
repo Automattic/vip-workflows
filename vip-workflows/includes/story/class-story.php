@@ -22,7 +22,7 @@ use WP_Error;
  */
 class Story implements ModuleInterface {
 
-	public const POST_TYPE = 'vip_story';
+	public const POST_TYPE     = 'vip_story';
 	public const META_STORY_ID = '_vip_story_id';
 
 	public const STATUS_IDEATION   = 'ideation';
@@ -76,7 +76,7 @@ class Story implements ModuleInterface {
 		register_post_type(
 			self::POST_TYPE,
 			array(
-				'labels' => array(
+				'labels'              => array(
 					'name'          => __( 'Stories', 'vip-workflows' ),
 					'singular_name' => __( 'Story', 'vip-workflows' ),
 				),
@@ -308,7 +308,7 @@ class Story implements ModuleInterface {
 
 		$object_summary = array();
 		foreach ( $objects as $obj ) {
-			$post = get_post( (int) $obj['object_id'] );
+			$post             = get_post( (int) $obj['object_id'] );
 			$object_summary[] = array(
 				'id'    => (int) $obj['object_id'],
 				'type'  => $obj['object_type'],

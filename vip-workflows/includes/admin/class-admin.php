@@ -82,16 +82,16 @@ class Admin implements ModuleInterface {
 			return;
 		}
 
-		$parts        = explode( ':', $selection, 2 );
+		$parts       = explode( ':', $selection, 2 );
 		$sequence_id = (int) $parts[0];
-		$status_key   = isset( $parts[1] ) ? sanitize_key( $parts[1] ) : '';
+		$status_key  = isset( $parts[1] ) ? sanitize_key( $parts[1] ) : '';
 
 		if ( ! $sequence_id ) {
 			return;
 		}
 
 		$repository = new SequenceRepository();
-		$sequence  = $repository->find( $sequence_id );
+		$sequence   = $repository->find( $sequence_id );
 
 		if ( ! $sequence ) {
 			return;
@@ -128,7 +128,7 @@ class Admin implements ModuleInterface {
 		// and inherit the `post` post-type default, so they would render as an
 		// empty optgroup here.
 		$repository = new SequenceRepository();
-		$sequences = array_filter(
+		$sequences  = array_filter(
 			$repository->get_workflow_sequences( array( 'status' => 'active' ) ),
 			fn( $bp ) => in_array( $screen->post_type, $bp->get_post_types(), true )
 		);
@@ -392,7 +392,7 @@ class Admin implements ModuleInterface {
 			'vip-workflows-calendar'      => 12,
 			'vip-workflows-ideation'      => 13,
 			// System.
-			'vip-workflows-sequences'    => 30,
+			'vip-workflows-sequences'     => 30,
 			'vip-workflows-notifications' => 31,
 			'vip-workflows-agents'        => 32,
 			'vip-workflows-tools'         => 33,

@@ -112,18 +112,18 @@ class LlmTextGenerator {
 	 */
 	public const MODEL_OUTPUT_CAPS = array(
 		// Verified end to end; see docs/reference/ai-supported-models.md.
-		'claude-sonnet-5'           => 128000,
-		'gpt-4o'                    => 16384,
+		'claude-sonnet-5'         => 128000,
+		'gpt-4o'                  => 16384,
 
 		// Below the largest ceiling here, so a request from this repo is refused
 		// outright unless it is clamped.
-		'gpt-4o-mini'               => 16384,
-		'gpt-4'                     => 8192,
-		'gpt-4-turbo'               => 4096,
-		'gpt-3.5-turbo'             => 4096,
-		'claude-3-haiku-20240307'   => 4096,
-		'gemini-1.5-pro'            => 8192,
-		'gemini-1.5-flash'          => 8192,
+		'gpt-4o-mini'             => 16384,
+		'gpt-4'                   => 8192,
+		'gpt-4-turbo'             => 4096,
+		'gpt-3.5-turbo'           => 4096,
+		'claude-3-haiku-20240307' => 4096,
+		'gemini-1.5-pro'          => 8192,
+		'gemini-1.5-flash'        => 8192,
 	);
 
 	/**

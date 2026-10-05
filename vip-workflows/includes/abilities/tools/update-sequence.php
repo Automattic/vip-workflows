@@ -131,25 +131,25 @@ function execute_update_sequence( ?array $input = null ) {
 		'sequence.updated',
 		UPDATE_SEQUENCE_ABILITY_ID,
 		array(
-			'sequence_id'    => (int) $data['id'],
-			'sequence_name'  => (string) $data['name'],
-			'sequence_slug'  => (string) $data['slug'],
-			'sequence_type'  => (string) $data['type'],
+			'sequence_id'     => (int) $data['id'],
+			'sequence_name'   => (string) $data['name'],
+			'sequence_slug'   => (string) $data['slug'],
+			'sequence_type'   => (string) $data['type'],
 			'statuses_count'  => (int) $data['statuses_count'],
 			'sequence_status' => (string) $data['status'],
 		)
 	);
 
 	return array(
-		'sequence_id'     => (int) $data['id'],
-		'name'            => (string) $data['name'],
-		'slug'            => (string) $data['slug'],
-		'type'            => (string) $data['type'],
-		'status'          => (string) $data['status'],
-		'status_changed'  => $previous_status !== (string) $data['status'],
-		'statuses_count'  => (int) $data['statuses_count'],
-		'warnings'        => $warnings,
-		'success'         => true,
+		'sequence_id'    => (int) $data['id'],
+		'name'           => (string) $data['name'],
+		'slug'           => (string) $data['slug'],
+		'type'           => (string) $data['type'],
+		'status'         => (string) $data['status'],
+		'status_changed' => $previous_status !== (string) $data['status'],
+		'statuses_count' => (int) $data['statuses_count'],
+		'warnings'       => $warnings,
+		'success'        => true,
 	);
 }
 
@@ -239,32 +239,32 @@ function register_update_sequence(): void {
 										'type'       => 'object',
 										'required'   => array( 'to' ),
 										'properties' => array(
-											'to'                  => array(
-												'type'        => 'string',
+											'to'     => array(
+												'type' => 'string',
 												'description' => __( 'Target status key.', 'vip-workflows' ),
 											),
-											'label'               => array(
-												'type'        => 'string',
+											'label'  => array(
+												'type' => 'string',
 												'description' => __( 'Transition label.', 'vip-workflows' ),
 											),
-											'required_tools'      => array(
-												'type'        => 'array',
+											'required_tools' => array(
+												'type' => 'array',
 												'description' => __( 'Ability IDs required before this transition.', 'vip-workflows' ),
 											),
-											'allowed_roles'       => array(
-												'type'        => 'array',
+											'allowed_roles' => array(
+												'type' => 'array',
 												'description' => __( 'Roles permitted to perform this transition.', 'vip-workflows' ),
 											),
-											'notifications'       => array(
-												'type'        => 'array',
+											'notifications' => array(
+												'type' => 'array',
 												'description' => __( 'Notification channel keys to fire on this transition.', 'vip-workflows' ),
 											),
-											'show_in_queue'       => array(
-												'type'        => 'boolean',
+											'show_in_queue' => array(
+												'type' => 'boolean',
 												'description' => __( 'Whether to surface this transition in the queue.', 'vip-workflows' ),
 											),
-											'inputs'              => array(
-												'type'        => 'array',
+											'inputs' => array(
+												'type' => 'array',
 												'description' => __( 'Inputs collected during this transition. Only "assignment" inputs are collected, at most one per transition.', 'vip-workflows' ),
 											),
 										),

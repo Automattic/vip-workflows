@@ -80,22 +80,22 @@ class IdeationPostTypes implements ModuleInterface {
 		);
 
 		$args = array(
-			'labels'              => $labels,
-			'public'              => false,
-			'publicly_queryable'  => false,
-			'show_ui'             => false,
-			'show_in_menu'        => false,
-			'query_var'           => false,
-			'rewrite'             => false,
-			'capability_type'     => 'post',
-			'capabilities'        => $this->get_capabilities(),
-			'map_meta_cap'        => true,
-			'has_archive'         => false,
-			'hierarchical'        => false,
-			'supports'            => array( 'title', 'editor', 'author' ),
-			'show_in_rest'        => true,
-			'rest_base'           => 'vip-ideation',
-			'rest_namespace'      => 'vip-workflows/v1',
+			'labels'             => $labels,
+			'public'             => false,
+			'publicly_queryable' => false,
+			'show_ui'            => false,
+			'show_in_menu'       => false,
+			'query_var'          => false,
+			'rewrite'            => false,
+			'capability_type'    => 'post',
+			'capabilities'       => $this->get_capabilities(),
+			'map_meta_cap'       => true,
+			'has_archive'        => false,
+			'hierarchical'       => false,
+			'supports'           => array( 'title', 'editor', 'author' ),
+			'show_in_rest'       => true,
+			'rest_base'          => 'vip-ideation',
+			'rest_namespace'     => 'vip-workflows/v1',
 		);
 
 		register_post_type( self::POST_TYPE, $args );

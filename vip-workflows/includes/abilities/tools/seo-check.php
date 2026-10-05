@@ -61,8 +61,8 @@ function execute_seo_check( ?array $input = null ) {
 	// Check 1: Content length.
 	$min_words = $settings['min_words'] ?? 300;
 	if ( $word_count < $min_words ) {
-		$score   -= 15;
-		$issues[] = array(
+		$score        -= 15;
+		$issues[]      = array(
 			'type'      => 'content_length',
 			'check_key' => 'min_words',
 			'message'   => sprintf(
@@ -105,8 +105,8 @@ function execute_seo_check( ?array $input = null ) {
 	$analysis['headings'] = $heading_counts;
 
 	if ( empty( $heading_counts ) ) {
-		$score   -= 10;
-		$issues[] = array(
+		$score        -= 10;
+		$issues[]      = array(
 			'type'     => 'no_headings',
 			'message'  => __( 'No headings found. Use H2-H4 tags to structure content.', 'vip-workflows' ),
 			'severity' => 'warning',
@@ -124,7 +124,7 @@ function execute_seo_check( ?array $input = null ) {
 
 	foreach ( $images[0] ?? array() as $img ) {
 		if ( ! preg_match( '/alt=["\'][^"\']+["\']/i', $img ) ) {
-			$images_without_alt++;
+			++$images_without_alt;
 		}
 	}
 
@@ -164,9 +164,9 @@ function execute_seo_check( ?array $input = null ) {
 
 	foreach ( $links[1] ?? array() as $href ) {
 		if ( strpos( $href, $site_url ) === 0 || strpos( $href, '/' ) === 0 ) {
-			$internal_links++;
+			++$internal_links;
 		} else {
-			$external_links++;
+			++$external_links;
 		}
 	}
 
