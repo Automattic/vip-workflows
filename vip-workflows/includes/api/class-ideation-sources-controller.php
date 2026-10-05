@@ -234,6 +234,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 
 		$table = $wpdb->prefix . 'vip_ideation_sources';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_ideation_sources; write, nothing to cache
 		$inserted = $wpdb->insert(
 			$table,
 			array(
@@ -431,6 +432,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 
 		$table = $wpdb->prefix . 'vip_ideation_sources';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_ideation_sources; write, nothing to cache
 		$inserted = $wpdb->insert(
 			$table,
 			array(
@@ -517,6 +519,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 
 		$table = $wpdb->prefix . 'vip_ideation_sources';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$deleted = $wpdb->delete(
 			$table,
 			array(
@@ -593,6 +596,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 
 		$table = $wpdb->prefix . 'vip_ideation_sources';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$updated = $wpdb->update(
 			$table,
 			$data,
@@ -665,6 +669,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 
 		$table = $wpdb->prefix . 'vip_ideation_sources';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$wpdb->update(
 			$table,
 			array(
@@ -730,6 +735,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 
 		$table = $wpdb->prefix . 'vip_ideation_sources';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$wpdb->update(
 			$table,
 			array(
@@ -775,6 +781,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 
 		$table = $wpdb->prefix . 'vip_ideation_sources';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; live read, not cached
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE project_id = %d AND source_id = %s',
