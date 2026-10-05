@@ -719,6 +719,7 @@ class IdeationController extends WP_REST_Controller {
 				$image_url = wp_get_attachment_url( $attachment_id );
 				$source_id = $card['source_id'] ?? $card['card_id'] ?? '';
 				if ( $source_id ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 					$wpdb->update(
 						$wpdb->prefix . 'vip_ideation_sources',
 						array( 'attachment_id' => $attachment_id ),
@@ -1058,6 +1059,7 @@ class IdeationController extends WP_REST_Controller {
 			$seed_analysis = get_post_meta( $project->ID, '_vip_ideation_seed_analysis', true );
 			$seed_analysis = json_decode( $seed_analysis ? $seed_analysis : '{}', true );
 
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; live read, not cached
 			$source_count = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM %i WHERE project_id = %d',
@@ -1130,6 +1132,7 @@ class IdeationController extends WP_REST_Controller {
 		global $wpdb;
 		$analyses_table = $wpdb->prefix . 'vip_ideation_analyses';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_ideation_analyses; write, nothing to cache
 		$wpdb->insert(
 			$analyses_table,
 			array(
@@ -1159,6 +1162,7 @@ class IdeationController extends WP_REST_Controller {
 		global $wpdb;
 		$analyses_table = $wpdb->prefix . 'vip_ideation_analyses';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_analyses; live read, not cached
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT result FROM %i WHERE project_id = %d AND tool_type = 'summarize' ORDER BY created_at DESC LIMIT 1",
@@ -1201,7 +1205,7 @@ class IdeationController extends WP_REST_Controller {
 		global $wpdb;
 
 		$table  = $wpdb->prefix . 'vip_ideation_sources';
-		$source = $wpdb->get_row(
+		$source = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; live read, not cached
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE project_id = %d AND source_id = %s',
 				$table,
@@ -1245,6 +1249,7 @@ class IdeationController extends WP_REST_Controller {
 		$ai_analysis['summary']     = $result['summary'];
 		$ai_analysis['analyzed_at'] = $result['analyzed_at'];
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$wpdb->update(
 			$table,
 			array(
@@ -1429,6 +1434,7 @@ class IdeationController extends WP_REST_Controller {
 		$ai_data['analyzed_at']     = current_time( 'mysql' );
 		$ai_data['analysis_method'] = $method;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$wpdb->update(
 			$table,
 			array(
