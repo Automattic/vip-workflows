@@ -83,7 +83,7 @@ function execute( array $input ): array {
 	$query = $input['query'] ?? $input['seed'] ?? '';
 	if ( empty( $query ) ) {
 		return array(
-			'cards' => array(),
+			'cards'   => array(),
 			'summary' => 'No search query provided.',
 		);
 	}
@@ -169,7 +169,7 @@ function search_wikipedia( string $term ): array {
 		return array();
 	}
 
-	$body = json_decode( wp_remote_retrieve_body( $response ), true );
+	$body    = json_decode( wp_remote_retrieve_body( $response ), true );
 	$results = $body['query']['search'] ?? array();
 
 	if ( empty( $results ) ) {
@@ -248,7 +248,7 @@ function fetch_page_details( array $page_ids ): array {
  * @return array Deduplicated cards.
  */
 function deduplicate_cards( array $cards ): array {
-	$seen = array();
+	$seen   = array();
 	$unique = array();
 
 	foreach ( $cards as $card ) {

@@ -126,7 +126,7 @@ add_action(
 		}
 
 		$repo       = new \VIPWorkflows\Sequences\SequenceRepository();
-		$sequences = $repo->get_active();
+		$sequences  = $repo->get_active();
 		$post_types = array();
 		foreach ( $sequences as $sequence ) {
 			$post_types = array_merge( $post_types, $sequence->get_post_types() );

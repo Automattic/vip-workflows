@@ -173,10 +173,10 @@ class ChecklistTool {
 				$all_required_met   = false;
 				$missing_required[] = $item['label'];
 				$issues[]           = array(
-					'check_key'   => $item['id'],
-					'type'        => 'checklist_item',
-					'severity'    => 'error',
-					'message'     => sprintf(
+					'check_key' => $item['id'],
+					'type'      => 'checklist_item',
+					'severity'  => 'error',
+					'message'   => sprintf(
 						/* translators: %s: checklist item label */
 						__( 'Required checklist item not checked: %s', 'workflow-tool-checklist' ),
 						$item['label']
