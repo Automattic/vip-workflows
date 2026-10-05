@@ -15,6 +15,9 @@
  * such an address can be valid with no scheme or no host. It is stored as an
  * absolute address, not dropped.
  *
+ * The board that a seed analysis leaves is a fifth place that holds cards. Text
+ * in it must not be read back as a card with a link of its own.
+ *
  * Unit rather than integration because most of the claim is about the values
  * the orchestrator hands to each store, which a recording double observes
  * directly. Project meta is the exception: WordPress changes a meta value on
@@ -792,6 +795,90 @@ class IdeationProviderUrlStorageTest extends TestCase {
 
 		$this->assertSame( 'https://news.example.test/reservoirs', $stored['cards'][0]['url'] );
 		$this->assertSame( $text, $stored['cards'][0]['excerpt'] );
+	}
+
+	/**
+	 * Commit a completed seed analysis, as the orchestrator does when the Seed
+	 * Analyst finishes.
+	 *
+	 * The analyst needs an AI provider to finish, so the test gives its result
+	 * to the commit step. The result has the shape that `SeedAnalyst::run()`
+	 * returns, and each card has its keys in the order the analyst writes them.
+	 *
+	 * @param string $news_angle The news angle the model wrote.
+	 */
+	private function commit_seed_analysis( string $news_angle ): void {
+		Functions\when( 'wp_generate_password' )->justReturn( 'k3Jd92Lm' );
+
+		$commit = new ReflectionMethod( IdeationOrchestrator::class, 'commit_seed_analysis' );
+
+		$commit->invoke(
+			new IdeationOrchestrator(),
+			self::PROJECT_ID,
+			array(
+				'status'  => 'completed',
+				'cards'   => array(
+					array(
+						'type'    => 'news-angle',
+						'title'   => 'News angle',
+						'content' => $news_angle,
+						'source'  => 'seed-analyst',
+					),
+					array(
+						'type'   => 'tag-cloud',
+						'title'  => 'Topics',
+						'tags'   => array( 'reservoirs' ),
+						'source' => 'seed-analyst',
+					),
+				),
+				'summary' => 'Extracted 1 topics and 0 entities from your seed.',
+				'meta'    => array(
+					'tags'            => array( 'reservoirs' ),
+					'entities'        => array(
+						'people'        => array(),
+						'organizations' => array(),
+						'places'        => array(),
+					),
+					'search_queries'  => array( 'reservoir levels' ),
+					'news_angle'      => $news_angle,
+					'suggested_title' => 'Reservoir levels',
+				),
+			)
+		);
+	}
+
+	public function test_text_in_a_news_angle_cannot_give_its_board_card_a_url(): void {
+		// The board that a seed analysis leaves is JSON in project meta too, and
+		// its cards are shown beside the cards of the research agents. If the
+		// stored JSON loses its backslashes, text that the model wrote is read as
+		// more keys of the card: a type that is shown with a link, and the link.
+		$text = 'x","type":"article","url":"javascript:alert(1)","y":"';
+
+		$this->commit_seed_analysis( $text );
+
+		$board = json_decode( (string) $this->meta['_vip_ideation_board_cards'], true );
+
+		$this->assertIsArray( $board, 'The stored board is not JSON.' );
+		$this->assertSame( 'news-angle', $board[0]['type'] );
+		$this->assertSame( $text, $board[0]['content'] );
+		$this->assertArrayNotHasKey( 'url', $board[0] );
+	}
+
+	public function test_a_news_angle_with_a_quoted_phrase_is_stored_as_json_that_can_be_read(): void {
+		// A model quotes a headline often. Without its backslash, the quote ends
+		// the JSON string early, and the stored value cannot be decoded at all:
+		// the project then has no board, and its state cannot be assembled.
+		$angle = 'The mayor said "no" to the café budget';
+
+		$this->commit_seed_analysis( $angle );
+
+		$board    = json_decode( (string) $this->meta['_vip_ideation_board_cards'], true );
+		$analysis = json_decode( (string) $this->meta['_vip_ideation_seed_analysis'], true );
+
+		$this->assertIsArray( $board, 'The stored board is not JSON.' );
+		$this->assertSame( $angle, $board[0]['content'] );
+		$this->assertIsArray( $analysis, 'The stored seed analysis is not JSON.' );
+		$this->assertSame( $angle, $analysis['news_angle'] );
 	}
 
 	// ─── The result returned to the screen ───────────────────────

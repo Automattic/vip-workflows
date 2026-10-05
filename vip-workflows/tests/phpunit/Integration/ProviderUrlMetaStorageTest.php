@@ -1,9 +1,10 @@
 <?php
 /**
- * Provider-supplied URLs in the two stores that are post meta.
+ * Provider-supplied URLs in the stores that are post meta.
  *
  * A selected story prompt and a research run's result are both kept on the
- * project as JSON. Integration rather than unit because the claim is about what
+ * project as JSON, and so are the board and the analysis that the Seed Analyst
+ * leaves. Integration rather than unit because the claim is about what
  * WordPress holds after the write: `update_post_meta()` removes backslashes
  * from a value before it stores it, so a JSON string that is not slashed first
  * loses the escape on every double quote. Text after a quote is then read as
@@ -33,6 +34,7 @@ use WP_REST_Request;
 /**
  * @covers \VIPWorkflows\API\DiscoveryController::select_prompt
  * @covers \VIPWorkflows\Ideation\Assistants\IdeationOrchestrator::update_assistant_meta
+ * @covers \VIPWorkflows\Ideation\Assistants\IdeationOrchestrator::commit_seed_analysis
  */
 class ProviderUrlMetaStorageTest extends TestCase {
 
@@ -265,5 +267,90 @@ class ProviderUrlMetaStorageTest extends TestCase {
 
 		$this->assertSame( 'Mayor says "no" to the café budget', $card['title'] );
 		$this->assertSame( 'https://news.example.test/budget', $card['url'] );
+	}
+
+	// ─── The board and the analysis of a seed ────────────────────
+
+	/**
+	 * Commit a completed seed analysis to a new project, then read the
+	 * project's state as the ideation screen does.
+	 *
+	 * The Seed Analyst needs an AI provider to finish, and none is configured
+	 * here, so its result goes to the commit step that a finished run feeds. The
+	 * result has the shape that `SeedAnalyst::run()` returns, and each card has
+	 * its keys in the order the analyst writes them.
+	 *
+	 * @param  string $news_angle The news angle the model wrote.
+	 * @return array The project's state.
+	 */
+	private function state_after_an_analysis( string $news_angle ): array {
+		$project_id = self::factory()->post->create(
+			array(
+				'post_type'  => IdeationPostTypes::POST_TYPE,
+				'post_title' => 'Reservoir levels',
+			)
+		);
+		update_post_meta( $project_id, '_vip_ideation_seed', 'Reservoir levels' );
+
+		$orchestrator = new IdeationOrchestrator();
+		$commit       = new ReflectionMethod( IdeationOrchestrator::class, 'commit_seed_analysis' );
+
+		$commit->invoke(
+			$orchestrator,
+			$project_id,
+			array(
+				'status'  => 'completed',
+				'cards'   => array(
+					array(
+						'type'    => 'news-angle',
+						'title'   => 'News angle',
+						'content' => $news_angle,
+						'source'  => 'seed-analyst',
+					),
+					array(
+						'type'   => 'tag-cloud',
+						'title'  => 'Topics',
+						'tags'   => array( 'reservoirs' ),
+						'source' => 'seed-analyst',
+					),
+				),
+				'summary' => 'Extracted 1 topics and 0 entities from your seed.',
+				'meta'    => array(
+					'tags'            => array( 'reservoirs' ),
+					'entities'        => array(
+						'people'        => array(),
+						'organizations' => array(),
+						'places'        => array(),
+					),
+					'search_queries'  => array( 'reservoir levels' ),
+					'news_angle'      => $news_angle,
+					'suggested_title' => 'Reservoir levels',
+				),
+			)
+		);
+
+		return $orchestrator->get_state( $project_id );
+	}
+
+	public function test_text_in_a_news_angle_cannot_give_its_board_card_a_url(): void {
+		// The state lists the cards of the board with the cards of the research
+		// agents, and the screen picks how to show a card from its `type`. So the
+		// text gives the card a type that is shown with a link, and then the link.
+		$text = 'x","type":"article","url":"javascript:alert(1)","y":"';
+
+		$card = $this->state_after_an_analysis( $text )['cards'][0];
+
+		$this->assertSame( 'news-angle', $card['type'] );
+		$this->assertSame( $text, $card['content'] );
+		$this->assertArrayNotHasKey( 'url', $card );
+	}
+
+	public function test_an_analysis_with_a_quoted_phrase_leaves_a_state_that_can_be_read(): void {
+		$angle = 'The mayor said "no" to the café budget';
+
+		$state = $this->state_after_an_analysis( $angle );
+
+		$this->assertSame( $angle, $state['cards'][0]['content'] );
+		$this->assertSame( $angle, $state['seed_analysis']['news_angle'] );
 	}
 }

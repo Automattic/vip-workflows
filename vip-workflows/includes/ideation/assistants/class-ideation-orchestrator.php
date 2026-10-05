@@ -228,8 +228,17 @@ class IdeationOrchestrator {
 	 * @param array $result     A completed Seed Analyst result.
 	 */
 	private function commit_seed_analysis( int $project_id, array $result ): void {
+		/*
+		 * Both values are slashed, because `update_post_meta()` removes backslashes
+		 * from the value it is given. The text here is what a model wrote, and a
+		 * model quotes a headline often. Unslashed, one double quote makes the
+		 * stored JSON unreadable: the project then has no board, and its state
+		 * cannot be assembled. Text written for the purpose is read as more keys
+		 * of a board card instead — a `type` that the board shows with a link, and
+		 * the `url` of that link, which no check has seen.
+		 */
 		$seed_analysis = $result['meta'] ?? array();
-		update_post_meta( $project_id, self::META_SEED_ANALYSIS, wp_json_encode( $seed_analysis ) );
+		update_post_meta( $project_id, self::META_SEED_ANALYSIS, wp_slash( wp_json_encode( $seed_analysis ) ) );
 
 		$board_cards = array();
 		foreach ( $result['cards'] ?? array() as $card ) {
@@ -238,7 +247,7 @@ class IdeationOrchestrator {
 				$board_cards[]   = $card;
 			}
 		}
-		update_post_meta( $project_id, self::META_BOARD_CARDS, wp_json_encode( $board_cards ) );
+		update_post_meta( $project_id, self::META_BOARD_CARDS, wp_slash( wp_json_encode( $board_cards ) ) );
 
 		$suggested_title = $seed_analysis['suggested_title'] ?? '';
 		if ( ! empty( $suggested_title ) ) {
