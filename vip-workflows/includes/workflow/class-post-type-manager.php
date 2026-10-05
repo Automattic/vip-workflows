@@ -190,10 +190,11 @@ class PostTypeManager {
 	 */
 	private function get_sequence_id_from_request(): ?int {
 		// Check direct URL param.
-     // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only absint() of URL parameter selecting the sequence for a new post; nothing is written from this value
 		if ( ! empty( $_GET['vip_workflows_sequence'] ) ) {
 			return absint( $_GET['vip_workflows_sequence'] );
 		}
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		// Check referrer (for when WP redirects after post creation).
 		$referrer = wp_get_referer();
