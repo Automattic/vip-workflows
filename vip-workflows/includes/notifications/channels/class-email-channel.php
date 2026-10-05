@@ -87,6 +87,7 @@ class EmailChannel extends NotificationChannel {
 
 		$success = true;
 		foreach ( $recipients as $email ) {
+			// phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.wp_mail_wp_mail -- transactional notification to workflow assignees
 			if ( ! wp_mail( $email, $subject, $body, $headers ) ) {
 				$success = false;
 			}
@@ -108,6 +109,7 @@ class EmailChannel extends NotificationChannel {
 		$body    = '<p>' . esc_html__( 'VIP Workflows email notifications are working!', 'vip-workflows' ) . '</p>';
 		$headers = array( 'Content-Type: text/html; charset=UTF-8' );
 
+		// phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.wp_mail_wp_mail -- transactional test email sent to admin only
 		$success = wp_mail( $admin_email, $subject, $body, $headers );
 
 		return $success ? true : new WP_Error( 'send_failed', __( 'Failed to send test email.', 'vip-workflows' ) );
