@@ -1449,8 +1449,8 @@ class WorkflowController extends WP_REST_Controller {
 					);
 
 					// Calculate waiting time.
-					$modified = strtotime( $post->post_modified );
-					$waiting  = human_time_diff( $modified, current_time( 'timestamp' ) );
+					$modified = (int) get_post_modified_time( 'U', true, $post );
+					$waiting  = human_time_diff( $modified, time() );
 
 					$items[] = array(
 						'post_id'       => $post->ID,
@@ -1893,8 +1893,8 @@ class WorkflowController extends WP_REST_Controller {
 					$urgency = 'normal';
 
 					// Calculate waiting time.
-					$modified     = strtotime( $post->post_modified );
-					$waiting_time = human_time_diff( $modified, current_time( 'timestamp' ) );
+					$modified     = (int) get_post_modified_time( 'U', true, $post );
+					$waiting_time = human_time_diff( $modified, time() );
 
 					$cards[] = array(
 						'id'           => $post->ID,
@@ -1989,8 +1989,8 @@ class WorkflowController extends WP_REST_Controller {
 						continue;
 					}
 
-					$modified     = strtotime( $post->post_modified );
-					$waiting_time = human_time_diff( $modified, current_time( 'timestamp' ) );
+					$modified     = (int) get_post_modified_time( 'U', true, $post );
+					$waiting_time = human_time_diff( $modified, time() );
 
 					$cards[] = array(
 						'id'           => $post->ID,

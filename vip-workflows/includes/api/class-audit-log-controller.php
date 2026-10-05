@@ -386,7 +386,7 @@ class AuditLogController extends WP_REST_Controller {
 			'actor'            => $actor,
 			'post'             => $post,
 			'created_at'       => $event->created_at,
-			'created_at_human' => human_time_diff( strtotime( $event->created_at ), current_time( 'timestamp' ) ) . ' ' . __( 'ago', 'vip-workflows' ),
+			'created_at_human' => human_time_diff( (int) get_gmt_from_date( $event->created_at, 'U' ), time() ) . ' ' . __( 'ago', 'vip-workflows' ),
 		);
 	}
 

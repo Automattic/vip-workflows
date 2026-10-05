@@ -1401,7 +1401,8 @@ class WorkflowControllerTest extends TestCase
                     'ID'            => 11,
                     'post_title'    => 'Reviewed piece',
                     'post_author'   => 9,
-                    'post_modified' => '2026-01-02 15:45:00',
+                    'post_modified'     => '2026-01-02 15:45:00',
+                    'post_modified_gmt' => '2026-01-02 15:45:00',
                 )
             ),
         );
@@ -1409,13 +1410,27 @@ class WorkflowControllerTest extends TestCase
             fn( $capability, $post_id = null ) => 'edit_post' === $capability && 11 === $post_id
         );
 
+        // A UTC site, so local and GMT coincide. The route asks for the GMT
+        // column as a Unix timestamp, as core's get_post_modified_time()
+        // answers it; a non-UTC site is SiteTimezoneTimestampsIntegrationTest's.
+        Functions\when( 'get_post_modified_time' )->alias(
+            function ( $format, $gmt, $post ) {
+                $this->assertSame( 'U', $format );
+                $this->assertTrue( $gmt );
+                return strtotime( $post->post_modified_gmt . ' UTC' );
+            }
+        );
+
         // Captured rather than asserted on its output: the wording is
         // WordPress's own and translated, so what is worth pinning is which
-        // moment it was asked about — the post's, not the query's or now's.
+        // moment it was asked about — the post's, not the query's or now's —
+        // and that "now" is a real timestamp, not one shifted by the offset.
         $worded_from = array();
+        $worded_to   = array();
         Functions\when( 'human_time_diff' )->alias(
-            function ( $from, $to ) use ( &$worded_from ) {
+            function ( $from, $to ) use ( &$worded_from, &$worded_to ) {
                 $worded_from[] = $from;
+                $worded_to[]   = $to;
                 return '3 hours';
             }
         );
@@ -1432,6 +1447,8 @@ class WorkflowControllerTest extends TestCase
         $this->assertSame( '3 hours', $data[0]['waiting'] );
         $this->assertSame( '2026-01-02 15:45:00', $data[0]['modified'] );
         $this->assertSame( array( strtotime( '2026-01-02 15:45:00' ) ), $worded_from );
+        $this->assertCount( 1, $worded_to );
+        $this->assertEqualsWithDelta( time(), $worded_to[0], 5 );
     }
 
     /**
