@@ -15,8 +15,7 @@ use VIPWorkflows\Telemetry\Tracker;
 /**
  * Tests for the guards around the VIP Telemetry library.
  *
- * The library only exists in the VIP mu-plugins and only sends on production,
- * so a double stands in for it.
+ * The library only exists in the VIP mu-plugins, so a double stands in for it.
  */
 class TrackerTest extends TestCase
 {

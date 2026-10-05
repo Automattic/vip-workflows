@@ -11,6 +11,10 @@ namespace VIPWorkflows\Telemetry;
 
 /**
  * Records product-usage events through the VIP Telemetry library.
+ *
+ * The library sends each event to Pendo and to Tracks. Pendo only accepts events
+ * on production VIP environments; Tracks accepts them from every environment and
+ * tags each with it, so filter Tracks by environment when reading it.
  */
 class Tracker {
 

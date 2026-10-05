@@ -11,8 +11,8 @@ namespace VIPWorkflows\Tests\Unit;
 
 /**
  * Stands in for Automattic\VIP\Telemetry\Telemetry, which exists only in the VIP
- * mu-plugins and only sends on production. Install it with
- * Tracker::set_telemetry() and assert on what a call site handed over.
+ * mu-plugins. It sends to Pendo on production and to Tracks everywhere. Install
+ * it with Tracker::set_telemetry() and assert on what a call site handed over.
  *
  * Each event is stored with the current user at the moment it was recorded,
  * because the library reads the user then and drops the event when there is none.
