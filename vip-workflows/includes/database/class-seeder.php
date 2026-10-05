@@ -76,14 +76,17 @@ class Seeder {
 		);
 
 		foreach ( $roles as $role ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- plugin table vip_workflows_roles; live read, not cached
 			$exists = $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT id FROM {$table} WHERE role_key = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT id FROM {$table} WHERE role_key = %s",
 					$role['role_key']
 				)
 			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 			if ( ! $exists ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_workflows_roles; write, nothing to cache
 				$wpdb->insert( $table, $role );
 			}
 		}
