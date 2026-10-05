@@ -107,7 +107,7 @@ class Admin implements ModuleInterface {
 			if ( ! is_array( $existing ) ) {
 				$existing = array();
 			}
-			$args = \VIPWorkflows\Workflow\StageQuery::in_any_workflow( $sequence, array( 'meta_query' => $existing ) );
+			$args = \VIPWorkflows\Workflow\StageQuery::in_any_workflow( $sequence, array( 'meta_query' => $existing ) ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- a post's workflow sequence and stage are stored in post meta (_vip_workflows_sequence_id, _vip_workflows_current_stage_key), so filtering by stage has to use meta_query, here scoped to the sequence by StageQuery::in_any_workflow().
 			$query->set( 'meta_query', $args['meta_query'] );
 		}
 	}

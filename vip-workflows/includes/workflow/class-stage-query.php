@@ -159,7 +159,7 @@ class StageQuery {
 		if ( ! is_array( $existing ) ) {
 			$existing = array();
 		}
-		$args = self::apply( array( 'meta_query' => $existing ), $sequence, array( $stage ) );
+		$args = self::apply( array( 'meta_query' => $existing ), $sequence, array( $stage ) ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- a post's workflow sequence and stage are stored in post meta (_vip_workflows_sequence_id, _vip_workflows_current_stage_key), so filtering by stage has to use meta_query.
 		$query->set( 'meta_query', $args['meta_query'] );
 	}
 
@@ -307,14 +307,14 @@ class StageQuery {
 		$existing = $args['meta_query'] ?? array();
 
 		if ( empty( $existing ) ) {
-			$args['meta_query'] = array_merge( array( 'relation' => 'AND' ), $new_clauses );
+			$args['meta_query'] = array_merge( array( 'relation' => 'AND' ), $new_clauses ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- a post's workflow sequence and stage are stored in post meta (_vip_workflows_sequence_id, _vip_workflows_current_stage_key), so filtering by stage has to use meta_query, here by adding the sequence and stage clauses.
 			return $args;
 		}
 
 		// Preserve the caller's meta_query verbatim as a nested sub-clause under a
 		// top-level AND — this keeps any OR/nested relation intact instead of
 		// flattening it (which would silently narrow the caller's results).
-		$args['meta_query'] = array_merge(
+		$args['meta_query'] = array_merge( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- a post's workflow sequence and stage are stored in post meta (_vip_workflows_sequence_id, _vip_workflows_current_stage_key), so filtering by stage has to use meta_query, here with the caller's own meta_query nested under the sequence and stage clauses.
 			array(
 				'relation' => 'AND',
 				$existing,
