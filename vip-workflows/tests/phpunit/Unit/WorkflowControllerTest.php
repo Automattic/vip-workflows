@@ -374,7 +374,11 @@ class WorkflowControllerTest extends TestCase
         $last_run = $args['last_run'] ?? null;
         $agent_job = $args['agent_job'] ?? null;
         Functions\when( 'get_post_meta' )->alias(
-            function ( $post_id, $key ) use ( $last_run, $agent_job ) {
+            function ( $post_id, $key = '' ) use ( $last_run, $agent_job ) {
+                // The keyless form returns every meta row for the post: none here.
+                if ( '' === $key ) {
+                    return array();
+                }
                 if ( \VIPWorkflows\Workflow\StageAgentRunner::LAST_RUN_META === $key ) {
                     return $last_run ?? '';
                 }

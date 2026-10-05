@@ -160,16 +160,19 @@ class AssignmentManager {
 	 * @return array Array of assignments keyed by meta_key.
 	 */
 	public function get_all( int $post_id ): array {
-		global $wpdb;
-
 		$prefix  = '_vip_workflows_assignment_';
-		$results = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
-				$post_id,
-				$wpdb->esc_like( $prefix ) . '%'
-			)
-		);
+		$results = array();
+		foreach ( get_post_meta( $post_id ) as $meta_key => $values ) {
+			if ( ! str_starts_with( (string) $meta_key, $prefix ) ) {
+				continue;
+			}
+			foreach ( (array) $values as $meta_value ) {
+				$row             = new \stdClass();
+				$row->meta_key   = $meta_key;
+				$row->meta_value = $meta_value;
+				$results[]       = $row;
+			}
+		}
 
 		$assignments = array();
 		foreach ( $results as $row ) {

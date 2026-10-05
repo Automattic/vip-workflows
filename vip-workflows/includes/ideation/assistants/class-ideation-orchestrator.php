@@ -697,16 +697,19 @@ class IdeationOrchestrator {
 	 * @param int $project_id Ideation project post ID.
 	 */
 	private function get_all_assistant_meta( int $project_id ): array {
-		global $wpdb;
-
 		$prefix = self::META_ASSISTANT_PREFIX;
-		$rows   = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
-				$project_id,
-				$wpdb->esc_like( $prefix ) . '%'
-			)
-		);
+		$rows   = array();
+		foreach ( get_post_meta( $project_id ) as $meta_key => $values ) {
+			if ( ! str_starts_with( (string) $meta_key, $prefix ) ) {
+				continue;
+			}
+			foreach ( (array) $values as $meta_value ) {
+				$row             = new \stdClass();
+				$row->meta_key   = $meta_key;
+				$row->meta_value = $meta_value;
+				$rows[]          = $row;
+			}
+		}
 
 		$abilities  = $this->get_abilities_by_name();
 		$assistants = array();
