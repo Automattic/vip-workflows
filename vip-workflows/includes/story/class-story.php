@@ -235,7 +235,7 @@ class Story implements ModuleInterface {
 
 		if ( $type ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; live read, not cached
-			return $wpdb->get_results(
+			$results = $wpdb->get_results(
 				$wpdb->prepare(
 					'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d AND object_type = %s ORDER BY added_at ASC',
 					$table,
