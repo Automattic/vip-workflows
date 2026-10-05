@@ -14,6 +14,7 @@ namespace VIPWorkflows\API;
 
 use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Integrations\SafeUrl;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -364,8 +365,11 @@ class DiscoveryController extends WP_REST_Controller {
 	 * @param WP_REST_Request $request REST request.
 	 */
 	public function select_prompt( WP_REST_Request $request ): WP_REST_Response|WP_Error {
-		$slug   = $request->get_param( 'provider' );
-		$prompt = $request->get_param( 'prompt' );
+		$slug = $request->get_param( 'provider' );
+
+		// Checked before the provider or the project sees it, so the seed text
+		// and the stored prompt are both built from the checked value.
+		$prompt = self::prompt_with_web_urls( $request->get_param( 'prompt' ) );
 
 		if ( ! $this->registry->get( $slug ) ) {
 			return new WP_Error( 'invalid_provider', __( 'Unknown discovery provider.', 'vip-workflows' ), array( 'status' => 400 ) );
@@ -406,6 +410,43 @@ class DiscoveryController extends WP_REST_Controller {
 		$state = $this->orchestrator->get_state( $project_id );
 
 		return new WP_REST_Response( $state, 201 );
+	}
+
+	/**
+	 * A story prompt with only web addresses in its link fields.
+	 *
+	 * The prompt is taken from the request body: the screen sends back what a
+	 * provider returned, and the route accepts any object. `url` is stored and
+	 * later shown as a link beside the post the project led to, and `meta.links`
+	 * is the list the prompt preview renders. One that is not an `http` or
+	 * `https` address is emptied; the rest of the prompt is kept as sent.
+	 *
+	 * Nothing about the shape is assumed, because the body is whatever the
+	 * client sent.
+	 *
+	 * @param  mixed $prompt Prompt from the request.
+	 * @return mixed
+	 */
+	private static function prompt_with_web_urls( $prompt ) {
+		if ( ! is_array( $prompt ) ) {
+			return $prompt;
+		}
+
+		if ( isset( $prompt['url'] ) ) {
+			$prompt['url'] = SafeUrl::http_or_null( $prompt['url'] );
+		}
+
+		if ( ! is_array( $prompt['meta']['links'] ?? null ) ) {
+			return $prompt;
+		}
+
+		foreach ( $prompt['meta']['links'] as $index => $link ) {
+			if ( is_array( $link ) && isset( $link['url'] ) ) {
+				$prompt['meta']['links'][ $index ]['url'] = SafeUrl::http_or_null( $link['url'] );
+			}
+		}
+
+		return $prompt;
 	}
 
 	/**

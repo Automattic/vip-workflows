@@ -21,6 +21,7 @@ use VIPWorkflows\Abilities\AbilitySettings;
 use VIPWorkflows\API\AvailabilitySerializer;
 use VIPWorkflows\Ideation\Research\IdeationPostTypes;
 use VIPWorkflows\Integrations\GuidelineContextProvider;
+use VIPWorkflows\Integrations\SafeUrl;
 use VIPWorkflows\Story\Story;
 
 /**
@@ -47,6 +48,14 @@ class IdeationOrchestrator {
 	 * this prefix.
 	 */
 	private const BOARD_CARD_ID_PREFIX = 'board-';
+
+	/**
+	 * Card fields that hold an address the board renders as a link or an image.
+	 *
+	 * `thumbnail` has no column of its own: it stands in for a missing `image`,
+	 * and is kept inside the `ai_analysis` JSON.
+	 */
+	private const CARD_URL_FIELDS = array( 'url', 'image', 'thumbnail' );
 
 	private const CACHE_TTL = 3600;
 
@@ -398,8 +407,9 @@ class IdeationOrchestrator {
 
 		$cache_key = 'vip_ideation_' . $assistant_id . '_' . md5( $seed . ( $query ?? '' ) );
 		$cached    = get_transient( $cache_key );
+		$is_cached = false !== $cached && is_array( $cached );
 
-		if ( false !== $cached && is_array( $cached ) ) {
+		if ( $is_cached ) {
 			$raw_output  = $cached;
 			$duration_ms = 0;
 		} else {
@@ -426,14 +436,22 @@ class IdeationOrchestrator {
 				$this->update_assistant_meta( $project_id, $assistant_id, $result );
 				return $result;
 			}
-
-			if ( ! empty( $raw_output['cards'] ) ) {
-				set_transient( $cache_key, $raw_output, self::CACHE_TTL );
-			}
 		}
 
-		$cards   = $raw_output['cards'] ?? array();
+		/*
+		 * The one place a run takes its cards from the provider's output, so the
+		 * one place their addresses are checked before anything keeps them. The
+		 * cache below, the sources table, the project meta, and the result handed
+		 * back to the screen all read `$cards` from here. A cache hit passes
+		 * through as well, which covers output cached before this check existed.
+		 */
+		$cards   = array_map( array( self::class, 'card_with_web_urls' ), $raw_output['cards'] ?? array() );
 		$summary = $raw_output['summary'] ?? '';
+
+		if ( ! $is_cached && ! empty( $cards ) ) {
+			$raw_output['cards'] = $cards;
+			set_transient( $cache_key, $raw_output, self::CACHE_TTL );
+		}
 
 		if ( ! empty( $cards ) ) {
 			$this->store_cards_as_sources( $project_id, $cards, get_current_user_id(), $assistant_id );
@@ -1049,6 +1067,28 @@ class IdeationOrchestrator {
 	}
 
 	/**
+	 * A card with only web addresses in its link and image fields.
+	 *
+	 * A card is built from a provider's payload, and these fields are rendered as
+	 * link and image targets wherever the card is shown. One that is not an
+	 * `http` or `https` address is emptied rather than passed on. The card itself
+	 * is kept: a result is still worth reading without its link, and discarding
+	 * it whole would lose a usable source to one bad field.
+	 *
+	 * @param  array $card Card as the provider returned it.
+	 * @return array
+	 */
+	private static function card_with_web_urls( array $card ): array {
+		foreach ( self::CARD_URL_FIELDS as $field ) {
+			if ( isset( $card[ $field ] ) ) {
+				$card[ $field ] = SafeUrl::http_or_null( $card[ $field ] );
+			}
+		}
+
+		return $card;
+	}
+
+	/**
 	 * Store cards as research sources.
 	 *
 	 * Cards now declare their own source_type and origin. Falls back
@@ -1080,6 +1120,14 @@ class IdeationOrchestrator {
 			if ( in_array( $type, self::BOARD_CARD_TYPES, true ) || 'mentor-guidance' === $type ) {
 				continue;
 			}
+
+			/*
+			 * Checked here as well as where a run takes its cards from the provider,
+			 * so that no caller can reach the insert with an address that skipped the
+			 * check. Before the identity is derived, so a card whose URL is dropped is
+			 * identified by what is left of it — which is also what gets stored.
+			 */
+			$card = self::card_with_web_urls( $card );
 
 			$source_id = self::card_identity( $project_id, $ability_id, $card );
 
