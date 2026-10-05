@@ -325,6 +325,10 @@ export function CardDetailModal( {
  * whatever wrapper it already had. Reset on `src` change, or one dead URL would
  * poison the slot for every later card reusing the instance.
  *
+ * An address that `isSafeUrl()` does not permit takes the same branch: it is
+ * shown as an image that will not load. The rule for the address of an image
+ * is the rule for the address of a link.
+ *
  * @param {Object} props             Component props.
  * @param {string} props.src         Remote image URL.
  * @param {string} [props.alt]       Alt text; decorative by default.
@@ -338,7 +342,7 @@ export function CardThumb( { src, alt = '', className = '' } ) {
 		return null;
 	}
 
-	if ( failedSrc === src ) {
+	if ( failedSrc === src || ! isSafeUrl( src ) ) {
 		return (
 			<span
 				className={ `${ className } vip-workflows-ideation-card__image-unavailable`.trim() }

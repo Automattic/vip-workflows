@@ -1,5 +1,5 @@
 /**
- * Provider-supplied URLs at the anchors that render them.
+ * Provider-supplied URLs at the elements that render them.
  *
  * A research provider, a discovery provider or a scraped page hands back URLs,
  * and eleven anchors put one in an `href`: nine on the ideation screens, and
@@ -22,6 +22,11 @@
  *
  * Each anchor is also rendered with a web address first. Without that, a case
  * would pass just as well if its modal never opened.
+ *
+ * Six more elements load one of these URLs: the image or the video of a card
+ * takes it in `src`. The same rule holds there. A URL that the allowlist does
+ * not permit does not reach the element, and the card shows what it shows when
+ * an image will not load.
  */
 
 import apiFetch from '@wordpress/api-fetch';
@@ -42,19 +47,8 @@ const WEB_URL = 'https://source.example.test/story';
 const SCRIPT_URLS = [
 	[ 'a javascript: URL', 'javascript:alert(1)' ],
 	[ 'a javascript: URL behind a tab', '\tjavascript:alert(1)' ],
+	[ 'a javascript: URL in mixed case', 'JaVaScRiPt:alert(1)' ],
 	[ 'a data: URL', 'data:text/html,<script>alert(1)</script>' ],
-];
-
-/*
- * The image address is also the card's own `<img src>`, and React's
- * development build reports a `javascript:` URL in a `src` on the console —
- * once per run, so in whichever case happens to render it first. An image
- * source does not run script, so that report is not what this file is about;
- * the cases for this one anchor use schemes React says nothing about.
- */
-const SCRIPT_IMAGE_URLS = [
-	[ 'a data: URL', 'data:text/html,<script>alert(1)</script>' ],
-	[ 'a vbscript: URL', 'vbscript:msgbox(1)' ],
 ];
 
 const SCRIPT_SCHEMES = [ 'javascript:', 'data:', 'vbscript:' ];
@@ -72,6 +66,19 @@ const scriptHrefs = () =>
 			SCRIPT_SCHEMES.includes(
 				new URL( href, document.baseURI ).protocol
 			)
+		);
+
+/**
+ * The same for the URLs that an element loads: every `src` in the document
+ * that has one of those schemes.
+ *
+ * @return {string[]} The offending `src` values, as written.
+ */
+const scriptSources = () =>
+	[ ...document.querySelectorAll( '[src]' ) ]
+		.map( ( element ) => element.getAttribute( 'src' ) )
+		.filter( ( src ) =>
+			SCRIPT_SCHEMES.includes( new URL( src, document.baseURI ).protocol )
 		);
 
 const article = {
@@ -104,6 +111,26 @@ const image = {
 const openImage = ( overrides ) => {
 	const { container } = render(
 		<ImageCard card={ { ...image, ...overrides } } />
+	);
+	fireEvent.click(
+		container.querySelector( '.vip-workflows-ideation-card' )
+	);
+};
+
+// A video file that the board cannot embed, so the modal plays it itself.
+const video = {
+	source_id: 'vid1',
+	project_id: 7,
+	title: 'Reservoir flyover',
+	source_type: 'video',
+	domain: 'video.example.test',
+	url: 'https://video.example.test/flyover.mp4',
+	image: 'https://video.example.test/poster.jpg',
+};
+
+const openVideo = ( overrides ) => {
+	const { container } = render(
+		<ImageCard card={ { ...video, ...overrides } } />
 	);
 	fireEvent.click(
 		container.querySelector( '.vip-workflows-ideation-card' )
@@ -230,7 +257,7 @@ const ANCHORS = [
 	{
 		name: 'ImageCard: "Open full image" in the modal',
 		field: 'card.image',
-		urls: SCRIPT_IMAGE_URLS,
+		urls: SCRIPT_URLS,
 		open: ( url ) => openImage( { image: url } ),
 		anchor: () => screen.queryByRole( 'link', { name: 'Open full image' } ),
 		rendered: dialog,
@@ -314,9 +341,95 @@ describe.each( ANCHORS )(
 			expect( rendered() ).toBeInTheDocument();
 			expect( anchor() ).toBeNull();
 			expect( scriptHrefs() ).toEqual( [] );
+			expect( scriptSources() ).toEqual( [] );
 		} );
 	}
 );
+
+// The face of a card, without the detail modal: that is portaled elsewhere.
+const face = ( sourceId ) => () =>
+	document.querySelector( `[data-source-id="${ sourceId }"]` );
+
+/*
+ * One entry per element that loads a provider-supplied URL. `open` renders the
+ * component with the URL in the field the element reads, and opens the detail
+ * modal when the element is inside it. `region` is the part of the screen that
+ * holds the element — the face of the card or the modal — because a card shows
+ * its image in both, and the two share the document.
+ */
+const SOURCES = [
+	{
+		name: 'ArticleCard: the thumbnail on the card face',
+		field: 'card.image',
+		open: ( url ) =>
+			render(
+				<ArticleCard
+					card={ { ...article, url: WEB_URL, image: url } }
+				/>
+			),
+		region: face( article.source_id ),
+	},
+	{
+		name: 'ArticleCard: the image in the modal',
+		field: 'card.image',
+		open: ( url ) => {
+			render(
+				<ArticleCard
+					card={ { ...article, url: WEB_URL, image: url } }
+				/>
+			);
+			fireEvent.click( screen.getByText( article.title ) );
+		},
+		region: dialog,
+	},
+	{
+		name: 'ImageCard: the image on the card face',
+		field: 'card.image',
+		open: ( url ) =>
+			render( <ImageCard card={ { ...image, image: url } } /> ),
+		region: face( image.source_id ),
+	},
+	{
+		name: 'ImageCard: the image in the modal',
+		field: 'card.image',
+		open: ( url ) => openImage( { image: url } ),
+		region: dialog,
+	},
+	{
+		name: 'ImageCard: the poster of a video on the card face',
+		field: 'card.image',
+		open: ( url ) =>
+			render( <ImageCard card={ { ...video, image: url } } /> ),
+		region: face( video.source_id ),
+	},
+	{
+		name: 'ImageCard: a video file in the modal',
+		field: 'card.url',
+		open: ( url ) => openVideo( { url } ),
+		region: dialog,
+	},
+];
+
+describe.each( SOURCES )( '$name ($field)', ( { open, region } ) => {
+	it( 'loads a web address', () => {
+		open( WEB_URL );
+
+		expect( region().querySelector( 'img, video' ) ).toHaveAttribute(
+			'src',
+			WEB_URL
+		);
+	} );
+
+	it.each( SCRIPT_URLS )( 'does not load %s', ( label, url ) => {
+		open( url );
+
+		// The place is there, and it holds no image and no video: the card
+		// shows what it shows when an image will not load.
+		expect( region() ).toBeInTheDocument();
+		expect( region().querySelector( 'img, video' ) ).toBeNull();
+		expect( scriptSources() ).toEqual( [] );
+	} );
+} );
 
 describe( 'PromptPreviewModal: every link in the list', () => {
 	it( 'does not link any of them to a script URL', () => {
