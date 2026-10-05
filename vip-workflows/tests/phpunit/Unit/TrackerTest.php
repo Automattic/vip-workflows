@@ -191,6 +191,29 @@ class TrackerTest extends TestCase
         $this->assertFalse( $this->touched_users, 'the user was neither read nor switched' );
     }
 
+    /**
+     * In its own process, because declaring the support-user class would add
+     * is_vip_user to every event a later test asserts on.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_is_vip_user_is_worked_out_for_the_user_the_event_is_recorded_as(): void
+    {
+        eval( 'namespace Automattic\\VIP\\Support_User; class User { public static function user_has_vip_support_role( $id ) { return 7 === $id; } }' );
+
+        $this->current_user = 3; // Built for, and logged in as, someone else.
+        $this->known_users  = array( 3, 7 );
+        $telemetry          = $this->telemetry();
+        Tracker::set_telemetry( $telemetry );
+
+        Tracker::record( 'agent_run_finished', array(), 7 );
+        Tracker::record( 'tool_run_finished' );
+
+        $this->assertTrue( $telemetry->calls[0]['properties']['is_vip_user'] );
+        $this->assertFalse( $telemetry->calls[1]['properties']['is_vip_user'] );
+    }
+
     public function test_it_is_available_when_there_is_a_telemetry_instance(): void
     {
         Tracker::set_telemetry( $this->telemetry() );

@@ -59,6 +59,13 @@ class Tracker {
 			// Telemetry would send a null as the string "null".
 			$properties = array_filter( $properties, static fn( $value ) => null !== $value );
 
+			// The library works out is_vip_user once, for whoever was logged in
+			// when it was built. Event properties are merged over it, so set it
+			// for the user this event is recorded as.
+			if ( class_exists( '\\Automattic\\VIP\\Support_User\\User' ) ) {
+				$properties['is_vip_user'] = (bool) \Automattic\VIP\Support_User\User::user_has_vip_support_role( get_current_user_id() );
+			}
+
 			return true === $telemetry->record_event( $event, $properties );
 		} catch ( \Throwable $e ) {
 			return false;
