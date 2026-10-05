@@ -47,8 +47,9 @@ class StatusManagerAgentGatingTest extends TestCase
      * has_pending_agent_job() converts the site-local queued_at to a UTC
      * timestamp with get_gmt_from_date(). The base TestCase stamps
      * current_time( 'mysql' ) with gmdate(), i.e. a UTC site, so local and
-     * GMT coincide here. This mirrors core: parse in the site timezone,
-     * return false for an unparseable string. The non-UTC case is covered
+     * GMT coincide here. This mirrors core: parse in the site timezone, and
+     * for an unparseable string return the epoch in the requested format
+     * (gmdate( $format, 0 ), so '0' for 'U'). The non-UTC case is covered
      * by the SiteTimezoneTimestampsIntegrationTest integration test.
      */
     protected function set_up()
@@ -58,7 +59,7 @@ class StatusManagerAgentGatingTest extends TestCase
         Functions\when( 'get_gmt_from_date' )->alias(
             function ( $date, $format = 'Y-m-d H:i:s' ) {
                 $datetime = date_create( (string) $date, new \DateTimeZone( 'UTC' ) );
-                return false === $datetime ? false : $datetime->format( $format );
+                return false === $datetime ? gmdate( $format, 0 ) : $datetime->format( $format );
             }
         );
     }
@@ -167,7 +168,7 @@ class StatusManagerAgentGatingTest extends TestCase
 
     /**
      * An unparseable queued_at is treated as stale, as it was when strtotime()
-     * failed: get_gmt_from_date() returns false, which casts to 0.
+     * failed: get_gmt_from_date() returns the epoch, '0' for 'U', which casts to 0.
      */
     public function test_unparseable_queued_at_is_stale(): void
     {
