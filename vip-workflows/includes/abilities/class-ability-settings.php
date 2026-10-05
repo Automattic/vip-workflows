@@ -70,8 +70,8 @@ class AbilitySettings {
 			'enabled'             => true,
 			'options'             => array(),
 			'check_modes'         => array(), // Per-option check modes: 'soft' or 'hard'.
-			'show_in_commands'    => null, // null = use ability meta default (false if unset).
-			'transition_eligible' => null, // null = use ability meta default (false if unset).
+			'show_in_commands'    => null, // When unset, the ability's own meta default applies, or off if it has none.
+			'transition_eligible' => null, // When unset, the ability's own meta default applies, or off if it has none.
 		);
 		return array_merge( $defaults, $all[ $ability_id ] ?? array() );
 	}

@@ -135,7 +135,7 @@ class EditorIntegration implements ModuleInterface {
 					'postStatus'          => $post->post_status,
 					'hasWorkflow'         => $has_workflow,
 					'showWorkflowModal'   => $show_workflow_modal,
-					'workflowEnforcement' => $enforcement_mode, // 'require', 'recommend', or false.
+					'workflowEnforcement' => $enforcement_mode, // The enforcement mode is either 'require', 'recommend', or off.
 					'sequence'            => $sequence ? array(
 						'id'       => $sequence->id,
 						'name'     => $sequence->name,

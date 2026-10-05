@@ -192,7 +192,7 @@ class AbilitiesController extends WP_REST_Controller {
 	 */
 	public function get_items( $request ): WP_REST_Response {
 		$category = $request->get_param( 'category' );
-		$context  = $request->get_param( 'context' ); // 'workflow', or null for all.
+		$context  = $request->get_param( 'context' ); // When unset, all contexts are included; when set, only that context's abilities are returned.
 		$settings = AbilitySettings::get_instance();
 
 		$data = array();
