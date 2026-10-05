@@ -418,6 +418,7 @@ class Schema {
 					}
 
 					// Re-runnable by construction: a second pass matches no rows.
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration renaming a meta key across all posts; no meta API can do this in one statement; runs once per schema version
 					$wpdb->update(
 						$wpdb->postmeta,
 						array( 'meta_key' => '_vip_workflows_sequence_id' ),
@@ -721,13 +722,16 @@ class Schema {
 			$routing = array();
 		}
 
-		$prefix       = 'vip_workflows_channel_';
+		$prefix = 'vip_workflows_channel_';
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration listing options by prefix; options API cannot do this in one statement; runs once per schema version
 		$option_names = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
 				$wpdb->esc_like( $prefix ) . '%'
 			)
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		$collected = array();
 		foreach ( (array) $option_names as $option_name ) {
