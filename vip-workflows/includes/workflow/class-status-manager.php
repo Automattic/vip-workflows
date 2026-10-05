@@ -1847,6 +1847,7 @@ class StatusManager {
 		$agent_actor = isset( $options['agent_actor'] ) ? (string) $options['agent_actor'] : '';
 		$is_agent    = '' !== $agent_actor;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_workflows_events; write, nothing to cache
 		$wpdb->insert(
 			Schema::get_table_name( 'workflows_events' ),
 			array(
@@ -1907,14 +1908,16 @@ class StatusManager {
 
 		$table = Schema::get_table_name( 'workflows_events' );
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- plugin table vip_workflows_events; live read, not cached
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE post_id = %d AND event_type = 'status_transition' ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT * FROM {$table} WHERE post_id = %d AND event_type = 'status_transition' ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d",
 				$post_id,
 				$limit,
 				$offset
 			)
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		return array_map(
 			function ( $row ) {
@@ -1945,12 +1948,14 @@ class StatusManager {
 
 		$table = Schema::get_table_name( 'workflows_events' );
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- plugin table vip_workflows_events; live read, not cached
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE post_id = %d AND event_type = 'status_transition'", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT COUNT(*) FROM {$table} WHERE post_id = %d AND event_type = 'status_transition'",
 				$post_id
 			)
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	/**
@@ -2415,6 +2420,7 @@ class StatusManager {
 		$error_data = $error->get_error_data();
 		$sequence   = $this->get_sequence_for_post( $post_id );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_workflows_events; write, nothing to cache
 		$wpdb->insert(
 			Schema::get_table_name( 'workflows_events' ),
 			array(
@@ -2450,6 +2456,7 @@ class StatusManager {
 
 		$sequence = $this->get_sequence_for_post( $post_id );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_workflows_events; write, nothing to cache
 		$wpdb->insert(
 			Schema::get_table_name( 'workflows_events' ),
 			array(
@@ -2479,6 +2486,7 @@ class StatusManager {
 	private function log_workflow_event( int $post_id, string $event_type, array $event_data ): void {
 		global $wpdb;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_workflows_events; write, nothing to cache
 		$wpdb->insert(
 			Schema::get_table_name( 'workflows_events' ),
 			array(
