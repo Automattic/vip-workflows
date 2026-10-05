@@ -233,6 +233,7 @@ Key points:
 - `category` must be `'research'` and `meta.type` must be `'research'` for the orchestrator to discover it
 - `meta.display_order` controls position in the agent panel (lower = earlier)
 - Cards are stored in `wp_vip_ideation_sources` with `ability_id` linking back to the agent
+- A card's `url`, `image` and `thumbnail` are stored only as absolute `http://` or `https://` addresses; any other value that is not empty is dropped and the card is kept without it
 - Use `group_id` on cards to visually group related items on the mood board
 - Settings UI is auto-generated from `meta.settings_schema` (JSON Schema)
 

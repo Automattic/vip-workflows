@@ -10,8 +10,11 @@
  * none of them — and must not take the rest of its card with it, because one
  * bad field is no reason to discard a usable result.
  *
- * Unit rather than integration because the claim is about the values the
- * orchestrator hands to each store, which a recording double observes directly.
+ * Unit rather than integration because most of the claim is about the values
+ * the orchestrator hands to each store, which a recording double observes
+ * directly. Project meta is the exception: WordPress changes a meta value on
+ * its way in, so that double does the same, and `ProviderUrlMetaStorageTest`
+ * makes the claims that depend on it against the real store.
  *
  * @package VIPWorkflows\Tests\Unit
  */
@@ -23,6 +26,7 @@ namespace VIPWorkflows\Tests\Unit;
 use Brain\Monkey\Functions;
 use ReflectionMethod;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Ideation\Assistants\MediaProviderInterface;
 
 require_once __DIR__ . '/../../../includes/integrations/class-guideline-context-provider.php';
 require_once __DIR__ . '/../../../includes/integrations/class-safe-url.php';
@@ -54,18 +58,34 @@ class IdeationProviderUrlStorageTest extends TestCase {
 	private object $agent;
 
 	/**
-	 * What the provider cache holds before the run; false for a cache miss.
+	 * What the provider cache holds before the run, under whichever key the run
+	 * asks for; false for a cache miss.
 	 *
 	 * @var array|false
 	 */
 	private $cached = false;
 
 	/**
-	 * Every transient the run wrote, by key.
+	 * Every transient the run wrote, by key. A later read of the same key gets
+	 * the value back, as it would from WordPress.
 	 *
 	 * @var array<string, mixed>
 	 */
 	private array $transients = array();
+
+	/**
+	 * The lifetime, in seconds, each transient was written with, by key.
+	 *
+	 * @var array<string, int>
+	 */
+	private array $lifetimes = array();
+
+	/**
+	 * The project's seed text, which the provider cache is keyed on.
+	 *
+	 * @var string
+	 */
+	private string $seed = 'Reservoir levels';
 
 	/**
 	 * Every post meta value the run wrote, by key.
@@ -108,22 +128,41 @@ class IdeationProviderUrlStorageTest extends TestCase {
 
 				return 1;
 			}
+
+			// Every row that was inserted, in the order it was inserted.
+			public function get_results( string $query, $output = null ): array {
+				return array_column( $this->inserted, 'row' );
+			}
 		};
 
 		Functions\when( 'is_wp_error' )->alias( fn( $thing ) => $thing instanceof \WP_Error );
 		Functions\when( 'get_current_user_id' )->justReturn( 5 );
-		Functions\when( 'get_post_meta' )->justReturn( '' );
+		Functions\when( 'get_post_meta' )->alias(
+			fn( $post_id, $key = '', $single = false ) => '_vip_ideation_seed' === $key ? $this->seed : ''
+		);
+
+		/*
+		 * WordPress removes the backslashes from a meta value before it stores
+		 * it, and `wp_slash()` is how a caller keeps the ones that belong to the
+		 * value. The base class makes `wp_slash()` return its argument, which is
+		 * only right beside a store that removes nothing. Both behave here as
+		 * they do in WordPress, so `$this->meta` holds what the database would.
+		 * The table and the transient do not remove backslashes, and neither do
+		 * their doubles.
+		 */
+		Functions\when( 'wp_slash' )->alias( fn( $value ) => is_string( $value ) ? addslashes( $value ) : $value );
 		Functions\when( 'update_post_meta' )->alias(
 			function ( $post_id, $key, $value ) {
-				$this->meta[ $key ] = $value;
+				$this->meta[ $key ] = is_string( $value ) ? stripslashes( $value ) : $value;
 
 				return true;
 			}
 		);
-		Functions\when( 'get_transient' )->alias( fn() => $this->cached );
+		Functions\when( 'get_transient' )->alias( fn( $key ) => $this->transients[ $key ] ?? $this->cached );
 		Functions\when( 'set_transient' )->alias(
-			function ( $key, $value ) {
+			function ( $key, $value, $expiration = 0 ) {
 				$this->transients[ $key ] = $value;
+				$this->lifetimes[ $key ]  = $expiration;
 
 				return true;
 			}
@@ -248,6 +287,32 @@ class IdeationProviderUrlStorageTest extends TestCase {
 		return (string) $this->meta[ '_vip_ideation_asst_' . str_replace( '/', '__', self::ASSISTANT ) ];
 	}
 
+	/**
+	 * Everything an action wrote to the error log.
+	 *
+	 * Captured rather than patched, as elsewhere in this suite: phpunit.xml sends
+	 * `error_log()` to /dev/null, so the destination is pointed at a file for the
+	 * length of the action.
+	 *
+	 * @param  callable $action What to run.
+	 * @return string
+	 */
+	private function log_of( callable $action ): string {
+		$log_file = tempnam( sys_get_temp_dir(), 'vipwf-log-' );
+		$previous = ini_set( 'error_log', $log_file );
+
+		try {
+			$action();
+		} finally {
+			ini_set( 'error_log', $previous );
+		}
+
+		$log = (string) file_get_contents( $log_file );
+		unlink( $log_file );
+
+		return $log;
+	}
+
 	// ─── The sources table ───────────────────────────────────────
 
 	public function test_a_script_url_is_not_stored_and_the_rest_of_the_card_is(): void {
@@ -332,6 +397,30 @@ class IdeationProviderUrlStorageTest extends TestCase {
 		);
 	}
 
+	public function test_an_empty_address_is_kept_as_the_provider_sent_it(): void {
+		// An empty string is how a provider writes "no link" or "no image". It is
+		// not an address that failed the check, so nothing about it changes — the
+		// thumbnail does not take the place of an image that was sent as empty.
+		$this->provider_returns(
+			array(
+				$this->video(
+					array(
+						'url'   => '',
+						'image' => '',
+					)
+				),
+			)
+		);
+
+		$result = $this->run_agent();
+		$rows   = $this->stored_sources();
+
+		$this->assertSame( '', $result['cards'][0]['url'] );
+		$this->assertSame( '', $result['cards'][0]['image'] );
+		$this->assertSame( '', $rows[0]['url'] );
+		$this->assertSame( '', $rows[0]['image'] );
+	}
+
 	/**
 	 * Call the storage step on its own, as image generation does.
 	 *
@@ -367,6 +456,147 @@ class IdeationProviderUrlStorageTest extends TestCase {
 		$this->assertCount( 1, $this->stored_sources() );
 	}
 
+	// ─── Every card, on every path ───────────────────────────────
+
+	public function test_every_card_of_a_run_is_checked_not_only_the_first(): void {
+		$this->provider_returns(
+			array(
+				$this->article(),
+				$this->video(
+					array(
+						'url'       => self::SCRIPT_URL,
+						'image'     => self::SCRIPT_URL,
+						'thumbnail' => self::SCRIPT_URL,
+					)
+				),
+			)
+		);
+
+		$result = $this->run_agent();
+		$stored = json_decode( $this->stored_result(), true );
+		$cached = array_values( $this->transients )[0];
+
+		$this->assertSame( 'https://news.example.test/reservoirs', $result['cards'][0]['url'] );
+		$this->assertNull( $result['cards'][1]['url'] );
+		$this->assertNull( $stored['cards'][1]['url'] );
+		$this->assertNull( $cached['cards'][1]['url'] );
+		$this->assertNull( $this->stored_sources()[1]['url'] );
+	}
+
+	public function test_the_storage_step_checks_the_image_and_the_thumbnail_for_every_caller(): void {
+		$this->store(
+			array(
+				$this->video(
+					array(
+						'image'     => self::SCRIPT_URL,
+						'thumbnail' => 'data:text/html,<script>alert(1)</script>',
+					)
+				),
+			)
+		);
+
+		$rows = $this->stored_sources();
+
+		$this->assertNull( $rows[0]['image'] );
+		$this->assertArrayNotHasKey( 'thumbnail', json_decode( $rows[0]['ai_analysis'], true ) );
+		$this->assertSame( 'https://video.example.test/watch?v=abc', $rows[0]['url'] );
+	}
+
+	public function test_a_generated_image_is_stored_through_the_same_check(): void {
+		// Image generation does not go through a run: it takes its one card from
+		// a media provider and hands it to the storage step itself. A generator
+		// can return the image inline, as a data: address, which is not stored.
+		$generator = new class() implements MediaProviderInterface {
+			public function get_id(): string {
+				return 'test-generator';
+			}
+
+			public function get_name(): string {
+				return 'Test generator';
+			}
+
+			public function is_configured(): bool {
+				return true;
+			}
+
+			public function is_generative(): bool {
+				return true;
+			}
+
+			public function search_media( string $query, int $max_results = 8, array $context = array() ) {
+				return array(
+					array(
+						'url'          => 'data:image/png;base64,iVBORw0KGgo=',
+						'title'        => $query,
+						'media_type'   => 'image',
+						'provider'     => 'test-generator',
+						'is_generated' => true,
+					),
+				);
+			}
+		};
+
+		Functions\when( 'apply_filters' )->alias(
+			fn( $hook, $value ) => 'vip_workflows_media_providers' === $hook ? array( $generator ) : $value
+		);
+
+		$card = ( new IdeationOrchestrator() )->generate_image( self::PROJECT_ID, 'A reservoir at dawn' );
+		$rows = $this->stored_sources();
+
+		$this->assertCount( 1, $rows );
+		$this->assertSame( 'A reservoir at dawn', $rows[0]['title'] );
+		$this->assertNull( $rows[0]['url'] );
+		$this->assertNull( $rows[0]['image'] );
+		$this->assertSame( $rows[0], $card, 'The route answers with the row that was stored.' );
+	}
+
+	// ─── The record that an address was removed ──────────────────
+
+	public function test_a_run_that_removed_addresses_says_so_once_in_the_log(): void {
+		// A card that lost its link looks the same on the board as a card that
+		// never had one, so the log is the only place that shows the provider
+		// sent addresses that were not kept. One line for the run: the run checks
+		// its cards, and the storage step checks them again.
+		$this->provider_returns(
+			array(
+				$this->article( array( 'url' => self::SCRIPT_URL ) ),
+				$this->video(
+					array(
+						'url'   => 'data:text/html,<script>alert(1)</script>',
+						'image' => self::SCRIPT_URL,
+					)
+				),
+			)
+		);
+
+		$log = $this->log_of( fn() => $this->run_agent() );
+
+		$this->assertSame( 1, substr_count( $log, '[VIP Workflows]' ) );
+		$this->assertStringContainsString( self::ASSISTANT, $log, 'The log names the agent whose provider sent the addresses.' );
+		$this->assertStringContainsString( 'project ' . self::PROJECT_ID, $log );
+		$this->assertStringContainsString( 'url: 2', $log );
+		$this->assertStringContainsString( 'image: 1', $log );
+		$this->assertStringNotContainsString( 'alert', $log, 'The addresses are the part that was not trusted, and stay out of the log.' );
+	}
+
+	public function test_the_storage_step_says_so_when_it_removed_an_address(): void {
+		// Image generation reaches the storage step without a run before it.
+		$log = $this->log_of(
+			fn() => $this->store( array( $this->article( array( 'image' => self::SCRIPT_URL ) ) ) )
+		);
+
+		$this->assertSame( 1, substr_count( $log, '[VIP Workflows]' ) );
+		$this->assertStringContainsString( 'vip-workflows/media-scout', $log );
+		$this->assertStringContainsString( 'image: 1', $log );
+	}
+
+	public function test_a_run_that_removed_nothing_writes_nothing_to_the_log(): void {
+		// A web address is kept, and an empty string is not an address at all.
+		$this->provider_returns( array( $this->article(), $this->video( array( 'image' => '' ) ) ) );
+
+		$this->assertSame( '', $this->log_of( fn() => $this->run_agent() ) );
+	}
+
 	// ─── Project meta ────────────────────────────────────────────
 
 	public function test_the_result_kept_in_project_meta_carries_no_script_url(): void {
@@ -390,6 +620,21 @@ class IdeationProviderUrlStorageTest extends TestCase {
 		$this->assertSame( 'completed', $stored['status'] );
 		$this->assertSame( 'Reservoir flyover', $stored['cards'][0]['title'] );
 		$this->assertNull( $stored['cards'][0]['url'] );
+	}
+
+	public function test_text_in_a_card_cannot_replace_its_checked_url_in_project_meta(): void {
+		// A double quote ends a JSON string. If the stored JSON loses the
+		// backslash before it, the text after the quote is read as more keys of
+		// the card, and the last `url` key is the one a reader gets.
+		$text = 'x","url":"javascript:alert(1)","y":"';
+		$this->provider_returns( array( $this->article( array( 'excerpt' => $text ) ) ) );
+
+		$this->run_agent();
+
+		$stored = json_decode( $this->stored_result(), true );
+
+		$this->assertSame( 'https://news.example.test/reservoirs', $stored['cards'][0]['url'] );
+		$this->assertSame( $text, $stored['cards'][0]['excerpt'] );
 	}
 
 	// ─── The result returned to the screen ───────────────────────
@@ -469,6 +714,35 @@ class IdeationProviderUrlStorageTest extends TestCase {
 		$this->run_agent();
 
 		$this->assertSame( array(), $this->transients );
+	}
+
+	public function test_a_second_run_for_the_same_seed_is_served_from_the_cache(): void {
+		$this->provider_returns( array( $this->article() ) );
+
+		$this->run_agent();
+		$this->run_agent();
+
+		$this->assertSame( 1, $this->agent->runs, 'The second run did not read what the first run cached.' );
+	}
+
+	public function test_a_run_for_a_different_seed_is_not_served_from_the_cache(): void {
+		$this->provider_returns( array( $this->article() ) );
+
+		$this->run_agent();
+		$this->seed = 'Flood defences';
+		$this->run_agent();
+
+		$this->assertSame( 2, $this->agent->runs, 'One seed was answered with the sources found for another.' );
+	}
+
+	public function test_the_cached_output_is_kept_for_an_hour(): void {
+		// With no lifetime a transient never expires, and the provider would
+		// not be asked about this seed again.
+		$this->provider_returns( array( $this->article() ) );
+
+		$this->run_agent();
+
+		$this->assertSame( array( 3600 ), array_values( $this->lifetimes ) );
 	}
 
 	public function test_a_run_that_found_nothing_is_not_cached(): void {

@@ -27,7 +27,7 @@ class SafeUrlTest extends TestCase {
 	/**
 	 * @return array<string, array{0: string}>
 	 */
-	public function web_addresses(): array {
+	public static function web_addresses(): array {
 		return array(
 			'https'                                  => array( 'https://example.test/story?id=7#top' ),
 			'http'                                   => array( 'http://example.test/' ),
@@ -48,7 +48,7 @@ class SafeUrlTest extends TestCase {
 	/**
 	 * @return array<string, array{0: string, 1: string}>
 	 */
-	public function padded_web_addresses(): array {
+	public static function padded_web_addresses(): array {
 		return array(
 			'spaces around it'          => array( '  https://example.test/a  ', 'https://example.test/a' ),
 			'a newline after it'        => array( "https://example.test/a\n", 'https://example.test/a' ),
@@ -68,19 +68,18 @@ class SafeUrlTest extends TestCase {
 	/**
 	 * @return array<string, array{0: string}>
 	 */
-	public function script_capable_addresses(): array {
+	public static function script_capable_addresses(): array {
 		return array(
-			'javascript'                          => array( 'javascript:alert(1)' ),
-			'javascript in mixed case'            => array( 'JaVaScRiPt:alert(1)' ),
-			'javascript after a tab'              => array( "\tjavascript:alert(1)" ),
-			'javascript after spaces'             => array( '   javascript:alert(1)' ),
+			'javascript'                           => array( 'javascript:alert(1)' ),
+			'javascript in mixed case'             => array( 'JaVaScRiPt:alert(1)' ),
+			'javascript after a tab'               => array( "\tjavascript:alert(1)" ),
+			'javascript after spaces'              => array( '   javascript:alert(1)' ),
 			'javascript after a control character' => array( "\x01javascript:alert(1)" ),
-			'javascript split by a newline'       => array( "java\nscript:alert(1)" ),
-			'javascript split by a tab'           => array( "java\tscript:alert(1)" ),
-			'javascript split by a NUL'           => array( "java\x00script:alert(1)" ),
-			'javascript with a web address in it' => array( 'javascript:fetch("https://example.test/")' ),
-			'data'                                => array( 'data:text/html,<script>alert(1)</script>' ),
-			'vbscript'                            => array( 'vbscript:msgbox(1)' ),
+			'javascript split by a newline'        => array( "java\nscript:alert(1)" ),
+			'javascript split by a tab'            => array( "java\tscript:alert(1)" ),
+			'javascript with a web address in it'  => array( 'javascript:fetch("https://example.test/")' ),
+			'data'                                 => array( 'data:text/html,<script>alert(1)</script>' ),
+			'vbscript'                             => array( 'vbscript:msgbox(1)' ),
 		);
 	}
 
@@ -94,19 +93,22 @@ class SafeUrlTest extends TestCase {
 	/**
 	 * @return array<string, array{0: string}>
 	 */
-	public function other_addresses(): array {
+	public static function other_addresses(): array {
 		return array(
-			'file'                        => array( 'file:///etc/passwd' ),
-			'ftp'                         => array( 'ftp://example.test/file' ),
-			'mailto'                      => array( 'mailto:desk@example.test' ),
-			'tel'                         => array( 'tel:+15550100' ),
-			'no scheme, two slashes'      => array( '//example.test/a' ),
-			'no scheme, a path'           => array( '/wp-admin/' ),
-			'no scheme, a host'           => array( 'example.test/a' ),
-			'http scheme with no slashes' => array( 'https:example.test' ),
-			'a scheme that starts with http' => array( 'httpx://example.test/' ),
-			'empty'                       => array( '' ),
-			'only spaces'                 => array( '   ' ),
+			'file'                             => array( 'file:///etc/passwd' ),
+			'ftp'                              => array( 'ftp://example.test/file' ),
+			'mailto'                           => array( 'mailto:desk@example.test' ),
+			'tel'                              => array( 'tel:+15550100' ),
+			'no scheme, two slashes'           => array( '//example.test/a' ),
+			'no scheme, a path'                => array( '/wp-admin/' ),
+			'no scheme, a host'                => array( 'example.test/a' ),
+			'http scheme with no slashes'      => array( 'https:example.test' ),
+			'a scheme that starts with http'   => array( 'httpx://example.test/' ),
+			// A browser removes a tab or a newline from inside a URL, but not a NUL,
+			// so this is a path that happens to hold the word, not a script URL.
+			'a NUL inside the word javascript' => array( "java\x00script:alert(1)" ),
+			'empty'                            => array( '' ),
+			'only spaces'                      => array( '   ' ),
 		);
 	}
 
@@ -120,7 +122,7 @@ class SafeUrlTest extends TestCase {
 	/**
 	 * @return array<string, array{0: mixed}>
 	 */
-	public function non_strings(): array {
+	public static function non_strings(): array {
 		return array(
 			'null'    => array( null ),
 			'integer' => array( 7 ),

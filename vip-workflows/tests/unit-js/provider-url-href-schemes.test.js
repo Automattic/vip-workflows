@@ -2,23 +2,29 @@
  * Provider-supplied URLs at the anchors that render them.
  *
  * A research provider, a discovery provider or a scraped page hands back URLs,
- * and nine anchors on the ideation screens put one in an `href`. The link
- * components do not inspect a scheme, and the installed React still renders a
- * `javascript:` URL, so each of those anchors has to refuse a URL that could
- * run script.
+ * and eleven anchors put one in an `href`: nine on the ideation screens, and
+ * two in the editor's ideation panel, which shows the stored prompt and the
+ * stored cards beside the post they led to. The link components do not inspect
+ * a scheme, and the installed React still renders a `javascript:` URL, so each
+ * of those anchors has to refuse a URL that could run script.
  *
- * This file is about the render layer only. Every URL is passed in as a
- * component prop, exactly as it would arrive from storage, so a check made
- * when a URL is stored cannot make these pass — and a value that was stored
- * before any such check existed is covered too.
+ * This file is about the render layer only. Every URL reaches its component
+ * the way it does on the screen — as a prop, or for the editor panel as the
+ * answer of its endpoint — so a check made when a URL is stored cannot make
+ * these pass, and a value that was stored before any such check existed is
+ * covered too.
  *
  * What an anchor "links to" is decided the way a browser decides it: each
  * `href` in the document is run through the URL parser, which discards the
  * leading whitespace and control characters a string comparison would miss.
+ * The anchor under test must also have stopped being a link: its siblings
+ * share the document, so the document alone could not say which one failed.
  *
  * Each anchor is also rendered with a web address first. Without that, a case
  * would pass just as well if its modal never opened.
  */
+
+import apiFetch from '@wordpress/api-fetch';
 
 import { render, screen, fireEvent } from './helpers/render-wp-component';
 
@@ -26,6 +32,10 @@ import ArticleCard from '../../src/admin/components/ideation/cards/ArticleCard';
 import DocumentCard from '../../src/admin/components/ideation/cards/DocumentCard';
 import ImageCard from '../../src/admin/components/ideation/cards/ImageCard';
 import PromptPreviewModal from '../../src/admin/components/ideation/PromptPreviewModal';
+import { IdeationPanel } from '../../src/editor/components/IdeationPanel';
+
+// Only the editor panel fetches: it reads its links from the ideation endpoint.
+jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 
 const WEB_URL = 'https://source.example.test/story';
 
@@ -155,11 +165,21 @@ const openPromptWithLink = ( url ) =>
 
 const dialog = () => screen.getByRole( 'dialog' );
 
+// What the ideation endpoint answers for a post that came out of a project.
+const openPanel = async ( ideation ) => {
+	apiFetch.mockResolvedValue( { project_id: 19, items: [], ...ideation } );
+	render( <IdeationPanel postId={ 42 } /> );
+	await screen.findByText( 'From Ideation' );
+};
+
+const panel = () => screen.getByText( 'From Ideation' );
+
 /*
  * One entry per anchor. `open` renders the component with the URL in the field
  * the anchor reads, and opens the detail modal when the anchor is inside it.
- * `anchor` finds it the way a reader would, by role and name. `rendered` is
- * what proves the part of the screen that holds the anchor is there.
+ * `anchor` finds it the way a reader would, by role and name — an element with
+ * no `href` is not a link, so a refused URL leaves nothing to find. `rendered`
+ * is what proves the part of the screen that holds the anchor is there.
  *
  * Link names are matched loosely where the anchor opens a new tab: the WPDS
  * Link appends screen-reader-only text to its name.
@@ -239,21 +259,60 @@ const ANCHORS = [
 		anchor: () => screen.queryByRole( 'link', { name: 'Open file' } ),
 		rendered: dialog,
 	},
+	{
+		name: 'IdeationPanel: the article the project was started from',
+		field: 'source.url',
+		urls: SCRIPT_URLS,
+		open: ( url ) =>
+			openPanel( {
+				source: {
+					title: 'Reservoir authority publishes annual levels',
+					url,
+					domain: 'wire.example.test',
+				},
+			} ),
+		anchor: () =>
+			screen.queryByRole( 'link', {
+				name: /Reservoir authority publishes annual levels/,
+			} ),
+		rendered: panel,
+	},
+	{
+		name: 'IdeationPanel: a source somebody pinned or added',
+		field: 'items[].url',
+		urls: SCRIPT_URLS,
+		open: ( url ) =>
+			openPanel( {
+				items: [
+					{
+						id: 'src1',
+						title: 'Annual levels report',
+						url,
+						domain: 'authority.example.test',
+						pinned: true,
+					},
+				],
+			} ),
+		anchor: () =>
+			screen.queryByRole( 'link', { name: /Annual levels report/ } ),
+		rendered: panel,
+	},
 ];
 
 describe.each( ANCHORS )(
 	'$name ($field)',
 	( { urls, open, anchor, rendered } ) => {
-		it( 'links to a web address', () => {
-			open( WEB_URL );
+		it( 'links to a web address', async () => {
+			await open( WEB_URL );
 
 			expect( anchor() ).toHaveAttribute( 'href', WEB_URL );
 		} );
 
-		it.each( urls )( 'does not link to %s', ( label, url ) => {
-			open( url );
+		it.each( urls )( 'does not link to %s', async ( label, url ) => {
+			await open( url );
 
 			expect( rendered() ).toBeInTheDocument();
+			expect( anchor() ).toBeNull();
 			expect( scriptHrefs() ).toEqual( [] );
 		} );
 	}
