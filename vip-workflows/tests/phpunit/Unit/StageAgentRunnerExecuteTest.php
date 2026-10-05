@@ -1406,15 +1406,16 @@ class StageAgentRunnerExecuteTest extends TestCase
      * @param array                 $routing            Stage routing map.
      * @param AbilityResult|\Throwable $agent_returns   What the agent's ability does.
      * @param mixed                 $transition_returns What StatusManager::transition() returns.
+     * @param string                $target_region      Region the routed destination sits in.
      */
-    private function run_with( array $routing, $agent_returns, $transition_returns = true ): void
+    private function run_with( array $routing, $agent_returns, $transition_returns = true, string $target_region = 'draft' ): void
     {
         $this->stub_meta();
         $job = array();
         $this->capture_job_meta( $job );
 
         $status_manager = Mockery::mock( StatusManager::class );
-        $status_manager->shouldReceive( 'get_sequence_for_post' )->andReturn( $this->ai_sequence( $routing ) );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )->andReturn( $this->ai_sequence( $routing, $target_region ) );
         $status_manager->shouldReceive( 'transition' )->andReturn( $transition_returns );
         $this->seed_status_manager( $status_manager );
 
@@ -1476,6 +1477,95 @@ class StageAgentRunnerExecuteTest extends TestCase
         $this->assertSame( 'error', $properties['outcome'] );
         $this->assertSame( 'error_routed', $properties['disposition'] );
         $this->assertArrayNotHasKey( 'stop_reason', $properties, 'it did not stop; it was routed' );
+    }
+
+    public function test_a_verdict_that_falls_back_to_the_error_route_is_reported_as_error_routed(): void
+    {
+        $telemetry = $this->install_telemetry();
+
+        // No `fail` route, so route() sends a fail verdict down the error route.
+        $this->run_with( array( 'pass' => 'review', 'error' => 'needs_human' ), self::make_result( true, array( 'status' => 'fail' ) ) );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'fail', $properties['outcome'] );
+        $this->assertSame( 'error_routed', $properties['disposition'] );
+    }
+
+    public function test_a_route_held_at_the_publish_boundary_reports_publish_held(): void
+    {
+        $telemetry = $this->install_telemetry();
+
+        $this->run_with( array( 'pass' => 'live' ), self::make_result( true, array( 'status' => 'pass' ) ), true, 'publish' );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'pass', $properties['outcome'] );
+        $this->assertSame( 'stopped_in_place', $properties['disposition'] );
+        $this->assertSame( 'publish_held', $properties['stop_reason'] );
+    }
+
+    public function test_a_post_that_left_the_workflow_mid_run_is_not_reported_as_publish_held(): void
+    {
+        $telemetry = $this->install_telemetry();
+        $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        // The run starts against the sequence; by the time it moves the post, the post has none.
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ), null );
+        $status_manager->shouldReceive( 'transition' )->never();
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->andReturn( self::make_result( true, array( 'status' => 'pass' ) ) );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'stopped_in_place', $properties['disposition'] );
+        $this->assertSame( 'left_workflow', $properties['stop_reason'] );
+    }
+
+    public function test_a_destination_with_no_readable_region_is_not_reported_as_publish_held(): void
+    {
+        $telemetry = $this->install_telemetry();
+        $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        $sequence = Mockery::mock( Sequence::class );
+        $sequence->shouldReceive( 'get_status' )->andReturn(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array(
+                    'ability_id' => 'workflow-agent-reformat-to-template/reformat-to-template',
+                    'routing'    => array( 'pass' => 'nowhere' ),
+                ),
+            )
+        );
+        $sequence->shouldReceive( 'get_stage_status' )->andReturnUsing(
+            static function ( string $stage ): string {
+                if ( 'ai_desk' !== $stage ) {
+                    throw new \InvalidArgumentException( 'Stage "nowhere" has no status region.' );
+                }
+                return 'draft';
+            }
+        );
+        $sequence->shouldReceive( 'get_settings' )->andReturn( array() );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )->andReturn( $sequence );
+        $status_manager->shouldReceive( 'transition' )->never();
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->andReturn( self::make_result( true, array( 'status' => 'pass' ) ) );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'stopped_in_place', $properties['disposition'] );
+        $this->assertSame( 'unreadable_region', $properties['stop_reason'] );
     }
 
     public function test_an_error_with_no_error_route_stops_in_place(): void

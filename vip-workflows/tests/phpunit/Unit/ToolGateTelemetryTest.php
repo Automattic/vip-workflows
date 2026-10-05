@@ -205,6 +205,38 @@ class ToolGateTelemetryTest extends TestCase
         $this->assertSame( 5, $event['user'] );
     }
 
+    public function test_a_tools_own_issue_is_counted_as_a_finding_whatever_its_key(): void
+    {
+        // A tool may name its own check `execution_error`. It still ran and
+        // reached a verdict, so it is a hard finding, not a broken tool.
+        $this->tools = array(
+            'test/strict' => array(
+                'issues' => array(
+                    array( 'check_key' => 'execution_error', 'severity' => 'error', 'message' => 'Embed failed to load' ),
+                ),
+            ),
+        );
+
+        $this->assertInstanceOf( \WP_Error::class, $this->run_gate( array( 'test/strict' ) ) );
+
+        $properties = $this->gate_event()['properties'];
+        $this->assertSame( 1, $properties['hard_count'] );
+        $this->assertSame( 0, $properties['tools_errored'] );
+    }
+
+    public function test_a_stored_required_tools_value_that_is_not_a_list_does_not_throw(): void
+    {
+        $manager = new StatusManager( Mockery::mock( SequenceRepository::class ), Mockery::mock( PostTypeManager::class ) );
+        $method  = new \ReflectionMethod( StatusManager::class, 'run_transition_tools' );
+
+        // What main does with it, warning included: no tool runs. Telemetry must
+        // not turn that into a TypeError on every move along the edge.
+        $result = @$method->invoke( $manager, 42, array( 'to' => 'review', 'required_tools' => 'test/one' ) );
+
+        $this->assertTrue( $result );
+        $this->assertSame( 0, $this->gate_event()['properties']['tools_required'] );
+    }
+
     public function test_a_gate_that_finds_nothing_passes(): void
     {
         $this->tools = array(

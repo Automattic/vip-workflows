@@ -12,6 +12,7 @@ namespace VIPWorkflows\Tests\Unit;
 use Brain\Monkey\Functions;
 use Mockery;
 use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Telemetry\Tracker;
 use VIPWorkflows\Workflow\StageAgentRunner;
 
 /**
@@ -120,6 +121,45 @@ class StageAgentRunnerDispatchTest extends TestCase
         $last = end( $writes );
         $this->assertSame( 'failed', $last['status'] );
         $this->assertSame( 'cron store unavailable', $last['error'] );
+    }
+
+    /**
+     * A run that was never queued concluded all the same: the post stopped, so
+     * it is reported, and as nothing the agent decided.
+     */
+    public function test_a_run_that_could_not_be_scheduled_reports_dispatch_failed(): void
+    {
+        $telemetry = new RecordingTelemetry();
+        Tracker::set_telemetry( $telemetry );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 5 );
+        Functions\when( 'get_post_meta' )->justReturn( '' );
+        Functions\when( 'update_post_meta' )->justReturn( true );
+        Functions\when( 'wp_schedule_single_event' )->justReturn( false );
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array(
+                    'ability_id' => 'workflow-agent-reformat-to-template/reformat-to-template',
+                    'routing'    => array( 'pass' => 'review' ),
+                ),
+            )
+        );
+
+        $this->runner->maybe_dispatch( 42, 'ai_desk', 'draft', $sequence );
+
+        $events = $telemetry->of( 'agent_run_finished' );
+        $this->assertCount( 1, $events );
+        $this->assertSame(
+            array(
+                'disposition' => 'stopped_in_place',
+                'stop_reason' => 'dispatch_failed',
+                'initiator'   => 'agent',
+            ),
+            $events[0]['properties']
+        );
+        $this->assertSame( 5, $events[0]['user'], 'recorded as the person whose move entered the stage' );
     }
 
     /**

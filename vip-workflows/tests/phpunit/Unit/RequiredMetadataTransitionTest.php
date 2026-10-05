@@ -564,6 +564,58 @@ class RequiredMetadataTransitionTest extends TestCase
      * An agent's exit transition skips this gate entirely, so it is neither
      * passed nor bypassed and reports nothing.
      */
+    /**
+     * An agent's exit transition runs the required tools under cron, with nobody
+     * logged in. transition() has to hand the agent's user to the gate, or the
+     * event is recorded as the wrong person or not at all.
+     */
+    public function test_an_agent_transitions_tools_gate_is_recorded_as_the_agents_user(): void
+    {
+        $telemetry = $this->telemetry();
+        $this->stub_transition( array(), array(), 'draft', 'draft', array( 'a/check' ) );
+        // A switched-off tool blocks without running anything.
+        Functions\when( 'get_option' )->alias(
+            fn( string $key, $default = false ) => 'vip_workflows_ability_settings' === $key
+                ? array( 'a/check' => array( 'enabled' => false ) )
+                : $default
+        );
+        \VIPWorkflows\Abilities\AbilitySettings::get_instance()->clear_cache();
+        // Cron: nobody is logged in until the event is recorded as the agent's user.
+        $current_user = 0;
+        Functions\when( 'get_current_user_id' )->alias( static function () use ( &$current_user ) {
+            return $current_user;
+        } );
+        Functions\when( 'wp_set_current_user' )->alias( static function ( int $id ) use ( &$current_user ) {
+            $current_user = $id;
+        } );
+        // The gate builds an AbilityExecutor, which takes the plugin's event bus.
+        $plugin = ( new \ReflectionClass( \VIPWorkflows\Plugin::class ) )->newInstanceWithoutConstructor();
+        $bus    = Mockery::mock( \VIPWorkflows\Automation\EventBus::class );
+        $bus->shouldIgnoreMissing();
+        ( new \ReflectionProperty( \VIPWorkflows\Plugin::class, 'event_bus' ) )->setValue( $plugin, $bus );
+        ( new \ReflectionProperty( \VIPWorkflows\Plugin::class, 'instance' ) )->setValue( null, $plugin );
+        Functions\when( 'user_can' )->alias(
+            fn( $user_id, $capability, $post_id = null ) => 7 === $user_id
+                && ( ( 'edit_post' === $capability && 1 === $post_id ) || 'publish_posts' === $capability )
+        );
+
+        $this->status_manager->transition(
+            1,
+            'review',
+            array(
+                'agent_actor'      => 'test/agent',
+                'agent_actor_user' => 7,
+            )
+        );
+
+        $events = $telemetry->of( 'transition_gate_finished' );
+        $this->assertCount( 1, $events );
+        $this->assertSame( 'tools', $events[0]['properties']['gate'] );
+        $this->assertSame( 'agent', $events[0]['properties']['initiator'] );
+        $this->assertSame( 7, $events[0]['user'] );
+        $this->assertSame( 0, $current_user, 'and the cron context is restored' );
+    }
+
     public function test_an_agent_transition_skips_the_gate_and_reports_nothing(): void
     {
         $telemetry = $this->telemetry();

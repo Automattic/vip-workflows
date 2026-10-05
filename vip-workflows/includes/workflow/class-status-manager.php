@@ -981,7 +981,7 @@ class StatusManager {
 				array(
 					'gate'           => 'tools',
 					'result'         => 'bypassed',
-					'tools_required' => count( $transition_config['required_tools'] ),
+					'tools_required' => is_array( $transition_config['required_tools'] ) ? count( $transition_config['required_tools'] ) : 0,
 				),
 				$is_agent_actor ? 'agent' : 'user',
 				$is_agent_actor ? (int) ( $options['agent_actor_user'] ?? 0 ) : 0
@@ -2332,6 +2332,7 @@ class StatusManager {
 		$hard_failures  = array();
 		$soft_warnings  = array();
 		$all_results    = array();
+		$tools_errored  = 0; // Tools that reached no verdict, each with exactly one hard failure.
 
 		foreach ( $required_tools as $tool_id ) {
 			try {
@@ -2345,6 +2346,7 @@ class StatusManager {
 						'message'  => __( 'This required check is switched off. Re-enable it, or remove it from this transition.', 'vip-workflows' ),
 						'severity' => 'hard',
 					);
+					++$tools_errored;
 
 					continue;
 				}
@@ -2367,6 +2369,7 @@ class StatusManager {
 						'message'  => '' !== $reason ? $reason : __( 'Check could not be completed', 'vip-workflows' ),
 						'severity' => 'hard',
 					);
+					++$tools_errored;
 
 					continue;
 				}
@@ -2415,12 +2418,13 @@ class StatusManager {
 					'message'  => $e->getMessage(),
 					'severity' => 'hard',
 				);
+				++$tools_errored;
 			}
 		}
 
 		// If there are hard failures, block the transition.
 		if ( ! empty( $hard_failures ) ) {
-			$this->record_tool_gate( 'blocked', $required_tools, $hard_failures, $soft_warnings, $started, $initiator, $as_user );
+			$this->record_tool_gate( 'blocked', $required_tools, $hard_failures, $soft_warnings, $tools_errored, $started, $initiator, $as_user );
 
 			return new \WP_Error(
 				'tool_check_failed',
@@ -2435,7 +2439,7 @@ class StatusManager {
 
 		// If only soft warnings and user hasn't acknowledged them, return for confirmation.
 		if ( ! empty( $soft_warnings ) && ! $acknowledge_warnings ) {
-			$this->record_tool_gate( 'warnings_pending', $required_tools, $hard_failures, $soft_warnings, $started, $initiator, $as_user );
+			$this->record_tool_gate( 'warnings_pending', $required_tools, $hard_failures, $soft_warnings, $tools_errored, $started, $initiator, $as_user );
 
 			return array(
 				'warnings_pending' => true,
@@ -2448,7 +2452,7 @@ class StatusManager {
 			$this->log_tool_warnings( $post_id, $transition_config['to'] ?? 'unknown', $soft_warnings );
 		}
 
-		$this->record_tool_gate( empty( $soft_warnings ) ? 'passed' : 'warnings_acknowledged', $required_tools, $hard_failures, $soft_warnings, $started, $initiator, $as_user );
+		$this->record_tool_gate( empty( $soft_warnings ) ? 'passed' : 'warnings_acknowledged', $required_tools, $hard_failures, $soft_warnings, $tools_errored, $started, $initiator, $as_user );
 
 		return true;
 	}
@@ -2457,33 +2461,29 @@ class StatusManager {
 	 * Record the outcome of a required-tools gate, as counts.
 	 *
 	 * @param string $result         passed | blocked | warnings_pending | warnings_acknowledged.
-	 * @param array  $required_tools The transition's required tool ids.
+	 * @param mixed  $required_tools The transition's required tool ids, as stored.
 	 * @param array  $hard_failures  The gate's blocking failures.
 	 * @param array  $soft_warnings  The gate's warnings.
+	 * @param int    $tools_errored  Tools that broke or were switched off. Each has one entry in $hard_failures.
 	 * @param float  $started        microtime( true ) when the gate began.
 	 * @param string $initiator      'user' or 'agent'.
 	 * @param int    $as_user        User to record telemetry as, or 0 for the current user.
 	 */
-	private function record_tool_gate( string $result, array $required_tools, array $hard_failures, array $soft_warnings, float $started, string $initiator, int $as_user ): void {
+	private function record_tool_gate( string $result, $required_tools, array $hard_failures, array $soft_warnings, int $tools_errored, float $started, string $initiator, int $as_user ): void {
 		if ( ! Tracker::is_available() ) {
 			return;
 		}
 
-		$errored = count(
-			array_filter(
-				$hard_failures,
-				static fn( $failure ) => in_array( $failure['key'] ?? '', array( 'execution_error', 'tool_disabled' ), true )
-			)
-		);
-
+		// Counted by where each failure came from, not by its key: a tool's own
+		// issue can carry the key `execution_error` too.
 		$this->record_gate(
 			array(
 				'gate'           => 'tools',
 				'result'         => $result,
-				'hard_count'     => count( $hard_failures ) - $errored,
+				'hard_count'     => count( $hard_failures ) - $tools_errored,
 				'soft_count'     => count( $soft_warnings ),
-				'tools_required' => count( $required_tools ),
-				'tools_errored'  => $errored,
+				'tools_required' => is_array( $required_tools ) ? count( $required_tools ) : 0,
+				'tools_errored'  => $tools_errored,
 				'duration_ms'    => (int) ( ( microtime( true ) - $started ) * 1000 ),
 			),
 			$initiator,

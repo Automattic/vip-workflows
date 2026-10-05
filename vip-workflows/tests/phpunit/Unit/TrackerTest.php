@@ -34,18 +34,32 @@ class TrackerTest extends TestCase
      */
     private array $known_users = array( 7 );
 
+    /**
+     * Whether either user function was called.
+     *
+     * @var bool
+     */
+    private bool $touched_users = false;
+
     protected function setUp(): void
     {
         parent::setUp();
 
-        $this->current_user = 0;
+        $this->current_user  = 0;
+        $this->touched_users = false;
 
-        Functions\when( 'get_current_user_id' )->alias( fn() => $this->current_user );
+        Functions\when( 'get_current_user_id' )->alias(
+            function () {
+                $this->touched_users = true;
+                return $this->current_user;
+            }
+        );
 
         // Core leaves the current user at 0 for an id that resolves to nobody.
         Functions\when( 'wp_set_current_user' )->alias(
             function ( int $id ) {
-                $this->current_user = in_array( $id, $this->known_users, true ) ? $id : 0;
+                $this->touched_users = true;
+                $this->current_user  = in_array( $id, $this->known_users, true ) ? $id : 0;
             }
         );
     }
@@ -171,11 +185,11 @@ class TrackerTest extends TestCase
     {
         $this->assertFalse( class_exists( '\\Automattic\\VIP\\Telemetry\\Telemetry' ), 'This test assumes the mu-plugin library is not loaded.' );
 
-        Functions\expect( 'get_current_user_id' )->never();
-        Functions\expect( 'wp_set_current_user' )->never();
-
+        // Brain Monkey ignores expect()->never() on a function setUp() already
+        // stubbed, so the stubs record whether they were reached instead.
         $this->assertFalse( Tracker::is_available() );
         $this->assertFalse( Tracker::record( 'tool_run_finished', array(), 7 ) );
+        $this->assertFalse( $this->touched_users, 'the user was neither read nor switched' );
     }
 
     public function test_it_is_available_when_there_is_a_telemetry_instance(): void
