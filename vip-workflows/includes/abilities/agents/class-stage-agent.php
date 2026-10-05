@@ -1030,20 +1030,20 @@ class StageAgent {
 	 * or clean up the note — so a failed meta write deletes the comment and errors
 	 * rather than leaving an orphaned, unmarked note anchored in the content.
 	 *
-	 * @param  int    $post_id Post ID.
-	 * @param  int    $parent  Parent comment ID (0 for a top-level note).
-	 * @param  string $body    Note body (already label-prefixed).
-	 * @param  string $marker  Comment-meta key tagging this agent's notes.
+	 * @param  int    $post_id   Post ID.
+	 * @param  int    $parent_id Parent comment ID (0 for a top-level note).
+	 * @param  string $body      Note body (already label-prefixed).
+	 * @param  string $marker    Comment-meta key tagging this agent's notes.
 	 * @return int|\WP_Error New comment ID or error.
 	 */
-	private static function insert_note( int $post_id, int $parent, string $body, string $marker ) {
+	private static function insert_note( int $post_id, int $parent_id, string $body, string $marker ) {
 		$user = wp_get_current_user();
 
 		$comment_id = wp_insert_comment(
 			array(
 				'comment_post_ID'  => $post_id,
 				'comment_type'     => 'note',
-				'comment_parent'   => $parent,
+				'comment_parent'   => $parent_id,
 				'comment_content'  => wp_strip_all_tags( $body ),
 				'user_id'          => $user ? (int) $user->ID : 0,
 				'comment_author'   => $user ? (string) $user->display_name : '',
@@ -1376,18 +1376,18 @@ class StageAgent {
 	 * reply is left untouched. Human replies are never touched. Used to update a
 	 * finding after re-checking a claim against the editor's context.
 	 *
-	 * @param  int    $post_id Post ID.
-	 * @param  int    $parent  Parent note ID.
-	 * @param  string $label   Agent label prefix.
-	 * @param  string $body    Reply body.
-	 * @param  string $marker  Comment-meta key tagging this agent's notes.
+	 * @param  int    $post_id   Post ID.
+	 * @param  int    $parent_id Parent note ID.
+	 * @param  string $label     Agent label prefix.
+	 * @param  string $body      Reply body.
+	 * @param  string $marker    Comment-meta key tagging this agent's notes.
 	 * @return null|\WP_Error
 	 */
-	public static function append_agent_reply( int $post_id, int $parent, string $label, string $body, string $marker ) {
+	public static function append_agent_reply( int $post_id, int $parent_id, string $label, string $body, string $marker ) {
 		$labeled  = self::label_note_body( $label, $body );
 		$children = get_comments(
 			array(
-				'parent' => $parent,
+				'parent' => $parent_id,
 				'type'   => 'note',
 				'status' => 'all',
 				'number' => 0,
@@ -1409,7 +1409,7 @@ class StageAgent {
 			$stale[] = $cid;
 		}
 
-		$inserted = self::insert_note( $post_id, $parent, $labeled, $marker );
+		$inserted = self::insert_note( $post_id, $parent_id, $labeled, $marker );
 		if ( is_wp_error( $inserted ) ) {
 			return $inserted;
 		}

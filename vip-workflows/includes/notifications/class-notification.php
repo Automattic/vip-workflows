@@ -74,12 +74,12 @@ class Notification {
 	/**
 	 * Get a data value with fallback.
 	 *
-	 * @param  string $key     Data key.
-	 * @param  mixed  $default Default value.
+	 * @param  string $key      Data key.
+	 * @param  mixed  $fallback Default value.
 	 * @return mixed
 	 */
-	public function get( string $key, $default = null ) {
-		return $this->data[ $key ] ?? $default;
+	public function get( string $key, $fallback = null ) {
+		return $this->data[ $key ] ?? $fallback;
 	}
 
 	/**
