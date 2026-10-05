@@ -309,7 +309,7 @@ class StageAgentRunner implements ModuleInterface {
 	 */
 	public function run_stage_agent( int $post_id, string $stage_key ): void {
 		$status_manager = \VIPWorkflows\Plugin::get_instance()->get_status_manager();
-		$sequence      = $status_manager->get_sequence_for_post( $post_id );
+		$sequence       = $status_manager->get_sequence_for_post( $post_id );
 		if ( ! $sequence ) {
 			$this->clear_job_for_stage( $post_id, $stage_key );
 			return;
@@ -894,7 +894,7 @@ class StageAgentRunner implements ModuleInterface {
 		// via `agent_actor`, so an agent's own exit transition still cannot warn
 		// about itself and deadlock the stage.
 		$options = array(
-			'agent_actor' => $ability_id,
+			'agent_actor'      => $ability_id,
 
 			/*
 			 * The identity this run acts for. The previous user is restored before

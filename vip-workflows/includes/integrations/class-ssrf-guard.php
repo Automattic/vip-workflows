@@ -188,7 +188,7 @@ class SsrfGuard {
 			return $request_args;
 		};
 
-		add_filter( 'http_request_args', $filter, PHP_INT_MAX, 2 );
+		add_filter( 'http_request_args', $filter, PHP_INT_MAX, 2 ); // phpcs:ignore WordPressVIPMinimum.Hooks.RestrictedHooks.http_request_args -- the filter only sets redirection to 0 so a redirect cannot reach an internal address; it never changes the timeout, and it is removed after the single request.
 		try {
 			return wp_safe_remote_get( $url, $args );
 		} finally {
@@ -278,7 +278,7 @@ class SsrfGuard {
 			return $request_args;
 		};
 
-		add_filter( 'http_request_args', $filter, PHP_INT_MAX, 2 );
+		add_filter( 'http_request_args', $filter, PHP_INT_MAX, 2 ); // phpcs:ignore WordPressVIPMinimum.Hooks.RestrictedHooks.http_request_args -- the filter only sets redirection to 0 so a redirect cannot reach an internal address; it never changes the timeout, and it is removed after the single request.
 		try {
 			return \download_url( $url, $timeout );
 		} finally {
@@ -351,7 +351,7 @@ class SsrfGuard {
 			return $request_args;
 		};
 
-		add_filter( 'http_request_args', $filter, PHP_INT_MAX, 2 );
+		add_filter( 'http_request_args', $filter, PHP_INT_MAX, 2 ); // phpcs:ignore WordPressVIPMinimum.Hooks.RestrictedHooks.http_request_args -- the filter only sets redirection to 0 so a redirect cannot reach an internal address; it never changes the timeout, and it is removed after the single request.
 		try {
 			if ( 'POST' === $normalized_method ) {
 				return wp_safe_remote_post( $url, $args );
@@ -380,8 +380,8 @@ class SsrfGuard {
 
 		$ips = array();
 		if ( function_exists( 'dns_get_record' ) ) {
-			$a    = @dns_get_record( $host, DNS_A );
-			$aaaa = @dns_get_record( $host, DNS_AAAA );
+			$a    = @dns_get_record( $host, DNS_A ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- dns_get_record() warns when a host does not resolve; the result is cast with (array), so a failed lookup yields no addresses and the host is rejected.
+			$aaaa = @dns_get_record( $host, DNS_AAAA ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- dns_get_record() warns when a host does not resolve; the result is cast with (array), so a failed lookup yields no addresses and the host is rejected.
 			foreach ( (array) $a as $row ) {
 				if ( ! empty( $row['ip'] ) ) {
 					$ips[] = $row['ip'];
@@ -395,7 +395,7 @@ class SsrfGuard {
 		}
 
 		if ( empty( $ips ) ) {
-			$resolved = @gethostbynamel( $host );
+			$resolved = @gethostbynamel( $host ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- gethostbynamel() warns when a host does not resolve; the result is checked with is_array(), and an unresolvable host is rejected.
 			if ( is_array( $resolved ) ) {
 				$ips = $resolved;
 			}
@@ -434,7 +434,7 @@ class SsrfGuard {
 				return false;
 			}
 			$first = ord( $packed[0] );
-			// 0.0.0.0/8 and 224.0.0.0/4 (multicast) and 240.0.0.0/4 (reserved).
+			// Reject the "this network" range 0.0.0.0/8, multicast 224.0.0.0/4 and reserved 240.0.0.0/4.
 			if ( 0 === $first || $first >= 224 ) {
 				return false;
 			}

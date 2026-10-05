@@ -77,7 +77,7 @@ class PostsColumns {
 		// so get_post_types() falls back to `post` and would register the
 		// workflow column and Quick Edit picker on every post screen.
 		$repository = new \VIPWorkflows\Sequences\SequenceRepository();
-		$sequences = $repository->get_workflow_sequences( array( 'status' => 'active' ) );
+		$sequences  = $repository->get_workflow_sequences( array( 'status' => 'active' ) );
 		foreach ( $sequences as $sequence ) {
 			foreach ( $sequence->get_post_types() as $pt ) {
 				if ( post_type_exists( $pt ) ) {
@@ -354,7 +354,7 @@ class PostsColumns {
 	 * @param string $column_name Column name.
 	 * @param string $post_type   Post type.
 	 */
-	public function add_quick_edit_workflow( string $column_name, string $post_type ): void {
+	public function add_quick_edit_workflow( string $column_name, string $post_type ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- required by quick_edit_custom_box action
 		if ( 'workflow_status' !== $column_name ) {
 			return;
 		}
@@ -427,7 +427,7 @@ class PostsColumns {
 		}
 
 		// Inline script.
-		$nonce = wp_create_nonce( 'wp_rest' );
+		$nonce   = wp_create_nonce( 'wp_rest' );
 		$api_url = rest_url( 'vip-workflows/v1' );
 
 		// The same default swatch the server renders with, handed to the script

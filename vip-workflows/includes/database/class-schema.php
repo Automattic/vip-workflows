@@ -162,14 +162,14 @@ class Schema {
 				'run'     => function (): void {
 					global $wpdb;
 
-                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- migration on plugin table vip_claim_queue; runs once per schema version
 					$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}vip_claim_queue" );
 
-                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration on plugin table vip_sequences; runs once per schema version
 					$wpdb->query( "DELETE FROM {$wpdb->prefix}vip_sequences WHERE type = 'pitch'" );
 
 					// Delete vip_pitch posts and their orphaned postmeta.
-                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration deleting retired post types and their postmeta from the core posts and postmeta tables, which no API can do in one statement; runs once per schema version, and the deleted posts' object-cache entries are left to expire rather than flushed
 					$wpdb->query(
 						"DELETE p, pm FROM {$wpdb->prefix}posts p
 						LEFT JOIN {$wpdb->prefix}postmeta pm ON pm.post_id = p.ID
@@ -186,7 +186,7 @@ class Schema {
 					global $wpdb;
 
 					// Delete vip_workflows_note posts and their orphaned postmeta.
-                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration deleting retired post types and their postmeta from the core posts and postmeta tables, which no API can do in one statement; runs once per schema version, and the deleted posts' object-cache entries are left to expire rather than flushed
 					$wpdb->query(
 						"DELETE p, pm FROM {$wpdb->prefix}posts p
 						LEFT JOIN {$wpdb->prefix}postmeta pm ON pm.post_id = p.ID
@@ -355,12 +355,13 @@ class Schema {
 					//
 					// Table names cannot be bound as parameters; every name here is
 					// built from $wpdb->prefix and a literal, never from input.
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration check for plugin table vip_blueprints; runs once per schema version
 					$has_old = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $old_table ) ) === $old_table;
 
 					if ( $has_old ) {
-						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration on plugin table vip_sequences; runs once per schema version
 						$new_rows = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$new_table}`" );
-						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration on plugin table vip_blueprints; runs once per schema version
 						$old_rows = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$old_table}`" );
 
 						// Rows on both sides is not a state this can reconcile — the new
@@ -386,7 +387,7 @@ class Schema {
 						// nothing enforces that.
 						$columns = '`id`, `uuid`, `type`, `name`, `slug`, `description`, `version`, `status`, `config`, `created_by`, `created_at`, `updated_at`';
 
-						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration on plugin table vip_sequences; runs once per schema version
 						$wpdb->query( "INSERT INTO `{$new_table}` ({$columns}) SELECT {$columns} FROM `{$old_table}`" );
 
 						// The copy has to prove itself here. $wpdb->last_error cannot do it:
@@ -395,7 +396,7 @@ class Schema {
 						// invisible by the time it is checked, and the version would be
 						// written as complete. Count the rows and throw, which is what
 						// run_migrations() does catch.
-						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration on plugin table vip_sequences; runs once per schema version
 						$copied = (int) $wpdb->get_var( "SELECT COUNT(*) FROM `{$new_table}`" );
 
 						if ( $copied !== $old_rows ) {
@@ -412,11 +413,12 @@ class Schema {
 							);
 						}
 
-						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- migration on plugin table vip_blueprints; runs once per schema version
 						$wpdb->query( "DROP TABLE `{$old_table}`" );
 					}
 
 					// Re-runnable by construction: a second pass matches no rows.
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration renaming a meta key across all posts, which no meta API can do in one statement; runs once per schema version, and affected posts' meta caches are not flushed here
 					$wpdb->update(
 						$wpdb->postmeta,
 						array( 'meta_key' => '_vip_workflows_sequence_id' ),
@@ -437,26 +439,27 @@ class Schema {
 					// that does not exist sets $wpdb->last_error, and run_migrations()
 					// turns any last_error into a thrown RuntimeException. Without this
 					// guard, installing the plugin fresh fails here.
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration check for plugin table vip_automation_flows; runs once per schema version
 					$has_flows_table = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $flows ) ) === $flows;
 
-					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration on plugin table vip_automation_flows; runs once per schema version
 					$has_old_column = $has_flows_table && (bool) $wpdb->get_var( $wpdb->prepare( "SHOW COLUMNS FROM `{$flows}` LIKE %s", 'blueprint_id' ) );
 
 					if ( $has_old_column ) {
-						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration on plugin table vip_automation_flows; runs once per schema version
 						$wpdb->query( "UPDATE `{$flows}` SET sequence_id = blueprint_id WHERE sequence_id IS NULL" );
 
 						// The indexes naming the old column have to go before it can.
 						foreach ( array( 'blueprint_id', 'status_blueprint_priority' ) as $index ) {
-							// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+							// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration on plugin table vip_automation_flows; runs once per schema version
 							$exists = $wpdb->get_var( $wpdb->prepare( "SHOW INDEX FROM `{$flows}` WHERE Key_name = %s", $index ) );
 							if ( $exists ) {
-								// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+								// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- migration on plugin table vip_automation_flows; runs once per schema version
 								$wpdb->query( "ALTER TABLE `{$flows}` DROP INDEX `{$index}`" );
 							}
 						}
 
-						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+						// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- migration on plugin table vip_automation_flows; runs once per schema version
 						$wpdb->query( "ALTER TABLE `{$flows}` DROP COLUMN blueprint_id" );
 					}
 
@@ -490,10 +493,10 @@ class Schema {
 				'run'     => function (): void {
 					global $wpdb;
 
-					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- migration on plugin table vip_automation_executions; runs once per schema version
 					$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}vip_automation_executions" );
 
-					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- migration on plugin table vip_automation_flows; runs once per schema version
 					$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}vip_automation_flows" );
 
 					self::drop_retired_event_routing();
@@ -530,6 +533,7 @@ class Schema {
 		);
 
 		foreach ( $type_map as $old_type => $new_type ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration on plugin table vip_workflows_events; runs once per schema version
 			$updated = $wpdb->update(
 				$events_table,
 				array( 'event_type' => $new_type ),
@@ -608,6 +612,7 @@ class Schema {
 					throw new \RuntimeException( esc_html( sprintf( 'Could not encode migrated workflow event %d.', (int) $row->id ) ) );
 				}
 
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration on plugin table vip_workflows_events; runs once per schema version
 				$updated = $wpdb->update(
 					$events_table,
 					array( 'event_data' => $encoded ),
@@ -717,13 +722,16 @@ class Schema {
 			$routing = array();
 		}
 
-		$prefix       = 'vip_workflows_channel_';
+		$prefix = 'vip_workflows_channel_';
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration listing options by prefix; options API cannot do this in one statement; runs once per schema version
 		$option_names = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT option_name FROM {$wpdb->options} WHERE option_name LIKE %s",
 				$wpdb->esc_like( $prefix ) . '%'
 			)
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		$collected = array();
 		foreach ( (array) $option_names as $option_name ) {
@@ -1029,7 +1037,7 @@ class Schema {
 	protected static function repair_fabricated_stage_labels(): int {
 		global $wpdb;
 
-		$events_table     = self::get_table_name( 'workflows_events' );
+		$events_table    = self::get_table_name( 'workflows_events' );
 		$sequences_table = $wpdb->prefix . 'vip_sequences';
 
 		// `_` is a single-character LIKE wildcard, so this only narrows the scan;
@@ -1091,7 +1099,7 @@ class Schema {
 			}
 
 			$sequence_name = (string) ( $data['sequence_name'] ?? '' );
-			$stage_labels   = $labels_by_name[ $sequence_name ] ?? null;
+			$stage_labels  = $labels_by_name[ $sequence_name ] ?? null;
 
 			if ( null === $stage_labels ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -1613,7 +1621,7 @@ class Schema {
 		global $wpdb;
 
 		foreach ( self::get_owned_tables() as $table_name ) {
-			$wpdb->query( "DROP TABLE IF EXISTS {$table_name}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$wpdb->query( "DROP TABLE IF EXISTS {$table_name}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange -- uninstall drops each plugin-owned table; one-off, nothing to cache
 		}
 
 		delete_option( self::VERSION_OPTION );

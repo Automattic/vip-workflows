@@ -71,7 +71,7 @@ class StatusManager {
 		?PostTypeManager $post_type_manager = null
 	) {
 		$this->sequence_repository = $sequence_repository ?? new SequenceRepository();
-		$this->post_type_manager    = $post_type_manager ?? new PostTypeManager();
+		$this->post_type_manager   = $post_type_manager ?? new PostTypeManager();
 	}
 
 	/**
@@ -169,8 +169,11 @@ class StatusManager {
 			return false;
 		}
 
-		$queued_at = strtotime( (string) ( $job['queued_at'] ?? '' ) );
-		if ( ! $queued_at || ( current_time( 'timestamp' ) - $queued_at ) > StageAgentRunner::PENDING_TTL ) {
+		// queued_at is stamped with current_time( 'mysql' ), site-local time;
+		// convert it to a real UTC timestamp so it compares against time().
+		$raw       = (string) ( $job['queued_at'] ?? '' );
+		$queued_at = '' === $raw ? 0 : (int) get_gmt_from_date( $raw, 'U' );
+		if ( ! $queued_at || ( time() - $queued_at ) > StageAgentRunner::PENDING_TTL ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( sprintf( 'VIP Workflows: agent job for post %d at stage "%s" timed out (queued_at: %s).', $post_id, $stage, (string) ( $job['queued_at'] ?? '' ) ) );
 
@@ -293,7 +296,7 @@ class StatusManager {
 		}
 
 		$sequence_ids = $this->post_type_manager->get_sequences_for_post( $post );
-		$sequences = array();
+		$sequences    = array();
 
 		foreach ( $sequence_ids as $id ) {
 			$sequence = $this->sequence_repository->find( $id );
@@ -1284,7 +1287,7 @@ class StatusManager {
 
 			// Get current user info.
 		$user_id = get_current_user_id();
-		$user = get_userdata( $user_id );
+		$user    = get_userdata( $user_id );
 
 			// Append new entry to history.
 		$existing[ $status ][] = array(
@@ -1616,8 +1619,8 @@ class StatusManager {
 			$post_id,
 			'workflow.removed',
 			array(
-				'sequence_id'        => (int) $sequence_id,
-				'sequence_name'      => $sequence ? $sequence->name : '',
+				'sequence_id'         => (int) $sequence_id,
+				'sequence_name'       => $sequence ? $sequence->name : '',
 				'removed_stage'       => $removed_stage,
 				// A dangling sequence reference (logged above) is the one case
 				// where no label can be proven; null rather than a fabrication.
@@ -1831,8 +1834,8 @@ class StatusManager {
 
 				// Get the display name if available.
 				$name_key = $key . '__name';
-				$label = isset( $options['input_data'][ $name_key ] ) ? $options['input_data'][ $name_key ] : $key;
-				$notes[] = array(
+				$label    = isset( $options['input_data'][ $name_key ] ) ? $options['input_data'][ $name_key ] : $key;
+				$notes[]  = array(
 					'label' => $label,
 					'value' => $value,
 				);
@@ -1847,6 +1850,7 @@ class StatusManager {
 		$agent_actor = isset( $options['agent_actor'] ) ? (string) $options['agent_actor'] : '';
 		$is_agent    = '' !== $agent_actor;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_workflows_events; write, nothing to cache
 		$wpdb->insert(
 			Schema::get_table_name( 'workflows_events' ),
 			array(
@@ -1854,12 +1858,12 @@ class StatusManager {
 				'event_type' => 'status_transition',
 				'event_data' => wp_json_encode(
 					array(
-						'from_status'    => $from_status,
-						'to_status'      => $to_status,
-						'from_label'     => self::snapshot_stage_label( $sequence, $from_status ),
-						'to_label'       => self::snapshot_stage_label( $sequence, $to_status ),
-						'post_title'     => $post ? $post->post_title : '',
-						'sequence_name'  => $sequence ? $sequence->name : '',
+						'from_status'     => $from_status,
+						'to_status'       => $to_status,
+						'from_label'      => self::snapshot_stage_label( $sequence, $from_status ),
+						'to_label'        => self::snapshot_stage_label( $sequence, $to_status ),
+						'post_title'      => $post ? $post->post_title : '',
+						'sequence_name'   => $sequence ? $sequence->name : '',
 						'comment'         => $options['comment'] ?? null,
 						'notes'           => $notes,
 						'cause'           => $context['cause'],
@@ -1907,14 +1911,16 @@ class StatusManager {
 
 		$table = Schema::get_table_name( 'workflows_events' );
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- plugin table vip_workflows_events; live read, not cached
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM {$table} WHERE post_id = %d AND event_type = 'status_transition' ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT * FROM {$table} WHERE post_id = %d AND event_type = 'status_transition' ORDER BY created_at DESC, id DESC LIMIT %d OFFSET %d",
 				$post_id,
 				$limit,
 				$offset
 			)
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		return array_map(
 			function ( $row ) {
@@ -1945,12 +1951,14 @@ class StatusManager {
 
 		$table = Schema::get_table_name( 'workflows_events' );
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- plugin table vip_workflows_events; live read, not cached
 		return (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE post_id = %d AND event_type = 'status_transition'", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT COUNT(*) FROM {$table} WHERE post_id = %d AND event_type = 'status_transition'",
 				$post_id
 			)
 		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 	}
 
 	/**
@@ -2039,15 +2047,15 @@ class StatusManager {
 	 */
 	public static function event_type_label( string $event_type ): string {
 		$labels = array(
-			'status_transition'     => __( 'Stage changed', 'vip-workflows' ),
-			'transition_blocked'    => __( 'Transition blocked', 'vip-workflows' ),
-			'tool_warnings'         => __( 'Tool warnings', 'vip-workflows' ),
-			'workflow.assigned'     => __( 'Workflow assigned', 'vip-workflows' ),
-			'workflow.removed'      => __( 'Workflow removed', 'vip-workflows' ),
-			'post.claimed'          => __( 'Post claimed', 'vip-workflows' ),
-			'post.released'         => __( 'Post released', 'vip-workflows' ),
-			'ability.executed'      => __( 'Tool executed', 'vip-workflows' ),
-			'ability.failed'        => __( 'Tool failed', 'vip-workflows' ),
+			'status_transition'    => __( 'Stage changed', 'vip-workflows' ),
+			'transition_blocked'   => __( 'Transition blocked', 'vip-workflows' ),
+			'tool_warnings'        => __( 'Tool warnings', 'vip-workflows' ),
+			'workflow.assigned'    => __( 'Workflow assigned', 'vip-workflows' ),
+			'workflow.removed'     => __( 'Workflow removed', 'vip-workflows' ),
+			'post.claimed'         => __( 'Post claimed', 'vip-workflows' ),
+			'post.released'        => __( 'Post released', 'vip-workflows' ),
+			'ability.executed'     => __( 'Tool executed', 'vip-workflows' ),
+			'ability.failed'       => __( 'Tool failed', 'vip-workflows' ),
 			// Configuration events. These carry no post, which the response shape
 			// already allows (`post_id` is a nullable column and `post` is null here).
 			'sequence.updated'     => __( 'Sequence updated', 'vip-workflows' ),
@@ -2163,8 +2171,8 @@ class StatusManager {
 			$post_id,
 			'workflow.assigned',
 			array(
-				'sequence_id'        => $sequence_id,
-				'sequence_name'      => $sequence->name,
+				'sequence_id'         => $sequence_id,
+				'sequence_name'       => $sequence->name,
 				'initial_stage'       => $stage_key,
 				'initial_stage_label' => self::snapshot_stage_label( $sequence, $stage_key ),
 				'cause'               => 'workflow',
@@ -2283,9 +2291,9 @@ class StatusManager {
 			'post_id' => $post_id,
 		);
 
-		$hard_failures  = array();
-		$soft_warnings  = array();
-		$all_results    = array();
+		$hard_failures = array();
+		$soft_warnings = array();
+		$all_results   = array();
 
 		foreach ( $required_tools as $tool_id ) {
 			try {
@@ -2338,21 +2346,21 @@ class StatusManager {
 							// 2. Or issue has severity 'error' or 'hard' (fallback for dynamic checks like checklist items).
 						$issue_severity = $issue['severity'] ?? 'warning';
 						$is_hard        = $settings->is_hard_check( $tool_id, $check_key )
-						 || 'error' === $issue_severity
-						 || 'hard' === $issue_severity;
+						|| 'error' === $issue_severity
+						|| 'hard' === $issue_severity;
 
 						if ( $is_hard ) {
 							$hard_failures[] = array(
-								'tool'    => $tool_id,
-								'key'     => $check_key,
-								'message' => $issue['message'] ?? $issue['description'] ?? __( 'Check failed', 'vip-workflows' ),
+								'tool'     => $tool_id,
+								'key'      => $check_key,
+								'message'  => $issue['message'] ?? $issue['description'] ?? __( 'Check failed', 'vip-workflows' ),
 								'severity' => 'hard',
 							);
 						} else {
 							$soft_warnings[] = array(
-								'tool'    => $tool_id,
-								'key'     => $check_key,
-								'message' => $issue['message'] ?? $issue['description'] ?? __( 'Check warning', 'vip-workflows' ),
+								'tool'     => $tool_id,
+								'key'      => $check_key,
+								'message'  => $issue['message'] ?? $issue['description'] ?? __( 'Check warning', 'vip-workflows' ),
 								'severity' => 'soft',
 							);
 						}
@@ -2413,8 +2421,9 @@ class StatusManager {
 		global $wpdb;
 
 		$error_data = $error->get_error_data();
-		$sequence  = $this->get_sequence_for_post( $post_id );
+		$sequence   = $this->get_sequence_for_post( $post_id );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_workflows_events; write, nothing to cache
 		$wpdb->insert(
 			Schema::get_table_name( 'workflows_events' ),
 			array(
@@ -2450,6 +2459,7 @@ class StatusManager {
 
 		$sequence = $this->get_sequence_for_post( $post_id );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_workflows_events; write, nothing to cache
 		$wpdb->insert(
 			Schema::get_table_name( 'workflows_events' ),
 			array(
@@ -2479,6 +2489,7 @@ class StatusManager {
 	private function log_workflow_event( int $post_id, string $event_type, array $event_data ): void {
 		global $wpdb;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_workflows_events; write, nothing to cache
 		$wpdb->insert(
 			Schema::get_table_name( 'workflows_events' ),
 			array(

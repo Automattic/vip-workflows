@@ -12,6 +12,7 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\API;
 
+use VIPWorkflows\Assistants\AssistantRegistry;
 use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 use WP_REST_Controller;
@@ -104,11 +105,11 @@ class DiscoveryController extends WP_REST_Controller {
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
 					),
-					'text' => array(
+					'text'     => array(
 						'type'              => 'string',
 						'sanitize_callback' => 'sanitize_text_field',
 					),
-					'filters' => array(
+					'filters'  => array(
 						'type' => 'string',
 					),
 				),
@@ -145,7 +146,7 @@ class DiscoveryController extends WP_REST_Controller {
 						'required'          => true,
 						'sanitize_callback' => 'sanitize_text_field',
 					),
-					'prompt' => array(
+					'prompt'   => array(
 						'type'     => 'object',
 						'required' => true,
 					),
@@ -217,7 +218,8 @@ class DiscoveryController extends WP_REST_Controller {
 
 			$config    = $this->get_provider_config( $slug );
 			$cache_ttl = ( (int) ( $config['cache_minutes'] ?? 30 ) ) * MINUTE_IN_SECONDS;
-			$cache_key = 'vip_discovery_recommend_' . $slug . '_' . md5( (string) wp_json_encode( $provider ) );
+			$gen       = AssistantRegistry::discovery_cache_generation( $slug );
+			$cache_key = 'vip_discovery_recommend_' . $slug . '_' . $gen . '_' . md5( (string) wp_json_encode( $provider ) );
 			$cached    = get_transient( $cache_key );
 
 			if ( false !== $cached ) {
@@ -235,9 +237,9 @@ class DiscoveryController extends WP_REST_Controller {
 			if ( ! empty( $prompts ) ) {
 				$grouped[] = array(
 					'provider' => array(
-						'slug'  => $slug,
-						'label' => $provider['label'],
-						'icon'  => $provider['icon'],
+						'slug'     => $slug,
+						'label'    => $provider['label'],
+						'icon'     => $provider['icon'],
 
 						/*
 						 * The screen needs these to know which affordances a
@@ -247,7 +249,7 @@ class DiscoveryController extends WP_REST_Controller {
 						 */
 						'features' => $provider['features'],
 					),
-					'prompts' => $prompts,
+					'prompts'  => $prompts,
 				);
 			}
 		}
@@ -295,7 +297,8 @@ class DiscoveryController extends WP_REST_Controller {
 
 		$config    = $this->get_provider_config( $slug );
 		$cache_ttl = ( (int) ( $config['cache_minutes'] ?? 30 ) ) * MINUTE_IN_SECONDS;
-		$cache_key = 'vip_discovery_search_' . $slug . '_' . md5( $text . wp_json_encode( $filters ) );
+		$gen       = AssistantRegistry::discovery_cache_generation( $slug );
+		$cache_key = 'vip_discovery_search_' . $slug . '_' . $gen . '_' . md5( $text . wp_json_encode( $filters ) );
 		$cached    = get_transient( $cache_key );
 
 		if ( false !== $cached ) {
@@ -335,7 +338,8 @@ class DiscoveryController extends WP_REST_Controller {
 			return new WP_REST_Response( array() );
 		}
 
-		$cache_key = 'vip_discovery_filters_' . $slug;
+		$gen       = AssistantRegistry::discovery_cache_generation( $slug );
+		$cache_key = 'vip_discovery_filters_' . $slug . '_' . $gen;
 		$cached    = get_transient( $cache_key );
 
 		if ( false !== $cached ) {

@@ -22,7 +22,7 @@ use WP_Error;
  */
 class Story implements ModuleInterface {
 
-	public const POST_TYPE = 'vip_story';
+	public const POST_TYPE     = 'vip_story';
 	public const META_STORY_ID = '_vip_story_id';
 
 	public const STATUS_IDEATION   = 'ideation';
@@ -76,7 +76,7 @@ class Story implements ModuleInterface {
 		register_post_type(
 			self::POST_TYPE,
 			array(
-				'labels' => array(
+				'labels'              => array(
 					'name'          => __( 'Stories', 'vip-workflows' ),
 					'singular_name' => __( 'Story', 'vip-workflows' ),
 				),
@@ -207,6 +207,7 @@ class Story implements ModuleInterface {
 
 		$table = $wpdb->prefix . 'vip_story_objects';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; write, nothing to cache
 		$wpdb->replace(
 			$table,
 			array(
@@ -233,7 +234,8 @@ class Story implements ModuleInterface {
 		$table = $wpdb->prefix . 'vip_story_objects';
 
 		if ( $type ) {
-			return $wpdb->get_results(
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; live read, not cached
+			$results = $wpdb->get_results(
 				$wpdb->prepare(
 					'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d AND object_type = %s ORDER BY added_at ASC',
 					$table,
@@ -245,6 +247,7 @@ class Story implements ModuleInterface {
 			return $results ? $results : array();
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; live read, not cached
 		$results = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d ORDER BY added_at ASC',
@@ -308,7 +311,7 @@ class Story implements ModuleInterface {
 
 		$object_summary = array();
 		foreach ( $objects as $obj ) {
-			$post = get_post( (int) $obj['object_id'] );
+			$post             = get_post( (int) $obj['object_id'] );
 			$object_summary[] = array(
 				'id'    => (int) $obj['object_id'],
 				'type'  => $obj['object_type'],

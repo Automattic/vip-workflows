@@ -1457,8 +1457,8 @@ class Sequence {
 
 		// Every used region designates exactly one entry checkpoint: more than one
 		// is ambiguous; none auto-assigns the first stage (array order) in the region.
-		$region_entries      = array();
-		$region_first_stage  = array();
+		$region_entries     = array();
+		$region_first_stage = array();
 		foreach ( $normalized as $index => $stage ) {
 			$region = $stage['status'];
 			if ( ! isset( $region_first_stage[ $region ] ) ) {

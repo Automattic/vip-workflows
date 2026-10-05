@@ -76,14 +76,17 @@ class Seeder {
 		);
 
 		foreach ( $roles as $role ) {
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- plugin table vip_workflows_roles; live read, not cached
 			$exists = $wpdb->get_var(
 				$wpdb->prepare(
-					"SELECT id FROM {$table} WHERE role_key = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					"SELECT id FROM {$table} WHERE role_key = %s",
 					$role['role_key']
 				)
 			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 			if ( ! $exists ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_workflows_roles; write, nothing to cache
 				$wpdb->insert( $table, $role );
 			}
 		}
@@ -110,10 +113,10 @@ class Seeder {
 		}
 
 		$config = array(
-			'version'        => '2.0',
-			'post_types'     => array( 'post' ),
-			'reviewer_roles' => array( 'editor', 'administrator' ),
-			'statuses'       => array(
+			'version'         => '2.0',
+			'post_types'      => array( 'post' ),
+			'reviewer_roles'  => array( 'editor', 'administrator' ),
+			'statuses'        => array(
 				array(
 					'key'          => 'draft',
 					'label'        => 'Draft',
@@ -123,7 +126,7 @@ class Seeder {
 					'region_entry' => true, // Draft-region checkpoint.
 					'transitions'  => array(
 						array(
-							'to' => 'review',
+							'to'    => 'review',
 							'label' => 'Submit for review',
 						),
 					),
@@ -136,11 +139,11 @@ class Seeder {
 					'status'      => 'draft',
 					'transitions' => array(
 						array(
-							'to' => 'ready',
+							'to'    => 'ready',
 							'label' => 'Approve',
 						),
 						array(
-							'to' => 'draft',
+							'to'    => 'draft',
 							'label' => 'Request changes',
 						),
 					),
@@ -153,11 +156,11 @@ class Seeder {
 					'status'      => 'draft',
 					'transitions' => array(
 						array(
-							'to' => 'publish',
+							'to'    => 'publish',
 							'label' => 'Publish now',
 						),
 						array(
-							'to' => 'review',
+							'to'    => 'review',
 							'label' => 'Send back for review',
 						),
 					),
@@ -171,7 +174,7 @@ class Seeder {
 					'region_entry' => true, // Publish-region checkpoint — where core-driven publishes seat.
 					'transitions'  => array(
 						array(
-							'to' => 'promote',
+							'to'    => 'promote',
 							'label' => 'Promote',
 						),
 					),
@@ -186,7 +189,7 @@ class Seeder {
 					'transitions' => array(),
 				),
 			),
-			'settings'     => array(
+			'settings'        => array(
 				'allow_skip' => false,
 			),
 			'metadata_fields' => array(

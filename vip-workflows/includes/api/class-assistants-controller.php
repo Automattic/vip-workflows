@@ -357,7 +357,7 @@ class AssistantsController extends WP_REST_Controller {
 					'context'              => array( 'view', 'edit' ),
 					'additionalProperties' => true,
 				),
-				'settings_schema'        => array(
+				'settings_schema'       => array(
 					'description'          => __( 'Field definitions the card renders, keyed by field name.', 'vip-workflows' ),
 					'type'                 => 'object',
 					'context'              => array( 'view', 'edit' ),
