@@ -169,7 +169,7 @@ class Schema {
 					$wpdb->query( "DELETE FROM {$wpdb->prefix}vip_sequences WHERE type = 'pitch'" );
 
 					// Delete vip_pitch posts and their orphaned postmeta.
-                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration deleting retired post types and their postmeta from the core posts and postmeta tables; runs once per schema version, nothing to cache
+                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration deleting retired post types and their postmeta from the core posts and postmeta tables, which no API can do in one statement; runs once per schema version, and the deleted posts' object-cache entries are left to expire rather than flushed
 					$wpdb->query(
 						"DELETE p, pm FROM {$wpdb->prefix}posts p
 						LEFT JOIN {$wpdb->prefix}postmeta pm ON pm.post_id = p.ID
@@ -186,7 +186,7 @@ class Schema {
 					global $wpdb;
 
 					// Delete vip_workflows_note posts and their orphaned postmeta.
-                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- migration deleting retired post types and their postmeta from the core posts and postmeta tables; runs once per schema version, nothing to cache
+                    // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration deleting retired post types and their postmeta from the core posts and postmeta tables, which no API can do in one statement; runs once per schema version, and the deleted posts' object-cache entries are left to expire rather than flushed
 					$wpdb->query(
 						"DELETE p, pm FROM {$wpdb->prefix}posts p
 						LEFT JOIN {$wpdb->prefix}postmeta pm ON pm.post_id = p.ID
@@ -418,7 +418,7 @@ class Schema {
 					}
 
 					// Re-runnable by construction: a second pass matches no rows.
-					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration renaming a meta key across all posts; no meta API can do this in one statement; runs once per schema version
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off migration renaming a meta key across all posts, which no meta API can do in one statement; runs once per schema version, and affected posts' meta caches are not flushed here
 					$wpdb->update(
 						$wpdb->postmeta,
 						array( 'meta_key' => '_vip_workflows_sequence_id' ),

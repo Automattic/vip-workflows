@@ -161,7 +161,7 @@ class SequenceRepository {
 	public function find_by_uuid( string $uuid ): ?Sequence {
 		global $wpdb;
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; this lookup is not cached, only find(), preload() and get_all() are
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; a live read is fine here: only the sequences admin REST routes and the seeder call it, never a front-end page (find(), preload() and get_all() are the cached reads)
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT * FROM {$this->get_table()} WHERE uuid = %s",
@@ -182,7 +182,7 @@ class SequenceRepository {
 	public function find_by_slug( string $slug ): ?Sequence {
 		global $wpdb;
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; this lookup is not cached, only find(), preload() and get_all() are
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; a live read is fine here: only the sequences admin REST routes and the seeder call it, never a front-end page (find(), preload() and get_all() are the cached reads)
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT * FROM {$this->get_table()} WHERE slug = %s AND status = 'active' ORDER BY version DESC LIMIT 1",
@@ -208,7 +208,7 @@ class SequenceRepository {
 	public function slug_exists( string $slug, string $type ): bool {
 		global $wpdb;
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; this lookup is not cached, only find(), preload() and get_all() are
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; a live read is fine here: only the sequences admin REST routes and the seeder call it, never a front-end page (find(), preload() and get_all() are the cached reads)
 		$count = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$this->get_table()} WHERE slug = %s AND type = %s",
@@ -231,7 +231,7 @@ class SequenceRepository {
 	public function find_version( string $slug, int $version ): ?Sequence {
 		global $wpdb;
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; this lookup is not cached, only find(), preload() and get_all() are
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; a live read is fine here: only the sequences admin REST routes and the seeder call it, never a front-end page (find(), preload() and get_all() are the cached reads)
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT * FROM {$this->get_table()} WHERE slug = %s AND version = %d",
@@ -324,7 +324,7 @@ class SequenceRepository {
 		$query          .= " ORDER BY b.{$orderby} {$order}";
 
 		$rows = empty( $prepare_values )
-			? $wpdb->get_results( $query ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- No placeholders: every fragment above is a literal or allowlisted identifier.; custom table vip_sequences; read-through cached in CACHE_GROUP
+			? $wpdb->get_results( $query ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery -- no placeholders, since every fragment above is a literal or allowlisted identifier; custom table vip_sequences, read-through cached in CACHE_GROUP
 			: $wpdb->get_results( $wpdb->prepare( $query, $prepare_values ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $query is placeholders-only; values bind here.
 
 		$sequences = array_map( array( Sequence::class, 'from_row' ), $rows );
@@ -721,7 +721,7 @@ class SequenceRepository {
 	public function get_versions( string $slug ): array {
 		global $wpdb;
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; this lookup is not cached, only find(), preload() and get_all() are
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; a live read is fine here: only the sequences admin REST routes and the seeder call it, never a front-end page (find(), preload() and get_all() are the cached reads)
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT * FROM {$this->get_table()} WHERE slug = %s ORDER BY version DESC",
