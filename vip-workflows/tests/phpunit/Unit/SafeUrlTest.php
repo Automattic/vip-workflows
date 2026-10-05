@@ -142,4 +142,104 @@ class SafeUrlTest extends TestCase {
 	public function test_a_value_that_is_not_a_string_is_not_returned( $value ): void {
 		$this->assertNull( SafeUrl::http_or_null( $value ) );
 	}
+
+	/**
+	 * WordPress makes the address of an attachment or a post from the site's own
+	 * settings, and a site can be set up so that the address has no scheme or no
+	 * host. Each case is the address, the address of the site, and the absolute
+	 * address that a browser on that site would read.
+	 *
+	 * @return array<string, array{0: string, 1: string, 2: string}>
+	 */
+	public static function addresses_this_site_made(): array {
+		return array(
+			'no host'                                  => array(
+				'/wp-content/uploads/2026/10/a.png',
+				'https://newsroom.example.test',
+				'https://newsroom.example.test/wp-content/uploads/2026/10/a.png',
+			),
+			// A leading slash means "from the top of the host", not "from WordPress".
+			'no host, and WordPress is in a directory' => array(
+				'/wp-content/uploads/a.png',
+				'https://newsroom.example.test/wp',
+				'https://newsroom.example.test/wp-content/uploads/a.png',
+			),
+			'no host, and the site address ends in a slash' => array(
+				'/wp-content/uploads/a.png',
+				'https://newsroom.example.test/',
+				'https://newsroom.example.test/wp-content/uploads/a.png',
+			),
+			'no host, and the site has a port'         => array(
+				'/wp-content/uploads/a.png',
+				'http://localhost:8888',
+				'http://localhost:8888/wp-content/uploads/a.png',
+			),
+			'no scheme'                                => array(
+				'//cdn.example.test/uploads/a.png',
+				'https://newsroom.example.test',
+				'https://cdn.example.test/uploads/a.png',
+			),
+			'no scheme, on a site that is not https'   => array(
+				'//cdn.example.test/uploads/a.png',
+				'http://newsroom.example.test',
+				'http://cdn.example.test/uploads/a.png',
+			),
+			'already absolute'                         => array(
+				'https://newsroom.example.test/wp-content/uploads/a.png',
+				'https://newsroom.example.test',
+				'https://newsroom.example.test/wp-content/uploads/a.png',
+			),
+			'already absolute, on another host'        => array(
+				'http://media.example.test/a.png',
+				'https://newsroom.example.test',
+				'http://media.example.test/a.png',
+			),
+			'no host, with a space and a newline around it' => array(
+				" /wp-content/uploads/a.png\n",
+				'https://newsroom.example.test',
+				'https://newsroom.example.test/wp-content/uploads/a.png',
+			),
+		);
+	}
+
+	/**
+	 * @dataProvider addresses_this_site_made
+	 */
+	public function test_an_address_this_site_made_is_returned_as_an_absolute_web_address(
+		string $address,
+		string $site_url,
+		string $expected
+	): void {
+		$this->assertSame( $expected, SafeUrl::site_http_or_null( $address, $site_url ) );
+	}
+
+	/**
+	 * @return array<string, array{0: mixed, 1: string}>
+	 */
+	public static function values_that_are_not_an_address_on_this_site(): array {
+		return array(
+			// It is relative to a page, and a stored card has no page.
+			'a path with no leading slash'              => array( 'wp-content/uploads/a.png', 'https://newsroom.example.test' ),
+			'a script address'                          => array( 'javascript:alert(1)', 'https://newsroom.example.test' ),
+			'a data address'                            => array( 'data:image/png;base64,iVBORw0KGgo=', 'https://newsroom.example.test' ),
+			'empty'                                     => array( '', 'https://newsroom.example.test' ),
+			// What WordPress returns when a post has no image, or an attachment no file.
+			'false'                                     => array( false, 'https://newsroom.example.test' ),
+			'null'                                      => array( null, 'https://newsroom.example.test' ),
+			// Nothing can be completed from a site address that is not absolute.
+			'no host, and a site address with no host'  => array( '/wp-content/uploads/a.png', '/wp' ),
+			'no scheme, and a site address with no scheme' => array( '//cdn.example.test/a.png', '//newsroom.example.test' ),
+			'no host, and a site address that is not a web address' => array( '/wp-content/uploads/a.png', 'ftp://newsroom.example.test' ),
+		);
+	}
+
+	/**
+	 * @dataProvider values_that_are_not_an_address_on_this_site
+	 *
+	 * @param mixed  $value    A value WordPress returned in place of an address.
+	 * @param string $site_url Address of the site.
+	 */
+	public function test_a_value_that_cannot_be_made_an_absolute_web_address_is_not_returned( $value, string $site_url ): void {
+		$this->assertNull( SafeUrl::site_http_or_null( $value, $site_url ) );
+	}
 }

@@ -10,6 +10,11 @@
  * none of them — and must not take the rest of its card with it, because one
  * bad field is no reason to discard a usable result.
  *
+ * A card that a built-in agent makes from the site's own content — a generated
+ * image, a post in the archive — carries an address that WordPress made, and
+ * such an address can be valid with no scheme or no host. It is stored as an
+ * absolute address, not dropped.
+ *
  * Unit rather than integration because most of the claim is about the values
  * the orchestrator hands to each store, which a recording double observes
  * directly. Project meta is the exception: WordPress changes a meta value on
@@ -25,8 +30,13 @@ namespace VIPWorkflows\Tests\Unit;
 
 use Brain\Monkey\Functions;
 use ReflectionMethod;
+use VIPWorkflows\AI\CorePrompts;
+use VIPWorkflows\AI\PromptRegistry;
+use VIPWorkflows\Ideation\Assistants\AiImageProvider;
+use VIPWorkflows\Ideation\Assistants\ArchiveScout;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 use VIPWorkflows\Ideation\Assistants\MediaProviderInterface;
+use WordPress\AiClient\AiClient;
 
 require_once __DIR__ . '/../../../includes/integrations/class-guideline-context-provider.php';
 require_once __DIR__ . '/../../../includes/integrations/class-safe-url.php';
@@ -548,6 +558,153 @@ class IdeationProviderUrlStorageTest extends TestCase {
 		$this->assertNull( $rows[0]['url'] );
 		$this->assertNull( $rows[0]['image'] );
 		$this->assertSame( $rows[0], $card, 'The route answers with the row that was stored.' );
+	}
+
+	// ─── Addresses that WordPress made ───────────────────────────
+
+	/**
+	 * The built-in image generator, with its write to the media library replaced.
+	 *
+	 * The write loads WordPress's own image functions from a file, which this
+	 * suite does not have. Everything after the write is the generator's own
+	 * code: it asks WordPress for the address of the attachment it stored.
+	 *
+	 * @return AiImageProvider
+	 */
+	private function image_generator(): AiImageProvider {
+		return new class() extends AiImageProvider {
+			private int $attachment_id = 100;
+
+			protected function save_to_media_library( string $data, string $filename, string $mime_type ): int|\WP_Error {
+				return ++$this->attachment_id;
+			}
+		};
+	}
+
+	public function test_a_generated_image_keeps_its_address_on_a_site_with_relative_upload_addresses(): void {
+		// WordPress makes the address of the stored image from the site's own
+		// settings, and here those leave the host out. The address is the site's
+		// own, so it is completed. It is not dropped, as a provider's relative
+		// address is: without it the card has no image and nothing to tell it
+		// from the next image that the same prompt generates.
+		$generator = $this->image_generator();
+
+		AiClient::$generatedImage = new class() {
+			public function getBase64Data(): ?string {
+				return 'iVBORw0KGgo=';
+			}
+
+			public function getUrl(): ?string {
+				return null;
+			}
+
+			public function getMimeType(): string {
+				return 'image/png';
+			}
+		};
+
+		Functions\when( 'apply_filters' )->alias(
+			fn( $hook, $value ) => 'vip_workflows_media_providers' === $hook ? array( $generator ) : $value
+		);
+		Functions\when( 'wp_generate_password' )->justReturn( 'abc12345' );
+		Functions\when( 'wp_get_attachment_url' )->alias(
+			fn( int $attachment_id ): string => '/wp-content/uploads/2026/10/ideation-ai-' . $attachment_id . '.png'
+		);
+		Functions\when( 'site_url' )->justReturn( 'https://newsroom.example.test' );
+
+		$orchestrator = new IdeationOrchestrator();
+		$orchestrator->generate_image( self::PROJECT_ID, 'A reservoir at dawn' );
+		$orchestrator->generate_image( self::PROJECT_ID, 'A reservoir at dawn' );
+
+		$rows = $this->stored_sources();
+
+		$this->assertCount( 2, $rows );
+		$this->assertSame( 'https://newsroom.example.test/wp-content/uploads/2026/10/ideation-ai-101.png', $rows[0]['url'] );
+		$this->assertSame( 'https://newsroom.example.test/wp-content/uploads/2026/10/ideation-ai-101.png', $rows[0]['image'] );
+		$this->assertSame( 'https://newsroom.example.test/wp-content/uploads/2026/10/ideation-ai-102.png', $rows[1]['url'] );
+		$this->assertNotSame(
+			$rows[0]['source_id'],
+			$rows[1]['source_id'],
+			'Two generated images are two sources, although their prompt is the same.'
+		);
+	}
+
+	/**
+	 * Make the built-in Archive Scout the research agent of the run, with one
+	 * published post for its search to find.
+	 *
+	 * The scout asks the AI client to put what it found in order of relevance.
+	 * The client's double answers with the one post.
+	 */
+	private function the_archive_holds_one_post(): void {
+		Functions\when( 'get_option' )->alias(
+			fn( $name, $fallback = false ) => 'vip_workflows_ai_model' === $name ? 'gpt-4o-mini' : $fallback
+		);
+		CorePrompts::register( PromptRegistry::get_instance() );
+		AiClient::$generatedText = '[0]';
+
+		Functions\when( 'get_posts' )->justReturn(
+			array(
+				new \WP_Post(
+					array(
+						'ID'           => 7,
+						'post_title'   => 'Reservoir levels fell in 2025',
+						'post_excerpt' => 'Levels fell for a second year.',
+						'post_date'    => '2025-03-02 09:00:00',
+						'post_author'  => 3,
+					)
+				),
+			)
+		);
+		Functions\when( 'get_the_author_meta' )->justReturn( 'A. Reporter' );
+
+		$this->agent = new class() {
+			public function execute( array $input ): array {
+				return ArchiveScout::execute( $input );
+			}
+		};
+	}
+
+	public function test_an_archive_article_keeps_its_link_and_thumbnail_on_a_site_with_relative_addresses(): void {
+		// This site serves its pages and WordPress from two hosts, which shows
+		// what completes what: the link of a post belongs to the pages, and the
+		// address of an upload to WordPress.
+		$this->the_archive_holds_one_post();
+		Functions\when( 'get_permalink' )->justReturn( '/2025/03/reservoir-levels/' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( '/wp-content/uploads/2025/03/reservoir-300x200.jpg' );
+		Functions\when( 'home_url' )->justReturn( 'https://www.newsroom.example.test' );
+		Functions\when( 'site_url' )->justReturn( 'https://cms.newsroom.example.test' );
+
+		$this->run_agent();
+
+		$rows = $this->stored_sources();
+
+		$this->assertCount( 1, $rows );
+		$this->assertSame( 'Reservoir levels fell in 2025', $rows[0]['title'] );
+		$this->assertSame( 'https://www.newsroom.example.test/2025/03/reservoir-levels/', $rows[0]['url'] );
+		// An archive card has no image of its own, so the column takes the thumbnail.
+		$this->assertSame(
+			'https://cms.newsroom.example.test/wp-content/uploads/2025/03/reservoir-300x200.jpg',
+			$rows[0]['image']
+		);
+	}
+
+	public function test_an_archive_article_with_no_image_is_stored_with_none_and_nothing_is_logged(): void {
+		// WordPress answers `false` for a post with no featured image. That is
+		// "no image", not an address that was refused, so the run logs nothing.
+		$this->the_archive_holds_one_post();
+		Functions\when( 'get_permalink' )->justReturn( 'https://www.newsroom.example.test/2025/03/reservoir-levels/' );
+		Functions\when( 'get_the_post_thumbnail_url' )->justReturn( false );
+		Functions\when( 'home_url' )->justReturn( 'https://www.newsroom.example.test' );
+		Functions\when( 'site_url' )->justReturn( 'https://cms.newsroom.example.test' );
+
+		$log  = $this->log_of( fn() => $this->run_agent() );
+		$rows = $this->stored_sources();
+
+		$this->assertCount( 1, $rows );
+		$this->assertSame( 'https://www.newsroom.example.test/2025/03/reservoir-levels/', $rows[0]['url'] );
+		$this->assertNull( $rows[0]['image'] );
+		$this->assertSame( '', $log );
 	}
 
 	// ─── The record that an address was removed ──────────────────

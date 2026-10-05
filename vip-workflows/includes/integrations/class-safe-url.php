@@ -18,6 +18,11 @@
  * fetches the address first, and only an `http` or `https` address can be
  * fetched (`SsrfGuard`, `UrlMetaExtractor`).
  *
+ * An address that WordPress itself made for a card — the file of a generated
+ * image, a post in the archive — is the one kind that can be valid without a
+ * scheme or a host, on a site that is set up that way. `site_http_or_null()`
+ * completes it from the address of the site, and then applies the same check.
+ *
  * Hand-written rather than `esc_url_raw()`, which keeps a relative URL and
  * rewrites the ones it accepts. A card's stored identity is derived from its
  * URL, so a rewritten URL would give a card that is already stored a second
@@ -61,9 +66,61 @@ class SafeUrl {
 			return null;
 		}
 
-		$url = trim( $value, "\x00..\x20" );
-		$url = str_replace( array( "\t", "\n", "\r" ), '', $url );
+		$url = self::as_a_browser_reads_it( $value );
 
 		return 1 === preg_match( '#^https?://#i', $url ) ? $url : null;
+	}
+
+	/**
+	 * Reduce an address that this site made to a web address, or to nothing.
+	 *
+	 * WordPress makes the address of an attachment or of a post from the site's
+	 * own settings, and a site can be set up so that the address has no scheme
+	 * (`//cdn.example.com/a.png`) or no host (`/wp-content/uploads/a.png`). A
+	 * browser completes such an address from the page that shows it. A stored
+	 * card has no page, and http_or_null() refuses an address that is not
+	 * absolute, so the address is completed here first, from the address of the
+	 * site: its scheme for the first form, its scheme and host for the second.
+	 *
+	 * Only for an address that WordPress made. In a provider's payload a
+	 * relative address is a path on the provider's site, and completed from this
+	 * site's address it would become a link into this site.
+	 *
+	 * A path with no leading slash is not completed: it is relative to a page,
+	 * and there is none. A site address that is not absolute `http` or `https`
+	 * completes nothing, and the value is then checked as it is.
+	 *
+	 * @param mixed  $value    Address from WordPress. `false` is how WordPress says there is none.
+	 * @param string $site_url Address of the site, as `site_url()` or `home_url()` returns it.
+	 * @return string|null The address when it is, or was made, absolute `http` or `https`; null otherwise.
+	 */
+	public static function site_http_or_null( $value, string $site_url ): ?string {
+		if ( ! is_string( $value ) ) {
+			return null;
+		}
+
+		$url = self::as_a_browser_reads_it( $value );
+
+		if ( 1 === preg_match( '#^(https?:)//[^/?\#]+#i', self::as_a_browser_reads_it( $site_url ), $site ) ) {
+			if ( str_starts_with( $url, '//' ) ) {
+				$url = $site[1] . $url;
+			} elseif ( str_starts_with( $url, '/' ) ) {
+				$url = $site[0] . $url;
+			}
+		}
+
+		return self::http_or_null( $url );
+	}
+
+	/**
+	 * A URL without the characters a browser discards before it parses one.
+	 *
+	 * @param string $value URL as written.
+	 * @return string
+	 */
+	private static function as_a_browser_reads_it( string $value ): string {
+		$url = trim( $value, "\x00..\x20" );
+
+		return str_replace( array( "\t", "\n", "\r" ), '', $url );
 	}
 }
