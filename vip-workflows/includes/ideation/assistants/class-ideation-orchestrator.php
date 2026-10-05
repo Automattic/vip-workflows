@@ -699,7 +699,8 @@ class IdeationOrchestrator {
 	private function get_all_assistant_meta( int $project_id ): array {
 		$prefix = self::META_ASSISTANT_PREFIX;
 		$rows   = array();
-		foreach ( get_post_meta( $project_id ) as $meta_key => $values ) {
+		// get_post_meta() answers false, not an array, for a post ID of 0.
+		foreach ( (array) get_post_meta( $project_id ) as $meta_key => $values ) {
 			if ( ! str_starts_with( (string) $meta_key, $prefix ) ) {
 				continue;
 			}

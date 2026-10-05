@@ -220,6 +220,15 @@ class CurrentAssignmentTest extends TestCase {
 	}
 
 	/**
+	 * Core's get_post_meta() answers false for a post ID of 0; that is no assignments, not a warning.
+	 */
+	public function test_get_all_reads_no_assignments_when_get_post_meta_answers_false(): void {
+		Functions\when( 'get_post_meta' )->justReturn( false );
+
+		$this->assertSame( array(), $this->manager->get_all( 0 ) );
+	}
+
+	/**
 	 * A meta key can hold several rows; each is read, and the last one wins the slot.
 	 */
 	public function test_get_all_reads_every_value_stored_under_one_key(): void {

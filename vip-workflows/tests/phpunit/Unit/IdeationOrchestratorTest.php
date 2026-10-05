@@ -288,6 +288,14 @@ class IdeationOrchestratorTest extends TestCase {
 		$this->assertSame( array( 'vip-workflows/seed-analyst' ), array_keys( $this->read_assistant_meta() ) );
 	}
 
+	public function test_no_assistants_are_read_when_get_post_meta_answers_false(): void {
+		Functions\when( 'wp_get_abilities' )->justReturn( array() );
+		// Core's get_post_meta() answers false, not an array, for a post ID of 0.
+		Functions\when( 'get_post_meta' )->justReturn( false );
+
+		$this->assertSame( array(), $this->read_assistant_meta() );
+	}
+
 	public function test_two_values_under_one_assistant_key_are_both_read_and_the_last_wins(): void {
 		Functions\when( 'wp_get_abilities' )->justReturn( array() );
 
