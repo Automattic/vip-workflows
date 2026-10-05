@@ -206,7 +206,7 @@ class StageQuery {
 		// (the default) counts every author's posts, for trusted/admin callers.
 		$author_clause = null === $author_scope ? '' : ' AND p.post_author = %d';
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- aggregate stage counts; the only interpolation is a %s placeholder list built via array_fill.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- aggregate stage counts; the placeholders are $type_placeholders (a %s list built via array_fill) and the optional $author_clause (a fixed %d clause), with matching values spread in at runtime, so PHPCS cannot count them.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				"SELECT stage.meta_value AS stage_key, COUNT(*) AS cnt
@@ -223,7 +223,7 @@ class StageQuery {
 				)
 			)
 		);
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 
 		// get_results() answers null on a query error and an empty array when the
 		// query simply matched nothing. Falling through on null returned the

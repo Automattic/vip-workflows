@@ -35,7 +35,7 @@ function execute_get_recent_activity( ?array $input = null ) {
 	$exclusion = \VIPWorkflows\Workflow\StatusManager::bus_bookkeeping_exclusion( 'event_type' );
 
 	$results = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-		$wpdb->prepare(
+		$wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- the SQL fragment and its values come from bus_bookkeeping_exclusion() ($exclusion['sql'] and $exclusion['values']), merged with array_merge() at runtime, so PHPCS cannot count the placeholders.
 			"SELECT * FROM {$table} WHERE created_at >= %s AND {$exclusion['sql']} ORDER BY created_at DESC LIMIT %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 			array_merge( array( $since ), $exclusion['values'], array( $limit ) )
 		)

@@ -261,14 +261,14 @@ class AuditLogController extends WP_REST_Controller {
 		$clauses[] = $exclusion['sql'];
 		$values    = array_merge( $values, $exclusion['values'] );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- plugin table vip_workflows_events; live read, not cached
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- plugin table vip_workflows_events; live read, not cached; the placeholders come from the $clauses list joined with implode() at runtime, with matching $values, so PHPCS cannot see them
 		$types = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT DISTINCT event_type FROM {$table} WHERE " . implode( ' AND ', $clauses ) . ' ORDER BY event_type',
 				$values
 			)
 		);
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
 		$labeled_types = array_map(
 			function ( $type ) {
@@ -309,14 +309,14 @@ class AuditLogController extends WP_REST_Controller {
 		$clauses[] = $exclusion['sql'];
 		$values    = array_merge( $values, $exclusion['values'] );
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared -- plugin table vip_workflows_events; live read, not cached
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- plugin table vip_workflows_events; live read, not cached; the placeholders come from the $clauses list joined with implode() at runtime, with matching $values, so PHPCS cannot see them
 		$user_ids = $wpdb->get_col(
 			$wpdb->prepare(
 				"SELECT DISTINCT actor_id FROM {$table} WHERE " . implode( ' AND ', $clauses ) . ' ORDER BY actor_id',
 				$values
 			)
 		);
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
 		$users = array_map(
 			function ( $user_id ) {

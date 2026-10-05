@@ -119,7 +119,7 @@ class SequenceRepository {
 		if ( ! empty( $uncached ) ) {
 			global $wpdb;
 
-			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- custom table vip_sequences; read-through cached in CACHE_GROUP; $placeholders is a list of %d built via array_fill above.
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- custom table vip_sequences; read-through cached in CACHE_GROUP; $placeholders is a list of %d built via array_fill above, so PHPCS cannot count the replacements.
 			$placeholders = implode( ',', array_fill( 0, count( $uncached ), '%d' ) );
 			$rows         = $wpdb->get_results(
 				$wpdb->prepare(
@@ -128,7 +128,7 @@ class SequenceRepository {
 					...$uncached
 				)
 			);
-			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 
 			$found_ids     = array();
 			$cache_entries = array();
