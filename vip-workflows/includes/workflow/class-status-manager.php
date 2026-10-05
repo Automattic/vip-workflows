@@ -939,17 +939,13 @@ class StatusManager {
 				return $metadata_check;
 			}
 
-			if ( $this->reports_metadata_gate( $sequence ) ) {
-				$this->record_gate(
-					array(
-						'gate'       => 'required_metadata',
-						'result'     => 'passed',
-						'hard_count' => 0,
-					)
-				);
-			}
-		} elseif ( Sequence::crosses_into_publish( $from_region, $to_region ) && ! $is_agent_actor && ! $is_revert && $this->reports_metadata_gate( $sequence ) ) {
-			// Only a bypass role reaches here.
+			// A pass is not recorded. The editor locks an edge while a required
+			// field is empty, so most blocks never reach here and a pass count is
+			// no denominator for them; and a move with tool warnings passes this
+			// gate twice, once per request.
+		} elseif ( Sequence::crosses_into_publish( $from_region, $to_region ) && ! $is_agent_actor && ! $is_revert && ! $acknowledge_warnings && $this->reports_metadata_gate( $sequence ) ) {
+			// Only a bypass role reaches here. Not on the request that confirms tool
+			// warnings: the request that raised them already recorded the bypass.
 			$this->record_gate(
 				array(
 					'gate'   => 'required_metadata',

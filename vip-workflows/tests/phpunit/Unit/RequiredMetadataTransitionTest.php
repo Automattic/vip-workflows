@@ -462,10 +462,11 @@ class RequiredMetadataTransitionTest extends TestCase
     }
 
     /**
-     * A gate that ran and found nothing missing is reported too: it is the
-     * denominator for how often the gate blocks.
+     * A pass is not reported. The editor stops most moves with an empty required
+     * field before they are sent, so a pass count would not be a denominator for
+     * blocks, and a move with tool warnings passes this gate on two requests.
      */
-    public function test_a_passed_gate_is_reported(): void
+    public function test_a_passed_gate_reports_nothing(): void
     {
         $telemetry = $this->telemetry();
         $this->stub_transition(
@@ -475,10 +476,7 @@ class RequiredMetadataTransitionTest extends TestCase
 
         $this->status_manager->transition( 1, 'review' );
 
-        $events = $telemetry->of( 'transition_gate_finished' );
-        $this->assertCount( 1, $events );
-        $this->assertSame( 'passed', $events[0]['properties']['result'] );
-        $this->assertSame( 0, $events[0]['properties']['hard_count'] );
+        $this->assertSame( array(), $telemetry->of( 'transition_gate_finished' ) );
     }
 
     /**
@@ -504,6 +502,21 @@ class RequiredMetadataTransitionTest extends TestCase
             ),
             $events[0]['properties']
         );
+    }
+
+    /**
+     * Confirming tool warnings is a second request for the same move. Its bypass
+     * was recorded on the first, so it is not recorded again.
+     */
+    public function test_a_bypass_is_not_recorded_again_when_warnings_are_confirmed(): void
+    {
+        $telemetry = $this->telemetry();
+        $this->stub_transition( array( self::text_field( 'section', 'Section', true ) ) );
+        $this->stub_bypass_roles( array( 'chief' ), array() );
+
+        $this->status_manager->transition( 1, 'review', array( 'acknowledge_warnings' => true ) );
+
+        $this->assertSame( array(), $telemetry->of( 'transition_gate_finished' ) );
     }
 
     /**
