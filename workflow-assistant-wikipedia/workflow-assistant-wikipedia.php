@@ -163,8 +163,7 @@ function search_wikipedia( string $term ): array {
 		'https://en.wikipedia.org/w/api.php'
 	);
 
-	// phpcs:ignore WordPressVIPMinimum.Performance.RemoteRequestTimeout.timeout_timeout -- editor-initiated ideation assistant request expected to take time.
-	$response = wp_remote_get( $search_url, array( 'timeout' => 10 ) );
+	$response = remote_get( $search_url );
 	if ( is_wp_error( $response ) ) {
 		return array();
 	}
@@ -179,6 +178,24 @@ function search_wikipedia( string $term ): array {
 	$page_ids = array_column( $results, 'pageid' );
 
 	return fetch_page_details( $page_ids );
+}
+
+/**
+ * GET a Wikipedia API URL. On VIP this goes through vip_safe_wp_remote_get(),
+ * which caps the timeout at 5 seconds and stops calling a host that keeps
+ * timing out; elsewhere (local, Playground, self-hosted) it falls back to
+ * wp_remote_get() with the same timeout.
+ *
+ * @param string $url The request URL.
+ * @return array|\WP_Error The response, or WP_Error on failure.
+ */
+function remote_get( string $url ) {
+	if ( function_exists( 'vip_safe_wp_remote_get' ) ) {
+		return \vip_safe_wp_remote_get( $url, '', 3, 5, 20 );
+	}
+
+	// phpcs:ignore WordPressVIPMinimum.Functions.RestrictedFunctions.wp_remote_get_wp_remote_get, WordPressVIPMinimum.Performance.RemoteRequestTimeout.timeout_timeout -- fallback where the VIP helpers are not loaded; same 5s timeout as on VIP.
+	return wp_remote_get( $url, array( 'timeout' => 5 ) );
 }
 
 /**
@@ -209,8 +226,7 @@ function fetch_page_details( array $page_ids ): array {
 		'https://en.wikipedia.org/w/api.php'
 	);
 
-	// phpcs:ignore WordPressVIPMinimum.Performance.RemoteRequestTimeout.timeout_timeout -- editor-initiated ideation assistant request expected to take time.
-	$response = wp_remote_get( $details_url, array( 'timeout' => 10 ) );
+	$response = remote_get( $details_url );
 	if ( is_wp_error( $response ) ) {
 		return array();
 	}
