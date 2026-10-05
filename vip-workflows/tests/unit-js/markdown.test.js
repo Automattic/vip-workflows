@@ -96,6 +96,20 @@ describe( 'MarkdownText', () => {
 			expect( isSafeUrl( '#anchor' ) ).toBe( true );
 		} );
 
+		it( 'answers no for a value that is not a string, and does not throw', () => {
+			// A payload is decoded JSON, so a field can hold any type. The check
+			// runs while a card renders, so an error here would take the card,
+			// and the screen around it, down with it.
+			expect( isSafeUrl( 123 ) ).toBe( false );
+			expect( isSafeUrl( true ) ).toBe( false );
+			expect( isSafeUrl( [ 'https://example.test' ] ) ).toBe( false );
+			expect( isSafeUrl( { url: 'https://example.test' } ) ).toBe(
+				false
+			);
+			expect( isSafeUrl( null ) ).toBe( false );
+			expect( isSafeUrl( undefined ) ).toBe( false );
+		} );
+
 		it( 'blocks an unsafe image src and falls back to the alt text', () => {
 			const { container } = render(
 				<MarkdownText text={ '![the logo](javascript:alert(1))' } />
