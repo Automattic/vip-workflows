@@ -404,6 +404,7 @@ class RuntimeAvailabilityRequirementsTest extends TestCase
                 'success'     => false,
                 'unavailable' => true,
                 'issue_count' => 0,
+                'surface'     => 'rest',
                 'initiator'   => 'user',
             ),
             $events[0]['properties']

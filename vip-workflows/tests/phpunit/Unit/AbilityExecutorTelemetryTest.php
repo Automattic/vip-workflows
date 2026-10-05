@@ -95,11 +95,21 @@ class AbilityExecutorTelemetryTest extends TestCase
                 'success'     => true,
                 'unavailable' => false,
                 'issue_count' => 2,
+                'surface'     => 'rest',
                 'initiator'   => 'user',
             ),
             $properties
         );
         $this->assertIsInt( $duration );
+    }
+
+    public function test_a_run_from_the_command_palette_says_so(): void
+    {
+        $executor = $this->executor_returning( array( 'issues' => array() ) );
+
+        $executor->execute( 'someone/private-check', array(), '', 'command_palette' );
+
+        $this->assertSame( 'command_palette', $this->telemetry->of( 'tool_run_finished' )[0]['properties']['surface'] );
     }
 
     public function test_a_direct_run_that_failed_is_reported_as_unsuccessful(): void

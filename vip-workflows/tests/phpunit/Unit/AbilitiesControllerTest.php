@@ -417,6 +417,40 @@ class AbilitiesControllerTest extends TestCase
         $this->assertSame( 123, $executor->captured['post_id'] );
     }
 
+    /**
+     * The command palette names itself for telemetry. The name reaches the
+     * executor beside the input, never in it: abilities reject unknown keys.
+     */
+    public function test_run_ability_hands_the_source_to_the_executor_and_not_to_the_ability(): void
+    {
+        $this->allow_edit_post_on( 123 );
+
+        $executor   = $this->create_recording_executor();
+        $controller = $this->create_controller( $executor );
+
+        $controller->run_ability(
+            $this->create_request_stub(
+                array(
+                    'id'      => 'vip-workflows/readability',
+                    'post_id' => 123,
+                    'source'  => 'command_palette',
+                )
+            )
+        );
+        $this->assertSame( 'command_palette', $executor->captured_source );
+        $this->assertArrayNotHasKey( 'source', $executor->captured );
+
+        $controller->run_ability(
+            $this->create_request_stub(
+                array(
+                    'id'      => 'vip-workflows/readability',
+                    'post_id' => 123,
+                )
+            )
+        );
+        $this->assertSame( 'rest', $executor->captured_source );
+    }
+
     public function test_run_ability_passes_non_reserved_options_through_untouched(): void
     {
         $this->allow_edit_post_on( 123 );
@@ -475,15 +509,23 @@ class AbilitiesControllerTest extends TestCase
              */
             public array $captured = array();
 
+            /**
+             * Source handed to the last execute() call.
+             *
+             * @var string
+             */
+            public string $captured_source = '';
+
             // phpcs:ignore Generic.CodeAnalysis.UselessOverridingMethod.Found -- Skips the parent's service lookups.
             public function __construct() {}
 
             // `$context` is unused here but must be declared: omitting a
             // parameter the parent has is an incompatible signature, and PHP
             // fatals on the class declaration rather than on a call.
-            public function execute( string $ability_name, array $input = array(), string $context = '' ): AbilityResult
+            public function execute( string $ability_name, array $input = array(), string $context = '', string $source = 'rest' ): AbilityResult
             {
-                $this->captured = $input;
+                $this->captured        = $input;
+                $this->captured_source = $source;
 
                 return AbilityResult::success( $ability_name, array() );
             }

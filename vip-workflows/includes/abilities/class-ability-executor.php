@@ -87,11 +87,13 @@ class AbilityExecutor {
 	 * @param  string $ability_name Ability name/ID.
 	 * @param  array  $input        Input parameters.
 	 * @param  string $context      Surface this run was invoked from. See above.
+	 * @param  string $source       For a direct run, the client that asked for it, for telemetry:
+	 *                              `command_palette`, or `rest` for any other caller.
 	 * @return AbilityResult
 	 * @throws \InvalidArgumentException If ability not found.
 	 * @throws \RuntimeException If ability is disabled.
 	 */
-	public function execute( string $ability_name, array $input = array(), string $context = '' ): AbilityResult {
+	public function execute( string $ability_name, array $input = array(), string $context = '', string $source = 'rest' ): AbilityResult {
 		$ability = wp_get_ability( $ability_name );
 
 		if ( ! $ability ) {
@@ -128,7 +130,7 @@ class AbilityExecutor {
 				$result->unmet_requirements = AvailabilitySerializer::to_persistable( $availability );
 				$result->post_id            = $this->resolve_post_id( $input );
 				$this->repository->save( $result );
-				$this->record_direct_run( $context, $result, true );
+				$this->record_direct_run( $context, $source, $result, true );
 				return $result;
 			}
 		}
@@ -187,7 +189,7 @@ class AbilityExecutor {
 			array( 'post_id' => $result->post_id )
 		);
 
-		$this->record_direct_run( $context, $result, false );
+		$this->record_direct_run( $context, $source, $result, false );
 
 		return $result;
 	}
@@ -196,10 +198,11 @@ class AbilityExecutor {
 	 * Record a tool run directly by a person (not from a gate or an agent).
 	 *
 	 * @param string        $context     Surface the run was invoked from.
+	 * @param string        $source      Client that asked for the run. See execute().
 	 * @param AbilityResult $result      The run's result.
 	 * @param bool          $unavailable Whether the ability was not configured, so never ran.
 	 */
-	private function record_direct_run( string $context, AbilityResult $result, bool $unavailable ): void {
+	private function record_direct_run( string $context, string $source, AbilityResult $result, bool $unavailable ): void {
 		if ( '' !== $context || ! Tracker::is_available() ) {
 			return;
 		}
@@ -213,6 +216,7 @@ class AbilityExecutor {
 				'unavailable' => $unavailable,
 				'issue_count' => is_array( $issues ) ? count( $issues ) : 0,
 				'duration_ms' => $unavailable ? null : $result->duration_ms,
+				'surface'     => $source,
 				'initiator'   => 'user',
 			)
 		);
