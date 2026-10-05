@@ -2078,7 +2078,7 @@ class WorkflowController extends WP_REST_Controller {
 			array(
 				'post_type'      => $post_types,
 				'post_status'    => $post_statuses,
-				'posts_per_page' => 500,
+				'posts_per_page' => 500, // phpcs:ignore WordPress.WP.PostsPerPage.posts_per_page_posts_per_page -- bounded by the calendar's start and end dates in date_query below.
 				'date_query'     => array(
 					array(
 						'after'     => $start_date,
