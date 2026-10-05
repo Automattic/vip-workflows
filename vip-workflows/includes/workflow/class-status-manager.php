@@ -958,6 +958,13 @@ class StatusManager {
 			);
 		}
 
+		// Who an agent's gate events are recorded as: the person who started the
+		// run, else the user the agent acts for. A person's are recorded as them.
+		$telemetry_user = $is_agent_actor ? (int) ( $options['telemetry_user'] ?? 0 ) : 0;
+		if ( $is_agent_actor && $telemetry_user <= 0 ) {
+			$telemetry_user = (int) ( $options['agent_actor_user'] ?? 0 );
+		}
+
 		// Run required tools and check for hard failures (unless user can bypass).
 		if ( ! \VIPWorkflows\Admin\Settings::can_user_bypass_tool_checks() ) {
 			$tool_check = $this->run_transition_tools(
@@ -965,7 +972,7 @@ class StatusManager {
 				$transition_config,
 				$acknowledge_warnings,
 				$is_agent_actor ? 'agent' : 'user',
-				$is_agent_actor ? (int) ( $options['agent_actor_user'] ?? 0 ) : 0
+				$telemetry_user
 			);
 
 			if ( is_wp_error( $tool_check ) ) {
@@ -984,7 +991,7 @@ class StatusManager {
 					'tools_required' => is_array( $transition_config['required_tools'] ) ? count( $transition_config['required_tools'] ) : 0,
 				),
 				$is_agent_actor ? 'agent' : 'user',
-				$is_agent_actor ? (int) ( $options['agent_actor_user'] ?? 0 ) : 0
+				$telemetry_user
 			);
 		}
 

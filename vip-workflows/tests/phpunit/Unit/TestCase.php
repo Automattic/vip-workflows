@@ -133,6 +133,8 @@ abstract class TestCase extends YoastTestCase
         // mis-attributes revisions in a later test.
         ( new \ReflectionProperty( \VIPWorkflows\Workflow\StageAgentRunner::class, 'acting_ability_id' ) )
             ->setValue( null, '' );
+        ( new \ReflectionProperty( \VIPWorkflows\Workflow\StageAgentRunner::class, 'exiting_run_started_by' ) )
+            ->setValue( null, 0 );
 
         // Re-entrancy guard keyed by post id; a leftover key makes a later
         // transition look already in progress and silently no-op.

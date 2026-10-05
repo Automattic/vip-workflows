@@ -31,6 +31,9 @@ class StageAgentRunnerDispatchTest extends TestCase
     {
         parent::setUp();
         $this->runner = new StageAgentRunner();
+
+        // The person whose move entered the stage.
+        Functions\when( 'get_current_user_id' )->justReturn( 5 );
     }
 
     /**
@@ -84,6 +87,39 @@ class StageAgentRunnerDispatchTest extends TestCase
         $this->assertSame( 'pending', $captured[2]['status'] );
         $this->assertSame( 'ai_desk', $captured[2]['stage_key'] );
         $this->assertSame( 'workflow-agent-reformat-to-template/reformat-to-template', $captured[2]['ability_id'] );
+        $this->assertSame( 5, $captured[2]['started_by'], 'the run belongs to whoever moved the post in' );
+    }
+
+    /**
+     * An agent's exit transition enters the next AI stage with nobody logged in.
+     * The next run belongs to whoever started the chain, not to nobody.
+     */
+    public function test_an_agent_to_agent_hop_keeps_the_person_who_started_the_chain(): void
+    {
+        $captured = null;
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'get_post_meta' )->justReturn( '' );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+        Functions\when( 'update_post_meta' )->alias(
+            function ( $post_id, $key, $value ) use ( &$captured ) {
+                $captured = $value;
+                return true;
+            }
+        );
+        Functions\when( 'wp_schedule_single_event' )->justReturn( true );
+
+        ( new \ReflectionProperty( StageAgentRunner::class, 'exiting_run_started_by' ) )->setValue( null, 3 );
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
+            )
+        );
+
+        $this->runner->maybe_dispatch( 42, 'ai_desk', 'other_ai_desk', $sequence );
+
+        $this->assertSame( 3, $captured['started_by'] );
     }
 
     /**

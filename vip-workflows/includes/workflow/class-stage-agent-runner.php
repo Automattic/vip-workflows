@@ -134,6 +134,17 @@ class StageAgentRunner implements ModuleInterface {
 	private static string $acting_ability_id = '';
 
 	/**
+	 * The person who started the run whose exit transition is in progress.
+	 *
+	 * An agent's exit transition runs with nobody logged in, and its job marker is
+	 * cleared before it, so a next AI stage dispatched by that transition reads its
+	 * starter from here. Set around the exit transition only.
+	 *
+	 * @var int
+	 */
+	private static int $exiting_run_started_by = 0;
+
+	/**
 	 * Ability executor used to run stage agents. Injectable for testing.
 	 *
 	 * @var AbilityExecutor|null
@@ -226,6 +237,13 @@ class StageAgentRunner implements ModuleInterface {
 			delete_post_meta( $post_id, self::CHAIN_META );
 		}
 
+		// Who caused this run, for telemetry: the person whose move entered the
+		// stage, or, for an agent-to-agent hop, whoever started the chain.
+		$started_by = get_current_user_id();
+		if ( $started_by <= 0 ) {
+			$started_by = self::$exiting_run_started_by;
+		}
+
 		update_post_meta(
 			$post_id,
 			self::JOB_META,
@@ -236,6 +254,7 @@ class StageAgentRunner implements ModuleInterface {
 				'queued_at'  => current_time( 'mysql' ),
 				'cause'      => (string) ( $context['cause'] ?? 'workflow' ),
 				'from_stage' => $old_status,
+				'started_by' => $started_by,
 			)
 		);
 
@@ -336,6 +355,9 @@ class StageAgentRunner implements ModuleInterface {
 		// knows the way back.
 		$from_stage = is_array( $job_at_dispatch ) ? (string) ( $job_at_dispatch['from_stage'] ?? '' ) : '';
 
+		// Who the run's telemetry is recorded as. See maybe_dispatch().
+		$started_by = is_array( $job_at_dispatch ) ? (int) ( $job_at_dispatch['started_by'] ?? 0 ) : 0;
+
 		$status = $sequence->get_status( $stage_key );
 		$agent  = $status['agent'] ?? null;
 
@@ -383,6 +405,7 @@ class StageAgentRunner implements ModuleInterface {
 				array(
 					'stop_reason' => 'loop_guard',
 					'chain'       => $chain,
+					'started_by'  => $started_by,
 				)
 			);
 			return;
@@ -413,6 +436,7 @@ class StageAgentRunner implements ModuleInterface {
 				array(
 					'stop_reason' => 'no_actor',
 					'chain'       => $chain,
+					'started_by'  => $started_by,
 				)
 			);
 			return;
@@ -443,7 +467,7 @@ class StageAgentRunner implements ModuleInterface {
 				$chain,
 				$actor_user,
 				array(
-					'actor_user'  => $actor_user,
+					'started_by'  => $started_by,
 					'chain'       => $chain,
 					'outcome'     => 'error',
 					'stop_reason' => 'execution_error',
@@ -471,7 +495,7 @@ class StageAgentRunner implements ModuleInterface {
 
 		// What telemetry reports about this run, carried to wherever it concludes.
 		$run = array(
-			'actor_user'  => $actor_user,
+			'started_by'  => $started_by,
 			'chain'       => $chain,
 			'outcome'     => $outcome,
 			'duration_ms' => empty( $result->unmet_requirements ) ? (int) $result->duration_ms : null,
@@ -957,6 +981,9 @@ class StageAgentRunner implements ModuleInterface {
 			 * can_user_bypass_tool_checks() — one escalation traded for another.
 			 */
 			'agent_actor_user' => $actor_user,
+
+			// Who the transition's gate events are recorded as. See maybe_dispatch().
+			'telemetry_user'   => (int) ( $run['started_by'] ?? 0 ),
 		);
 
 		// An error-routed exit carries its error as the transition's audit
@@ -967,7 +994,12 @@ class StageAgentRunner implements ModuleInterface {
 		}
 
 		$status_manager = \VIPWorkflows\Plugin::get_instance()->get_status_manager();
-		$transitioned   = $status_manager->transition( $post_id, $target, $options );
+		self::$exiting_run_started_by = (int) ( $run['started_by'] ?? 0 );
+		try {
+			$transitioned = $status_manager->transition( $post_id, $target, $options );
+		} finally {
+			self::$exiting_run_started_by = 0;
+		}
 
 		// transition() answers with a warnings array rather than a WP_Error when
 		// it stops for soft warnings, so `true` is the only success. Treating any
@@ -1125,16 +1157,19 @@ class StageAgentRunner implements ModuleInterface {
 	/**
 	 * Record an agent run that concluded.
 	 *
+	 * Recorded as the person who started the run. Failing that, as whoever is
+	 * logged in, and under cron as the post's author.
+	 *
 	 * @param int    $post_id     Post ID.
 	 * @param string $disposition routed | error_routed | stopped_in_place | held_for_warnings.
-	 * @param array  $run         actor_user, chain, outcome, duration_ms and stop_reason, each optional.
+	 * @param array  $run         started_by, chain, outcome, duration_ms and stop_reason, each optional.
 	 */
 	private function record_run( int $post_id, string $disposition, array $run ): void {
 		if ( ! Tracker::is_available() ) {
 			return;
 		}
 
-		$as_user = (int) ( $run['actor_user'] ?? 0 );
+		$as_user = (int) ( $run['started_by'] ?? 0 );
 		if ( $as_user <= 0 && get_current_user_id() <= 0 ) {
 			$as_user = (int) get_post_field( 'post_author', $post_id );
 		}

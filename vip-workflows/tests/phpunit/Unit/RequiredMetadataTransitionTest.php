@@ -566,10 +566,16 @@ class RequiredMetadataTransitionTest extends TestCase
      */
     /**
      * An agent's exit transition runs the required tools under cron, with nobody
-     * logged in. transition() has to hand the agent's user to the gate, or the
-     * event is recorded as the wrong person or not at all.
+     * logged in. transition() has to hand a user to the gate, or the event is
+     * recorded as nobody and dropped: the person who started the run when the
+     * runner names one, else the user the agent acts for.
+     *
+     * @dataProvider agent_gate_users
+     *
+     * @param array $telemetry_option The telemetry_user option, if any.
+     * @param int   $expected_user    Who the event is recorded as.
      */
-    public function test_an_agent_transitions_tools_gate_is_recorded_as_the_agents_user(): void
+    public function test_an_agent_transitions_tools_gate_is_recorded_as_a_user( array $telemetry_option, int $expected_user ): void
     {
         $telemetry = $this->telemetry();
         $this->stub_transition( array(), array(), 'draft', 'draft', array( 'a/check' ) );
@@ -605,15 +611,26 @@ class RequiredMetadataTransitionTest extends TestCase
             array(
                 'agent_actor'      => 'test/agent',
                 'agent_actor_user' => 7,
-            )
+            ) + $telemetry_option
         );
 
         $events = $telemetry->of( 'transition_gate_finished' );
         $this->assertCount( 1, $events );
         $this->assertSame( 'tools', $events[0]['properties']['gate'] );
         $this->assertSame( 'agent', $events[0]['properties']['initiator'] );
-        $this->assertSame( 7, $events[0]['user'] );
+        $this->assertSame( $expected_user, $events[0]['user'] );
         $this->assertSame( 0, $current_user, 'and the cron context is restored' );
+    }
+
+    /**
+     * @return array<string, array{0: array, 1: int}>
+     */
+    public static function agent_gate_users(): array
+    {
+        return array(
+            'the person who started the run' => array( array( 'telemetry_user' => 3 ), 3 ),
+            'else the agent\'s user'         => array( array(), 7 ),
+        );
     }
 
     public function test_an_agent_transition_skips_the_gate_and_reports_nothing(): void

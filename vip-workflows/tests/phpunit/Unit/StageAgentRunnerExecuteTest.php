@@ -1456,6 +1456,45 @@ class StageAgentRunnerExecuteTest extends TestCase
         $this->assertSame( 0, $this->telemetry_user, 'and the cron context is restored afterwards' );
     }
 
+    public function test_a_run_is_recorded_as_the_person_who_started_it_and_so_is_its_exit_gate(): void
+    {
+        $telemetry = $this->install_telemetry();
+        Functions\when( 'get_post_meta' )->alias(
+            function ( $post_id, $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
+                    return 'ai_desk';
+                }
+                if ( StageAgentRunner::JOB_META === $key ) {
+                    return array( 'stage_key' => 'ai_desk', 'status' => 'pending', 'queued_at' => 't', 'started_by' => 3 );
+                }
+                return '';
+            }
+        );
+        Functions\when( 'update_post_meta' )->justReturn( true );
+
+        $options        = null;
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ) );
+        $status_manager->shouldReceive( 'transition' )->andReturnUsing(
+            function ( $post_id, $target, $passed ) use ( &$options ) {
+                $options = $passed;
+                return true;
+            }
+        );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->andReturn( self::make_result( true, array( 'status' => 'pass' ) ) );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        // Not the post author (7) the agent acted as: Pendo would show the author
+        // doing something they did not do.
+        $this->assertSame( 3, $this->run_event( $telemetry )['user'] );
+        $this->assertSame( 7, $options['agent_actor_user'], 'the agent still acts as the author' );
+        $this->assertSame( 3, $options['telemetry_user'] );
+    }
+
     public function test_a_fail_verdict_that_routes_is_still_a_run_that_succeeded(): void
     {
         $telemetry = $this->install_telemetry();
