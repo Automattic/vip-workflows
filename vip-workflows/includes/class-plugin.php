@@ -625,6 +625,7 @@ final class Plugin {
 
 		// WP HTTP API defaults to 5s; AI generation needs more headroom, for
 		// every provider (not just OpenAI).
+		// phpcs:ignore WordPressVIPMinimum.Hooks.RestrictedHooks.http_request_timeout -- AI generation calls to configured hosts need extended timeout; other requests are unchanged
 		add_filter( 'http_request_timeout', array( self::class, 'extend_ai_request_timeout' ), 10, 2 );
 	}
 
