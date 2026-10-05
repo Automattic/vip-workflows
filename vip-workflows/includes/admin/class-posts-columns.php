@@ -354,7 +354,7 @@ class PostsColumns {
 	 * @param string $column_name Column name.
 	 * @param string $post_type   Post type.
 	 */
-	public function add_quick_edit_workflow( string $column_name, string $post_type ): void {
+	public function add_quick_edit_workflow( string $column_name, string $post_type ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- required by quick_edit_custom_box action
 		if ( 'workflow_status' !== $column_name ) {
 			return;
 		}

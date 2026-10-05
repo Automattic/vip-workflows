@@ -158,7 +158,7 @@ class PublishBoundaryGuard {
 	 * @param  \WP_REST_Request $request       The REST request.
 	 * @return \stdClass|\WP_Error The prepared post, or WP_Error when the change is vetoed.
 	 */
-	public function veto_rest_insert( $prepared_post, $request ) {
+	public function veto_rest_insert( $prepared_post, $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- required by rest_pre_insert_{post_type} filter
 		$post_id = (int) ( $prepared_post->ID ?? 0 );
 		$veto    = $this->resolve_veto( $post_id, (string) ( $prepared_post->post_status ?? '' ) );
 
