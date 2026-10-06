@@ -10,9 +10,10 @@
  *
  * Treatment is the transition rail's rule (docs/specs/shipped/transition-rail.md):
  * with two or more ways out, every transition is the same ordinary secondary
- * button — no primary for a terminal edge. Nothing in the sequence declares a
- * preferred exit among several, so promoting one is an assertion the data
- * doesn't support.
+ * button — no primary for a terminal edge, and none for the first in order
+ * either. Authored order does name a primary now (the stage inspector badges
+ * it), but the surface that acts on it is the editor header's split button
+ * (primary-transition.test.js); the rail stays a level list of every way out.
  *
  * @package
  */
@@ -58,6 +59,7 @@ register(
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			removeNotice: () => ( { type: 'NOOP' } ),
 		},
 	} )
 );
@@ -70,6 +72,8 @@ register(
 import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
@@ -116,7 +120,12 @@ async function renderWith( transitions ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(

@@ -187,7 +187,11 @@ live in `WorkflowPanel.js`'s `renderTransitionButton` (removed; see the note
 above). (The shipped rail kept one exception, added after this spec: when a
 stage offers exactly one transition and it is not locked, that transition
 renders `primary` — `TransitionRail.js:1056-1074`; see
-`docs/guides/action-standard.md`.) Labels arrive already derived
+`docs/guides/action-standard.md`.) The premise that nothing declares a
+preferred exit has since changed: the stage inspector lets an author order a
+stage's transitions and badges the first "Primary", and the editor header's
+split button runs that one. The rail itself still does not promote by order —
+the header is the surface that does. Labels arrive already derived
 (`StatusManager::transition_label()`, `class-status-manager.php:438-450`), so
 the rail renders what it is given.
 

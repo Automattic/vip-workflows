@@ -1,0 +1,48 @@
+/**
+ * Workflow Header Action — the split button in the editor header.
+ *
+ * @package
+ */
+
+/* Core's Publish button, while the workflow button stands in for it. The class
+   is on <body> only while the split button is mounted (WorkflowHeaderAction). */
+.vip-workflows-replaces-publish .editor-header .editor-post-publish-button__button {
+	display: none;
+}
+
+/* Last among the pinned items, whatever order the fills registered in, so the
+   button sits where Publish sat: just before the options menu. */
+.vip-workflows-header-action {
+	display: flex;
+	align-items: center;
+	order: 99;
+}
+
+/* The pinned-items slot hides every button below the small breakpoint except
+   core's own sidebar toggles. This one can be the only way forward from the
+   stage, so it stays. */
+.interface-pinned-items .vip-workflows-header-action .components-button {
+	display: inline-flex;
+}
+
+/* The two halves read as one control: no gap, and the seam squared off. */
+.vip-workflows-header-action .vip-workflows-header-action__main {
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+	white-space: nowrap;
+}
+
+.vip-workflows-header-action .vip-workflows-header-action__toggle {
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+	margin-left: 1px;
+}
+
+/* The rail measures itself on mount, so it needs a definite width to measure
+   against rather than sizing to its own content. */
+.vip-workflows-header-action__rail {
+	box-sizing: border-box;
+	width: 320px;
+	max-width: calc(100vw - 32px);
+	padding: 16px;
+}

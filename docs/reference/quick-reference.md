@@ -197,7 +197,10 @@ GET         /vip-workflows/v1/audit-log/users
 - Server returns transitions with `_locked` boolean for unavailable ones, plus
   `_locked_reason` and (for the required-metadata gate) `_locked_code` — see
   **Held Transitions** above for the one lock the editor may release itself
-- Modals handle input collection before calling transition API
+- `TransitionFlow.js` (mounted once from `index.js`) owns every transition:
+  the sidebar rail and the header split button dispatch `requestTransition`,
+  and the flow runs the confirms, input capture and refusal dialogs, saving a
+  dirty post before the request
 - `WorkflowSaveGuard.js` is mounted unconditionally from `index.js`, outside
   every card: core's `PanelBody` renders `isOpened && children`, so putting it
   in a panel tore down its `editor.preSavePost` filter whenever the panel closed

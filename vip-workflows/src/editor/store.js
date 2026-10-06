@@ -73,6 +73,25 @@ const DEFAULT_STATE = {
 	// status payload of its own, and without this the slower of the two lands
 	// last and reinstates the state the user just left.
 	workflowStatusRequest: 0,
+
+	// A transition someone asked for and the transition flow has not yet
+	// picked up: `{ transition, anchor, source }`. Two surfaces start moves —
+	// the rail in the sidebar and the split button in the editor header — and
+	// neither owns the dialogs a move can open (the publish confirm, the
+	// assignee popover, the blocked and warnings dialogs). Those live in one
+	// always-mounted TransitionFlow, so a request is handed to it here rather
+	// than handled by whichever surface happened to be clicked. `anchor` is the
+	// DOM node an input popover opens against.
+	transitionRequest: null,
+
+	// The destination of the move in flight, or null. Shared for the same
+	// reason: a move started from the header has to disable the rail, and the
+	// reverse.
+	transitioningTo: null,
+
+	// The last refused move, worded for the author, until they dismiss it or
+	// start another. Shown by the sidebar panel.
+	transitionError: null,
 };
 
 const actions = {
@@ -126,6 +145,48 @@ const actions = {
 	 */
 	failWorkflowStatusRequest() {
 		return { type: 'FAIL_WORKFLOW_STATUS_REQUEST' };
+	},
+
+	/**
+	 * Ask the transition flow to move the post along a transition.
+	 *
+	 * Every human-started move goes through here, so the confirmations, input
+	 * capture and refusal dialogs are the same whichever surface was pressed.
+	 *
+	 * @param {Object}       transition The transition, as the rail lists it.
+	 * @param {?HTMLElement} anchor     Element an input popover opens against.
+	 * @param {string}       source     'panel' or 'header' — where a refusal is reported.
+	 */
+	requestTransition( transition, anchor = null, source = 'panel' ) {
+		return {
+			type: 'REQUEST_TRANSITION',
+			request: { transition, anchor, source },
+		};
+	},
+
+	/**
+	 * Mark the pending request as taken by the transition flow.
+	 */
+	clearTransitionRequest() {
+		return { type: 'CLEAR_TRANSITION_REQUEST' };
+	},
+
+	/**
+	 * Record which destination is in flight, or null once nothing is.
+	 *
+	 * @param {?string} to Destination stage key.
+	 */
+	setTransitioningTo( to ) {
+		return { type: 'SET_TRANSITIONING_TO', to };
+	},
+
+	/**
+	 * Record, or clear, the refusal the sidebar panel reports.
+	 *
+	 * @param {?string} message Refusal worded for the author.
+	 */
+	setTransitionError( message ) {
+		return { type: 'SET_TRANSITION_ERROR', message };
 	},
 
 	/**
@@ -237,6 +298,18 @@ function reducer( state = DEFAULT_STATE, action ) {
 				...action.data,
 			};
 
+		case 'REQUEST_TRANSITION':
+			return { ...state, transitionRequest: action.request };
+
+		case 'CLEAR_TRANSITION_REQUEST':
+			return { ...state, transitionRequest: null };
+
+		case 'SET_TRANSITIONING_TO':
+			return { ...state, transitioningTo: action.to };
+
+		case 'SET_TRANSITION_ERROR':
+			return { ...state, transitionError: action.message };
+
 		case 'BEGIN_WORKFLOW_STATUS_REQUEST':
 			return {
 				...state,
@@ -303,6 +376,10 @@ const selectors = {
 	getWorkflowStatus: ( state ) => state.workflowStatus,
 	isWorkflowStatusResolved: ( state ) => state.workflowStatusResolved,
 	getWorkflowStatusRequest: ( state ) => state.workflowStatusRequest,
+	getTransitionRequest: ( state ) => state.transitionRequest,
+	getTransitioningTo: ( state ) => state.transitioningTo,
+	isTransitioning: ( state ) => null !== state.transitioningTo,
+	getTransitionError: ( state ) => state.transitionError,
 };
 
 const store = createReduxStore( STORE_NAME, {

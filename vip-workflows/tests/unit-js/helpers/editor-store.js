@@ -40,6 +40,11 @@ export function seedEditorStore( overrides = {} ) {
 		// asks — the same sequence a real page load produces.
 		workflowStatus: null,
 		workflowStatusResolved: false,
+		// No move asked for, none in flight, no refusal standing: a previous
+		// test's transition must not leave the next one's buttons disabled.
+		transitionRequest: null,
+		transitioningTo: null,
+		transitionError: null,
 		...overrides,
 	} );
 

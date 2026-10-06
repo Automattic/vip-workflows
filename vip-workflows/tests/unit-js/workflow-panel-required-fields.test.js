@@ -58,6 +58,7 @@ register(
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			removeNotice: () => ( { type: 'NOOP' } ),
 		},
 	} )
 );
@@ -104,6 +105,8 @@ register(
 import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
@@ -231,7 +234,12 @@ async function renderWithRefusal( error ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -265,7 +273,12 @@ async function renderAndTransition( status ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -294,7 +307,12 @@ async function renderStatus( status ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -392,17 +410,17 @@ describe( 'WorkflowPanel required-field refusal', () => {
 	} );
 
 	/**
-	 * The narrowing, stated: a sequence with no required field has nothing the
-	 * transition can be refused for, so a dirty post's unsaved work is left
-	 * where the author left it.
+	 * Not narrowed to sequences with a required field: the next person in the
+	 * workflow opens what was saved, so a move always carries the work on
+	 * screen with it — the same promise the Publish button it can replace makes.
 	 */
-	it( 'leaves a dirty post alone when no field is required', async () => {
+	it( 'saves a dirty post before a transition even when no field is required', async () => {
 		postIsDirty = true;
 
 		await renderAndTransition( STATUS_WITH_OPTIONAL_FIELD );
 
-		expect( savePost ).not.toHaveBeenCalled();
-		expect( sequence ).toEqual( [ 'transition' ] );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect( sequence ).toEqual( [ 'save', 'transition' ] );
 	} );
 
 	/**
