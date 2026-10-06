@@ -54,7 +54,7 @@ export function CommandPalette() {
 				const result = await apiFetch( {
 					path: `/vip-workflows/v1/abilities/${ tool.id }/run`,
 					method: 'POST',
-					data: { post_id: postId },
+					data: { post_id: postId, source: 'command_palette' },
 				} );
 				return result;
 			} catch ( error ) {

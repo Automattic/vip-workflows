@@ -134,7 +134,7 @@ class AgentPublishBoundaryIntegrationTest extends TestCase
 			 * @param  string $context      Context.
 			 * @return AbilityResult
 			 */
-			public function execute( string $ability_name, array $input = array(), string $context = '' ): AbilityResult {
+			public function execute( string $ability_name, array $input = array(), string $context = '', string $source = 'rest' ): AbilityResult {
 				return AbilityResult::success( $ability_name, array( 'status' => 'pass' ) );
 			}
 		};
