@@ -11,6 +11,8 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Abilities\Tools;
 
+require_once __DIR__ . '/helpers.php';
+
 /**
  * Execute the recent activity query.
  *
@@ -19,8 +21,8 @@ namespace VIPWorkflows\Abilities\Tools;
  */
 function execute_get_recent_activity( ?array $input = null ) {
 	$input = $input ?? array();
-	$limit = min( (int) ( $input['limit'] ?? 20 ), 50 );
-	$days  = min( (int) ( $input['days'] ?? 7 ), 30 );
+	$limit = bounded_int( $input, 'limit', 20, 1, 50 );
+	$days  = bounded_int( $input, 'days', 7, 1, 30 );
 
 	global $wpdb;
 
@@ -96,13 +98,17 @@ function register_get_recent_activity(): void {
 				'properties'           => array(
 					'days'  => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of days to look back (default 7, max 30).', 'vip-workflows' ),
+						'description' => __( 'Number of days to look back (default 7, minimum 1, maximum 30).', 'vip-workflows' ),
 						'default'     => 7,
+						'minimum'     => 1,
+						'maximum'     => 30,
 					),
 					'limit' => array(
 						'type'        => 'integer',
-						'description' => __( 'Maximum number of events (default 20, max 50).', 'vip-workflows' ),
+						'description' => __( 'Maximum number of events (default 20, minimum 1, maximum 50).', 'vip-workflows' ),
 						'default'     => 20,
+						'minimum'     => 1,
+						'maximum'     => 50,
 					),
 				),
 			),

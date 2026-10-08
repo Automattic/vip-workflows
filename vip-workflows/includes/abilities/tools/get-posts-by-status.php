@@ -11,6 +11,8 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Abilities\Tools;
 
+require_once __DIR__ . '/helpers.php';
+
 /**
  * Execute the posts-by-status query.
  *
@@ -21,7 +23,7 @@ function execute_get_posts_by_status( ?array $input = null ) {
 	$input     = $input ?? array();
 	$status    = $input['status'] ?? null;
 	$post_type = $input['post_type'] ?? 'post';
-	$limit     = min( (int) ( $input['limit'] ?? 20 ), 50 );
+	$limit     = bounded_int( $input, 'limit', 20, 1, 50 );
 
 	if ( empty( $status ) ) {
 		return new \WP_Error( 'missing_status', __( 'The "status" parameter is required.', 'vip-workflows' ) );
@@ -100,8 +102,10 @@ function register_get_posts_by_status(): void {
 					),
 					'limit'     => array(
 						'type'        => 'integer',
-						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflows' ),
+						'description' => __( 'Maximum number of results (default 20, minimum 1, maximum 50).', 'vip-workflows' ),
 						'default'     => 20,
+						'minimum'     => 1,
+						'maximum'     => 50,
 					),
 				),
 			),
