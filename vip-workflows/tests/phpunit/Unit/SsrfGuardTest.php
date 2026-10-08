@@ -331,6 +331,51 @@ class SsrfGuardTest extends TestCase
         $this->assertSame( 0, $other['redirection'], 'scoped filter applies unconditionally within the block' );
     }
 
+    /**
+     * The arguments an open-web fetch hands to wp_safe_remote_get().
+     *
+     * @param  array $args Arguments the caller passes.
+     * @return array Arguments the HTTP API receives.
+     */
+    private function fetch_args( array $args ): array
+    {
+        $received = null;
+        Functions\when( 'wp_safe_remote_get' )->alias(
+            function ( $url, $request_args ) use ( &$received ) {
+                $received = $request_args;
+                return array( 'response' => array( 'code' => 200 ), 'body' => '' );
+            }
+        );
+
+        SsrfGuard::remote_get_validated( 'https://8.8.8.8/page', $args );
+
+        $this->assertIsArray( $received, 'the fetch ran' );
+
+        return $received;
+    }
+
+    /**
+     * The body of an open-web page is read into memory, and the server that
+     * answers is the one the caller named, so the read stops at a size the
+     * extractors never need to exceed.
+     */
+    public function test_remote_get_validated_bounds_the_size_of_the_body_it_reads(): void
+    {
+        $args = $this->fetch_args( array( 'timeout' => 10, 'user-agent' => 'test' ) );
+
+        $this->assertSame( SsrfGuard::MAX_RESPONSE_BYTES, $args['limit_response_size'] );
+        $this->assertSame( 5 * 1024 * 1024, SsrfGuard::MAX_RESPONSE_BYTES );
+        $this->assertSame( 10, $args['timeout'], 'the caller\'s own arguments pass through' );
+        $this->assertSame( 'test', $args['user-agent'] );
+    }
+
+    public function test_a_caller_can_set_its_own_body_size_bound(): void
+    {
+        $args = $this->fetch_args( array( 'limit_response_size' => 1024 ) );
+
+        $this->assertSame( 1024, $args['limit_response_size'] );
+    }
+
     // -------------------------------------------------------------------------
     // allowlisted remote requests
     // -------------------------------------------------------------------------
