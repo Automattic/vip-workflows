@@ -115,6 +115,22 @@ namespace WordPress\AiClient {
             }
 
             /**
+             * @var object|null What generateImage() returns. The real builder returns a File
+             *                  DTO; a test supplies an object with the getters its subject
+             *                  reads from it: getBase64Data(), getUrl() and getMimeType().
+             */
+            public static ?object $generatedImage = null;
+
+            public function generateImage(): object
+            {
+                if ( null !== self::$throwMessage ) {
+                    throw new \Exception( self::$throwMessage );
+                }
+
+                return self::$generatedImage;
+            }
+
+            /**
              * Terminal call that exposes the provider's finish reason alongside the text.
              *
              * Mirrors the real builder, where generateText() is sugar for

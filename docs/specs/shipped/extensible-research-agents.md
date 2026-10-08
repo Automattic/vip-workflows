@@ -303,6 +303,12 @@ that omits `content` on generated cards, defeats that: the first forks a new
 card per run, the second collapses genuinely different cards into one. See
 `IdeationOrchestrator::card_identity()`.
 
+**Amended:** "stores whatever the ability returns" has one exception. A card's
+`url`, `image` and `thumbnail` are stored only when they are absolute `http://`
+or `https://` addresses. Any other value that is not empty becomes `null` and
+the card is kept without it, and a card whose `url` is removed this way is
+identified as a card with no URL. See `VIPWorkflows\Integrations\SafeUrl`.
+
 ### Built-in Agent Registration
 
 > **Where these actually live today:** the built-in agents shipped as classes under `includes/ideation/assistants/` (`class-web-researcher.php`, `class-media-scout.php`, `class-archive-scout.php`), not as function-based registrations under `includes/abilities/tools/` as sketched below. The registration shape (ability id, `category: 'research'`, `meta.type: 'research'`) matches; the file layout does not. See [`docs/reference/file-structure.md`](../../reference/file-structure.md) for the current tree.
