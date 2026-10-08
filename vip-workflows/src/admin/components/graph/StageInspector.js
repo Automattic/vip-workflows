@@ -1063,6 +1063,21 @@ export default function StageInspector( {
 															.join( ' ' ) }
 														label={ label }
 														value={ value }
+														// The first exit is the one the post
+														// editor's header button offers, so the
+														// order this list is dragged into is a
+														// choice with a visible effect. An AI
+														// stage's exits are its agent's, so none
+														// of them is a person's next step.
+														badge={
+															! isAgent &&
+															0 === index
+																? __(
+																		'Primary',
+																		'vip-workflows'
+																  )
+																: undefined
+														}
 													>
 														<span
 															className="wf-stage-inspector__route-dot"

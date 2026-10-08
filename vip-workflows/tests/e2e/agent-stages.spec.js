@@ -345,13 +345,14 @@ test.describe( 'VIP Workflows — stage agents', () => {
 
 	/*
 	 * The stage agent rewrites the post in the database, but an open editor still
-	 * shows the pre-agent content. These two cases cover how the panel reconciles
-	 * that when the agent finishes.
+	 * shows the pre-agent content. These two cases cover how the editor
+	 * reconciles that when the agent finishes (the transition flow does it, so
+	 * it works with the Workflow sidebar closed too).
 	 *
 	 * The AI *success* path can't run here (the tests env blocks the provider's
-	 * egress), so a successful completion is simulated the only way the panel can
+	 * egress), so a successful completion is simulated the only way the flow can
 	 * tell them apart anyway: an admin advances the post out of the AI stage,
-	 * which clears `agent_pending` exactly as a finished run would. The panel
+	 * which clears `agent_pending` exactly as a finished run would. The flow
 	 * reacts purely to that pending → finished edge.
 	 *
 	 * That advance is itself an agent interruption, so it acknowledges the
@@ -394,7 +395,7 @@ test.describe( 'VIP Workflows — stage agents', () => {
 			acknowledgeWarnings: true,
 		} );
 
-		// The panel polls, sees the agent finished with a clean editor, reloads.
+		// The flow polls, sees the agent finished with a clean editor, reloads.
 		await reloaded;
 		expect(
 			await page.evaluate( () => window.__vipwfReloadMarker )
@@ -440,9 +441,13 @@ test.describe( 'VIP Workflows — stage agents', () => {
 			acknowledgeWarnings: true,
 		} );
 
-		// With unsaved edits the panel must NOT auto-reload; it surfaces a reload
-		// prompt instead.
-		const refresh = panel.locator( '.vip-workflows-panel__agent-refresh' );
+		// With unsaved edits the editor must NOT auto-reload; it offers a reload
+		// instead — as one of the editor's own notices, because the wait on the
+		// agent belongs to the always-mounted transition flow and has to reach
+		// an author whose Workflow sidebar is closed.
+		const refresh = page
+			.locator( '.components-notice' )
+			.filter( { hasText: 'The AI agent updated this post' } );
 		await expect( refresh ).toBeVisible( { timeout: 15000 } );
 		await expect(
 			refresh.getByRole( 'button', { name: 'Reload' } )

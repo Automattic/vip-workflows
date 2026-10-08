@@ -19,6 +19,37 @@ the sidebar's own readouts and split one feature across two places.
 - `WorkflowSaveGuard` — mounted unconditionally, **outside the sidebar**, and
   renders no chrome. Its `editor.preSavePost` filter has to survive the sidebar
   being closed, which is why it is not inside it.
+- `TransitionFlow` — mounted unconditionally beside the guard. It runs every
+  transition, whichever surface started it: the agent-interrupt and publish
+  confirms, the assignee popover, the blocked and warnings dialogs, the
+  save-before-move and the request itself. Surfaces hand it a request through
+  the editor store (`requestTransition`) and read the move in flight back
+  (`getTransitioningTo`), so a dialog never belongs to a sidebar that can close
+  or a dropdown that closes on focus-out. It also follows a move into an AI
+  stage: the status poll while the agent runs, and — once the agent has
+  rewritten the post — the reload of a clean editor or, over unsaved edits, an
+  editor notice offering one. Neither can be the sidebar's, because the header
+  starts such a move with the sidebar closed.
+- `WorkflowHeaderAction` — the split button in the editor header (a fill into
+  the `PinnedItems/core` slot). The main half runs the stage's **primary
+  transition** — the first in authored order, labelled with the author's own
+  label, drawn disabled with its reason as a tooltip when locked — and the
+  arrow opens the transition rail in a dropdown. It renders for any post in a
+  live workflow whose stage offers this person a move, live posts included. It
+  **hides core's Publish button only** when the post is on the draft side of
+  the publish boundary (`guard.current_region` is `draft` or `pending`), the
+  person cannot bypass the workflow (`primary-transition.js`), and core's
+  button is still a plain Publish. Core draws one header button for several
+  jobs: once a status has been picked in Summary, for a privately published
+  post, for a pending post whose author cannot publish, and while another
+  entity has changes, it is the post's Save — usually the only one — and
+  stays. Bypass users, orphaned posts, stages with no move for this person,
+  live posts (where core's button is Save), and distraction-free mode (where
+  core hides the slot the button sits in) keep core's controls. The button
+  stands down entirely while core has the editor on another entity ("Edit
+  original" on a synced pattern, "Edit template"), and re-reads the workflow
+  when the post's persisted status changes, since a status core wrote re-seats
+  the post at another stage.
 - One `Stack` (`.vip-workflows-sidebar`) holding `WorkflowPanel`. No card and no
   heading of its own: `PluginSidebar` already names the sidebar "Workflow", and
   the panel opens with the document-sidebar row that names the sequence. The
@@ -41,7 +72,7 @@ the sidebar's own readouts and split one feature across two places.
   rail, the metadata slot, and the footer actions (Show history, Remove from
   workflow)
 - `TransitionRail.js` — the current stage and every way out of it, drawn as
-  one figure. A transition's required tools are not listed: they run when it
+  one figure. Drawn in the sidebar and in the header button's dropdown. A transition's required tools are not listed: they run when it
   fires, and a refusal opens `ToolFailuresModal`
 - `WorkflowHistoryModal.js` — the transition trail, as a DataViews activity
   stream in a dialog. Code-split: DataViews is bundled rather than externalized,
@@ -66,8 +97,8 @@ the sidebar's own readouts and split one feature across two places.
 2. React components mount in the editor sidebar slot
 3. Components use `@wordpress/api-fetch` for REST API calls
 4. State managed with React hooks (useState, useEffect)
-5. One `GET /workflow/post/{id}/status` request feeds the whole panel; it polls
-   only while a stage agent is running
+5. One `GET /workflow/post/{id}/status` request feeds the whole panel;
+   `TransitionFlow` polls it only while a stage agent is running
 
 **Key Features**:
 - Color-coded stages, with the rail drawing the current one and the routes out

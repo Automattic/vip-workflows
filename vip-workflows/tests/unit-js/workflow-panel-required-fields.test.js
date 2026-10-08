@@ -58,6 +58,7 @@ register(
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			removeNotice: () => ( { type: 'NOOP' } ),
 		},
 	} )
 );
@@ -94,7 +95,10 @@ register(
 			getEditedPostAttribute: ( state, attribute ) =>
 				'meta' === attribute ? editedMeta : 'draft',
 			getCurrentPostAttribute: () => 'draft',
+			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => postIsDirty,
+			isSavingPost: () => false,
+			isPostSavingLocked: () => false,
 		},
 		actions: { savePost },
 	} )
@@ -104,6 +108,8 @@ register(
 import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
@@ -231,7 +237,12 @@ async function renderWithRefusal( error ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -265,7 +276,12 @@ async function renderAndTransition( status ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -294,7 +310,12 @@ async function renderStatus( status ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -373,6 +394,64 @@ describe( 'WorkflowPanel required-field refusal', () => {
 		expect(
 			screen.queryByRole( 'dialog', { name: 'Transition blocked' } )
 		).not.toBeInTheDocument();
+		expect(
+			screen.getByText(
+				'You do not have permission to perform this transition.'
+			)
+		).toBeInTheDocument();
+	} );
+
+	/**
+	 * The panel reports its own failed writes and a refused move through one
+	 * notice, so the notice has to be about the last thing tried. A claim
+	 * failure left on screen must not stand in front of the reason a move was
+	 * refused — which would make the refusal look like a button doing nothing.
+	 */
+	it( 'shows a refused move in place of an earlier failure of the panel’s own', async () => {
+		apiFetch.mockImplementation( ( { path, method } ) => {
+			if ( path === STATUS_PATH && method !== 'POST' ) {
+				return Promise.resolve( {
+					...STATUS_RESPONSE,
+					can_claim: true,
+				} );
+			}
+			if ( path.endsWith( '/claim' ) ) {
+				return Promise.reject( {
+					message: 'Someone else claimed this post.',
+				} );
+			}
+			if ( 'POST' === method ) {
+				return Promise.reject( {
+					code: 'forbidden_transition',
+					message: 'Not yours to move.',
+				} );
+			}
+			return Promise.resolve( [] );
+		} );
+
+		render(
+			<>
+				<TransitionFlow />
+				<WorkflowPanel />
+			</>
+		);
+
+		const claim = await screen.findByRole( 'button', { name: 'Claim' } );
+		await act( async () => {
+			claim.click();
+		} );
+		expect(
+			screen.getByText( 'Someone else claimed this post.' )
+		).toBeInTheDocument();
+
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Send to Review' } ).click();
+		} );
+
+		expect( screen.getByText( 'Not yours to move.' ) ).toBeInTheDocument();
+		expect(
+			screen.queryByText( 'Someone else claimed this post.' )
+		).not.toBeInTheDocument();
 	} );
 
 	/**
@@ -392,17 +471,17 @@ describe( 'WorkflowPanel required-field refusal', () => {
 	} );
 
 	/**
-	 * The narrowing, stated: a sequence with no required field has nothing the
-	 * transition can be refused for, so a dirty post's unsaved work is left
-	 * where the author left it.
+	 * Not narrowed to sequences with a required field: the next person in the
+	 * workflow opens what was saved, so a move always carries the work on
+	 * screen with it — the same promise the Publish button it can replace makes.
 	 */
-	it( 'leaves a dirty post alone when no field is required', async () => {
+	it( 'saves a dirty post before a transition even when no field is required', async () => {
 		postIsDirty = true;
 
 		await renderAndTransition( STATUS_WITH_OPTIONAL_FIELD );
 
-		expect( savePost ).not.toHaveBeenCalled();
-		expect( sequence ).toEqual( [ 'transition' ] );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect( sequence ).toEqual( [ 'save', 'transition' ] );
 	} );
 
 	/**
