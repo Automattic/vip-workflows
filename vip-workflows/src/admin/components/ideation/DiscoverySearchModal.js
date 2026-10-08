@@ -15,6 +15,7 @@ import {
 	Button,
 	Spinner,
 	SelectControl,
+	Notice,
 } from '@wordpress/components';
 import { Stack, Text } from '@wordpress/ui';
 
@@ -42,6 +43,7 @@ export default function DiscoverySearchModal( {
 	const [ filterValues, setFilterValues ] = useState( {} );
 	const [ searchText, setSearchText ] = useState( '' );
 	const [ results, setResults ] = useState( null );
+	const [ searchError, setSearchError ] = useState( null );
 	const [ searching, setSearching ] = useState( false );
 	const [ loadingFilters, setLoadingFilters ] = useState( true );
 	const debounceRef = useRef( null );
@@ -101,8 +103,16 @@ export default function DiscoverySearchModal( {
 					path: `/vip-workflows/v1/discovery/search?${ params.toString() }`,
 				} );
 				setResults( data );
-			} catch {
-				setResults( [] );
+				setSearchError( null );
+			} catch ( error ) {
+				// The route says why a search was not run — for instance that
+				// the account has reached its hourly limit, and when to try
+				// again. That is not the same as a search that found nothing.
+				setResults( null );
+				setSearchError(
+					error?.message ||
+						__( 'The search could not be run.', 'vip-workflows' )
+				);
 			} finally {
 				setSearching( false );
 			}
@@ -224,6 +234,12 @@ export default function DiscoverySearchModal( {
 				</Stack>
 
 				<div className="vip-workflows-ideation-discovery-modal__results">
+					{ ! searching && searchError && (
+						<Notice status="error" isDismissible={ false }>
+							{ searchError }
+						</Notice>
+					) }
+
 					{ searching && (
 						<Stack
 							justify="center"
