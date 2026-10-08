@@ -1,12 +1,18 @@
 <?php
 /**
- * The numeric inputs of the list tools have a lowest and a highest value.
+ * The numeric inputs of the list tools, and the page sizes of the list routes,
+ * have a lowest and a highest value.
  *
  * A list tool answers with between 1 and 50 rows, whatever its caller asks for.
  * The input schema states the bounds, so `WP_Ability::execute()` refuses a value
  * outside them before the callback runs, and a REST or MCP client or the model
  * behind an agent gets a validation error that names the bound. The callback
  * applies the same bounds again, for a PHP caller that reaches it directly.
+ *
+ * A REST route's `minimum` and `maximum` only act through a `validate_callback`:
+ * an argument with its own `sanitize_callback` gets no default validation. So
+ * the three list routes that take a page size are asked for one outside their
+ * bounds, through the server.
  *
  * @package VIPWorkflows\Tests\Integration
  */
@@ -15,8 +21,10 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Tests\Integration;
 
+use VIPWorkflows\API\IdeationController;
 use VIPWorkflows\Sequences\SequenceRepository;
 use VIPWorkflows\Workflow\StatusManager;
+use WP_REST_Request;
 
 use function VIPWorkflows\Abilities\Tools\execute_get_posts_by_status;
 
@@ -187,5 +195,78 @@ class BoundedToolInputsTest extends TestCase {
 
 		$this->assertIsArray( $result );
 		$this->assertCount( 50, $result['posts'] );
+	}
+
+	// ─── The list routes ────────────────────────────────────────
+
+	/**
+	 * Ask a route for a page, through the server, so the route's own argument
+	 * rules apply.
+	 *
+	 * The ideation controller is only wired during `rest_api_init` while the
+	 * ideation experiment is enabled, so its routes go onto the server directly.
+	 *
+	 * @param  string $route  Route, under the plugin namespace.
+	 * @param  array  $params Query parameters.
+	 * @return \WP_REST_Response
+	 */
+	private function get( string $route, array $params ): \WP_REST_Response {
+		rest_get_server();
+		( new IdeationController() )->register_routes();
+
+		$request = new WP_REST_Request( 'GET', '/vip-workflows/v1' . $route );
+		$request->set_query_params( $params );
+
+		return rest_do_request( $request );
+	}
+
+	/**
+	 * Each row: a route, and query parameters with one number outside its bounds.
+	 *
+	 * @return array<string, array{0: string, 1: array}>
+	 */
+	public static function pages_outside_the_bounds(): array {
+		return array(
+			'ideation, per_page 0'           => array( '/ideation', array( 'per_page' => 0 ) ),
+			'ideation, per_page 51'          => array( '/ideation', array( 'per_page' => 51 ) ),
+			'ideation, per_page 500'         => array( '/ideation', array( 'per_page' => 500 ) ),
+			'assignable users, per_page 0'   => array( '/assignable-users', array( 'per_page' => 0 ) ),
+			'assignable users, per_page 101' => array( '/assignable-users', array( 'per_page' => 101 ) ),
+			'history, per_page 0'            => array( '/workflow/post/%d/history', array( 'per_page' => 0 ) ),
+			'history, per_page 101'          => array( '/workflow/post/%d/history', array( 'per_page' => 101 ) ),
+			'history, page 0'                => array( '/workflow/post/%d/history', array( 'page' => 0 ) ),
+		);
+	}
+
+	/**
+	 * @dataProvider pages_outside_the_bounds
+	 */
+	public function test_a_list_route_refuses_a_page_outside_its_bounds( string $route, array $params ): void {
+		$response = $this->get( sprintf( $route, self::factory()->post->create() ), $params );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'rest_invalid_param', $response->get_data()['code'] );
+	}
+
+	/**
+	 * The control: each route, asked for the largest page the editor asks for.
+	 *
+	 * @return array<string, array{0: string, 1: array}>
+	 */
+	public static function pages_the_editor_asks_for(): array {
+		return array(
+			'ideation, per_page 50'          => array( '/ideation', array( 'per_page' => 50 ) ),
+			'assignable users, per_page 100' => array( '/assignable-users', array( 'per_page' => 100 ) ),
+			'history, per_page 100, page 1'  => array( '/workflow/post/%d/history', array( 'per_page' => 100, 'page' => 1 ) ),
+		);
+	}
+
+	/**
+	 * @dataProvider pages_the_editor_asks_for
+	 */
+	public function test_a_list_route_answers_a_page_inside_its_bounds( string $route, array $params ): void {
+		$response = $this->get( sprintf( $route, self::factory()->post->create() ), $params );
+
+		$this->assertSame( 200, $response->get_status() );
 	}
 }
