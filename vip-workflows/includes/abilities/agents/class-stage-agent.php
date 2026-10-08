@@ -16,6 +16,7 @@ declare( strict_types=1 );
 namespace VIPWorkflows\Abilities\Agents;
 
 use VIPWorkflows\AI\AiInference;
+use VIPWorkflows\Integrations\HourlyLimit;
 use VIPWorkflows\Integrations\LlmTextGenerator;
 use WordPress\AiClient\Providers\Http\DTO\RequestOptions;
 
@@ -168,30 +169,11 @@ class StageAgent {
 			return true;
 		}
 
-		$user_id = get_current_user_id();
-		if ( $user_id <= 0 ) {
-			return true;
-		}
-
-		$limit = (int) apply_filters( 'vip_workflows_ai_hourly_limit', 0 );
-		if ( $limit <= 0 ) {
-			return true;
-		}
-
-		$key   = 'vip_workflows_ai_rate_' . $user_id;
-		$count = (int) get_transient( $key );
-
-		if ( $count >= $limit ) {
-			return new \WP_Error(
-				'vip_workflows_ai_rate_limited',
-				__( 'This account has reached its hourly limit for AI runs. Try again later.', 'vip-workflows' ),
-				array( 'status' => 429 )
-			);
-		}
-
-		set_transient( $key, $count + 1, HOUR_IN_SECONDS );
-
-		return true;
+		return HourlyLimit::spend(
+			'ai',
+			0,
+			__( 'This account has reached its hourly limit for AI runs.', 'vip-workflows' )
+		);
 	}
 
 	/**

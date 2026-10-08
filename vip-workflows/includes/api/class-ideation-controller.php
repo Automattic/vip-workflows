@@ -16,6 +16,7 @@ use VIPWorkflows\AI\PromptRegistry;
 use VIPWorkflows\AI\AiInference;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 use VIPWorkflows\Integrations\DraftBuilder;
+use VIPWorkflows\Integrations\HourlyLimit;
 use VIPWorkflows\Integrations\SsrfGuard;
 use VIPWorkflows\Integrations\UploadsPathGuard;
 use VIPWorkflows\Integrations\LlmJsonGenerator;
@@ -80,6 +81,22 @@ class IdeationController extends WP_REST_Controller {
 	 * @var int
 	 */
 	private const DRAFT_MAX_TOKENS = LlmTextGenerator::THINKING_FLOOR + 6000;
+
+	/**
+	 * Images an account may generate in an hour, by default.
+	 *
+	 * The filter `vip_workflows_image_generation_hourly_limit` changes it;
+	 * 0 switches it off.
+	 */
+	private const DEFAULT_IMAGES_PER_HOUR = 30;
+
+	/**
+	 * Images one project may have generated for it in an hour, by default.
+	 *
+	 * The filter `vip_workflows_project_image_generation_hourly_limit` changes
+	 * it; 0 switches it off.
+	 */
+	private const DEFAULT_IMAGES_PER_PROJECT_PER_HOUR = 20;
 
 	/**
 	 * Orchestrator.
@@ -650,6 +667,27 @@ class IdeationController extends WP_REST_Controller {
 	public function generate_image( WP_REST_Request $request ): WP_REST_Response|WP_Error {
 		$project_id = (int) $request->get_param( 'id' );
 		$prompt     = $request->get_param( 'prompt' );
+
+		// Each image is a call to the generative provider, so an account gets
+		// so many an hour, and so does a project.
+		$allowed = HourlyLimit::spend(
+			'image_generation',
+			self::DEFAULT_IMAGES_PER_HOUR,
+			__( 'This account has reached its hourly limit for generated images.', 'vip-workflows' )
+		);
+		if ( is_wp_error( $allowed ) ) {
+			return $allowed;
+		}
+
+		$allowed = HourlyLimit::spend(
+			'project_image_generation',
+			self::DEFAULT_IMAGES_PER_PROJECT_PER_HOUR,
+			__( 'This project has reached its hourly limit for generated images.', 'vip-workflows' ),
+			$project_id
+		);
+		if ( is_wp_error( $allowed ) ) {
+			return $allowed;
+		}
 
 		$result = $this->orchestrator->generate_image( $project_id, $prompt );
 		if ( is_wp_error( $result ) ) {
