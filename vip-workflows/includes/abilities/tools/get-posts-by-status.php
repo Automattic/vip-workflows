@@ -21,7 +21,7 @@ function execute_get_posts_by_status( ?array $input = null ) {
 	$input     = $input ?? array();
 	$status    = $input['status'] ?? null;
 	$post_type = $input['post_type'] ?? 'post';
-	$limit     = min( (int) ( $input['limit'] ?? 20 ), 50 );
+	$limit     = bounded_int( $input, 'limit', 20, 1, 50 );
 
 	if ( empty( $status ) ) {
 		return new \WP_Error( 'missing_status', __( 'The "status" parameter is required.', 'vip-workflows' ) );
@@ -102,6 +102,8 @@ function register_get_posts_by_status(): void {
 						'type'        => 'integer',
 						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflows' ),
 						'default'     => 20,
+						'minimum'     => 1,
+						'maximum'     => 50,
 					),
 				),
 			),

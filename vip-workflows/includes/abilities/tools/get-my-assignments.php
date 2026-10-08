@@ -21,7 +21,7 @@ function execute_get_my_assignments( ?array $input = null ) {
 	$input   = $input ?? array();
 	$user_id = get_current_user_id();
 	$status  = $input['status'] ?? null;
-	$limit   = min( (int) ( $input['limit'] ?? 20 ), 50 );
+	$limit   = bounded_int( $input, 'limit', 20, 1, 50 );
 
 	if ( ! $user_id ) {
 		return new \WP_Error( 'not_logged_in', __( 'User must be logged in.', 'vip-workflows' ) );
@@ -102,6 +102,8 @@ function register_get_my_assignments(): void {
 						'type'        => 'integer',
 						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflows' ),
 						'default'     => 20,
+						'minimum'     => 1,
+						'maximum'     => 50,
 					),
 				),
 			),
