@@ -116,6 +116,7 @@ Every security fix should include at least one negative test that proves the old
 Minimum examples:
 
 - Contributor cannot read another author's post-derived ability result, AI transcript, ideation project, or story.
+- A caller with the feature capability (`edit_posts`) and no access to a row — a Contributor and another author's draft — gets no row from a list route or ability, and a count scoped to their own posts. Each list surface has one; `docs/reference/code-patterns.md` §13 names the checks.
 - Nested options cannot override a checked `post_id`.
 - Model output containing `<script>` or `<img onerror>` renders inert.
 - `get_attached_file()` resolving outside uploads does not reach file readers or AI clients.

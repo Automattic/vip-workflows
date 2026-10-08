@@ -232,8 +232,8 @@ class Story implements ModuleInterface {
 
 		$table = $wpdb->prefix . 'vip_story_objects';
 
-		if ( $type ) {
-			return $wpdb->get_results(
+		$results = $type
+			? $wpdb->get_results(
 				$wpdb->prepare(
 					'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d AND object_type = %s ORDER BY added_at ASC',
 					$table,
@@ -241,18 +241,16 @@ class Story implements ModuleInterface {
 					$type
 				),
 				ARRAY_A
+			)
+			: $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d ORDER BY added_at ASC',
+					$table,
+					$this->post->ID
+				),
+				ARRAY_A
 			);
-			return $results ? $results : array();
-		}
 
-		$results = $wpdb->get_results(
-			$wpdb->prepare(
-				'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d ORDER BY added_at ASC',
-				$table,
-				$this->post->ID
-			),
-			ARRAY_A
-		);
 		return $results ? $results : array();
 	}
 
@@ -302,15 +300,27 @@ class Story implements ModuleInterface {
 
 	/**
 	 * Serialize for API responses.
+	 *
+	 * `objects` names only the linked objects the current user can read. A
+	 * story outlives the hands it passes through — the writer of a
+	 * commissioned post need not be able to read the project it came from, and
+	 * the ideator need not be able to read the draft written from it — so the
+	 * link alone does not put an object's title in front of a reader. Both
+	 * object post types map `read_post` through core's post capabilities.
 	 */
 	public function to_array(): array {
 		$objects = $this->get_objects();
 
 		$object_summary = array();
 		foreach ( $objects as $obj ) {
-			$post = get_post( (int) $obj['object_id'] );
+			$object_id = (int) $obj['object_id'];
+			if ( ! current_user_can( 'read_post', $object_id ) ) {
+				continue;
+			}
+
+			$post             = get_post( $object_id );
 			$object_summary[] = array(
-				'id'    => (int) $obj['object_id'],
+				'id'    => $object_id,
 				'type'  => $obj['object_type'],
 				'title' => $post ? $post->post_title : '',
 			);
