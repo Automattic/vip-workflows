@@ -11,6 +11,8 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Abilities\Tools;
 
+require_once __DIR__ . '/helpers.php';
+
 /**
  * Execute the stale posts query.
  *
@@ -96,7 +98,7 @@ function register_get_stale_posts(): void {
 				'properties'           => array(
 					'threshold_days' => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of days without modification to be considered stale (default 3).', 'vip-workflows' ),
+						'description' => __( 'Number of days without modification to be considered stale (default 3, minimum 1, maximum 365).', 'vip-workflows' ),
 						'default'     => 3,
 						'minimum'     => 1,
 						'maximum'     => 365,
@@ -107,7 +109,7 @@ function register_get_stale_posts(): void {
 					),
 					'limit'          => array(
 						'type'        => 'integer',
-						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflows' ),
+						'description' => __( 'Maximum number of results (default 20, minimum 1, maximum 50).', 'vip-workflows' ),
 						'default'     => 20,
 						'minimum'     => 1,
 						'maximum'     => 50,

@@ -11,6 +11,8 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Abilities\Tools;
 
+require_once __DIR__ . '/helpers.php';
+
 /**
  * Execute the recent activity query.
  *
@@ -96,14 +98,14 @@ function register_get_recent_activity(): void {
 				'properties'           => array(
 					'days'  => array(
 						'type'        => 'integer',
-						'description' => __( 'Number of days to look back (default 7, max 30).', 'vip-workflows' ),
+						'description' => __( 'Number of days to look back (default 7, minimum 1, maximum 30).', 'vip-workflows' ),
 						'default'     => 7,
 						'minimum'     => 1,
 						'maximum'     => 30,
 					),
 					'limit' => array(
 						'type'        => 'integer',
-						'description' => __( 'Maximum number of events (default 20, max 50).', 'vip-workflows' ),
+						'description' => __( 'Maximum number of events (default 20, minimum 1, maximum 50).', 'vip-workflows' ),
 						'default'     => 20,
 						'minimum'     => 1,
 						'maximum'     => 50,

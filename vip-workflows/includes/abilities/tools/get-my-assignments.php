@@ -11,6 +11,8 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Abilities\Tools;
 
+require_once __DIR__ . '/helpers.php';
+
 /**
  * Execute the assignments query.
  *
@@ -100,7 +102,7 @@ function register_get_my_assignments(): void {
 					),
 					'limit'  => array(
 						'type'        => 'integer',
-						'description' => __( 'Maximum number of results (default 20, max 50).', 'vip-workflows' ),
+						'description' => __( 'Maximum number of results (default 20, minimum 1, maximum 50).', 'vip-workflows' ),
 						'default'     => 20,
 						'minimum'     => 1,
 						'maximum'     => 50,

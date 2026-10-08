@@ -11,6 +11,8 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Abilities\Tools;
 
+require_once __DIR__ . '/helpers.php';
+
 /**
  * Execute the transition history query.
  *
@@ -83,7 +85,7 @@ function register_get_transition_history(): void {
 					),
 					'limit'   => array(
 						'type'        => 'integer',
-						'description' => __( 'Maximum number of entries (default 20, max 50).', 'vip-workflows' ),
+						'description' => __( 'Maximum number of entries (default 20, minimum 1, maximum 50).', 'vip-workflows' ),
 						'default'     => 20,
 						'minimum'     => 1,
 						'maximum'     => 50,

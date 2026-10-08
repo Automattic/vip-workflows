@@ -48,7 +48,7 @@ class BoundedToolInputsTest extends TestCase {
 
 		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
-		$this->sequence_id = (int) ( new SequenceRepository() )->create(
+		$sequence_id = ( new SequenceRepository() )->create(
 			'Bounded Flow',
 			'bounded-flow',
 			'',
@@ -61,6 +61,9 @@ class BoundedToolInputsTest extends TestCase {
 			),
 			get_current_user_id()
 		);
+
+		$this->assertNotFalse( $sequence_id, 'The sequence the posts belong to was created.' );
+		$this->sequence_id = $sequence_id;
 	}
 
 	/**
@@ -146,11 +149,14 @@ class BoundedToolInputsTest extends TestCase {
 	 */
 	public static function inputs_at_the_bounds(): array {
 		return array(
-			'get-posts-by-status, limit 1'       => array( 'vip-workflows/get-posts-by-status', array( 'status' => 'draft', 'limit' => 1 ) ),
-			'get-posts-by-status, limit 50'      => array( 'vip-workflows/get-posts-by-status', array( 'status' => 'draft', 'limit' => 50 ) ),
-			'get-my-assignments, limit 50'       => array( 'vip-workflows/get-my-assignments', array( 'limit' => 50 ) ),
+			'get-posts-by-status, limit 1'        => array( 'vip-workflows/get-posts-by-status', array( 'status' => 'draft', 'limit' => 1 ) ),
+			'get-posts-by-status, limit 50'       => array( 'vip-workflows/get-posts-by-status', array( 'status' => 'draft', 'limit' => 50 ) ),
+			'get-my-assignments, limit 1'         => array( 'vip-workflows/get-my-assignments', array( 'limit' => 1 ) ),
+			'get-my-assignments, limit 50'        => array( 'vip-workflows/get-my-assignments', array( 'limit' => 50 ) ),
+			'get-stale-posts, threshold_days 1'   => array( 'vip-workflows/get-stale-posts', array( 'threshold_days' => 1, 'limit' => 50 ) ),
 			'get-stale-posts, threshold_days 365' => array( 'vip-workflows/get-stale-posts', array( 'threshold_days' => 365, 'limit' => 1 ) ),
-			'get-recent-activity, days 30'       => array( 'vip-workflows/get-recent-activity', array( 'days' => 30, 'limit' => 1 ) ),
+			'get-recent-activity, days 1'         => array( 'vip-workflows/get-recent-activity', array( 'days' => 1, 'limit' => 50 ) ),
+			'get-recent-activity, days 30'        => array( 'vip-workflows/get-recent-activity', array( 'days' => 30, 'limit' => 1 ) ),
 		);
 	}
 
@@ -161,6 +167,20 @@ class BoundedToolInputsTest extends TestCase {
 		$result = $this->run_tool( $ability_id, $input );
 
 		$this->assertIsArray( $result );
+	}
+
+	/**
+	 * The same control for the tool whose required input is a post that must
+	 * exist, which a static provider cannot create.
+	 */
+	public function test_transition_history_accepts_a_limit_at_each_bound(): void {
+		$post_id = self::factory()->post->create();
+
+		foreach ( array( 1, 50 ) as $limit ) {
+			$result = $this->run_tool( 'vip-workflows/get-transition-history', array( 'post_id' => $post_id, 'limit' => $limit ) );
+
+			$this->assertIsArray( $result, "limit $limit" );
+		}
 	}
 
 	// ─── The callback bounds the value again ────────────────────
@@ -249,22 +269,26 @@ class BoundedToolInputsTest extends TestCase {
 	}
 
 	/**
-	 * The control: each route, asked for the largest page the editor asks for.
+	 * The control: each route, asked for a page at each of its bounds. The
+	 * editor itself asks for at most 50 (ideation, users) or 5 (history).
 	 *
 	 * @return array<string, array{0: string, 1: array}>
 	 */
-	public static function pages_the_editor_asks_for(): array {
+	public static function pages_at_the_bounds(): array {
 		return array(
+			'ideation, per_page 1'           => array( '/ideation', array( 'per_page' => 1 ) ),
 			'ideation, per_page 50'          => array( '/ideation', array( 'per_page' => 50 ) ),
+			'assignable users, per_page 1'   => array( '/assignable-users', array( 'per_page' => 1 ) ),
 			'assignable users, per_page 100' => array( '/assignable-users', array( 'per_page' => 100 ) ),
+			'history, per_page 1, page 1'    => array( '/workflow/post/%d/history', array( 'per_page' => 1, 'page' => 1 ) ),
 			'history, per_page 100, page 1'  => array( '/workflow/post/%d/history', array( 'per_page' => 100, 'page' => 1 ) ),
 		);
 	}
 
 	/**
-	 * @dataProvider pages_the_editor_asks_for
+	 * @dataProvider pages_at_the_bounds
 	 */
-	public function test_a_list_route_answers_a_page_inside_its_bounds( string $route, array $params ): void {
+	public function test_a_list_route_answers_a_page_at_a_bound( string $route, array $params ): void {
 		$response = $this->get( sprintf( $route, self::factory()->post->create() ), $params );
 
 		$this->assertSame( 200, $response->get_status() );
