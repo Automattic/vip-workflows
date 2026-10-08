@@ -17,6 +17,11 @@
  * (`getTransitioningTo`), which is what keeps the rail and the header button
  * disabled together while either one's move runs.
  *
+ * Following a move into an AI stage is part of the same job, for the same
+ * reason: the header can start one with the sidebar closed, so the poll that
+ * waits for the agent and the reload that brings its rewrite into the editor
+ * live here too, not in the sidebar panel.
+ *
  * @package
  */
 
@@ -52,6 +57,43 @@ import { ToolFailuresModal } from '../../common/ToolFailuresModal';
  * @type {string}
  */
 const HEADER_NOTICE_ID = 'vip-workflows-transition-refused';
+
+/**
+ * The id of the notice offering a reload after a stage agent rewrote the post
+ * under unsaved edits.
+ *
+ * @type {string}
+ */
+const AGENT_REFRESH_NOTICE_ID = 'vip-workflows-agent-refresh';
+
+/**
+ * Resolves once core is not in the middle of saving the post.
+ *
+ * savePost() returns at once, without saving, while another save is in flight
+ * — the Save draft pressed a moment ago, the autosave tick — and the post
+ * still reads as dirty until that one lands. Asked then, the flow would take a
+ * save that is about to succeed for one that failed.
+ *
+ * @param {Object} registry Data registry.
+ * @return {Promise<void>} Settles when no save is in flight.
+ */
+function whenSaveSettles( registry ) {
+	const { isSavingPost } = registry.select( editorStore );
+
+	return new Promise( ( resolve ) => {
+		if ( ! isSavingPost() ) {
+			resolve();
+			return;
+		}
+
+		const unsubscribe = registry.subscribe( () => {
+			if ( ! isSavingPost() ) {
+				unsubscribe();
+				resolve();
+			}
+		} );
+	} );
+}
 
 /**
  * Runs the transitions the rail and the header button ask for.
@@ -97,11 +139,24 @@ export function TransitionFlow() {
 
 	// Which surface asked for the move being run, so its refusal is reported
 	// where the author is looking. Survives the warnings re-fire, which is the
-	// same move continued.
+	// same move continued. 'header' is the editor's own notice area, which is
+	// on screen whatever sidebar is open — so it is also where a refusal goes
+	// when no surface asked (the agent-held warnings below).
 	const sourceRef = useRef( 'panel' );
 
+	// Whether an agent job has been seen pending in this session, so the
+	// pending → finished edge can be acted on.
+	const wasAgentPendingRef = useRef( false );
+
+	// Set once a stage agent has finished under this editor and no reload
+	// followed — unsaved edits were in the way, or its route is being held.
+	// Until a reload the database holds what the agent wrote and the editor an
+	// older copy, so a move must not save that copy back over it.
+	const agentOutranEditorRef = useRef( false );
+
 	const { savePost } = useDispatch( editorStore );
-	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
+	const { createErrorNotice, createInfoNotice, removeNotice } =
+		useDispatch( noticesStore );
 	const {
 		fetchWorkflowStatus,
 		receiveWorkflowStatus,
@@ -135,6 +190,83 @@ export function TransitionFlow() {
 		removeNotice( HEADER_NOTICE_ID );
 	};
 
+	// While an agent is working, poll so every surface picks up the outcome
+	// (transition away, or fail-in-place) without a manual reload.
+	useEffect( () => {
+		if ( ! agentIsPending ) {
+			return;
+		}
+
+		const interval = setInterval( () => fetchWorkflowStatus(), 5000 );
+		return () => clearInterval( interval );
+	}, [ agentIsPending, fetchWorkflowStatus ] );
+
+	// When a stage agent finishes, the post it rewrote lives in the database but
+	// this open editor still shows the pre-agent content. React to the pending →
+	// finished edge: auto-reload when the editor is clean (nothing to lose), or
+	// offer a reload when there are unsaved edits so we never discard the
+	// user's in-progress work without asking. The offer is an editor notice
+	// rather than something drawn in the sidebar, which may not be open.
+	useEffect( () => {
+		const wasPending = wasAgentPendingRef.current;
+		wasAgentPendingRef.current = agentIsPending;
+
+		// Only act on a pending → not-pending edge we actually observed this
+		// session (ignore the initial mount and steady states).
+		if ( ! wasPending || agentIsPending ) {
+			return;
+		}
+
+		// A fail-in-place or held warning keeps the post in the AI stage; its
+		// dedicated UI handles the next human action and no refresh is needed.
+		if (
+			[ 'failed', 'warnings_pending' ].includes( agentJobState?.status )
+		) {
+			// A held route is a finished run: the agent wrote before it was
+			// stopped, and Continue must not save the editor's copy over it.
+			if ( 'warnings_pending' === agentJobState.status ) {
+				agentOutranEditorRef.current = true;
+			}
+			return;
+		}
+
+		// The agent finished and routed the post onward. Pull its result in.
+		if ( registry.select( editorStore ).isEditedPostDirty() ) {
+			// A: let the user choose (keeps edits).
+			agentOutranEditorRef.current = true;
+			createInfoNotice(
+				__(
+					'The AI agent updated this post. Reload to see its changes — this discards your unsaved edits.',
+					'vip-workflows'
+				),
+				{
+					id: AGENT_REFRESH_NOTICE_ID,
+					isDismissible: true,
+					actions: [
+						{
+							label: __( 'Reload', 'vip-workflows' ),
+							onClick: () => window.location.reload(),
+							variant: 'primary',
+						},
+					],
+				}
+			);
+		} else {
+			// B: clean editor — reload discards nothing. Held just long
+			// enough for the rail's outcome flash and its announcement to
+			// land first; nobody clicked, so the flash is the only thing
+			// saying which way the agent routed.
+			const timer = setTimeout( () => window.location.reload(), 800 );
+			return () => clearTimeout( timer );
+		}
+	}, [
+		agentIsPending,
+		workflow,
+		agentJobState,
+		registry,
+		createInfoNotice,
+	] );
+
 	// A stage agent cannot decide whether to proceed past a soft warning. Its
 	// held route uses the same confirmation dialog as a human-started
 	// transition, then retries the exact destination as the current person.
@@ -142,6 +274,10 @@ export function TransitionFlow() {
 		if ( agentJobState?.status !== 'warnings_pending' ) {
 			return;
 		}
+
+		// Nobody pressed anything for this dialog to open, and the sidebar may
+		// be closed, so a refusal of its Continue goes to the editor notice.
+		sourceRef.current = 'header';
 
 		setWarningsModal( {
 			toStatus: agentJobState.to_status,
@@ -172,6 +308,23 @@ export function TransitionFlow() {
 		inputData = null,
 		comment = ''
 	) => {
+		const editor = registry.select( editorStore );
+
+		// Core can point the editor at another entity in place — "Edit
+		// original" on a synced pattern, "Edit template" — while this plugin
+		// stays mounted for the post the page was loaded with. Everything
+		// below reads and saves the editor's current post, so a move run from
+		// there would save the pattern and send on a post nobody saved.
+		if ( editor.getCurrentPostId() !== postId ) {
+			reportError(
+				__(
+					'Go back to the post before moving it through its workflow.',
+					'vip-workflows'
+				)
+			);
+			return;
+		}
+
 		setTransitioningTo( toStatus );
 		clearErrors();
 		setToolFailures( null );
@@ -195,24 +348,49 @@ export function TransitionFlow() {
 		// in the editor store. So a dirty post is saved first, every time —
 		// the header button stands where Publish did, and pressing it carries
 		// the same promise that the work on screen is the work that moves on.
+		// "Saved" has to mean it, though: a save core has in flight is waited
+		// out rather than raced, and one core has locked is not forced.
 		const targetTransition = transitions.find( ( t ) => t.to === toStatus );
 		const targetIsAiStage =
 			!! targetTransition?.status_info?.agent?.ability_id;
-		const editor = registry.select( editorStore );
-		const wasDirty = editor.isEditedPostDirty();
-		const ensureSaved = wasDirty ? savePost() : Promise.resolve();
+		let wasDirty = false;
 
-		ensureSaved
+		whenSaveSettles( registry )
+			.then( () => {
+				// The one exception to saving first: an editor a stage agent
+				// has outrun holds the older copy, and saving it would undo
+				// the agent's work without a word. The move goes on what the
+				// database holds; the reload notice settles the rest.
+				wasDirty =
+					! agentOutranEditorRef.current &&
+					editor.isEditedPostDirty();
+
+				if ( ! wasDirty ) {
+					return;
+				}
+
+				// Core's own save controls stand down while saving is locked
+				// — an upload still in flight, a plugin's pre-publish check —
+				// but savePost() itself never asks.
+				if ( editor.isPostSavingLocked() ) {
+					throw {
+						code: 'save_locked',
+						message: __(
+							'The post cannot be saved yet, so it was not moved. Wait for any upload to finish, then try again.',
+							'vip-workflows'
+						),
+					};
+				}
+
+				return savePost();
+			} )
 			.then( () => {
 				// savePost() resolves even when the save request fails (the error
 				// is recorded in the editor store). If the post is still dirty the
 				// content never persisted, so bail rather than send a transition
 				// the server will judge against a row that is not what the author
 				// is looking at.
-				if (
-					wasDirty &&
-					registry.select( editorStore ).isEditedPostDirty()
-				) {
+				if ( wasDirty && editor.isEditedPostDirty() ) {
 					throw {
 						code: 'save_failed',
 						message: targetIsAiStage
@@ -388,10 +566,14 @@ export function TransitionFlow() {
 		// yes — core's own Publish button asks for one — so it is asked here,
 		// once, before any input modal. Already-live posts are exempt on both
 		// sides of the check: a move between two publish-region stages writes
-		// nothing, and a live post seated at a draft-region stage (the
+		// no status, and a live post seated at a draft-region stage (the
 		// boundary anomaly) is already public, so there is no news to confirm.
 		// A scheduled post is NOT exempt — its stage stayed put, so the
 		// crossing still happens and publishes it now, ahead of its schedule.
+		//
+		// This asks about the status only. The save that precedes every move
+		// (handleTransition) is not covered: on a live post it puts the
+		// editor's unsaved edits live without a question of its own.
 		const publishes =
 			transition.status_info?.status === 'publish' &&
 			workflow?.current?.status !== 'publish' &&
@@ -453,6 +635,14 @@ export function TransitionFlow() {
 		}
 
 		clearTransitionRequest();
+
+		// One move at a time. The surfaces disable themselves while one runs,
+		// but the rail leaves the button in flight pressable, and a second run
+		// would race the first one's save and its request.
+		if ( transitioning ) {
+			return;
+		}
+
 		sourceRef.current = request.source;
 		handleTransitionClick( request.transition, request.anchor );
 		// Only a new request starts a move; the handler is rebuilt every

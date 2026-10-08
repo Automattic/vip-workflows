@@ -5,8 +5,21 @@
  */
 
 /* Core's Publish button, while the workflow button stands in for it. The class
-   is on <body> only while the split button is mounted (WorkflowHeaderAction). */
-.vip-workflows-replaces-publish .editor-header .editor-post-publish-button__button {
+   is on <body> only while the split button is mounted (WorkflowHeaderAction).
+
+   Mounted is not visible. In distraction-free mode core still renders the
+   pinned-items slot but hides it, so the rule stands down there: better core's
+   button and its refusal than a header with no way forward at all.
+
+   `body.` is for weight. Core gives the pre-publish toggle — the Publish most
+   people see — a three-class `display` rule of its own, and without the type
+   selector this one would beat it only by loading later.
+
+   The second selector is the same control's other door: the "Open publish
+   panel" button core keeps off screen for keyboard and screen-reader users,
+   which leads to the same Publish. */
+body.vip-workflows-replaces-publish .editor-editor-interface:not(.is-distraction-free) .editor-header .editor-post-publish-button__button,
+body.vip-workflows-replaces-publish .editor-editor-interface:not(.is-distraction-free) .editor-layout__toggle-publish-panel {
 	display: none;
 }
 

@@ -113,6 +113,12 @@ describe( 'replacesCorePublish', () => {
 		expect( replacesCorePublish( payload(), [] ) ).toBe( false );
 	} );
 
+	it( 'keeps core controls while its one button is the post’s Save', () => {
+		expect( replacesCorePublish( payload(), [ REVIEW ], true ) ).toBe(
+			false
+		);
+	} );
+
 	it( 'keeps core controls for a post with no workflow', () => {
 		expect(
 			replacesCorePublish( { has_workflow: false }, [ REVIEW ] )

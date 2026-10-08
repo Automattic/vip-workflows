@@ -64,7 +64,9 @@ register(
 		selectors: {
 			getEditedPostAttribute: () => 'draft',
 			getCurrentPostAttribute: () => 'draft',
+			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => false,
+			isSavingPost: () => false,
 		},
 		actions: { savePost: () => ( { type: 'NOOP' } ) },
 	} )

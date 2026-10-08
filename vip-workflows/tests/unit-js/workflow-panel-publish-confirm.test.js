@@ -65,7 +65,9 @@ register(
 		selectors: {
 			getEditedPostAttribute: () => mockSavedStatus,
 			getCurrentPostAttribute: () => mockSavedStatus,
+			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => false,
+			isSavingPost: () => false,
 		},
 		actions: { savePost: () => ( { type: 'NOOP' } ) },
 	} )

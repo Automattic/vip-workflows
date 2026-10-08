@@ -50,13 +50,41 @@ export const REPLACES_PUBLISH_CLASS = 'vip-workflows-replaces-publish';
  * @return {?JSX.Element} The header fill, or null when there is no move to offer.
  */
 export function WorkflowHeaderAction() {
-	const { workflow, transitioningTo, postStatus } = useSelect( ( select ) => {
+	const {
+		workflow,
+		transitioningTo,
+		postStatus,
+		savedStatus,
+		onWorkflowPost,
+		coreButtonSaves,
+	} = useSelect( ( select ) => {
 		const s = select( STORE_NAME );
+		const editor = select( editorStore );
+		const edited = editor.getEditedPostAttribute( 'status' );
+		const saved = editor.getCurrentPostAttribute( 'status' );
 		return {
 			workflow: s.getWorkflowStatus(),
 			transitioningTo: s.getTransitioningTo(),
-			postStatus:
-				select( editorStore ).getEditedPostAttribute( 'status' ),
+			postStatus: edited,
+			savedStatus: saved,
+			// Core can point this same editor at another entity in place
+			// ("Edit original" on a synced pattern, "Edit template") while
+			// the plugin stays mounted for the post the page was loaded
+			// with. The header is that other entity's then, not the post's.
+			onWorkflowPost: editor.getCurrentPostId() === s.getPostId(),
+			// Core draws ONE header button for several jobs, and it is only
+			// a Publish while the post is plainly unpublished. Once the post
+			// is published or private, a status has been picked in Summary,
+			// another entity has changes to save, or a person who cannot
+			// publish has a pending post, that button is the Save — and in
+			// each of those but the third, core has taken "Save draft" away,
+			// so it is the only one. Mirrors PostPublishButton's own rules.
+			coreButtonSaves:
+				editor.isCurrentPostPublished() ||
+				edited !== saved ||
+				editor.hasNonPostEntityChanges() ||
+				( 'pending' === saved &&
+					! editor.getCurrentPost()._links?.[ 'wp:action-publish' ] ),
 		};
 	}, [] );
 	const { transitions } = useRequiredMetadataGate();
@@ -65,16 +93,22 @@ export function WorkflowHeaderAction() {
 
 	// The header is on screen from the first paint, whether or not the
 	// Workflow sidebar is ever opened, so it asks for the post's workflow
-	// state itself. The store makes this the same one read the sidebar uses.
+	// state itself — and asks again when the post's persisted status changes.
+	// A status core wrote (its own Publish for a person who bypasses the
+	// workflow, a status picked in Summary) re-seats the post at another stage
+	// on the server, and nothing else here would hear of it: the button would
+	// go on offering the move out of the stage the post has left.
 	useEffect( () => {
 		fetchWorkflowStatus();
-	}, [ fetchWorkflowStatus ] );
+	}, [ fetchWorkflowStatus, savedStatus ] );
 
 	// The main half. Held in state as well as used as the popover anchor: the
 	// header does not render the pinned-items slot at every width and
 	// preference (core skips it when icon labels are on and the viewport is
 	// not wide), and core's Publish button may only be hidden while this one
-	// is actually on screen to stand in for it.
+	// is there to stand in for it. Rendered is not the same as visible — in
+	// distraction-free mode core hides the whole slot with CSS — which is the
+	// stylesheet's half of this rule (WorkflowHeaderAction.css).
 	const mainRef = useRef( null );
 	const [ mounted, setMounted ] = useState( false );
 	const setMain = useCallback( ( node ) => {
@@ -84,8 +118,12 @@ export function WorkflowHeaderAction() {
 
 	const primary = getPrimaryTransition( transitions );
 	const shown =
-		!! workflow?.has_workflow && ! workflow.orphaned && !! primary;
-	const replaces = shown && replacesCorePublish( workflow, transitions );
+		onWorkflowPost &&
+		!! workflow?.has_workflow &&
+		! workflow.orphaned &&
+		!! primary;
+	const replaces =
+		shown && replacesCorePublish( workflow, transitions, coreButtonSaves );
 	const hideCorePublish = replaces && mounted;
 
 	useEffect( () => {
@@ -128,11 +166,14 @@ export function WorkflowHeaderAction() {
 	return (
 		<Fill name="PinnedItems/core">
 			<div className="vip-workflows-header-action">
-				{ locked && primary._locked_reason ? (
-					<Tooltip text={ primary._locked_reason }>{ main }</Tooltip>
-				) : (
-					main
-				) }
+				{ /* Always wrapped, with nothing to say unless the move is
+				     held: wrapping only while locked would swap the element
+				     at this position each time the lock came or went, and
+				     React would rebuild the button — dropping focus from it
+				     and detaching the node the flow anchors a popover to. */ }
+				<Tooltip text={ locked ? primary._locked_reason : undefined }>
+					{ main }
+				</Tooltip>
 				<Dropdown
 					className="vip-workflows-header-action__more"
 					contentClassName="vip-workflows-header-action__popover"

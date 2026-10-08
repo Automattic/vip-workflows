@@ -95,7 +95,10 @@ register(
 			getEditedPostAttribute: ( state, attribute ) =>
 				'meta' === attribute ? editedMeta : 'draft',
 			getCurrentPostAttribute: () => 'draft',
+			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => postIsDirty,
+			isSavingPost: () => false,
+			isPostSavingLocked: () => false,
 		},
 		actions: { savePost },
 	} )
@@ -390,6 +393,64 @@ describe( 'WorkflowPanel required-field refusal', () => {
 
 		expect(
 			screen.queryByRole( 'dialog', { name: 'Transition blocked' } )
+		).not.toBeInTheDocument();
+		expect(
+			screen.getByText(
+				'You do not have permission to perform this transition.'
+			)
+		).toBeInTheDocument();
+	} );
+
+	/**
+	 * The panel reports its own failed writes and a refused move through one
+	 * notice, so the notice has to be about the last thing tried. A claim
+	 * failure left on screen must not stand in front of the reason a move was
+	 * refused — which would make the refusal look like a button doing nothing.
+	 */
+	it( 'shows a refused move in place of an earlier failure of the panel’s own', async () => {
+		apiFetch.mockImplementation( ( { path, method } ) => {
+			if ( path === STATUS_PATH && method !== 'POST' ) {
+				return Promise.resolve( {
+					...STATUS_RESPONSE,
+					can_claim: true,
+				} );
+			}
+			if ( path.endsWith( '/claim' ) ) {
+				return Promise.reject( {
+					message: 'Someone else claimed this post.',
+				} );
+			}
+			if ( 'POST' === method ) {
+				return Promise.reject( {
+					code: 'forbidden_transition',
+					message: 'Not yours to move.',
+				} );
+			}
+			return Promise.resolve( [] );
+		} );
+
+		render(
+			<>
+				<TransitionFlow />
+				<WorkflowPanel />
+			</>
+		);
+
+		const claim = await screen.findByRole( 'button', { name: 'Claim' } );
+		await act( async () => {
+			claim.click();
+		} );
+		expect(
+			screen.getByText( 'Someone else claimed this post.' )
+		).toBeInTheDocument();
+
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Send to Review' } ).click();
+		} );
+
+		expect( screen.getByText( 'Not yours to move.' ) ).toBeInTheDocument();
+		expect(
+			screen.queryByText( 'Someone else claimed this post.' )
 		).not.toBeInTheDocument();
 	} );
 

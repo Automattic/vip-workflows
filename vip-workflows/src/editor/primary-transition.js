@@ -53,16 +53,33 @@ const PRE_PUBLISH_REGIONS = [ 'draft', 'pending' ];
  * counts a post that is live or scheduled as publish-side whatever stage it
  * holds.
  *
- * @param {?Object} workflow    The status endpoint's payload.
- * @param {Array}   transitions The offered transitions.
+ * The region is not the whole of it, because core draws one header button for
+ * several jobs. On the draft side it is still the post's Save — and, with
+ * "Save draft" withdrawn, the only one — once a status has been picked in
+ * Summary, for a post published privately at a draft-region stage, for a
+ * pending post whose author cannot publish, and while another entity has
+ * changes to save. None of those can only fail, so none of them is hidden:
+ * the caller reads which it is off core's own store (`coreButtonSaves`).
+ *
+ * @param {?Object} workflow          The status endpoint's payload.
+ * @param {Array}   transitions       The offered transitions.
+ * @param {boolean} [coreButtonSaves] Core's button is acting as Save.
  * @return {boolean} True when core's Publish button should be hidden.
  */
-export function replacesCorePublish( workflow, transitions ) {
+export function replacesCorePublish(
+	workflow,
+	transitions,
+	coreButtonSaves = false
+) {
 	if ( ! workflow?.has_workflow || workflow.orphaned ) {
 		return false;
 	}
 
 	if ( ! getPrimaryTransition( transitions ) ) {
+		return false;
+	}
+
+	if ( coreButtonSaves ) {
 		return false;
 	}
 

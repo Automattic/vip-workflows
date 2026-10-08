@@ -17,7 +17,9 @@
  * Running a transition is not the panel's either. The editor header offers the
  * same moves (WorkflowHeaderAction), so the confirms, input popover and refusal
  * dialogs a move can open live in TransitionFlow, mounted once beside the save
- * guard; the rail here hands it a request through the store.
+ * guard; the rail here hands it a request through the store. Waiting on a stage
+ * agent went with it: the poll, and the reload once the agent has rewritten the
+ * post, have to run whether or not this sidebar is open.
  *
  * The state itself is not the panel's. It lives in the `vip-workflows/editor`
  * store, which performs the one read of the status endpoint and answers every
@@ -32,7 +34,6 @@
 import {
 	useState,
 	useEffect,
-	useRef,
 	lazy,
 	Fragment,
 	Suspense,
@@ -147,7 +148,6 @@ export function WorkflowPanel( { children } ) {
 	// go back. A transition's busy state is the store's (`transitioningTo`).
 	const [ writing, setWriting ] = useState( false );
 	const [ historyOpen, setHistoryOpen ] = useState( false );
-	const [ showRefreshPrompt, setShowRefreshPrompt ] = useState( false ); // agent finished with unsaved edits open
 	const [ actionError, setActionError ] = useState( null ); // every action failure — shown as a Notice, not a browser dialog
 
 	// Busy while either kind of write runs: nothing here starts while a move
@@ -165,9 +165,23 @@ export function WorkflowPanel( { children } ) {
 	const registry = useRegistry();
 	const [ confirm, confirmDialog ] = useConfirm();
 
-	// Tracks whether we have observed an agent job pending in this session, so
-	// we can react to the pending → finished edge.
-	const wasAgentPendingRef = useRef( false );
+	// One notice reports two kinds of failure: the panel's own writes
+	// (`actionError`) and a refused move (`transitionError`, the flow's). Each
+	// new attempt of either kind starts from a clean notice, so the message on
+	// screen is always about the last thing that was tried.
+	const clearErrors = () => {
+		setActionError( null );
+		setTransitionError( null );
+	};
+
+	// A move can start outside this panel (the header button, the agent-held
+	// warnings dialog), where nothing here is called — so the panel's own
+	// leftover error is dropped when one goes in flight, not on a click.
+	useEffect( () => {
+		if ( null !== transitioningTo ) {
+			setActionError( null );
+		}
+	}, [ transitioningTo ] );
 
 	const isWorkflowRequired = workflowEnforcement === 'require';
 
@@ -184,55 +198,6 @@ export function WorkflowPanel( { children } ) {
 	useEffect( () => {
 		fetchWorkflowStatus();
 	}, [ fetchWorkflowStatus ] );
-
-	// While an agent is working, poll so the panel picks up the outcome
-	// (transition away, or fail-in-place) without a manual reload.
-	const agentIsPending = !! workflow?.agent_pending;
-	const agentJobState = workflow?.agent_job;
-	useEffect( () => {
-		if ( ! agentIsPending ) {
-			return;
-		}
-
-		const interval = setInterval( () => fetchWorkflowStatus(), 5000 );
-		return () => clearInterval( interval );
-	}, [ agentIsPending, fetchWorkflowStatus ] );
-
-	// When a stage agent finishes, the post it rewrote lives in the database but
-	// this open editor still shows the pre-agent content. React to the pending →
-	// finished edge: auto-reload when the editor is clean (nothing to lose), or
-	// surface a reload prompt when there are unsaved edits so we never discard
-	// the user's in-progress work without asking.
-	useEffect( () => {
-		const wasPending = wasAgentPendingRef.current;
-		wasAgentPendingRef.current = agentIsPending;
-
-		// Only act on a pending → not-pending edge we actually observed this
-		// session (ignore the initial mount and steady states).
-		if ( ! wasPending || agentIsPending ) {
-			return;
-		}
-
-		// A fail-in-place or held warning keeps the post in the AI stage; its
-		// dedicated UI handles the next human action and no refresh is needed.
-		if (
-			[ 'failed', 'warnings_pending' ].includes( agentJobState?.status )
-		) {
-			return;
-		}
-
-		// The agent finished and routed the post onward. Pull its result in.
-		if ( registry.select( editorStore ).isEditedPostDirty() ) {
-			setShowRefreshPrompt( true ); // A: let the user choose (keeps edits).
-		} else {
-			// B: clean editor — reload discards nothing. Held just long
-			// enough for the rail's outcome flash and its announcement to
-			// land first; nobody clicked, so the flash is the only thing
-			// saying which way the agent routed.
-			const timer = setTimeout( () => window.location.reload(), 800 );
-			return () => clearTimeout( timer );
-		}
-	}, [ agentIsPending, workflow, agentJobState, registry ] );
 
 	// Put this post in a workflow — or move it to a different one.
 	//
@@ -272,7 +237,7 @@ export function WorkflowPanel( { children } ) {
 		}
 
 		setWriting( true );
-		setActionError( null );
+		clearErrors();
 
 		try {
 			await assignSequence( sequenceId );
@@ -310,7 +275,7 @@ export function WorkflowPanel( { children } ) {
 		}
 
 		setWriting( true );
-		setActionError( null );
+		clearErrors();
 
 		try {
 			await removeWorkflow();
@@ -341,7 +306,7 @@ export function WorkflowPanel( { children } ) {
 	// boundary, so the editor chrome must adopt the change too.
 	const handleAgentRevert = () => {
 		setWriting( true );
-		setActionError( null );
+		clearErrors();
 		apiFetch( {
 			path: `/vip-workflows/v1/workflow/post/${ postId }/agent-revert`,
 			method: 'POST',
@@ -362,7 +327,7 @@ export function WorkflowPanel( { children } ) {
 
 	const handleClaim = () => {
 		setWriting( true );
-		setActionError( null );
+		clearErrors();
 		apiFetch( {
 			path: `/vip-workflows/v1/workflow/post/${ postId }/claim`,
 			method: 'POST',
@@ -381,7 +346,7 @@ export function WorkflowPanel( { children } ) {
 
 	const handleUnclaim = () => {
 		setWriting( true );
-		setActionError( null );
+		clearErrors();
 		apiFetch( {
 			path: `/vip-workflows/v1/workflow/post/${ postId }/unclaim`,
 			method: 'DELETE',
@@ -687,46 +652,21 @@ export function WorkflowPanel( { children } ) {
 			{ /* Where this post came from, if it came from ideation. */ }
 			{ ideationSlot }
 
-			{ /* AI stage finished while the editor held unsaved edits: the agent's
-			     changes are in the database but not in this open editor. Offer a
-			     reload rather than discarding the user's work automatically. */ }
-			{ showRefreshPrompt && (
-				<DismissibleNotice
-					status="info"
-					isDismissible
-					onRemove={ () => setShowRefreshPrompt( false ) }
-					className="vip-workflows-panel__agent-refresh"
-					actions={ [
-						{
-							label: __( 'Reload', 'vip-workflows' ),
-							onClick: () => window.location.reload(),
-							variant: 'primary',
-						},
-					] }
-				>
-					{ __(
-						'The AI agent updated this post. Reload to see its changes — this discards your unsaved edits.',
-						'vip-workflows'
-					) }
-				</DismissibleNotice>
-			) }
-
 			{ /* Every action failure (assign / remove / transition / go-back /
 			     claim / release). A dismissible Notice rather than a browser
 			     alert, per the no-browser-dialogs convention. A transition's
 			     refusal is the flow's, kept in the store; a move started from
-			     the header reports there instead. */ }
+			     the header reports there instead. The refusal reads first:
+			     every write of the panel's own clears it on the way in, so
+			     where both stand, it is the newer of the two. */ }
 			{ ( actionError || transitionError ) && (
 				<DismissibleNotice
 					status="error"
 					isDismissible
-					onRemove={ () => {
-						setActionError( null );
-						setTransitionError( null );
-					} }
+					onRemove={ clearErrors }
 					className="vip-workflows-panel__action-error"
 				>
-					{ actionError || transitionError }
+					{ transitionError || actionError }
 				</DismissibleNotice>
 			) }
 
@@ -739,8 +679,8 @@ export function WorkflowPanel( { children } ) {
 			     origin cannot be resolved releases the routed transitions here,
 			     so a failed agent never strands the post.
 
-			     `handleTransitionClick` still confirms before interrupting a
-			     run: the buttons can be on screen when a job starts (the panel
+			     The transition flow still confirms before interrupting a run:
+			     the buttons can be on screen when a job starts (the flow
 			     polls), and the ability, Kanban board and Quick Edit paths
 			     reach transition() without going through this list at all. */ }
 			<TransitionRail
