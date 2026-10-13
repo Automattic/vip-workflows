@@ -1712,6 +1712,29 @@ class StageAgentRunnerExecuteTest extends TestCase
         $this->assertArrayNotHasKey( 'outcome', $properties );
     }
 
+    public function test_a_post_open_in_more_than_one_editor_is_not_run(): void
+    {
+        $telemetry = $this->install_telemetry();
+        $this->stub_editor_connections( 2 );
+        $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ) );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->never();
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $properties = $this->run_event( $telemetry )['properties'];
+        $this->assertSame( 'stopped_in_place', $properties['disposition'] );
+        $this->assertSame( 'co_editing', $properties['stop_reason'] );
+        $this->assertArrayNotHasKey( 'outcome', $properties );
+    }
+
     public function test_an_ability_that_never_ran_reports_no_duration(): void
     {
         $telemetry = $this->install_telemetry();

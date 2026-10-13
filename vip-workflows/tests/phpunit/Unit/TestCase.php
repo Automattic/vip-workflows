@@ -237,6 +237,28 @@ abstract class TestCase extends YoastTestCase
     }
 
     /**
+     * Report a number of open editor connections through the
+     * `vip_workflows_editor_connections` filter (see CoEditing).
+     *
+     * @param int $connections Connections to report.
+     * @return \ArrayObject Counts how many times the filter was asked, under 'asked'.
+     */
+    protected function stub_editor_connections( int $connections ): \ArrayObject
+    {
+        $calls = new \ArrayObject( array( 'asked' => 0 ) );
+        Functions\when( 'apply_filters' )->alias(
+            function ( $tag, $value ) use ( $connections, $calls ) {
+                if ( 'vip_workflows_editor_connections' === $tag ) {
+                    ++$calls['asked'];
+                    return $connections;
+                }
+                return $value;
+            }
+        );
+        return $calls;
+    }
+
+    /**
      * Create a mock WP_Post object.
      *
      * @param array $args Post properties.
