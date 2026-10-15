@@ -97,6 +97,7 @@ register(
 			getCurrentPostAttribute: () => 'draft',
 			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => postIsDirty,
+			isEditedPostSaveable: () => true,
 			isSavingPost: () => false,
 			isPostSavingLocked: () => false,
 		},

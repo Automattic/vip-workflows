@@ -262,6 +262,38 @@ const actions = {
 		},
 
 	/**
+	 * Return a post whose stage agent failed to the stage it came from.
+	 *
+	 * The failed AI stage's one exit, offered by the sidebar panel and the
+	 * header button alike. It runs as the move in flight (`transitioningTo`),
+	 * so both surfaces stand down together while it does. Rejects with the
+	 * server's error for the caller to report where the author is looking.
+	 */
+	revertAgentStage:
+		() =>
+		async ( { dispatch, select, registry } ) => {
+			const postId = select.getPostId();
+			const revertTo = select.getWorkflowStatus()?.agent_job?.revert_to;
+
+			dispatch.setTransitioningTo( revertTo?.key ?? null );
+
+			try {
+				// The response is a full status payload, exactly like a
+				// transition's: a revert can cross a region boundary, so the
+				// editor chrome must adopt the change too.
+				const status = await apiFetch( {
+					path: `/vip-workflows/v1/workflow/post/${ postId }/agent-revert`,
+					method: 'POST',
+				} );
+
+				dispatch.receiveWorkflowStatus( status );
+				refreshPostEntity( registry, select.getPostType(), postId );
+			} finally {
+				dispatch.setTransitioningTo( null );
+			}
+		},
+
+	/**
 	 * Take this post out of its workflow.
 	 *
 	 * Both surfaces that offer removal — the sidebar panel's footer and the

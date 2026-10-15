@@ -31,7 +31,8 @@ import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
 import { store as noticesStore } from '@wordpress/notices';
 import apiFetch from '@wordpress/api-fetch';
-import { __ } from '@wordpress/i18n';
+import { speak } from '@wordpress/a11y';
+import { __, sprintf } from '@wordpress/i18n';
 import { STORE_NAME } from '../store';
 import { useConfirm } from '../../common/use-confirm';
 import {
@@ -56,7 +57,7 @@ import { ToolFailuresModal } from '../../common/ToolFailuresModal';
  *
  * @type {string}
  */
-const HEADER_NOTICE_ID = 'vip-workflows-transition-refused';
+export const HEADER_NOTICE_ID = 'vip-workflows-transition-refused';
 
 /**
  * The id of the notice offering a reload after a stage agent rewrote the post
@@ -154,6 +155,9 @@ export function TransitionFlow() {
 	// older copy, so a move must not save that copy back over it.
 	const agentOutranEditorRef = useRef( false );
 
+	// The stage last announced, and whether its agent was running then.
+	const announcedRef = useRef( null );
+
 	const { savePost } = useDispatch( editorStore );
 	const { createErrorNotice, createInfoNotice, removeNotice } =
 		useDispatch( noticesStore );
@@ -200,6 +204,49 @@ export function TransitionFlow() {
 		const interval = setInterval( () => fetchWorkflowStatus(), 5000 );
 		return () => clearInterval( interval );
 	}, [ agentIsPending, fetchWorkflowStatus ] );
+
+	// Announce every stage change, from wherever it came — the rail, the
+	// header, an agent routing on, another person's move picked up by a poll.
+	// Here and not in the rail: the rail is only mounted while the sidebar or
+	// the header dropdown is open, and a move started from the header closes
+	// the dropdown as it starts.
+	useEffect( () => {
+		const current = workflow?.current;
+		const prev = announcedRef.current;
+
+		if ( ! current ) {
+			announcedRef.current = null;
+			return;
+		}
+
+		announcedRef.current = { current, agentPending: agentIsPending };
+
+		if ( ! prev || prev.current.key === current.key ) {
+			return;
+		}
+
+		const lastRun = workflow.agent_last_run;
+		const agentRouted =
+			prev.agentPending &&
+			lastRun?.stage_key === prev.current.key &&
+			lastRun?.to === current.key;
+
+		speak(
+			agentRouted
+				? sprintf(
+						/* translators: 1: the agent stage's label, 2: the new stage's label. */
+						__( '%1$s finished. Moved to %2$s.', 'vip-workflows' ),
+						prev.current.label || '',
+						current.label || ''
+				  )
+				: sprintf(
+						/* translators: %s: the new stage's label. */
+						__( 'Moved to %s.', 'vip-workflows' ),
+						current.label || ''
+				  ),
+			'polite'
+		);
+	}, [ workflow, agentIsPending ] );
 
 	// When a stage agent finishes, the post it rewrote lives in the database but
 	// this open editor still shows the pre-agent content. React to the pending →
@@ -253,7 +300,7 @@ export function TransitionFlow() {
 			);
 		} else {
 			// B: clean editor — reload discards nothing. Held just long
-			// enough for the rail's outcome flash and its announcement to
+			// enough for the rail's outcome flash and the announcement to
 			// land first; nobody clicked, so the flash is the only thing
 			// saying which way the agent routed.
 			const timer = setTimeout( () => window.location.reload(), 800 );
@@ -361,9 +408,15 @@ export function TransitionFlow() {
 				// has outrun holds the older copy, and saving it would undo
 				// the agent's work without a word. The move goes on what the
 				// database holds; the reload notice settles the rest.
+				//
+				// Nor is a post core will not save at all — no title, no
+				// content, no excerpt. savePost() returns without a request
+				// there, so asking would only report a failed save; the post
+				// moves on as the database already holds it.
 				wasDirty =
 					! agentOutranEditorRef.current &&
-					editor.isEditedPostDirty();
+					editor.isEditedPostDirty() &&
+					editor.isEditedPostSaveable();
 
 				if ( ! wasDirty ) {
 					return;

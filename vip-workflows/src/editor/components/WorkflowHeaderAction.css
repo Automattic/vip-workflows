@@ -32,9 +32,12 @@ body.vip-workflows-replaces-publish .editor-editor-interface:not(.is-distraction
 }
 
 /* The pinned-items slot hides every button below the small breakpoint except
-   core's own sidebar toggles. This one can be the only way forward from the
-   stage, so it stays. */
-.interface-pinned-items .vip-workflows-header-action .components-button {
+   core's own sidebar toggles. Standing in for Publish, this one is the only way
+   forward from the stage, so it stays. Beside core's own Publish it is a second
+   way forward, and keeping it there pushes Publish and the options menu off a
+   phone-width header — so it yields like any other pinned item, and the
+   sidebar's rail stays one menu away. */
+body.vip-workflows-replaces-publish .interface-pinned-items .vip-workflows-header-action .components-button {
 	display: inline-flex;
 }
 

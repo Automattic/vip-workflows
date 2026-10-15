@@ -27,8 +27,10 @@ import { Button, Dropdown, Fill, Tooltip } from '@wordpress/components';
 import { chevronDown } from '@wordpress/icons';
 import { useSelect, useDispatch } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
-import { __ } from '@wordpress/i18n';
+import { store as noticesStore } from '@wordpress/notices';
+import { __, sprintf } from '@wordpress/i18n';
 import { STORE_NAME } from '../store';
+import { HEADER_NOTICE_ID } from './TransitionFlow';
 import { useRequiredMetadataGate } from '../required-metadata';
 import {
 	getPrimaryTransition,
@@ -88,8 +90,9 @@ export function WorkflowHeaderAction() {
 		};
 	}, [] );
 	const { transitions } = useRequiredMetadataGate();
-	const { fetchWorkflowStatus, requestTransition } =
+	const { fetchWorkflowStatus, requestTransition, revertAgentStage } =
 		useDispatch( STORE_NAME );
+	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
 
 	// The header is on screen from the first paint, whether or not the
 	// Workflow sidebar is ever opened, so it asks for the post's workflow
@@ -117,11 +120,20 @@ export function WorkflowHeaderAction() {
 	}, [] );
 
 	const primary = getPrimaryTransition( transitions );
+
+	// A stage whose agent failed withholds its exits, so it has no primary
+	// transition: its one way out is back where the post came from. The
+	// server names that stage exactly when it will honor the move.
+	const revertTo =
+		! workflow?.agent_pending && 'failed' === workflow?.agent_job?.status
+			? workflow.agent_job.revert_to
+			: null;
+
 	const shown =
 		onWorkflowPost &&
 		!! workflow?.has_workflow &&
 		! workflow.orphaned &&
-		!! primary;
+		( !! primary || !! revertTo );
 	const replaces =
 		shown && replacesCorePublish( workflow, transitions, coreButtonSaves );
 	const hideCorePublish = replaces && mounted;
@@ -139,14 +151,27 @@ export function WorkflowHeaderAction() {
 	}
 
 	const transitioning = null !== transitioningTo;
-	const locked = !! primary._locked;
+	const locked = !! primary?._locked;
+
+	const goBack = async () => {
+		removeNotice( HEADER_NOTICE_ID );
+		try {
+			await revertAgentStage();
+		} catch ( err ) {
+			createErrorNotice(
+				err.message ||
+					__( 'Failed to move the post back', 'vip-workflows' ),
+				{ id: HEADER_NOTICE_ID, isDismissible: true }
+			);
+		}
+	};
 
 	// One primary button per header. Standing in for Publish, this is the
 	// header's call to action; beside core's own Save or Publish it steps
 	// down to secondary so the two never compete.
 	const variant = replaces ? 'primary' : 'secondary';
 
-	const main = (
+	const main = primary ? (
 		<Button
 			ref={ setMain }
 			variant={ variant }
@@ -160,6 +185,23 @@ export function WorkflowHeaderAction() {
 			accessibleWhenDisabled
 		>
 			{ primary.label }
+		</Button>
+	) : (
+		<Button
+			ref={ setMain }
+			variant={ variant }
+			size="compact"
+			className="vip-workflows-header-action__main"
+			onClick={ goBack }
+			isBusy={ transitioningTo === revertTo.key }
+			disabled={ transitioning }
+			accessibleWhenDisabled
+		>
+			{ sprintf(
+				/* translators: %s: the stage the post is returned to. */
+				__( 'Go back to %s', 'vip-workflows' ),
+				revertTo.label
+			) }
 		</Button>
 	);
 

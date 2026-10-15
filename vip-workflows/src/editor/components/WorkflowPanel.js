@@ -45,7 +45,7 @@ import {
 	Notice as DismissibleNotice,
 } from '@wordpress/components';
 import { Stack, Text } from '@wordpress/ui';
-import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
+import { useSelect, useDispatch } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
 import apiFetch from '@wordpress/api-fetch';
 import { __, sprintf } from '@wordpress/i18n';
@@ -60,7 +60,6 @@ import {
 	getSwitchWorkflowConfirmTitle,
 	getSwitchWorkflowConfirmation,
 } from '../../entries/confirm-workflow-side-effect';
-import { refreshPostEntity } from '../refresh-post-entity';
 import { useRequiredMetadataGate } from '../required-metadata';
 import { TransitionRail } from './TransitionRail';
 import { WorkflowRow } from './WorkflowRow';
@@ -101,7 +100,6 @@ const WorkflowHistoryModal = lazy( () => import( './WorkflowHistoryModal' ) );
 export function WorkflowPanel( { children } ) {
 	const {
 		postId,
-		postType,
 		workflowEnforcement,
 		postStatus,
 		workflow,
@@ -113,7 +111,6 @@ export function WorkflowPanel( { children } ) {
 		const editor = select( editorStore );
 		return {
 			postId: s.getPostId(),
-			postType: s.getPostType(),
 			workflowEnforcement: s.getWorkflowEnforcement(),
 			// Live core visibility — decoupled from the workflow stage, so
 			// the panel can show whether a post-publish-stage post is
@@ -156,13 +153,12 @@ export function WorkflowPanel( { children } ) {
 
 	const {
 		fetchWorkflowStatus,
-		receiveWorkflowStatus,
 		assignSequence,
 		removeWorkflow,
 		requestTransition,
+		revertAgentStage,
 		setTransitionError,
 	} = useDispatch( STORE_NAME );
-	const registry = useRegistry();
 	const [ confirm, confirmDialog ] = useConfirm();
 
 	// One notice reports two kinds of failure: the panel's own writes
@@ -184,13 +180,6 @@ export function WorkflowPanel( { children } ) {
 	}, [ transitioningTo ] );
 
 	const isWorkflowRequired = workflowEnforcement === 'require';
-
-	// Refetch the post entity after a workflow write changed it server-side, so
-	// the editor chrome (Publish button, Summary status) reflects the change.
-	// Assigning and removing carry their own — the store's thunks do it, so the
-	// save guard's removal gets it too — leaving this for the writes only the
-	// panel performs.
-	const refreshPost = () => refreshPostEntity( registry, postType, postId );
 
 	// The panel is what puts the post's workflow state on screen, so it is what
 	// asks for it. The read itself belongs to the store: one request, answering
@@ -301,28 +290,18 @@ export function WorkflowPanel( { children } ) {
 
 	// The failed AI stage's one action: return the post to the stage it came
 	// from. Retrying the agent is going forward again — entering the stage
-	// re-dispatches it — so there is no separate re-run. The response is a full
-	// status payload, exactly like a transition's: a revert can cross a region
-	// boundary, so the editor chrome must adopt the change too.
-	const handleAgentRevert = () => {
-		setWriting( true );
+	// re-dispatches it — so there is no separate re-run. The store runs it, so
+	// the header's own Go back and this one are the same move.
+	const handleAgentRevert = async () => {
 		clearErrors();
-		apiFetch( {
-			path: `/vip-workflows/v1/workflow/post/${ postId }/agent-revert`,
-			method: 'POST',
-		} )
-			.then( ( response ) => {
-				receiveWorkflowStatus( response );
-				setWriting( false );
-				refreshPost();
-			} )
-			.catch( ( err ) => {
-				setActionError(
-					err.message ||
-						__( 'Failed to move the post back', 'vip-workflows' )
-				);
-				setWriting( false );
-			} );
+		try {
+			await revertAgentStage();
+		} catch ( err ) {
+			setActionError(
+				err.message ||
+					__( 'Failed to move the post back', 'vip-workflows' )
+			);
+		}
 	};
 
 	const handleClaim = () => {

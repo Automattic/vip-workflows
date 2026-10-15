@@ -29,12 +29,18 @@ the sidebar's own readouts and split one feature across two places.
   stage: the status poll while the agent runs, and — once the agent has
   rewritten the post — the reload of a clean editor or, over unsaved edits, an
   editor notice offering one. Neither can be the sidebar's, because the header
-  starts such a move with the sidebar closed.
+  starts such a move with the sidebar closed. For the same reason it announces every stage
+  change (`speak()`), however the post moved; the rail only plays the agent
+  flash.
 - `WorkflowHeaderAction` — the split button in the editor header (a fill into
   the `PinnedItems/core` slot). The main half runs the stage's **primary
   transition** — the first in authored order, labelled with the author's own
   label, drawn disabled with its reason as a tooltip when locked — and the
-  arrow opens the transition rail in a dropdown. It renders for any post in a
+  arrow opens the transition rail in a dropdown. A stage whose agent failed has no
+  primary transition, so there the main half is **Go back to <origin>** — the
+  same store thunk (`revertAgentStage`) as the panel's button. Below the small
+  breakpoint the button stays on screen only while it stands in for Publish;
+  beside core's Publish it yields like any other pinned item. It renders for any post in a
   live workflow whose stage offers this person a move, live posts included. It
   **hides core's Publish button only** when the post is on the draft side of
   the publish boundary (`guard.current_region` is `draft` or `pending`), the

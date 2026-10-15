@@ -324,7 +324,8 @@ A run that fails in place keeps the failed treatment in the panel above the
 rail, but the exits do NOT return *(revised after shipping — the original
 design released them beside a Re-run affordance)*: `agent_owns_stage_exits`
 keeps withholding while the failed job records a resolvable origin stage, the
-panel's one action is "Go back to <origin>" (the `agent-revert` endpoint), and
+panel's one action — and the header button's — is "Go back to <origin>" (the
+`agent-revert` endpoint), and
 the rail keeps drawing the routed outcomes disabled. Only a failure with no
 resolvable origin (a marker predating `from_stage`, or an origin the sequence
 no longer defines) releases the stage's transitions — and then only the ones
@@ -502,7 +503,9 @@ is absent.
 - Every move is announced via `@wordpress/a11y`'s `speak()` (a polite live
   region core manages, not a `role="status"` element this component owns —
   changed since this spec was written), whether user-initiated or
-  agent-routed. It matters most for the agent case: nobody clicked, so there
+  agent-routed. The announcement now comes from the always-mounted transition
+  flow, not the rail, so a move started from the header with the sidebar
+  closed is announced too. It matters most for the agent case: nobody clicked, so there
   is no expectation of change to anchor to.
 - The clicked transition shows busy; every other transition is
   `aria-disabled` for the duration.

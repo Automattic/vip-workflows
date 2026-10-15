@@ -12,6 +12,7 @@
 
 import { render, screen, waitFor, act } from './helpers/render-wp-component';
 import apiFetch from '@wordpress/api-fetch';
+import { speak } from '@wordpress/a11y';
 
 jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 
@@ -44,6 +45,7 @@ const CORE_EDITOR = {
 	canPublish: true,
 	otherEntitiesDirty: false,
 	dirty: false,
+	saveable: true,
 	saving: false,
 	savingLocked: false,
 };
@@ -78,6 +80,7 @@ register(
 			isCurrentPostPublished: ( state ) => state.published,
 			hasNonPostEntityChanges: ( state ) => state.otherEntitiesDirty,
 			isEditedPostDirty: ( state ) => state.dirty,
+			isEditedPostSaveable: ( state ) => state.saveable,
 			isSavingPost: ( state ) => state.saving,
 			isPostSavingLocked: ( state ) => state.savingLocked,
 		},
@@ -218,6 +221,7 @@ describe( 'WorkflowHeaderAction', () => {
 		savePost.mockClear();
 		createErrorNotice.mockClear();
 		createInfoNotice.mockClear();
+		speak.mockClear();
 		setCoreEditor( CORE_EDITOR );
 		document.body.classList.remove( REPLACES_PUBLISH_CLASS );
 		seedEditorStore();
@@ -261,6 +265,96 @@ describe( 'WorkflowHeaderAction', () => {
 
 		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
 		expect( savePost ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * Core will not save a post with no title, content or excerpt — savePost()
+	 * returns without a request — so a pre-move save there could only be
+	 * reported as failed.
+	 */
+	it( 'moves a dirty post core will not save without trying to save it', async () => {
+		setCoreEditor( { dirty: true, saveable: false } );
+		await renderHeader( statusResponse() );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Send to Review' } )
+			).click();
+		} );
+
+		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
+		expect( savePost ).not.toHaveBeenCalled();
+		expect( createErrorNotice ).not.toHaveBeenCalled();
+	} );
+
+	/**
+	 * The sidebar rail is what used to announce a move, and it is not mounted
+	 * while the sidebar is closed — so the flow announces it.
+	 */
+	it( 'announces a move started from the header', async () => {
+		await renderHeader( statusResponse(), () =>
+			Promise.resolve(
+				statusResponse( {
+					current: {
+						key: 'review',
+						label: 'Review',
+						status: 'pending',
+						transitions: [],
+					},
+					transitions: [ TO_LIVE ],
+				} )
+			)
+		);
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Send to Review' } )
+			).click();
+		} );
+
+		await waitFor( () =>
+			expect( speak ).toHaveBeenCalledWith( 'Moved to Review.', 'polite' )
+		);
+		expect( speak ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * A failed agent stage withholds its exits, so there is no primary
+	 * transition — but the header must not vanish: the stage's one way out,
+	 * back where the post came from, takes the main half.
+	 */
+	it( 'offers Go back when the stage agent failed', async () => {
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		await renderHeader( failed );
+
+		apiFetch.mockImplementation( ( { path } ) =>
+			Promise.resolve(
+				path.endsWith( '/agent-revert' ) ? statusResponse() : failed
+			)
+		);
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', {
+					name: 'Go back to Draft',
+				} )
+			).click();
+		} );
+
+		expect( apiFetch ).toHaveBeenCalledWith( {
+			path: '/vip-workflows/v1/workflow/post/42/agent-revert',
+			method: 'POST',
+		} );
+		expect(
+			await screen.findByRole( 'button', { name: 'Send to Review' } )
+		).toBeInTheDocument();
 	} );
 
 	it( 'asks before a primary transition that publishes', async () => {
