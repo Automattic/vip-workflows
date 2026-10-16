@@ -141,15 +141,15 @@ export function WorkflowPanel( { children } ) {
 	// lock, and only ever in the direction of releasing it.
 	const { transitions } = useRequiredMetadataGate();
 
-	// The panel's own workflow-level writes — assign, remove, claim, release,
-	// go back. A transition's busy state is the store's (`transitioningTo`).
-	const [ writing, setWriting ] = useState( false );
 	const [ historyOpen, setHistoryOpen ] = useState( false );
 	const [ actionError, setActionError ] = useState( null ); // every action failure — shown as a Notice, not a browser dialog
 
-	// Busy while either kind of write runs: nothing here starts while a move
-	// is in flight, wherever that move was started.
-	const transitioning = writing || null !== transitioningTo;
+	// Busy while a move or a workflow-level write runs, wherever it was
+	// started: the store's answer, so the header stands down with the panel.
+	const transitioning = useSelect(
+		( select ) => select( STORE_NAME ).isTransitioning(),
+		[]
+	);
 
 	const {
 		fetchWorkflowStatus,
@@ -157,6 +157,7 @@ export function WorkflowPanel( { children } ) {
 		removeWorkflow,
 		requestTransition,
 		revertAgentStage,
+		setWorkflowWriting,
 		setTransitionError,
 	} = useDispatch( STORE_NAME );
 	const [ confirm, confirmDialog ] = useConfirm();
@@ -225,7 +226,6 @@ export function WorkflowPanel( { children } ) {
 			}
 		}
 
-		setWriting( true );
 		clearErrors();
 
 		try {
@@ -235,8 +235,6 @@ export function WorkflowPanel( { children } ) {
 				err.message ||
 					__( 'Could not assign the workflow.', 'vip-workflows' )
 			);
-		} finally {
-			setWriting( false );
 		}
 	};
 
@@ -263,7 +261,6 @@ export function WorkflowPanel( { children } ) {
 			return;
 		}
 
-		setWriting( true );
 		clearErrors();
 
 		try {
@@ -273,11 +270,6 @@ export function WorkflowPanel( { children } ) {
 				err.message ||
 					__( 'Could not remove the workflow.', 'vip-workflows' )
 			);
-		} finally {
-			// The panel stays mounted through a removal now, so the busy state
-			// it entered with has to be left behind: the picker it re-renders
-			// into is the same component instance.
-			setWriting( false );
 		}
 	};
 
@@ -305,7 +297,7 @@ export function WorkflowPanel( { children } ) {
 	};
 
 	const handleClaim = () => {
-		setWriting( true );
+		setWorkflowWriting( true );
 		clearErrors();
 		apiFetch( {
 			path: `/vip-workflows/v1/workflow/post/${ postId }/claim`,
@@ -313,18 +305,18 @@ export function WorkflowPanel( { children } ) {
 		} )
 			.then( () => {
 				fetchWorkflowStatus();
-				setWriting( false );
+				setWorkflowWriting( false );
 			} )
 			.catch( ( err ) => {
 				setActionError(
 					err.message || __( 'Failed to claim post', 'vip-workflows' )
 				);
-				setWriting( false );
+				setWorkflowWriting( false );
 			} );
 	};
 
 	const handleUnclaim = () => {
-		setWriting( true );
+		setWorkflowWriting( true );
 		clearErrors();
 		apiFetch( {
 			path: `/vip-workflows/v1/workflow/post/${ postId }/unclaim`,
@@ -332,14 +324,14 @@ export function WorkflowPanel( { children } ) {
 		} )
 			.then( () => {
 				fetchWorkflowStatus();
-				setWriting( false );
+				setWorkflowWriting( false );
 			} )
 			.catch( ( err ) => {
 				setActionError(
 					err.message ||
 						__( 'Failed to release post', 'vip-workflows' )
 				);
-				setWriting( false );
+				setWorkflowWriting( false );
 			} );
 	};
 

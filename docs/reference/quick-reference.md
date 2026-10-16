@@ -189,8 +189,9 @@ GET         /vip-workflows/v1/audit-log/users
 ### React/JavaScript Patterns
 
 **Editor Sidebar State**:
-- Everything lives in one "Workflow" `PluginSidebar`; there are no
-  `PluginDocumentSettingPanel`s
+- The panels live in one "Workflow" `PluginSidebar`; there are no
+  `PluginDocumentSettingPanel`s. The header split button
+  (`WorkflowHeaderAction`) sits outside it, in the editor header
 - `WorkflowPanel.js` is the main controller component — one
   `/workflow/post/{id}/status` request feeds the sequence name, the progress
   list, assignment/claim, the stage agent's state and the transitions

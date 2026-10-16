@@ -89,6 +89,12 @@ const DEFAULT_STATE = {
 	// reverse.
 	transitioningTo: null,
 
+	// A workflow-level write in flight — assigning, switching or removing the
+	// workflow, claiming or releasing the post. Not a move, but a move started
+	// under it would race it, so every surface stands down for it too
+	// (`isTransitioning`).
+	workflowWriting: false,
+
 	// The last refused move, worded for the author, until they dismiss it or
 	// start another. Shown by the sidebar panel.
 	transitionError: null,
@@ -181,6 +187,15 @@ const actions = {
 	},
 
 	/**
+	 * Record whether a workflow-level write is in flight.
+	 *
+	 * @param {boolean} writing Whether one is.
+	 */
+	setWorkflowWriting( writing ) {
+		return { type: 'SET_WORKFLOW_WRITING', writing };
+	},
+
+	/**
 	 * Record, or clear, the refusal the sidebar panel reports.
 	 *
 	 * @param {?string} message Refusal worded for the author.
@@ -245,13 +260,20 @@ const actions = {
 		async ( { dispatch, select, registry } ) => {
 			const postId = select.getPostId();
 
+			dispatch.setWorkflowWriting( true );
+
 			// The route answers with the post's new status payload, so the
 			// assignment and the state it produced arrive together.
-			const status = await apiFetch( {
-				path: sequencePath( postId ),
-				method: 'POST',
-				data: { sequence_id: sequenceId },
-			} );
+			let status;
+			try {
+				status = await apiFetch( {
+					path: sequencePath( postId ),
+					method: 'POST',
+					data: { sequence_id: sequenceId },
+				} );
+			} finally {
+				dispatch.setWorkflowWriting( false );
+			}
 
 			dispatch.receiveWorkflowStatus( status );
 
@@ -307,12 +329,18 @@ const actions = {
 		async ( { dispatch, select, registry } ) => {
 			const postId = select.getPostId();
 
-			await apiFetch( {
-				path: sequencePath( postId ),
-				method: 'DELETE',
-			} );
+			dispatch.setWorkflowWriting( true );
 
-			await dispatch.fetchWorkflowStatus();
+			try {
+				await apiFetch( {
+					path: sequencePath( postId ),
+					method: 'DELETE',
+				} );
+
+				await dispatch.fetchWorkflowStatus();
+			} finally {
+				dispatch.setWorkflowWriting( false );
+			}
 
 			// Matches assignment: the workflow identity the editor renders from
 			// is gone from the database, so the record it renders from must be
@@ -338,6 +366,9 @@ function reducer( state = DEFAULT_STATE, action ) {
 
 		case 'SET_TRANSITIONING_TO':
 			return { ...state, transitioningTo: action.to };
+
+		case 'SET_WORKFLOW_WRITING':
+			return { ...state, workflowWriting: action.writing };
 
 		case 'SET_TRANSITION_ERROR':
 			return { ...state, transitionError: action.message };
@@ -410,7 +441,8 @@ const selectors = {
 	getWorkflowStatusRequest: ( state ) => state.workflowStatusRequest,
 	getTransitionRequest: ( state ) => state.transitionRequest,
 	getTransitioningTo: ( state ) => state.transitioningTo,
-	isTransitioning: ( state ) => null !== state.transitioningTo,
+	isTransitioning: ( state ) =>
+		null !== state.transitioningTo || state.workflowWriting,
 	getTransitionError: ( state ) => state.transitionError,
 };
 

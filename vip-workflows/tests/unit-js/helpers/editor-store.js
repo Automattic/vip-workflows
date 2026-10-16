@@ -72,6 +72,7 @@ export function seedEditorStore( overrides = {} ) {
 		transitionRequest: null,
 		transitioningTo: null,
 		transitionError: null,
+		workflowWriting: false,
 		...overrides,
 	} );
 

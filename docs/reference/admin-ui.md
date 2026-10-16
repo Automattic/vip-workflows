@@ -10,10 +10,12 @@ For corresponding REST endpoints see [quick-reference.md](quick-reference.md); f
 
 **Location**: `src/editor/`
 
-Everything the plugin adds to the block editor lives in one `PluginSidebar`
-named "Workflow" — the plugin used to also mount two
-`PluginDocumentSettingPanel`s in the document settings sidebar, which duplicated
-the sidebar's own readouts and split one feature across two places.
+The plugin's panels live in one `PluginSidebar` named "Workflow" — the plugin
+used to also mount two `PluginDocumentSettingPanel`s in the document settings
+sidebar, which duplicated the sidebar's own readouts and split one feature
+across two places. Outside it sit the workflow split button in the editor
+header and the always-mounted save guard and transition flow, which work
+whether or not the sidebar is open.
 
 **Structure** (`index.js`):
 - `WorkflowSaveGuard` — mounted unconditionally, **outside the sidebar**, and
@@ -40,7 +42,10 @@ the sidebar's own readouts and split one feature across two places.
   the `PinnedItems/core` slot). The main half runs the stage's **primary
   transition** — the first in authored order, labelled with the author's own
   label, drawn disabled with its reason as a tooltip when locked — and the
-  arrow opens the transition rail in a dropdown. A stage whose agent failed has no
+  arrow opens the transition rail in a dropdown. "Primary" is the first
+  transition the person may take: the sequence editor badges the first in
+  authored order, and someone whose role cannot take that one is offered the
+  next they can. A stage whose agent failed has no
   primary transition, so there the main half is **Go back to <origin>** — the
   same store thunk (`revertAgentStage`) as the panel's button. Below the small
   breakpoint the button stays on screen only while it stands in for Publish;
@@ -53,7 +58,10 @@ the sidebar's own readouts and split one feature across two places.
   jobs: once a status has been picked in Summary, for a privately published
   post, for a pending post whose author cannot publish, and while another
   entity has changes, it is the post's Save — usually the only one — and
-  stays. Bypass users, orphaned posts, stages with no move for this person,
+  stays. The status payload it decides from is served with the page
+  (`Editor_Integration::enqueue_editor_assets()`, via `rest_do_request()`), so
+  core's Publish is never painted and then withdrawn. Bypass users, orphaned
+  posts, stages with no move for this person,
   live posts (where core's button is Save), and distraction-free mode (where
   core hides the slot the button sits in) keep core's controls. The button
   stands down entirely while core has the editor on another entity ("Edit

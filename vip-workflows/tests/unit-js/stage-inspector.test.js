@@ -216,6 +216,30 @@ describe( 'StageInspector transition read-out', () => {
 		).toHaveTextContent( 'Done' );
 	} );
 
+	/**
+	 * The first exit is the one the post editor's header button offers. The
+	 * row is a button named by its label alone, so a badge drawn inside it is
+	 * silent unless the label says it too.
+	 */
+	it( 'marks the first way out as primary, in its name as well as its badge', () => {
+		renderInspector(
+			stage( {
+				transitions: [
+					{ to: 'done', label: 'Approve' },
+					{ to: 'review', label: 'Send back' },
+				],
+			} )
+		);
+
+		const first = screen.getByRole( 'button', {
+			name: 'Select Approve (primary)',
+		} );
+		expect( first ).toHaveTextContent( 'Primary' );
+		expect(
+			screen.getByRole( 'button', { name: 'Select Send back' } )
+		).not.toHaveTextContent( 'Primary' );
+	} );
+
 	it( 'names an unlabelled transition the way the runtime will', () => {
 		// Not "Unlabelled transition": leaving the label blank does not leave
 		// the transition nameless, it makes `StatusManager::transition_label()`

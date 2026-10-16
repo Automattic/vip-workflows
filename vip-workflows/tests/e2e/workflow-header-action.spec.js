@@ -7,8 +7,11 @@
  * who can bypass keeps core's Publish, with the workflow button beside it.
  *
  * Administrators bypass by default, so this spec takes the bypass away for its
- * own run and restores the stored setting afterwards. The suite runs on one
- * worker, so no other spec sees the change.
+ * own tests and puts the default back after each one. The default, not a
+ * snapshot of whatever was stored: a run killed mid-test never restores, and a
+ * snapshot taken by the next run would then save the broken value as the one
+ * to return to, every run after. The suite runs on one worker, so no other
+ * spec sees the change while it lasts.
  *
  * @package
  */
@@ -22,6 +25,13 @@ const {
 } = require( './helpers/workflow' );
 
 const SETTINGS_PATH = '/vip-workflows/v1/settings/general';
+
+/**
+ * Who bypasses the workflow out of the box (Settings::sanitize_settings()).
+ *
+ * @type {string[]}
+ */
+const DEFAULT_BYPASS_ROLES = [ 'administrator' ];
 
 /**
  * Set which roles bypass the workflow.
@@ -40,18 +50,10 @@ function setBypassRoles( requestUtils, roles ) {
 
 test.describe( 'VIP Workflows — header split button (editor UI)', () => {
 	let postId;
-	let storedBypassRoles;
-
-	test.beforeAll( async ( { requestUtils } ) => {
-		const settings = await requestUtils.rest( { path: SETTINGS_PATH } );
-		storedBypassRoles = settings.bypass_workflow_roles;
-	} );
-
-	test.afterAll( async ( { requestUtils } ) => {
-		await setBypassRoles( requestUtils, storedBypassRoles );
-	} );
 
 	test.afterEach( async ( { requestUtils } ) => {
+		await setBypassRoles( requestUtils, DEFAULT_BYPASS_ROLES );
+
 		if ( postId ) {
 			await deletePost( requestUtils, postId );
 			postId = undefined;
@@ -116,6 +118,46 @@ test.describe( 'VIP Workflows — header split button (editor UI)', () => {
 		await expect(
 			panel.locator( '.vip-workflows-rail__stage' )
 		).toHaveText( 'In review' );
+	} );
+
+	/**
+	 * Whether core's Publish is hidden is decided from the post's workflow
+	 * state. Read after the editor paints, that answer came one paint late and
+	 * Publish flashed on every load, so the state is served with the page.
+	 * Every animation frame is sampled from the first one.
+	 */
+	test( 'never paints core Publish where the button stands in for it', async ( {
+		admin,
+		page,
+		requestUtils,
+	} ) => {
+		await setBypassRoles( requestUtils, [] );
+		( { postId } = await createWorkflowPost( requestUtils, {
+			title: 'Header action no-flash e2e',
+		} ) );
+
+		await page.addInitScript( () => {
+			window.vipWorkflowsPublishFrames = 0;
+			const sample = () => {
+				const publish = document.querySelector(
+					'.editor-header .editor-post-publish-button__button'
+				);
+				if ( publish?.getBoundingClientRect().width > 0 ) {
+					window.vipWorkflowsPublishFrames++;
+				}
+				window.requestAnimationFrame( sample );
+			};
+			window.requestAnimationFrame( sample );
+		} );
+
+		await admin.editPost( postId );
+		await expect(
+			page.locator( '.vip-workflows-header-action__main' )
+		).toBeVisible();
+
+		expect(
+			await page.evaluate( () => window.vipWorkflowsPublishFrames )
+		).toBe( 0 );
 	} );
 
 	test( 'keeps core Publish for a person who can bypass the workflow', async ( {

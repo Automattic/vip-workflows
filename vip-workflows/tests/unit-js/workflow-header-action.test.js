@@ -771,6 +771,36 @@ describe( 'WorkflowHeaderAction', () => {
 		expect( createErrorNotice ).not.toHaveBeenCalled();
 	} );
 
+	/**
+	 * The panel's workflow-level writes (and the save guard's removal) run
+	 * through the store, so a move pressed from the header cannot race one.
+	 */
+	it( 'stands down while a workflow write is in flight', async () => {
+		await renderHeader( statusResponse() );
+		const main = await screen.findByRole( 'button', {
+			name: 'Send to Review',
+		} );
+
+		let finish;
+		apiFetch.mockImplementation( ( { method } ) =>
+			'DELETE' === method
+				? new Promise( ( resolve ) => ( finish = resolve ) )
+				: Promise.resolve( statusResponse() )
+		);
+
+		let removal;
+		await act( async () => {
+			removal = dispatch( STORE_NAME ).removeWorkflow();
+		} );
+		expect( main ).toHaveAttribute( 'aria-disabled', 'true' );
+
+		await act( async () => {
+			finish( true );
+			await removal;
+		} );
+		expect( main ).not.toHaveAttribute( 'aria-disabled' );
+	} );
+
 	it( 'runs one move at a time', async () => {
 		await renderHeader( statusResponse() );
 
@@ -859,6 +889,134 @@ describe( 'WorkflowHeaderAction', () => {
 				expect.anything()
 			)
 		);
+	} );
+
+	/**
+	 * Moving the stage while its agent runs stops the agent. The server allows
+	 * it, so the only thing between the author and that is this question.
+	 */
+	it( 'asks before a move that would stop a running agent', async () => {
+		await renderHeader( statusResponse( { agent_pending: true } ) );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Send to Review' } )
+			).click();
+		} );
+
+		expect(
+			await screen.findByText( 'This changes the workflow' )
+		).toBeInTheDocument();
+
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Cancel' } ) );
+		} );
+
+		expect( transitionPosts() ).toHaveLength( 0 );
+	} );
+
+	/**
+	 * A status read can withdraw the transition an open assignee popover
+	 * belongs to — someone else moved the post. Submitting it then would fire a
+	 * move the stage no longer declares, so the popover goes.
+	 */
+	it( 'drops the assignee popover when its transition is withdrawn', async () => {
+		seedEditorStore( {
+			roles: [ { slug: 'editor', name: 'Editor' } ],
+		} );
+		const assign = {
+			...TO_REVIEW,
+			inputs: [
+				{
+					type: 'assignment',
+					assignee_type: 'role',
+					meta_key: 'wfp_a1_assignee',
+					label: 'Pick a reviewer',
+				},
+			],
+		};
+		await renderHeader( statusResponse( { transitions: [ assign ] } ) );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Send to Review' } )
+			).click();
+		} );
+		expect(
+			await screen.findByRole( 'dialog', { name: 'Pick a reviewer' } )
+		).toBeInTheDocument();
+
+		await act( async () => {
+			dispatch( STORE_NAME ).receiveWorkflowStatus(
+				statusResponse( { transitions: [ TO_LIVE ] } )
+			);
+		} );
+
+		expect(
+			screen.queryByRole( 'dialog', { name: 'Pick a reviewer' } )
+		).not.toBeInTheDocument();
+		expect( transitionPosts() ).toHaveLength( 0 );
+	} );
+
+	/**
+	 * An agent that finishes onto a held route has already written the post.
+	 * The editor still holds the copy from before it ran, so Continue moves
+	 * the post on what the database holds and saves nothing over it.
+	 */
+	it( 'continues an agent-held route without saving over the agent', async () => {
+		jest.useFakeTimers();
+
+		try {
+			await renderHeader(
+				statusResponse( { agent_pending: true, transitions: [] } )
+			);
+			await act( async () => {} );
+
+			apiFetch.mockImplementation( ( { path } ) =>
+				Promise.resolve(
+					path === TRANSITION_PATH
+						? statusResponse()
+						: statusResponse( {
+								transitions: [],
+								agent_job: {
+									status: 'warnings_pending',
+									to_status: 'review',
+									soft_warnings: [
+										{
+											code: 'soft_check_failed',
+											message: 'Check this.',
+										},
+									],
+									comment: '',
+								},
+						  } )
+				)
+			);
+			setCoreEditor( { dirty: true } );
+
+			await act( async () => {
+				jest.advanceTimersByTime( 5000 );
+			} );
+
+			const proceed = await screen.findByRole( 'button', {
+				name: 'Continue',
+			} );
+			await act( async () => {
+				proceed.click();
+			} );
+
+			await waitFor( () =>
+				expect( transitionPosts() ).toEqual( [
+					expect.objectContaining( {
+						to_status: 'review',
+						acknowledge_warnings: true,
+					} ),
+				] )
+			);
+			expect( savePost ).not.toHaveBeenCalled();
+		} finally {
+			jest.useRealTimers();
+		}
 	} );
 
 	/**

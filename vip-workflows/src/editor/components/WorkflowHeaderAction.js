@@ -22,7 +22,13 @@
  * @package
  */
 
-import { useCallback, useEffect, useRef, useState } from '@wordpress/element';
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from '@wordpress/element';
 import { Button, Dropdown, Fill, Tooltip } from '@wordpress/components';
 import { chevronDown } from '@wordpress/icons';
 import { useSelect, useDispatch } from '@wordpress/data';
@@ -55,6 +61,7 @@ export function WorkflowHeaderAction() {
 	const {
 		workflow,
 		transitioningTo,
+		transitioning,
 		postStatus,
 		savedStatus,
 		onWorkflowPost,
@@ -67,6 +74,9 @@ export function WorkflowHeaderAction() {
 		return {
 			workflow: s.getWorkflowStatus(),
 			transitioningTo: s.getTransitioningTo(),
+			// A move, or a workflow-level write the sidebar panel or the save
+			// guard started — assigning, switching, removing, claiming.
+			transitioning: s.isTransitioning(),
 			postStatus: edited,
 			savedStatus: saved,
 			// Core can point this same editor at another entity in place
@@ -138,7 +148,9 @@ export function WorkflowHeaderAction() {
 		shown && replacesCorePublish( workflow, transitions, coreButtonSaves );
 	const hideCorePublish = replaces && mounted;
 
-	useEffect( () => {
+	// Before paint, not after: core's Publish must not show for one frame
+	// on every load and then vanish.
+	useLayoutEffect( () => {
 		if ( ! hideCorePublish ) {
 			return;
 		}
@@ -150,7 +162,6 @@ export function WorkflowHeaderAction() {
 		return null;
 	}
 
-	const transitioning = null !== transitioningTo;
 	const locked = !! primary?._locked;
 
 	const goBack = async () => {
@@ -224,7 +235,11 @@ export function WorkflowHeaderAction() {
 						<Button
 							variant={ variant }
 							size="compact"
-							className="vip-workflows-header-action__toggle"
+							// `button-toggle` is core's exception for a dropdown
+							// toggle in the header: with "Show button text
+							// labels" on, it keeps its icon instead of turning
+							// into a second wide text button beside the first.
+							className="vip-workflows-header-action__toggle button-toggle"
 							icon={ chevronDown }
 							label={ __(
 								'Workflow transitions',

@@ -24,8 +24,14 @@ import { MetadataPanel } from './components/MetadataPanel';
 
 import './style.css';
 
-// Hydrate the store from the server-rendered localized data.
-wp.data.dispatch( STORE_NAME ).hydrate( window.vipWorkflowsEditor || {} );
+// Hydrate the store from the server-rendered localized data. The status
+// endpoint's answer, served with the page, goes in the way a fetched one does,
+// so everything the store derives from it is derived in one place.
+const { workflowStatus, ...bootstrap } = window.vipWorkflowsEditor || {};
+wp.data.dispatch( STORE_NAME ).hydrate( bootstrap );
+if ( workflowStatus ) {
+	wp.data.dispatch( STORE_NAME ).receiveWorkflowStatus( workflowStatus );
+}
 
 /**
  * Main Workflow Plugin Component

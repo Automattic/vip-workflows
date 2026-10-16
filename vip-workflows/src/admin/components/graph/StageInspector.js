@@ -1019,6 +1019,14 @@ export default function StageInspector( {
 													destination,
 													{ problem, disabled }
 												);
+												// The first exit is the one the post
+												// editor's header button offers, so the
+												// order this list is dragged into is a
+												// choice with a visible effect. An AI
+												// stage's exits are its agent's, so none
+												// of them is a person's next step.
+												const primary =
+													! isAgent && 0 === index;
 												return (
 													<SortableFact
 														// Keyed by position, not by target: a
@@ -1047,8 +1055,20 @@ export default function StageInspector( {
 														onSelect={ selectExit(
 															transition.to
 														) }
+														// The row's button is named by this
+														// label alone, so the badge inside it
+														// has to be said here too.
 														selectLabel={ exitSelectLabel(
-															label,
+															primary
+																? sprintf(
+																		/* translators: %s: the exit's label. */
+																		__(
+																			'%s (primary)',
+																			'vip-workflows'
+																		),
+																		label
+																  )
+																: label,
 															problem
 														) }
 														className={ [
@@ -1063,15 +1083,8 @@ export default function StageInspector( {
 															.join( ' ' ) }
 														label={ label }
 														value={ value }
-														// The first exit is the one the post
-														// editor's header button offers, so the
-														// order this list is dragged into is a
-														// choice with a visible effect. An AI
-														// stage's exits are its agent's, so none
-														// of them is a person's next step.
 														badge={
-															! isAgent &&
-															0 === index
+															primary
 																? __(
 																		'Primary',
 																		'vip-workflows'

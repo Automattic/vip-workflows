@@ -83,9 +83,9 @@ export function replacesCorePublish(
 		return false;
 	}
 
-	if ( workflow.guard?.can_bypass ) {
+	if ( workflow.guard.can_bypass ) {
 		return false;
 	}
 
-	return PRE_PUBLISH_REGIONS.includes( workflow.guard?.current_region );
+	return PRE_PUBLISH_REGIONS.includes( workflow.guard.current_region );
 }
