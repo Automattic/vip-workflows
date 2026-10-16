@@ -14,16 +14,43 @@
  * The importing test file must mock `@wordpress/api-fetch` (the store fetches
  * through it) and `@wordpress/core-data` (the store refreshes the post entity
  * through it, and the real package pulls @wordpress/sync, which needs a
- * TextEncoder jsdom does not provide).
+ * TextEncoder jsdom does not provide), and `@wordpress/edit-post` to
+ * `{ store: 'core/edit-post' }` — the flow asks it whether the screen has
+ * classic meta boxes, answered by the stand-in registered below.
  *
  * @package
  */
 
-import { dispatch } from '@wordpress/data';
+import { createReduxStore, dispatch, register } from '@wordpress/data';
 
 import { STORE_NAME } from '../../../src/editor/store';
 
 export { STORE_NAME };
+
+register(
+	createReduxStore( 'core/edit-post', {
+		reducer: ( state = { metaBoxes: false }, action ) =>
+			'SET_HAS_META_BOXES' === action.type
+				? { metaBoxes: action.value }
+				: state,
+		selectors: { hasMetaBoxes: ( state ) => state.metaBoxes },
+		actions: {
+			setHasMetaBoxes: ( value ) => ( {
+				type: 'SET_HAS_META_BOXES',
+				value,
+			} ),
+		},
+	} )
+);
+
+/**
+ * Say whether the screen has classic meta boxes.
+ *
+ * @param {boolean} value Whether it has.
+ */
+export function setHasMetaBoxes( value ) {
+	dispatch( 'core/edit-post' ).setHasMetaBoxes( value );
+}
 
 /**
  * Seat the editor store at a known starting point: this post, and no workflow
@@ -52,4 +79,6 @@ export function seedEditorStore( overrides = {} ) {
 	// land as this test's answer. The same token that keeps a slow poll from
 	// overwriting a transition's own payload.
 	dispatch( STORE_NAME ).beginWorkflowStatusRequest();
+
+	setHasMetaBoxes( false );
 }

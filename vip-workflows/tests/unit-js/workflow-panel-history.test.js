@@ -37,6 +37,7 @@ jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
  * selectors, so a named test store stands in for all of it.
  */
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 
 /*
  * DataViews measures the viewport to lay itself out, which jsdom does not do —

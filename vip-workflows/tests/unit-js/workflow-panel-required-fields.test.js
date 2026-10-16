@@ -38,6 +38,7 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 // and the panel needs nothing from them but the store names.
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
@@ -97,6 +98,7 @@ register(
 			getCurrentPostAttribute: () => 'draft',
 			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => postIsDirty,
+			didPostSaveRequestFail: () => false,
 			isEditedPostSaveable: () => true,
 			isSavingPost: () => false,
 			isPostSavingLocked: () => false,

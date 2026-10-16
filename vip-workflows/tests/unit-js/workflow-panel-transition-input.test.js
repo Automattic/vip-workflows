@@ -41,6 +41,7 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 // ESM-only deps the panel names but does not otherwise exercise.
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 

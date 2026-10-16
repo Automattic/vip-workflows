@@ -22,7 +22,11 @@ the sidebar's own readouts and split one feature across two places.
 - `TransitionFlow` — mounted unconditionally beside the guard. It runs every
   transition, whichever surface started it: the agent-interrupt and publish
   confirms, the assignee popover, the blocked and warnings dialogs, the
-  save-before-move and the request itself. Surfaces hand it a request through
+  save-before-move and the request itself. The save runs for any unsaved
+  edit and, short of a live post, whenever the screen has classic meta boxes
+  (which the dirty flag cannot see), as core's Publish would. On a live post
+  that save is an Update, so a move with unsaved edits asks first ("Publish
+  your changes?"); a clean live post's meta boxes are left for its Update. Surfaces hand it a request through
   the editor store (`requestTransition`) and read the move in flight back
   (`getTransitioningTo`), so a dialog never belongs to a sidebar that can close
   or a dropdown that closes on focus-out. It also follows a move into an AI

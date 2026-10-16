@@ -29,6 +29,7 @@ import { useEffect, useRef, useState } from '@wordpress/element';
 import { Button } from '@wordpress/components';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
+import { store as editPostStore } from '@wordpress/edit-post';
 import { store as noticesStore } from '@wordpress/notices';
 import apiFetch from '@wordpress/api-fetch';
 import { speak } from '@wordpress/a11y';
@@ -37,6 +38,9 @@ import { STORE_NAME } from '../store';
 import { useConfirm } from '../../common/use-confirm';
 import {
 	getAgentInterruptWarning,
+	getLiveEditsConfirmLabel,
+	getLiveEditsConfirmTitle,
+	getLiveEditsWarning,
 	getStatusChangeConfirmLabel,
 	getStatusChangeConfirmTitle,
 	getTransitionPublishConfirmLabel,
@@ -400,7 +404,7 @@ export function TransitionFlow() {
 		const targetTransition = transitions.find( ( t ) => t.to === toStatus );
 		const targetIsAiStage =
 			!! targetTransition?.status_info?.agent?.ability_id;
-		let wasDirty = false;
+		let saved = false;
 
 		whenSaveSettles( registry )
 			.then( () => {
@@ -413,12 +417,23 @@ export function TransitionFlow() {
 				// content, no excerpt. savePost() returns without a request
 				// there, so asking would only report a failed save; the post
 				// moves on as the database already holds it.
-				wasDirty =
+				//
+				// Classic meta boxes are a form core posts after its own save,
+				// and isEditedPostDirty() cannot see them. Short of live, the
+				// post is saved whenever the screen has them, as core's
+				// Publish would — nothing goes public. A live post's meta
+				// boxes wait for its Update: saving them publishes them, and
+				// nothing here can tell whether they changed to ask about it.
+				saved =
 					! agentOutranEditorRef.current &&
-					editor.isEditedPostDirty() &&
+					( editor.isEditedPostDirty() ||
+						( 'publish' !== savedStatus &&
+							registry
+								.select( editPostStore )
+								.hasMetaBoxes() ) ) &&
 					editor.isEditedPostSaveable();
 
-				if ( ! wasDirty ) {
+				if ( ! saved ) {
 					return;
 				}
 
@@ -439,11 +454,16 @@ export function TransitionFlow() {
 			} )
 			.then( () => {
 				// savePost() resolves even when the save request fails (the error
-				// is recorded in the editor store). If the post is still dirty the
-				// content never persisted, so bail rather than send a transition
-				// the server will judge against a row that is not what the author
-				// is looking at.
-				if ( wasDirty && editor.isEditedPostDirty() ) {
+				// is recorded in the editor store, meta boxes' included). If it
+				// failed, or the post is still dirty, the content never
+				// persisted, so bail rather than send a transition the server
+				// will judge against a row that is not what the author is
+				// looking at.
+				if (
+					saved &&
+					( editor.didPostSaveRequestFail() ||
+						editor.isEditedPostDirty() )
+				) {
 					throw {
 						code: 'save_failed',
 						message: targetIsAiStage
@@ -623,10 +643,6 @@ export function TransitionFlow() {
 		// boundary anomaly) is already public, so there is no news to confirm.
 		// A scheduled post is NOT exempt — its stage stayed put, so the
 		// crossing still happens and publishes it now, ahead of its schedule.
-		//
-		// This asks about the status only. The save that precedes every move
-		// (handleTransition) is not covered: on a live post it puts the
-		// editor's unsaved edits live without a question of its own.
 		const publishes =
 			transition.status_info?.status === 'publish' &&
 			workflow?.current?.status !== 'publish' &&
@@ -643,6 +659,30 @@ export function TransitionFlow() {
 					confirmLabel: getTransitionPublishConfirmLabel(),
 				}
 			);
+
+			if ( ! proceed ) {
+				return;
+			}
+		}
+
+		// The save that precedes every move (handleTransition) is an Update on
+		// a post that is already live: the author's unsaved edits go public
+		// with it, and stay public if the move is then refused. Pressing a
+		// workflow step — send to legal, say — does not say that, so it is
+		// asked here. Only when there is something to publish: the same
+		// conditions handleTransition saves under.
+		const editor = registry.select( editorStore );
+		const publishesEdits =
+			'publish' === savedStatus &&
+			! agentOutranEditorRef.current &&
+			editor.isEditedPostDirty() &&
+			editor.isEditedPostSaveable();
+
+		if ( publishesEdits ) {
+			const proceed = await confirm( getLiveEditsWarning(), {
+				title: getLiveEditsConfirmTitle(),
+				confirmLabel: getLiveEditsConfirmLabel(),
+			} );
 
 			if ( ! proceed ) {
 				return;

@@ -27,6 +27,7 @@ jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
  * selectors, so a named test store stands in for all of it.
  */
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 
 /*
  * `@wordpress/notices` pulls an ESM-only `uuid` build Jest cannot parse, and

@@ -10,7 +10,13 @@
  * @package
  */
 
-import { render, screen, waitFor, act } from './helpers/render-wp-component';
+import {
+	render,
+	screen,
+	waitFor,
+	act,
+	fireEvent,
+} from './helpers/render-wp-component';
 import apiFetch from '@wordpress/api-fetch';
 import { speak } from '@wordpress/a11y';
 
@@ -20,6 +26,7 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 // deps the components name but do not otherwise exercise.
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
@@ -46,6 +53,7 @@ const CORE_EDITOR = {
 	otherEntitiesDirty: false,
 	dirty: false,
 	saveable: true,
+	saveFailed: false,
 	saving: false,
 	savingLocked: false,
 };
@@ -81,6 +89,7 @@ register(
 			hasNonPostEntityChanges: ( state ) => state.otherEntitiesDirty,
 			isEditedPostDirty: ( state ) => state.dirty,
 			isEditedPostSaveable: ( state ) => state.saveable,
+			didPostSaveRequestFail: ( state ) => state.saveFailed,
 			isSavingPost: ( state ) => state.saving,
 			isPostSavingLocked: ( state ) => state.savingLocked,
 		},
@@ -116,7 +125,11 @@ register(
 );
 
 /* eslint-disable import/first */
-import { STORE_NAME, seedEditorStore } from './helpers/editor-store';
+import {
+	STORE_NAME,
+	seedEditorStore,
+	setHasMetaBoxes,
+} from './helpers/editor-store';
 import {
 	WorkflowHeaderAction,
 	REPLACES_PUBLISH_CLASS,
@@ -136,6 +149,18 @@ const TO_LIVE = {
 	to: 'live',
 	label: 'Publish Now',
 	status_info: { key: 'live', label: 'Live', status: 'publish' },
+};
+
+/**
+ * What core reports for a live post, and the status payload for one.
+ */
+const LIVE = {
+	savedStatus: 'publish',
+	editedStatus: 'publish',
+	published: true,
+};
+const LIVE_STATUS = {
+	guard: { current_region: 'publish', can_bypass: false },
 };
 
 /**
@@ -371,6 +396,119 @@ describe( 'WorkflowHeaderAction', () => {
 		expect(
 			await screen.findByText( 'Publish this post?' )
 		).toBeInTheDocument();
+		expect( transitionPosts() ).toHaveLength( 0 );
+	} );
+
+	/**
+	 * Core posts classic meta boxes after its own save, and the editor's dirty
+	 * flag cannot see them. Short of live, a move saves whenever the screen
+	 * has them, as core's Publish would.
+	 */
+	it( 'saves a clean draft first when the screen has meta boxes', async () => {
+		setHasMetaBoxes( true );
+		await renderHeader( statusResponse() );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Send to Review' } )
+			).click();
+		} );
+
+		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'does not move the post when that save fails', async () => {
+		setHasMetaBoxes( true );
+		savePost.mockImplementationOnce( () => ( { dispatch: editor } ) => {
+			editor.setCoreEditor( { saveFailed: true } );
+		} );
+		await renderHeader( statusResponse() );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Send to Review' } )
+			).click();
+		} );
+
+		await waitFor( () =>
+			expect( createErrorNotice ).toHaveBeenCalledWith(
+				'Could not save the post before the transition. Try again.',
+				expect.anything()
+			)
+		);
+		expect( transitionPosts() ).toHaveLength( 0 );
+	} );
+
+	/**
+	 * On a live post a save publishes, so meta boxes nothing can tell have
+	 * changed are left for the post's own Update.
+	 */
+	it( 'leaves a clean live post unsaved, meta boxes or not', async () => {
+		setHasMetaBoxes( true );
+		setCoreEditor( LIVE );
+		await renderHeader( statusResponse( LIVE_STATUS ) );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Send to Review' } )
+			).click();
+		} );
+
+		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
+		expect( savePost ).not.toHaveBeenCalled();
+		expect(
+			screen.queryByText( 'Publish your changes?' )
+		).not.toBeInTheDocument();
+	} );
+
+	/**
+	 * The save before a move is an Update on a live post: the edits go public,
+	 * and stay public if the move is refused. A workflow step does not say
+	 * that, so it is asked.
+	 */
+	it( "asks before publishing a live post's unsaved edits", async () => {
+		setCoreEditor( { ...LIVE, dirty: true } );
+		await renderHeader( statusResponse( LIVE_STATUS ) );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Send to Review' } )
+			).click();
+		} );
+
+		expect(
+			await screen.findByText( 'Publish your changes?' )
+		).toBeInTheDocument();
+		expect( savePost ).not.toHaveBeenCalled();
+
+		await act( async () => {
+			fireEvent.click(
+				screen.getByRole( 'button', { name: 'Publish changes' } )
+			);
+		} );
+
+		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'leaves a live post and its edits alone when that is cancelled', async () => {
+		setCoreEditor( { ...LIVE, dirty: true } );
+		await renderHeader( statusResponse( LIVE_STATUS ) );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Send to Review' } )
+			).click();
+		} );
+
+		await act( async () => {
+			fireEvent.click(
+				await screen.findByRole( 'button', { name: 'Cancel' } )
+			);
+		} );
+
+		expect( savePost ).not.toHaveBeenCalled();
 		expect( transitionPosts() ).toHaveLength( 0 );
 	} );
 
