@@ -23,6 +23,74 @@ class AssignmentManagerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // filter_transition_input — only declared keys survive
+    // -------------------------------------------------------------------------
+
+    /**
+     * The assignment's value, notes and their labels survive; every other key
+     * is dropped, including a retired note's `wfp_` keys.
+     */
+    public function test_filter_transition_input_keeps_only_the_assignment_keys(): void
+    {
+        $filtered = $this->manager->filter_transition_input(
+            array(
+                'to'     => 'review',
+                'inputs' => array(
+                    array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why' ),
+                    array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer', 'assignee_type' => 'user' ),
+                ),
+            ),
+            array(
+                'legal_reviewer'             => 7,
+                'legal_reviewer__name'       => 'Legal reviewer',
+                'legal_reviewer_notes'       => 'Check the claims.',
+                'legal_reviewer_notes__name' => 'Notes',
+                'wfp_n1_why'                 => 'Because.',
+                'wfp_n1_why__name'           => 'Why',
+                'other'                      => 'Arbitrary.',
+                'other__name'                => 'Other',
+            )
+        );
+
+        $this->assertSame(
+            array(
+                'legal_reviewer'             => 7,
+                'legal_reviewer__name'       => 'Legal reviewer',
+                'legal_reviewer_notes'       => 'Check the claims.',
+                'legal_reviewer_notes__name' => 'Notes',
+            ),
+            $filtered
+        );
+    }
+
+    /**
+     * A transition that declares no assignment — or no authored edge at all —
+     * accepts no input.
+     */
+    public function test_filter_transition_input_drops_everything_without_an_assignment(): void
+    {
+        $input = array(
+            'wfp_n1_why'     => 'Because.',
+            'legal_reviewer' => 7,
+        );
+
+        $this->assertSame(
+            array(),
+            $this->manager->filter_transition_input(
+                array(
+                    'to'     => 'review',
+                    'inputs' => array(
+                        array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why' ),
+                    ),
+                ),
+                $input
+            )
+        );
+        $this->assertSame(array(), $this->manager->filter_transition_input(array( 'to' => 'review' ), $input));
+        $this->assertSame(array(), $this->manager->filter_transition_input(null, $input));
+    }
+
+    // -------------------------------------------------------------------------
     // process_transition_input — finding the assignment in a list of inputs
     // -------------------------------------------------------------------------
 

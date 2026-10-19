@@ -741,6 +741,15 @@ class StatusManager {
 		// collect assignment inputs.
 		$transition_config = $sequence->get_transition( $current_stage, $to_status );
 
+		// Keep only the input keys this edge declares. Every key that survives is
+		// stored in transition meta and logged as a labelled note, so a client
+		// cannot attach arbitrary free text to the post's history by naming keys
+		// the transition never asked for.
+		$assignment_manager = new AssignmentManager();
+		if ( ! empty( $options['input_data'] ) ) {
+			$options['input_data'] = $assignment_manager->filter_transition_input( $transition_config, $options['input_data'] );
+		}
+
 		/*
 		 * An agent run executes at uid 0 under cron, so it names the identity it
 		 * acts for and the capability checks below are evaluated against that
@@ -807,7 +816,6 @@ class StatusManager {
 		// Reject incomplete assignments before tools run or any post state changes.
 		// A failed-agent revert does not collect inputs, even if an authored edge
 		// happens to connect the same stages.
-		$assignment_manager = new AssignmentManager();
 		if ( ! $is_revert && is_array( $transition_config ) ) {
 			$assignment_validation = $assignment_manager->validate_transition_input( $transition_config, $options['input_data'] ?? array() );
 			if ( is_wp_error( $assignment_validation ) ) {
