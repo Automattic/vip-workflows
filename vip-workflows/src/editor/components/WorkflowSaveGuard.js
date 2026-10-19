@@ -41,7 +41,7 @@ import {
 	getStatusChangeConfirmLabel,
 	getStatusChangeConfirmTitle,
 	getStatusChangeWarning,
-} from '../../entries/confirm-workflow-side-effect';
+} from '../../common/confirm-workflow-side-effect';
 import { useConfirm } from '../../common/use-confirm';
 import { STORE_NAME } from '../store';
 
