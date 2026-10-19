@@ -1299,7 +1299,7 @@ function targetStageKey( target ) {
  * A target's identity, for telling apart two faults that read the same.
  *
  * A message is not a fault's name. An unlabelled transition is named by its
- * destination (`transition.label || transition.to`), so two stages each holding
+ * destination ("Move to {destination}"), so two stages each holding
  * an unlabelled transition to the same place word their faults identically
  * while pointing at two different transitions — two things to fix, in two
  * places, each with its own way to it.
@@ -2386,7 +2386,7 @@ export function validateSequence( {
 							'The “%1$s” transition points to a stage that doesn’t exist (%2$s). Reconnect or remove it.',
 							'vip-workflows'
 						),
-						t.label || t.to,
+						transitionLabel( t, stageLabel( stages, t.to ) ),
 						t.to
 					)
 				);
@@ -2425,10 +2425,15 @@ export function validateSequence( {
 					continue;
 				}
 
-				// Named the way the dangling-target rule above names one: the button
-				// label the author typed, falling back to the destination key, so
-				// the message points at a transition they can find.
-				const transitionName = transition.label || transition.to;
+				// Named the way the dangling-target rule above names one: the label
+				// its button will carry. An unauthored label is never stored, so the
+				// raw label is blank on nearly every transition — falling back to the
+				// destination key would name it something no button in the editor
+				// says. `transitionLabel` derives "Move to {destination}" instead.
+				const transitionName = transitionLabel(
+					transition,
+					stageLabel( stages, transition.to )
+				);
 				const key = normalizeSlotKey( input.meta_key );
 
 				if ( '' === key ) {

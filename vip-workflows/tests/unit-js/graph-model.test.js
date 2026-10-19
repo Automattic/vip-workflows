@@ -1126,6 +1126,88 @@ describe( 'dangling transitions', () => {
 		expect( message ).toContain( 'Schedule' );
 		expect( message ).toContain( 'ghost' );
 	} );
+
+	it( 'names an unlabelled transition by the label its button carries', () => {
+		const s = stages();
+		s[ 1 ].transitions.push( { to: 'ghost' } );
+		const { warnings } = validateSequence( { name: 'Flow', stages: s } );
+
+		expect( warnings.review ).toEqual( [
+			expect.stringContaining( '“Move to ghost” transition' ),
+		] );
+	} );
+} );
+
+/*
+ * An unauthored transition label is never stored — the button derives "Move to
+ * {destination}" when it is read. A slot fault naming the transition by its raw
+ * label, falling back to the destination key, would point the author at a
+ * transition no button in the editor is called.
+ */
+describe( 'assignment slot faults name the transition', () => {
+	const assignment = ( metaKey ) => ( {
+		type: 'assignment',
+		assignee_type: 'role',
+		label: 'Pick desk',
+		required: true,
+		meta_key: metaKey,
+	} );
+
+	const withInputs = ( draftInputs, reviewInputs ) =>
+		stages().map( ( s ) => {
+			if ( 'draft' === s.key ) {
+				return {
+					...s,
+					transitions: [ { to: 'review', inputs: draftInputs } ],
+				};
+			}
+			if ( 'review' === s.key ) {
+				return {
+					...s,
+					transitions: [ { to: 'done', inputs: reviewInputs } ],
+				};
+			}
+			return s;
+		} );
+
+	it( 'by its derived label when it names no assignment key', () => {
+		const { errors } = validateSequence( {
+			name: 'Flow',
+			stages: withInputs( [ assignment( '' ) ], [] ),
+		} );
+
+		expect( messages( errors ) ).toEqual( [
+			expect.stringContaining(
+				'The “Move to Review” transition assigns work but names no assignment key'
+			),
+		] );
+	} );
+
+	it( 'by its derived label when it reuses another transition’s slot', () => {
+		const { errors } = validateSequence( {
+			name: 'Flow',
+			stages: withInputs(
+				[ assignment( 'wfp_nshared' ) ],
+				[ assignment( 'wfp_nshared' ) ]
+			),
+		} );
+
+		expect( messages( errors ) ).toEqual( [
+			expect.stringContaining(
+				'The “Move to Done” transition assigns to the same slot as another transition'
+			),
+		] );
+	} );
+
+	it( 'by its authored label when it has one', () => {
+		const next = withInputs( [ assignment( '' ) ], [] );
+		next[ 0 ].transitions[ 0 ].label = 'Send to legal';
+		const { errors } = validateSequence( { name: 'Flow', stages: next } );
+
+		expect( messages( errors ) ).toEqual( [
+			expect.stringContaining( 'The “Send to legal” transition' ),
+		] );
+	} );
 } );
 
 describe( 'validateSequence', () => {
