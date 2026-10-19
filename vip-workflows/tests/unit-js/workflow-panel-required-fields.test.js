@@ -12,9 +12,10 @@
  * And the other half of making that refusal survivable: the values the author
  * types into the sidebar are written through useEntityProp, which edits the
  * editor store and nothing else until a save, while the server's gate reads
- * post meta. A transition against a sequence that declares a required field
- * therefore has to flush the post first, or the author is refused for a field
- * whose value is on screen in front of them.
+ * post meta. A transition the gate can refuse therefore has to flush the post
+ * first, or the author is refused for a field whose value is on screen in front
+ * of them. The gate only judges a move that crosses INTO the publish region, so
+ * that is the only move a required field makes the panel save for.
  *
  * Which leaves the case the author actually hits first, since the server also
  * projects that gate onto the edge as `_locked`: the button is DISABLED, so the
@@ -107,6 +108,9 @@ import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
+// A draft-region stage whose one way out stays short of the publish region.
+// Both sides carry their region, because whether a move crosses into publish —
+// the only move the required-field gate judges — is read off exactly these.
 const STATUS_RESPONSE = {
 	has_workflow: true,
 	sequence: { id: 1, name: 'Required Fields Flow' },
@@ -114,45 +118,80 @@ const STATUS_RESPONSE = {
 		key: 'draft',
 		label: 'Draft',
 		color: '#666',
+		status: 'draft',
 		is_terminal: false,
 	},
 	transitions: [
 		{
 			to: 'review',
 			label: 'Send to Review',
-			status_info: { key: 'review', label: 'Review' },
+			status_info: { key: 'review', label: 'Review', status: 'pending' },
 		},
 	],
 	can_remove: false,
 };
 
-// The same sequence, plus the sequence's declared metadata fields — the shape
-// the status endpoint really returns, and the only thing that tells the panel
-// this transition can depend on meta that is not persisted yet.
-const STATUS_WITH_REQUIRED_FIELD = {
+// The same draft-region stage, whose way out crosses into the publish region —
+// the one move the server's required-field gate can refuse.
+const STATUS_CROSSING_INTO_PUBLISH = {
 	...STATUS_RESPONSE,
-	metadata_fields: [
+	transitions: [
 		{
-			key: 'section',
-			label: 'Section',
-			type: 'text',
-			required: true,
-			meta_key: 'wf_meta_1_section',
+			to: 'live',
+			label: 'Send Live',
+			status_info: {
+				key: 'live',
+				label: 'On the site',
+				status: 'publish',
+			},
 		},
 	],
 };
 
+// A publish-region stage moving to another publish-region stage: the post is
+// already live, there is no boundary left to cross, and the gate does not run.
+const STATUS_WITHIN_PUBLISH = {
+	...STATUS_CROSSING_INTO_PUBLISH,
+	current: {
+		key: 'published',
+		label: 'Published',
+		color: '#666',
+		status: 'publish',
+		is_terminal: false,
+	},
+};
+
+const REQUIRED_SECTION = {
+	key: 'section',
+	label: 'Section',
+	type: 'text',
+	required: true,
+	meta_key: 'wf_meta_1_section',
+};
+
+// The crossing, plus the sequence's declared metadata fields — the shape the
+// status endpoint really returns, and what tells the panel this transition can
+// depend on meta that is not persisted yet.
+const STATUS_WITH_REQUIRED_FIELD = {
+	...STATUS_CROSSING_INTO_PUBLISH,
+	metadata_fields: [ REQUIRED_SECTION ],
+};
+
 const STATUS_WITH_OPTIONAL_FIELD = {
+	...STATUS_CROSSING_INTO_PUBLISH,
+	metadata_fields: [ { ...REQUIRED_SECTION, required: false } ],
+};
+
+// A required field on a sequence whose move stays short of publish.
+const STATUS_REQUIRED_FIELD_NO_CROSSING = {
 	...STATUS_RESPONSE,
-	metadata_fields: [
-		{
-			key: 'section',
-			label: 'Section',
-			type: 'text',
-			required: false,
-			meta_key: 'wf_meta_1_section',
-		},
-	],
+	metadata_fields: [ REQUIRED_SECTION ],
+};
+
+// A required field on a move between two publish-region stages.
+const STATUS_REQUIRED_FIELD_WITHIN_PUBLISH = {
+	...STATUS_WITHIN_PUBLISH,
+	metadata_fields: [ REQUIRED_SECTION ],
 };
 
 // Two required fields and a publish edge the server is holding for both — the
@@ -248,9 +287,18 @@ async function renderWithRefusal( error ) {
  * Render the panel against a status payload and click the one transition, with
  * the transition POST succeeding.
  *
- * @param {Object} status Status-endpoint payload the store is answered with.
+ * A move that takes the post live asks before it goes; the confirm is accepted
+ * here, since what these tests watch is what happens after the author says yes.
+ *
+ * @param {Object}  status          Status-endpoint payload the store is answered with.
+ * @param {Object}  options         Options.
+ * @param {string}  options.label   Label of the transition button to click.
+ * @param {boolean} options.publish Whether the move opens the publish confirm.
  */
-async function renderAndTransition( status ) {
+async function renderAndTransition(
+	status,
+	{ label = 'Send Live', publish = true } = {}
+) {
 	apiFetch.mockImplementation( ( { path, method } ) => {
 		if ( path === STATUS_PATH && method !== 'POST' ) {
 			return Promise.resolve( status );
@@ -269,13 +317,19 @@ async function renderAndTransition( status ) {
 
 	await waitFor( () =>
 		expect(
-			screen.getByRole( 'button', { name: 'Send to Review' } )
+			screen.getByRole( 'button', { name: label } )
 		).toBeInTheDocument()
 	);
 
 	await act( async () => {
-		screen.getByRole( 'button', { name: 'Send to Review' } ).click();
+		screen.getByRole( 'button', { name: label } ).click();
 	} );
+
+	if ( publish ) {
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Publish' } ).click();
+		} );
+	}
 }
 
 /**
@@ -382,7 +436,7 @@ describe( 'WorkflowPanel required-field refusal', () => {
 	 * transition is refused for a field that is filled in on screen — and
 	 * clicking again does exactly the same thing.
 	 */
-	it( 'saves a dirty post before a transition that can depend on meta', async () => {
+	it( 'saves a dirty post before a publish crossing that can depend on meta', async () => {
 		postIsDirty = true;
 
 		await renderAndTransition( STATUS_WITH_REQUIRED_FIELD );
@@ -400,6 +454,39 @@ describe( 'WorkflowPanel required-field refusal', () => {
 		postIsDirty = true;
 
 		await renderAndTransition( STATUS_WITH_OPTIONAL_FIELD );
+
+		expect( savePost ).not.toHaveBeenCalled();
+		expect( sequence ).toEqual( [ 'transition' ] );
+	} );
+
+	/**
+	 * The gate only judges a move into the publish region, so a required field
+	 * gives a move that stays short of it no reason to write the post. Saving
+	 * here would be a write on every step through the sequence, for a refusal
+	 * that cannot happen.
+	 */
+	it( 'leaves a dirty post alone on a move that does not cross into publish', async () => {
+		postIsDirty = true;
+
+		await renderAndTransition( STATUS_REQUIRED_FIELD_NO_CROSSING, {
+			label: 'Send to Review',
+			publish: false,
+		} );
+
+		expect( savePost ).not.toHaveBeenCalled();
+		expect( sequence ).toEqual( [ 'transition' ] );
+	} );
+
+	/**
+	 * Nor does a move between two publish-region stages: the post is already
+	 * live, so there is no boundary left for the gate to defend.
+	 */
+	it( 'leaves a dirty post alone on a move within the publish region', async () => {
+		postIsDirty = true;
+
+		await renderAndTransition( STATUS_REQUIRED_FIELD_WITHIN_PUBLISH, {
+			publish: false,
+		} );
 
 		expect( savePost ).not.toHaveBeenCalled();
 		expect( sequence ).toEqual( [ 'transition' ] );
