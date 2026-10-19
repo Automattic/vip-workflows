@@ -22,6 +22,13 @@
  * only happens on a save that actually changes the status, and a freshly read
  * region can never be stale after an in-editor transition.
  *
+ * The guard is also what tells the sidebar the save landed. A confirmed status
+ * change re-seats the post server-side, but the write is core's, not the
+ * sidebar's, so none of the sidebar's own refresh paths run for it. The filter
+ * remembers that the save it let through carries a re-seat, and once that save
+ * finishes successfully the guard re-reads the workflow state into the store —
+ * which re-sources the panel, the Metadata section and every extension at once.
+ *
  * @package
  */
 
@@ -63,6 +70,7 @@ export function WorkflowSaveGuard() {
 	);
 
 	const { editPost } = useDispatch( editorStore );
+	const { fetchWorkflowStatus } = useDispatch( STORE_NAME );
 	const registry = useRegistry();
 	const [ confirm, confirmDialog ] = useConfirm();
 
@@ -72,6 +80,12 @@ export function WorkflowSaveGuard() {
 	useEffect( () => {
 		postIdRef.current = postId;
 	}, [ postId ] );
+
+	// Set by the filter when it lets through a status change it warned about —
+	// one the workflow re-seats on the server — and consumed when that save
+	// finishes. The filter runs before core marks the post as saving, so the
+	// flag is always in place by the time the saving edge it belongs to starts.
+	const reseatPendingRef = useRef( false );
 
 	// Guard the editor's own status controls.
 	//
@@ -228,6 +242,7 @@ export function WorkflowSaveGuard() {
 			);
 
 			if ( proceed ) {
+				reseatPendingRef.current = true;
 				return edits;
 			}
 
@@ -240,6 +255,47 @@ export function WorkflowSaveGuard() {
 
 		return () => removeFilter( 'editor.preSavePost', GUARD_HOOK_NAMESPACE );
 	}, [ confirm, editPost, registry ] );
+
+	// Re-read the workflow state once a re-seating save has landed.
+	//
+	// This watches the save finishing, not the status edit: the stage moves
+	// only when the write commits, and a save the server refuses moves nothing.
+	// It subscribes to the registry directly rather than deriving the edge from
+	// a `useSelect` render, so the saving -> saved edge cannot be lost to a
+	// batched render. Autosaves never carry a status (see the filter above), so
+	// their edges are ignored — they neither trigger the read nor consume the
+	// flag the real save set.
+	useEffect( () => {
+		let wasSaving = false;
+		let wasAutosaving = false;
+
+		return registry.subscribe( () => {
+			const editor = registry.select( editorStore );
+			const isSaving = editor.isSavingPost();
+
+			if ( isSaving ) {
+				wasSaving = true;
+				wasAutosaving = editor.isAutosavingPost();
+				return;
+			}
+
+			if ( ! wasSaving ) {
+				return;
+			}
+
+			wasSaving = false;
+
+			if ( wasAutosaving || ! reseatPendingRef.current ) {
+				return;
+			}
+
+			reseatPendingRef.current = false;
+
+			if ( editor.didPostSaveRequestSucceed() ) {
+				fetchWorkflowStatus();
+			}
+		}, editorStore );
+	}, [ fetchWorkflowStatus, registry ] );
 
 	return confirmDialog;
 }

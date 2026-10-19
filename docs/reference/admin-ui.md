@@ -18,7 +18,11 @@ the sidebar's own readouts and split one feature across two places.
 **Structure** (`index.js`):
 - `WorkflowSaveGuard` — mounted unconditionally, **outside the sidebar**, and
   renders no chrome. Its `editor.preSavePost` filter has to survive the sidebar
-  being closed, which is why it is not inside it.
+  being closed, which is why it is not inside it. When it lets through a
+  status change it warned about (one that re-seats the post), it re-reads the
+  workflow status into the editor store once that save finishes successfully,
+  so the sidebar shows the new stage without a reload. Autosaves and failed
+  saves are ignored.
 - One `Stack` (`.vip-workflows-sidebar`) holding `WorkflowPanel`. No card and no
   heading of its own: `PluginSidebar` already names the sidebar "Workflow", and
   the panel opens with the document-sidebar row that names the sequence. The
