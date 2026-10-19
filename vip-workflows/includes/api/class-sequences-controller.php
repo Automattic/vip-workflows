@@ -1402,6 +1402,15 @@ class SequencesController extends WP_REST_Controller {
 			);
 		}
 
+		// A phase sequence stores `phases`, not `statuses`, so it is imported
+		// through the same phase write path create/update use. That path keeps
+		// only the phases and hand-offs the published graph allows, sanitizes
+		// them, drops what a phase sequence does not carry, and refuses a
+		// sequence missing the lifecycle it owes.
+		if ( Sequence::TYPE_PHASE === $sequence_json['type'] ) {
+			return $this->import_phase_sequence( $sequence_json, $custom_name );
+		}
+
 		if ( empty( $sequence_json['config']['statuses'] ) || ! is_array( $sequence_json['config']['statuses'] ) ) {
 			return new WP_Error(
 				'invalid_sequence_statuses',
@@ -1444,17 +1453,7 @@ class SequencesController extends WP_REST_Controller {
 		$name = $custom_name ? $custom_name : $sequence_json['name'];
 
 		// Generate unique slug from name.
-		global $wpdb;
-		$slug      = sanitize_title( $name );
-		$base_slug = $slug;
-		$counter   = 1;
-
-		// Check for existing sequences with this slug (any status, any version).
-		$table = $wpdb->prefix . 'vip_sequences';
-		while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE slug = %s", $slug ) ) > 0 ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$slug = $base_slug . '-' . $counter;
-			$counter++;
-		}
+		$slug = $this->unique_import_slug( $name );
 
 		// Validate metadata_fields if present in the imported config.
 		if ( ! empty( $sequence_json['config']['metadata_fields'] ) ) {
@@ -1504,6 +1503,84 @@ class SequencesController extends WP_REST_Controller {
 			);
 		}
 
+		return $this->imported_sequence_response( $sequence_id );
+	}
+
+	/**
+	 * Import a phase sequence from JSON.
+	 *
+	 * The config goes through build_phase_config(), the write path create and
+	 * update use, so an imported phase sequence is stored exactly as one saved
+	 * in the editor would be, and one the editor could not save is refused.
+	 *
+	 * @param  array       $sequence_json Validated import payload (type, name, config).
+	 * @param  string|null $custom_name   Name overriding the one in the file.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	private function import_phase_sequence( array $sequence_json, $custom_name ) {
+		if ( empty( $sequence_json['config']['phases'] ) || ! is_array( $sequence_json['config']['phases'] ) ) {
+			return new WP_Error(
+				'invalid_sequence_phases',
+				__( 'Phase sequence must have at least one phase.', 'vip-workflows' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$name = sanitize_text_field( $custom_name ? $custom_name : $sequence_json['name'] );
+		$slug = $this->unique_import_slug( $name );
+
+		try {
+			$config      = $this->build_phase_config( $sequence_json['config']['phases'] );
+			$sequence_id = $this->repository->create(
+				$name,
+				$slug,
+				sanitize_textarea_field( $sequence_json['description'] ?? '' ),
+				$config,
+				get_current_user_id(),
+				Sequence::TYPE_PHASE
+			);
+		} catch ( \InvalidArgumentException $e ) {
+			return new WP_Error(
+				'rest_sequence_invalid_config',
+				$e->getMessage(),
+				array( 'status' => 422 )
+			);
+		}
+
+		return $this->imported_sequence_response( $sequence_id );
+	}
+
+	/**
+	 * A slug for an imported sequence that no stored sequence holds.
+	 *
+	 * Checks every status and version, since the (type, slug, version) unique
+	 * key collides regardless.
+	 *
+	 * @param  string $name Sequence name.
+	 * @return string
+	 */
+	private function unique_import_slug( string $name ): string {
+		global $wpdb;
+		$slug      = sanitize_title( $name );
+		$base_slug = $slug;
+		$counter   = 1;
+
+		$table = $wpdb->prefix . 'vip_sequences';
+		while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE slug = %s", $slug ) ) > 0 ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$slug = $base_slug . '-' . $counter;
+			++$counter;
+		}
+
+		return $slug;
+	}
+
+	/**
+	 * Mark a freshly imported sequence as a draft and build the import response.
+	 *
+	 * @param  int|false $sequence_id ID returned by the repository create.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	private function imported_sequence_response( $sequence_id ) {
 		if ( ! $sequence_id ) {
 			return new WP_Error(
 				'sequence_import_failed',
@@ -1527,7 +1604,7 @@ class SequencesController extends WP_REST_Controller {
 
 		return new WP_REST_Response(
 			array(
-				'success'   => true,
+				'success'  => true,
 				'sequence' => $this->prepare_sequence_response( $sequence ),
 			),
 			201
