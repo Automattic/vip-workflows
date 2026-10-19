@@ -937,7 +937,9 @@ export default function SequenceGraphEditor( {
 	// The stage panel's exit list reads this: a node badge says a stage needs
 	// attention, and without this the author has to open every transition it
 	// holds to find out which one the message meant. A stage holds one
-	// transition per destination, so `from->to` names the record; the outcome
+	// transition per destination, so `from->to` names the record — a stored
+	// stage that holds two shares one address between them, and its faults
+	// point at the stage rather than at an edge (see `validateSequence`); the outcome
 	// only says which of the edges drawn for it the canvas selects, and every
 	// row standing on that record carries the fault alike.
 	const exitProblems = useMemo( () => {
