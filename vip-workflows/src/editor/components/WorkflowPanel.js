@@ -136,8 +136,9 @@ export function WorkflowPanel( { children } ) {
 			// Whether the sequence declares any REQUIRED metadata field.
 			// The server's gate reads those fields out of post meta, and the
 			// sidebar writes them through useEntityProp — an editor-store edit
-			// that is not in the database until the post is saved. So this is
-			// what tells a transition whether it depends on persisted meta.
+			// that is not in the database until the post is saved. So this,
+			// together with whether the move crosses into the publish region,
+			// is what tells a transition whether it depends on persisted meta.
 			hasRequiredMetadata: ( s.getMetadataFields() || [] ).some(
 				( field ) => !! field.required
 			),
@@ -424,13 +425,25 @@ export function WorkflowPanel( { children } ) {
 		//   A required-field refusal is precisely the case where the fix IS an
 		//   unsaved meta edit, so the edit has to go first.
 		//
+		//   The server only holds a move for required fields when it crosses
+		//   INTO the publish region (Sequence::crosses_into_publish(), judged on
+		//   stage regions: the target's is publish and the current stage's is
+		//   not). Every other move is never refused for them, so it has no
+		//   reason to write the post first. Same stage-region test the publish
+		//   confirm below asks, minus the saved-status clause that is about
+		//   whether going live is news, not about what the gate judges.
+		//
 		// Still narrowed rather than "save on every dirty transition": a
 		// transition that depends on neither leaves the author's unsaved work
 		// exactly where they left it.
 		const targetTransition = transitions.find( ( t ) => t.to === toStatus );
 		const targetIsAiStage =
 			!! targetTransition?.status_info?.agent?.ability_id;
-		const needsPersistedPost = targetIsAiStage || hasRequiredMetadata;
+		const crossesIntoPublish =
+			targetTransition?.status_info?.status === 'publish' &&
+			workflow?.current?.status !== 'publish';
+		const needsPersistedPost =
+			targetIsAiStage || ( hasRequiredMetadata && crossesIntoPublish );
 		const editor = registry.select( editorStore );
 		const ensureSaved =
 			needsPersistedPost && editor.isEditedPostDirty()
