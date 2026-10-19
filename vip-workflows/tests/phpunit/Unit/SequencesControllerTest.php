@@ -2744,6 +2744,62 @@ class SequencesControllerTest extends TestCase
         $this->assertSame( 'duplicate_assignment_key', $result->get_error_code() );
     }
 
+    /**
+     * Editor-made keys are opaque minted ids no author recognises, so a
+     * repeated key is reported by the two transitions that share it.
+     */
+    public function test_duplicate_assignment_key_error_names_both_transitions(): void
+    {
+        $this->stub_real_sanitize_key();
+
+        $result = $this->controller->validate_assignment_keys(
+            array(
+                array(
+                    'key'         => 'draft',
+                    'transitions' => array(
+                        array( 'to' => 'review', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'wfp_n1_0_abcde' ) ) ),
+                    ),
+                ),
+                array(
+                    'key'         => 'review',
+                    'transitions' => array(
+                        array( 'to' => 'legal', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'wfp_n1_0_abcde' ) ) ),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'duplicate_assignment_key', $result->get_error_code() );
+
+        $message = $result->get_error_message();
+        $this->assertStringContainsString( 'from "draft" to "review"', $message );
+        $this->assertStringContainsString( 'from "review" to "legal"', $message );
+        $this->assertStringNotContainsString( 'wfp_n1_0_abcde', $message );
+
+        $this->assertSame(
+            array(
+                'status'   => 400,
+                'meta_key' => 'wfp_n1_0_abcde',
+            ),
+            $result->get_error_data()
+        );
+    }
+
+    /**
+     * REST callers are told what an input carries, the slot key included.
+     */
+    public function test_rest_args_describe_transition_inputs(): void
+    {
+        $method = new \ReflectionMethod( SequencesController::class, 'get_create_args' );
+        $args   = $method->invoke( $this->controller );
+
+        $this->assertSame(
+            SequencesController::get_transition_inputs_schema(),
+            $args['statuses']['items']['properties']['transitions']['items']['properties']['inputs']
+        );
+    }
+
     // =========================================================================
     // GET /sequences/options Tests
     // =========================================================================

@@ -73,13 +73,13 @@ In the canonical example the `draft` region's entry is the `draft` stage and the
 
 ### Transition inputs and assignments (`inputs[]`)
 
-A transition may capture inputs; at most **one** may be an assignment:
+An assignment is the only input a transition captures, and a transition may declare at most **one**. Any other `type` (such as the retired free-text note, `textarea` or `text`) is refused on every write path, import included:
 
 ```json
 { "type": "assignment", "meta_key": "reviewer", "assignee_type": "user", "label": "Assign a reviewer" }
 ```
 
-- `meta_key` must be **unique across the whole sequence**. Import regenerates these keys, so a hand-authored `meta_key` survives create but is replaced on import.
+- `meta_key` is required and must be **unique across the whole sequence**. The sequence editor mints it; a REST, ability, or import caller must send it, or the write is refused (`invalid_assignment_key`, or `duplicate_assignment_key` naming the two transitions that share a key). The REST args and the `create-sequence` / `update-sequence` abilities describe every input field through `SequencesController::get_transition_inputs_schema()`, which limits `type` to `assignment` and requires `meta_key`. Import regenerates these keys, so a hand-authored `meta_key` survives create but is replaced on import.
 - `assignee_type` is `user`, `role`, or `agent` — the three `AssignmentManager::get_assignee_types()` registers, extensible through the `vip_workflows_assignee_types` filter. The editor offers a picker for `user` and `role`. Other strings are stored as given and not validated at write time, so use one only when an extension handles it.
 - The legacy singular `input` key is refused alongside `inputs`; use `inputs` (plural).
 
