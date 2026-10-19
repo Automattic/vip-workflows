@@ -2507,9 +2507,9 @@ export function validateSequence( {
 		for ( const transition of stage.transitions || [] ) {
 			// A transition captures a list, of which at most one entry assigns
 			// work — a cap the server refuses a save for breaking, and one the
-			// add control in the inspector will not let an author reach. Walked
-			// as a list all the same: an assignment need not lead the list, and a
-			// config imported past the editor can carry two.
+			// add control in the inspector will not let an author reach; import
+			// passes through the same server gate, so no saved config carries two.
+			// Walked as a list all the same because an assignment need not lead it.
 			for ( const input of transition.inputs || [] ) {
 				if ( input?.type !== 'assignment' ) {
 					continue;
