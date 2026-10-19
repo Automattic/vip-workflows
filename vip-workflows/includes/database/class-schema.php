@@ -501,14 +501,15 @@ class Schema {
 			),
 			// Clear two retired transition fields off stored rows, in one replay.
 			//
-			// - `requires_assignment`, the restrict-to-assignee gate. Nothing has
-			//   read it since the gate was removed, and the write gate now strips
-			//   it. Stored rows still carry it, and GET and export re-emit it as a
-			//   restriction nothing enforces.
-			// - Free-text notes (`textarea`, or the older `text`). The editor
-			//   stopped collecting them, and the write gate now refuses any input
-			//   that is not an assignment, so a stored note is a row nothing reads
-			//   and no save can carry.
+			// The restrict-to-assignee gate, `requires_assignment`: nothing has
+			// read it since the gate was removed, and the write gate now strips
+			// it. Stored rows still carry it, and GET and export re-emit it as a
+			// restriction nothing enforces.
+			//
+			// Free-text notes (`textarea`, or the older `text`): the editor
+			// stopped collecting them, and the write gate now refuses any input
+			// that is not an assignment, so a stored note is a row nothing reads
+			// and no save can carry.
 			//
 			// The gate strips `requires_assignment` itself. Notes are dropped
 			// ahead of the gate by drop_retired_transition_inputs(), which every
