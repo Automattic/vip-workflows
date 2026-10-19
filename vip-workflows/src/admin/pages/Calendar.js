@@ -69,6 +69,7 @@ import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 
 import AdminPage from '../components/AdminPage';
 import StatusBadge from '../components/StatusBadge';
+import { paletteHighlight } from '../utils/stage-palette';
 import { AuthorCell } from '../../common/DataViewCells';
 import { ModalActions } from '../../common/ModalActions';
 import { ModalBody } from '../../common/ModalBody';
@@ -956,9 +957,12 @@ export default function Calendar() {
 					// escapes the .vip-workflows-calendar-body wrapper the rest
 					// of the .rbc-* overrides are scoped under.
 					className: 'vip-workflows-calendar-event',
+					// The tint is the palette's highlight for the event's
+					// status color, not the stored hex itself, so a stage
+					// saved with an off-palette color still lands on a slot.
 					style: {
-						'--vip-workflows-calendar-event-color':
-							event.status_color,
+						'--vip-workflows-calendar-event-highlight':
+							paletteHighlight( event.status_color ),
 					},
 				} ) }
 				dayPropGetter={ ( date ) => {

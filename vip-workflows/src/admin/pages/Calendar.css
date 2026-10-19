@@ -165,9 +165,11 @@
 }
 
 /* Event chip — styled directly on rbc's own .rbc-event box, so there's a
-   single styled element (not a nested custom one). The per-event status color
-   arrives as --vip-workflows-calendar-event-color (set via eventPropGetter) and
-   tints the fill; falls back to a neutral stroke if absent.
+   single styled element (not a nested custom one). The fill is the qualitative
+   palette's highlight for the event's status color, which eventPropGetter
+   resolves (paletteHighlight() in utils/stage-palette.js) and hands over as
+   --vip-workflows-calendar-event-highlight: a palette slot at highlight
+   strength, never the raw stored hex.
 
    Chips are the one piece of rbc chrome NOT scoped under
    .vip-workflows-calendar-body. rbc portals the month view's "+N more" popup to
@@ -180,11 +182,9 @@
    with .rbc-event keeps each rule at two classes, which outranks rbc's own
    single-class defaults regardless of which stylesheet the admin loads first. */
 .rbc-event.vip-workflows-calendar-event { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
-	--vip-workflows-calendar-event-color: var(--wpds-color-stroke-interactive-neutral);
-
 	padding-block: var(--wpds-dimension-padding-xs);
 	padding-inline: var(--wpds-dimension-padding-md);
-	background: color-mix(in srgb, var(--vip-workflows-calendar-event-color) 10%, transparent);
+	background: var(--vip-workflows-calendar-event-highlight);
 	border: none;
 	border-radius: var(--wpds-border-radius-lg);
 	font: var(--vip-workflows-text-body-md);
@@ -239,7 +239,7 @@
 
 /* Keep our tint on selection rather than rbc's default blue fill. */
 .rbc-event.vip-workflows-calendar-event.rbc-selected {
-	background: color-mix(in srgb, var(--vip-workflows-calendar-event-color) 10%, transparent);
+	background: var(--vip-workflows-calendar-event-highlight);
 }
 
 /* "Show more" link */
