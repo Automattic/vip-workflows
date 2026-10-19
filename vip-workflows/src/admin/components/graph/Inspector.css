@@ -176,8 +176,9 @@
 	min-width: 0; /* wpds-allow R2 -- zero needs no token */
 }
 
-/* A disclosure section's actions are wrapped so the wrapper can open the section
-   when one of them is pressed (`InspectorSection`). The wrapper is bookkeeping,
+/* A section's actions are wrapped so the wrapper can track focus inside them,
+   and in a disclosure open the section when one of them is pressed
+   (`InspectorSection`). The wrapper is bookkeeping,
    never a box: `contents` takes it out of the layout entirely, so the control
    inside stays a direct flex item of the heading row and the row measures
    exactly as it did before the wrapper existed. */
