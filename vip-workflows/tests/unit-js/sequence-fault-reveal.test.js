@@ -17,9 +17,9 @@
  * All three are the same promise, so they are pinned together here: the panel
  * opens and takes focus, and the canvas is told where to pan.
  *
- * The pan itself cannot run here — React Flow measures a viewport jsdom does
- * not lay out — so it is tested as the arithmetic it is (`canvas-reveal`), and
- * the editor is held to handing the canvas the request.
+ * The canvas is stubbed here, so the editor is held to handing it the request,
+ * and the pan is tested as the arithmetic it is (`canvas-reveal`). What the
+ * canvas does with the request is `graph-canvas-reveal.test.js`.
  *
  * @package
  */
@@ -33,6 +33,8 @@ import {
 	saveButton,
 	sequenceOptions,
 } from './helpers/sequence-editor';
+
+import { createRoot, useEffect, useState } from '@wordpress/element';
 
 import Inspector from '../../src/admin/components/graph/Inspector';
 import {
@@ -84,24 +86,26 @@ const SEQUENCE_SETTINGS = {
 	deleting: false,
 };
 
+// The panel with the first stage selected, as a click on it leaves it.
+const INSPECTOR_PROPS = {
+	selection: { type: 'node', key: 'draft' },
+	isPhase: false,
+	stages: STAGES,
+	selectedStage: STAGES[ 0 ],
+	selectedTransition: null,
+	availableAgents: [],
+	availableRoles: [],
+	availableTools: [],
+	availableChannels: [],
+	onUpdateStage: () => {},
+	onDeleteStage: () => {},
+	onUpdateTransition: () => {},
+	onDeleteTransition: () => {},
+	sequenceSettings: SEQUENCE_SETTINGS,
+};
+
 function renderInspector( overrides = {} ) {
-	const props = {
-		selection: { type: 'node', key: 'draft' },
-		isPhase: false,
-		stages: STAGES,
-		selectedStage: STAGES[ 0 ],
-		selectedTransition: null,
-		availableAgents: [],
-		availableRoles: [],
-		availableTools: [],
-		availableChannels: [],
-		onUpdateStage: () => {},
-		onDeleteStage: () => {},
-		onUpdateTransition: () => {},
-		onDeleteTransition: () => {},
-		sequenceSettings: SEQUENCE_SETTINGS,
-		...overrides,
-	};
+	const props = { ...INSPECTOR_PROPS, ...overrides };
 	const view = render( <Inspector { ...props } /> );
 	return {
 		...view,
@@ -228,6 +232,10 @@ describe( 'a reveal opens the panel it selects into', () => {
 
 		update( { reveal: revealDraft() } );
 
+		// jsdom computes the name from `aria-labelledby` whatever the role,
+		// so the role is held to separately: a bare div is not something a
+		// screen reader announces by name.
+		expect( heading() ).toHaveAttribute( 'role', 'group' );
 		expect( heading() ).toHaveAccessibleName( 'Stage Draft' );
 	} );
 
@@ -272,6 +280,104 @@ describe( 'a reveal opens the panel it selects into', () => {
 		update( { reveal: revealDraft() } );
 
 		expect( body() ).not.toHaveAttribute( 'hidden' );
+	} );
+} );
+
+// --- The order the two halves run in ---------------------------------------
+
+// The canvas measures the room the panel leaves on the frame after a reveal.
+// The panel has to be open by then, or a docked panel is measured as the title
+// bar it was collapsed to and the fault lands behind it once it opens.
+//
+// Nothing above can see this: `act` flushes every update before it returns, so
+// an expansion queued as a later task looks as done as one committed with the
+// selection. This runs the way a browser does — a root with no `act`, a native
+// click, and a frame that arrives before any task React queues after it, which
+// is the order Chromium ran them in when the panel was expanded from a passive
+// effect and the canvas measured it collapsed.
+describe( 'the panel a reveal opens, as the canvas measures it', () => {
+	it( 'is open by the frame after the press', async () => {
+		const actEnvironment = global.IS_REACT_ACT_ENVIRONMENT;
+		const { requestAnimationFrame: raf, cancelAnimationFrame: caf } =
+			window;
+		const desktop = window.matchMedia;
+		const container = document.createElement( 'div' );
+		document.body.appendChild( container );
+		const root = createRoot( container );
+
+		global.IS_REACT_ACT_ENVIRONMENT = false;
+		window.requestAnimationFrame = ( callback ) => {
+			queueMicrotask( () => callback( performance.now() ) );
+			return 0;
+		};
+		window.cancelAnimationFrame = () => {};
+		// A phone, where the panel starts collapsed and docks along the bottom
+		// — the layout in which its height is what the canvas measures.
+		window.matchMedia = () => ( {
+			matches: true,
+			media: '',
+			onchange: null,
+			addListener: () => {},
+			removeListener: () => {},
+			addEventListener: () => {},
+			removeEventListener: () => {},
+			dispatchEvent: () => false,
+		} );
+
+		// Whether the panel was hidden, each time the canvas measured it.
+		const measured = [];
+
+		// The canvas's side, as `GraphCanvas` does it: a frame after the
+		// reveal arrives, read the panel.
+		function CanvasProbe( { reveal } ) {
+			useEffect( () => {
+				if ( ! reveal ) {
+					return;
+				}
+				const frame = window.requestAnimationFrame( () =>
+					measured.push( body().hidden )
+				);
+				return () => window.cancelAnimationFrame( frame );
+			}, [ reveal ] );
+			return null;
+		}
+
+		function Editor() {
+			const [ reveal, setReveal ] = useState( null );
+			return (
+				<>
+					<button
+						className="show"
+						onClick={ () => setReveal( revealDraft() ) }
+					>
+						Show stage
+					</button>
+					<Inspector { ...INSPECTOR_PROPS } reveal={ reveal } />
+					<CanvasProbe reveal={ reveal } />
+				</>
+			);
+		}
+
+		const nextTask = () =>
+			new Promise( ( resolve ) => setTimeout( resolve, 20 ) );
+
+		try {
+			root.render( <Editor /> );
+			await nextTask();
+			expect( body() ).toHaveAttribute( 'hidden' );
+
+			container.querySelector( '.show' ).click();
+			await nextTask();
+
+			expect( measured ).toEqual( [ false ] );
+		} finally {
+			root.unmount();
+			container.remove();
+			window.matchMedia = desktop;
+			window.requestAnimationFrame = raf;
+			window.cancelAnimationFrame = caf;
+			global.IS_REACT_ACT_ENVIRONMENT = actEnvironment;
+		}
 	} );
 } );
 

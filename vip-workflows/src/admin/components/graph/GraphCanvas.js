@@ -201,10 +201,12 @@ function inspectorReserve( el ) {
  * always asked for from one — the refused-save notice holds the button — so
  * the strip starts below the lowest of them.
  *
+ * Exported for its tests, which stand in the rects a browser would measure.
+ *
  * @param {HTMLElement} el The canvas pane.
  * @return {Object} `{ x, y, width, height }` relative to the pane.
  */
-function visibleCanvas( el ) {
+export function visibleCanvas( el ) {
 	const editor = el.closest( '.wf-sequence-editor' );
 	const paneTop = el.getBoundingClientRect().top;
 	// Measured against the pane, so jsdom's all-zero rects answer 0.
