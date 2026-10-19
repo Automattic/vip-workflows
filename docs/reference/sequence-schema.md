@@ -20,7 +20,7 @@ The `statuses` / `post_types` / `settings` / `metadata_fields` payload is **iden
 | Field | Required | Notes |
 | --- | --- | --- |
 | `name` | yes | The sequence name. |
-| `type` | — | `"workflow"` (default) or `"phase"`. Phase sequences (part of the Ideation experiment) carry their phase graph in the same `statuses` field and are exempt from the stage-region rules below. |
+| `type` | — | `"workflow"` (default) or `"phase"`. Phase sequences (part of the Ideation experiment) carry their phase graph in the same `statuses` field (stored, exported and imported as `config.phases`) and are exempt from the stage-region rules below. They must instead declare the lifecycle hand-offs published as `required_phase_transitions` by `/sequences/options`; the shared write gate refuses one that does not on every write path (create, update, import, direct repository writes), and `validate-sequence` reports the same refusal. |
 | `description` | — | Free text. |
 | `status` | — (FLAT only) | Lifecycle: `"active"` (default) or `"draft"`. Accepted by `POST /sequences`, `create-sequence`, and `PUT /sequences/{id}`; the `update-sequence` ability does not take it. Import always creates a draft regardless. |
 | `post_types` | — | Array of post-type slugs the sequence attaches to, e.g. `["post"]`. Discover eligible types with `GET /sequences/options`. |

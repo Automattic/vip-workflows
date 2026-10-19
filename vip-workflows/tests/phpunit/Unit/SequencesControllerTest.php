@@ -1117,6 +1117,125 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
+     * A phase sequence is imported from `config.phases`, the shape export emits,
+     * not refused for having no `statuses`.
+     */
+    public function test_import_sequence_accepts_a_phase_sequence_from_its_phases(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+
+        $captured = null;
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 ); // No existing slug.
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row( array( 'type' => Sequence::TYPE_PHASE ) ) );
+        $this->wpdb->shouldReceive( 'insert' )->once()->andReturnUsing(
+            function ( $table, $data ) use ( &$captured ) {
+                $captured = $data;
+                return 1;
+            }
+        );
+        $this->wpdb->shouldReceive( 'update' )->andReturn( 1 );
+        $this->wpdb->insert_id = 1;
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => 'phase',
+                    'name'   => 'Imported Lifecycle',
+                    'config' => array(
+                        'phases' => array(
+                            array(
+                                'key'         => 'ideation',
+                                'label'       => 'Ideation',
+                                // The required hand-off, then one outside the
+                                // phase graph, which the build drops.
+                                'transitions' => array(
+                                    array( 'to' => 'editorial', 'label' => 'Create draft' ),
+                                    array( 'to' => 'archive', 'label' => 'Shelve' ),
+                                ),
+                            ),
+                            array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertSame( 201, $response->get_status() );
+
+        $stored = json_decode( $captured['config'], true );
+        $this->assertSame( array( 'ideation', 'editorial' ), array_column( $stored['phases'], 'key' ) );
+        $this->assertSame( array( 'editorial' ), array_column( $stored['phases'][0]['transitions'], 'to' ) );
+        $this->assertArrayNotHasKey( 'statuses', $stored );
+    }
+
+    /**
+     * An import is held to the same lifecycle as a save: a phase sequence
+     * missing the hand-off it owes is refused, not stored.
+     */
+    public function test_import_sequence_refuses_a_phase_sequence_missing_the_lifecycle(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 ); // No existing slug.
+        $this->wpdb->shouldNotReceive( 'insert' );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => 'phase',
+                    'name'   => 'Bricked Lifecycle',
+                    'config' => array(
+                        'phases' => array(
+                            array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array() ),
+                            array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
+        $this->assertSame( 422, $response->get_error_data()['status'] );
+        $this->assertMatchesRegularExpression( '/ideation.+editorial/', $response->get_error_message() );
+    }
+
+    /**
+     * A phase sequence with no phases is refused for that, not for lacking
+     * stages it was never meant to have.
+     */
+    public function test_import_sequence_validates_phases(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => 'phase',
+                    'name'   => 'Empty Lifecycle',
+                    'config' => array( 'phases' => array() ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'invalid_sequence_phases', $response->get_error_code() );
+    }
+
+    /**
      * Test import_sequence success.
      */
     public function test_import_sequence_success(): void
@@ -2766,7 +2885,8 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
-     * The config the write gate would store for a phase sequence.
+     * The config the write gate would store for a phase sequence: built the way
+     * create and update build it, then put through the repository's gate.
      *
      * @param array $phases Phases as the request carries them.
      * @return array The stored config.
@@ -2776,13 +2896,16 @@ class SequencesControllerTest extends TestCase
     {
         $method = new \ReflectionMethod( SequencesController::class, 'build_config' );
 
-        return $method->invoke(
-            $this->controller,
-            Sequence::TYPE_PHASE,
-            $phases,
-            array(),
-            array(),
-            array()
+        return Sequence::prepare_config_for_write(
+            $method->invoke(
+                $this->controller,
+                Sequence::TYPE_PHASE,
+                $phases,
+                array(),
+                array(),
+                array()
+            ),
+            Sequence::TYPE_PHASE
         );
     }
 

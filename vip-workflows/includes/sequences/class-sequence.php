@@ -22,6 +22,61 @@ class Sequence {
 	public const TYPE_PHASE    = 'phase';
 
 	/**
+	 * The phase graph a phase sequence may declare, as source phase => targets.
+	 *
+	 * The lifecycle phases are not sequence data — a phase sequence configures
+	 * the hand-off between them, it does not invent them — so the adjacency has
+	 * to be written down somewhere. This is that somewhere, and the only one:
+	 * SequencesController::build_config() reads it to decide which phases and
+	 * which transitions survive a save, and `/sequences/options` publishes it so
+	 * the editor refuses on the canvas exactly what the build would drop on the
+	 * way in.
+	 *
+	 * Today the lifecycle runs Ideation → Editorial and nothing else routes a
+	 * post between phases, so that is the whole map. A phase added here becomes
+	 * drawable and savable in one edit; adding it to only one side is what this
+	 * constant exists to stop.
+	 *
+	 * @var array<string, string[]>
+	 */
+	public const PHASE_TRANSITIONS = array(
+		'ideation' => array( 'editorial' ),
+	);
+
+	/**
+	 * The lifecycle a phase sequence must declare, as source phase => targets.
+	 *
+	 * PHASE_TRANSITIONS is a permission — the hand-offs a phase sequence MAY
+	 * draw. This is an obligation: the phases it must name and the hand-offs it
+	 * must carry between them. Both endpoints of every pair here must exist in
+	 * the saved config, and the hand-off joining them must be declared, or the
+	 * sequence is refused.
+	 *
+	 * It is written out separately rather than derived from PHASE_TRANSITIONS
+	 * because the two facts grow in opposite directions. A second, optional
+	 * hand-off added to the permission graph — `'ideation' => array( 'editorial',
+	 * 'archive' )` — is a route an author may take, not one every sequence owes;
+	 * reading the obligation off the permission graph would turn that one edit
+	 * into a rule no stored sequence satisfies.
+	 *
+	 * Nothing outside a phase sequence routes a post between lifecycle phases, so
+	 * a sequence missing the hand-off is not a lifecycle with a gap in it — it is
+	 * an Ideation stage nothing can leave. The canvas refuses to save one
+	 * (`/sequences/options` publishes this so it can), and so does the write
+	 * gate — prepare_config_for_write(), which every write path reaches through
+	 * SequenceRepository — because an ability call, an import or a direct PUT
+	 * never passes the canvas, and validate-sequence predicts that gate.
+	 *
+	 * Every phase named here must also be reachable under PHASE_TRANSITIONS;
+	 * an obligation the build would strip is one no author could satisfy.
+	 *
+	 * @var array<string, string[]>
+	 */
+	public const REQUIRED_PHASES = array(
+		'ideation' => array( 'editorial' ),
+	);
+
+	/**
 	 * Sequence ID.
 	 *
 	 * @var int
@@ -1247,21 +1302,118 @@ class Sequence {
 	 * Phase sequences use a `phases` graph rather than `statuses` and are exempt
 	 * from the stage rules above. The exemption is keyed on the sequence TYPE, not
 	 * the presence of a `phases` key — otherwise a workflow config could smuggle in a
-	 * stray `phases` key to skip validation of an invalid `statuses` graph.
+	 * stray `phases` key to skip validation of an invalid `statuses` graph. What a
+	 * phase config is held to instead is the lifecycle (REQUIRED_PHASES), here
+	 * rather than in the REST controller, so a repository call, an import and the
+	 * validate-sequence dry run refuse exactly what a save through the editor does.
+	 * The config is returned unchanged: which phases and hand-offs it may carry is
+	 * filtered when it is built (SequencesController::build_phase_config()).
+	 *
+	 * Stored phase rows are not replayed through this by any migration (the
+	 * replay selects stage-based rows only), so a row written before the rule is
+	 * refused on its next config write or activation, not rewritten.
 	 *
 	 * @param  array  $config Sequence config array.
 	 * @param  string $type   Sequence type (workflow/pitch/phase).
 	 * @return array The normalized config to persist.
-	 * @throws \InvalidArgumentException If the config has no stages, an empty or duplicate stage key, an invalid stage status region, more than one region entry per region, or a transition to an undefined stage.
+	 * @throws \InvalidArgumentException If the config has no stages, an empty or duplicate stage key, an invalid stage status region, more than one region entry per region, or a transition to an undefined stage; or, for a phase sequence, if it is missing a required phase or the hand-off between two of them.
 	 */
 	public static function prepare_config_for_write( array $config, string $type = self::TYPE_WORKFLOW ): array {
 		// Phase sequences carry a `phases` graph, not `statuses`; the stage rules
-		// below don't apply to them.
+		// below don't apply to them, the lifecycle does.
 		if ( self::TYPE_PHASE === $type ) {
+			self::require_phase_lifecycle( $config );
+
 			return $config;
 		}
 
 		return self::normalize_stages( $config );
+	}
+
+	/**
+	 * A phase adjacency, flattened into edges.
+	 *
+	 * @param  array<string, string[]> $graph Phase adjacency, source => targets.
+	 * @return array List of { from, to } pairs.
+	 */
+	public static function phase_edges( array $graph ): array {
+		$edges = array();
+
+		foreach ( $graph as $from => $targets ) {
+			foreach ( $targets as $to ) {
+				$edges[] = array(
+					'from' => $from,
+					'to'   => $to,
+				);
+			}
+		}
+
+		return $edges;
+	}
+
+	/**
+	 * Refuse a phase sequence that does not carry the lifecycle.
+	 *
+	 * The obligation is the hand-off, not the pair of phases: a sequence holding
+	 * Ideation and Editorial with nothing joining them is not a lifecycle missing
+	 * a line on a canvas, it is an Ideation phase a post cannot leave. The phases
+	 * are checked first only so the error names the simpler problem when both are
+	 * true.
+	 *
+	 * A `phases` list that is absent, or an entry without a string key or with a
+	 * non-list `transitions`, is malformed rather than incomplete, and is refused
+	 * as such: SequencesController::build_phase_config() never produces one.
+	 *
+	 * @param  array $config Phase sequence config.
+	 * @return void
+	 * @throws \InvalidArgumentException If the config is malformed, or a required phase or hand-off is missing.
+	 */
+	private static function require_phase_lifecycle( array $config ): void {
+		if ( ! isset( $config['phases'] ) || ! is_array( $config['phases'] ) ) {
+			throw new \InvalidArgumentException(
+				esc_html__( 'A phase sequence must declare its phases as a list.', 'vip-workflows' )
+			);
+		}
+
+		$declared = array();
+		foreach ( $config['phases'] as $phase ) {
+			if ( ! is_array( $phase ) || ! isset( $phase['key'] ) || ! is_string( $phase['key'] ) || ! isset( $phase['transitions'] ) || ! is_array( $phase['transitions'] ) ) {
+				throw new \InvalidArgumentException(
+					esc_html__( 'Every phase in a phase sequence must have a key and a list of transitions.', 'vip-workflows' )
+				);
+			}
+
+			$declared[ $phase['key'] ] = array_column( $phase['transitions'], 'to' );
+		}
+
+		$required = self::phase_edges( self::REQUIRED_PHASES );
+
+		foreach ( $required as $edge ) {
+			foreach ( array( $edge['from'], $edge['to'] ) as $key ) {
+				if ( ! isset( $declared[ $key ] ) ) {
+					throw new \InvalidArgumentException(
+						sprintf(
+							/* translators: %s: phase key, e.g. "ideation". */
+							esc_html__( 'A phase sequence must declare the “%s” phase.', 'vip-workflows' ),
+							esc_html( $key )
+						)
+					);
+				}
+			}
+		}
+
+		foreach ( $required as $edge ) {
+			if ( ! in_array( $edge['to'], $declared[ $edge['from'] ], true ) ) {
+				throw new \InvalidArgumentException(
+					sprintf(
+						/* translators: 1: source phase key, 2: target phase key. */
+						esc_html__( 'A phase sequence must declare the hand-off from “%1$s” to “%2$s”.', 'vip-workflows' ),
+						esc_html( $edge['from'] ),
+						esc_html( $edge['to'] )
+					)
+				);
+			}
+		}
 	}
 
 	/**

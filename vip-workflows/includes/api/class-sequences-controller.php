@@ -27,58 +27,6 @@ class SequencesController extends WP_REST_Controller {
 
 
 	/**
-	 * The phase graph a phase sequence may declare, as source phase => targets.
-	 *
-	 * The lifecycle phases are not sequence data — a phase sequence configures
-	 * the hand-off between them, it does not invent them — so the adjacency has
-	 * to be written down somewhere. This is that somewhere, and the only one:
-	 * the write gate reads it to decide which phases and which transitions
-	 * survive a save, and `/sequences/options` publishes it so the editor
-	 * refuses on the canvas exactly what the gate would drop on the way in.
-	 *
-	 * Today the lifecycle runs Ideation → Editorial and nothing else routes a
-	 * post between phases, so that is the whole map. A phase added here becomes
-	 * drawable and savable in one edit; adding it to only one side is what this
-	 * constant exists to stop.
-	 *
-	 * @var array<string, string[]>
-	 */
-	private const PHASE_TRANSITIONS = array(
-		'ideation' => array( 'editorial' ),
-	);
-
-	/**
-	 * The lifecycle a phase sequence must declare, as source phase => targets.
-	 *
-	 * PHASE_TRANSITIONS is a permission — the hand-offs a phase sequence MAY
-	 * draw. This is an obligation: the phases it must name and the hand-offs it
-	 * must carry between them. Both endpoints of every pair here must exist in
-	 * the saved config, and the hand-off joining them must be declared, or the
-	 * sequence is refused.
-	 *
-	 * It is written out separately rather than derived from PHASE_TRANSITIONS
-	 * because the two facts grow in opposite directions. A second, optional
-	 * hand-off added to the permission graph — `'ideation' => array( 'editorial',
-	 * 'archive' )` — is a route an author may take, not one every sequence owes;
-	 * reading the obligation off the permission graph would turn that one edit
-	 * into a rule no stored sequence satisfies.
-	 *
-	 * Nothing outside a phase sequence routes a post between lifecycle phases, so
-	 * a sequence missing the hand-off is not a lifecycle with a gap in it — it is
-	 * an Ideation stage nothing can leave. The canvas refuses to save one
-	 * (`/sequences/options` publishes this so it can), and so does the write
-	 * gate, because an ability call or a direct PUT never passes the canvas.
-	 *
-	 * Every phase named here must also be reachable under PHASE_TRANSITIONS;
-	 * an obligation the write gate would strip is one no author could satisfy.
-	 *
-	 * @var array<string, string[]>
-	 */
-	private const REQUIRED_PHASES = array(
-		'ideation' => array( 'editorial' ),
-	);
-
-	/**
 	 * Sequence repository.
 	 *
 	 * @var SequenceRepository
@@ -356,7 +304,8 @@ class SequencesController extends WP_REST_Controller {
 	 * The phase graph is published twice because it answers two questions: what a
 	 * phase sequence MAY connect (`phase_transitions`) and what it MUST
 	 * (`required_phase_transitions`). The canvas draws against the first and
-	 * refuses Save against the second; the write gate below enforces both.
+	 * refuses Save against the second; build_config() keeps only the first and
+	 * Sequence::prepare_config_for_write() refuses a config missing the second.
 	 *
 	 * @param  WP_REST_Request $request Request object.
 	 * @return WP_REST_Response
@@ -365,8 +314,8 @@ class SequencesController extends WP_REST_Controller {
 		return new WP_REST_Response(
 			array(
 				'post_types'                 => $this->eligible_post_types(),
-				'phase_transitions'          => self::phase_edges( self::PHASE_TRANSITIONS ),
-				'required_phase_transitions' => self::phase_edges( self::REQUIRED_PHASES ),
+				'phase_transitions'          => Sequence::phase_edges( Sequence::PHASE_TRANSITIONS ),
+				'required_phase_transitions' => Sequence::phase_edges( Sequence::REQUIRED_PHASES ),
 			)
 		);
 	}
@@ -425,35 +374,14 @@ class SequencesController extends WP_REST_Controller {
 	}
 
 	/**
-	 * A phase adjacency, flattened into edges.
-	 *
-	 * @param  array<string, string[]> $graph Phase adjacency, source => targets.
-	 * @return array List of { from, to } pairs.
-	 */
-	private static function phase_edges( array $graph ): array {
-		$edges = array();
-
-		foreach ( $graph as $from => $targets ) {
-			foreach ( $targets as $to ) {
-				$edges[] = array(
-					'from' => $from,
-					'to'   => $to,
-				);
-			}
-		}
-
-		return $edges;
-	}
-
-	/**
 	 * Every phase a phase sequence may name, source or target.
 	 *
 	 * @return array List of phase keys.
 	 */
 	private static function phase_keys(): array {
-		$keys = array_keys( self::PHASE_TRANSITIONS );
+		$keys = array_keys( Sequence::PHASE_TRANSITIONS );
 
-		foreach ( self::PHASE_TRANSITIONS as $targets ) {
+		foreach ( Sequence::PHASE_TRANSITIONS as $targets ) {
 			foreach ( $targets as $to ) {
 				if ( ! in_array( $to, $keys, true ) ) {
 					$keys[] = $to;
@@ -824,8 +752,8 @@ class SequencesController extends WP_REST_Controller {
 
 		// A malformed graph (duplicate keys, invalid stage regions, duplicate
 		// region entries, dangling transition targets) is rejected at write time
-		// by Sequence::prepare_config_for_write(), and a phase sequence missing
-		// the lifecycle it owes is rejected by build_config() below. Both throw;
+		// by Sequence::prepare_config_for_write(), as is a phase sequence missing
+		// the lifecycle it owes. It throws;
 		// translate that into a controlled 422 rather than a fatal.
 		try {
 			$config = $this->build_config( $type, $statuses, $post_types, $settings, $validated_metadata );
@@ -1123,15 +1051,20 @@ class SequencesController extends WP_REST_Controller {
 	 * same map `/sequences/options` hands the editor, so a connection the
 	 * canvas let the author draw is a connection this keeps.
 	 *
-	 * What it must carry is REQUIRED_PHASES, checked against what survived the
-	 * filtering above rather than against what was sent: a phase dropped for
-	 * being outside the graph leaves the same hole as one never named.
+	 * What it must carry is Sequence::REQUIRED_PHASES, and that is not checked
+	 * here: Sequence::prepare_config_for_write() checks it, on the config this
+	 * returns, for every write path — create, update, import and a direct
+	 * repository call alike. Checking what survived this filtering rather than
+	 * what was sent is the point: a phase dropped for being outside the graph
+	 * leaves the same hole as one never named.
+	 *
+	 * Public so validate-sequence and import_sequence() build a phase config the
+	 * same way create and update do, instead of each keeping a copy.
 	 *
 	 * @param  array $phases Phases array from the request.
 	 * @return array
-	 * @throws \InvalidArgumentException If the sequence is missing a required phase or the hand-off between two of them.
 	 */
-	private function build_phase_config( array $phases ): array {
+	public function build_phase_config( array $phases ): array {
 		$valid_keys = self::phase_keys();
 		$processed  = array();
 
@@ -1151,7 +1084,7 @@ class SequencesController extends WP_REST_Controller {
 				'transitions' => array(),
 			);
 
-			$allowed_targets = self::PHASE_TRANSITIONS[ $key ] ?? array();
+			$allowed_targets = Sequence::PHASE_TRANSITIONS[ $key ] ?? array();
 
 			if ( $allowed_targets && ! empty( $phase['transitions'] ) && is_array( $phase['transitions'] ) ) {
 				foreach ( $phase['transitions'] as $transition ) {
@@ -1190,69 +1123,18 @@ class SequencesController extends WP_REST_Controller {
 
 			// Keyed by phase key, so a request naming the same phase twice stores
 			// one of them rather than both. Two entries under one key is a
-			// sequence whose readers disagree — require_lifecycle() below reads
-			// the last, a `find`-style lookup at runtime reads the first — and
+			// sequence whose readers disagree — the write gate's lifecycle check
+			// reads the last, a `find`-style lookup at runtime reads the first — and
 			// the pair that disagrees is exactly a phase with no hand-off out.
 			$processed[ $key ] = $processed_phase;
 		}
 
 		$processed = array_values( $processed );
 
-		self::require_lifecycle( $processed );
-
 		return array(
 			'version' => '1.0',
 			'phases'  => $processed,
 		);
-	}
-
-	/**
-	 * Refuse a phase sequence that does not carry the lifecycle.
-	 *
-	 * The obligation is the hand-off, not the pair of phases: a sequence holding
-	 * Ideation and Editorial with nothing joining them is not a lifecycle missing
-	 * a line on a canvas, it is an Ideation phase a post cannot leave. The phases
-	 * are checked first only so the error names the simpler problem when both are
-	 * true.
-	 *
-	 * @param  array $phases Phases as build_phase_config() would store them.
-	 * @return void
-	 * @throws \InvalidArgumentException If a required phase or hand-off is missing.
-	 */
-	private static function require_lifecycle( array $phases ): void {
-		$declared = array();
-		foreach ( $phases as $phase ) {
-			$declared[ $phase['key'] ] = array_column( $phase['transitions'], 'to' );
-		}
-
-		$required = self::phase_edges( self::REQUIRED_PHASES );
-
-		foreach ( $required as $edge ) {
-			foreach ( array( $edge['from'], $edge['to'] ) as $key ) {
-				if ( ! isset( $declared[ $key ] ) ) {
-					throw new \InvalidArgumentException(
-						sprintf(
-							/* translators: %s: phase key, e.g. "ideation". */
-							esc_html__( 'A phase sequence must declare the “%s” phase.', 'vip-workflows' ),
-							esc_html( $key )
-						)
-					);
-				}
-			}
-		}
-
-		foreach ( $required as $edge ) {
-			if ( ! in_array( $edge['to'], $declared[ $edge['from'] ], true ) ) {
-				throw new \InvalidArgumentException(
-					sprintf(
-						/* translators: 1: source phase key, 2: target phase key. */
-						esc_html__( 'A phase sequence must declare the hand-off from “%1$s” to “%2$s”.', 'vip-workflows' ),
-						esc_html( $edge['from'] ),
-						esc_html( $edge['to'] )
-					)
-				);
-			}
-		}
 	}
 
 	/**
@@ -1402,42 +1284,84 @@ class SequencesController extends WP_REST_Controller {
 			);
 		}
 
-		if ( empty( $sequence_json['config']['statuses'] ) || ! is_array( $sequence_json['config']['statuses'] ) ) {
-			return new WP_Error(
-				'invalid_sequence_statuses',
-				__( 'Sequence must have at least one stage.', 'vip-workflows' ),
-				array( 'status' => 400 )
-			);
-		}
+		// A phase sequence carries its graph under `phases`, not `statuses`, and is
+		// built exactly as create and update build it: phases and hand-offs outside
+		// the phase graph dropped, everything kept sanitized. The lifecycle it owes
+		// is checked by the repository's write gate below, as on every other write.
+		if ( Sequence::TYPE_PHASE === $sequence_json['type'] ) {
+			if ( empty( $sequence_json['config']['phases'] ) || ! is_array( $sequence_json['config']['phases'] ) ) {
+				return new WP_Error(
+					'invalid_sequence_phases',
+					__( 'Phase sequence must have at least one phase.', 'vip-workflows' ),
+					array( 'status' => 400 )
+				);
+			}
 
-		// Imported agent configs go through the same validation as create/update —
-		// an import must not smuggle in an agent create_item() would reject.
-		$agent_validation = $this->validate_status_agents( $sequence_json['config']['statuses'] );
-		if ( is_wp_error( $agent_validation ) ) {
-			return $agent_validation;
-		}
+			$config = $this->build_phase_config( $sequence_json['config']['phases'] );
+		} else {
+			if ( empty( $sequence_json['config']['statuses'] ) || ! is_array( $sequence_json['config']['statuses'] ) ) {
+				return new WP_Error(
+					'invalid_sequence_statuses',
+					__( 'Sequence must have at least one stage.', 'vip-workflows' ),
+					array( 'status' => 400 )
+				);
+			}
 
-		// A file exported by an older version declares what a transition captures
-		// as a single `input`. Converted here, at the boundary, because everything
-		// below — the slot validator, the key regenerator — reads `inputs` and
-		// should never have to ask which version wrote the file it is walking.
-		try {
-			$sequence_json['config'] = Sequence::normalize_input_shape( $sequence_json['config'] );
-		} catch ( \InvalidArgumentException $e ) {
-			return new WP_Error(
-				'invalid_transition_input',
-				$e->getMessage(),
-				array( 'status' => 400 )
-			);
-		}
+			// Imported agent configs go through the same validation as create/update —
+			// an import must not smuggle in an agent create_item() would reject.
+			$agent_validation = $this->validate_status_agents( $sequence_json['config']['statuses'] );
+			if ( is_wp_error( $agent_validation ) ) {
+				return $agent_validation;
+			}
 
-		// Assignment slots, same gate as create/update. Checked before the keys
-		// are regenerated below, so the error names the key the author exported
-		// rather than a freshly minted one — and so regeneration, which reads no
-		// old key, never mints over a blank or shared one.
-		$assignment_validation = $this->validate_assignment_keys( $sequence_json['config']['statuses'] );
-		if ( is_wp_error( $assignment_validation ) ) {
-			return $assignment_validation;
+			// A file exported by an older version declares what a transition captures
+			// as a single `input`. Converted here, at the boundary, because everything
+			// below — the slot validator, the key regenerator — reads `inputs` and
+			// should never have to ask which version wrote the file it is walking.
+			try {
+				$sequence_json['config'] = Sequence::normalize_input_shape( $sequence_json['config'] );
+			} catch ( \InvalidArgumentException $e ) {
+				return new WP_Error(
+					'invalid_transition_input',
+					$e->getMessage(),
+					array( 'status' => 400 )
+				);
+			}
+
+			// Assignment slots, same gate as create/update. Checked before the keys
+			// are regenerated below, so the error names the key the author exported
+			// rather than a freshly minted one — and so regeneration, which reads no
+			// old key, never mints over a blank or shared one.
+			$assignment_validation = $this->validate_assignment_keys( $sequence_json['config']['statuses'] );
+			if ( is_wp_error( $assignment_validation ) ) {
+				return $assignment_validation;
+			}
+
+			// Validate metadata_fields if present in the imported config.
+			if ( ! empty( $sequence_json['config']['metadata_fields'] ) ) {
+				$validated_metadata = $this->validate_metadata_fields( $sequence_json['config']['metadata_fields'] );
+				if ( is_wp_error( $validated_metadata ) ) {
+					return $validated_metadata;
+				}
+				$sequence_json['config']['metadata_fields'] = $validated_metadata;
+			}
+
+			// Process config - regenerate assignment slot keys and map workflow references.
+			$config = $sequence_json['config'];
+
+			// Regenerate assignment slot keys for transitions and sanitize agent
+			// configs the same way build_config() does on create/update.
+			if ( ! empty( $config['statuses'] ) ) {
+				$config['statuses'] = $this->regenerate_assignment_keys( $config['statuses'] );
+
+				foreach ( $config['statuses'] as &$status ) {
+					// Validated up front by validate_status_agents(); here we only sanitize.
+					if ( ! empty( $status['agent'] ) && is_array( $status['agent'] ) ) {
+						$status['agent'] = $this->sanitize_status_agent( $status['agent'] );
+					}
+				}
+				unset( $status );
+			}
 		}
 
 		// Use custom name if provided, otherwise use name from JSON.
@@ -1456,37 +1380,12 @@ class SequencesController extends WP_REST_Controller {
 			$counter++;
 		}
 
-		// Validate metadata_fields if present in the imported config.
-		if ( ! empty( $sequence_json['config']['metadata_fields'] ) ) {
-			$validated_metadata = $this->validate_metadata_fields( $sequence_json['config']['metadata_fields'] );
-			if ( is_wp_error( $validated_metadata ) ) {
-				return $validated_metadata;
-			}
-			$sequence_json['config']['metadata_fields'] = $validated_metadata;
-		}
-
-		// Process config - regenerate assignment slot keys and map workflow references.
-		$config = $sequence_json['config'];
-
-		// Regenerate assignment slot keys for transitions and sanitize agent
-		// configs the same way build_config() does on create/update.
-		if ( ! empty( $config['statuses'] ) ) {
-			$config['statuses'] = $this->regenerate_assignment_keys( $config['statuses'] );
-
-			foreach ( $config['statuses'] as &$status ) {
-				// Validated up front by validate_status_agents(); here we only sanitize.
-				if ( ! empty( $status['agent'] ) && is_array( $status['agent'] ) ) {
-					$status['agent'] = $this->sanitize_status_agent( $status['agent'] );
-				}
-			}
-			unset( $status );
-		}
-
 		// Create the sequence. The shared write gate normalizes stage keys and
 		// regions (closing the old import bypass of build_config() normalization)
 		// and rejects a malformed graph (duplicate keys, invalid regions, duplicate
-		// region entries, dangling transition targets) with a thrown exception;
-		// surface it as a controlled 422 rather than a fatal.
+		// region entries, dangling transition targets) — or, for a phase sequence,
+		// one missing the lifecycle it owes — with a thrown exception; surface it
+		// as a controlled 422 rather than a fatal.
 		try {
 			$sequence_id = $this->repository->create(
 				$name,

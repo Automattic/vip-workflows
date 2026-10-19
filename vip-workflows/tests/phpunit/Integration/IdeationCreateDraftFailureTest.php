@@ -190,7 +190,7 @@ class IdeationCreateDraftFailureTest extends TestCase
                             array( 'to' => 'editorial', 'label' => 'Move to Editorial' ),
                         ),
                     ),
-                    array( 'key' => 'editorial', 'label' => 'Editorial' ),
+                    array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
                 ),
             ),
             get_current_user_id(),
