@@ -611,6 +611,38 @@ class SequenceTest extends TestCase
     }
 
     /**
+     * The retired restrict-to-assignee gate is dropped by the gate itself, so
+     * no write path (import and validate-sequence included) can persist or
+     * echo back a restriction nothing enforces. Everything else on the
+     * transition survives, and a second pass is a no-op.
+     */
+    public function test_gate_drops_the_retired_requires_assignment_key(): void
+    {
+        $config = Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array(
+                    'key'         => 'draft',
+                    'label'       => 'Draft',
+                    'transitions' => array(
+                        array(
+                            'to'                  => 'review',
+                            'label'               => 'Send to review',
+                            'requires_assignment' => array( 'meta_key' => 'legal_reviewer', 'match' => 'current_user' ),
+                        ),
+                    ),
+                ),
+                array( 'key' => 'review', 'label' => 'Review', 'status' => 'pending' ),
+            ),
+        ) );
+
+        $this->assertSame(
+            array( 'to' => 'review', 'label' => 'Send to review' ),
+            $config['statuses'][0]['transitions'][0]
+        );
+        $this->assertSame( $config, Sequence::prepare_config_for_write( $config ), 'A second replay changes nothing.' );
+    }
+
+    /**
      * A missing `status` region defaults to 'draft' at write time (write-time
      * normalization, never a read-time fallback).
      */

@@ -970,4 +970,52 @@ class SequenceConfigMigrationTest extends TestCase
 		$this->assertSame( 'sequence_invalid', $error->get_error_code() );
 		$this->assertStringContainsString( 'revieww', $error->get_error_message() );
 	}
+
+	/**
+	 * The retired restrict-to-assignee gate is stripped from stored rows by the
+	 * 2.25.0 replay, so GET and export stop re-emitting a restriction nothing
+	 * enforces. The rest of the transition is left as it was.
+	 */
+	public function test_retired_assignment_gate_migration_strips_the_stored_key(): void
+	{
+		$id = $this->insert_unnormalized(
+			'legacy-requires-assignment',
+			array(
+				'post_types' => array( 'post' ),
+				'statuses'   => array(
+					array(
+						'key'          => 'draft',
+						'label'        => 'Draft',
+						'status'       => 'draft',
+						'region_entry' => true,
+						'transitions'  => array(
+							array(
+								'to'                  => 'review',
+								'label'               => 'Send to review',
+								'requires_assignment' => array( 'meta_key' => 'legal_reviewer', 'match' => 'current_user' ),
+							),
+						),
+					),
+					array( 'key' => 'review', 'label' => 'Review', 'status' => 'pending', 'region_entry' => true ),
+				),
+			)
+		);
+
+		$method     = new \ReflectionMethod( Schema::class, 'get_migrations' );
+		$migrations = array_values(
+			array_filter(
+				$method->invoke( new Schema() ),
+				static fn( array $migration ): bool => '2.25.0' === $migration['version']
+			)
+		);
+
+		$this->assertCount( 1, $migrations, 'The retired-gate replay must be registered.' );
+
+		( $migrations[0]['run'] )();
+
+		$this->assertSame(
+			array( 'to' => 'review', 'label' => 'Send to review' ),
+			$this->stored_config( $id )['statuses'][0]['transitions'][0]
+		);
+	}
 }

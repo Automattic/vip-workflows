@@ -68,7 +68,7 @@ includes/
 │   └── class-sequence-repository.php # Sequence CRUD
 │
 ├── database/
-│   ├── class-schema.php               # Table creation/updates (v2.24.0)
+│   ├── class-schema.php               # Table creation/updates (v2.25.0)
 │   └── class-seeder.php              # Default data seeding
 │
 ├── discovery/

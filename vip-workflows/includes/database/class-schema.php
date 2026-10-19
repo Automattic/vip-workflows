@@ -21,7 +21,7 @@ class Schema {
 	/**
 	 * Database version.
 	 */
-	public const VERSION = '2.24.0';
+	public const VERSION = '2.25.0';
 
 	/**
 	 * Option name for storing DB version.
@@ -497,6 +497,21 @@ class Schema {
 					$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}vip_automation_flows" );
 
 					self::drop_retired_event_routing();
+				},
+			),
+			// Drop the retired restrict-to-assignee gate from stored transitions.
+			//
+			// Nothing has read `requires_assignment` since the gate was removed,
+			// and the write gate now strips it. Stored rows still carry it, and
+			// GET and export re-emit it as a restriction nothing enforces, so the
+			// stored configs are replayed through the gate once more.
+			//
+			// Idempotent: a replayed row no longer carries the key, so a second
+			// pass produces byte-identical JSON and writes nothing.
+			array(
+				'version' => '2.25.0',
+				'run'     => function (): void {
+					self::replay_stored_stage_configs( true );
 				},
 			),
 		);
