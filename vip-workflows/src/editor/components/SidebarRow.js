@@ -8,7 +8,7 @@
  * `InspectorPopoverHeader` (title beside a Close icon button); neither is
  * publicly exported from `@wordpress/editor`, so the shape is rebuilt here.
  *
- * Rebuilt once, because the Workflow sidebar draws it for two unrelated things:
+ * Rebuilt once, because the Summary panel's workflow rows draw it for two things:
  * the sequence the post belongs to (WorkflowRow) and every sequence-declared
  * metadata field (MetadataRow). What is generic — the two cells, the popover,
  * its header — lives here. The required-field asterisk and the wording that

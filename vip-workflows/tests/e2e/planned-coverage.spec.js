@@ -12,7 +12,7 @@
 const { test } = require( '@wordpress/e2e-test-utils-playwright' );
 
 test.describe( 'VIP Workflows — planned coverage', () => {
-	// Assigning from the Workflow sidebar is covered for real now, in
+	// Assigning a workflow is covered for real now, in
 	// workflow-assign.spec.js: `openWorkflowSidebar` solved the open problem
 	// this entry recorded (driving an unpinned plugin sidebar), and the flow
 	// itself became a single act when the select-plus-Start form was replaced

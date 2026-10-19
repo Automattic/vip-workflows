@@ -1,8 +1,8 @@
 /**
  * Metadata Panel component.
  *
- * Renders sequence-defined editorial metadata fields as a flat section of the
- * Workflow sidebar, following core's document-sidebar meta pattern: each field
+ * Renders sequence-defined editorial metadata fields as rows of the document
+ * sidebar's Summary panel, following core's document-sidebar meta pattern: each field
  * is a label + clickable-value row (MetadataRow) whose popover holds the
  * field's input, the way Author and Publish work in the document sidebar.
  * Values are read and written via useEntityProp so they participate in
@@ -428,7 +428,8 @@ function MetadataField( { field, blocking, meta, setMeta } ) {
 /**
  * Metadata panel — a flat stack of metadata rows, rendered only when the
  * active sequence defines at least one metadata field. It carries no card
- * wrapper and no heading of its own: the sidebar's main panel seats it.
+ * wrapper and no heading of its own: the Summary panel's rows seat it, under
+ * the Workflow row (WorkflowSummaryRows).
  */
 export function MetadataPanel() {
 	const { metadataFields, postType } = useSelect( ( select ) => {

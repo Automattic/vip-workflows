@@ -1,18 +1,19 @@
 /**
- * The workflow row: which sequence the post is in, and the one control that
- * changes it.
+ * The workflow's rows in the document sidebar's Summary panel: which sequence
+ * the post is in, the one control that changes it (and takes the post out of
+ * it), and the metadata fields the sequence declares.
  *
- * The sequence used to be an unlabelled `<h2>` once a workflow was assigned —
- * which named the panel but offered no way to change what it named — beside a
- * select-plus-Start form in the state before one was. Both are now the same
- * document-sidebar row: a label beside a value you press, whose popover holds a
- * searchable list. These tests pin the row in both states, the confirm that
- * stands in front of giving up a place in a sequence, and the two branches that
- * deliberately get no picker at all.
+ * Which workflow a post is in is a property of the post, so it is drawn the way
+ * the Summary panel draws any other: a label beside a value you press, whose
+ * popover holds a searchable list. These tests pin the row in every state the
+ * status read can answer — assigned, unassigned, orphaned, and none to offer —
+ * the confirms that stand in front of giving up a place in a sequence, the
+ * removal that sits at the foot of the same popover, and the metadata rows
+ * that follow it.
  *
- * They also pin the single-sourcing the row sits on: a removal performed
+ * They also pin the single-sourcing the rows sit on: a removal performed
  * anywhere in the editor — the publish veto's escape hatch dispatches exactly
- * the store action driven here — reaches the panel without remounting it.
+ * the store action driven here — reaches the rows without remounting them.
  *
  * @package
  */
@@ -33,7 +34,10 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
  * jsdom does not provide. The store only uses it to name the store it refreshes
  * the post entity on, so the store name is all this needs.
  */
-jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
+jest.mock( '@wordpress/core-data', () => ( {
+	store: 'core',
+	useEntityProp: () => [ { wf_meta_7_desk: 'Foreign' }, () => {} ],
+} ) );
 
 /*
  * `@wordpress/editor` pulls @wordpress/blocks, whose ESM-only dependencies Jest
@@ -45,7 +49,7 @@ jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
 // eslint-disable-next-line import/first
-import { createReduxStore, dispatch, register } from '@wordpress/data';
+import { createReduxStore, dispatch, register, select } from '@wordpress/data';
 
 register(
 	createReduxStore( 'core', {
@@ -80,11 +84,21 @@ register(
 // eslint-disable-next-line import/first
 import { STORE_NAME, seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
-import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+import { WorkflowSummaryRows } from '../../src/editor/components/WorkflowSummaryRows';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 const SEQUENCE_PATH = '/vip-workflows/v1/workflow/post/42/sequence';
-const IDEATION_PATH = '/vip-workflows/v1/workflow/post/42/ideation';
+
+/**
+ * A sequence-declared metadata field, in the shape the server bootstrap
+ * serves.
+ */
+const DESK_FIELD = {
+	key: 'desk',
+	meta_key: 'wf_meta_7_desk',
+	label: 'Desk',
+	type: 'text',
+};
 
 const AVAILABLE = [
 	{ id: 7, name: 'Weekend Magazine', slug: 'weekend-magazine' },
@@ -113,6 +127,23 @@ function assignedStatus() {
 		transitions: [],
 		all_statuses: [],
 		available_sequences: AVAILABLE,
+	};
+}
+
+/**
+ * A status payload for a post whose sequence was deleted.
+ *
+ * @return {Object} Status endpoint response.
+ */
+function orphanedStatus() {
+	return {
+		has_workflow: false,
+		orphaned: true,
+		sequence: null,
+		current: null,
+		transitions: [],
+		all_statuses: [],
+		available_sequences: [],
 	};
 }
 
@@ -157,14 +188,25 @@ function assignPosts() {
 }
 
 /**
- * Point apiFetch at a status payload and render the panel.
+ * Every removal DELETE.
+ *
+ * @return {Array} The removal calls.
+ */
+function removeDeletes() {
+	return apiFetch.mock.calls.filter(
+		( [ { path, method } ] ) =>
+			path === SEQUENCE_PATH && 'DELETE' === method
+	);
+}
+
+/**
+ * Point apiFetch at a status payload and render the rows.
  *
  * @param {Object} status          Status endpoint response.
  * @param {Object} [opts]          Options.
  * @param {Object} [opts.onAssign] Payload the assignment POST answers with.
- * @param {Object} [opts.ideation] Payload the ideation endpoint answers with.
  */
-async function renderPanel( status, { onAssign = null, ideation = {} } = {} ) {
+async function renderRows( status, { onAssign = null } = {} ) {
 	let current = status;
 
 	apiFetch.mockImplementation( ( { path, method } ) => {
@@ -179,22 +221,25 @@ async function renderPanel( status, { onAssign = null, ideation = {} } = {} ) {
 			current = unassignedStatus();
 			return Promise.resolve( true );
 		}
-		if ( path === IDEATION_PATH && ! method ) {
-			return Promise.resolve( ideation );
-		}
-		if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
-			return Promise.resolve( [] );
-		}
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render( <WorkflowSummaryRows /> );
 
 	await waitFor( () =>
-		expect(
-			screen.queryByText( 'Loading workflow…' )
-		).not.toBeInTheDocument()
+		expect( select( STORE_NAME ).isWorkflowStatusResolved() ).toBe( true )
 	);
+}
+
+/**
+ * Open the row's popover from its value trigger.
+ *
+ * @param {string} triggerName Accessible name of the row's value trigger.
+ * @return {Promise<HTMLElement>} The popover dialog.
+ */
+async function openRow( triggerName ) {
+	fireEvent.click( screen.getByRole( 'button', { name: triggerName } ) );
+	return screen.findByRole( 'dialog', { name: 'Workflow' } );
 }
 
 /**
@@ -221,14 +266,14 @@ async function pickWorkflow( triggerName, optionName ) {
 	} );
 }
 
-describe( 'WorkflowPanel workflow row', () => {
+describe( 'WorkflowSummaryRows', () => {
 	beforeEach( () => {
 		apiFetch.mockReset();
-		seedEditorStore();
+		seedEditorStore( { metadataFields: [] } );
 	} );
 
 	it( 'names the sequence in a labelled row, not a heading', async () => {
-		await renderPanel( assignedStatus() );
+		await renderRows( assignedStatus() );
 
 		expect( screen.getByText( 'Workflow' ) ).toBeInTheDocument();
 		expect(
@@ -245,7 +290,7 @@ describe( 'WorkflowPanel workflow row', () => {
 	} );
 
 	it( 'offers the same row, empty, when the post is in no workflow', async () => {
-		await renderPanel( unassignedStatus() );
+		await renderRows( unassignedStatus() );
 
 		expect( screen.getByText( 'Workflow' ) ).toBeInTheDocument();
 		expect(
@@ -268,7 +313,7 @@ describe( 'WorkflowPanel workflow row', () => {
 	 * that never opts in.
 	 */
 	it( 'never wears the invalid treatment the metadata rows can', async () => {
-		await renderPanel( assignedStatus() );
+		await renderRows( assignedStatus() );
 
 		const trigger = screen.getByRole( 'button', {
 			name: 'Change workflow: Weekend Magazine',
@@ -282,7 +327,7 @@ describe( 'WorkflowPanel workflow row', () => {
 	} );
 
 	it( 'assigns straight from the combobox, with nothing else to press', async () => {
-		await renderPanel( unassignedStatus(), { onAssign: assignedStatus() } );
+		await renderRows( unassignedStatus(), { onAssign: assignedStatus() } );
 
 		await pickWorkflow( 'Select a workflow', 'Weekend Magazine' );
 
@@ -301,7 +346,7 @@ describe( 'WorkflowPanel workflow row', () => {
 	} );
 
 	it( 'asks before moving an enrolled post to a different sequence', async () => {
-		await renderPanel( assignedStatus() );
+		await renderRows( assignedStatus() );
 
 		await pickWorkflow(
 			'Change workflow: Weekend Magazine',
@@ -319,7 +364,7 @@ describe( 'WorkflowPanel workflow row', () => {
 	} );
 
 	it( 'declining the switch confirm leaves the post where it is', async () => {
-		await renderPanel( assignedStatus() );
+		await renderRows( assignedStatus() );
 
 		await pickWorkflow(
 			'Change workflow: Weekend Magazine',
@@ -338,7 +383,7 @@ describe( 'WorkflowPanel workflow row', () => {
 	} );
 
 	it( 'confirming the switch performs the re-assignment', async () => {
-		await renderPanel( assignedStatus() );
+		await renderRows( assignedStatus() );
 
 		await pickWorkflow(
 			'Change workflow: Weekend Magazine',
@@ -353,7 +398,7 @@ describe( 'WorkflowPanel workflow row', () => {
 	} );
 
 	it( 'surfaces a refused assignment rather than swallowing it', async () => {
-		await renderPanel( unassignedStatus() );
+		await renderRows( unassignedStatus() );
 
 		apiFetch.mockImplementation( ( { path, method } ) => {
 			if ( path === SEQUENCE_PATH && 'POST' === method ) {
@@ -375,19 +420,19 @@ describe( 'WorkflowPanel workflow row', () => {
 		);
 	} );
 
-	it( 'a removal from outside the panel reaches it, without remounting it', async () => {
-		await renderPanel( assignedStatus() );
+	it( 'a removal from outside the rows reaches them, without remounting them', async () => {
+		await renderRows( assignedStatus() );
 
 		const readsBefore = statusReads().length;
 
-		// Exactly what the publish veto's escape hatch dispatches: the panel
+		// Exactly what the publish veto's escape hatch dispatches: the rows
 		// did not initiate this and is not a child of whatever did.
 		await act( async () => {
 			await dispatch( STORE_NAME ).removeWorkflow();
 		} );
 
-		// The removed sequence is gone from the row, in this same panel — the
-		// failure this replaced was the panel drawing it until a page reload.
+		// The removed sequence is gone from the row, in these same rows — the
+		// failure this replaced was a panel drawing it until a page reload.
 		await waitFor( () =>
 			expect(
 				screen.getByRole( 'button', { name: 'Select a workflow' } )
@@ -397,46 +442,60 @@ describe( 'WorkflowPanel workflow row', () => {
 			screen.queryByText( 'Weekend Magazine' )
 		).not.toBeInTheDocument();
 
-		// One read, the removal's own. A remounted panel would have run its
+		// One read, the removal's own. Remounted rows would have run their
 		// mount effect and asked a second time.
 		expect( statusReads().length - readsBefore ).toBe( 1 );
 	} );
 
-	it( 'offers an orphaned post no picker at all', async () => {
-		// Re-assigning on top of a dangling workflow identity buries the broken
-		// state instead of clearing it, so the server offers no sequences and
-		// the panel offers no row.
-		await renderPanel( {
-			has_workflow: false,
-			orphaned: true,
-			sequence: null,
-			current: null,
-			transitions: [],
-			all_statuses: [],
-			available_sequences: [],
-		} );
+	it( 'draws an orphaned post as a row that says the workflow is gone', async () => {
+		await renderRows( orphanedStatus() );
 
-		expect( screen.queryByText( 'Workflow' ) ).not.toBeInTheDocument();
+		expect( screen.getByText( 'Workflow' ) ).toBeInTheDocument();
+
+		const trigger = screen.getByRole( 'button', {
+			name: 'Workflow no longer exists',
+		} );
+		expect( trigger ).toHaveTextContent( 'Deleted workflow' );
+
+		// The deleted identity is what holds every status change, so the row
+		// wears the invalid state and says why.
+		expect( trigger ).toHaveAttribute( 'aria-invalid', 'true' );
+		expect(
+			screen.getByText(
+				'This post belongs to a workflow that no longer exists, so its status cannot be changed.'
+			)
+		).toBeInTheDocument();
+	} );
+
+	it( 'offers an orphaned post removal and no picker', async () => {
+		// Re-assigning on top of a dangling workflow identity buries the broken
+		// state instead of clearing it, so the popover holds the one way out.
+		await renderRows( orphanedStatus() );
+
+		await openRow( 'Workflow no longer exists' );
+
+		expect( screen.queryByRole( 'combobox' ) ).not.toBeInTheDocument();
 		expect(
 			screen.getByRole( 'button', { name: 'Remove from workflow' } )
 		).toBeInTheDocument();
 	} );
 
-	it( 'surfaces a failed removal from the orphaned branch rather than swallowing it', async () => {
-		// Regression: this branch's return did not render `actionError` at
-		// all, so a removal that failed here — a permission hiccup, a network
-		// blip, a server error — looked identical to the button doing
-		// nothing. There was no error, no state change, nothing to tell the
-		// author it had not worked.
-		await renderPanel( {
-			has_workflow: false,
-			orphaned: true,
-			sequence: null,
-			current: null,
-			transitions: [],
-			all_statuses: [],
-			available_sequences: [],
+	it( 'offers an orphaned post removal even where the workflow is enforced', async () => {
+		seedEditorStore( {
+			metadataFields: [],
+			workflowEnforcement: 'require',
 		} );
+		await renderRows( orphanedStatus() );
+
+		await openRow( 'Workflow no longer exists' );
+
+		expect(
+			screen.getByRole( 'button', { name: 'Remove from workflow' } )
+		).toBeInTheDocument();
+	} );
+
+	it( 'surfaces a failed removal of an orphaned post rather than swallowing it', async () => {
+		await renderRows( orphanedStatus() );
 
 		apiFetch.mockImplementation( ( { path, method } ) => {
 			if ( path === SEQUENCE_PATH && 'DELETE' === method ) {
@@ -447,18 +506,19 @@ describe( 'WorkflowPanel workflow row', () => {
 			return Promise.resolve( {} );
 		} );
 
+		await openRow( 'Workflow no longer exists' );
 		fireEvent.click(
 			screen.getByRole( 'button', { name: 'Remove from workflow' } )
 		);
 
-		// The confirm dialog's own action shares the trigger's exact label
-		// (both come from getRemoveFromWorkflowLabel()), but the Modal marks
-		// the rest of the page `aria-hidden` while it is open, so the trigger
-		// behind it drops out of the accessibility tree and this still
-		// resolves to exactly one button: the dialog's own.
+		// The popover closed when Remove was pressed, so the only button of
+		// that name left is the confirm dialog's own.
 		const confirmButton = await screen.findByRole( 'button', {
 			name: 'Remove from workflow',
 		} );
+		expect(
+			screen.getByText( /Remove this post from its deleted workflow\?/ )
+		).toBeInTheDocument();
 
 		await act( async () => {
 			confirmButton.click();
@@ -470,34 +530,152 @@ describe( 'WorkflowPanel workflow row', () => {
 			).toBeInTheDocument()
 		);
 
-		// The button itself is still there — removal genuinely failed, so
-		// the orphaned state (and its one way out) has to remain on screen.
+		// Removal genuinely failed, so the orphaned row stays on screen.
 		expect(
+			screen.getByRole( 'button', { name: 'Workflow no longer exists' } )
+		).toBeInTheDocument();
+	} );
+
+	it( 'offers removal at the foot of the Workflow popover, below the list', async () => {
+		await renderRows( assignedStatus() );
+
+		const dialog = await openRow( 'Change workflow: Weekend Magazine' );
+
+		const combobox = screen.getByRole( 'combobox' );
+		const remove = screen.getByRole( 'button', {
+			name: 'Remove from workflow',
+		} );
+
+		expect( dialog ).toContainElement( remove );
+		expect(
+			// eslint-disable-next-line no-bitwise
+			combobox.compareDocumentPosition( remove ) &
+				Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+	} );
+
+	it( 'confirms, then removes the post from its workflow', async () => {
+		await renderRows( assignedStatus() );
+
+		await openRow( 'Change workflow: Weekend Magazine' );
+		fireEvent.click(
 			screen.getByRole( 'button', { name: 'Remove from workflow' } )
-		).toBeInTheDocument();
-	} );
-
-	it( 'says so plainly when this post type has no sequences', async () => {
-		await renderPanel( unassignedStatus( [] ) );
+		);
 
 		expect(
-			screen.getByText( 'No workflow available for this post type.' )
+			await screen.findByText(
+				/Remove this post from the “Weekend Magazine” workflow\?/
+			)
 		).toBeInTheDocument();
-		expect( screen.queryByText( 'Workflow' ) ).not.toBeInTheDocument();
+		expect( removeDeletes() ).toHaveLength( 0 );
+
+		await act( async () => {
+			screen
+				.getByRole( 'button', { name: 'Remove from workflow' } )
+				.click();
+		} );
+
+		expect( removeDeletes() ).toHaveLength( 1 );
+		await waitFor( () =>
+			expect(
+				screen.getByRole( 'button', { name: 'Select a workflow' } )
+			).toBeInTheDocument()
+		);
 	} );
 
-	it( 'shows ideation research before a workflow is assigned', async () => {
-		await renderPanel( unassignedStatus( [] ), {
-			ideation: {
-				project_id: 19,
-				source: { title: 'City desk briefing' },
-				items: [],
-			},
+	it( 'offers no way out of an enforced workflow', async () => {
+		seedEditorStore( {
+			metadataFields: [],
+			workflowEnforcement: 'require',
+		} );
+		await renderRows( assignedStatus() );
+
+		await openRow( 'Change workflow: Weekend Magazine' );
+
+		expect( screen.getByRole( 'combobox' ) ).toBeInTheDocument();
+		expect(
+			screen.queryByRole( 'button', { name: 'Remove from workflow' } )
+		).not.toBeInTheDocument();
+	} );
+
+	it( 'offers no removal before the post is in a workflow', async () => {
+		await renderRows( unassignedStatus() );
+
+		await openRow( 'Select a workflow' );
+
+		expect(
+			screen.queryByRole( 'button', { name: 'Remove from workflow' } )
+		).not.toBeInTheDocument();
+	} );
+
+	it( 'draws no Workflow row when this post type has no sequences', async () => {
+		await renderRows( unassignedStatus( [] ) );
+
+		expect( screen.queryByText( 'Workflow' ) ).not.toBeInTheDocument();
+		expect(
+			screen.queryByRole( 'button', { name: 'Select a workflow' } )
+		).not.toBeInTheDocument();
+	} );
+
+	it( 'draws no Workflow row until the status read lands', async () => {
+		apiFetch.mockImplementation( () => new Promise( () => {} ) );
+
+		render( <WorkflowSummaryRows /> );
+
+		// An empty row would say "Select a workflow" over a post that may well
+		// be in one. The rows ask for the status themselves: the Summary panel
+		// is open by default, and the workflow sidebar may never be.
+		expect(
+			screen.queryByRole( 'button', { name: 'Select a workflow' } )
+		).not.toBeInTheDocument();
+		expect( statusReads() ).toHaveLength( 1 );
+	} );
+
+	it( 'follows the Workflow row with the sequence’s metadata rows', async () => {
+		// The status read re-sources the fields, so its payload carries them.
+		seedEditorStore( { metadataFields: [ DESK_FIELD ] } );
+		await renderRows( {
+			...assignedStatus(),
+			metadata_fields: [ DESK_FIELD ],
+		} );
+
+		const workflowTrigger = screen.getByRole( 'button', {
+			name: 'Change workflow: Weekend Magazine',
+		} );
+		const deskTrigger = screen.getByRole( 'button', {
+			name: 'Change Desk: Foreign',
 		} );
 
 		expect(
-			await screen.findByText( 'From Ideation' )
+			// eslint-disable-next-line no-bitwise
+			workflowTrigger.compareDocumentPosition( deskTrigger ) &
+				Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+	} );
+
+	it( 'keeps the metadata rows on screen while the status is still loading', async () => {
+		// The fields come from the server bootstrap, not from the status read,
+		// so they are already known while it is in flight.
+		seedEditorStore( { metadataFields: [ DESK_FIELD ] } );
+		apiFetch.mockImplementation( () => new Promise( () => {} ) );
+
+		render( <WorkflowSummaryRows /> );
+
+		expect(
+			screen.getByRole( 'button', { name: 'Change Desk: Foreign' } )
 		).toBeInTheDocument();
-		expect( screen.getByText( 'City desk briefing' ) ).toBeInTheDocument();
+	} );
+
+	it( 'keeps the metadata rows on screen for a post whose workflow was deleted', async () => {
+		// The status read re-sources the fields, so its payload carries them.
+		seedEditorStore( { metadataFields: [ DESK_FIELD ] } );
+		await renderRows( {
+			...orphanedStatus(),
+			metadata_fields: [ DESK_FIELD ],
+		} );
+
+		expect(
+			screen.getByRole( 'button', { name: 'Change Desk: Foreign' } )
+		).toBeInTheDocument();
 	} );
 } );
