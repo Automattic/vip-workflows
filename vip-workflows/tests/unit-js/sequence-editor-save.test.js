@@ -37,9 +37,16 @@ import { fireEvent as domFireEvent } from '@testing-library/dom';
 
 import apiFetch from '@wordpress/api-fetch';
 
+import {
+	nameField,
+	saveButton,
+	serveSequenceEditor,
+	settle,
+} from './helpers/sequence-editor';
+
 jest.mock( '@wordpress/api-fetch' );
 
-// React Flow + dagre, and irrelevant to saving. The stub keeps one canvas
+// React Flow + dagre, and irrelevant to saving. The shared stub offers one canvas
 // gesture — drawing the Draft → End edge — because drawing an edge is also what
 // selects one, and a selected edge swaps the inspector away from the sequence
 // settings the rest of this file reads. It is NOT what makes a new sequence
@@ -48,26 +55,7 @@ jest.mock( '@wordpress/api-fetch' );
 // the sequence settings panel.
 jest.mock(
 	'../../src/admin/components/graph/GraphCanvas',
-	() =>
-		function GraphCanvasStub( { onConnectTransition, onClearSelection } ) {
-			return (
-				<div data-testid="canvas">
-					<button
-						onClick={ () =>
-							onConnectTransition( 'draft', '__wf_end__', null )
-						}
-					>
-						end the flow
-					</button>
-					{ /* Drawing an edge selects it, which swaps the inspector
-					     to that edge's panel. Clicking empty canvas is how the
-					     sequence settings come back. */ }
-					<button onClick={ onClearSelection }>
-						deselect everything
-					</button>
-				</div>
-			);
-		}
+	() => require( './helpers/graph-canvas-stub' ).GraphCanvasStub
 );
 
 import SequenceGraphEditor from '../../src/admin/components/graph/SequenceGraphEditor';
@@ -103,15 +91,6 @@ const sequence = ( overrides = {} ) => ( {
 	...overrides,
 } );
 
-// What a sequence may be built out of, as the server answers it: the eligible
-// post types and the phase hand-offs, both decided there rather than worked out
-// in the editor.
-const OPTIONS = {
-	post_types: [ { value: 'post', label: 'Posts' } ],
-	phase_transitions: [ { from: 'ideation', to: 'editorial' } ],
-	required_phase_transitions: [ { from: 'ideation', to: 'editorial' } ],
-};
-
 /** Every write the editor made, in order. */
 let writes;
 
@@ -122,53 +101,33 @@ let writes;
 let served;
 
 beforeEach( () => {
-	writes = [];
 	served = sequence();
 	window.location.hash = '';
-	apiFetch.mockImplementation( ( { path, method, data } ) => {
-		if ( path === '/vip-workflows/v1/sequences/options' ) {
-			return Promise.resolve( OPTIONS );
-		}
-		if (
-			path.startsWith( '/vip-workflows/v1/abilities' ) ||
-			path === '/vip-workflows/v1/notifications/channels'
-		) {
-			return Promise.resolve( [] );
-		}
-		if ( method === 'POST' || method === 'PUT' ) {
-			writes.push( { path, method, data } );
-			// The server echoes the stored sequence back, which is what the
-			// editor re-seats from.
-			return Promise.resolve(
-				sequence( {
-					id: 7,
-					name: data.name,
-					status: data.status,
-					config: {
-						...sequence().config,
-						statuses: data.statuses,
-						post_types: data.post_types,
-						// Echoed, not dropped: the editor re-seats from this, so a
-						// mock that discards it hides the very regression the
-						// settings tests below exist to catch.
-						settings: data.settings,
-					},
-				} )
-			);
-		}
-		return Promise.resolve( served );
-	} );
+	( { writes } = serveSequenceEditor( {
+		sequence: () => served,
+		// The server echoes the stored sequence back, which is what the
+		// editor re-seats from.
+		write: ( { data } ) =>
+			sequence( {
+				id: 7,
+				name: data.name,
+				status: data.status,
+				config: {
+					...sequence().config,
+					statuses: data.statuses,
+					post_types: data.post_types,
+					// Echoed, not dropped: the editor re-seats from this, so a
+					// mock that discards it hides the very regression the
+					// settings tests below exist to catch.
+					settings: data.settings,
+				},
+			} ),
+	} ) );
 } );
 
 afterEach( () => {
 	jest.clearAllMocks();
 } );
-
-// Anchored to the three exact states getSaveButtonLabel renders — an
-// unanchored /Save/ would match any button whose name merely contains it.
-const saveButton = () =>
-	screen.getByRole( 'button', { name: /^(Save|Saving…|Saved!)$/ } );
-const nameField = () => screen.getByRole( 'textbox', { name: /^Name/ } );
 
 /**
  * Render the editor and wait for its sequence to land AND settle.
@@ -193,9 +152,7 @@ async function renderEditor( props = {} ) {
 	const onCancel = jest.fn();
 	render( <SequenceGraphEditor onCancel={ onCancel } { ...props } /> );
 	await waitFor( () => expect( saveButton() ).toBeInTheDocument() );
-	await act( async () => {
-		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
-	} );
+	await settle();
 	return onCancel;
 }
 
@@ -490,26 +447,18 @@ describe( 'Leaving the sequence editor by the browser', () => {
 	// saw: the author's new name would sit on screen with Save disabled and
 	// both exit guards stood down, and leaving would discard it in silence.
 	it( 'keeps an unsaved rename dirty across a region repair', async () => {
-		apiFetch.mockImplementation( ( { path, method } ) => {
-			if ( path === '/vip-workflows/v1/sequences/options' ) {
-				return Promise.resolve( OPTIONS );
-			}
-			if (
-				path.startsWith( '/vip-workflows/v1/abilities' ) ||
-				path === '/vip-workflows/v1/notifications/channels'
-			) {
-				return Promise.resolve( [] );
-			}
-			if ( path.endsWith( '/repair-regions' ) && method === 'POST' ) {
-				return Promise.resolve( {
+		serveSequenceEditor( {
+			// A legacy sequence, so the repair notice is offered.
+			sequence: sequence( { stages_missing_region: [ 'legacy' ] } ),
+			write: ( { path } ) => {
+				if ( ! path.endsWith( '/repair-regions' ) ) {
+					throw new Error( `Unexpected write to ${ path }` );
+				}
+				return {
 					...sequence( { stages_missing_region: [] } ),
 					repair: { defaulted: [ 'legacy' ], dropped: [] },
-				} );
-			}
-			// A legacy sequence, so the repair notice is offered.
-			return Promise.resolve(
-				sequence( { stages_missing_region: [ 'legacy' ] } )
-			);
+				};
+			},
 		} );
 
 		await renderEditor( { sequenceId: 7 } );
@@ -707,43 +656,28 @@ describe( 'What the write gate changed on the way in', () => {
 	const STORED_STAGES = [ { ...STAGES[ 0 ], key: 'Draft Stage' } ];
 
 	beforeEach( () => {
-		apiFetch.mockImplementation( ( { path, method, data } ) => {
-			if ( path === '/vip-workflows/v1/sequences/options' ) {
-				return Promise.resolve( OPTIONS );
-			}
-			if (
-				path.startsWith( '/vip-workflows/v1/abilities' ) ||
-				path === '/vip-workflows/v1/notifications/channels'
-			) {
-				return Promise.resolve( [] );
-			}
-			if ( method === 'POST' || method === 'PUT' ) {
-				writes.push( { path, method, data } );
-				// Normalized, not echoed: this is the write gate.
-				return Promise.resolve(
-					sequence( {
-						name: data.name.trim(),
-						status: data.status,
-						config: {
-							...sequence().config,
-							statuses: data.statuses.map( ( stage ) => ( {
-								...stage,
-								key: sanitizeKey( stage.key ),
-							} ) ),
-							post_types: data.post_types,
-						},
-					} )
-				);
-			}
-			return Promise.resolve(
+		( { writes } = serveSequenceEditor( {
+			sequence: sequence( {
+				config: {
+					...sequence().config,
+					statuses: STORED_STAGES,
+				},
+			} ),
+			// Normalized, not echoed: this is the write gate.
+			write: ( { data } ) =>
 				sequence( {
+					name: data.name.trim(),
+					status: data.status,
 					config: {
 						...sequence().config,
-						statuses: STORED_STAGES,
+						statuses: data.statuses.map( ( stage ) => ( {
+							...stage,
+							key: sanitizeKey( stage.key ),
+						} ) ),
+						post_types: data.post_types,
 					},
-				} )
-			);
-		} );
+				} ),
+		} ) );
 	} );
 
 	it( 'is what the editor is showing once the save lands', async () => {
@@ -945,22 +879,9 @@ describe( 'A half-filled metadata field', () => {
 		} );
 
 	const renderWithFields = async ( metadataFields ) => {
-		apiFetch.mockImplementation( ( { path, method, data } ) => {
-			if ( path === '/vip-workflows/v1/sequences/options' ) {
-				return Promise.resolve( OPTIONS );
-			}
-			if (
-				path.startsWith( '/vip-workflows/v1/abilities' ) ||
-				path === '/vip-workflows/v1/notifications/channels'
-			) {
-				return Promise.resolve( [] );
-			}
-			if ( method === 'POST' || method === 'PUT' ) {
-				writes.push( { path, method, data } );
-				return Promise.resolve( storedWith( metadataFields ) );
-			}
-			return Promise.resolve( storedWith( metadataFields ) );
-		} );
+		( { writes } = serveSequenceEditor( {
+			sequence: storedWith( metadataFields ),
+		} ) );
 
 		await renderEditor( { sequenceId: 7 } );
 		fireEvent.change( nameField(), { target: { value: 'Renamed' } } );
@@ -1016,19 +937,11 @@ describe( 'A half-filled metadata field', () => {
  */
 describe( 'A sequence the editor could not read', () => {
 	beforeEach( () => {
-		apiFetch.mockImplementation( ( { path } ) => {
-			if ( path === '/vip-workflows/v1/sequences/options' ) {
-				return Promise.resolve( OPTIONS );
-			}
-			if (
-				path.startsWith( '/vip-workflows/v1/abilities' ) ||
-				path === '/vip-workflows/v1/notifications/channels'
-			) {
-				return Promise.resolve( [] );
-			}
-			return Promise.reject(
-				new Error( 'The sequence could not be read.' )
-			);
+		serveSequenceEditor( {
+			sequence: () =>
+				Promise.reject(
+					new Error( 'The sequence could not be read.' )
+				),
 		} );
 	} );
 
@@ -1045,9 +958,7 @@ describe( 'A sequence the editor could not read', () => {
 		// `All`: the Notice is also announced through wp.a11y.speak, which
 		// mirrors it into a live region, so the message is on screen twice.
 		await screen.findAllByText( 'The sequence could not be read.' );
-		await act( async () => {
-			await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
-		} );
+		await settle();
 	}
 
 	it( 'is not offered as an editable canvas over the row it failed to read', async () => {
@@ -1092,21 +1003,14 @@ describe( 'A sequence the editor could not read', () => {
 describe( 'A new sequence whose options read fails under the author', () => {
 	it( 'does not hold them with a question the blocked editor cannot ask', async () => {
 		let failOptions;
-		apiFetch.mockImplementation( ( { path } ) => {
-			if ( path === '/vip-workflows/v1/sequences/options' ) {
-				// Held open, so the author gets to type before it fails.
-				return new Promise( ( resolve, reject ) => {
+		serveSequenceEditor( {
+			sequence: sequence(),
+			// Held open, so the author gets to type before it fails.
+			options: () =>
+				new Promise( ( resolve, reject ) => {
 					failOptions = () =>
 						reject( new Error( 'The options could not be read.' ) );
-				} );
-			}
-			if (
-				path.startsWith( '/vip-workflows/v1/abilities' ) ||
-				path === '/vip-workflows/v1/notifications/channels'
-			) {
-				return Promise.resolve( [] );
-			}
-			return Promise.resolve( sequence() );
+				} ),
 		} );
 
 		render( <SequenceGraphEditor onCancel={ jest.fn() } /> );

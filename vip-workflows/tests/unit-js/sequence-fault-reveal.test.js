@@ -24,15 +24,15 @@
  * @package
  */
 
+import { render, screen, fireEvent } from './helpers/render-wp-component';
 import {
-	act,
-	render,
-	screen,
-	fireEvent,
-	waitFor,
-} from './helpers/render-wp-component';
-
-import apiFetch from '@wordpress/api-fetch';
+	canvasReveals,
+	nameField,
+	renderSequenceEditor,
+	resetCanvas,
+	saveButton,
+	sequenceOptions,
+} from './helpers/sequence-editor';
 
 import Inspector from '../../src/admin/components/graph/Inspector';
 import {
@@ -44,23 +44,10 @@ import { regionNodeId } from '../../src/admin/components/graph/graph-model';
 
 jest.mock( '@wordpress/api-fetch' );
 
-// Every reveal the canvas was handed, in order, deduplicated by identity: the
-// stub re-renders for reasons of its own (a keystroke in the panel), and a prop
-// arriving twice is still one instruction.
-let mockReveals = [];
-
 jest.mock(
 	'../../src/admin/components/graph/GraphCanvas',
-	() =>
-		function GraphCanvasStub( { reveal } ) {
-			if ( reveal && mockReveals[ mockReveals.length - 1 ] !== reveal ) {
-				mockReveals.push( reveal );
-			}
-			return <div data-testid="canvas" />;
-		}
+	() => require( './helpers/graph-canvas-stub' ).GraphCanvasStub
 );
-
-import SequenceGraphEditor from '../../src/admin/components/graph/SequenceGraphEditor';
 
 const heading = () => document.querySelector( '.wf-inspector__heading' );
 const body = () => document.querySelector( '.wf-inspector__body' );
@@ -450,45 +437,22 @@ const sequence = () => ( {
 	},
 } );
 
-const OPTIONS = {
-	post_types: [ { value: 'post', label: 'Posts' } ],
-	phase_transitions: [],
-	required_phase_transitions: [],
-};
-
 beforeEach( () => {
-	mockReveals = [];
-	apiFetch.mockImplementation( ( { path } ) => {
-		if ( path === '/vip-workflows/v1/sequences/options' ) {
-			return Promise.resolve( OPTIONS );
-		}
-		if (
-			path.startsWith( '/vip-workflows/v1/abilities' ) ||
-			path === '/vip-workflows/v1/notifications/channels'
-		) {
-			return Promise.resolve( [] );
-		}
-		return Promise.resolve( sequence() );
-	} );
+	resetCanvas();
 } );
 
 afterEach( () => {
 	jest.clearAllMocks();
 } );
 
-const saveButton = () =>
-	screen.getByRole( 'button', { name: /^(Save|Saving…|Saved!)$/ } );
-const nameField = () => screen.getByRole( 'textbox', { name: /^Name/ } );
 const showTransition = () =>
 	screen.getByRole( 'button', { name: 'Show transition' } );
 
-async function renderEditor() {
-	render( <SequenceGraphEditor sequenceId={ 7 } onCancel={ () => {} } /> );
-	await waitFor( () => expect( saveButton() ).toBeInTheDocument() );
-	await act( async () => {
-		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+const renderEditor = () =>
+	renderSequenceEditor( {
+		sequence: sequence(),
+		options: sequenceOptions( { phase_transitions: [] } ),
 	} );
-}
 
 describe( 'the way a refused Save shows its fault', () => {
 	// Save is disabled until there is unsaved work, so it has to be given some
@@ -515,12 +479,12 @@ describe( 'the way a refused Save shows its fault', () => {
 	it( 'tells the canvas which transition to bring into view', async () => {
 		await renderEditor();
 		await pressSave();
-		expect( mockReveals ).toHaveLength( 0 );
+		expect( canvasReveals() ).toHaveLength( 0 );
 
 		fireEvent.click( showTransition() );
 
-		expect( mockReveals ).toHaveLength( 1 );
-		expect( mockReveals[ 0 ].target ).toMatchObject( {
+		expect( canvasReveals() ).toHaveLength( 1 );
+		expect( canvasReveals()[ 0 ].target ).toMatchObject( {
 			type: 'edge',
 			from: 'draft',
 			to: 'legal',
@@ -537,7 +501,8 @@ describe( 'the way a refused Save shows its fault', () => {
 		// One target, two requests. The canvas may have been panned away in
 		// between, so the second press has to arrive as a fresh instruction
 		// rather than as an unchanged prop.
-		expect( mockReveals ).toHaveLength( 2 );
-		expect( mockReveals[ 1 ] ).not.toBe( mockReveals[ 0 ] );
+		expect( canvasReveals() ).toHaveLength( 2 );
+		const [ first, second ] = canvasReveals();
+		expect( second ).not.toBe( first );
 	} );
 } );
