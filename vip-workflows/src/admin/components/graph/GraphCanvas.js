@@ -1164,7 +1164,9 @@ function Flow( {
 			return;
 		}
 		pendingRecenter.current = false;
-		centerOn( layout.nodes, { duration: 200 } );
+		// Linear, because d3's default zooms out mid-flight on a long pan,
+		// and centering keeps the zoom the author is at.
+		centerOn( layout.nodes, { duration: 200, interpolate: 'linear' } );
 	}, [ layout, centerOn ] );
 
 	// --- Showing a fault ----------------------------------------------------
