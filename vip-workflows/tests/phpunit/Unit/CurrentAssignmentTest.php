@@ -173,6 +173,26 @@ class CurrentAssignmentTest extends TestCase {
 	}
 
 	/**
+	 * Leaving a stage completes its pending user and role slots, and only those.
+	 */
+	public function test_stage_exit_completes_pending_user_and_role_slots(): void {
+		$this->manager->assign( 42, 'reviewer', 7, 'user' );
+		$this->manager->assign( 42, 'approver', 'editor', 'role' );
+		$this->manager->assign( 42, 'checker', 'some-agent', 'agent' );
+		$this->manager->assign( 42, 'legal', 9, 'user' );
+		$this->manager->mark_expired( 42, 'legal' );
+
+		$this->manager->complete_on_stage_exit( 42 );
+
+		$this->assertSame( AssignmentManager::STATUS_COMPLETED, $this->manager->get( 42, 'reviewer' )['status'] );
+		$this->assertSame( AssignmentManager::STATUS_COMPLETED, $this->manager->get( 42, 'approver' )['status'] );
+		$this->assertSame( 5, $this->manager->get( 42, 'reviewer' )['completed_by'] );
+		$this->assertSame( AssignmentManager::STATUS_PENDING, $this->manager->get( 42, 'checker' )['status'], 'The agent runner owns agent slots.' );
+		$this->assertSame( AssignmentManager::STATUS_EXPIRED, $this->manager->get( 42, 'legal' )['status'], 'A finished slot keeps its outcome.' );
+		$this->assertSame( 'checker', $this->manager->get_current( 42 )['meta_key'] );
+	}
+
+	/**
 	 * Register assignment agents through the same filter their runner consumes.
 	 *
 	 * @param array $agents Registered assignment agents.
