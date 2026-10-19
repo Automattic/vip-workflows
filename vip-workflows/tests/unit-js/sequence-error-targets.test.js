@@ -528,9 +528,7 @@ describe( 'the transition panel names the fault it was sent to fix', () => {
 			selection: { type: 'edge', from, to, outcome: null },
 			stages,
 			selectedStage: stage,
-			selectedTransition: stage.transitions.find(
-				( t ) => t.to === to
-			),
+			selectedTransition: stage.transitions.find( ( t ) => t.to === to ),
 			exitProblems: exitProblems(),
 		} );
 		return within( container );

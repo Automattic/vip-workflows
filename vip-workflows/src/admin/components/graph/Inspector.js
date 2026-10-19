@@ -513,7 +513,7 @@ function renderPanel( {
 				// as the editor keeps one per record. Keyed by the record,
 				// `from->to`, as the stage panel's exit rows read them: every
 				// edge drawn for a shared record carries its fault.
-				problem={
+				saveBlocker={
 					exitProblems[ edgeId( selection.from, selection.to ) ]
 				}
 				disabled={ disabled }
