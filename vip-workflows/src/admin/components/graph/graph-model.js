@@ -2227,7 +2227,10 @@ export function validateSequence( {
 		// Each half named on its own, because the fix differs and so does what
 		// breaks: a stage with no name is one writers meet as a blank on the
 		// board, a stage with no key is one the server refuses to store.
-		if ( ! stage.key && ! stage.label ) {
+		// A name of only spaces is no name: the server trims it to empty, so
+		// it must block here exactly as a blank one does.
+		const hasName = Boolean( stage.label?.trim() );
+		if ( ! stage.key && ! hasName ) {
 			// No key is no address: nothing on the canvas can be selected by it,
 			// so the fault carries no target and the notice offers no way to it.
 			addBlocker(
@@ -2237,7 +2240,7 @@ export function validateSequence( {
 				),
 				null
 			);
-		} else if ( ! stage.label ) {
+		} else if ( ! hasName ) {
 			addBlocker(
 				sprintf(
 					/* translators: %s: the stage's key, e.g. "in_review". */
