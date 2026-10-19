@@ -17,8 +17,9 @@
  * @package
  */
 
-import { render, screen } from './helpers/render-wp-component';
+import { render, screen, within } from './helpers/render-wp-component';
 
+import Inspector from '../../src/admin/components/graph/Inspector';
 import StageInspector from '../../src/admin/components/graph/StageInspector';
 import {
 	buildGraph,
@@ -363,5 +364,114 @@ describe( 'the stage panel flags the exit at fault', () => {
 		} );
 		expect( row ).toHaveTextContent( 'Needs attention' );
 		expect( row ).not.toHaveTextContent( '(disabled)' );
+	} );
+} );
+
+// The blocked-save notice's "Show transition" selects the edge an error names,
+// which opens the transition panel. A fault that spans transitions — two of
+// them assigning one slot — has no row in that panel to explain it, so the
+// panel has to say it outright or the author lands on a panel that looks clean.
+describe( 'the transition panel names the fault it was sent to fix', () => {
+	const stages = [
+		{
+			key: 'draft',
+			label: 'Draft',
+			status: 'draft',
+			region_entry: true,
+			is_terminal: false,
+			transitions: [
+				{
+					to: 'legal',
+					label: 'Send to legal',
+					inputs: [
+						{ type: 'assignment', meta_key: 'legal_reviewer' },
+					],
+				},
+			],
+		},
+		{
+			key: 'legal',
+			label: 'Legal',
+			status: 'draft',
+			region_entry: false,
+			is_terminal: false,
+			transitions: [
+				{
+					to: 'done',
+					label: 'Approve',
+					inputs: [
+						{ type: 'assignment', meta_key: 'legal_reviewer' },
+					],
+				},
+			],
+		},
+		{
+			key: 'done',
+			label: 'Done',
+			status: 'publish',
+			region_entry: true,
+			is_terminal: true,
+			transitions: [],
+		},
+	];
+
+	// Keyed the way the editor keys them: by the record, `from->to`.
+	const exitProblems = () => {
+		const byEdge = {};
+		blockers( stages ).forEach( ( { message, target } ) => {
+			if ( target?.type !== 'edge' ) {
+				return;
+			}
+			const id = edgeId( target.from, target.to );
+			byEdge[ id ] = byEdge[ id ] || [];
+			byEdge[ id ].push( message );
+		} );
+		return byEdge;
+	};
+
+	// Scoped to the render's container: `<Notice>` also speaks its text into a
+	// document-level live region that outlives the render.
+	const renderPanel = ( from, to ) => {
+		const stage = stages.find( ( s ) => s.key === from );
+		const { container } = render(
+			<Inspector
+				selection={ { type: 'edge', from, to, outcome: null } }
+				isPhase={ false }
+				stages={ stages }
+				selectedStage={ stage }
+				selectedTransition={ stage.transitions.find(
+					( t ) => t.to === to
+				) }
+				availableAgents={ [] }
+				availableRoles={ [] }
+				availableTools={ [] }
+				availableChannels={ [] }
+				onUpdateStage={ () => {} }
+				onDeleteStage={ () => {} }
+				onUpdateTransition={ () => {} }
+				onDeleteTransition={ () => {} }
+				exitProblems={ exitProblems() }
+				sequenceSettings={ { settings: {} } }
+			/>
+		);
+		return within( container );
+	};
+
+	it( 'shows the save blocker on the transition it names', () => {
+		const panel = renderPanel( 'legal', 'done' );
+
+		expect(
+			panel.getByText(
+				/The “Approve” transition assigns to the same slot as another transition/
+			)
+		).toBeInTheDocument();
+	} );
+
+	it( 'says nothing on a transition the blocker does not name', () => {
+		const panel = renderPanel( 'draft', 'legal' );
+
+		expect(
+			panel.queryByText( /assigns to the same slot/ )
+		).not.toBeInTheDocument();
 	} );
 } );

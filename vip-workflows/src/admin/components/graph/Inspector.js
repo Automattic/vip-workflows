@@ -205,7 +205,7 @@ function renderPanel( {
 	requiredTransitions = [],
 	onSelectEdge,
 	onSelectRegion,
-	exitProblems,
+	exitProblems = {},
 	onSetRegionEntry,
 	onSetStageStatus,
 	onRemoveRegion,
@@ -509,6 +509,12 @@ function renderPanel( {
 				targetLabel={ targetLabel }
 				outcome={ edgeOutcome }
 				sharedOutcomes={ sharing.length > 1 ? sharing : null }
+				// The faults that block Save on this transition. Keyed by the
+				// record, `from->to`, as the stage panel's exit rows read them:
+				// every edge drawn for a shared record carries its fault.
+				problems={
+					exitProblems[ edgeId( selection.from, selection.to ) ]
+				}
 				disabled={ disabled }
 				// Disabled with an outcome routed along it can only be the
 				// publish hold — an unrouted leftover has none. Keyed by the
