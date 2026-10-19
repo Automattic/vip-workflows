@@ -86,6 +86,9 @@ function renderInspector( overrides = {} ) {
 		onDeleteTransition: () => {},
 		onConnectTransition: () => {},
 		onReconnectTransition: () => {},
+		// Every pair allowed, so `canReconnect` alone decides — the cases
+		// below that exercise the connection rule pass their own.
+		isValidConnection: () => true,
 		onSetStageStatus: () => {},
 		onSelectRegion: () => {},
 		onSelectNode: () => {},
@@ -341,6 +344,27 @@ describe( 'Re-pointing a transition without dragging its endpoint', () => {
 				( option ) => option.value
 			)
 		).toEqual( [ 'review', 'done' ] );
+	} );
+
+	it( 'withholds an end the canvas’s connection rule refuses', () => {
+		// The two halves of a dragged endpoint's verdict: the connection rule
+		// first, then `canReconnect`. A rule that lives only in the first —
+		// here, nothing may lead into Done — has to keep Done out of the
+		// selects too, or the panel offers what a drag would refuse.
+		const isValidConnection = jest.fn(
+			( { target } ) => target !== 'done'
+		);
+		renderInspector( { ...edgeSelection(), isValidConnection } );
+
+		expect(
+			Array.from( picker( 'To' ).options ).map( ( o ) => o.textContent )
+		).toEqual( [ 'Review', 'End of workflow' ] );
+		// Asked about the pair the move would make, as the canvas asks it.
+		expect( isValidConnection ).toHaveBeenCalledWith( {
+			source: 'draft',
+			target: 'done',
+			sourceHandle: null,
+		} );
 	} );
 
 	it( 'offers no re-pointing at all in a phase sequence', () => {

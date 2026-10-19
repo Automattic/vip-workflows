@@ -51,7 +51,7 @@ import {
 	isRequiredHandOff,
 	missingHandOffs,
 	outcomesRoutedTo,
-	canReconnect,
+	endpointMoveVerdict,
 	publishSettingFixesRoute,
 	START_ID,
 	END_ID,
@@ -59,6 +59,28 @@ import {
 import { DEFAULT_REGION } from './regions';
 
 import './Inspector.css';
+
+/**
+ * One destination as a select or menu option: a stage by its label, or the
+ * flow's exit by what it means to an author.
+ *
+ * Every list of destinations this panel builds — a new exit, an outcome's
+ * route, a transition's From and To — names its options through this, so the
+ * same stage cannot be called two things in two pickers.
+ *
+ * @param {Array}  stages Existing stages.
+ * @param {string} key    Stage key, or `END_ID`.
+ * @return {{ label: string, value: string }} The option.
+ */
+function endpointOption( stages, key ) {
+	return {
+		label:
+			key === END_ID
+				? __( 'End of workflow', 'vip-workflows' )
+				: stageLabel( stages, key ),
+		value: key,
+	};
+}
 
 /**
  * wp-admin's own mobile breakpoint, matched exactly.
@@ -168,6 +190,9 @@ function renderPanel( {
 	onDeleteTransition,
 	onConnectTransition,
 	onReconnectTransition,
+	// The canvas's rule for a hand-drawn connection. A transition's From and
+	// To options are asked of it as a dragged endpoint is.
+	isValidConnection,
 	onSelectNode,
 	// Phase-only. Draws an owed hand-off from the phase panel.
 	onAddHandOff,
@@ -246,27 +271,20 @@ function renderPanel( {
 			( selectedStage.transitions || [] ).map( ( t ) => t.to )
 		);
 		const others = stages.filter( ( s ) => s.key !== selectedStage.key );
-		const nameOf = ( key ) => ( {
-			label: stageLabel( stages, key ),
-			value: key,
-		} );
 		const exitOptions = [
 			...others
 				.filter( ( s ) => ! connected.has( s.key ) )
-				.map( ( s ) => nameOf( s.key ) ),
+				.map( ( s ) => endpointOption( stages, s.key ) ),
 			...( selectedStage.is_terminal
 				? []
-				: [
-						{
-							label: __( 'End of workflow', 'vip-workflows' ),
-							value: END_ID,
-						},
-				  ] ),
+				: [ endpointOption( stages, END_ID ) ] ),
 		];
 		// An outcome routes to a stage and nothing else, and two of them may
 		// share one — so every other stage is a candidate here, including the
 		// ones this stage already reaches.
-		const outcomeOptions = others.map( ( s ) => nameOf( s.key ) );
+		const outcomeOptions = others.map( ( s ) =>
+			endpointOption( stages, s.key )
+		);
 		// Those mutations are the canvas's, and move the selection the way a
 		// gesture does: onto the new edge, or off everything. Asked from this
 		// panel the author is still on the stage, so it is selected again in the
@@ -404,9 +422,10 @@ function renderPanel( {
 		const targetLabel = stageLabel( stages, selection.to );
 
 		// Where this edge's ends could move to, asked of the model one
-		// candidate at a time. `canReconnect` is the same predicate the canvas
-		// paints its held-endpoint verdict with, so a destination missing from
-		// this list is one a drag would have refused too. The current end stays
+		// candidate at a time. `endpointMoveVerdict` is the same verdict the
+		// canvas paints a held endpoint with — the connection rule and then
+		// `canReconnect` — so a destination missing from this list is one a
+		// drag would have refused too. The current end stays
 		// in its place in stage order rather than leading the list: a select
 		// commits on every change, and one that re-sorted itself around the
 		// value just picked would send an arrow key back where it came from.
@@ -414,10 +433,11 @@ function renderPanel( {
 		// Phase sequences are left out: their hand-offs are fixed pairs the
 		// server decides (`isValidConnection`), not something this panel may
 		// re-point.
-		const endLabel = ( key ) =>
-			key === END_ID
-				? __( 'End of workflow', 'vip-workflows' )
-				: stageLabel( stages, key );
+		const edge = {
+			from: selection.from,
+			to: selection.to,
+			outcome: edgeOutcome,
+		};
 		const movesTo = ( end ) => {
 			const current = 'source' === end ? selection.from : selection.to;
 			// A dangling transition is still editable from the stage's exit
@@ -432,27 +452,26 @@ function renderPanel( {
 			return [ ...( missing ? [ current ] : [] ), ...candidates ]
 				.filter(
 					( key ) =>
-						key === current ||
-						canReconnect(
+						endpointMoveVerdict(
 							stages,
-							selection.from,
-							selection.to,
-							'source' === end ? key : selection.from,
-							'source' === end ? selection.to : key,
-							edgeOutcome
-						)
+							edge,
+							end,
+							key,
+							isValidConnection
+						) !== 'invalid'
 				)
-				.map( ( key ) => ( {
-					label:
-						missing && key === current
-							? sprintf(
+				.map( ( key ) =>
+					missing && key === current
+						? {
+								label: sprintf(
 									/* translators: %s: stage key that no longer exists. */
 									__( '%s (missing)', 'vip-workflows' ),
 									key
-							  )
-							: endLabel( key ),
-					value: key,
-				} ) );
+								),
+								value: key,
+						  }
+						: endpointOption( stages, key )
+				);
 		};
 
 		const disabled =

@@ -1796,7 +1796,7 @@ export default function SequenceGraphEditor( {
 		// The canvas's own two verbs, given a home that isn't a right-click.
 		// Nothing on the canvas says that right-clicking is how a post status
 		// gets added, and until now nothing anywhere said how a stage does.
-		onAddStage: isPhase ? undefined : handleAddStage,
+		onAddStage: handleAddStage,
 		onAddPostStatus: () => setAddingRegion( true ),
 		canAddPostStatus: addableRegions.length > 0,
 		// Whether there is a row to delete, which a new sequence gains the
@@ -1964,6 +1964,7 @@ export default function SequenceGraphEditor( {
 						onPlaceStage={ handlePlaceStage }
 						onSetStageStatus={ handleSetStageStatus }
 						onAddRegion={ () => setAddingRegion( true ) }
+						addableRegions={ addableRegions }
 						onRemoveRegion={ handleRemoveRegion }
 						// A fault the notice offered to show has to end up
 						// somewhere the author can see it, not just selected.
@@ -2000,6 +2001,10 @@ export default function SequenceGraphEditor( {
 						onDeleteTransition={ handleDeleteTransition }
 						onConnectTransition={ handleConnect }
 						onReconnectTransition={ handleReconnect }
+						// The canvas's connection rule, so the transition
+						// panel's From/To options are judged by the same
+						// verdict a dragged endpoint is.
+						isValidConnection={ isValidConnection }
 						onSelectNode={ selectNode }
 						onAddHandOff={ handleAddHandOff }
 						requiredTransitions={ requiredPhaseTransitions }

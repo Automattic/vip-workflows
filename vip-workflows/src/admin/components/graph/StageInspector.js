@@ -507,24 +507,33 @@ export default function StageInspector( {
 	const exitProblem = ( target ) =>
 		exitProblems[ edgeId( stage.key, target ) ] || null;
 
-	// A row's accessible name, with the reason it is at fault appended rather
-	// than substituted: a name that is only the complaint no longer says what
-	// the button does or which exit it belongs to. One helper for both halves of
-	// the exits list, so an outcome row and a transition row cannot drift into
-	// naming themselves two different ways.
-	const exitSelectLabel = ( label, problem ) =>
-		problem
+	// A row's accessible name. The name replaces the row's text, so it has to
+	// carry the value column too — where the exit goes, "Not routed", "(missing)"
+	// or "(disabled)" — or a screen reader hears which exit a row is and never
+	// where it leads; the Entry checkpoint row above folds its value in for the
+	// same reason. The reason a row is at fault is appended rather than
+	// substituted: a name that is only the complaint no longer says what the
+	// button does or which exit it belongs to — and it is the full message, so
+	// the value's own short flag is left out of the name rather than said twice.
+	// One helper for both halves of the exits list, so an outcome row and a
+	// transition row cannot drift into naming themselves two different ways.
+	const exitSelectLabel = ( label, destination, { problem, disabled } ) => {
+		const value = exitValue( destination, { problem: null, disabled } );
+		return problem
 			? sprintf(
-					/* translators: 1: the exit's label — the transition, or the transition and its outcome (e.g. "Move to Published · on pass"). 2: why the sequence will not save. */
-					__( 'Select %1$s — %2$s', 'vip-workflows' ),
+					/* translators: 1: the exit's label — the transition, or the transition and its outcome (e.g. "Move to Published · on pass"). 2: where the exit goes, e.g. "Published" or "Not routed". 3: why the sequence will not save. */
+					__( 'Select %1$s: %2$s — %3$s', 'vip-workflows' ),
 					label,
+					value,
 					problem
 			  )
 			: sprintf(
-					/* translators: %s: the exit's label — the transition and its outcome (e.g. "Move to Published · on pass"), the transition's label, or the bare outcome ("On pass"). */
-					__( 'Select %s', 'vip-workflows' ),
-					label
+					/* translators: 1: the exit's label — the transition and its outcome (e.g. "Move to Published · on pass"), the transition's label, or the bare outcome ("On pass"). 2: where the exit goes, e.g. "Published", "Not routed" or "Published (disabled)". */
+					__( 'Select %1$s: %2$s', 'vip-workflows' ),
+					label,
+					value
 			  );
+	};
 
 	// A row's value column: where the exit goes, with its state appended rather
 	// than substituted — the same reasoning as `exitSelectLabel` above, and one
@@ -929,7 +938,12 @@ export default function StageInspector( {
 													}
 													selectLabel={ exitSelectLabel(
 														rowLabel,
-														problem
+														destination ||
+															__(
+																'Not routed',
+																'vip-workflows'
+															),
+														{ problem, disabled }
 													) }
 													trailing={
 														onRouteOutcome ? (
@@ -1047,7 +1061,11 @@ export default function StageInspector( {
 														) }
 														selectLabel={ exitSelectLabel(
 															label,
-															problem
+															destination,
+															{
+																problem,
+																disabled,
+															}
 														) }
 														className={ [
 															'wf-stage-inspector__route',

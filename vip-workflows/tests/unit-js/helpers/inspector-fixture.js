@@ -64,6 +64,7 @@ export function renderInspector( overrides = {} ) {
 		onDeleteStage: () => {},
 		onUpdateTransition: () => {},
 		onDeleteTransition: () => {},
+		isValidConnection: () => true,
 		sequenceSettings: SEQUENCE_SETTINGS,
 		...overrides,
 	};

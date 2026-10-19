@@ -95,39 +95,37 @@ export default function SequenceSettingsInspector( {
 				     was a right-click on the canvas, which nothing announces:
 				     the status one was a menu item, and the stage one was
 				     "drag off a handle and let go over empty space". */ }
-				{ onAddStage && (
-					<InspectorSection
-						title={ __( 'Structure', 'vip-workflows' ) }
-						help={ __(
-							'Everything content moves through is drawn on the canvas. A stage added here lands in Draft with nothing leading to it yet, and opens its own panel — where its post status and the ways out of it are set.',
-							'vip-workflows'
-						) }
-					>
-						<ActionRow>
-							<Button
-								__next40pxDefaultSize
-								variant="secondary"
-								icon={ plus }
-								onClick={ onAddStage }
-							>
-								{ __( 'Add stage', 'vip-workflows' ) }
-							</Button>
-							<Button
-								__next40pxDefaultSize
-								variant="secondary"
-								icon={ plus }
-								onClick={ onAddPostStatus }
-								// Every status the server allows is already
-								// drawn — the same gate the canvas menu's item
-								// carries.
-								disabled={ ! canAddPostStatus }
-								accessibleWhenDisabled
-							>
-								{ __( 'Add post status…', 'vip-workflows' ) }
-							</Button>
-						</ActionRow>
-					</InspectorSection>
-				) }
+				<InspectorSection
+					title={ __( 'Structure', 'vip-workflows' ) }
+					help={ __(
+						'Everything content moves through is drawn on the canvas. A stage added here lands in Draft with nothing leading to it yet, and opens its own panel — where its post status and the ways out of it are set.',
+						'vip-workflows'
+					) }
+				>
+					<ActionRow>
+						<Button
+							__next40pxDefaultSize
+							variant="secondary"
+							icon={ plus }
+							onClick={ onAddStage }
+						>
+							{ __( 'Add stage', 'vip-workflows' ) }
+						</Button>
+						<Button
+							__next40pxDefaultSize
+							variant="secondary"
+							icon={ plus }
+							onClick={ onAddPostStatus }
+							// Every status the server allows is already
+							// drawn — the same gate the canvas menu's item
+							// carries.
+							disabled={ ! canAddPostStatus }
+							accessibleWhenDisabled
+						>
+							{ __( 'Add post status…', 'vip-workflows' ) }
+						</Button>
+					</ActionRow>
+				</InspectorSection>
 
 				<InspectorSection title={ __( 'Post types', 'vip-workflows' ) }>
 					{ postTypes.length === 0 && <Spinner /> }
