@@ -82,11 +82,17 @@ function renderCanvas() {
 }
 
 // React Flow measures and lays out across a few ticks; wait until the canvas
-// has handed it its edges.
+// has handed it its edges. Then let the canvas's first centering frame pass:
+// that centering is itself a viewport move, so it fires `onMoveStart`, and a
+// hover set before it lands would be cleared by it rather than by the move
+// the test makes.
 async function settle() {
 	await waitFor( () =>
 		expect( mockFlowProps?.edges?.length ).toBeGreaterThan( 0 )
 	);
+	await act( async () => {
+		await new Promise( ( resolve ) => requestAnimationFrame( resolve ) );
+	} );
 }
 
 const hoveredEdges = () =>

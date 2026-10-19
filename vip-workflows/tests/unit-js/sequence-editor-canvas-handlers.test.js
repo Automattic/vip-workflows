@@ -11,38 +11,29 @@
  *
  * The canvas is stubbed: React Flow measures a viewport jsdom does not lay out
  * (`graph-canvas-menus.test.js` covers the canvas's half under real React
- * Flow). The stub records what the editor hands it — the stages and the
+ * Flow). The shared stub records what the editor hands it — the stages and the
  * selection — and exposes the status callback so a test can call it the way
  * a menu item does.
  *
  * @package
  */
 
+import { act, fireEvent, screen } from './helpers/render-wp-component';
 import {
-	act,
-	fireEvent,
-	render,
-	screen,
-	waitFor,
-} from './helpers/render-wp-component';
-
-import apiFetch from '@wordpress/api-fetch';
+	canvas,
+	renderSequenceEditor,
+	resetCanvas,
+	sequenceOptions,
+	settle,
+	storedSequence,
+} from './helpers/sequence-editor';
 
 jest.mock( '@wordpress/api-fetch' );
 
-// The editor's latest props to the canvas.
-let canvas;
-
 jest.mock(
 	'../../src/admin/components/graph/GraphCanvas',
-	() =>
-		function GraphCanvasStub( props ) {
-			canvas = props;
-			return <div data-testid="canvas" />;
-		}
+	() => require( './helpers/graph-canvas-stub' ).GraphCanvasStub
 );
-
-import SequenceGraphEditor from '../../src/admin/components/graph/SequenceGraphEditor';
 
 const STAGES = [
 	{
@@ -81,63 +72,46 @@ const STAGES = [
 ];
 
 beforeEach( () => {
-	canvas = undefined;
+	resetCanvas();
 	window.location.hash = '';
-	apiFetch.mockImplementation( ( { path } ) => {
-		if ( path === '/vip-workflows/v1/sequences/options' ) {
-			return Promise.resolve( {
-				post_types: [ { value: 'post', label: 'Posts' } ],
-				phase_transitions: [],
-				required_phase_transitions: [],
-			} );
-		}
-		if (
-			path.startsWith( '/vip-workflows/v1/abilities' ) ||
-			path === '/vip-workflows/v1/notifications/channels'
-		) {
-			return Promise.resolve( [] );
-		}
-		return Promise.resolve( {
-			id: 7,
-			name: 'Editorial Review',
-			description: '',
-			status: 'active',
-			stages_missing_region: [],
-			config: {
-				statuses: STAGES,
-				post_types: [ 'post' ],
-				settings: {},
-				metadata_fields: [],
-			},
-		} );
-	} );
 } );
 
 afterEach( () => {
 	jest.clearAllMocks();
 } );
 
-async function renderEditor() {
-	render( <SequenceGraphEditor sequenceId={ 7 } onCancel={ jest.fn() } /> );
-	await waitFor( () =>
-		expect( canvas?.stages?.map( ( s ) => s.key ) ).toEqual(
-			STAGES.map( ( s ) => s.key )
-		)
-	);
-	await act( async () => {
-		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+const renderEditor = () =>
+	renderSequenceEditor( {
+		sequence: storedSequence( {
+			id: 7,
+			name: 'Editorial Review',
+			config: {
+				statuses: STAGES,
+				post_types: [ 'post' ],
+				settings: {},
+				metadata_fields: [],
+			},
+		} ),
+		options: sequenceOptions( { phase_transitions: [] } ),
 	} );
-}
 
-const stage = ( key ) => canvas.stages.find( ( s ) => s.key === key );
+const stage = ( key ) => canvas().stages.find( ( s ) => s.key === key );
 
 async function setStageStatus( key, region ) {
 	await act( async () => {
-		canvas.onSetStageStatus( key, region );
+		canvas().onSetStageStatus( key, region );
 	} );
 }
 
 describe( 'Moving a stage to another post status', () => {
+	it( 'loads the stored stages onto the canvas', async () => {
+		await renderEditor();
+
+		expect( canvas().stages.map( ( s ) => s.key ) ).toEqual(
+			STAGES.map( ( s ) => s.key )
+		);
+	} );
+
 	it( 'joins a status other stages are in without taking its checkpoint', async () => {
 		await renderEditor();
 
@@ -175,11 +149,11 @@ describe( 'Moving a stage to another post status', () => {
 
 	it( 'changes nothing when the stage is already in that status', async () => {
 		await renderEditor();
-		const before = canvas.stages;
+		const before = canvas().stages;
 
 		await setStageStatus( 'writing', 'draft' );
 
-		expect( canvas.stages ).toBe( before );
+		expect( canvas().stages ).toBe( before );
 	} );
 } );
 
@@ -188,17 +162,15 @@ describe( 'Adding a stage from the sequence panel', () => {
 		await renderEditor();
 
 		fireEvent.click( screen.getByRole( 'button', { name: 'Add stage' } ) );
-		await act( async () => {
-			await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
-		} );
+		await settle();
 
-		expect( canvas.stages ).toHaveLength( STAGES.length + 1 );
-		const added = canvas.stages[ canvas.stages.length - 1 ];
+		expect( canvas().stages ).toHaveLength( STAGES.length + 1 );
+		const added = canvas().stages[ canvas().stages.length - 1 ];
 		expect( added ).toMatchObject( {
 			status: 'draft',
 			region_entry: false,
 			transitions: [],
 		} );
-		expect( canvas.selectedNodeKey ).toBe( added.key );
+		expect( canvas().selectedNodeKey ).toBe( added.key );
 	} );
 } );
