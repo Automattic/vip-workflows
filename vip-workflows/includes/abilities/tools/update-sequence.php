@@ -265,7 +265,45 @@ function register_update_sequence(): void {
 											),
 											'inputs'              => array(
 												'type'        => 'array',
-												'description' => __( 'Inputs collected during this transition. Only "assignment" inputs are collected, at most one per transition.', 'vip-workflows' ),
+												'description' => __( 'What this transition captures when it is taken. An "assignment" is the only input type, and a transition may declare at most one. Each assignment needs a "meta_key" naming its slot, unique across the sequence.', 'vip-workflows' ),
+												'items'       => array(
+													'type'       => 'object',
+													'required'   => array( 'type', 'meta_key' ),
+													'properties' => array(
+														'type'          => array(
+															'type'        => 'string',
+															'description' => __( 'Input type.', 'vip-workflows' ),
+															'enum'        => array( 'assignment' ),
+														),
+														'meta_key'      => array(
+															'type'        => 'string',
+															'description' => __( 'Assignment slot key, unique across the sequence. Taking the transition writes the assignment under this key on the post.', 'vip-workflows' ),
+														),
+														'label'         => array(
+															'type'        => 'string',
+															'description' => __( 'Label shown when the assignee is picked, in sentence case.', 'vip-workflows' ),
+														),
+														'assignee_type' => array(
+															'type'        => 'string',
+															'description' => __( 'Registered assignee type, such as "user", "role" or "agent".', 'vip-workflows' ),
+														),
+														'required'      => array(
+															'type'        => 'boolean',
+															'description' => __( 'Whether an assignee must be picked to take the transition.', 'vip-workflows' ),
+														),
+														'filter'        => array(
+															'type'        => 'object',
+															'description' => __( 'Limits who can be picked.', 'vip-workflows' ),
+															'properties'  => array(
+																'roles' => array(
+																	'type'        => 'array',
+																	'description' => __( 'Role slugs a picked user must hold.', 'vip-workflows' ),
+																	'items'       => array( 'type' => 'string' ),
+																),
+															),
+														),
+													),
+												),
 											),
 										),
 									),

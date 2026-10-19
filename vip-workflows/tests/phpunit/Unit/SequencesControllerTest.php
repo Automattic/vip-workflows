@@ -695,7 +695,7 @@ class SequencesControllerTest extends TestCase
      * as a singular `input`. build_config() rebuilds each transition from an
      * allowlist that names only `inputs`, so without a conversion at the boundary
      * the key is neither read nor refused — the save returns 200 having deleted
-     * the note or the assignment slot the caller sent. Converted the same way the
+     * the assignment slot the caller sent. Converted the same way the
      * import boundary converts it, through the same function.
      */
     public function test_create_item_converts_the_retired_singular_input(): void
@@ -2245,15 +2245,16 @@ class SequencesControllerTest extends TestCase
                             array(
                                 'to'     => 'review',
                                 'inputs' => array(
-                                    array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why', 'required' => true ),
                                     array(
                                         'type'          => 'assignment',
                                         'meta_key'      => 'legal_reviewer',
                                         'assignee_type' => 'user',
                                         'label'         => 'Pick a reviewer',
+                                        'required'      => true,
                                         'filter'        => array( 'roles' => array( 'editor' ) ),
+                                        // Not on the allowlist: never stored.
+                                        'note_name'     => 'Why',
                                     ),
-                                    array( 'type' => 'textarea', 'note_id' => 'n2', 'note_name' => 'Anything else' ),
                                 ),
                             ),
                         ),
@@ -2279,23 +2280,56 @@ class SequencesControllerTest extends TestCase
 
         $this->assertArrayNotHasKey( 'requires_assignment', $stored['statuses'][1]['transitions'][0], 'The allowlist drops a gate nothing enforces.' );
 
-        $this->assertCount( 3, $inputs, 'Every input reaches storage.' );
-        $this->assertSame(
-            array( 'textarea', 'assignment', 'textarea' ),
-            array_column( $inputs, 'type' ),
-            'In the order the author arranged them.'
+        $this->assertCount( 1, $inputs, 'The assignment reaches storage.' );
+        $this->assertSame( 'assignment', $inputs[0]['type'] );
+        $this->assertSame( 'legal_reviewer', $inputs[0]['meta_key'] );
+        $this->assertSame( 'user', $inputs[0]['assignee_type'] );
+        $this->assertSame( 'Pick a reviewer', $inputs[0]['label'] );
+        $this->assertTrue( $inputs[0]['required'] );
+        $this->assertSame( array( 'editor' ), $inputs[0]['filter']['roles'] );
+        $this->assertArrayNotHasKey( 'note_name', $inputs[0], 'The allowlist drops a note name nothing reads.' );
+    }
+
+    /**
+     * A free-text note is retired: the editor never collects it, so a save that
+     * declares one is refused rather than stored and reported as a success.
+     */
+    public function test_create_item_rejects_a_note_input(): void
+    {
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row() );
+        $this->wpdb->shouldReceive( 'insert' )->never();
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+
+        $request = $this->create_mock_request(
+            array(
+                'name'     => 'Retired Note',
+                'type'     => Sequence::TYPE_WORKFLOW,
+                'statuses' => array(
+                    array(
+                        'key'         => 'draft',
+                        'label'       => 'Draft',
+                        'transitions' => array(
+                            array(
+                                'to'     => 'review',
+                                'inputs' => array(
+                                    array( 'type' => 'textarea', 'note_name' => 'Why', 'required' => true ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    array( 'key' => 'review', 'label' => 'Review' ),
+                ),
+            )
         );
 
-        $this->assertSame( 'Why', $inputs[0]['note_name'] );
-        $this->assertTrue( $inputs[0]['required'] );
-        $this->assertArrayNotHasKey( 'note_id', $inputs[0], 'The allowlist drops a note id nothing reads.' );
+        $response = $this->controller->create_item( $request );
 
-        $this->assertSame( 'legal_reviewer', $inputs[1]['meta_key'] );
-        $this->assertSame( 'user', $inputs[1]['assignee_type'] );
-        $this->assertSame( 'Pick a reviewer', $inputs[1]['label'] );
-        $this->assertSame( array( 'editor' ), $inputs[1]['filter']['roles'] );
-
-        $this->assertSame( 'Anything else', $inputs[2]['note_name'] );
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertStringContainsString( 'may capture only an "assignment"', $response->get_error_message() );
     }
 
     /**

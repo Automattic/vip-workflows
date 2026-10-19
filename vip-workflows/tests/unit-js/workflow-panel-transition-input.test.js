@@ -281,30 +281,6 @@ describe( 'WorkflowPanel transition input popover', () => {
 		).toBeInTheDocument();
 	} );
 
-	it( 'moves without asking for a note a stored transition still carries', async () => {
-		await renderWith( [
-			{
-				to: 'review',
-				label: 'Send to Review',
-				status_info: { key: 'review', label: 'Review' },
-				inputs: [
-					{
-						type: 'textarea',
-						note_id: 'n1',
-						note_name: 'Editor note',
-						required: true,
-					},
-				],
-			},
-		] );
-		await openPopoverFor( 'Send to Review' );
-
-		expect( popover() ).not.toBeInTheDocument();
-		expect( firedTransitions() ).toEqual( [
-			{ to_status: 'review', acknowledge_warnings: false },
-		] );
-	} );
-
 	it( 'abandons the transition on Close — nothing fires', async () => {
 		await renderWith( [ assignmentTransition( 'role' ) ] );
 		await openPopoverFor( 'Assign reviewer' );
