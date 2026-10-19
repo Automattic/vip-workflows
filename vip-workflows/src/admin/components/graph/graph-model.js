@@ -253,8 +253,10 @@ export function buildGraph( stages, options = {} ) {
 
 	// The projection options `drawnOutcomes` answers under, so the edge ids
 	// drawn here and the edge ids an error's target names are built from one
-	// rule rather than two that agree by coincidence.
-	const drawnAs = { isPhase, stageExists: ( key ) => keys.has( key ) };
+	// rule rather than two that agree by coincidence. No `stageExists`: a
+	// transition to a stage that is gone returns before it is drawn, so every
+	// one asked about here exists.
+	const drawnAs = { isPhase };
 
 	// Stages with at least one incoming transition; the rest are entry points.
 	const hasIncoming = new Set();
@@ -1218,7 +1220,7 @@ export function publishSettingFixesRoute( stage, targetKey ) {
  * @param {?Function} [options.stageExists] Whether a stage key is still on the canvas.
  * @return {string[]} The outcomes, in `AGENT_OUTCOMES` order.
  */
-export function drawnOutcomes(
+function drawnOutcomes(
 	stage,
 	targetKey,
 	{ isPhase = false, stageExists = null } = {}
@@ -1244,7 +1246,7 @@ export function drawnOutcomes(
  * @param {Object} [options] Projection options — see `drawnOutcomes`.
  * @return {?string} The outcome, or null when the edge carries none.
  */
-export function drawnOutcome( stage, targetKey, options ) {
+function drawnOutcome( stage, targetKey, options ) {
 	return drawnOutcomes( stage, targetKey, options )[ 0 ] || null;
 }
 

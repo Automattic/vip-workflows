@@ -202,7 +202,8 @@ function inspectorReserve( el ) {
  * the strip starts below the lowest of them.
  *
  * @param {HTMLElement} el The canvas pane.
- * @return {Object} `{ x, y, width, height }` relative to the pane.
+ * @return {Object} `{ y, width, height }` relative to the pane; the strip
+ *                  always starts at its left edge.
  */
 function visibleCanvas( el ) {
 	const editor = el.closest( '.wf-sequence-editor' );
@@ -219,7 +220,6 @@ function visibleCanvas( el ) {
 	const reserve = inspectorReserve( el );
 	if ( reserve > 0 ) {
 		return {
-			x: 0,
 			y: top,
 			width: Math.max( 0, el.clientWidth - reserve ),
 			height: Math.max( 0, el.clientHeight - top ),
@@ -237,7 +237,6 @@ function visibleCanvas( el ) {
 			? Math.min( el.clientHeight, panelTop - paneTop )
 			: el.clientHeight;
 	return {
-		x: 0,
 		y: top,
 		width: el.clientWidth,
 		height: Math.max( 0, bottom - top ),

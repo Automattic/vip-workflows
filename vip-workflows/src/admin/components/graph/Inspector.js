@@ -281,6 +281,9 @@ function renderPanel( {
 		return (
 			<StageInspector
 				stage={ selectedStage }
+				// Which stage this is, in a way a rename does not change — see
+				// `position` in StageInspector.
+				position={ stages.indexOf( selectedStage ) }
 				regions={ regions }
 				exitOptions={ exitOptions }
 				outcomeOptions={ outcomeOptions }

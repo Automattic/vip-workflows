@@ -918,6 +918,11 @@ export default function SequenceGraphEditor( {
 			} );
 	}, [ validation.errors, isPhase, selectedPostTypes ] );
 
+	// Where the one reason the save is refused points, when there is exactly
+	// one and it has somewhere on the canvas to point; otherwise null.
+	const loneTarget =
+		saveBlockers.length === 1 ? saveBlockers[ 0 ].target : null;
+
 	// The refusal stands down once the last reason for it is gone, so it cannot
 	// reappear on its own the next time a field is half-edited.
 	useEffect( () => {
@@ -926,8 +931,8 @@ export default function SequenceGraphEditor( {
 		}
 	}, [ saveBlockers.length ] );
 
-	// The blocking faults that belong to one way out of a stage, keyed by the
-	// transition they belong to — `from->to`, without the outcome.
+	// The first blocking fault of each way out of a stage, keyed by the
+	// transition it belongs to — `from->to`, without the outcome.
 	//
 	// The stage panel's exit list reads this: a node badge says a stage needs
 	// attention, and without this the author has to open every transition it
@@ -941,9 +946,10 @@ export default function SequenceGraphEditor( {
 			if ( target?.type !== 'edge' ) {
 				return;
 			}
+			// One row, one line. A transition can hold more than one fault at
+			// once, and the first is the one to fix first.
 			const id = edgeId( target.from, target.to );
-			byEdge[ id ] = byEdge[ id ] || [];
-			byEdge[ id ].push( message );
+			byEdge[ id ] = byEdge[ id ] || message;
 		} );
 		return byEdge;
 	}, [ validation.errors ] );
@@ -1842,20 +1848,16 @@ export default function SequenceGraphEditor( {
 								// neither of which has anything on the canvas
 								// to open.
 								actions={
-									! error &&
-									saveBlockers.length === 1 &&
-									saveBlockers[ 0 ].target
+									! error && loneTarget
 										? [
 												{
 													label: blockedTargetLabel(
-														saveBlockers[ 0 ]
-															.target,
+														loneTarget,
 														isPhase
 													),
 													onClick: () =>
 														showTarget(
-															saveBlockers[ 0 ]
-																.target
+															loneTarget
 														),
 													variant: 'primary',
 												},

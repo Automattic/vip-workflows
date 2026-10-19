@@ -222,7 +222,7 @@ describe( 'the stage panel flags the exit at fault', () => {
 		...overrides,
 	} );
 
-	const renderInspector = ( stage, exitProblems ) =>
+	const renderInspector = ( stage, exitProblems, overrides = {} ) =>
 		render(
 			<StageInspector
 				stage={ stage }
@@ -240,6 +240,7 @@ describe( 'the stage panel flags the exit at fault', () => {
 				canDelete
 				isKeyInUse={ () => false }
 				exitProblems={ exitProblems }
+				{ ...overrides }
 			/>
 		);
 
@@ -252,9 +253,8 @@ describe( 'the stage panel flags the exit at fault', () => {
 
 	it( 'flags the row of the transition the error names', () => {
 		renderInspector( reviewStage(), {
-			[ edgeId( 'review', 'done' ) ]: [
+			[ edgeId( 'review', 'done' ) ]:
 				'The “Approve” transition assigns work but names no assignment key.',
-			],
 		} );
 
 		// The flag takes the value column, so a closed panel still shows which
@@ -282,9 +282,8 @@ describe( 'the stage panel flags the exit at fault', () => {
 				agent: { ability_id: 'a/b', routing: { pass: 'done' } },
 			} ),
 			{
-				[ edgeId( 'review', 'done' ) ]: [
+				[ edgeId( 'review', 'done' ) ]:
 					'The “Approve” transition assigns to the same slot as another transition.',
-				],
 			}
 		);
 
@@ -307,9 +306,8 @@ describe( 'the stage panel flags the exit at fault', () => {
 				},
 			} ),
 			{
-				[ edgeId( 'review', 'done' ) ]: [
+				[ edgeId( 'review', 'done' ) ]:
 					'The “Approve” transition assigns work but names no assignment key.',
-				],
 			}
 		);
 
@@ -322,26 +320,19 @@ describe( 'the stage panel flags the exit at fault', () => {
 	// the value column outright took the "(missing)" with it, leaving the row
 	// saying something is wrong and no longer saying what.
 	it( 'keeps reporting a missing destination on a row that is also at fault', () => {
-		render(
-			<StageInspector
-				stage={ reviewStage( {
-					transitions: [ { to: 'ghost', label: 'Approve' } ],
-				} ) }
-				availableAgents={ [] }
-				resolveStageLabel={ ( key ) => key }
-				stageExists={ () => false }
-				isTransitionDisabled={ () => false }
-				onChange={ () => {} }
-				onDelete={ () => {} }
-				onSelectEdge={ () => {} }
-				canDelete
-				isKeyInUse={ () => false }
-				exitProblems={ {
-					[ edgeId( 'review', 'ghost' ) ]: [
-						'The “Approve” transition assigns work but names no assignment key.',
-					],
-				} }
-			/>
+		renderInspector(
+			reviewStage( {
+				transitions: [ { to: 'ghost', label: 'Approve' } ],
+			} ),
+			{
+				[ edgeId( 'review', 'ghost' ) ]:
+					'The “Approve” transition assigns work but names no assignment key.',
+			},
+			{
+				resolveStageLabel: ( key ) => key,
+				stageExists: () => false,
+				isTransitionDisabled: () => false,
+			}
 		);
 
 		const row = screen.getByRole( 'button', {
@@ -362,9 +353,8 @@ describe( 'the stage panel flags the exit at fault', () => {
 				agent: { ability_id: 'a/b', routing: { pass: 'done' } },
 			} ),
 			{
-				[ edgeId( 'review', 'spike' ) ]: [
+				[ edgeId( 'review', 'spike' ) ]:
 					'The “Spike” transition assigns work but names no assignment key.',
-				],
 			}
 		);
 
