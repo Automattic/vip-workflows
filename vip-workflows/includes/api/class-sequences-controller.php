@@ -627,6 +627,68 @@ class SequencesController extends WP_REST_Controller {
 	}
 
 	/**
+	 * Schema for a transition's `inputs` list.
+	 *
+	 * Shared by the REST create/update args and the create-sequence and
+	 * update-sequence abilities, so every write path describes an input the same
+	 * way. The sequence editor mints an assignment's `meta_key` itself; every
+	 * other caller has to supply one, and nothing else tells it so.
+	 *
+	 * The schema describes rather than enforces. It names no `required` member and
+	 * no `type` enum: validate_assignment_keys() owns the key rules and reports
+	 * them with errors that name the stage, and a retired note a stored sequence
+	 * still carries has to survive being sent back on update.
+	 *
+	 * @return array JSON Schema for the `inputs` array.
+	 */
+	public static function get_transition_inputs_schema(): array {
+		return array(
+			'type'        => 'array',
+			'description' => __( 'Inputs collected when this transition is taken. Only "assignment" inputs are collected, at most one per transition. Every assignment must carry a "meta_key" that is non-empty and unique across the whole sequence; a missing or repeated key is rejected.', 'vip-workflows' ),
+			'items'       => array(
+				'type'       => 'object',
+				'properties' => array(
+					'type'          => array(
+						'type'        => 'string',
+						'description' => __( 'Input type. "assignment" collects an assignee when the transition is taken. Any other type is a retired note a stored sequence may still carry; it is kept so it can be removed, and is no longer collected.', 'vip-workflows' ),
+					),
+					'meta_key'      => array(
+						'type'        => 'string',
+						'description' => __( 'Assignment slot key (lowercase letters, numbers, dashes and underscores). Taking the transition stores the assignee in the post meta "_vip_workflows_assignment_{meta_key}". Required for an assignment, and must be unique within the sequence: two transitions sharing a key would overwrite each other’s assignment. Keep a slot’s existing key when updating a sequence.', 'vip-workflows' ),
+					),
+					'assignee_type' => array(
+						'type'        => 'string',
+						'description' => __( 'What the assignment names: "user" (default), "role", or "agent". Extensions may register more through the vip_workflows_assignee_types filter.', 'vip-workflows' ),
+					),
+					'label'         => array(
+						'type'        => 'string',
+						'description' => __( 'Label shown for the assignee field when the transition is taken.', 'vip-workflows' ),
+					),
+					'required'      => array(
+						'type'        => 'boolean',
+						'description' => __( 'Whether an assignee must be chosen to take the transition.', 'vip-workflows' ),
+					),
+					'filter'        => array(
+						'type'        => 'object',
+						'description' => __( 'Limits who can be chosen as the assignee.', 'vip-workflows' ),
+						'properties'  => array(
+							'roles' => array(
+								'type'        => 'array',
+								'description' => __( 'Role slugs the assignee is chosen from.', 'vip-workflows' ),
+								'items'       => array( 'type' => 'string' ),
+							),
+						),
+					),
+					'note_name'     => array(
+						'type'        => 'string',
+						'description' => __( 'Name of a retired note input. Kept only so the note can be listed and removed.', 'vip-workflows' ),
+					),
+				),
+			),
+		);
+	}
+
+	/**
 	 * Get args for create/update.
 	 *
 	 * @return array
@@ -699,7 +761,7 @@ class SequencesController extends WP_REST_Controller {
 									'allowed_roles'  => array( 'type' => 'array' ),
 									'notifications'  => array( 'type' => 'array' ),
 									'show_in_queue'  => array( 'type' => 'boolean' ),
-									'inputs'         => array( 'type' => 'array' ),
+									'inputs'         => self::get_transition_inputs_schema(),
 								),
 							),
 						),
@@ -1845,7 +1907,8 @@ class SequencesController extends WP_REST_Controller {
 			return true;
 		}
 
-		// Every slot the sequence declares.
+		// Every slot the sequence declares, with the transition that declared it,
+		// so a repeat can name both transitions rather than an opaque key.
 		$slot_keys = array();
 		foreach ( $statuses as $status ) {
 			$stage_key = $this->status_key( $status );
@@ -1859,26 +1922,37 @@ class SequencesController extends WP_REST_Controller {
 							'invalid_assignment_key',
 							sprintf(
 								/* translators: %s: stage key */
-								__( 'Stage "%s" has a transition that assigns work without an assignment key. Every assignment slot needs one.', 'vip-workflows' ),
+								__( 'Stage "%s" has a transition that assigns work without an assignment key (meta_key). Every assignment slot needs a key that is unique within the sequence.', 'vip-workflows' ),
 								$stage_key
 							),
 							array( 'status' => 400 )
 						);
 					}
 
+					$target = sanitize_key( (string) ( $transition['to'] ?? '' ) );
+
 					if ( isset( $slot_keys[ $key ] ) ) {
 						return new WP_Error(
 							'duplicate_assignment_key',
 							sprintf(
-								/* translators: %s: duplicate assignment key */
-								__( 'Duplicate assignment key: "%s". Two transitions assigning the same key overwrite each other’s assignment.', 'vip-workflows' ),
-								$key
+								/* translators: 1: first stage key, 2: first transition's target stage key, 3: second stage key, 4: second transition's target stage key */
+								__( 'The transitions from "%1$s" to "%2$s" and from "%3$s" to "%4$s" use the same assignment key (meta_key), so each would overwrite the other’s assignment. Give every assignment its own key.', 'vip-workflows' ),
+								$slot_keys[ $key ]['stage'],
+								$slot_keys[ $key ]['to'],
+								$stage_key,
+								$target
 							),
-							array( 'status' => 400 )
+							array(
+								'status'   => 400,
+								'meta_key' => $key, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Error data, not a query.
+							)
 						);
 					}
 
-					$slot_keys[ $key ] = true;
+					$slot_keys[ $key ] = array(
+						'stage' => $stage_key,
+						'to'    => $target,
+					);
 				}
 			}
 		}

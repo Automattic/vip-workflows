@@ -254,4 +254,42 @@ class SequenceWriteAbilityRegistrationTest extends TestCase
             'create-sequence and update-sequence must offer the same agent routing outcomes.'
         );
     }
+
+    /**
+     * Only the sequence editor mints an assignment's slot key. Every other
+     * caller has to send one, so both abilities describe each input's fields —
+     * `meta_key` and the rule it must follow included — from the same schema
+     * the REST args use.
+     *
+     * @return void
+     */
+    public function test_create_and_update_describe_transition_inputs(): void
+    {
+        $shared = \VIPWorkflows\API\SequencesController::get_transition_inputs_schema();
+
+        foreach ( array( 'vip-workflows/create-sequence', 'vip-workflows/update-sequence' ) as $slug ) {
+            $transition = $this->registered[ $slug ]['input_schema']['properties']['statuses']['items']['properties']['transitions']['items'];
+
+            $this->assertSame( $shared, $transition['properties']['inputs'], "{$slug} must describe transition inputs with the shared schema." );
+        }
+
+        $this->assertSame( 'array', $shared['type'] );
+        $this->assertStringContainsString( 'meta_key', $shared['description'] );
+        $this->assertStringContainsString( 'unique', $shared['description'] );
+
+        $properties = $shared['items']['properties'];
+        foreach ( array( 'type', 'meta_key', 'assignee_type', 'label', 'required', 'filter', 'note_name' ) as $field ) {
+            $this->assertArrayHasKey( $field, $properties, "Input schema must describe {$field}." );
+            $this->assertNotEmpty( $properties[ $field ]['description'], "Input schema must explain {$field}." );
+        }
+        $this->assertSame( 'boolean', $properties['required']['type'] );
+        $this->assertSame( 'string', $properties['filter']['properties']['roles']['items']['type'] );
+        $this->assertStringContainsString( 'unique', $properties['meta_key']['description'] );
+
+        // Descriptive only: the key rules are enforced, with errors that name
+        // the stage, by validate_assignment_keys(). A schema-level `required`
+        // or `type` enum would refuse a stored retired note sent back on update.
+        $this->assertArrayNotHasKey( 'required', $shared['items'] );
+        $this->assertArrayNotHasKey( 'enum', $properties['type'] );
+    }
 }
