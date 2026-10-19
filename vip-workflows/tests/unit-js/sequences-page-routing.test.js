@@ -30,8 +30,12 @@ import {
 	fireEvent,
 	waitFor,
 } from './helpers/render-wp-component';
-
-import apiFetch from '@wordpress/api-fetch';
+import {
+	nameField,
+	saveButton,
+	serveSequenceEditor,
+	settle,
+} from './helpers/sequence-editor';
 
 jest.mock( '@wordpress/api-fetch' );
 
@@ -46,23 +50,7 @@ jest.mock( '../../src/admin/components/SequencesList', () => ( {
 // ends the flow.
 jest.mock(
 	'../../src/admin/components/graph/GraphCanvas',
-	() =>
-		function GraphCanvasStub( { onConnectTransition, onClearSelection } ) {
-			return (
-				<div data-testid="canvas">
-					<button
-						onClick={ () =>
-							onConnectTransition( 'draft', '__wf_end__', null )
-						}
-					>
-						end the flow
-					</button>
-					<button onClick={ onClearSelection }>
-						deselect everything
-					</button>
-				</div>
-			);
-		}
+	() => require( './helpers/graph-canvas-stub' ).GraphCanvasStub
 );
 
 import Sequences from '../../src/admin/pages/Sequences';
@@ -93,57 +81,34 @@ const storedSequence = ( id, name ) => ( {
 	},
 } );
 
-const OPTIONS = {
-	post_types: [ { value: 'post', label: 'Posts' } ],
-	phase_transitions: [ { from: 'ideation', to: 'editorial' } ],
-	required_phase_transitions: [ { from: 'ideation', to: 'editorial' } ],
-};
-
 /** Every request the page and its editor made, in order. */
 let calls;
 /** Every write, in order. */
 let writes;
 
 beforeEach( () => {
-	calls = [];
-	writes = [];
 	window.location.hash = '';
-	apiFetch.mockImplementation( ( { path, method, data } ) => {
-		calls.push( { path, method } );
-		if ( path === '/vip-workflows/v1/sequences/options' ) {
-			return Promise.resolve( OPTIONS );
-		}
-		if (
-			path.startsWith( '/vip-workflows/v1/abilities' ) ||
-			path === '/vip-workflows/v1/notifications/channels'
-		) {
-			return Promise.resolve( [] );
-		}
-		if ( method === 'POST' || method === 'PUT' ) {
-			writes.push( { path, method, data } );
-			return Promise.resolve( {
-				...storedSequence( 7, data.name ),
-				config: {
-					...storedSequence( 7, data.name ).config,
-					statuses: data.statuses,
-					post_types: data.post_types,
-				},
-			} );
-		}
+	( { calls, writes } = serveSequenceEditor( {
 		// A read of a stored row answers with the server's copy of the name,
 		// which is how a remount makes itself visible.
-		const id = parseInt( path.split( '/' ).pop(), 10 );
-		return Promise.resolve( storedSequence( id, `Stored ${ id }` ) );
-	} );
+		sequence: ( path ) => {
+			const id = parseInt( path.split( '/' ).pop(), 10 );
+			return storedSequence( id, `Stored ${ id }` );
+		},
+		write: ( { data } ) => ( {
+			...storedSequence( 7, data.name ),
+			config: {
+				...storedSequence( 7, data.name ).config,
+				statuses: data.statuses,
+				post_types: data.post_types,
+			},
+		} ),
+	} ) );
 } );
 
 afterEach( () => {
 	jest.clearAllMocks();
 } );
-
-const saveButton = () =>
-	screen.getByRole( 'button', { name: /^(Save|Saving…|Saved!)$/ } );
-const nameField = () => screen.getByRole( 'textbox', { name: /^Name/ } );
 
 /**
  * The page, under a host that re-renders it the way the shell does.
@@ -183,18 +148,14 @@ async function renderPage( hash ) {
 	window.location.hash = hash;
 	render( <Host /> );
 	await waitFor( () => expect( saveButton() ).toBeInTheDocument() );
-	await act( async () => {
-		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
-	} );
+	await settle();
 }
 
 const reRender = async () => {
 	fireEvent.click(
 		screen.getByRole( 'button', { name: 're-render the page' } )
 	);
-	await act( async () => {
-		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
-	} );
+	await settle();
 };
 
 describe( 'The sequence a new editor just created', () => {
