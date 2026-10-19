@@ -225,4 +225,85 @@ class AssignmentManagerTest extends TestCase
 
         $this->assertSame(array(), $deleted);
     }
+
+    // -------------------------------------------------------------------------
+    // assign — per-type on_assign handlers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Answer the `vip_workflows_assignee_types` filter with the given handlers.
+     *
+     * @param array      $handlers Handlers keyed by assignee type.
+     * @param array|null $default  Filled with the value the manager passed in.
+     */
+    private function register_assignee_type_handlers( array $handlers, ?array &$default ): void
+    {
+        Functions\when('apply_filters')->alias(
+            function ($tag, $value) use ($handlers, &$default) {
+                if ('vip_workflows_assignee_types' !== $tag) {
+                    return $value;
+                }
+                $default = $value;
+                return $handlers;
+            }
+        );
+    }
+
+    /**
+     * An extension's `on_assign` handler, registered through the
+     * `vip_workflows_assignee_types` filter, runs with the post, the assigned
+     * value and the input config. The built-in types register none, so the
+     * filter starts empty.
+     */
+    public function test_assign_runs_the_on_assign_handler_for_its_type(): void
+    {
+        $written = array();
+        $this->capture_assignments($written);
+
+        $calls   = array();
+        $default = null;
+        $this->register_assignee_type_handlers(
+            array(
+                'team' => array(
+                    'on_assign' => function ($post_id, $value, $config) use (&$calls) {
+                        $calls[] = array( $post_id, $value, $config );
+                    },
+                ),
+            ),
+            $default
+        );
+
+        $config = array( 'meta_key' => 'desk', 'assignee_type' => 'team' );
+        $this->manager->assign(42, 'desk', 'news', 'team', $config);
+
+        $this->assertSame(array(), $default, 'Built-in types register no handler.');
+        $this->assertSame(array( array( 42, 'news', $config ) ), $calls);
+    }
+
+    /**
+     * A handler registered for another type does not run.
+     */
+    public function test_assign_runs_no_handler_for_a_type_without_one(): void
+    {
+        $written = array();
+        $this->capture_assignments($written);
+
+        $calls   = 0;
+        $default = null;
+        $this->register_assignee_type_handlers(
+            array(
+                'team' => array(
+                    'on_assign' => function () use (&$calls) {
+                        ++$calls;
+                    },
+                ),
+            ),
+            $default
+        );
+
+        $this->manager->assign(42, 'legal_reviewer', 7, 'user');
+
+        $this->assertSame(0, $calls);
+        $this->assertSame('user', $written['_vip_workflows_assignment_legal_reviewer']['type']);
+    }
 }

@@ -24,49 +24,6 @@ class AssignmentManager {
 	public const STATUS_COMPLETED = 'completed';
 	public const STATUS_EXPIRED   = 'expired';
 
-	/**
-	 * Get all registered assignee types.
-	 *
-	 * @return array
-	 */
-	public function get_assignee_types(): array {
-		$types = array(
-			'user'  => array(
-				'label'       => __( 'User', 'vip-workflows' ),
-				'description' => __( 'Assign to a specific user', 'vip-workflows' ),
-				'storage'     => 'user_id',
-			),
-			'role'  => array(
-				'label'       => __( 'Role', 'vip-workflows' ),
-				'description' => __( 'Assign to anyone with a specific role', 'vip-workflows' ),
-				'storage'     => 'role_slug',
-			),
-			'agent' => array(
-				'label'       => __( 'Agent', 'vip-workflows' ),
-				'description' => __( 'Assign to an automated agent/bot', 'vip-workflows' ),
-				'storage'     => 'agent_id',
-			),
-		);
-
-		/**
-		 * Filter registered assignee types.
-		 *
-		 * @param array $types Registered assignee types.
-		 */
-		return apply_filters( 'vip_workflows_assignee_types', $types );
-	}
-
-	/**
-	 * Get a specific assignee type configuration.
-	 *
-	 * @param  string $type Assignee type key.
-	 * @return array|null
-	 */
-	public function get_assignee_type( string $type ): ?array {
-		$types = $this->get_assignee_types();
-		return $types[ $type ] ?? null;
-	}
-
 	// =========================================================================
 	// Assignment CRUD
 	// =========================================================================
@@ -338,7 +295,7 @@ class AssignmentManager {
 	}
 
 	// =========================================================================
-	// Shared Helpers (used by StatusManager)
+	// Transition input (used by StatusManager::transition())
 	// =========================================================================
 
 	/**
@@ -577,10 +534,23 @@ class AssignmentManager {
 			do_action( 'vip_workflows_agent_assigned', $post_id, $assignment['value'], $config );
 		}
 
-		// Custom type on_assign callback.
-		$type_handler = $this->get_assignee_type( $assignment['type'] );
-		if ( isset( $type_handler['on_assign'] ) && is_callable( $type_handler['on_assign'] ) ) {
-			call_user_func( $type_handler['on_assign'], $post_id, $assignment['value'], $config );
+		/**
+		 * Filter the per-assignee-type handlers run when an assignment is created.
+		 *
+		 * Keyed by assignee type (the `assignee_type` a sequence's assignment
+		 * input stores). Each entry's only read key is `on_assign`: a callable
+		 * receiving `( int $post_id, mixed $value, array $config )`. Nothing else
+		 * in an entry is read, and the built-in types register no handler.
+		 *
+		 * This is not a list of allowed types: an assignment input stores any
+		 * `assignee_type` string, whether or not it appears here.
+		 *
+		 * @param array $handlers Handlers keyed by assignee type.
+		 */
+		$handlers = apply_filters( 'vip_workflows_assignee_types', array() );
+		$handler  = $handlers[ $assignment['type'] ]['on_assign'] ?? null;
+		if ( is_callable( $handler ) ) {
+			call_user_func( $handler, $post_id, $assignment['value'], $config );
 		}
 	}
 }
