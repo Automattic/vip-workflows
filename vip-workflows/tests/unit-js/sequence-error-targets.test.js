@@ -167,6 +167,82 @@ describe( 'a blocking error names what is at fault', () => {
 		expect( found.target.outcome ).toBeNull();
 	} );
 
+	// A stage stored before the one-transition-per-target rule can hold two
+	// transitions to the same stage. Both share one edge address, and selecting
+	// it opens the first — so a fault in the second would open the clean one.
+	// The fault points at the stage instead, whose panel lists both rows.
+	describe( 'when the stage holds two transitions to the same stage', () => {
+		const twoToLegal = () => {
+			const stages = withAssignment( {
+				type: 'assignment',
+				meta_key: 'legal-reviewer',
+			} );
+			stages[ 0 ].transitions = [
+				{ to: 'legal', label: 'Clean one' },
+				{
+					to: 'legal',
+					label: 'Faulty one',
+					inputs: [ { type: 'assignment', meta_key: '' } ],
+				},
+			];
+			return stages;
+		};
+
+		it( 'points the fault at the stage, naming the transition', () => {
+			const found = blockers( twoToLegal() ).find( ( e ) =>
+				e.message.includes( 'names no assignment key' )
+			);
+
+			expect( found ).toBeDefined();
+			expect( found.message ).toContain( 'Faulty one' );
+			expect( found.target ).toEqual( { type: 'node', key: 'draft' } );
+		} );
+
+		it( 'points a duplicate-slot fault at the stage too', () => {
+			const stages = twoToLegal();
+			stages[ 0 ].transitions[ 0 ].inputs = [
+				{ type: 'assignment', meta_key: 'legal-reviewer' },
+			];
+			stages[ 0 ].transitions[ 1 ].inputs = [
+				{ type: 'assignment', meta_key: 'legal-reviewer' },
+			];
+
+			const found = blockers( stages ).find( ( e ) =>
+				e.message.includes( 'same slot as another' )
+			);
+
+			expect( found ).toBeDefined();
+			expect( found.message ).toContain( 'Faulty one' );
+			expect( found.target ).toEqual( { type: 'node', key: 'draft' } );
+		} );
+
+		// Another stage's single transition keeps its edge: only the shared
+		// address is ambiguous.
+		it( 'leaves a fault on an unshared transition pointing at its edge', () => {
+			const stages = twoToLegal();
+			stages[ 1 ].is_terminal = false;
+			stages[ 1 ].transitions = [
+				{
+					to: 'draft',
+					label: 'Back to draft',
+					inputs: [ { type: 'assignment', meta_key: '' } ],
+				},
+			];
+
+			const found = blockers( stages ).find( ( e ) =>
+				e.message.includes( 'Back to draft' )
+			);
+
+			expect( found ).toBeDefined();
+			expect( found.target ).toEqual( {
+				type: 'edge',
+				from: 'legal',
+				to: 'draft',
+				outcome: null,
+			} );
+		} );
+	} );
+
 	// Two halves of the same report: the notice can open the transition, and
 	// the node still carries the message so the canvas says which stage to look
 	// at. Losing the second half would leave a fault visible only after Save.

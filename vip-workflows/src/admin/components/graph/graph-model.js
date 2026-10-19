@@ -1270,6 +1270,29 @@ const edgeTarget = ( stage, transition, options ) => ( {
 } );
 
 /**
+ * Where a fault in one of a stage's transitions points.
+ *
+ * Usually the transition's own edge. But an edge is addressed by `from->to`
+ * (plus the outcome on an AI stage), and a stage stored before the
+ * one-transition-per-target rule can hold two transitions to the same stage —
+ * two transitions with one address. Selecting that address opens whichever
+ * comes first, which need not be the one at fault, and edits made there land
+ * on both. So a fault in either of them points at the stage instead: its
+ * panel lists both rows, and the message names the one it means.
+ *
+ * @param {Object} stage      The stage the transition leaves.
+ * @param {Object} transition The transition at fault.
+ * @param {Object} [options]  Projection options — see `drawnOutcomes`.
+ * @return {Object} An edge target, or the stage's node target when the edge
+ *                  address is shared.
+ */
+const transitionTarget = ( stage, transition, options ) =>
+	( stage.transitions || [] ).filter( ( t ) => t.to === transition.to )
+		.length > 1
+		? nodeTarget( stage.key )
+		: edgeTarget( stage, transition, options );
+
+/**
  * @param {string} region Status region.
  * @return {Object} A region target.
  */
@@ -2441,7 +2464,7 @@ export function validateSequence( {
 							),
 							transitionName
 						),
-						edgeTarget( stage, transition, drawnAs )
+						transitionTarget( stage, transition, drawnAs )
 					);
 					continue;
 				}
@@ -2456,7 +2479,7 @@ export function validateSequence( {
 							),
 							transitionName
 						),
-						edgeTarget( stage, transition, drawnAs )
+						transitionTarget( stage, transition, drawnAs )
 					);
 					continue;
 				}
