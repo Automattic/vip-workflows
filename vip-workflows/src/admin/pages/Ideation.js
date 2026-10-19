@@ -11,6 +11,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { Spinner, Notice } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
 
+import AdminPage from '../components/AdminPage';
 import SeedInput from '../components/ideation/SeedInput';
 import IdeationWorkspace from '../components/ideation/IdeationWorkspace';
 import StoryDiscovery from '../components/ideation/StoryDiscovery';
@@ -147,28 +148,42 @@ export default function Ideation( { route, onNavigate } ) {
 		);
 	}
 
+	// The landing is a readable form column, so it takes the shared scaffold's
+	// `constrained` measure rather than declaring a width of its own.
 	return (
-		// wpds-allow R7 -- block-flow page column; the sections below carry their own margin-top, which a flex Stack would stop collapsing (see Ideation.css)
-		<div className="vip-workflows-ideation-landing">
-			{ error && (
-				<Notice
-					status="error"
-					isDismissible
-					onDismiss={ () => setError( null ) }
-				>
-					{ error }
-				</Notice>
-			) }
+		<AdminPage
+			breadcrumbs={ [
+				{
+					label: __( 'Workflows', 'vip-workflows' ),
+					href: 'admin.php?page=vip-workflows',
+				},
+				{ label: __( 'Ideation', 'vip-workflows' ) },
+			] }
+			title={ __( 'Ideation', 'vip-workflows' ) }
+			constrained
+		>
+			{ /* wpds-allow R7 -- block-flow page column; the sections below carry their own margin-top, which a flex Stack would stop collapsing (see Ideation.css) */ }
+			<div className="vip-workflows-ideation-landing">
+				{ error && (
+					<Notice
+						status="error"
+						isDismissible
+						onDismiss={ () => setError( null ) }
+					>
+						{ error }
+					</Notice>
+				) }
 
-			<SeedInput
-				onSubmit={ handleSeedSubmit }
-				isSubmitting={ submitting }
-			/>
-			<StoryDiscovery
-				onSelect={ handleDiscoverySelect }
-				onNavigate={ onNavigate }
-			/>
-			<RecentProjects onSelect={ handleProjectSelect } />
-		</div>
+				<SeedInput
+					onSubmit={ handleSeedSubmit }
+					isSubmitting={ submitting }
+				/>
+				<StoryDiscovery
+					onSelect={ handleDiscoverySelect }
+					onNavigate={ onNavigate }
+				/>
+				<RecentProjects onSelect={ handleProjectSelect } />
+			</div>
+		</AdminPage>
 	);
 }

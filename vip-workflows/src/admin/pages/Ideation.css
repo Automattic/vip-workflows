@@ -20,9 +20,12 @@
 /* Deliberately a block-flow column, not a <Stack>: the sections below the seed
    input (.vip-workflows-ideation-discovery, .vip-workflows-ideation-recent) each
    carry their own `margin-top: 48px`, and flex items neither collapse those
-   margins nor let a child's margin collapse through them. */
+   margins nor let a child's margin collapse through them.
+
+   Width, centring and horizontal padding are owned by the constrained
+   <AdminPage> this column renders inside, so the landing shares the project's
+   canonical content width with every other constrained screen. Only the
+   vertical offset of the hero stays here. */
 .vip-workflows-ideation-landing {
-	max-width: var(--wpds-dimension-surface-width-xl);
-	margin: 80px auto 40px; /* wpds-allow R3 -- `auto` centres the page column under its max-width; the top/bottom offset has no parent Stack */
-	padding: 0 var(--wpds-dimension-padding-2xl);
+	margin-block: 80px 40px; /* wpds-allow R3 -- top/bottom offset of the landing hero; no parent Stack owns it */
 }
