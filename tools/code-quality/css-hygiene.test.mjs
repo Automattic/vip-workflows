@@ -189,3 +189,113 @@ export default function C() {
 		assert.equal(r6[0].message, '<Card.Content> ← border');
 	});
 });
+
+describe('library-internal attribution', { skip }, () => {
+	const js = `export default function C() {
+	return <div className="wf-foo" />;
+}
+`;
+	const r6of = (findings) => findings.filter((f) => f.rule === 'R6');
+
+	it('names the library class when it is the subject', () => {
+		const root = fixture(
+			js,
+			`.wf-foo .components-panel__body {
+	font-size: var(--wpds-font-size-sm);
+}
+`
+		);
+		const r6 = r6of(analyze(root));
+
+		assert.equal(r6.length, 1);
+		assert.equal(r6[0].message, '.components-panel__body (library internal)');
+	});
+
+	it('names the subject a library ancestor scopes, not only the ancestor', () => {
+		const root = fixture(
+			js,
+			`.components-panel .wf-foo {
+	font-size: var(--wpds-font-size-sm);
+}
+`
+		);
+		const r6 = r6of(analyze(root));
+
+		// Still a finding — the rule depends on the library's DOM — but the type
+		// lands on .wf-foo, so naming the panel alone reads as overriding it.
+		assert.equal(r6.length, 1);
+		assert.equal(r6[0].message, '.components-panel .wf-foo (library internal)');
+	});
+
+	it('prefers a subject match from any selector in a list', () => {
+		const root = fixture(
+			js,
+			`.components-panel .wf-foo,
+.components-button {
+	font-size: var(--wpds-font-size-sm);
+}
+`
+		);
+		const r6 = r6of(analyze(root));
+
+		assert.equal(r6.length, 1);
+		assert.equal(r6[0].message, '.components-button (library internal)');
+	});
+});
+
+describe('layout on a bound component', { skip }, () => {
+	const js = `import { Card } from '@wordpress/ui';
+export default function C() {
+	return (
+		<Card.Content className="wf-card">
+			<div className="wf-card__row" />
+		</Card.Content>
+	);
+}
+`;
+	const r4of = (findings) => findings.filter((f) => f.rule === 'R4');
+
+	it('does not flag layout on the component itself', () => {
+		const root = fixture(
+			js,
+			`.wf-card {
+	display: flex;
+	gap: var(--wpds-dimension-gap-lg);
+}
+`
+		);
+
+		assert.deepEqual(r4of(analyze(root)), []);
+	});
+
+	it('flags layout on a child the component only scopes', () => {
+		const root = fixture(
+			js,
+			`.wf-card > div {
+	display: flex;
+	gap: var(--wpds-dimension-gap-lg);
+}
+`
+		);
+
+		// The bound class is only an ancestor: the flex lays out a child that may
+		// be our own markup, which a <Stack> should own.
+		assert.equal(r4of(analyze(root)).length, 2);
+	});
+
+	it('does not flag layout on a library-internal subject', () => {
+		const root = fixture(
+			js,
+			`.wf-card .components-button {
+	justify-content: center;
+}
+`
+		);
+
+		// The flex belongs to the library's own element, which no <Stack> can
+		// replace; reaching into it is an R6 finding instead.
+		const findings = analyze(root);
+		assert.deepEqual(r4of(findings), []);
+		assert.deepEqual(rules(findings), ['R6']);
+	});
+});

@@ -369,6 +369,38 @@ function resolveBindings(selectors, bindings) {
 	return found;
 }
 
+/**
+ * Which library-internal class a rule's declarations reach into.
+ *
+ * The same subject-first attribution resolveBindings() applies to bound
+ * components: `.components-panel .wf-foo { … }` depends on the library's DOM
+ * through its ancestor, but the declarations style `.wf-foo`, so naming
+ * `.components-panel` alone reads as an override of the panel itself. A class on
+ * the subject is the override; one found only on an ancestor carries the
+ * subject along so the finding names both.
+ *
+ * @param {string[]} selectors One rule's selectors.
+ * @return {?{ cls: string, target: ?string }} The library class to report, with
+ *   `target` set to the subject when it was matched through an ancestor.
+ */
+function resolveFramework(selectors) {
+	let found = null;
+	for (const selector of selectors) {
+		const parts = compoundsOf(selector);
+		if (!parts.length) continue;
+		const subject = parts[parts.length - 1];
+		const direct = classesOf(subject).find(isFramework);
+		// The subject is the declaration's own element, so it outranks an
+		// ancestor match taken from an earlier selector in the list.
+		if (direct) return { cls: direct, target: null };
+		if (!found) {
+			const ancestor = parts.slice(0, -1).flatMap(classesOf).find(isFramework);
+			if (ancestor) found = { cls: ancestor, target: subject };
+		}
+	}
+	return found;
+}
+
 /** How a finding names what a declaration landed on: `<Card>`, or `<Card> svg`. */
 const nameTarget = (b) => (b.target ? `<${b.tag}> ${b.target}` : `<${b.tag}>`);
 
@@ -450,6 +482,14 @@ export function runCssHygiene({ root, plugins, mode, files }) {
 			// The component this rule's declarations land on, and the element within
 			// it they actually target when the selector reaches past it (R6/R8).
 			const bound = resolveBindings(rule.selectors, bindings);
+			// The library-internal class the rule reaches into, if any (R6).
+			const fw = resolveFramework(rule.selectors);
+			// R4 only stands down when the layout lands on a component's own
+			// element: one bound in our JSX, or a library-internal class. A bound
+			// class on an ancestor does not count — `.wf-card > div { display:
+			// flex }` lays out a child, which may be our own markup rather than
+			// anything the component renders.
+			const layoutOnComponent = Boolean((bound.wpds && !bound.wpds.target) || (fw && !fw.target));
 
 			// Does this rule establish a CSS Grid? Grid is a genuine KEEP (Stack is
 			// flex-only), so its display/gap/alignment are not R4 conversions. Detect
@@ -491,17 +531,18 @@ export function runCssHygiene({ root, plugins, mode, files }) {
 					if (bound.text) push('R8', `${prop} on ${nameTarget(bound.text)}`, 12);
 					else if (!usesToken(value)) push('R5', `${prop}: ${value}`, 10);
 				}
-				// R4 — flex layout in CSS that a <Stack> should own. NOT flagged on a
-				// component-bound class (component-internal flex, or a class already
-				// on a <Stack>) nor on a grid rule (CSS Grid is a KEEP — Stack is
-				// flex-only); those aren't convertible to <Stack>.
+				// R4 — flex layout in CSS that a <Stack> should own. NOT flagged when
+				// the selector's subject is a component's own element (component-internal
+				// flex, or a class already on a <Stack>) nor on a grid rule (CSS Grid
+				// is a KEEP — Stack is flex-only); those aren't convertible to <Stack>.
+				// A component class on an ancestor only does not exempt the rule.
 				else if (LAYOUT_GAP_PROPS.has(prop)) {
 					ruleTouchesStyle = true;
-					if (!bound.wpds && !ruleIsGrid) push('R4', prop, 8);
+					if (!layoutOnComponent && !ruleIsGrid) push('R4', prop, 8);
 				} else if (LAYOUT_FLEX_PROPS.has(prop) || (prop === 'display' && /\b(inline-)?(flex|grid)\b/.test(value))) {
 					ruleTouchesStyle = true;
 					const isGridDisplay = prop === 'display' && /\bgrid\b/.test(value);
-					if (!bound.wpds && !ruleIsGrid && !isGridDisplay) push('R4', `${prop}: ${value}`, 6);
+					if (!layoutOnComponent && !ruleIsGrid && !isGridDisplay) push('R4', `${prop}: ${value}`, 6);
 				}
 				// R2 — hardcoded token-backed value.
 				else if (isHardcodedTokenValue(prop, value)) {
@@ -522,10 +563,11 @@ export function runCssHygiene({ root, plugins, mode, files }) {
 			if (ruleTouchesStyle) for (const c of classes) styledClasses.add(c);
 
 			// R6 (framework flavour) — a rule reaching into design-system / library
-			// internals (.components-*, .react-flow*, …). One finding per rule.
-			const fw = classes.find(isFramework);
+			// internals (.components-*, .react-flow*, …). One finding per rule, naming
+			// the subject too when the library class is only an ancestor scope.
 			if (fw && ruleTouchesStyle && reportThisFile && !isSuppressed(sp.byLine, line, 'R6')) {
-				findings.push({ rule: 'R6', file: r, line, message: `.${fw} (library internal)`, rank: 11 });
+				const where = fw.target ? `.${fw.cls} ${fw.target}` : `.${fw.cls}`;
+				findings.push({ rule: 'R6', file: r, line, message: `${where} (library internal)`, rank: 11 });
 			}
 
 			// R1 — dead class (whole rule). Only project-namespaced classes we own;
