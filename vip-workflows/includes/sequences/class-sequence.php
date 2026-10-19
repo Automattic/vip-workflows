@@ -1542,6 +1542,12 @@ class Sequence {
 
 					$transition = self::normalize_transition_inputs( $transition, $key );
 
+					// The retired restrict-to-assignee gate. Nothing reads it, so a
+					// copy left in the config would show a restriction nothing
+					// enforces — in GET, export, and validate-sequence. Dropped here
+					// rather than by each write path, so import cannot carry it in.
+					unset( $transition['requires_assignment'] );
+
 					// One transition per target, per stage. A duplicate is not a
 					// harmless extra row: every runtime read of a transition
 					// resolves by target and they disagree about which copy wins —
