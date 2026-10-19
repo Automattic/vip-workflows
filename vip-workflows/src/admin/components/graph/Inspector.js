@@ -509,10 +509,11 @@ function renderPanel( {
 				targetLabel={ targetLabel }
 				outcome={ edgeOutcome }
 				sharedOutcomes={ sharing.length > 1 ? sharing : null }
-				// The faults that block Save on this transition. Keyed by the
-				// record, `from->to`, as the stage panel's exit rows read them:
-				// every edge drawn for a shared record carries its fault.
-				problems={
+				// The fault that blocks Save on this transition — the first,
+				// as the editor keeps one per record. Keyed by the record,
+				// `from->to`, as the stage panel's exit rows read them: every
+				// edge drawn for a shared record carries its fault.
+				problem={
 					exitProblems[ edgeId( selection.from, selection.to ) ]
 				}
 				disabled={ disabled }

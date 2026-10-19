@@ -19,7 +19,7 @@
 
 import { render, screen, within } from './helpers/render-wp-component';
 
-import Inspector from '../../src/admin/components/graph/Inspector';
+import { renderInspector as renderEditorInspector } from './helpers/inspector-fixture';
 import StageInspector from '../../src/admin/components/graph/StageInspector';
 import {
 	buildGraph,
@@ -415,7 +415,8 @@ describe( 'the transition panel names the fault it was sent to fix', () => {
 		},
 	];
 
-	// Keyed the way the editor keys them: by the record, `from->to`.
+	// Keyed the way the editor keys them: by the record, `from->to`, holding
+	// the first message aimed at it.
 	const exitProblems = () => {
 		const byEdge = {};
 		blockers( stages ).forEach( ( { message, target } ) => {
@@ -423,8 +424,7 @@ describe( 'the transition panel names the fault it was sent to fix', () => {
 				return;
 			}
 			const id = edgeId( target.from, target.to );
-			byEdge[ id ] = byEdge[ id ] || [];
-			byEdge[ id ].push( message );
+			byEdge[ id ] = byEdge[ id ] || message;
 		} );
 		return byEdge;
 	};
@@ -433,27 +433,15 @@ describe( 'the transition panel names the fault it was sent to fix', () => {
 	// document-level live region that outlives the render.
 	const renderPanel = ( from, to ) => {
 		const stage = stages.find( ( s ) => s.key === from );
-		const { container } = render(
-			<Inspector
-				selection={ { type: 'edge', from, to, outcome: null } }
-				isPhase={ false }
-				stages={ stages }
-				selectedStage={ stage }
-				selectedTransition={ stage.transitions.find(
-					( t ) => t.to === to
-				) }
-				availableAgents={ [] }
-				availableRoles={ [] }
-				availableTools={ [] }
-				availableChannels={ [] }
-				onUpdateStage={ () => {} }
-				onDeleteStage={ () => {} }
-				onUpdateTransition={ () => {} }
-				onDeleteTransition={ () => {} }
-				exitProblems={ exitProblems() }
-				sequenceSettings={ { settings: {} } }
-			/>
-		);
+		const { container } = renderEditorInspector( {
+			selection: { type: 'edge', from, to, outcome: null },
+			stages,
+			selectedStage: stage,
+			selectedTransition: stage.transitions.find(
+				( t ) => t.to === to
+			),
+			exitProblems: exitProblems(),
+		} );
 		return within( container );
 	};
 

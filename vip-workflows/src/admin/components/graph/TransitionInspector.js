@@ -42,8 +42,8 @@
  * edge that was clicked.
  *
  * A transition the sequence cannot save with says so at the top as well.
- * `problems` holds the blocking messages `validateSequence` aimed at this
- * record — faults such as two transitions assigning one slot, which no single
+ * `problem` holds the first blocking message `validateSequence` aimed at this
+ * record — a fault such as two transitions assigning one slot, which no single
  * row here can see. The blocked-Save notice's "Show transition" lands on this
  * panel, so the panel has to name what it was sent to fix.
  *
@@ -158,7 +158,7 @@ export default function TransitionInspector( {
 	targetLabel,
 	outcome = null,
 	sharedOutcomes = null,
-	problems = [],
+	problem = null,
 	disabled = false,
 	publishHeld = false,
 	suggestAgentPublish = false,
@@ -356,9 +356,9 @@ export default function TransitionInspector( {
 				     notice's "Show transition" lands here, and this is what
 				     it was sent to show. One line, as the stage panel's exit
 				     row gives it — the first fault is the one to fix first. */ }
-				{ problems.length > 0 && (
+				{ problem && (
 					<Notice status="error" isDismissible={ false }>
-						{ problems[ 0 ] }
+						{ problem }
 					</Notice>
 				) }
 				{ /* Says why nothing here can fire, before the fields that
