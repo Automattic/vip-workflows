@@ -217,6 +217,21 @@ describe( 'a blocking error names what is at fault', () => {
 			expect( found.target ).toEqual( { type: 'node', key: 'draft' } );
 		} );
 
+		// An unlabelled transition is named by the button it will carry, and
+		// still points at the stage when its edge address is shared.
+		it( 'names an unlabelled duplicate by its derived label', () => {
+			const stages = twoToLegal();
+			delete stages[ 0 ].transitions[ 1 ].label;
+
+			const found = blockers( stages ).find( ( e ) =>
+				e.message.includes( 'names no assignment key' )
+			);
+
+			expect( found ).toBeDefined();
+			expect( found.message ).toContain( 'Move to Legal' );
+			expect( found.target ).toEqual( { type: 'node', key: 'draft' } );
+		} );
+
 		// Another stage's single transition keeps its edge: only the shared
 		// address is ambiguous.
 		it( 'leaves a fault on an unshared transition pointing at its edge', () => {
