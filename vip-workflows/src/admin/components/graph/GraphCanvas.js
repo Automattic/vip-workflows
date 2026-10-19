@@ -1827,8 +1827,14 @@ function Flow( {
 				// out from under a stationary pointer, so CSS `:hover` drops
 				// (the outcome badges fade) with no mouse event fired — and a
 				// stale id here would keep an arrowhead yielding to a badge
-				// that is no longer painted.
-				onMoveStart={ () => setHoveredNodeId( null ) }
+				// that is no longer painted. An edge slides away the same way,
+				// and a stale edge id would leave its pill up (and clickable)
+				// over whatever is now under it, with the line and its end
+				// marks still in the hover tone.
+				onMoveStart={ () => {
+					setHoveredNodeId( null );
+					setHoveredEdgeId( null );
+				} }
 				onNodeClick={ ( _e, node ) => {
 					if ( node.type === NODE_TYPE ) {
 						onSelectNode( node.id );
