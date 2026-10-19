@@ -1117,101 +1117,6 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
-     * A phase sequence is imported from `config.phases`, the shape export emits,
-     * not refused for having no `statuses`.
-     */
-    public function test_import_sequence_accepts_a_phase_sequence_from_its_phases(): void
-    {
-        $this->seed_plugin_with_ideation_enabled( true );
-
-        $captured = null;
-        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
-        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 ); // No existing slug.
-        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row( array( 'type' => Sequence::TYPE_PHASE ) ) );
-        $this->wpdb->shouldReceive( 'insert' )->once()->andReturnUsing(
-            function ( $table, $data ) use ( &$captured ) {
-                $captured = $data;
-                return 1;
-            }
-        );
-        $this->wpdb->shouldReceive( 'update' )->andReturn( 1 );
-        $this->wpdb->insert_id = 1;
-
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-
-        $request = $this->create_mock_request(
-            array(
-                'sequence_json' => array(
-                    'type'   => 'phase',
-                    'name'   => 'Imported Lifecycle',
-                    'config' => array(
-                        'phases' => array(
-                            array(
-                                'key'         => 'ideation',
-                                'label'       => 'Ideation',
-                                // The required hand-off, then one outside the
-                                // phase graph, which the build drops.
-                                'transitions' => array(
-                                    array( 'to' => 'editorial', 'label' => 'Create draft' ),
-                                    array( 'to' => 'archive', 'label' => 'Shelve' ),
-                                ),
-                            ),
-                            array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
-                        ),
-                    ),
-                ),
-            )
-        );
-
-        $response = $this->controller->import_sequence( $request );
-
-        $this->assertInstanceOf( 'WP_REST_Response', $response );
-        $this->assertSame( 201, $response->get_status() );
-
-        $stored = json_decode( $captured['config'], true );
-        $this->assertSame( array( 'ideation', 'editorial' ), array_column( $stored['phases'], 'key' ) );
-        $this->assertSame( array( 'editorial' ), array_column( $stored['phases'][0]['transitions'], 'to' ) );
-        $this->assertArrayNotHasKey( 'statuses', $stored );
-    }
-
-    /**
-     * An import is held to the same lifecycle as a save: a phase sequence
-     * missing the hand-off it owes is refused, not stored.
-     */
-    public function test_import_sequence_refuses_a_phase_sequence_missing_the_lifecycle(): void
-    {
-        $this->seed_plugin_with_ideation_enabled( true );
-
-        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
-        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 ); // No existing slug.
-        $this->wpdb->shouldNotReceive( 'insert' );
-
-        Functions\when( 'get_current_user_id' )->justReturn( 1 );
-
-        $request = $this->create_mock_request(
-            array(
-                'sequence_json' => array(
-                    'type'   => 'phase',
-                    'name'   => 'Bricked Lifecycle',
-                    'config' => array(
-                        'phases' => array(
-                            array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array() ),
-                            array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
-                        ),
-                    ),
-                ),
-            )
-        );
-
-        $response = $this->controller->import_sequence( $request );
-
-        $this->assertInstanceOf( 'WP_Error', $response );
-        $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
-        $this->assertSame( 422, $response->get_error_data()['status'] );
-        $this->assertMatchesRegularExpression( '/ideation.+editorial/', $response->get_error_message() );
-    }
-
-    /**
      * A phase sequence with no phases is refused for that, not for lacking
      * stages it was never meant to have.
      */
@@ -1639,6 +1544,224 @@ class SequencesControllerTest extends TestCase
         $this->assertInstanceOf( 'WP_Error', $response );
         $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
         $this->assertSame( 422, $response->get_error_data()['status'] ?? null );
+    }
+
+    /**
+     * A phase sequence's export imports again, and is stored as the phase write
+     * path stores it. The export carries `phases` and no `statuses`, which the
+     * import used to refuse as a sequence with no stages.
+     */
+    public function test_import_sequence_round_trips_a_phase_export(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+
+        $phases = $this->lifecycle_phases();
+        $row    = $this->create_sequence_row(
+            array(
+                'type'   => Sequence::TYPE_PHASE,
+                'name'   => 'Lifecycle',
+                'config' => json_encode( array( 'version' => '1.0', 'phases' => $phases ) ),
+            )
+        );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+
+        $export = $this->controller->export_sequence( $this->create_mock_request( array( 'id' => 1 ) ) )->get_data();
+        $this->assertArrayNotHasKey( 'statuses', $export['config'], 'a phase export carries no stages' );
+
+        $captured = $this->expect_import_insert();
+
+        $response = $this->controller->import_sequence(
+            $this->create_mock_request( array( 'sequence_json' => $export ) )
+        );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertSame( 201, $response->get_status() );
+        $this->assertSame( Sequence::TYPE_PHASE, $captured->data['type'] );
+        $this->assertSame(
+            array( 'version' => '1.0', 'phases' => $phases ),
+            json_decode( $captured->data['config'], true )
+        );
+    }
+
+    /**
+     * A hand-written phase file is stored as the editor would store it: fields a
+     * phase hand-off does not carry are dropped, keys are sanitized, and phases
+     * and hand-offs outside the published graph are stripped.
+     */
+    public function test_import_sequence_sanitizes_a_hand_written_phase_file(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+        $captured = $this->expect_import_insert();
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => Sequence::TYPE_PHASE,
+                    'name'   => 'Hand Written',
+                    'config' => array(
+                        // A stray stage list must not decide how a phase file is read.
+                        'statuses' => array( array( 'key' => 'draft', 'label' => 'Draft' ) ),
+                        'phases'   => array(
+                            array(
+                                'key'         => ' ideation ',
+                                'label'       => 'Ideation',
+                                'transitions' => array(
+                                    array(
+                                        'to'                  => 'editorial',
+                                        'label'               => 'Approve',
+                                        'requires_assignment' => true,
+                                        'inputs'              => array(
+                                            array( 'type' => 'assignment', 'meta_key' => 'wfp_owner', 'label' => 'Owner' ),
+                                        ),
+                                    ),
+                                    // Not a hand-off the phase graph allows.
+                                    array( 'to' => 'published', 'label' => 'Skip ahead' ),
+                                ),
+                            ),
+                            array( 'key' => 'editorial', 'label' => 'Editorial' ),
+                            // Not a phase the graph names.
+                            array( 'key' => 'archive', 'label' => 'Archive' ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertSame( 201, $response->get_status() );
+
+        $stored = json_decode( $captured->data['config'], true );
+        $this->assertArrayNotHasKey( 'statuses', $stored );
+        $this->assertSame( array( 'ideation', 'editorial' ), array_column( $stored['phases'], 'key' ) );
+
+        $hand_offs = $stored['phases'][0]['transitions'];
+        $this->assertCount( 1, $hand_offs );
+        $this->assertSame( 'editorial', $hand_offs[0]['to'] );
+        $this->assertArrayNotHasKey( 'inputs', $hand_offs[0] );
+        $this->assertArrayNotHasKey( 'requires_assignment', $hand_offs[0] );
+    }
+
+    /**
+     * A phase file missing the hand-off the lifecycle requires is refused, as a
+     * save from the editor would be, rather than stored as a phase a post
+     * cannot leave.
+     */
+    public function test_import_sequence_refuses_a_phase_file_missing_the_required_hand_off(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 );
+        $this->wpdb->shouldNotReceive( 'insert' );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        $phases                   = $this->lifecycle_phases();
+        $phases[0]['transitions'] = array();
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => Sequence::TYPE_PHASE,
+                    'name'   => 'No Hand-off',
+                    'config' => array( 'phases' => $phases ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
+        $this->assertSame( 422, $response->get_error_data()['status'] ?? null );
+        $this->assertMatchesRegularExpression( '/ideation.+editorial/', $response->get_error_message() );
+    }
+
+    /**
+     * A phase file with no phases is refused before anything is written, and
+     * a stage list does not stand in for them.
+     */
+    public function test_import_sequence_refuses_a_phase_file_without_phases(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+        $this->wpdb->shouldNotReceive( 'insert' );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => Sequence::TYPE_PHASE,
+                    'name'   => 'Stages Only',
+                    'config' => array(
+                        'statuses' => array( array( 'key' => 'draft', 'label' => 'Draft' ) ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'invalid_sequence_phases', $response->get_error_code() );
+    }
+
+    /**
+     * The lifecycle phases, as the phase write path stores them.
+     *
+     * @return array
+     */
+    private function lifecycle_phases(): array
+    {
+        return array(
+            array(
+                'key'         => 'ideation',
+                'label'       => 'Ideation',
+                'transitions' => array(
+                    array(
+                        'to'             => 'editorial',
+                        'label'          => 'Approve',
+                        'required_tools' => array(),
+                        'allowed_roles'  => array( 'editor' ),
+                        'notifications'  => array(),
+                    ),
+                ),
+            ),
+            array(
+                'key'         => 'editorial',
+                'label'       => 'Editorial',
+                'transitions' => array(),
+            ),
+        );
+    }
+
+    /**
+     * Expect one import write and capture the row it inserts.
+     *
+     * @return object Holder whose `data` is set to the inserted row.
+     */
+    private function expect_import_insert(): object
+    {
+        $captured = (object) array( 'data' => null );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 ); // Slug not taken.
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row() );
+        $this->wpdb->shouldReceive( 'insert' )->once()->andReturnUsing(
+            function ( $table, $data ) use ( $captured ) {
+                $captured->data = $data;
+                return 1;
+            }
+        );
+        $this->wpdb->shouldReceive( 'update' )->andReturn( 1 );
+        $this->wpdb->insert_id = 1;
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+
+        return $captured;
     }
 
     // =========================================================================

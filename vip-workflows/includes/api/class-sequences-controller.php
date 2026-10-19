@@ -1368,17 +1368,7 @@ class SequencesController extends WP_REST_Controller {
 		$name = $custom_name ? $custom_name : $sequence_json['name'];
 
 		// Generate unique slug from name.
-		global $wpdb;
-		$slug      = sanitize_title( $name );
-		$base_slug = $slug;
-		$counter   = 1;
-
-		// Check for existing sequences with this slug (any status, any version).
-		$table = $wpdb->prefix . 'vip_sequences';
-		while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE slug = %s", $slug ) ) > 0 ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			$slug = $base_slug . '-' . $counter;
-			$counter++;
-		}
+		$slug = $this->unique_import_slug( $name );
 
 		// Create the sequence. The shared write gate normalizes stage keys and
 		// regions (closing the old import bypass of build_config() normalization)
@@ -1403,6 +1393,40 @@ class SequencesController extends WP_REST_Controller {
 			);
 		}
 
+		return $this->imported_sequence_response( $sequence_id );
+	}
+
+	/**
+	 * A slug for an imported sequence that no stored sequence holds.
+	 *
+	 * Checks every status and version, since the (type, slug, version) unique
+	 * key collides regardless.
+	 *
+	 * @param  string $name Sequence name.
+	 * @return string
+	 */
+	private function unique_import_slug( string $name ): string {
+		global $wpdb;
+		$slug      = sanitize_title( $name );
+		$base_slug = $slug;
+		$counter   = 1;
+
+		$table = $wpdb->prefix . 'vip_sequences';
+		while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE slug = %s", $slug ) ) > 0 ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			$slug = $base_slug . '-' . $counter;
+			++$counter;
+		}
+
+		return $slug;
+	}
+
+	/**
+	 * Mark a freshly imported sequence as a draft and build the import response.
+	 *
+	 * @param  int|false $sequence_id ID returned by the repository create.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	private function imported_sequence_response( $sequence_id ) {
 		if ( ! $sequence_id ) {
 			return new WP_Error(
 				'sequence_import_failed',
@@ -1426,7 +1450,7 @@ class SequencesController extends WP_REST_Controller {
 
 		return new WP_REST_Response(
 			array(
-				'success'   => true,
+				'success'  => true,
 				'sequence' => $this->prepare_sequence_response( $sequence ),
 			),
 			201
