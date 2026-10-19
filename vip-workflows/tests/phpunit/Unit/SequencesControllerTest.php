@@ -831,6 +831,68 @@ class SequencesControllerTest extends TestCase
         $this->assertSame( 422, $response->get_error_data()['status'] ?? null );
     }
 
+    /**
+     * A stage name of only whitespace sanitizes to empty. It is rejected as a
+     * controlled 422 rather than stored as a blank name writers would meet on
+     * the board and on the "Move to …" button.
+     */
+    public function test_create_item_rejects_whitespace_only_stage_label_with_422(): void
+    {
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 ); // slug not taken.
+        $this->wpdb->shouldNotReceive( 'insert' );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'sanitize_hex_color' )->alias( fn( $v ) => $v );
+        // Real sanitize_text_field() trims; the default stub passes through.
+        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => trim( (string) $v ) );
+
+        $request = $this->create_mock_request(
+            array(
+                'name'     => 'Blank Stage',
+                'statuses' => array(
+                    array( 'key' => 'draft', 'label' => 'Draft', 'transitions' => array( array( 'to' => 'review' ) ) ),
+                    array( 'key' => 'review', 'label' => '   ' ),
+                ),
+            )
+        );
+
+        $response = $this->controller->create_item( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
+        $this->assertStringContainsString( 'review', $response->get_error_message() );
+    }
+
+    /**
+     * Updating a sequence with a whitespace-only stage name is rejected the same
+     * way, before anything is written.
+     */
+    public function test_update_item_rejects_whitespace_only_stage_label_with_422(): void
+    {
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row( array( 'id' => 5 ) ) );
+        $this->wpdb->shouldNotReceive( 'update' );
+
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'sanitize_hex_color' )->alias( fn( $v ) => $v );
+        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => trim( (string) $v ) );
+
+        $request = $this->create_mock_request(
+            array(
+                'id'       => 5,
+                'name'     => 'Test Sequence',
+                'statuses' => array( array( 'key' => 'draft', 'label' => ' ' ) ),
+            )
+        );
+
+        $response = $this->controller->update_item( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
+    }
+
     // =========================================================================
     // Collection Params Tests
     // =========================================================================

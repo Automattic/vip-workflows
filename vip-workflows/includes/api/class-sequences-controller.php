@@ -951,6 +951,7 @@ class SequencesController extends WP_REST_Controller {
 	 * @param  array  $settings         Settings array.
 	 * @param  array  $metadata_fields  Pre-validated metadata fields array.
 	 * @return array
+	 * @throws \InvalidArgumentException When a stage's name sanitizes to empty.
 	 */
 	private function build_config( string $type, array $statuses, array $post_types, array $settings, array $metadata_fields = array() ): array {
 		if ( Sequence::TYPE_PHASE === $type ) {
@@ -970,11 +971,28 @@ class SequencesController extends WP_REST_Controller {
 				$sanitized_color = StagePalette::DEFAULT_COLOR;
 			}
 
+			$key = sanitize_key( $status['key'] ?? '' );
+
+			// `label` is required by the REST schema too, and it is what writers see
+			// on the board and on every button that moves a post here. One that
+			// sanitizes to empty (a name of only spaces, say) is a stage with no
+			// name: reject it rather than store a blank.
+			$label = sanitize_text_field( $status['label'] ?? '' );
+			if ( '' === $label ) {
+				throw new \InvalidArgumentException(
+					sprintf(
+						/* translators: %s: the stage's key, e.g. "in_review". */
+						esc_html__( 'The stage keyed “%s” has no name. Give it a name writers can see.', 'vip-workflows' ),
+						esc_html( $key )
+					)
+				);
+			}
+
 			$processed_status = array(
 				// `key` is required by the REST schema; don't invent one. A missing or
 				// sanitized-to-empty key is rejected by Sequence::prepare_config_for_write().
-				'key'         => sanitize_key( $status['key'] ?? '' ),
-				'label'       => sanitize_text_field( $status['label'] ?? 'Status' ),
+				'key'         => $key,
+				'label'       => $label,
 				'color'       => $sanitized_color,
 				'transitions' => array(),
 			);
