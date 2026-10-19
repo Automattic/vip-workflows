@@ -132,4 +132,27 @@ class PostTypeManagerTest extends TestCase
 
         $this->assertSame( array(), $this->post_type_manager->get_sequences_for_post( $post ) );
     }
+
+    /**
+     * Initializing registers only the post type mapping. Creating a post never
+     * assigns a sequence on its own: assignment goes through the REST route and
+     * StatusManager::assign_sequence(), which check permissions and record it.
+     */
+    public function test_init_registers_no_assignment_on_post_insert(): void
+    {
+        $added = array();
+        Functions\when( 'add_action' )->alias(
+            function ( $hook, $callback, $priority = 10 ) use ( &$added ) {
+                $added[] = array( $hook, $callback, $priority );
+                return true;
+            }
+        );
+
+        $this->post_type_manager->init();
+
+        $this->assertSame(
+            array( array( 'init', array( $this->post_type_manager, 'register_post_types' ), 5 ) ),
+            $added
+        );
+    }
 }
