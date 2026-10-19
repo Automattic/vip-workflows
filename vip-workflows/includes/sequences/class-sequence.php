@@ -1729,16 +1729,20 @@ class Sequence {
 	 * this plugin owns, only from hand-written import JSON, and the two disagree
 	 * about what the transition captures — there is no answer to infer.
 	 *
-	 * At most one input may be an assignment: it is the one slot the editor
-	 * collects an assignee for when the transition is taken. Other inputs — a
-	 * retired note a stored sequence may still carry — are not counted, and the
-	 * editor no longer collects them. Collapsing a second would discard an
-	 * assignment an author configured, so it is refused on write instead.
+	 * An assignment is the only input a transition captures: it is the one slot
+	 * the editor collects an assignee for when the transition is taken. Any other
+	 * type — the retired free-text note (`textarea`, or the older `text`) — is
+	 * refused, so no write path can store an input the editor would pass over
+	 * without a word. Rows stored before the rule are cleared by the 2.25.0
+	 * migration, not tolerated here.
+	 *
+	 * At most one input may be an assignment. Collapsing a second would discard
+	 * an assignment an author configured, so it is refused on write instead.
 	 *
 	 * @param  array  $transition A transition, with `to` already sanitized.
 	 * @param  string $stage_key  The stage holding it, for error messages.
 	 * @return array The transition, carrying `inputs` or no input key at all.
-	 * @throws \InvalidArgumentException If the transition carries both input keys, if `inputs` is not a list of objects, or if more than one input is an assignment.
+	 * @throws \InvalidArgumentException If the transition carries both input keys, if `inputs` is not a list of objects, if an input is not an assignment, or if more than one input is an assignment.
 	 */
 	private static function normalize_transition_inputs( array $transition, string $stage_key ): array {
 		// A JSON null reads as absent here, the same way `transitions` and
@@ -1795,9 +1799,19 @@ class Sequence {
 				);
 			}
 
-			if ( 'assignment' === ( $input['type'] ?? '' ) ) {
-				++$assignments;
+			$type = $input['type'] ?? '';
+
+			if ( 'assignment' !== $type ) {
+				throw new \InvalidArgumentException(
+					sprintf(
+						'A transition on stage "%1$s" declares a "%2$s" input; a transition may capture only an "assignment".',
+						esc_html( $stage_key ),
+						esc_html( is_scalar( $type ) ? (string) $type : gettype( $type ) )
+					)
+				);
 			}
+
+			++$assignments;
 		}
 
 		if ( $assignments > 1 ) {

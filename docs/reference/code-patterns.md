@@ -363,9 +363,10 @@ sequence editor mints an assignment's `meta_key` when the input is added; author
 never type it. A transition that captures nothing declares no `inputs` key at
 all.
 
-A free-text note (`textarea`, or the older `text`) is no longer collected. A
-stored sequence may still carry one; the editor sidebar passes over it, and the
-sequence editor lists it only so the author can remove it.
+An assignment is the only input type. The write gate refuses any other — the
+retired free-text note (`textarea`, or the older `text`) included — on every
+write path, and the 2.25.0 schema migration removed the notes stored sequences
+still carried.
 
 ```php
 // In sequence config:
