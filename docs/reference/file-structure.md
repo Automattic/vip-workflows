@@ -263,7 +263,8 @@ src/
 │   ├── store.js                              # WordPress data store
 │   └── components/
 │       ├── index.js                          # Component exports
-│       ├── WorkflowPanel.js                  # Stage, progress, transitions, actions
+│       ├── WorkflowSummaryRows.js            # Summary panel rows: workflow + metadata
+│       ├── WorkflowPanel.js                  # Stage, progress, transitions, history
 │       ├── WorkflowHistoryModal.js           # Transition trail (DataViews, code-split)
 │       ├── WorkflowSaveGuard.js              # editor.preSavePost guard — no chrome
 │       ├── MetadataPanel.js                  # Editorial metadata fields
