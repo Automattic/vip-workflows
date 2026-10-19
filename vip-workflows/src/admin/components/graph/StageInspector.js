@@ -337,6 +337,14 @@ export default function StageInspector( {
 	// ( targetKey ) => boolean. Needs the whole sequence and its settings
 	// (`isTransitionDisabled`), which this panel is not handed.
 	isTransitionDisabled,
+	// The stage's place in the sequence. One panel serves every stage — kept
+	// mounted, so focus on its header survives a click to another stage — so
+	// the collapsible section is keyed by this to start afresh for each one.
+	// Otherwise a section left open or shut on one stage stays that way on the
+	// next, and the fault a reveal lands on can be in it. Not keyed by the
+	// stage's key: the Key field renames the stage on every keystroke, and a
+	// section remounted then would take focus out of the field being typed in.
+	position,
 } ) {
 	// The Key field edits a local draft so a rename onto another stage's key
 	// can be refused (updateStage rejects it — two stages sharing a key would
@@ -480,14 +488,14 @@ export default function StageInspector( {
 		() =>
 			onSelectEdge( edgeId( stage.key, target, outcome ) );
 
-	// Why an exit would have the save refused, if it would.
+	// Why an exit would have the save refused, if it would: the message, or
+	// null.
 	//
 	// The node on the canvas already carries the message — but it carries it for
 	// the whole stage, so an author who has read “the ‘Send to legal’ transition
 	// assigns work but names no assignment key” is left comparing that name
-	// against every row in this list. The row that has to change says so itself,
-	// in the same `{ short, full }` grammar `InspectorFieldList` flags a
-	// duplicate storage key with: the short form takes the value column, so the
+	// against every row in this list. The row that has to change says so itself:
+	// a short “Needs attention” takes the value column (see `exitValue`), so the
 	// fault is legible without opening anything, and the whole message joins the
 	// row's accessible name — appended to “Select …” rather than replacing it,
 	// because a name that is only the complaint no longer says what the button
@@ -496,18 +504,8 @@ export default function StageInspector( {
 	// Looked up by the transition, `from->to`, not by the row's own outcome:
 	// two outcomes routed to one destination are two rows naming one
 	// transition, and both carry its fault.
-	const exitProblem = ( target ) => {
-		const messages = exitProblems[ edgeId( stage.key, target ) ];
-		if ( ! messages?.length ) {
-			return null;
-		}
-		return {
-			short: __( 'Needs attention', 'vip-workflows' ),
-			// One row, one line. A transition can hold more than one fault at
-			// once, and the first is the one to fix first.
-			full: messages[ 0 ],
-		};
-	};
+	const exitProblem = ( target ) =>
+		exitProblems[ edgeId( stage.key, target ) ] || null;
 
 	// A row's accessible name, with the reason it is at fault appended rather
 	// than substituted: a name that is only the complaint no longer says what
@@ -520,7 +518,7 @@ export default function StageInspector( {
 					/* translators: 1: the exit's label — the transition, or the transition and its outcome (e.g. "Move to Published · on pass"). 2: why the sequence will not save. */
 					__( 'Select %1$s — %2$s', 'vip-workflows' ),
 					label,
-					problem.full
+					problem
 			  )
 			: sprintf(
 					/* translators: %s: the exit's label — the transition and its outcome (e.g. "Move to Published · on pass"), the transition's label, or the bare outcome ("On pass"). */
@@ -547,7 +545,7 @@ export default function StageInspector( {
 				/* translators: 1: where the exit goes, e.g. "Published" or "ghost (missing)". 2: that the exit is at fault, e.g. "Needs attention". */
 				__( '%1$s — %2$s', 'vip-workflows' ),
 				destination,
-				problem.short
+				__( 'Needs attention', 'vip-workflows' )
 			);
 		}
 		if ( disabled ) {
@@ -1094,6 +1092,7 @@ export default function StageInspector( {
 				</InspectorSection>
 
 				<InspectorSection
+					key={ position }
 					title={ __( 'Advanced', 'vip-workflows' ) }
 					collapsible
 				>
