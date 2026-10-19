@@ -39,6 +39,8 @@ import {
 	NODE_TYPE,
 	START_ID,
 	canReconnect,
+	endsAfterMove,
+	endpointMoveVerdict,
 	END_ID,
 	TERMINAL_NODE_TYPE,
 } from '../../src/admin/components/graph/graph-model';
@@ -941,6 +943,89 @@ describe( 'canReconnect', () => {
 		expect(
 			agrees( routed, 'review', 'done', 'review', 'draft', 'pass' )
 		).toBe( true );
+	} );
+} );
+
+describe( 'endpointMoveVerdict', () => {
+	// The one verdict for moving an edge's end: the canvas paints a held
+	// endpoint with it and the transition panel builds its From/To options
+	// from it, so both halves — the connection rule and `canReconnect` — are
+	// asked in one place.
+	const edge = { from: 'draft', to: 'review' };
+	const allowAll = () => true;
+
+	it( 'states the pair a move would make, for either end', () => {
+		expect( endsAfterMove( edge, 'target', 'done' ) ).toEqual( {
+			from: 'draft',
+			to: 'done',
+		} );
+		expect( endsAfterMove( edge, 'source', 'done' ) ).toEqual( {
+			from: 'done',
+			to: 'review',
+		} );
+	} );
+
+	it( 'calls a move onto the end it already has unchanged', () => {
+		const rule = jest.fn( allowAll );
+		expect(
+			endpointMoveVerdict( stages(), edge, 'target', 'review', rule )
+		).toBe( 'unchanged' );
+		expect( rule ).not.toHaveBeenCalled();
+	} );
+
+	it( 'accepts a move both halves allow', () => {
+		expect(
+			endpointMoveVerdict( stages(), edge, 'target', 'done', allowAll )
+		).toBe( 'valid' );
+	} );
+
+	it( 'refuses a move the connection rule refuses, though the model would take it', () => {
+		expect(
+			canReconnect( stages(), 'draft', 'review', 'draft', 'done' )
+		).toBe( true );
+		const rule = jest.fn( () => false );
+		expect(
+			endpointMoveVerdict( stages(), edge, 'target', 'done', rule )
+		).toBe( 'invalid' );
+		expect( rule ).toHaveBeenCalledWith( {
+			source: 'draft',
+			target: 'done',
+			sourceHandle: null,
+		} );
+	} );
+
+	it( 'refuses a move the model refuses, though the connection rule allows it', () => {
+		// A self-loop: no rule needed to refuse it, `canReconnect` does.
+		expect(
+			endpointMoveVerdict( stages(), edge, 'source', 'review', allowAll )
+		).toBe( 'invalid' );
+	} );
+
+	it( 'hands the edge’s outcome to both halves', () => {
+		const routed = stages().map( ( s ) =>
+			s.key === 'draft'
+				? {
+						...s,
+						agent: { ability_id: 'x', routing: { pass: 'review' } },
+				  }
+				: s
+		);
+		const rule = jest.fn( allowAll );
+		// An outcome's departure is fixed: moving its source is refused.
+		expect(
+			endpointMoveVerdict(
+				routed,
+				{ ...edge, outcome: 'pass' },
+				'source',
+				'done',
+				rule
+			)
+		).toBe( 'invalid' );
+		expect( rule ).toHaveBeenCalledWith( {
+			source: 'done',
+			target: 'review',
+			sourceHandle: 'pass',
+		} );
 	} );
 } );
 

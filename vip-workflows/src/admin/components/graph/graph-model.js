@@ -1655,6 +1655,71 @@ export function canReconnect(
 }
 
 /**
+ * The endpoints an edge would have after one of its ends moved to `candidate`.
+ *
+ * One statement of it, asked by the canvas while the end is held and again
+ * when it is let go, and by the transition panel's From/To selects: the
+ * verdict painted under the pointer, the move committed on release and the
+ * options a select offers have to be about the same pair.
+ *
+ * @param {Object}  edge      The edge being moved — `{ from, to }`.
+ * @param {string}  end       Which end is moving: `'source'` or `'target'`.
+ * @param {?string} candidate Node the end would land on.
+ * @return {{ from: string, to: string }} The prospective endpoints.
+ */
+export function endsAfterMove( edge, end, candidate ) {
+	return {
+		from: end === 'source' ? candidate : edge.from,
+		to: end === 'target' ? candidate : edge.to,
+	};
+}
+
+/**
+ * What moving one end of an edge onto a node would do.
+ *
+ * The whole verdict, in the order it is asked: a move that lands where the
+ * end already is changes nothing; then the canvas's own rule for a hand-drawn
+ * connection, so an endpoint can reach exactly what a fresh connection can;
+ * then `canReconnect`, which decides whether this particular move is a move at
+ * all. The canvas paints its held endpoint with this, and the transition panel
+ * builds its From/To options from it, so a rule added to either half is
+ * enforced by both — a select cannot offer a destination a drag would refuse.
+ *
+ * @param {Array}    stages            Existing stages.
+ * @param {Object}   edge              The edge — `{ from, to, outcome? }`.
+ * @param {string}   end               Which end is moving: `'source'` or `'target'`.
+ * @param {string}   candidate         Node id the end would land on.
+ * @param {Function} isValidConnection The canvas's connection rule, called
+ *                                     with `{ source, target, sourceHandle }`.
+ * @return {'unchanged'|'valid'|'invalid'} The verdict.
+ */
+export function endpointMoveVerdict(
+	stages,
+	edge,
+	end,
+	candidate,
+	isValidConnection
+) {
+	const { from, to } = endsAfterMove( edge, end, candidate );
+	if ( from === edge.from && to === edge.to ) {
+		return 'unchanged';
+	}
+	const outcome = edge.outcome || null;
+	if (
+		! isValidConnection( {
+			source: from,
+			target: to,
+			sourceHandle: outcome,
+		} )
+	) {
+		return 'invalid';
+	}
+	return canReconnect( stages, edge.from, edge.to, from, to, outcome )
+		? 'valid'
+		: 'invalid';
+}
+
+/**
  * Whether an endpoint released on empty canvas would actually grow a stage.
  *
  * Delegates to the mutation rather than restating its rules: a Start endpoint
