@@ -386,11 +386,9 @@ It is a single routine, not a job framework. There is no job registry, no per-jo
 do_action('vip_workflows_status_transition', $post_id, $new_stage, $old_stage, $sequence, $context);
 do_action('vip_workflows_entered_{stage}', $post_id, $old_stage, $sequence, $context);
 do_action('vip_workflows_exited_{stage}', $post_id, $new_stage, $sequence, $context);
-
-// Tool execution
-do_action('vip_workflows_ability_executed', $ability_id, $post_id, $result);
-do_action('vip_workflows_ability_failed', $ability_id, $post_id, $error);
 ```
+
+Tool runs have no dedicated action. `AbilityExecutor` emits an `ability.executed` (or `ability.failed`) event on the bus, with `ability_id`, `post_id`, `success`, `duration_ms` and `output` in its data; listen for it on `vip_workflows_event_emitted`.
 
 **What listens**: the bus stores every event it emits — that stream is what the audit log, a post's Workflow History modal and the `get-recent-activity` ability read. Delivery is `NotificationDispatcher`, which matches an event against the routing option and sends on each subscribed channel. Anything else subscribes with `add_action( 'vip_workflows_event_emitted', … )`.
 

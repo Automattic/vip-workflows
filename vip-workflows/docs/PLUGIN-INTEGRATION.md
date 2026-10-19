@@ -462,9 +462,13 @@ add_action( 'vip_workflows_pitch_approved', function( $pitch_id ) {
     // Pitch was approved
 }, 10, 1 );
 
-// Tool execution
-add_action( 'vip_workflows_ability_executed', function( $ability_id, $post_id, $result ) {
-    // Tool finished running
+// Tool execution: tool runs are EventBus events, so filter the generic action.
+add_action( 'vip_workflows_event_emitted', function( $event_type, $event_data, $event_id ) {
+    if ( 'ability.executed' !== $event_type && 'ability.failed' !== $event_type ) {
+        return;
+    }
+    // Tool finished running. $event_data carries ability_id, post_id,
+    // success, duration_ms and output.
 }, 10, 3 );
 ```
 
