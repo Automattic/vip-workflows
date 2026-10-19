@@ -342,6 +342,48 @@ class AssignmentManager {
 	}
 
 	/**
+	 * Keep only the input keys a transition declares.
+	 *
+	 * `input_data` arrives as a free-form map, and StatusManager stores it in
+	 * transition meta and writes every key into the audit log as a labelled
+	 * note. Only the transition's assignment input is collected, so only its
+	 * keys survive: the assignee under `meta_key`, the optional
+	 * `{meta_key}_notes`, and the `__name` label of each. Anything else —
+	 * a retired free-text note, a key the transition never declared — is
+	 * dropped before it can be stored or logged.
+	 *
+	 * @param  array|null $transition Transition config from sequence, or null when no authored edge applies.
+	 * @param  array      $input_data User-provided input data.
+	 * @return array The subset of `$input_data` the transition declares.
+	 */
+	public function filter_transition_input( ?array $transition, array $input_data ): array {
+		$inputs = $transition['inputs'] ?? array();
+
+		if ( ! is_array( $inputs ) ) {
+			return array();
+		}
+
+		$allowed = array();
+		foreach ( $inputs as $input_config ) {
+			if ( ! is_array( $input_config ) || 'assignment' !== ( $input_config['type'] ?? '' ) ) {
+				continue;
+			}
+
+			$meta_key = $input_config['meta_key'] ?? '';
+			if ( ! is_string( $meta_key ) || '' === $meta_key ) {
+				continue;
+			}
+
+			$allowed[] = $meta_key;
+			$allowed[] = $meta_key . '__name';
+			$allowed[] = $meta_key . '_notes';
+			$allowed[] = $meta_key . '_notes__name';
+		}
+
+		return array_intersect_key( $input_data, array_flip( $allowed ) );
+	}
+
+	/**
 	 * Process assignment input from a transition.
 	 *
 	 * Called by StatusManager::transition() after validate_transition_input().
