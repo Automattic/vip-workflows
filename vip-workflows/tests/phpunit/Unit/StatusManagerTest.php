@@ -270,6 +270,11 @@ class StatusManagerTest extends TestCase
         global $wpdb;
         $wpdb         = Mockery::mock( 'wpdb' );
         $wpdb->prefix = 'wp_';
+        // No assignment slots, so a stage exit has none to complete.
+        $wpdb->postmeta = 'wp_postmeta';
+        $wpdb->shouldReceive( 'esc_like' )->andReturnArg( 0 )->byDefault();
+        $wpdb->shouldReceive( 'prepare' )->andReturn( '' )->byDefault();
+        $wpdb->shouldReceive( 'get_results' )->andReturn( array() )->byDefault();
         $wpdb->shouldReceive( 'insert' )->andReturn( true )->byDefault();
         $wpdb->insert_id = 1;
         return $wpdb;

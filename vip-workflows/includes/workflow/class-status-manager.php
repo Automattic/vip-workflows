@@ -1039,8 +1039,15 @@ class StatusManager {
 			}
 		}
 
+		// The post has left its stage, so the user and role assignments made for
+		// that stage are done. Runs before this edge captures its own assignment,
+		// which belongs to the stage being entered. A self-edge stays put.
+		if ( $current_stage !== $to_status ) {
+			$assignment_manager->complete_on_stage_exit( $post_id );
+		}
+
 		// Process submitted assignment input for an authored edge. A failed-agent
-		// revert supplies no inputs, so existing assignments remain untouched.
+		// revert supplies no inputs, so it captures no new assignment.
 		if ( is_array( $transition_config ) ) {
 			$assignment_manager->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array() );
 		}
@@ -1414,6 +1421,11 @@ class StatusManager {
 
 		update_post_meta( $post->ID, self::STAGE_META_KEY, $entry_stage );
 
+		// A reseat leaves the current stage, which finishes its assignments.
+		if ( $entry_stage !== $current_stage ) {
+			( new AssignmentManager() )->complete_on_stage_exit( $post->ID );
+		}
+
 		$context = array(
 			'cause'            => 'core',
 			'committed_status' => (string) get_post_status( $post->ID ),
@@ -1665,6 +1677,9 @@ class StatusManager {
 		// claimer's queue with no stage to work. The controller-side removal this
 		// method replaces cleared it; keep doing so.
 		delete_post_meta( $post_id, '_vip_workflows_assigned_to' );
+
+		// Leaving the workflow leaves the stage, which finishes its assignments.
+		( new AssignmentManager() )->complete_on_stage_exit( $post_id );
 
 		$this->log_workflow_event(
 			$post_id,
@@ -2211,6 +2226,12 @@ class StatusManager {
 		// the publish region stays `future`.
 		update_post_meta( $post_id, self::SEQUENCE_META_KEY, $sequence_id );
 		update_post_meta( $post_id, self::STAGE_META_KEY, $stage_key );
+
+		// Replacing a workflow leaves the previous stage, which finishes its
+		// assignments.
+		if ( '' !== $previous_stage ) {
+			( new AssignmentManager() )->complete_on_stage_exit( $post_id );
+		}
 
 		// Log the assignment.
 		$this->log_workflow_event(

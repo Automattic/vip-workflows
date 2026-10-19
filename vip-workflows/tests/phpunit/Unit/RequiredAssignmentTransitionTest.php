@@ -153,6 +153,11 @@ class RequiredAssignmentTransitionTest extends TestCase {
 		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Capture audit writes in the unit fixture; restored in tearDown().
 		$wpdb            = Mockery::mock( 'wpdb' );
 		$wpdb->prefix    = 'wp_';
+		// No assignment slots, so a stage exit has none to complete.
+		$wpdb->postmeta = 'wp_postmeta';
+		$wpdb->shouldReceive( 'esc_like' )->andReturnArg( 0 )->byDefault();
+		$wpdb->shouldReceive( 'prepare' )->andReturn( '' )->byDefault();
+		$wpdb->shouldReceive( 'get_results' )->andReturn( array() )->byDefault();
 		$wpdb->insert_id = 1;
 		$wpdb->shouldReceive( 'insert' )->andReturnUsing(
 			function ( $table, $data ) {

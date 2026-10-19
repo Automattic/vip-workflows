@@ -294,6 +294,34 @@ class AssignmentManager {
 		do_action( 'vip_workflows_assignment_expired', $post_id, $meta_key, $assignment );
 	}
 
+	/**
+	 * Complete the person-facing assignments of the stage a post is leaving.
+	 *
+	 * A transition's user or role assignment names who works the stage that
+	 * transition leads into, so it is done once the post moves on. Callers run
+	 * this on every stage change, before the moving transition captures its own
+	 * assignment, so a pending user or role slot always belongs to the post's
+	 * current stage.
+	 *
+	 * Agent slots are left alone: AgentRunner completes or expires those when
+	 * the agent finishes.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public function complete_on_stage_exit( int $post_id ): void {
+		foreach ( $this->get_all( $post_id ) as $meta_key => $assignment ) {
+			if ( self::STATUS_PENDING !== ( $assignment['status'] ?? null ) ) {
+				continue;
+			}
+
+			if ( ! in_array( $assignment['type'] ?? null, array( 'user', 'role' ), true ) ) {
+				continue;
+			}
+
+			$this->mark_completed( $post_id, (string) $meta_key );
+		}
+	}
+
 	// =========================================================================
 	// Transition input (used by StatusManager::transition())
 	// =========================================================================
