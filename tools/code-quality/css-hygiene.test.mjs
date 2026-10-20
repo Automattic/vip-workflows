@@ -298,4 +298,33 @@ export default function C() {
 		assert.deepEqual(r4of(findings), []);
 		assert.deepEqual(rules(findings), ['R6']);
 	});
+
+	it('flags layout when any selector in the list is our own markup', () => {
+		const root = fixture(
+			js,
+			`.components-button,
+.wf-card__row {
+	display: flex;
+}
+`
+		);
+
+		// The library button is exempt, but the same declaration lays out
+		// .wf-card__row, which a <Stack> should own.
+		assert.equal(r4of(analyze(root)).length, 1);
+	});
+
+	it('does not read a negated library class as the subject', () => {
+		const root = fixture(
+			js,
+			`.wf-card__row:not(.components-button) {
+	display: flex;
+}
+`
+		);
+
+		const findings = analyze(root);
+		assert.equal(r4of(findings).length, 1);
+		assert.deepEqual(rules(findings).filter((r) => r === 'R6'), []);
+	});
 });

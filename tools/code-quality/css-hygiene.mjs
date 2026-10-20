@@ -285,6 +285,38 @@ const CLASS_IN_SELECTOR = /\.(-?[_a-zA-Z][\w-]*)/g;
 const classesOf = (selector) => [...selector.matchAll(CLASS_IN_SELECTOR)].map((m) => m[1]);
 
 /**
+ * The classes a compound puts on its own element.
+ *
+ * `:not(.a)` and `:has(.a)` mention a class the element does not carry (or one
+ * on some other element), so attributing `.wf-row:not(.components-button)` to
+ * the library button would misname the subject and exempt it from R4. Their
+ * arguments are dropped before the classes are read.
+ *
+ * @param {string} compound One compound of a selector (see compoundsOf).
+ * @return {string[]} Class names on the compound's own element.
+ */
+function ownClassesOf(compound) {
+	let out = '';
+	let skipDepth = 0;
+	for (let i = 0; i < compound.length; i++) {
+		const ch = compound[i];
+		if (skipDepth) {
+			if (ch === '(') skipDepth++;
+			else if (ch === ')') skipDepth--;
+			continue;
+		}
+		const neg = /^:(not|has)\(/i.exec(compound.slice(i));
+		if (neg) {
+			skipDepth = 1;
+			i += neg[0].length - 1;
+			continue;
+		}
+		out += ch;
+	}
+	return classesOf(out);
+}
+
+/**
  * Split one selector into its compounds, in source order.
  *
  * Scanned rather than regex-split so a combinator living inside `:not(.a .b)`
@@ -347,7 +379,7 @@ function compoundsOf(selector) {
  */
 function resolveBindings(selectors, bindings) {
 	const found = { wpds: null, text: null };
-	const boundIn = (compound) => classesOf(compound).flatMap((c) => bindings.get(c) || []);
+	const boundIn = (compound) => ownClassesOf(compound).flatMap((c) => bindings.get(c) || []);
 	for (const selector of selectors) {
 		const parts = compoundsOf(selector);
 		if (!parts.length) continue;
@@ -389,16 +421,32 @@ function resolveFramework(selectors) {
 		const parts = compoundsOf(selector);
 		if (!parts.length) continue;
 		const subject = parts[parts.length - 1];
-		const direct = classesOf(subject).find(isFramework);
+		const direct = ownClassesOf(subject).find(isFramework);
 		// The subject is the declaration's own element, so it outranks an
 		// ancestor match taken from an earlier selector in the list.
 		if (direct) return { cls: direct, target: null };
 		if (!found) {
-			const ancestor = parts.slice(0, -1).flatMap(classesOf).find(isFramework);
+			const ancestor = parts.slice(0, -1).flatMap(ownClassesOf).find(isFramework);
 			if (ancestor) found = { cls: ancestor, target: subject };
 		}
 	}
 	return found;
+}
+
+/**
+ * Whether one selector's subject is a component's own element: a class bound
+ * to a design-system component in our JSX, or a library-internal class.
+ *
+ * @param {string}             selector One selector.
+ * @param {Map<string, Array>} bindings class → JSX bindings (see scanJsx).
+ * @return {boolean} True when layout on this subject is the component's own.
+ */
+function subjectIsComponent(selector, bindings) {
+	const parts = compoundsOf(selector);
+	if (!parts.length) return false;
+	return ownClassesOf(parts[parts.length - 1]).some(
+		(c) => isFramework(c) || (bindings.get(c) || []).some((b) => b.isWpds)
+	);
 }
 
 /** How a finding names what a declaration landed on: `<Card>`, or `<Card> svg`. */
@@ -488,8 +536,10 @@ export function runCssHygiene({ root, plugins, mode, files }) {
 			// element: one bound in our JSX, or a library-internal class. A bound
 			// class on an ancestor does not count — `.wf-card > div { display:
 			// flex }` lays out a child, which may be our own markup rather than
-			// anything the component renders.
-			const layoutOnComponent = Boolean((bound.wpds && !bound.wpds.target) || (fw && !fw.target));
+			// anything the component renders. Every selector in the list must
+			// qualify: `.components-button, .wf-row { display: flex }` still lays
+			// out our own `.wf-row`.
+			const layoutOnComponent = rule.selectors.every((s) => subjectIsComponent(s, bindings));
 
 			// Does this rule establish a CSS Grid? Grid is a genuine KEEP (Stack is
 			// flex-only), so its display/gap/alignment are not R4 conversions. Detect
