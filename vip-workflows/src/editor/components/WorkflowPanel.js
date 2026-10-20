@@ -635,7 +635,11 @@ export function WorkflowPanel() {
 			} );
 	};
 
-	const ideationSlot = <IdeationPanel postId={ postId } />;
+	// Keyed, because it lands at a different child index in every branch below
+	// and React matches unkeyed siblings by position. Without the key the panel
+	// is torn down and rebuilt — re-running its ideation read — the moment the
+	// status read resolves and the panel swaps branches.
+	const ideationSlot = <IdeationPanel key="ideation" postId={ postId } />;
 
 	if ( loading ) {
 		return (
