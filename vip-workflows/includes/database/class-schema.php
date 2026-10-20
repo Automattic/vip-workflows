@@ -1408,9 +1408,9 @@ class Schema {
 	 * the gate.
 	 *
 	 * Both shapes are covered, because every replay runs this and the oldest ones
-	 * still meet the singular `input` key: a singular input that is not an
-	 * assignment is removed outright, and `none` along with it, which the gate
-	 * would have turned into no inputs anyway.
+	 * still meet the singular `input` key: a singular note is removed outright.
+	 * The `none` sentinel is left for the gate, which turns it into no inputs,
+	 * so it is neither dropped nor logged as a retired input here.
 	 *
 	 * Deliberately narrow: a malformed entry — `inputs` that is not a list, or an
 	 * entry that is not an object — is left for the gate to reject loudly.
@@ -1437,7 +1437,10 @@ class Schema {
 
 				$dropped = 0;
 
-				if ( isset( $transition['input'] ) && is_array( $transition['input'] ) && 'assignment' !== ( $transition['input']['type'] ?? '' ) ) {
+				// The `none` sentinel (or a typeless singular input, which the gate
+				// reads as `none`) is not a retired input: the gate already turns it
+				// into no inputs, so it is left there rather than logged as a drop.
+				if ( isset( $transition['input'] ) && is_array( $transition['input'] ) && ! in_array( $transition['input']['type'] ?? 'none', array( 'assignment', 'none' ), true ) ) {
 					unset( $transition['input'] );
 					++$dropped;
 				}

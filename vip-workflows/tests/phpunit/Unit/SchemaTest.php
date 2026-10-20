@@ -677,6 +677,31 @@ class SchemaTest extends TestCase
     }
 
     /**
+     * The singular `none` sentinel, and a typeless singular input, are not
+     * retired notes: they are left for the gate, which turns them into no
+     * inputs, so the replay does not log them as drops.
+     */
+    public function test_keeps_the_singular_none_sentinel_for_the_gate(): void
+    {
+        $config = $this->drop_retired_inputs(
+            [
+                'statuses' => [
+                    [
+                        'key'         => 'draft',
+                        'transitions' => [
+                            [ 'to' => 'review', 'input' => [ 'type' => 'none' ] ],
+                            [ 'to' => 'legal', 'input' => [] ],
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $this->assertSame( [ 'type' => 'none' ], $config['statuses'][0]['transitions'][0]['input'] );
+        $this->assertSame( [], $config['statuses'][0]['transitions'][1]['input'] );
+    }
+
+    /**
      * Malformed entries are left for the write gate to reject loudly.
      */
     public function test_keeps_malformed_inputs_for_the_gate(): void

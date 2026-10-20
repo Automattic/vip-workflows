@@ -1179,6 +1179,58 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
+     * An imported stage whose name is only whitespace is refused with the same
+     * 422 create and update return, before anything is written.
+     */
+    public function test_import_sequence_rejects_whitespace_only_stage_label_with_422(): void
+    {
+        $this->wpdb->shouldNotReceive( 'insert' );
+
+        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => trim( (string) $v ) );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => 'workflow',
+                    'name'   => 'Test',
+                    'config' => array(
+                        'statuses' => array(
+                            array( 'key' => 'draft', 'label' => 'Draft' ),
+                            array( 'key' => 'review', 'label' => '   ' ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
+        $this->assertSame( 422, $response->get_error_data()['status'] ?? null );
+        $this->assertStringContainsString( 'review', $response->get_error_message() );
+    }
+
+    /**
+     * A stage with no key is left for the write gate, which names that
+     * problem; the name check would only point at a blank key.
+     */
+    public function test_require_stage_names_leaves_a_keyless_stage_to_the_gate(): void
+    {
+        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => trim( (string) $v ) );
+
+        SequencesController::require_stage_names(
+            array(
+                array( 'key' => '', 'label' => '' ),
+                array( 'key' => 'draft', 'label' => 'Draft' ),
+            )
+        );
+
+        $this->expectException( \InvalidArgumentException::class );
+        SequencesController::require_stage_names( array( array( 'key' => 'draft', 'label' => array() ) ) );
+    }
+
+    /**
      * A phase sequence with no phases is refused for that, not for lacking
      * stages it was never meant to have.
      */

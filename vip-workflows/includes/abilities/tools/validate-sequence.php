@@ -171,6 +171,14 @@ function execute_validate_sequence( ?array $input = null ) {
 		);
 	}
 
+	// A stage whose name sanitizes to empty is refused by create, update and
+	// import before the write gate runs, so it is reported here too.
+	try {
+		SequencesController::require_stage_names( $statuses );
+	} catch ( \InvalidArgumentException $e ) {
+		$errors[] = $e->getMessage();
+	}
+
 	// Both stage x status invariants, read without tripping them. The throwing read
 	// path (get_stage_status / get_region_entry_stage) is unusable for reporting: it
 	// fatals on exactly the configs a validator exists to describe.

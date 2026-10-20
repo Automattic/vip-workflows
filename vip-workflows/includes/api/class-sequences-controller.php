@@ -961,28 +961,13 @@ class SequencesController extends WP_REST_Controller {
 				$sanitized_color = StagePalette::DEFAULT_COLOR;
 			}
 
-			$key = sanitize_key( $status['key'] ?? '' );
-
-			// `label` is required by the REST schema too, and it is what writers see
-			// on the board and on every button that moves a post here. One that
-			// sanitizes to empty (a name of only spaces, say) is a stage with no
-			// name: reject it rather than store a blank.
-			$label = sanitize_text_field( $status['label'] ?? '' );
-			if ( '' === $label ) {
-				throw new \InvalidArgumentException(
-					sprintf(
-						/* translators: %s: the stage's key, e.g. "in_review". */
-						esc_html__( 'The stage keyed “%s” has no name. Give it a name writers can see.', 'vip-workflows' ),
-						esc_html( $key )
-					)
-				);
-			}
+			self::require_stage_names( array( $status ) );
 
 			$processed_status = array(
 				// `key` is required by the REST schema; don't invent one. A missing or
 				// sanitized-to-empty key is rejected by Sequence::prepare_config_for_write().
-				'key'         => $key,
-				'label'       => $label,
+				'key'         => sanitize_key( $status['key'] ?? '' ),
+				'label'       => sanitize_text_field( $status['label'] ?? '' ),
 				'color'       => $sanitized_color,
 				'transitions' => array(),
 			);
@@ -1377,6 +1362,18 @@ class SequencesController extends WP_REST_Controller {
 					'invalid_sequence_statuses',
 					__( 'Sequence must have at least one stage.', 'vip-workflows' ),
 					array( 'status' => 400 )
+				);
+			}
+
+			// A stage with no name is refused here as build_config() refuses it on
+			// create/update: the import never passes through that builder.
+			try {
+				self::require_stage_names( $sequence_json['config']['statuses'] );
+			} catch ( \InvalidArgumentException $e ) {
+				return new WP_Error(
+					'rest_sequence_invalid_config',
+					$e->getMessage(),
+					array( 'status' => 422 )
 				);
 			}
 
@@ -1814,6 +1811,46 @@ class SequencesController extends WP_REST_Controller {
 	}
 
 	/**
+	 * Refuse a stage whose name sanitizes to empty.
+	 *
+	 * `label` is required by the REST schema too, and it is what writers see on
+	 * the board and on every button that moves a post here. One that sanitizes
+	 * to empty (a name of only spaces, say) is a stage with no name: reject it
+	 * rather than store a blank. Shared by build_config(), import_sequence() and
+	 * validate-sequence, so every write path refuses the same stages.
+	 *
+	 * A stage with no key either is left to Sequence::prepare_config_for_write(),
+	 * which names that problem; a name error could only point at a blank key.
+	 *
+	 * @param  array $statuses Raw stage list from a request, import or dry run.
+	 * @return void
+	 * @throws \InvalidArgumentException When a keyed stage's name sanitizes to empty.
+	 */
+	public static function require_stage_names( array $statuses ): void {
+		foreach ( $statuses as $status ) {
+			if ( ! is_array( $status ) ) {
+				continue;
+			}
+
+			$key = sanitize_key( is_scalar( $status['key'] ?? null ) ? (string) $status['key'] : '' );
+			if ( '' === $key ) {
+				continue;
+			}
+
+			$label = is_scalar( $status['label'] ?? null ) ? sanitize_text_field( (string) $status['label'] ) : '';
+			if ( '' === $label ) {
+				throw new \InvalidArgumentException(
+					sprintf(
+						/* translators: %s: the stage's key, e.g. "in_review". */
+						esc_html__( 'The stage keyed “%s” has no name. Give it a name writers can see.', 'vip-workflows' ),
+						esc_html( $key )
+					)
+				);
+			}
+		}
+	}
+
+	/**
 	 * Validate assignment slot keys.
 	 *
 	 * A transition input of type `assignment` declares a slot: taking that
@@ -1863,7 +1900,7 @@ class SequencesController extends WP_REST_Controller {
 						);
 					}
 
-					$target = sanitize_key( (string) ( $transition['to'] ?? '' ) );
+					$target = sanitize_key( is_scalar( $transition['to'] ?? null ) ? (string) $transition['to'] : '' );
 
 					if ( isset( $slot_keys[ $key ] ) ) {
 						return new WP_Error(
