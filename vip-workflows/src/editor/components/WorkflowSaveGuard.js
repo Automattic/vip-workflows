@@ -115,6 +115,11 @@ export function WorkflowSaveGuard() {
 				return edits;
 			}
 
+			// A flag a previous save set but never consumed — that save was
+			// refused by a later filter before any request went out — belongs
+			// to no save. Clear it so this one only refreshes if it re-seats.
+			reseatPendingRef.current = false;
+
 			// `edits` carries only pending, non-transient edits, so a `status`
 			// key is present exactly when this save would write a status
 			// different from the persisted one.
