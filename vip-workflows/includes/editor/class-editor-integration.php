@@ -118,6 +118,18 @@ class EditorIntegration implements ModuleInterface {
 
 		$roles = $this->get_available_roles();
 
+		// The status endpoint's own answer, served with the page the way core
+		// preloads its requests. The header decides from it whether core's
+		// Publish button is hidden, and asked for after the editor has painted,
+		// that answer arrived one paint late: Publish showed on every load and
+		// then vanished. A refused read leaves the store to ask, as before.
+		$status_response = rest_do_request(
+			new \WP_REST_Request( 'GET', "/vip-workflows/v1/workflow/post/{$post_id}/status" )
+		);
+		$workflow_status = $status_response->is_error()
+			? null
+			: rest_get_server()->response_to_data( $status_response, false );
+
 		// Inline JSON rather than wp_localize_script(): localize casts every
 		// top-level scalar to a string, which handed the editor store a string
 		// postId. Invalidating the post's entity resolution with that string is a
@@ -147,6 +159,7 @@ class EditorIntegration implements ModuleInterface {
 					'currentUser'         => get_current_user_id(),
 					'metadataFields'      => $metadata_fields,
 					'roles'               => $roles,
+					'workflowStatus'      => $workflow_status,
 				)
 			) . ';',
 			'before'

@@ -268,6 +268,8 @@ src/
 │       ├── WorkflowSaveGuard.js              # editor.preSavePost guard — no chrome
 │       ├── MetadataPanel.js                  # Editorial metadata fields
 │       ├── TransitionRail.js                 # Current stage and its transitions
+│       ├── TransitionFlow.js                 # Runs every transition: confirms, inputs, refusals
+│       ├── WorkflowHeaderAction.js           # Header split button: primary transition + rail
 │       ├── WorkflowRequiredModal.js          # Required workflow prompt
 │       ├── TransitionInputPopover.js         # Transition input (assignee + notes)
 │       ├── ToolResultModals.js               # Tool result display modals
