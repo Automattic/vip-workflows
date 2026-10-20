@@ -81,6 +81,7 @@
 .wf-inspector__eyebrow {
 	display: block;
 	/* wpds-allow R6,R8 -- @wordpress/theme ships no letter-spacing token and <Text> exposes no tracking prop */
+	/* ds-allow typography/untokenized -- @wordpress/theme ships no letter-spacing token; the rest of the type role comes from <Text variant="heading-sm"> */
 	letter-spacing: 0.4px;
 	/* wpds-allow R6 -- <Text> exposes no color prop, so the eyebrow's muted tone is set here */
 	color: var( --wpds-color-foreground-content-neutral-weak );
@@ -215,7 +216,7 @@
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
 	border: 0; /* wpds-allow R6 -- Collapsible.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
 	background: none; /* wpds-allow R6 -- the same UA button box; the section supplies the surface */
-	cursor: pointer;
+	cursor: var( --wpds-cursor-control );
 	text-align: start;
 	color: inherit; /* wpds-allow R6 -- same: `buttontext` would cut the title and chevron off from the row's own tone, and the trigger exposes no color prop */
 }
@@ -302,6 +303,7 @@
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
 	border: 0; /* wpds-allow R6 -- Tooltip.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
 	background: none; /* wpds-allow R6 -- the same UA button box; the row supplies the surface */
+	/* ds-allow tokens/hardcoded-value -- `help` marks an explanation, not a control; @wordpress/theme ships only --wpds-cursor-control, which is the pointer for controls */
 	cursor: help;
 	color: var( --wpds-color-foreground-content-neutral-weak ); /* wpds-allow R6 -- Tooltip.Trigger exposes no tone prop, so the muted resting colour is set here */
 }
@@ -443,6 +445,7 @@
 	border: none;
 	background: none;
 	color: var( --wpds-color-foreground-content-neutral-weak );
+	/* ds-allow tokens/hardcoded-value -- `grab` marks a drag handle, not a click target; @wordpress/theme ships only --wpds-cursor-control, which is the pointer for controls */
 	cursor: grab;
 }
 
@@ -534,7 +537,7 @@
 	background: none; /* wpds-allow R6 -- same: the UA button surface, which the row supplies instead */
 	color: inherit; /* wpds-allow R6 -- <Stack> exposes no color prop, and `buttontext` would cut the row's own tone off from the text inside it */
 	text-align: start;
-	cursor: pointer;
+	cursor: var( --wpds-cursor-control );
 }
 
 /* Says it is a target, without giving three or four rows the weight of buttons
