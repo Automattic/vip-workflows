@@ -902,6 +902,12 @@ export default function StageInspector( {
 											const problem = claimed
 												? exitProblem( target )
 												: null;
+											const shown =
+												destination ||
+												__(
+													'Not routed',
+													'vip-workflows'
+												);
 											return (
 												<Fact
 													key={ outcome }
@@ -919,14 +925,10 @@ export default function StageInspector( {
 														.filter( Boolean )
 														.join( ' ' ) }
 													label={ rowLabel }
-													value={ exitValue(
-														destination ||
-															__(
-																'Not routed',
-																'vip-workflows'
-															),
-														{ problem, disabled }
-													) }
+													value={ exitValue( shown, {
+														problem,
+														disabled,
+													} ) }
 													empty={ ! destination }
 													onSelect={
 														claimed
@@ -938,11 +940,7 @@ export default function StageInspector( {
 													}
 													selectLabel={ exitSelectLabel(
 														rowLabel,
-														destination ||
-															__(
-																'Not routed',
-																'vip-workflows'
-															),
+														shown,
 														{ problem, disabled }
 													) }
 													trailing={

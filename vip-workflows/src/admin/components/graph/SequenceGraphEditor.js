@@ -1125,8 +1125,10 @@ export default function SequenceGraphEditor( {
 	);
 	// The statuses the server allows that aren't drawn yet — what "Add post
 	// status…" offers, and whether it is offered at all.
-	const addableRegions = REGION_ORDER.filter(
-		( region ) => ! regions.includes( region )
+	// Memoized so the canvas menu's own memo, which depends on it, holds.
+	const addableRegions = useMemo(
+		() => REGION_ORDER.filter( ( region ) => ! regions.includes( region ) ),
+		[ regions ]
 	);
 
 	const handleAddRegion = useCallback( ( region ) => {
