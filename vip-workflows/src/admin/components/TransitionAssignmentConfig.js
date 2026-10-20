@@ -41,10 +41,11 @@ const ASSIGNEE_TYPES = [
  * offers.
  *
  * A stored `agent` — or any type an extension handles — matches no option, and
- * a `<select>` whose value matches nothing renders blank. Blank reads as "not set yet", which is exactly wrong:
- * the transition does carry a type, and silently drawing it as unset is how an
- * author overwrites it without knowing there was anything there. Appending it,
- * disabled, names what is stored and refuses to be re-picked once changed away.
+ * a `<select>` whose value matches nothing renders blank. Blank reads as "not
+ * set yet", which is exactly wrong: the transition does carry a type, and
+ * silently drawing it as unset is how an author overwrites it without knowing
+ * there was anything there. Appending it, disabled, names what is stored and
+ * refuses to be re-picked once changed away.
  *
  * @param {string} assigneeType The transition's stored assignee type.
  * @return {Array<Object>} Options for the assignee type select.
