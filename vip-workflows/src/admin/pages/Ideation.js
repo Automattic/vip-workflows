@@ -162,7 +162,6 @@ export default function Ideation( { route, onNavigate } ) {
 			title={ __( 'Ideation', 'vip-workflows' ) }
 			constrained
 		>
-			{ /* wpds-allow R7 -- block-flow page column; the sections below carry their own margin-top, which a flex Stack would stop collapsing (see Ideation.css) */ }
 			<div className="vip-workflows-ideation-landing">
 				{ error && (
 					<Notice
