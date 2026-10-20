@@ -390,6 +390,8 @@ do_action('vip_workflows_exited_{stage}', $post_id, $new_stage, $sequence, $cont
 
 Tool runs have no dedicated action. `AbilityExecutor` emits an `ability.executed` (or `ability.failed`) event on the bus, with `ability_id`, `post_id`, `success`, `duration_ms` and `output` in its data; listen for it on `vip_workflows_event_emitted`.
 
+Only runs that go through `AbilityExecutor::execute()` emit it: the Tools panel's run endpoint, transition and ideation gates, and stage agents. A run refused because the ability is not configured emits nothing, and neither does a call that runs the ability directly (`$ability->execute()`, `vip_workflows_execute_ability()`, or core's Abilities API REST routes).
+
 **What listens**: the bus stores every event it emits — that stream is what the audit log, a post's Workflow History modal and the `get-recent-activity` ability read. Delivery is `NotificationDispatcher`, which matches an event against the routing option and sends on each subscribed channel. Anything else subscribes with `add_action( 'vip_workflows_event_emitted', … )`.
 
 There is no rules engine. An earlier version stored trigger/condition/action "flows" in `wp_vip_automation_flows` and executed them off the bus; nothing could author a flow, so the table was always empty and the engine was removed.

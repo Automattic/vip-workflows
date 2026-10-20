@@ -468,7 +468,10 @@ add_action( 'vip_workflows_event_emitted', function( $event_type, $event_data, $
         return;
     }
     // Tool finished running. $event_data carries ability_id, post_id,
-    // success, duration_ms and output.
+    // success, duration_ms and output. Only runs made through
+    // AbilityExecutor::execute() emit these events; a direct
+    // $ability->execute() call or a run refused because the ability is
+    // not configured emits none.
 }, 10, 3 );
 ```
 
