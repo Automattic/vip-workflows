@@ -20,8 +20,15 @@
  * @package
  */
 
-/** Every set of props the stub was rendered with, in order. */
-let canvasRenders = [];
+/** The props the stub was last rendered with. */
+let lastProps;
+
+/**
+ * Every reveal the stub was handed, in order, deduplicated by identity: the
+ * canvas re-renders for reasons of its own (a keystroke in the panel), and a
+ * prop arriving twice is still one instruction.
+ */
+let reveals = [];
 
 /**
  * The canvas stub. Records every prop it is given — the editor's callbacks, the
@@ -32,7 +39,10 @@ let canvasRenders = [];
  * @return {JSX.Element} Stub.
  */
 export function GraphCanvasStub( props ) {
-	canvasRenders.push( props );
+	lastProps = props;
+	if ( props.reveal && reveals[ reveals.length - 1 ] !== props.reveal ) {
+		reveals.push( props.reveal );
+	}
 
 	return (
 		<div data-testid="canvas">
@@ -59,32 +69,22 @@ export function GraphCanvasStub( props ) {
  * @return {Object|undefined} Props, or undefined before the canvas has rendered.
  */
 export function canvas() {
-	return canvasRenders[ canvasRenders.length - 1 ];
+	return lastProps;
 }
 
 /**
  * Every reveal the canvas was handed, in order.
  *
- * Deduplicated by identity: the canvas re-renders for reasons of its own (a
- * keystroke in the panel), and a prop arriving twice is still one instruction.
- *
  * @return {Array<Object>} Reveals.
  */
 export function canvasReveals() {
-	const reveals = [];
-
-	for ( const { reveal } of canvasRenders ) {
-		if ( reveal && reveals[ reveals.length - 1 ] !== reveal ) {
-			reveals.push( reveal );
-		}
-	}
-
-	return reveals;
+	return [ ...reveals ];
 }
 
 /**
  * Forget every render, so a test starts from an unrendered canvas.
  */
 export function resetCanvas() {
-	canvasRenders = [];
+	lastProps = undefined;
+	reveals = [];
 }
