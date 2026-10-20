@@ -965,6 +965,7 @@ export default function StageInspector( {
 														) : undefined
 													}
 												>
+													{ /* wpds-allow system/raw-element -- a decorative tone swatch with no text, so no <Text> analog applies */ }
 													<span
 														className="wf-stage-inspector__route-dot"
 														aria-hidden="true"
@@ -1078,6 +1079,7 @@ export default function StageInspector( {
 														label={ label }
 														value={ value }
 													>
+														{ /* wpds-allow system/raw-element -- a decorative tone swatch with no text, so no <Text> analog applies */ }
 														<span
 															className="wf-stage-inspector__route-dot"
 															aria-hidden="true"
