@@ -827,7 +827,7 @@ class StatusManager {
 
 		// Reject invalid targets before tools run or post/stage changes commit.
 		if ( is_array( $transition_config ) ) {
-			$assignee_validation = ( new AssignmentManager() )->validate_transition_assignees( $transition_config, $options['input_data'] ?? array() );
+			$assignee_validation = $assignment_manager->validate_transition_assignees( $transition_config, $options['input_data'] ?? array() );
 			if ( is_wp_error( $assignee_validation ) ) {
 				return $assignee_validation;
 			}
@@ -2217,8 +2217,9 @@ class StatusManager {
 		// The committed status before the assignment writes anything, and the
 		// previous workflow identity (a re-assignment may replace an existing
 		// workflow; the previous stage, if any, is the stage being exited).
-		$previous_status = (string) get_post_status( $post_id );
-		$previous_stage  = (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
+		$previous_status   = (string) get_post_status( $post_id );
+		$previous_stage    = (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
+		$previous_sequence = (int) get_post_meta( $post_id, self::SEQUENCE_META_KEY, true );
 
 		// The seat is inside the post's own region by construction — the entry
 		// stage is selected from that region's stages — so no post_status write
@@ -2228,8 +2229,10 @@ class StatusManager {
 		update_post_meta( $post_id, self::STAGE_META_KEY, $stage_key );
 
 		// Replacing a workflow leaves the previous stage, which finishes its
-		// assignments.
-		if ( '' !== $previous_stage ) {
+		// assignments. Re-seating the same sequence at the stage the post is
+		// already in leaves nothing, so its assignments stay pending.
+		$left_stage = $previous_sequence !== $sequence_id || $previous_stage !== $stage_key;
+		if ( '' !== $previous_stage && $left_stage ) {
 			( new AssignmentManager() )->complete_on_stage_exit( $post_id );
 		}
 

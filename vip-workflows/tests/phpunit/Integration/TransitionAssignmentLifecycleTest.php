@@ -247,4 +247,52 @@ class TransitionAssignmentLifecycleTest extends TestCase {
 			( new AssignmentManager() )->get( $post_id, 'reviewer' )['status']
 		);
 	}
+
+	/**
+	 * Re-assigning the post's own sequence while it sits at the entry stage
+	 * leaves no stage, so that stage's assignment stays pending.
+	 */
+	public function test_reassigning_the_same_sequence_in_place_keeps_the_assignment(): void {
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_status' => 'draft',
+				'post_author' => $this->admin_id,
+			)
+		);
+		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->sequence_id );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ideas' );
+		update_post_meta(
+			$post_id,
+			'_vip_workflows_assignment_reviewer',
+			array(
+				'value'       => $this->reviewer_id,
+				'type'        => 'user',
+				'status'      => AssignmentManager::STATUS_PENDING,
+				'assigned_at' => '2026-01-01 10:00:00',
+				'assigned_by' => $this->admin_id,
+			)
+		);
+
+		$this->assertTrue( ( new StatusManager() )->assign_sequence( $post_id, $this->sequence_id ) );
+
+		$this->assertSame(
+			AssignmentManager::STATUS_PENDING,
+			( new AssignmentManager() )->get( $post_id, 'reviewer' )['status']
+		);
+	}
+
+	/**
+	 * Re-assigning the sequence from a later stage re-seats the post at the
+	 * entry stage, which leaves its stage and completes the assignment.
+	 */
+	public function test_reassigning_the_sequence_from_another_stage_completes_the_assignment(): void {
+		$post_id = $this->make_post_in_review();
+
+		$this->assertTrue( ( new StatusManager() )->assign_sequence( $post_id, $this->sequence_id ) );
+
+		$this->assertSame(
+			AssignmentManager::STATUS_COMPLETED,
+			( new AssignmentManager() )->get( $post_id, 'reviewer' )['status']
+		);
+	}
 }
