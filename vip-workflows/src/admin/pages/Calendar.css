@@ -6,7 +6,8 @@
 
 .vip-workflows-calendar-container {
 	height: 100%;
-	background: var(--wpds-color-background-surface-neutral-strong); /* wpds-allow R6 -- page surface behind the calendar; Stack has no background prop */
+	/* wpds-allow system/override -- page surface behind the calendar; Stack has no background prop */
+	background: var(--wpds-color-background-surface-neutral-strong);
 }
 
 /* Header controls (nav/today buttons, filter select, view switcher) are
@@ -29,7 +30,8 @@
 
 .vip-workflows-calendar-loading {
 	height: 100%;
-	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted colour for the loading label; neither Stack nor Text exposes a colour prop */
+	/* wpds-allow system/override -- muted colour for the loading label; neither Stack nor Text exposes a colour prop */
+	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* ============================================================================
@@ -73,7 +75,8 @@
 	background-color: var(--wpds-color-background-surface-neutral);
 	/* Vertical only: .rbc-month-view is a column flex container, so this
 	   separates week rows and never touches the seven day columns. */
-	gap: var(--wpds-dimension-gap-xs); /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	/* wpds-allow layout/in-css -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	gap: var(--wpds-dimension-gap-xs);
 	padding: var(--wpds-dimension-padding-sm);
 	border: none;
 }
@@ -107,7 +110,8 @@
 }
 
 .vip-workflows-calendar-body .rbc-day-bg { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
-	margin-inline: var(--vip-workflows-calendar-column-inset); /* wpds-allow R3 -- the card is inset within a column react-big-calendar sizes itself; there is no wrapper to hold a gap, and a gap on the row is what broke chip alignment */
+	/* wpds-allow layout/margin-on-child -- the card is inset within a column react-big-calendar sizes itself; there is no wrapper to hold a gap, and a gap on the row is what broke chip alignment */
+	margin-inline: var(--vip-workflows-calendar-column-inset);
 	background-color: var(--wpds-color-background-surface-neutral-strong);
 	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
 	border-radius: var(--wpds-border-radius-lg);
@@ -146,9 +150,10 @@
 }
 
 .vip-workflows-calendar-body .rbc-date-cell.rbc-now > a { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
-	display: inline-flex; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
-	align-items: center; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
-	justify-content: center; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	/* wpds-allow layout/in-css -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
 	width: 28px;
 	height: 28px;
 	background: var(--wpds-color-background-interactive-brand-strong);
@@ -191,7 +196,7 @@
 	color: var(--wpds-color-foreground-content-neutral);
 	outline: none;
 	overflow: hidden;
-	cursor: pointer;
+	cursor: var(--wpds-cursor-control);
 	transition: background 0.15s ease;
 }
 
@@ -277,7 +282,8 @@
    read as one block. Match the 4px rhythm .rbc-row-segment gives them in the
    month grid. */
 .rbc-overlay:has(.vip-workflows-calendar-event) > * + * { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
-	margin-top: var(--wpds-dimension-gap-xs); /* wpds-allow R3 -- overriding a third-party sibling margin; no wrapper to hold a gap */
+	/* wpds-allow layout/margin-on-child -- overriding a third-party sibling margin; no wrapper to hold a gap */
+	margin-top: var(--wpds-dimension-gap-xs);
 }
 
 .rbc-overlay:has(.vip-workflows-calendar-event) .rbc-overlay-header { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
@@ -314,7 +320,7 @@
 	font: inherit; /* wpds-allow R5 -- intentional inherit/reset */
 	color: inherit;
 	text-align: center;
-	cursor: pointer;
+	cursor: var(--wpds-cursor-control);
 }
 
 .vip-workflows-calendar-body .rbc-time-header .rbc-button-link:hover {
@@ -374,9 +380,10 @@
 
 .vip-workflows-calendar-body .rbc-day-slot .rbc-event-content { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
 	font: var(--vip-workflows-text-body-md);
-	display: flex; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
-	flex-direction: row; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
-	align-items: center; /* wpds-allow R4 -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	/* wpds-allow layout/in-css -- third-party chrome (react-big-calendar / React Flow); no theming API */
+	display: flex;
+	flex-direction: row;
+	align-items: center;
 }
 
 .vip-workflows-calendar-body .rbc-current-time-indicator {
@@ -387,8 +394,10 @@
 .vip-workflows-calendar-body .rbc-current-time-indicator::before { /* wpds-allow R6 -- third-party chrome (react-big-calendar / React Flow); no theming API */
 	content: "";
 	position: absolute;
-	left: -6px; /* wpds-allow R2 -- positioning offset; no spacing token applies */
-	top: -4px; /* wpds-allow R2 -- positioning offset; no spacing token applies */
+	/* wpds-allow tokens/hardcoded-value -- positioning offset; no spacing token applies */
+	left: -6px;
+	/* wpds-allow tokens/hardcoded-value -- positioning offset; no spacing token applies */
+	top: -4px;
 	width: 10px;
 	height: 10px;
 	background: var(--wpds-color-background-interactive-error-strong);
@@ -432,15 +441,19 @@
 /* The tile is a <Stack direction="column" gap="md"> (header, weekday row, day
    grid); only its surface chrome stays here. */
 .vip-workflows-calendar-year-view__month {
-	background: var(--wpds-color-background-surface-neutral-strong); /* wpds-allow R6 -- tile surface on the layout Stack; no background prop */
-	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak); /* wpds-allow R6 -- tile border on the layout Stack; no border prop */
-	border-radius: var(--wpds-border-radius-lg); /* wpds-allow R6 -- tile corner radius on the layout Stack; no radius prop */
+	/* wpds-allow system/override -- tile surface on the layout Stack; no background prop */
+	background: var(--wpds-color-background-surface-neutral-strong);
+	/* wpds-allow system/override -- tile border on the layout Stack; no border prop */
+	border: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	/* wpds-allow system/override -- tile corner radius on the layout Stack; no radius prop */
+	border-radius: var(--wpds-border-radius-lg);
 	padding: var(--wpds-dimension-padding-lg);
 }
 
 /* Type comes from the <Text variant="heading-md"> that carries this class. */
 .vip-workflows-calendar-year-view__month-header {
-	color: var(--wpds-color-foreground-content-neutral); /* wpds-allow R6 -- heading colour on <Text>; Text has no colour prop */
+	/* wpds-allow system/override -- heading colour on <Text>; Text has no colour prop */
+	color: var(--wpds-color-foreground-content-neutral);
 	text-align: center;
 }
 
@@ -478,9 +491,13 @@
 	min-width: 0;
 	aspect-ratio: 1;
 	min-height: var(--wpds-dimension-size-md);
+	/* wpds-allow system/override -- interactive day cell: its fill, type and radius sit on the layout <Stack>, which exposes no background, colour, font or radius prop */
 	font: var(--vip-workflows-text-body-sm);
+	/* wpds-allow system/override -- interactive day cell: its fill, type and radius sit on the layout <Stack>, which exposes no background, colour, font or radius prop */
 	color: var(--wpds-color-foreground-content-neutral);
+	/* wpds-allow system/override -- interactive day cell: its fill, type and radius sit on the layout <Stack>, which exposes no background, colour, font or radius prop */
 	border-radius: var( --vip-workflows-border-radius-full );
+	/* wpds-allow tokens/hardcoded-value -- a non-interactive day reads as plain text; WPDS has only --wpds-cursor-control (pointer), no default-cursor token */
 	cursor: default;
 }
 
@@ -489,22 +506,29 @@
 }
 
 .vip-workflows-calendar-year-view__day--today {
+	/* wpds-allow system/override -- today state on the day cell <Stack>; Stack exposes no background prop */
 	background: var(--wpds-color-background-interactive-brand-strong);
+	/* wpds-allow system/override -- today state on the day cell <Stack>; Stack exposes no colour prop */
 	color: var(--wpds-color-foreground-interactive-brand-strong);
+	/* wpds-allow system/override -- today state on the day cell <Stack>; Stack exposes no font-weight prop */
 	font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
 .vip-workflows-calendar-year-view__day--has-events {
-	cursor: pointer;
+	cursor: var(--wpds-cursor-control);
+	/* wpds-allow system/override -- has-events state on the day cell <Stack>; Stack exposes no font-weight prop */
 	font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
 .vip-workflows-calendar-year-view__day--has-events:not(.vip-workflows-calendar-year-view__day--today) {
+	/* wpds-allow system/override -- has-events fill on the day cell <Stack>; Stack exposes no background prop */
 	background: color-mix(in srgb, var(--wpds-color-background-interactive-brand-strong) 10%, transparent);
+	/* wpds-allow system/override -- has-events tone on the day cell <Stack>; Stack exposes no colour prop */
 	color: var(--wpds-color-foreground-interactive-brand);
 }
 
 .vip-workflows-calendar-year-view__day--has-events:hover:not(.vip-workflows-calendar-year-view__day--today) {
+	/* wpds-allow system/override -- has-events hover fill on the day cell <Stack>; Stack exposes no background prop */
 	background: color-mix(in srgb, var(--wpds-color-background-interactive-brand-strong) 20%, transparent);
 }
 
@@ -521,9 +545,10 @@
 	font: var(--vip-workflows-text-heading-sm);
 	border-radius: var( --vip-workflows-border-radius-full );
 	overflow: hidden;
-	display: flex; /* wpds-allow R4 -- pill's centring is inseparable from its own fill/type/radius chrome; a Stack would restate every one of them as an override */
-	align-items: center; /* wpds-allow R4 -- see above */
-	justify-content: center; /* wpds-allow R4 -- see above */
+	/* wpds-allow layout/in-css -- pill's centring is inseparable from its own fill/type/radius chrome; a Stack would restate every one of them as an override */
+	display: flex;
+	align-items: center;
+	justify-content: center;
 }
 
 .vip-workflows-calendar-year-view__day--today .vip-workflows-calendar-year-view__day-count {
@@ -541,7 +566,8 @@
    author row is the shared <AuthorCell>, whose avatar paints its own tone.
    Typography comes from the <Text> components; this only sets the tone. */
 .vip-workflows-calendar-post-modal__meta-row {
-	color: var(--wpds-color-foreground-content-neutral-weak); /* wpds-allow R6 -- muted tone for the rows' text and the workflow row's icon; none of Stack, Text or AuthorCell exposes a colour prop */
+	/* wpds-allow system/override -- muted tone for the rows' text and the workflow row's icon; none of Stack, Text or AuthorCell exposes a colour prop */
+	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* No avatar rule here any more. The author row is the shared <AuthorCell>, which
@@ -561,6 +587,7 @@
    inline-flex so it sits on the text baseline; Stack's stylesheet is a
    block-level `display: flex`, which would reflow the slot. */
 .vip-workflows-calendar-day-posts__status-icon {
-	display: inline-flex; /* wpds-allow R4 -- inline-flex glyph wrapper; Stack renders block-level `display: flex` */
+	/* wpds-allow layout/in-css -- inline-flex glyph wrapper; Stack renders block-level `display: flex` */
+	display: inline-flex;
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
