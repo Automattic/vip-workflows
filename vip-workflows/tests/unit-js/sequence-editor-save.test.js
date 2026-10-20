@@ -447,7 +447,7 @@ describe( 'Leaving the sequence editor by the browser', () => {
 	// saw: the author's new name would sit on screen with Save disabled and
 	// both exit guards stood down, and leaving would discard it in silence.
 	it( 'keeps an unsaved rename dirty across a region repair', async () => {
-		serveSequenceEditor( {
+		( { writes } = serveSequenceEditor( {
 			// A legacy sequence, so the repair notice is offered.
 			sequence: sequence( { stages_missing_region: [ 'legacy' ] } ),
 			write: ( { path } ) => {
@@ -459,7 +459,7 @@ describe( 'Leaving the sequence editor by the browser', () => {
 					repair: { defaulted: [ 'legacy' ], dropped: [] },
 				};
 			},
-		} );
+		} ) );
 
 		await renderEditor( { sequenceId: 7 } );
 
