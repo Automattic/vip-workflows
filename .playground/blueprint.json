@@ -47,14 +47,32 @@
 		},
 		{
 			"step": "runPHP",
-			"code": "<?php\nrequire_once '/wordpress/wp-load.php';\n\nforeach ( array( 'editor', 'author', 'contributor' ) as $role ) {\n\tif ( username_exists( $role ) ) {\n\t\tcontinue;\n\t}\n\twp_insert_user(\n\t\tarray(\n\t\t\t'user_login'   => $role,\n\t\t\t'user_pass'    => 'password',\n\t\t\t'user_email'   => $role . '@example.test',\n\t\t\t'display_name' => ucfirst( $role ) . ' User',\n\t\t\t'role'         => $role,\n\t\t)\n\t);\n}\n"
+			"code": "<?php\nrequire_once '/wordpress/wp-load.php';\n\nforeach ( array( 'editor', 'author', 'contributor' ) as $login ) {\n\tif ( username_exists( $login ) ) {\n\t\tcontinue;\n\t}\n\twp_insert_user(\n\t\tarray(\n\t\t\t'user_login'   => $login,\n\t\t\t'user_pass'    => 'password',\n\t\t\t'user_email'   => $login . '@example.test',\n\t\t\t'display_name' => ucfirst( $login ) . ' User',\n\t\t\t'role'         => $login,\n\t\t)\n\t);\n}\n"
+		},
+		{
+			"step": "unzip",
+			"zipFile": {
+				"resource": "url",
+				"url": "{{ARTIFACT_URL:demo-content}}"
+			},
+			"extractToPath": "/tmp/vip-workflows-demo"
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php\nrequire_once '/wordpress/wp-load.php';\nrequire_once '/tmp/vip-workflows-demo/shift-wxr-dates.php';\n\n$wxr = file_get_contents( '/tmp/vip-workflows-demo/vip-workflows-content.xml' );\nif ( false === $wxr ) {\n\tthrow new RuntimeException( 'Demo content was not extracted' );\n}\nfile_put_contents(\n\t'/tmp/vip-workflows-demo/vip-workflows-content.current.xml',\n\tvip_workflows_shift_wxr_dates( $wxr, current_datetime() )\n);\n"
 		},
 		{
 			"step": "importWxr",
 			"file": {
-				"resource": "literal",
-				"name": "vip-workflows-content.xml",
-				"contents": "{{REPO_WXR:tools/vip-workflows-content.xml}}"
+				"resource": "vfs",
+				"path": "/tmp/vip-workflows-demo/vip-workflows-content.current.xml"
+			},
+			"authorsMode": "map",
+			"authorsMap": {
+				"admin": "admin",
+				"editor": "editor",
+				"author": "author",
+				"contributor": "contributor"
 			}
 		}
 	]
