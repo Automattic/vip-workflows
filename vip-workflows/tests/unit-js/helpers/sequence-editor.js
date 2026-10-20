@@ -116,11 +116,16 @@ export function serveSequenceEditor( {
 		) {
 			return Promise.resolve( [] );
 		}
+		// Answered inside a promise, so a `write` or `sequence` that throws
+		// rejects the request the way a failed fetch does, rather than
+		// throwing out of `apiFetch` itself.
 		if ( method === 'POST' || method === 'PUT' ) {
 			writes.push( { path, method, data } );
-			return Promise.resolve( write ? write( request ) : read( path ) );
+			return new Promise( ( resolve ) =>
+				resolve( write ? write( request ) : read( path ) )
+			);
 		}
-		return Promise.resolve( read( path ) );
+		return new Promise( ( resolve ) => resolve( read( path ) ) );
 	} );
 
 	return { writes, calls };
