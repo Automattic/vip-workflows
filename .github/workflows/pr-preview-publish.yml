@@ -1,8 +1,8 @@
 name: PR Preview - Publish
 
 # Runs from the default branch with write access and never checks out pull
-# request code. Uploads the zip built by "PR Preview - Build" to the public
-# ci-artifacts prerelease, fills the artifact URL into the bundled blueprint,
+# request code. Uploads the zips built by "PR Preview - Build" to the public
+# ci-artifacts prerelease, fills the artifact URLs into the bundled blueprint,
 # and adds the Preview in WordPress Playground button to the PR description.
 #
 # workflow_run always reads this file from the default branch, so changes here
@@ -13,14 +13,11 @@ on:
     workflows: ['PR Preview - Build']
     types: [completed]
 
-# Declared at both the workflow and the calling job; the run fails at startup
-# without logs if either is missing.
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   publish:
+    # Fork pull requests build with their own workflow and scripts; only
+    # branches in this repository get their zips hosted under it.
+    if: github.event.workflow_run.head_repository.full_name == github.repository
     permissions:
       contents: write
       pull-requests: write

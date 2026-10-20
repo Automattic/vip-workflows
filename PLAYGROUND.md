@@ -23,15 +23,10 @@ Open the printed URL. Playground logs you in as `admin` and lands on the Workflo
 Pull requests get a hosted preview built in CI from `.playground/blueprint.json`; see "Pull request previews" in `AGENTS.md`. To boot the same preview locally:
 
 ```bash
-tools/package-plugin.sh 0.0.0-local vip-workflows
-mkdir -p dist/preview
-cp dist/vip-workflows-0.0.0-local.zip dist/preview/vip-workflows.zip
-node tools/playground/build-preview-blueprint.mjs dist/preview/blueprint.json
-sed 's#{{ARTIFACT_URL:vip-workflows}}#http://127.0.0.1:8765/vip-workflows.zip#' \
-  dist/preview/blueprint.json > dist/preview/local.json
-( cd dist/preview && python3 -m http.server 8765 ) &
-npx @wp-playground/cli@latest server --blueprint=dist/preview/local.json
+tools/playground/serve-preview.sh
 ```
+
+The script builds `dist/preview/` with the same `tools/playground/build-preview.sh` that CI uses, serves the zips on `127.0.0.1:8765` (pass another port as the first argument), and stops the server when Playground exits. It fails if the port is already taken, so it never installs another checkout's build.
 
 ## Limitations
 
