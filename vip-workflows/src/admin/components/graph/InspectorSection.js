@@ -19,21 +19,90 @@
  * also keeps the two apart for a pointer, so adding an item cannot toggle the
  * section shut underneath it.
  *
+ * An action may take itself away: an Add that has just added the last thing it
+ * can add is no longer offered. When it goes while it holds focus, focus moves
+ * to the section's own heading control rather than falling to the page.
+ *
  * @package
  */
 
-import { Children, useState } from '@wordpress/element';
+import {
+	Children,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from '@wordpress/element';
 import { Collapsible, Stack, Text } from '@wordpress/ui';
 import { Icon } from '@wordpress/components';
 import { chevronRight } from '@wordpress/icons';
 
+// Where focus goes when the heading's actions take themselves away.
+//
+// Every Add a section hangs off its heading can remove itself on use: the one
+// that adds the only assignment a transition may have, the one that adds the
+// last tool the site offers. A focused element that leaves the DOM drops focus
+// to `<body>` with nothing announced, and the next Tab starts from the top of
+// the admin page. So when the actions go while focus is inside them, focus is
+// handed to `targetRef` — a control of the section's own that stays mounted.
+//
+// "Inside them" is tracked with React's focus events on the actions wrapper,
+// because those bubble through portals: an Add with more than one option is a
+// dropdown whose menu items render in a popover outside the wrapper's DOM. A
+// blur only clears the flag when focus is going somewhere (`relatedTarget`) —
+// a focused node being removed is the very case this is for, and must not
+// clear it on the way out.
+//
+// The hand-off only happens when focus really was lost. If anything else has
+// already taken it by the time the actions are gone, it stays where it is.
+function useActionsFocusHandoff( hasActions, targetRef ) {
+	const focusWithin = useRef( false );
+	const hadActions = useRef( hasActions );
+
+	useLayoutEffect( () => {
+		const lostFocus =
+			hadActions.current && ! hasActions && focusWithin.current;
+
+		hadActions.current = hasActions;
+		if ( ! hasActions ) {
+			focusWithin.current = false;
+		}
+
+		const target = targetRef.current;
+		if ( ! lostFocus || ! target ) {
+			return;
+		}
+
+		const { activeElement, body } = target.ownerDocument;
+		if ( activeElement && activeElement !== body ) {
+			return;
+		}
+
+		target.focus();
+	}, [ hasActions, targetRef ] );
+
+	return {
+		onFocus: () => {
+			focusWithin.current = true;
+		},
+		onBlur: ( event ) => {
+			if ( event.relatedTarget ) {
+				focusWithin.current = false;
+			}
+		},
+	};
+}
+
 // The title, shared by both variants so they can't drift apart. `heading-md`
 // is the whole of its type; the stylesheet only tones it.
-function SectionTitle( { children } ) {
+//
+// `focusable` makes it a programmatic focus target (never a tab stop) for a
+// section with no other heading control to hand focus to.
+function SectionTitle( { children, focusable = false, titleRef } ) {
 	return (
 		<Text
+			ref={ titleRef }
 			variant="heading-md"
-			render={ <h3 /> }
+			render={ <h3 tabIndex={ focusable ? -1 : undefined } /> }
 			className="wf-inspector-section__title"
 		>
 			{ children }
@@ -71,6 +140,13 @@ function SectionHelp( { children } ) {
 function SectionBody( { className, title, help, actions, children } ) {
 	const hasChildren = Children.toArray( children ).length > 0;
 
+	// An open section has no trigger, so its own title takes focus when the
+	// actions beside it take themselves away. That swaps the heading row for a
+	// bare title, so the title focused is a new <h3>, not the one that sat in
+	// the row; the ref is reattached before the hand-off reads it.
+	const titleRef = useRef( null );
+	const actionsFocus = useActionsFocusHandoff( !! actions, titleRef );
+
 	return (
 		<Stack
 			className={ className }
@@ -92,11 +168,27 @@ function SectionBody( { className, title, help, actions, children } ) {
 							justify="space-between"
 							className="wf-inspector-section__header"
 						>
-							{ title && <SectionTitle>{ title }</SectionTitle> }
-							{ actions }
+							{ title && (
+								<SectionTitle focusable titleRef={ titleRef }>
+									{ title }
+								</SectionTitle>
+							) }
+							{ /* `display: contents` — see the collapsible
+							     variant. Here it carries only the focus
+							     bookkeeping. */ }
+							<div
+								className="wf-inspector-section__actions"
+								{ ...actionsFocus }
+							>
+								{ actions }
+							</div>
 						</Stack>
 					) : (
-						title && <SectionTitle>{ title }</SectionTitle>
+						title && (
+							<SectionTitle focusable titleRef={ titleRef }>
+								{ title }
+							</SectionTitle>
+						)
 					) }
 					{ help && <SectionHelp>{ help }</SectionHelp> }
 				</Stack>
@@ -164,6 +256,11 @@ function CollapsibleSection( {
 } ) {
 	const [ open, setOpen ] = useState( defaultOpen );
 
+	// The trigger stays mounted whatever the actions do, so it is where focus
+	// goes when they take themselves away.
+	const triggerRef = useRef( null );
+	const actionsFocus = useActionsFocusHandoff( !! actions, triggerRef );
+
 	return (
 		<Collapsible.Root
 			open={ open }
@@ -176,7 +273,10 @@ function CollapsibleSection( {
 				gap="sm"
 				className="wf-inspector-section__header"
 			>
-				<Collapsible.Trigger className="wf-inspector-section__toggle">
+				<Collapsible.Trigger
+					ref={ triggerRef }
+					className="wf-inspector-section__toggle"
+				>
 					<Icon
 						icon={ chevronRight }
 						size={ 20 }
@@ -201,6 +301,7 @@ function CollapsibleSection( {
 					<div
 						className="wf-inspector-section__actions"
 						onClickCapture={ () => setOpen( true ) }
+						{ ...actionsFocus }
 					>
 						{ actions }
 					</div>

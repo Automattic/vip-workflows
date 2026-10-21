@@ -41,6 +41,12 @@
  * is visibly set for all of them rather than looking like it belongs to the
  * edge that was clicked.
  *
+ * A transition the sequence cannot save with says so at the top as well.
+ * `saveBlocker` holds the first blocking message `validateSequence` aimed at this
+ * record — a fault such as two transitions assigning one slot, which no single
+ * row here can see. The blocked-Save notice's "Show transition" lands on this
+ * panel, so the panel has to name what it was sent to fix.
+ *
  * @package
  */
 
@@ -152,6 +158,7 @@ export default function TransitionInspector( {
 	targetLabel,
 	outcome = null,
 	sharedOutcomes = null,
+	saveBlocker = null,
 	disabled = false,
 	publishHeld = false,
 	suggestAgentPublish = false,
@@ -345,6 +352,15 @@ export default function TransitionInspector( {
 			title={ subtitle }
 		>
 			<Stack direction="column" gap="lg" align="stretch">
+				{ /* What stops the sequence saving, first: the blocked-Save
+				     notice's "Show transition" lands here, and this is what
+				     it was sent to show. One line, as the stage panel's exit
+				     row gives it — the first fault is the one to fix first. */ }
+				{ saveBlocker && (
+					<Notice status="error" isDismissible={ false }>
+						{ saveBlocker }
+					</Notice>
+				) }
 				{ /* Says why nothing here can fire, before the fields that
 				     configure it — the alternative is an author filling in
 				     roles and tools with no hint that the stage's agent has

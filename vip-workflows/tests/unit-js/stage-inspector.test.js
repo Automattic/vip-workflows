@@ -489,11 +489,22 @@ describe( 'StageInspector deduplicated exit list', () => {
 
 		fireEvent.click(
 			screen.getByRole( 'button', {
-				name: 'Select Send to copyedit · on pass',
+				name: 'Select Send to copyedit · on pass: Copy Edit',
 			} )
 		);
 
 		expect( onSelectEdge ).toHaveBeenCalledWith( 'review:pass->copyedit' );
+	} );
+
+	it( 'names each exit row by where it goes, not only by what it is', () => {
+		// The row's name replaces its text, so a screen reader hears only
+		// what the name carries: the destination has to be in it, as the
+		// Entry checkpoint row folds in its Yes or No.
+		renderInspector( stage(), jest.fn(), { onSelectEdge: jest.fn() } );
+
+		expect(
+			screen.getByRole( 'button', { name: 'Select Approve: Done' } )
+		).toBeInTheDocument();
 	} );
 
 	it( 'keeps a dangling transition listed and clickable', () => {
@@ -517,9 +528,11 @@ describe( 'StageInspector deduplicated exit list', () => {
 		const row = screen.getByText( 'Move to deleted' ).closest( 'li' );
 		expect( row ).toHaveTextContent( 'deleted (missing)' );
 
+		// Its name carries what its value column says — missing, and (no
+		// outcome routing along it) disabled — not only what it is.
 		fireEvent.click(
 			within( row ).getByRole( 'button', {
-				name: 'Select Move to deleted',
+				name: 'Select Move to deleted: deleted (missing) (disabled)',
 			} )
 		);
 
@@ -558,7 +571,7 @@ describe( 'StageInspector deduplicated exit list', () => {
 		const row = screen.getByText( 'Move to deleted' ).closest( 'li' );
 		fireEvent.click(
 			within( row ).getByRole( 'button', {
-				name: 'Select Move to deleted',
+				name: 'Select Move to deleted: deleted (missing)',
 			} )
 		);
 		expect( onSelectEdge ).toHaveBeenCalledWith( 'review->deleted' );

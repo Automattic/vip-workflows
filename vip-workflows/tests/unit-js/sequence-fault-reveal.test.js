@@ -34,7 +34,13 @@ import {
 
 import apiFetch from '@wordpress/api-fetch';
 
-import Inspector from '../../src/admin/components/graph/Inspector';
+import {
+	STAGES,
+	body,
+	renderInspector,
+	toggle,
+} from './helpers/inspector-fixture';
+import { FAULTED_STAGES } from './helpers/faulted-sequence';
 import {
 	REVEAL_MARGIN,
 	revealNodeIds,
@@ -63,65 +69,8 @@ jest.mock(
 import SequenceGraphEditor from '../../src/admin/components/graph/SequenceGraphEditor';
 
 const heading = () => document.querySelector( '.wf-inspector__heading' );
-const body = () => document.querySelector( '.wf-inspector__body' );
-const toggle = () =>
-	screen.getByRole( 'button', { name: /Collapse panel|Expand panel/ } );
 
 // --- The panel a reveal opens ---------------------------------------------
-
-const STAGES = [
-	{
-		key: 'draft',
-		label: 'Draft',
-		status: 'draft',
-		region_entry: true,
-		transitions: [ { to: 'review', label: 'Submit' } ],
-	},
-	{ key: 'review', label: 'Review', status: 'pending', transitions: [] },
-];
-
-const SEQUENCE_SETTINGS = {
-	name: 'Editorial Review',
-	onNameChange: () => {},
-	description: '',
-	onDescriptionChange: () => {},
-	isActive: true,
-	onActiveChange: () => {},
-	postTypes: [ { label: 'Posts', value: 'post' } ],
-	selectedPostTypes: [ 'post' ],
-	onTogglePostType: () => {},
-	metadataFields: [],
-	onMetadataChange: () => {},
-	isNew: false,
-	onDelete: () => {},
-	deleting: false,
-};
-
-function renderInspector( overrides = {} ) {
-	const props = {
-		selection: { type: 'node', key: 'draft' },
-		isPhase: false,
-		stages: STAGES,
-		selectedStage: STAGES[ 0 ],
-		selectedTransition: null,
-		availableAgents: [],
-		availableRoles: [],
-		availableTools: [],
-		availableChannels: [],
-		onUpdateStage: () => {},
-		onDeleteStage: () => {},
-		onUpdateTransition: () => {},
-		onDeleteTransition: () => {},
-		sequenceSettings: SEQUENCE_SETTINGS,
-		...overrides,
-	};
-	const view = render( <Inspector { ...props } /> );
-	return {
-		...view,
-		update: ( next ) =>
-			view.rerender( <Inspector { ...props } { ...next } /> ),
-	};
-}
 
 // One reveal of the stage these tests select, as the editor builds one.
 const revealDraft = () => ( {
@@ -274,6 +223,47 @@ describe( 'a reveal opens the panel it selects into', () => {
 		expect( assignments() ).toHaveAttribute( 'aria-expanded', 'true' );
 	} );
 
+	// The stage panel's sections keep their own open or shut state, so the
+	// panel is a fresh one per stage — or the section a reveal needs open on
+	// one stage stays the way the author left it on the last.
+	it( 'does not carry a stage’s open sections over to the next stage', () => {
+		const { update } = renderInspector();
+		const advanced = () =>
+			screen.getByRole( 'button', { name: /Advanced/ } );
+		fireEvent.click( advanced() );
+		expect( advanced() ).toHaveAttribute( 'aria-expanded', 'true' );
+
+		update( {
+			selection: { type: 'node', key: 'review' },
+			selectedStage: STAGES[ 1 ],
+			reveal: { target: { type: 'node', key: 'review' } },
+		} );
+
+		expect( advanced() ).toHaveAttribute( 'aria-expanded', 'false' );
+	} );
+
+	// The Key field renames the stage as it is typed, and the selection
+	// follows the new key. Still one stage, so still one panel: a fresh one
+	// would take focus out of the field mid-word.
+	it( 'keeps the stage’s panel while its key is typed', () => {
+		const { update } = renderInspector();
+		fireEvent.click( screen.getByRole( 'button', { name: /Advanced/ } ) );
+		const keyField = screen.getByRole( 'textbox', { name: 'Key' } );
+		keyField.focus();
+
+		const renamed = { ...STAGES[ 0 ], key: 'drafts' };
+		update( {
+			stages: [ renamed, STAGES[ 1 ] ],
+			selection: { type: 'node', key: 'drafts' },
+			selectedStage: renamed,
+		} );
+
+		expect( screen.getByRole( 'textbox', { name: 'Key' } ) ).toBe(
+			keyField
+		);
+		expect( keyField ).toHaveFocus();
+	} );
+
 	it( 'reveals again when the same fault is asked for twice', () => {
 		const { update } = renderInspector();
 		update( { reveal: revealDraft() } );
@@ -294,7 +284,7 @@ describe( 'a reveal opens the panel it selects into', () => {
  * The pane as it is above wp-admin's breakpoint: 800px wide with the floating
  * panel covering 360 of it, so the strip left visible is 440.
  */
-const PANE = { x: 0, y: 0, width: 440, height: 600 };
+const PANE = { y: 0, width: 440, height: 600 };
 const HOME = { x: 0, y: 0, zoom: 1 };
 
 // Where the centre of that strip is, in pane pixels.
@@ -350,7 +340,7 @@ describe( 'where a reveal pans the canvas', () => {
 		expect(
 			revealViewport( bounds, {
 				viewport: HOME,
-				visible: { x: 0, y: 0, width: 800, height: 600 },
+				visible: { y: 0, width: 800, height: 600 },
 			} )
 		).toBeNull();
 	} );
@@ -406,36 +396,6 @@ describe( 'where a reveal pans the canvas', () => {
 
 // --- The editor's side of the promise --------------------------------------
 
-// The one transition captures an assignment and names no key, which the server
-// refuses as `invalid_assignment_key`. The fault belongs to the transition, so
-// the notice offers "Show transition".
-const FAULTED = [
-	{
-		key: 'draft',
-		label: 'Draft',
-		color: '#C36EFF',
-		status: 'draft',
-		region_entry: true,
-		is_terminal: false,
-		transitions: [
-			{
-				to: 'legal',
-				label: 'Send to legal',
-				inputs: [ { type: 'assignment', meta_key: '' } ],
-			},
-		],
-	},
-	{
-		key: 'legal',
-		label: 'Legal',
-		color: '#C36EFF',
-		status: 'draft',
-		region_entry: false,
-		is_terminal: true,
-		transitions: [],
-	},
-];
-
 const sequence = () => ( {
 	id: 7,
 	name: 'Editorial Review',
@@ -443,7 +403,7 @@ const sequence = () => ( {
 	status: 'active',
 	stages_missing_region: [],
 	config: {
-		statuses: FAULTED,
+		statuses: FAULTED_STAGES,
 		post_types: [ 'post' ],
 		settings: {},
 		metadata_fields: [],

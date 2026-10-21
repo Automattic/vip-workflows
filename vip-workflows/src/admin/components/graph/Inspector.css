@@ -23,6 +23,7 @@
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow: hidden;
+	/* wpds-allow system/override -- <Card> exposes no elevation prop and @wordpress/theme ships no elevation token, so the resting shadow comes from the plugin's own elevation scale */
 	box-shadow: var( --vip-workflows-elevation-md );
 	/* The wrapper turns pointer events off so the empty space it spans below a
 	   collapsed panel doesn't swallow canvas clicks; the card takes them back. */
@@ -80,7 +81,7 @@
    uppercase at this size readable, and the muted tone. */
 .wf-inspector__eyebrow {
 	display: block;
-	/* wpds-allow R6,R8 -- @wordpress/theme ships no letter-spacing token and <Text> exposes no tracking prop */
+	/* wpds-allow typography/untokenized, typography/in-css -- @wordpress/theme ships no letter-spacing token and <Text> exposes no tracking prop; the rest of the type role comes from <Text variant="heading-sm"> */
 	letter-spacing: 0.4px;
 	/* wpds-allow R6 -- <Text> exposes no color prop, so the eyebrow's muted tone is set here */
 	color: var( --wpds-color-foreground-content-neutral-weak );
@@ -176,8 +177,9 @@
 	min-width: 0; /* wpds-allow R2 -- zero needs no token */
 }
 
-/* A disclosure section's actions are wrapped so the wrapper can open the section
-   when one of them is pressed (`InspectorSection`). The wrapper is bookkeeping,
+/* A section's actions are wrapped so the wrapper can track focus inside them,
+   and in a disclosure open the section when one of them is pressed
+   (`InspectorSection`). The wrapper is bookkeeping,
    never a box: `contents` takes it out of the layout entirely, so the control
    inside stays a direct flex item of the heading row and the row measures
    exactly as it did before the wrapper existed. */
@@ -212,11 +214,14 @@
 	gap: var( --wpds-dimension-gap-xs );
 	width: 100%;
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
-	border: 0; /* wpds-allow R6 -- Collapsible.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
-	background: none; /* wpds-allow R6 -- the same UA button box; the section supplies the surface */
-	cursor: pointer;
+	/* wpds-allow R6 -- Collapsible.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
+	border: 0;
+	/* wpds-allow R6 -- the same UA button box; the section supplies the surface */
+	background: none;
+	cursor: var( --wpds-cursor-control );
 	text-align: start;
-	color: inherit; /* wpds-allow R6 -- same: `buttontext` would cut the title and chevron off from the row's own tone, and the trigger exposes no color prop */
+	/* wpds-allow R6 -- same: `buttontext` would cut the title and chevron off from the row's own tone, and the trigger exposes no color prop */
+	color: inherit;
 }
 
 /* The disclosure's affordance: the row responds, so the neutral title doesn't
@@ -233,7 +238,8 @@
 	outline: var( --wpds-border-width-focus ) solid
 		var( --wpds-color-stroke-interactive-brand );
 	outline-offset: 2px;
-	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds the focus ring to the trigger's own corners; Collapsible.Trigger exposes no radius prop */
+	/* wpds-allow R6 -- rounds the focus ring to the trigger's own corners; Collapsible.Trigger exposes no radius prop */
+	border-radius: var( --wpds-border-radius-sm );
 }
 
 /* Points right when shut, down when open. Base UI sets `aria-expanded` on the
@@ -299,10 +305,14 @@
 	display: inline-flex;
 	align-items: center;
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
-	border: 0; /* wpds-allow R6 -- Tooltip.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
-	background: none; /* wpds-allow R6 -- the same UA button box; the row supplies the surface */
+	/* wpds-allow R6 -- Tooltip.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
+	border: 0;
+	/* wpds-allow R6 -- the same UA button box; the row supplies the surface */
+	background: none;
+	/* wpds-allow tokens/hardcoded-value -- `help` marks an explanation, not a control; @wordpress/theme ships only --wpds-cursor-control, which is the pointer for controls */
 	cursor: help;
-	color: var( --wpds-color-foreground-content-neutral-weak ); /* wpds-allow R6 -- Tooltip.Trigger exposes no tone prop, so the muted resting colour is set here */
+	/* wpds-allow R6 -- Tooltip.Trigger exposes no tone prop, so the muted resting colour is set here */
+	color: var( --wpds-color-foreground-content-neutral-weak );
 }
 
 .wf-inspector-infotip:hover,
@@ -322,7 +332,8 @@
 	outline: var( --wpds-border-width-focus ) solid
 		var( --wpds-color-stroke-interactive-brand );
 	outline-offset: 2px;
-	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds the focus ring to the trigger's own corners; Tooltip.Trigger exposes no radius prop */
+	/* wpds-allow R6 -- rounds the focus ring to the trigger's own corners; Tooltip.Trigger exposes no radius prop */
+	border-radius: var( --wpds-border-radius-sm );
 }
 
 /* Narrower than the tooltip's default: these are sentences, and a popup as wide
@@ -357,9 +368,9 @@
    a row that has been filled in. The field's own help text says which; only the
    tone is set here. One rule for both inspectors, so the flag reads the same
    wherever a key is typed. */
+/* wpds-allow system/override -- TextControl exposes no validity or tone prop, so the caution colour has to land on the help element it renders; a known-fragile coupling to its .components-base-control__help markup */
 .wf-stage-inspector__key--collides .components-base-control__help,
 .wf-metadata-field__key--invalid .components-base-control__help {
-	/* wpds-allow R6 -- TextControl exposes no validity or tone prop, so the caution colour has to land on the help element it renders */
 	color: var( --wpds-color-foreground-content-caution );
 }
 
@@ -435,13 +446,15 @@
    In flow by default: in a list where every row is draggable, the grips form
    the list's leading edge and nothing is indented relative to anything else. */
 .wf-inspector__grip {
-	display: flex; /* wpds-allow R4 -- the grip stays a <button> so the KeyboardSensor has a tab stop, and this class exists to take that button's box away */
+	/* wpds-allow R4 -- the grip stays a <button> so the KeyboardSensor has a tab stop, and this class exists to take that button's box away */
+	display: flex;
 	align-items: center; /* wpds-allow R4 -- centres the glyph inside that <button> */
 	flex: 0 0 auto; /* wpds-allow R4 -- the grip keeps its width while the row's body takes the rest; <Stack> has no per-child grow prop */
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
 	border: none;
 	background: none;
 	color: var( --wpds-color-foreground-content-neutral-weak );
+	/* wpds-allow tokens/hardcoded-value -- `grab` marks a drag handle, not a click target; @wordpress/theme ships only --wpds-cursor-control, which is the pointer for controls */
 	cursor: grab;
 }
 
@@ -529,23 +542,28 @@
 	flex: 1; /* wpds-allow R4 -- the button has to fill what the grip leaves so the row still reads as one line; <Stack> has no per-child grow prop */
 	min-width: 0; /* wpds-allow R2 -- zero needs no token */
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
-	border: none; /* wpds-allow R6 -- the <Stack> renders a <button>, and this class exists to take that button's UA box away; <Stack> exposes no border prop */
-	background: none; /* wpds-allow R6 -- same: the UA button surface, which the row supplies instead */
-	color: inherit; /* wpds-allow R6 -- <Stack> exposes no color prop, and `buttontext` would cut the row's own tone off from the text inside it */
+	/* wpds-allow R6 -- the <Stack> renders a <button>, and this class exists to take that button's UA box away; <Stack> exposes no border prop */
+	border: none;
+	/* wpds-allow R6 -- same: the UA button surface, which the row supplies instead */
+	background: none;
+	/* wpds-allow R6 -- <Stack> exposes no color prop, and `buttontext` would cut the row's own tone off from the text inside it */
+	color: inherit;
 	text-align: start;
-	cursor: pointer;
+	cursor: var( --wpds-cursor-control );
 }
 
 /* Says it is a target, without giving three or four rows the weight of buttons
    in a panel where nothing else in the list is one. */
 .wf-inspector__fact-open:hover {
-	text-decoration: underline; /* wpds-allow R6 -- <Stack> exposes no text-decoration prop */
+	/* wpds-allow R6 -- <Stack> exposes no text-decoration prop */
+	text-decoration: underline;
 }
 
 .wf-inspector__fact-open:focus-visible {
 	outline: 2px solid var( --wpds-color-stroke-surface-brand-strong );
 	outline-offset: 1px;
-	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds the focus ring to match the grip's; <Stack> exposes no radius prop */
+	/* wpds-allow R6 -- rounds the focus ring to match the grip's; <Stack> exposes no radius prop */
+	border-radius: var( --wpds-border-radius-sm );
 }
 
 /* The second half of the stage read-out: not what the stage is, but every way
