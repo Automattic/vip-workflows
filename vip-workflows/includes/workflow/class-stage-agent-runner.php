@@ -411,6 +411,28 @@ class StageAgentRunner implements ModuleInterface {
 			return;
 		}
 
+		// The agent writes the post on the server, which a shared editing session
+		// never hears about, so its changes and theirs would overwrite each
+		// other (see CoEditing). transition() refuses a person's move in while
+		// the post is shared; this catches agent-to-agent hops and anyone who
+		// opened the post after the move. In place, so Re-run works once they
+		// have left.
+		if ( CoEditing::is_shared( $post_id ) ) {
+			$this->fail_in_place(
+				$post_id,
+				$stage_key,
+				$ability_id,
+				__( 'The AI agent did not run because more than one person had this post open. Re-run it once only one person is editing.', 'vip-workflows' ),
+				$from_stage,
+				array(
+					'stop_reason' => 'co_editing',
+					'chain'       => $chain,
+					'started_by'  => $started_by,
+				)
+			);
+			return;
+		}
+
 		// Stage agents run in an async (cron) context with no logged-in user, so
 		// the ability's permission_callback (typically current_user_can('edit_posts'))
 		// would fail. Execute as the capable post author and restore afterward.

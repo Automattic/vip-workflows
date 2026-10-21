@@ -335,6 +335,105 @@ class StatusManagerAgentGatingTest extends TestCase
     }
 
     /**
+     * Sequence mock whose ai_desk → review edge leads INTO an AI stage.
+     *
+     * @return object
+     */
+    private function sequence_into_an_ai_stage(): object
+    {
+        $sequence = Mockery::mock( Sequence::class );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
+        $sequence->shouldReceive( 'get_transition' )->andReturn( array() );
+        $sequence->shouldReceive( 'can_user_transition' )->andReturn( true );
+        $sequence->shouldReceive( 'get_status' )->with( 'ai_desk' )->andReturn( array( 'key' => 'ai_desk' ) );
+        $sequence->shouldReceive( 'get_status' )->with( 'review' )->andReturn(
+            array(
+                'key'   => 'review',
+                'agent' => array( 'ability_id' => 'test/agent' ),
+            )
+        );
+        $sequence->shouldReceive( 'get_stage_status' )->with( 'ai_desk' )->andReturn( 'draft' );
+        $sequence->shouldReceive( 'get_stage_status' )->with( 'review' )->andReturn( 'publish' );
+        $sequence->shouldReceive( 'get_missing_required_metadata' )->andReturn( array() );
+        return $sequence;
+    }
+
+    /**
+     * A person cannot move a post into an AI stage while someone else has it
+     * open: the agent's server-side write and the shared editing session would
+     * overwrite each other.
+     */
+    public function test_transition_into_an_ai_stage_is_refused_while_the_post_is_shared(): void
+    {
+        $this->stub_post_in_ai_stage( '' );
+        $this->stub_current_user_roles( array( 'editor' ) );
+        $this->stub_granted_caps();
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+        $this->stub_editor_connections( 2 );
+
+        $manager = $this->gated_status_manager( $this->sequence_into_an_ai_stage() );
+        $result  = $manager->transition( 42, 'review' );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'co_editing', $result->get_error_code() );
+    }
+
+    /**
+     * One editor is the ordinary case and proceeds. wp_update_post is stubbed
+     * to fail so reaching it proves the co-editing check let it through.
+     */
+    public function test_transition_into_an_ai_stage_proceeds_with_one_editor(): void
+    {
+        $this->stub_post_in_ai_stage( '' );
+        $this->stub_current_user_roles( array( 'editor' ) );
+        $this->stub_granted_caps();
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+        Functions\when( 'wp_update_post' )->justReturn( new \WP_Error( 'update_failed', 'stop here' ) );
+        $this->stub_editor_connections( 1 );
+
+        $manager = $this->gated_status_manager( $this->sequence_into_an_ai_stage() );
+        $result  = $manager->transition( 42, 'review' );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'update_failed', $result->get_error_code() );
+    }
+
+    /**
+     * The agent's own hop into the next AI stage is not refused here: the
+     * runner checks again when that stage's run starts, and stops it in place,
+     * where Re-run can pick it up.
+     */
+    public function test_agent_hop_into_an_ai_stage_is_not_refused_while_shared(): void
+    {
+        $this->stub_post_in_ai_stage( '' );
+        $this->stub_granted_caps();
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'get_option' )->justReturn( array() );
+        Functions\when( 'user_can' )->justReturn( true );
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+        Functions\when( 'wp_update_post' )->justReturn( new \WP_Error( 'update_failed', 'stop here' ) );
+        $this->stub_editor_connections( 2 );
+
+        $manager = $this->gated_status_manager( $this->sequence_into_an_ai_stage() );
+        $result  = $manager->transition(
+            42,
+            'review',
+            array(
+                'agent_actor'      => true,
+                'agent_actor_user' => 5,
+            )
+        );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertNotSame( 'co_editing', $result->get_error_code() );
+        $this->assertSame(
+            0,
+            \VIPRealTimeCollaboration\Presence\EditorConnections::$asked,
+            'an agent hop is checked by the runner, not here'
+        );
+    }
+
+    /**
      * The agent's own exit transition (agent_actor) skips the human ROLE check
      * and the required-field gate — those describe which person may push a
      * button, and no person is pushing one. It remains bound by the core

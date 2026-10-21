@@ -710,3 +710,19 @@ window.vipWorkflowsSideEffect = {
 	getSwitchWorkflowConfirmLabel,
 	getSwitchWorkflowConfirmation,
 };
+
+/**
+ * Why an AI stage cannot start while someone else has the post open.
+ *
+ * Same sentence as the server's `co_editing` refusal in
+ * StatusManager::transition(), to the character, so the two share one .pot
+ * entry.
+ *
+ * @return {string} Translated message.
+ */
+export function getCoEditingRefusal() {
+	return __(
+		'Someone else has this post open. AI stages run only when one person is editing, so their changes and the agent’s don’t overwrite each other. Try again once they’ve closed it.',
+		'vip-workflows'
+	);
+}

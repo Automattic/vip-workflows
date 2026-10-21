@@ -48,6 +48,7 @@ import { AuthorCell } from '../../common/DataViewCells';
 import { useConfirm } from '../../common/use-confirm';
 import {
 	getAgentInterruptWarning,
+	getCoEditingRefusal,
 	getOrphanedWorkflowRemoveConfirmation,
 	getRemoveFromWorkflowConfirmation,
 	getRemoveFromWorkflowLabel,
@@ -60,6 +61,7 @@ import {
 	getTransitionPublishConfirmTitle,
 	getTransitionPublishWarning,
 } from '../../entries/confirm-workflow-side-effect';
+import { useHasOtherEditorsOpen } from '../co-editing';
 import { refreshPostEntity } from '../refresh-post-entity';
 import {
 	REQUIRED_METADATA_LOCK,
@@ -156,6 +158,10 @@ export function WorkflowPanel( { children } ) {
 	// required-metadata.js for why the editor is allowed to re-decide this one
 	// lock, and only ever in the direction of releasing it.
 	const { transitions } = useRequiredMetadataGate();
+
+	// Whether someone else is in this post, which holds AI stages back (see
+	// co-editing.js).
+	const otherEditorsOpen = useHasOtherEditorsOpen( postId, postType );
 
 	const [ transitioning, setTransitioning ] = useState( false );
 
@@ -392,6 +398,17 @@ export function WorkflowPanel( { children } ) {
 		inputData = null,
 		comment = ''
 	) => {
+		const targetTransition = transitions.find( ( t ) => t.to === toStatus );
+		const targetIsAiStage =
+			!! targetTransition?.status_info?.agent?.ability_id;
+
+		// Refuse before saving anything: the agent's write and the shared
+		// editing session would overwrite each other (see co-editing.js).
+		if ( targetIsAiStage && otherEditorsOpen ) {
+			setActionError( getCoEditingRefusal() );
+			return;
+		}
+
 		setTransitioning( true );
 		setTransitioningTo( toStatus );
 		setActionError( null );
@@ -427,9 +444,6 @@ export function WorkflowPanel( { children } ) {
 		// Still narrowed rather than "save on every dirty transition": a
 		// transition that depends on neither leaves the author's unsaved work
 		// exactly where they left it.
-		const targetTransition = transitions.find( ( t ) => t.to === toStatus );
-		const targetIsAiStage =
-			!! targetTransition?.status_info?.agent?.ability_id;
 		const needsPersistedPost = targetIsAiStage || hasRequiredMetadata;
 		const editor = registry.select( editorStore );
 		const ensureSaved =
@@ -605,6 +619,13 @@ export function WorkflowPanel( { children } ) {
 		// Check if transition is locked
 		if ( transition._locked ) {
 			return; // Button should be disabled, but just in case
+		}
+
+		// Refuse before any confirm or assignment popover; handleTransition
+		// checks again for the paths that reach it directly.
+		if ( transition.status_info?.agent?.ability_id && otherEditorsOpen ) {
+			setActionError( getCoEditingRefusal() );
+			return;
 		}
 
 		// Moving the stage while a stage agent runs cancels that agent. The
