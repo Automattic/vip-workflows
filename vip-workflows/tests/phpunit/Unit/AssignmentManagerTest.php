@@ -23,6 +23,74 @@ class AssignmentManagerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // filter_transition_input — only declared keys survive
+    // -------------------------------------------------------------------------
+
+    /**
+     * The assignment's value, notes and their labels survive; every other key
+     * is dropped, including a retired note's `wfp_` keys.
+     */
+    public function test_filter_transition_input_keeps_only_the_assignment_keys(): void
+    {
+        $filtered = $this->manager->filter_transition_input(
+            array(
+                'to'     => 'review',
+                'inputs' => array(
+                    array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why' ),
+                    array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer', 'assignee_type' => 'user' ),
+                ),
+            ),
+            array(
+                'legal_reviewer'             => 7,
+                'legal_reviewer__name'       => 'Legal reviewer',
+                'legal_reviewer_notes'       => 'Check the claims.',
+                'legal_reviewer_notes__name' => 'Notes',
+                'wfp_n1_why'                 => 'Because.',
+                'wfp_n1_why__name'           => 'Why',
+                'other'                      => 'Arbitrary.',
+                'other__name'                => 'Other',
+            )
+        );
+
+        $this->assertSame(
+            array(
+                'legal_reviewer'             => 7,
+                'legal_reviewer__name'       => 'Legal reviewer',
+                'legal_reviewer_notes'       => 'Check the claims.',
+                'legal_reviewer_notes__name' => 'Notes',
+            ),
+            $filtered
+        );
+    }
+
+    /**
+     * A transition that declares no assignment — or no authored edge at all —
+     * accepts no input.
+     */
+    public function test_filter_transition_input_drops_everything_without_an_assignment(): void
+    {
+        $input = array(
+            'wfp_n1_why'     => 'Because.',
+            'legal_reviewer' => 7,
+        );
+
+        $this->assertSame(
+            array(),
+            $this->manager->filter_transition_input(
+                array(
+                    'to'     => 'review',
+                    'inputs' => array(
+                        array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why' ),
+                    ),
+                ),
+                $input
+            )
+        );
+        $this->assertSame(array(), $this->manager->filter_transition_input(array( 'to' => 'review' ), $input));
+        $this->assertSame(array(), $this->manager->filter_transition_input(null, $input));
+    }
+
+    // -------------------------------------------------------------------------
     // process_transition_input — finding the assignment in a list of inputs
     // -------------------------------------------------------------------------
 
@@ -224,5 +292,86 @@ class AssignmentManagerTest extends TestCase
         $this->manager->unassign(42, 'legal_reviewer');
 
         $this->assertSame(array(), $deleted);
+    }
+
+    // -------------------------------------------------------------------------
+    // assign — per-type on_assign handlers
+    // -------------------------------------------------------------------------
+
+    /**
+     * Answer the `vip_workflows_assignee_types` filter with the given handlers.
+     *
+     * @param array      $handlers Handlers keyed by assignee type.
+     * @param array|null $default  Filled with the value the manager passed in.
+     */
+    private function register_assignee_type_handlers( array $handlers, ?array &$default ): void
+    {
+        Functions\when('apply_filters')->alias(
+            function ($tag, $value) use ($handlers, &$default) {
+                if ('vip_workflows_assignee_types' !== $tag) {
+                    return $value;
+                }
+                $default = $value;
+                return $handlers;
+            }
+        );
+    }
+
+    /**
+     * An extension's `on_assign` handler, registered through the
+     * `vip_workflows_assignee_types` filter, runs with the post, the assigned
+     * value and the input config. The built-in types register none, so the
+     * filter starts empty.
+     */
+    public function test_assign_runs_the_on_assign_handler_for_its_type(): void
+    {
+        $written = array();
+        $this->capture_assignments($written);
+
+        $calls   = array();
+        $default = null;
+        $this->register_assignee_type_handlers(
+            array(
+                'team' => array(
+                    'on_assign' => function ($post_id, $value, $config) use (&$calls) {
+                        $calls[] = array( $post_id, $value, $config );
+                    },
+                ),
+            ),
+            $default
+        );
+
+        $config = array( 'meta_key' => 'desk', 'assignee_type' => 'team' );
+        $this->manager->assign(42, 'desk', 'news', 'team', $config);
+
+        $this->assertSame(array(), $default, 'Built-in types register no handler.');
+        $this->assertSame(array( array( 42, 'news', $config ) ), $calls);
+    }
+
+    /**
+     * A handler registered for another type does not run.
+     */
+    public function test_assign_runs_no_handler_for_a_type_without_one(): void
+    {
+        $written = array();
+        $this->capture_assignments($written);
+
+        $calls   = 0;
+        $default = null;
+        $this->register_assignee_type_handlers(
+            array(
+                'team' => array(
+                    'on_assign' => function () use (&$calls) {
+                        ++$calls;
+                    },
+                ),
+            ),
+            $default
+        );
+
+        $this->manager->assign(42, 'legal_reviewer', 7, 'user');
+
+        $this->assertSame(0, $calls);
+        $this->assertSame('user', $written['_vip_workflows_assignment_legal_reviewer']['type']);
     }
 }

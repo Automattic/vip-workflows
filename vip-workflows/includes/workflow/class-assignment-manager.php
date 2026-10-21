@@ -24,49 +24,6 @@ class AssignmentManager {
 	public const STATUS_COMPLETED = 'completed';
 	public const STATUS_EXPIRED   = 'expired';
 
-	/**
-	 * Get all registered assignee types.
-	 *
-	 * @return array
-	 */
-	public function get_assignee_types(): array {
-		$types = array(
-			'user'  => array(
-				'label'       => __( 'User', 'vip-workflows' ),
-				'description' => __( 'Assign to a specific user', 'vip-workflows' ),
-				'storage'     => 'user_id',
-			),
-			'role'  => array(
-				'label'       => __( 'Role', 'vip-workflows' ),
-				'description' => __( 'Assign to anyone with a specific role', 'vip-workflows' ),
-				'storage'     => 'role_slug',
-			),
-			'agent' => array(
-				'label'       => __( 'Agent', 'vip-workflows' ),
-				'description' => __( 'Assign to an automated agent/bot', 'vip-workflows' ),
-				'storage'     => 'agent_id',
-			),
-		);
-
-		/**
-		 * Filter registered assignee types.
-		 *
-		 * @param array $types Registered assignee types.
-		 */
-		return apply_filters( 'vip_workflows_assignee_types', $types );
-	}
-
-	/**
-	 * Get a specific assignee type configuration.
-	 *
-	 * @param  string $type Assignee type key.
-	 * @return array|null
-	 */
-	public function get_assignee_type( string $type ): ?array {
-		$types = $this->get_assignee_types();
-		return $types[ $type ] ?? null;
-	}
-
 	// =========================================================================
 	// Assignment CRUD
 	// =========================================================================
@@ -337,8 +294,36 @@ class AssignmentManager {
 		do_action( 'vip_workflows_assignment_expired', $post_id, $meta_key, $assignment );
 	}
 
+	/**
+	 * Complete the person-facing assignments of the stage a post is leaving.
+	 *
+	 * A transition's user or role assignment names who works the stage that
+	 * transition leads into, so it is done once the post moves on. Callers run
+	 * this on every stage change, before the moving transition captures its own
+	 * assignment, so a pending user or role slot always belongs to the post's
+	 * current stage.
+	 *
+	 * Agent slots are left alone: AgentRunner completes or expires those when
+	 * the agent finishes.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public function complete_on_stage_exit( int $post_id ): void {
+		foreach ( $this->get_all( $post_id ) as $meta_key => $assignment ) {
+			if ( self::STATUS_PENDING !== ( $assignment['status'] ?? null ) ) {
+				continue;
+			}
+
+			if ( ! in_array( $assignment['type'] ?? null, array( 'user', 'role' ), true ) ) {
+				continue;
+			}
+
+			$this->mark_completed( $post_id, (string) $meta_key );
+		}
+	}
+
 	// =========================================================================
-	// Shared Helpers (used by StatusManager)
+	// Transition input (used by StatusManager::transition())
 	// =========================================================================
 
 	/**
@@ -382,6 +367,48 @@ class AssignmentManager {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Keep only the input keys a transition declares.
+	 *
+	 * `input_data` arrives as a free-form map, and StatusManager stores it in
+	 * transition meta and writes every key into the audit log as a labelled
+	 * note. Only the transition's assignment input is collected, so only its
+	 * keys survive: the assignee under `meta_key`, the optional
+	 * `{meta_key}_notes`, and the `__name` label of each. Anything else —
+	 * a retired free-text note, a key the transition never declared — is
+	 * dropped before it can be stored or logged.
+	 *
+	 * @param  array|null $transition Transition config from sequence, or null when no authored edge applies.
+	 * @param  array      $input_data User-provided input data.
+	 * @return array The subset of `$input_data` the transition declares.
+	 */
+	public function filter_transition_input( ?array $transition, array $input_data ): array {
+		$inputs = $transition['inputs'] ?? array();
+
+		if ( ! is_array( $inputs ) ) {
+			return array();
+		}
+
+		$allowed = array();
+		foreach ( $inputs as $input_config ) {
+			if ( ! is_array( $input_config ) || 'assignment' !== ( $input_config['type'] ?? '' ) ) {
+				continue;
+			}
+
+			$meta_key = $input_config['meta_key'] ?? '';
+			if ( ! is_string( $meta_key ) || '' === $meta_key ) {
+				continue;
+			}
+
+			$allowed[] = $meta_key;
+			$allowed[] = $meta_key . '__name';
+			$allowed[] = $meta_key . '_notes';
+			$allowed[] = $meta_key . '_notes__name';
+		}
+
+		return array_intersect_key( $input_data, array_flip( $allowed ) );
 	}
 
 	/**
@@ -577,10 +604,23 @@ class AssignmentManager {
 			do_action( 'vip_workflows_agent_assigned', $post_id, $assignment['value'], $config );
 		}
 
-		// Custom type on_assign callback.
-		$type_handler = $this->get_assignee_type( $assignment['type'] );
-		if ( isset( $type_handler['on_assign'] ) && is_callable( $type_handler['on_assign'] ) ) {
-			call_user_func( $type_handler['on_assign'], $post_id, $assignment['value'], $config );
+		/**
+		 * Filter the per-assignee-type handlers run when an assignment is created.
+		 *
+		 * Keyed by assignee type (the `assignee_type` a sequence's assignment
+		 * input stores). Each entry's only read key is `on_assign`: a callable
+		 * receiving `( int $post_id, mixed $value, array $config )`. Nothing else
+		 * in an entry is read, and the built-in types register no handler.
+		 *
+		 * This is not a list of allowed types: an assignment input stores any
+		 * `assignee_type` string, whether or not it appears here.
+		 *
+		 * @param array $handlers Handlers keyed by assignee type.
+		 */
+		$handlers = apply_filters( 'vip_workflows_assignee_types', array() );
+		$handler  = $handlers[ $assignment['type'] ]['on_assign'] ?? null;
+		if ( is_callable( $handler ) ) {
+			call_user_func( $handler, $post_id, $assignment['value'], $config );
 		}
 	}
 }

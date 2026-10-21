@@ -26,10 +26,10 @@ import './TransitionAssignmentConfig.css';
  * literal id `default`, so the post advanced carrying an assignment that named
  * no agent at all. The option is withdrawn until a real agent picker exists.
  *
- * The server side is untouched — `AssignmentManager::get_assignee_types()` still
- * registers `agent`, and the `vip_workflows_assignee_types` filter can still add
- * more — so a sequence that already stores one keeps its stored shape. What is
- * gone is authoring a new one blind.
+ * A sequence that already stores `agent` keeps its stored shape: the server
+ * stores any `assignee_type` string an assignment input carries, without
+ * checking it against a list of known types. What is gone is authoring a new
+ * one blind.
  */
 const ASSIGNEE_TYPES = [
 	{ label: __( 'User', 'vip-workflows' ), value: 'user' },
@@ -40,12 +40,12 @@ const ASSIGNEE_TYPES = [
  * The type options to show for a transition, including one this build no longer
  * offers.
  *
- * A stored `agent` — or a type an out-of-tree `vip_workflows_assignee_types`
- * filter registered — matches no option, and a `<select>` whose value matches
- * nothing renders blank. Blank reads as "not set yet", which is exactly wrong:
- * the transition does carry a type, and silently drawing it as unset is how an
- * author overwrites it without knowing there was anything there. Appending it,
- * disabled, names what is stored and refuses to be re-picked once changed away.
+ * A stored `agent` — or any type an extension handles — matches no option, and
+ * a `<select>` whose value matches nothing renders blank. Blank reads as "not
+ * set yet", which is exactly wrong: the transition does carry a type, and
+ * silently drawing it as unset is how an author overwrites it without knowing
+ * there was anything there. Appending it, disabled, names what is stored and
+ * refuses to be re-picked once changed away.
  *
  * @param {string} assigneeType The transition's stored assignee type.
  * @return {Array<Object>} Options for the assignee type select.
