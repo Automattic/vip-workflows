@@ -203,10 +203,10 @@ const actions = {
 	/**
 	 * Take this post out of its workflow.
 	 *
-	 * Both surfaces that offer removal — the sidebar panel's footer and the
-	 * publish veto's escape hatch — come through here, so neither can leave the
-	 * other's view of the post behind. Unlike assignment, the route answers with
-	 * a bare `true`: the post's new state (no workflow, and the sequences it
+	 * Removal is offered by the Workflow row in the Summary panel
+	 * (WorkflowSummaryRows), and it comes through here so no reader of the
+	 * store is left drawing the workflow it deleted. Unlike assignment, the
+	 * route answers with a bare `true`: the post's new state (no workflow, and the sequences it
 	 * could now be started in) has to be read.
 	 */
 	removeWorkflow:

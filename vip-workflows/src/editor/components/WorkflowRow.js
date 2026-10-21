@@ -11,15 +11,29 @@
  * author or its publish date, so it reads as one row in both states.
  *
  * Picking is the whole gesture: there is no second button to press. Choosing a
- * DIFFERENT sequence is the consequential case and the panel confirms it first
+ * DIFFERENT sequence is the consequential case and the caller confirms it first
  * — re-assignment re-seats the post at the new sequence's region entry stage,
  * so it loses its place — which is why this component only reports the choice
  * and never performs it.
+ *
+ * Taking the post out of its workflow lives in the same popover, under the
+ * list. Choosing which workflow a post is in and taking it out of one are the
+ * same decision, so they are the same control rather than two ends of a panel.
+ * Like a choice, a removal is only reported: the caller confirms and performs
+ * it.
+ *
+ * A post whose sequence was deleted is still drawn as this row. Its value says
+ * the workflow is gone, the row wears the invalid state (the deleted identity is
+ * what holds every status change), and its popover offers the one way out —
+ * removal — instead of a list: re-assigning on top of a dangling identity would
+ * bury the broken state rather than clear it.
  */
 
-import { ComboboxControl } from '@wordpress/components';
+import { Button, ComboboxControl } from '@wordpress/components';
+import { Text } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
 
+import { getRemoveFromWorkflowLabel } from '../../common/confirm-workflow-side-effect';
 import { SidebarRow } from './SidebarRow';
 
 /**
@@ -40,14 +54,71 @@ const workflowLabel = () => __( 'Workflow', 'vip-workflows' );
  * @param {Function} root0.onSelect           Called with the chosen sequence
  *                                            id. Never called for the sequence
  *                                            the post is already in.
+ * @param {Function} root0.onRemove           Optional. Called when the
+ *                                            Remove button is pressed. Without
+ *                                            it the popover offers no way out —
+ *                                            the caller withholds it where the
+ *                                            workflow is enforced.
+ * @param {boolean}  root0.orphaned           Whether the post's sequence was
+ *                                            deleted out from under it.
  */
 export function WorkflowRow( {
 	sequence,
 	availableSequences,
 	disabled = false,
 	onSelect,
+	onRemove,
+	orphaned = false,
 } ) {
 	const label = workflowLabel();
+
+	// Closed first: the caller answers with a confirm dialog, and a modal
+	// opened over a popover that still holds focus fights it for the focus.
+	const renderRemove = ( onClose ) => (
+		<Button
+			className="vip-workflows-workflow-row__remove"
+			variant="secondary"
+			isDestructive
+			onClick={ () => {
+				onClose();
+				onRemove();
+			} }
+		>
+			{ getRemoveFromWorkflowLabel() }
+		</Button>
+	);
+
+	if ( orphaned ) {
+		return (
+			<SidebarRow
+				label={ label }
+				popoverLabel={ label }
+				accessibleName={ __(
+					'Workflow no longer exists',
+					'vip-workflows'
+				) }
+				valueLabel={ __( 'Deleted workflow', 'vip-workflows' ) }
+				emptyLabel={ __( 'Deleted workflow', 'vip-workflows' ) }
+				disabled={ disabled }
+				invalid
+				errorMessage={ __(
+					'This post belongs to a workflow that no longer exists, so its status cannot be changed.',
+					'vip-workflows'
+				) }
+				renderContent={ ( { onClose } ) => (
+					<>
+						<Text variant="body-md" render={ <p /> }>
+							{ __(
+								'Remove the post from it to edit it as an ordinary post.',
+								'vip-workflows'
+							) }
+						</Text>
+						{ renderRemove( onClose ) }
+					</>
+				) }
+			/>
+		);
+	}
 	const currentId = sequence?.id ? String( sequence.id ) : '';
 	const valueLabel = sequence?.name || '';
 
@@ -83,34 +154,42 @@ export function WorkflowRow( {
 			emptyLabel={ __( 'Select a workflow', 'vip-workflows' ) }
 			disabled={ disabled }
 			renderContent={ ( { onClose } ) => (
-				<ComboboxControl
-					__next40pxDefaultSize
-					__nextHasNoMarginBottom
-					label={ label }
-					// The popover header already names the row; a second copy
-					// of the word above the input says it twice.
-					hideLabelFromVision
-					value={ currentId }
-					options={ options }
-					// No `onFilterValueChange`: the whole list arrives with the
-					// status payload, and ComboboxControl already filters its
-					// own options by what is typed. The metadata user control
-					// wires that callback because its list lives on the server
-					// and every keystroke has to re-query it.
-					placeholder={ __( 'Search workflows…', 'vip-workflows' ) }
-					onChange={ ( selected ) => {
-						onClose();
+				<>
+					<ComboboxControl
+						__next40pxDefaultSize
+						__nextHasNoMarginBottom
+						label={ label }
+						// The popover header already names the row; a second copy
+						// of the word above the input says it twice.
+						hideLabelFromVision
+						value={ currentId }
+						options={ options }
+						// No `onFilterValueChange`: the whole list arrives with the
+						// status payload, and ComboboxControl already filters its
+						// own options by what is typed. The metadata user control
+						// wires that callback because its list lives on the server
+						// and every keystroke has to re-query it.
+						placeholder={ __(
+							'Search workflows…',
+							'vip-workflows'
+						) }
+						onChange={ ( selected ) => {
+							onClose();
 
-						// Clearing the input reports an empty value; so does
-						// re-picking the sequence the post is already in.
-						// Neither is a change to make.
-						if ( ! selected || selected === currentId ) {
-							return;
-						}
+							// Clearing the input reports an empty value; so does
+							// re-picking the sequence the post is already in.
+							// Neither is a change to make.
+							if ( ! selected || selected === currentId ) {
+								return;
+							}
 
-						onSelect( parseInt( selected, 10 ) );
-					} }
-				/>
+							onSelect( parseInt( selected, 10 ) );
+						} }
+					/>
+					{ /* At the bottom, below the list: leaving is the
+					     consequential end of the same decision. */ }
+					{ sequence && onRemove && renderRemove( onClose ) }
+				</>
 			) }
 		/>
 	);

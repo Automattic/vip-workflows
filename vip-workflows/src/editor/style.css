@@ -29,9 +29,9 @@
    nothing leaves no stray inset behind.
 
    There is no adjacent-sibling rule here any more. The sidebar holds one
-   section — the workflow panel — and the runs inside it (the metadata fields,
-   the panel's foot) each carry their own hairline, because they are the
-   panel's children rather than the sidebar's. */
+   section — the workflow panel — and the run inside it (the panel's foot)
+   carries its own hairline, because it is the panel's child rather than the
+   sidebar's. */
 .vip-workflows-sidebar > * {
 	padding: var(--wpds-dimension-padding-lg);
 }
@@ -142,27 +142,32 @@
    live in components/TransitionRail.css — one component for what used to be
    the actions column here plus the separate Tools card. */
 
-/* Metadata section. The fields themselves are a `<Stack direction="column">`
-   and every control opts out of its own bottom margin, so the gap is the whole
-   of their internal rhythm — nothing to set here.
-
-   The hairline above them is another matter. The section is nested inside the
-   workflow panel — it sits between the transition rail and the panel's foot, so
-   the two workflow-level buttons come last — which makes it the panel's child
-   rather than the sidebar's, out of reach of any sibling rule up top. It
-   carries its own, matching the foot below it, and no inset of its own,
-   because the panel around it already holds the sidebar's. Set on the section,
-   so a sequence with no fields renders nothing and leaves no rule behind. */
-.vip-workflows-metadata-panel {
-	padding-top: var(--wpds-dimension-padding-md);
-	/* wpds-allow R6 -- rule above the metadata fields; @wordpress/ui 0.9 ships no Divider and <Stack> exposes no border prop. */
-	border-top: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+/* The workflow's rows in the document sidebar's Summary panel
+   (components/WorkflowSummaryRows.js). `PluginPostStatusInfo` wraps its fill in
+   a `PanelRow` — a space-between flex row with its own top margin and minimum
+   height — which would set the rows' column beside empty space instead of
+   letting it take the panel's width the way core's own rows do. The rows carry
+   core's row metrics themselves (components/SidebarRow.css), so the wrapper is
+   reduced to a plain block. */
+/* wpds-allow R6 -- PluginPostStatusInfo exposes only a className for its PanelRow wrapper; its layout must be overridden here. */
+.components-panel__row.vip-workflows-post-summary {
+	display: block;
+	margin-top: 0;
+	min-height: 0;
 }
 
-/* The panel's foot: Show History, and the way out of the workflow. Ruled off
-   from the transition buttons above it — those move the post through the
-   sequence, these act on the sequence itself — and set full width like them so
-   the column reads as one set of controls rather than two shapes. */
+/* The way out of a workflow, at the foot of the Workflow row's popover, below
+   the list it shares the decision with. */
+/* wpds-allow R6 -- <Button> has no full-width prop; only its own class can be out-specified. */
+.vip-workflows-workflow-row__remove.components-button {
+	width: 100%;
+	justify-content: center; /* wpds-allow R4 -- re-centres the label in the widened Button; Button exposes no alignment prop. */
+}
+
+/* The panel's foot: Show history. Ruled off from the transition buttons above
+   it — those move the post through the sequence, this reads its record — and
+   set full width like them so the column reads as one set of controls rather
+   than two shapes. */
 .vip-workflows-panel__footer-actions {
 	padding-top: var(--wpds-dimension-padding-md);
 	/* wpds-allow R6 -- rule above the footer; @wordpress/ui 0.9 ships no Divider and <Stack> exposes no border prop. */
