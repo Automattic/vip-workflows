@@ -178,6 +178,13 @@ if ( $vipwf_is_integration ) {
     require_once __DIR__ . '/stubs/ai-client.php';
 
     /*
+     * VIP Real-Time Collaboration's editor connection count, which CoEditing
+     * reads when that plugin is active. Unit branch only, for the same reason
+     * as the AI client: under integration the real plugin may be loaded.
+     */
+    require_once __DIR__ . '/stubs/editor-connections.php';
+
+    /*
      * Shared ability-tool helper functions.
      *
      * Composer autoloads `includes/` by classmap, which resolves classes only —

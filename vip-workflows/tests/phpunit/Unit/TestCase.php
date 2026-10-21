@@ -125,6 +125,11 @@ abstract class TestCase extends YoastTestCase
         ( new \ReflectionProperty( \VIPWorkflows\Integrations\GuidelineContextProvider::class, 'reported' ) )
             ->setValue( null, array() );
 
+        // The editor connection count a test reported; a leftover count holds a
+        // later test's AI stage back.
+        \VIPRealTimeCollaboration\Presence\EditorConnections::$connections = 0;
+        \VIPRealTimeCollaboration\Presence\EditorConnections::$asked       = 0;
+
         // The shared Telemetry double a test installed; a leftover one would
         // record a later test's events.
         \VIPWorkflows\Telemetry\Tracker::set_telemetry( null );
@@ -238,24 +243,14 @@ abstract class TestCase extends YoastTestCase
 
     /**
      * Report a number of open editor connections through the
-     * `vip_workflows_editor_connections` filter (see CoEditing).
+     * VIP Real-Time Collaboration double (see tests/phpunit/stubs/editor-connections.php).
+     * `EditorConnections::$asked` counts how many times CoEditing read it.
      *
      * @param int $connections Connections to report.
-     * @return \ArrayObject Counts how many times the filter was asked, under 'asked'.
      */
-    protected function stub_editor_connections( int $connections ): \ArrayObject
+    protected function stub_editor_connections( int $connections ): void
     {
-        $calls = new \ArrayObject( array( 'asked' => 0 ) );
-        Functions\when( 'apply_filters' )->alias(
-            function ( $tag, $value ) use ( $connections, $calls ) {
-                if ( 'vip_workflows_editor_connections' === $tag ) {
-                    ++$calls['asked'];
-                    return $connections;
-                }
-                return $value;
-            }
-        );
-        return $calls;
+        \VIPRealTimeCollaboration\Presence\EditorConnections::$connections = $connections;
     }
 
     /**

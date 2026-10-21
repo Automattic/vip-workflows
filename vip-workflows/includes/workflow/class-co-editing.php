@@ -36,20 +36,9 @@ class CoEditing {
 	 * @return int
 	 */
 	public static function editor_connections( int $post_id ): int {
-		$connections = class_exists( '\VIPRealTimeCollaboration\Presence\EditorConnections' )
+		return class_exists( '\VIPRealTimeCollaboration\Presence\EditorConnections' )
 			? (int) \VIPRealTimeCollaboration\Presence\EditorConnections::get_count( $post_id )
 			: 0;
-
-		/**
-		 * Filters the number of editor connections open on a post.
-		 *
-		 * Lets another collaboration provider report its count. A stage agent
-		 * does not start while this is above 1.
-		 *
-		 * @param int $connections Open editor connections.
-		 * @param int $post_id     Post ID.
-		 */
-		return (int) apply_filters( 'vip_workflows_editor_connections', $connections, $post_id );
 	}
 
 	/**

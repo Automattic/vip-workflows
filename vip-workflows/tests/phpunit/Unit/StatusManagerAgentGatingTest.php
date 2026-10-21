@@ -412,7 +412,7 @@ class StatusManagerAgentGatingTest extends TestCase
         Functions\when( 'user_can' )->justReturn( true );
         Functions\when( 'get_post_status' )->justReturn( 'draft' );
         Functions\when( 'wp_update_post' )->justReturn( new \WP_Error( 'update_failed', 'stop here' ) );
-        $asked = $this->stub_editor_connections( 2 );
+        $this->stub_editor_connections( 2 );
 
         $manager = $this->gated_status_manager( $this->sequence_into_an_ai_stage() );
         $result  = $manager->transition(
@@ -426,7 +426,11 @@ class StatusManagerAgentGatingTest extends TestCase
 
         $this->assertInstanceOf( 'WP_Error', $result );
         $this->assertNotSame( 'co_editing', $result->get_error_code() );
-        $this->assertSame( 0, $asked['asked'], 'an agent hop is checked by the runner, not here' );
+        $this->assertSame(
+            0,
+            \VIPRealTimeCollaboration\Presence\EditorConnections::$asked,
+            'an agent hop is checked by the runner, not here'
+        );
     }
 
     /**
