@@ -61,7 +61,7 @@ import {
 	getTransitionPublishConfirmTitle,
 	getTransitionPublishWarning,
 } from '../../entries/confirm-workflow-side-effect';
-import { hasOtherEditorsOpen } from '../co-editing';
+import { useHasOtherEditorsOpen } from '../co-editing';
 import { refreshPostEntity } from '../refresh-post-entity';
 import {
 	REQUIRED_METADATA_LOCK,
@@ -158,6 +158,10 @@ export function WorkflowPanel( { children } ) {
 	// required-metadata.js for why the editor is allowed to re-decide this one
 	// lock, and only ever in the direction of releasing it.
 	const { transitions } = useRequiredMetadataGate();
+
+	// Whether someone else is in this post, which holds AI stages back (see
+	// co-editing.js).
+	const otherEditorsOpen = useHasOtherEditorsOpen( postId, postType );
 
 	const [ transitioning, setTransitioning ] = useState( false );
 
@@ -400,7 +404,7 @@ export function WorkflowPanel( { children } ) {
 
 		// Refuse before saving anything: the agent's write and the shared
 		// editing session would overwrite each other (see co-editing.js).
-		if ( targetIsAiStage && hasOtherEditorsOpen() ) {
+		if ( targetIsAiStage && otherEditorsOpen ) {
 			setActionError( getCoEditingRefusal() );
 			return;
 		}
@@ -619,10 +623,7 @@ export function WorkflowPanel( { children } ) {
 
 		// Refuse before any confirm or assignment popover; handleTransition
 		// checks again for the paths that reach it directly.
-		if (
-			transition.status_info?.agent?.ability_id &&
-			hasOtherEditorsOpen()
-		) {
+		if ( transition.status_info?.agent?.ability_id && otherEditorsOpen ) {
 			setActionError( getCoEditingRefusal() );
 			return;
 		}
