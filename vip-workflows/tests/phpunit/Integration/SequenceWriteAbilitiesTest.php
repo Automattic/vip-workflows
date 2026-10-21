@@ -659,9 +659,7 @@ class SequenceWriteAbilitiesTest extends TestCase
                     'metadata_fields' => array(
                         array( 'key' => 'x', 'label' => 'X', 'type' => 'bogus' ),
                     ),
-                    'phases' => array(
-                        array( 'key' => 'ideation', 'label' => 'Ideation' ),
-                    ),
+                    'phases' => $this->lifecycle_phases(),
                 ),
             )
         );
@@ -670,6 +668,73 @@ class SequenceWriteAbilitiesTest extends TestCase
         $this->assertCount( 1, $result['errors'] );
         $this->assertStringContainsString( 'invalid type', $result['errors'][0] );
         $this->assertNull( $result['normalized_config'] );
+    }
+
+    public function test_validate_refuses_a_phase_sequence_the_writer_refuses(): void
+    {
+        // Both phases, nothing joining them: the write gate refuses this, so the
+        // dry run that predicts it must too, with the same message.
+        $phases = array(
+            array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array() ),
+            array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+        );
+
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'type'   => 'phase',
+                'config' => array( 'phases' => $phases ),
+            )
+        );
+
+        $this->assertFalse( $result['valid'] );
+        $this->assertCount( 1, $result['errors'] );
+        $this->assertMatchesRegularExpression( '/ideation.+editorial/', $result['errors'][0] );
+        $this->assertNull( $result['normalized_config'] );
+
+        try {
+            ( new SequenceRepository() )->create( 'Bricked', 'bricked-lifecycle', '', array( 'phases' => $phases ), 1, 'phase' );
+            $this->fail( 'The repository stored a phase sequence the validator refused.' );
+        } catch ( \InvalidArgumentException $e ) {
+            $this->assertSame( $result['errors'][0], $e->getMessage() );
+        }
+    }
+
+    public function test_validate_offers_the_phase_config_the_writer_would_store(): void
+    {
+        $phases                     = $this->lifecycle_phases();
+        $phases[0]['transitions'][] = array( 'to' => 'archive', 'label' => 'Shelve' );
+
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'type'   => 'phase',
+                'config' => array( 'phases' => $phases ),
+            )
+        );
+
+        $this->assertTrue( $result['valid'] );
+        $this->assertSame( array(), $result['errors'] );
+        // The hand-off outside the phase graph is dropped, as on a save.
+        $this->assertSame(
+            array( 'editorial' ),
+            array_column( $result['normalized_config']['phases'][0]['transitions'], 'to' )
+        );
+    }
+
+    /**
+     * Phases carrying the lifecycle a phase sequence owes.
+     *
+     * @return array
+     */
+    private function lifecycle_phases(): array
+    {
+        return array(
+            array(
+                'key'         => 'ideation',
+                'label'       => 'Ideation',
+                'transitions' => array( array( 'to' => 'editorial', 'label' => 'Create draft' ) ),
+            ),
+            array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+        );
     }
 
     public function test_validate_names_a_rule_once_when_two_gates_apply_it(): void

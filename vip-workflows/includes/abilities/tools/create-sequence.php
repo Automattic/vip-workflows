@@ -216,10 +216,7 @@ function register_create_sequence(): void {
 												'type'        => 'boolean',
 												'description' => __( 'Whether to surface this transition in the queue.', 'vip-workflows' ),
 											),
-											'inputs'              => array(
-												'type'        => 'array',
-												'description' => __( 'Inputs collected during this transition. Only "assignment" inputs are collected, at most one per transition.', 'vip-workflows' ),
-											),
+											'inputs'              => \VIPWorkflows\API\SequencesController::get_transition_inputs_schema(),
 										),
 									),
 								),

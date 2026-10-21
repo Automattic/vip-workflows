@@ -654,13 +654,8 @@ export function WorkflowPanel( { children } ) {
 		}
 
 		/*
-		 * The assignment this transition asks for, if any.
-		 *
-		 * An assignment is the only input the sidebar collects. Anything else a
-		 * stored transition carries — a retired note (`textarea`, or the older
-		 * `text`), or a kind this build does not know — is passed over rather
-		 * than allowed to block the move; the sequence editor lists it for the
-		 * author to remove.
+		 * The assignment this transition asks for, if any. An assignment is the
+		 * only input a transition captures; the write gate refuses any other.
 		 */
 		const input = ( transition.inputs || [] ).find(
 			( candidate ) => 'assignment' === candidate?.type
