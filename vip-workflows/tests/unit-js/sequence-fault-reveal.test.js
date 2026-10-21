@@ -17,22 +17,24 @@
  * All three are the same promise, so they are pinned together here: the panel
  * opens and takes focus, and the canvas is told where to pan.
  *
- * The pan itself cannot run here — React Flow measures a viewport jsdom does
- * not lay out — so it is tested as the arithmetic it is (`canvas-reveal`), and
- * the editor is held to handing the canvas the request.
+ * The canvas is stubbed here, so the editor is held to handing it the request,
+ * and the pan is tested as the arithmetic it is (`canvas-reveal`). What the
+ * canvas does with the request is `graph-canvas-reveal.test.js`.
  *
  * @package
  */
 
+import { render, screen, fireEvent } from './helpers/render-wp-component';
 import {
-	act,
-	render,
-	screen,
-	fireEvent,
-	waitFor,
-} from './helpers/render-wp-component';
+	canvasReveals,
+	nameField,
+	renderSequenceEditor,
+	resetCanvas,
+	saveButton,
+	sequenceOptions,
+} from './helpers/sequence-editor';
 
-import apiFetch from '@wordpress/api-fetch';
+import { createRoot, useEffect, useState } from '@wordpress/element';
 
 import Inspector from '../../src/admin/components/graph/Inspector';
 import {
@@ -44,23 +46,10 @@ import { regionNodeId } from '../../src/admin/components/graph/graph-model';
 
 jest.mock( '@wordpress/api-fetch' );
 
-// Every reveal the canvas was handed, in order, deduplicated by identity: the
-// stub re-renders for reasons of its own (a keystroke in the panel), and a prop
-// arriving twice is still one instruction.
-let mockReveals = [];
-
 jest.mock(
 	'../../src/admin/components/graph/GraphCanvas',
-	() =>
-		function GraphCanvasStub( { reveal } ) {
-			if ( reveal && mockReveals[ mockReveals.length - 1 ] !== reveal ) {
-				mockReveals.push( reveal );
-			}
-			return <div data-testid="canvas" />;
-		}
+	() => require( './helpers/graph-canvas-stub' ).GraphCanvasStub
 );
-
-import SequenceGraphEditor from '../../src/admin/components/graph/SequenceGraphEditor';
 
 const heading = () => document.querySelector( '.wf-inspector__heading' );
 const body = () => document.querySelector( '.wf-inspector__body' );
@@ -97,24 +86,26 @@ const SEQUENCE_SETTINGS = {
 	deleting: false,
 };
 
+// The panel with the first stage selected, as a click on it leaves it.
+const INSPECTOR_PROPS = {
+	selection: { type: 'node', key: 'draft' },
+	isPhase: false,
+	stages: STAGES,
+	selectedStage: STAGES[ 0 ],
+	selectedTransition: null,
+	availableAgents: [],
+	availableRoles: [],
+	availableTools: [],
+	availableChannels: [],
+	onUpdateStage: () => {},
+	onDeleteStage: () => {},
+	onUpdateTransition: () => {},
+	onDeleteTransition: () => {},
+	sequenceSettings: SEQUENCE_SETTINGS,
+};
+
 function renderInspector( overrides = {} ) {
-	const props = {
-		selection: { type: 'node', key: 'draft' },
-		isPhase: false,
-		stages: STAGES,
-		selectedStage: STAGES[ 0 ],
-		selectedTransition: null,
-		availableAgents: [],
-		availableRoles: [],
-		availableTools: [],
-		availableChannels: [],
-		onUpdateStage: () => {},
-		onDeleteStage: () => {},
-		onUpdateTransition: () => {},
-		onDeleteTransition: () => {},
-		sequenceSettings: SEQUENCE_SETTINGS,
-		...overrides,
-	};
+	const props = { ...INSPECTOR_PROPS, ...overrides };
 	const view = render( <Inspector { ...props } /> );
 	return {
 		...view,
@@ -241,6 +232,10 @@ describe( 'a reveal opens the panel it selects into', () => {
 
 		update( { reveal: revealDraft() } );
 
+		// jsdom computes the name from `aria-labelledby` whatever the role,
+		// so the role is held to separately: a bare div is not something a
+		// screen reader announces by name.
+		expect( heading() ).toHaveAttribute( 'role', 'group' );
 		expect( heading() ).toHaveAccessibleName( 'Stage Draft' );
 	} );
 
@@ -285,6 +280,104 @@ describe( 'a reveal opens the panel it selects into', () => {
 		update( { reveal: revealDraft() } );
 
 		expect( body() ).not.toHaveAttribute( 'hidden' );
+	} );
+} );
+
+// --- The order the two halves run in ---------------------------------------
+
+// The canvas measures the room the panel leaves on the frame after a reveal.
+// The panel has to be open by then, or a docked panel is measured as the title
+// bar it was collapsed to and the fault lands behind it once it opens.
+//
+// Nothing above can see this: `act` flushes every update before it returns, so
+// an expansion queued as a later task looks as done as one committed with the
+// selection. This runs the way a browser does — a root with no `act`, a native
+// click, and a frame that arrives before any task React queues after it, which
+// is the order Chromium ran them in when the panel was expanded from a passive
+// effect and the canvas measured it collapsed.
+describe( 'the panel a reveal opens, as the canvas measures it', () => {
+	it( 'is open by the frame after the press', async () => {
+		const actEnvironment = global.IS_REACT_ACT_ENVIRONMENT;
+		const { requestAnimationFrame: raf, cancelAnimationFrame: caf } =
+			window;
+		const desktop = window.matchMedia;
+		const container = document.createElement( 'div' );
+		document.body.appendChild( container );
+		const root = createRoot( container );
+
+		global.IS_REACT_ACT_ENVIRONMENT = false;
+		window.requestAnimationFrame = ( callback ) => {
+			queueMicrotask( () => callback( performance.now() ) );
+			return 0;
+		};
+		window.cancelAnimationFrame = () => {};
+		// A phone, where the panel starts collapsed and docks along the bottom
+		// — the layout in which its height is what the canvas measures.
+		window.matchMedia = () => ( {
+			matches: true,
+			media: '',
+			onchange: null,
+			addListener: () => {},
+			removeListener: () => {},
+			addEventListener: () => {},
+			removeEventListener: () => {},
+			dispatchEvent: () => false,
+		} );
+
+		// Whether the panel was hidden, each time the canvas measured it.
+		const measured = [];
+
+		// The canvas's side, as `GraphCanvas` does it: a frame after the
+		// reveal arrives, read the panel.
+		function CanvasProbe( { reveal } ) {
+			useEffect( () => {
+				if ( ! reveal ) {
+					return;
+				}
+				const frame = window.requestAnimationFrame( () =>
+					measured.push( body().hidden )
+				);
+				return () => window.cancelAnimationFrame( frame );
+			}, [ reveal ] );
+			return null;
+		}
+
+		function Editor() {
+			const [ reveal, setReveal ] = useState( null );
+			return (
+				<>
+					<button
+						className="show"
+						onClick={ () => setReveal( revealDraft() ) }
+					>
+						Show stage
+					</button>
+					<Inspector { ...INSPECTOR_PROPS } reveal={ reveal } />
+					<CanvasProbe reveal={ reveal } />
+				</>
+			);
+		}
+
+		const nextTask = () =>
+			new Promise( ( resolve ) => setTimeout( resolve, 20 ) );
+
+		try {
+			root.render( <Editor /> );
+			await nextTask();
+			expect( body() ).toHaveAttribute( 'hidden' );
+
+			container.querySelector( '.show' ).click();
+			await nextTask();
+
+			expect( measured ).toEqual( [ false ] );
+		} finally {
+			root.unmount();
+			container.remove();
+			window.matchMedia = desktop;
+			window.requestAnimationFrame = raf;
+			window.cancelAnimationFrame = caf;
+			global.IS_REACT_ACT_ENVIRONMENT = actEnvironment;
+		}
 	} );
 } );
 
@@ -450,45 +543,22 @@ const sequence = () => ( {
 	},
 } );
 
-const OPTIONS = {
-	post_types: [ { value: 'post', label: 'Posts' } ],
-	phase_transitions: [],
-	required_phase_transitions: [],
-};
-
 beforeEach( () => {
-	mockReveals = [];
-	apiFetch.mockImplementation( ( { path } ) => {
-		if ( path === '/vip-workflows/v1/sequences/options' ) {
-			return Promise.resolve( OPTIONS );
-		}
-		if (
-			path.startsWith( '/vip-workflows/v1/abilities' ) ||
-			path === '/vip-workflows/v1/notifications/channels'
-		) {
-			return Promise.resolve( [] );
-		}
-		return Promise.resolve( sequence() );
-	} );
+	resetCanvas();
 } );
 
 afterEach( () => {
 	jest.clearAllMocks();
 } );
 
-const saveButton = () =>
-	screen.getByRole( 'button', { name: /^(Save|Saving…|Saved!)$/ } );
-const nameField = () => screen.getByRole( 'textbox', { name: /^Name/ } );
 const showTransition = () =>
 	screen.getByRole( 'button', { name: 'Show transition' } );
 
-async function renderEditor() {
-	render( <SequenceGraphEditor sequenceId={ 7 } onCancel={ () => {} } /> );
-	await waitFor( () => expect( saveButton() ).toBeInTheDocument() );
-	await act( async () => {
-		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+const renderEditor = () =>
+	renderSequenceEditor( {
+		sequence: sequence(),
+		options: sequenceOptions( { phase_transitions: [] } ),
 	} );
-}
 
 describe( 'the way a refused Save shows its fault', () => {
 	// Save is disabled until there is unsaved work, so it has to be given some
@@ -515,12 +585,12 @@ describe( 'the way a refused Save shows its fault', () => {
 	it( 'tells the canvas which transition to bring into view', async () => {
 		await renderEditor();
 		await pressSave();
-		expect( mockReveals ).toHaveLength( 0 );
+		expect( canvasReveals() ).toHaveLength( 0 );
 
 		fireEvent.click( showTransition() );
 
-		expect( mockReveals ).toHaveLength( 1 );
-		expect( mockReveals[ 0 ].target ).toMatchObject( {
+		expect( canvasReveals() ).toHaveLength( 1 );
+		expect( canvasReveals()[ 0 ].target ).toMatchObject( {
 			type: 'edge',
 			from: 'draft',
 			to: 'legal',
@@ -537,7 +607,8 @@ describe( 'the way a refused Save shows its fault', () => {
 		// One target, two requests. The canvas may have been panned away in
 		// between, so the second press has to arrive as a fresh instruction
 		// rather than as an unchanged prop.
-		expect( mockReveals ).toHaveLength( 2 );
-		expect( mockReveals[ 1 ] ).not.toBe( mockReveals[ 0 ] );
+		expect( canvasReveals() ).toHaveLength( 2 );
+		const [ first, second ] = canvasReveals();
+		expect( second ).not.toBe( first );
 	} );
 } );
