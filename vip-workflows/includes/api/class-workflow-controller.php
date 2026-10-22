@@ -1491,9 +1491,9 @@ class WorkflowController extends WP_REST_Controller {
 	 * Get all active work items for current user.
 	 *
 	 * Returns posts where the user is involved (author, claimed, or has a pending
-	 * assignment), at any stage of any sequence — including terminal stages such
-	 * as Published, so a post does not vanish from an author's own work list the
-	 * moment it ships.
+	 * assignment) and that the user can read, at any stage of any sequence —
+	 * including terminal stages such as Published, so a post does not vanish
+	 * from an author's own work list the moment it ships.
 	 *
 	 * Every row carries two independent pairs, as the calendar endpoint does:
 	 * the workflow stage (`status_label` / `status_color`), which is NULL for a
@@ -1553,6 +1553,18 @@ class WorkflowController extends WP_REST_Controller {
 				}
 
 				foreach ( $posts as $post ) {
+					// Involvement selected the row; it does not grant access to it.
+					// A transition can assign anyone, and a claim or an authorship
+					// can outlive the rights it was made with, so the row is also
+					// checked against the post. `read_post`, not `edit_post`: an
+					// author's post stays in their list after it publishes, and a
+					// Contributor can read their own published post but not edit
+					// it. The second pass below is author-scoped at the query, so
+					// only this one needs the check.
+					if ( ! current_user_can( 'read_post', $post->ID ) ) {
+						continue;
+					}
+
 					$claimed_by_id = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
 
 					$featured_image_url = get_the_post_thumbnail_url( $post->ID, 'medium' );

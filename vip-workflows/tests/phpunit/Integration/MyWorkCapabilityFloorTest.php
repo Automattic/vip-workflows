@@ -116,10 +116,19 @@ class MyWorkCapabilityFloorTest extends TestCase {
 	 *
 	 * The counterweight: `edit_posts` is the floor, not `edit_others_posts`.
 	 * This route is deliberately about the caller's own involvement, and the
-	 * lowest editorial role has to keep reaching it.
+	 * lowest editorial role has to keep reaching it. Their own work here is a
+	 * draft they wrote and claimed: a row is only served for a post its reader
+	 * can read, and a Contributor cannot read another author's draft
+	 * (`MyWorkPerObjectGateTest`).
 	 */
 	public function test_contributor_still_reaches_their_own_work(): void {
 		$contributor = (int) self::factory()->user->create( array( 'role' => 'contributor' ) );
+		wp_update_post(
+			array(
+				'ID'          => $this->post_id,
+				'post_author' => $contributor,
+			)
+		);
 		update_post_meta( $this->post_id, '_vip_workflows_assigned_to', $contributor );
 
 		$response = $this->work_as( $contributor );

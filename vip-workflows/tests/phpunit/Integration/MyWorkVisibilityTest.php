@@ -30,6 +30,11 @@ class MyWorkVisibilityTest extends TestCase {
 	/**
 	 * User whose work is requested.
 	 *
+	 * An Editor: the claim and the assignment below are on another user's
+	 * drafts, and a row is only served for a post its reader can read
+	 * (`MyWorkPerObjectGateTest` pins that rule). The pagination case uses
+	 * this user's own posts, which any role can read.
+	 *
 	 * @var int
 	 */
 	private int $author_id;
@@ -51,7 +56,7 @@ class MyWorkVisibilityTest extends TestCase {
 
 		$admin = (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
 		wp_set_current_user( $admin );
-		$this->author_id = (int) self::factory()->user->create( array( 'role' => 'author' ) );
+		$this->author_id = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
 		$this->other_id  = (int) self::factory()->user->create( array( 'role' => 'author' ) );
 
 		$sequence_id = ( new SequenceRepository() )->create(

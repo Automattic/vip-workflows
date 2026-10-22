@@ -390,3 +390,45 @@ $transition_data = get_post_meta($post_id, '_vip_workflows_transition_data', tru
 $review_history = $transition_data['review'] ?? [];
 // Each entry has: timestamp, user_id, user_name, notes[]
 ```
+
+### 13. Authorizing a List Response
+
+A `permission_callback` answers "may this user use this feature". It does not
+answer "may this user see this row". A route or ability that lists posts is
+gated once for the feature and then checks every row it serializes, because the
+query that selected the row — a stage, an assignment, a claim, a story link —
+says nothing about who may see it.
+
+Three mechanisms exist; new surfaces use these rather than a new one.
+
+| Surface | Check | Where it runs |
+|---|---|---|
+| A post the caller will act on (queue, kanban, calendar, the post-scoped tools) | `current_user_can( 'edit_post', $post->ID )` per row | `WorkflowController::get_my_queue()`, `get_kanban_data()`, `get_calendar_data()`; `get-posts-by-status`, `get-stale-posts`, `get-my-assignments`, `get-recent-activity` |
+| A post the caller only sees named (my-work, audit log, a story's objects) | `current_user_can( 'read_post', $post->ID )` per row | `WorkflowController::get_my_work()`, `AuditLogController::enrich_event()`, `Story::to_array()` |
+| A count over posts | `StageQuery::author_scope_for_current_user()` passed to `counts_by_stage()` | `get-workflow-summary`, `GET /sequences/{id}/stats`, the dashboard widget |
+| One post named in the input of an ability | `require_post_edit_permission( $post_id )` in the execute callback | Every post-scoped tool (see pattern 4) |
+
+`read_post` is the floor for a listing: for a draft, pending or scheduled post
+core maps it to `edit_others_posts` for anyone but the author, and an author can
+read their own published post even when their role cannot edit it. `edit_post`
+is the floor where the row offers an action. A count is scoped rather than
+filtered: a caller below `edit_others_posts` counts their own posts, the scope
+core gives the per-status counts on `edit.php`.
+
+```php
+foreach ( $query->posts as $post ) {
+    // The route gate said the caller may use this feature. This says whether
+    // they may see this post.
+    if ( ! current_user_can( 'read_post', $post->ID ) ) {
+        continue;
+    }
+
+    $items[] = array( 'post_id' => $post->ID, 'title' => $post->post_title );
+}
+```
+
+Each surface carries a test with a caller who holds the feature capability and
+no access to the row — a Contributor or an Author and another user's draft —
+and a counterweight with a caller who holds both. `MyQueuePerObjectGateTest`,
+`MyWorkPerObjectGateTest`, `StoryObjectsVisibilityTest` and
+`WorkflowSummaryScopeTest` are the shape.
