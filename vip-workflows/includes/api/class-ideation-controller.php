@@ -406,7 +406,10 @@ class IdeationController extends WP_REST_Controller {
 					'per_page' => array(
 						'type'              => 'integer',
 						'default'           => 10,
+						'minimum'           => 1,
+						'maximum'           => 50,
 						'sanitize_callback' => 'absint',
+						'validate_callback' => 'rest_validate_request_arg',
 					),
 					'author' => array(
 						'type'    => 'string',
