@@ -191,6 +191,9 @@ CREATE TABLE wp_vip_ideation_sources (
 `source_id` is derived from the card, not random: a truncated SHA-1 over the
 project id, the producing `ability_id` (null for a manually added source), and
 either the URL or — for generated content that has none — the title plus body.
+A `url` or `image` that is not an absolute `http://` or `https://` address is
+not stored, and a card whose URL was not stored is identified as a card that
+has none.
 That makes `project_source` the deduplication mechanism, so re-running an
 assistant lands on the rows it created last time instead of inserting a second
 set. Existing rows are never refreshed on a re-run, because notes and pin state

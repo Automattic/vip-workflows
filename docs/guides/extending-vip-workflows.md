@@ -158,6 +158,26 @@ if ( ! assistant.ability_ids?.includes( 'my-plugin/my-ability' ) ) {
 
 Nothing persists an entry slug — settings write through to ability IDs and provider slugs — so there is no data migration, and there is deliberately **no legacy-slug alias**: that would be fallback code, which this project does not ship. Two entries claiming one slug now raises a `_doing_it_wrong` notice instead of failing silently.
 
+### Card and prompt addresses must be `http` or `https`
+
+A research agent's cards and a discovery provider's story prompts carry addresses that the admin renders as links and images. Those addresses are now checked before they are stored.
+
+| Field | Checked when | A value that is not an absolute `http://` or `https://` address |
+|---|---|---|
+| Card `url`, `image`, `thumbnail` | a research run, or an image generation, stores its cards | becomes `null`; the card is kept |
+| Prompt `url`, `meta.links[].url` | an editor selects the prompt | becomes `null`, before the `seed` callback runs and before the prompt is stored |
+
+A media provider's `url`, `source_url` and `thumbnail` become those card fields, so the same rule applies to them. `''` and `null` mean "none" and are left as they are. An accepted address is stored as a browser reads it: without spaces or control characters at its ends, and without tabs or newlines inside it.
+
+**Why.** The scheme decides what activating a link does, and a `javascript:` or `data:` address can arrive in a provider's payload or in a page that a provider scraped. The admin screens refuse such an address when they render, and that guard stays. But a stored value outlives the screen that renders it today, so each new reader would have to remember the guard.
+
+**What to do.** Return absolute addresses. A relative path (`/2026/story/`), a protocol-relative address (`//cdn.example/x.jpg`), `mailto:` and `data:` are all dropped. Two effects to know about:
+
+- A card that loses its `url` is identified by `title` plus `content`, as any card with no URL is. Two such cards with the same title and body become one stored source.
+- A `seed` callback can receive `null` in `$prompt['url']` and in a link's `url`. Read them as `(string) ( $prompt['url'] ?? '' )`.
+
+When an address is dropped, one line in the PHP error log names the agent or the provider and says how many were dropped; the address itself is not logged. There is no migration: sources and prompts stored before this change keep their values.
+
 ## Good citizen rules
 
 - Every extension plugin must declare `Requires Plugins: vip-workflows`.

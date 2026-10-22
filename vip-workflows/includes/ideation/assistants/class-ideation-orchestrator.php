@@ -21,6 +21,7 @@ use VIPWorkflows\Abilities\AbilitySettings;
 use VIPWorkflows\API\AvailabilitySerializer;
 use VIPWorkflows\Ideation\Research\IdeationPostTypes;
 use VIPWorkflows\Integrations\GuidelineContextProvider;
+use VIPWorkflows\Integrations\SafeUrl;
 use VIPWorkflows\Story\Story;
 
 /**
@@ -47,6 +48,14 @@ class IdeationOrchestrator {
 	 * this prefix.
 	 */
 	private const BOARD_CARD_ID_PREFIX = 'board-';
+
+	/**
+	 * Card fields that hold an address the board renders as a link or an image.
+	 *
+	 * `thumbnail` has no column of its own: it stands in for a missing `image`,
+	 * and is kept inside the `ai_analysis` JSON.
+	 */
+	private const CARD_URL_FIELDS = array( 'url', 'image', 'thumbnail' );
 
 	private const CACHE_TTL = 3600;
 
@@ -219,8 +228,17 @@ class IdeationOrchestrator {
 	 * @param array $result     A completed Seed Analyst result.
 	 */
 	private function commit_seed_analysis( int $project_id, array $result ): void {
+		/*
+		 * Both values are slashed, because `update_post_meta()` removes backslashes
+		 * from the value it is given. The text here is what a model wrote, and a
+		 * model quotes a headline often. Unslashed, one double quote makes the
+		 * stored JSON unreadable: the project then has no board, and its state
+		 * cannot be assembled. Text written for the purpose is read as more keys
+		 * of a board card instead — a `type` that the board shows with a link, and
+		 * the `url` of that link, which no check has seen.
+		 */
 		$seed_analysis = $result['meta'] ?? array();
-		update_post_meta( $project_id, self::META_SEED_ANALYSIS, wp_json_encode( $seed_analysis ) );
+		update_post_meta( $project_id, self::META_SEED_ANALYSIS, wp_slash( wp_json_encode( $seed_analysis ) ) );
 
 		$board_cards = array();
 		foreach ( $result['cards'] ?? array() as $card ) {
@@ -229,7 +247,7 @@ class IdeationOrchestrator {
 				$board_cards[]   = $card;
 			}
 		}
-		update_post_meta( $project_id, self::META_BOARD_CARDS, wp_json_encode( $board_cards ) );
+		update_post_meta( $project_id, self::META_BOARD_CARDS, wp_slash( wp_json_encode( $board_cards ) ) );
 
 		$suggested_title = $seed_analysis['suggested_title'] ?? '';
 		if ( ! empty( $suggested_title ) ) {
@@ -398,8 +416,9 @@ class IdeationOrchestrator {
 
 		$cache_key = 'vip_ideation_' . $assistant_id . '_' . md5( $seed . ( $query ?? '' ) );
 		$cached    = get_transient( $cache_key );
+		$is_cached = false !== $cached && is_array( $cached );
 
-		if ( false !== $cached && is_array( $cached ) ) {
+		if ( $is_cached ) {
 			$raw_output  = $cached;
 			$duration_ms = 0;
 		} else {
@@ -426,14 +445,22 @@ class IdeationOrchestrator {
 				$this->update_assistant_meta( $project_id, $assistant_id, $result );
 				return $result;
 			}
-
-			if ( ! empty( $raw_output['cards'] ) ) {
-				set_transient( $cache_key, $raw_output, self::CACHE_TTL );
-			}
 		}
 
-		$cards   = $raw_output['cards'] ?? array();
+		/*
+		 * The one place a run takes its cards from the provider's output, so the
+		 * one place their addresses are checked before anything keeps them. The
+		 * cache below, the sources table, the project meta, and the result handed
+		 * back to the screen all read `$cards` from here. A cache hit passes
+		 * through as well, which covers output cached before this check existed.
+		 */
+		$cards   = self::cards_with_web_urls( $raw_output['cards'] ?? array(), $project_id, $assistant_id );
 		$summary = $raw_output['summary'] ?? '';
+
+		if ( ! $is_cached && ! empty( $cards ) ) {
+			$raw_output['cards'] = $cards;
+			set_transient( $cache_key, $raw_output, self::CACHE_TTL );
+		}
 
 		if ( ! empty( $cards ) ) {
 			$this->store_cards_as_sources( $project_id, $cards, get_current_user_id(), $assistant_id );
@@ -684,7 +711,15 @@ class IdeationOrchestrator {
 	 */
 	private function update_assistant_meta( int $project_id, string $assistant_id, array $result ): void {
 		$key = self::META_ASSISTANT_PREFIX . self::sanitize_meta_key( $assistant_id );
-		update_post_meta( $project_id, $key, wp_json_encode( $result ) );
+
+		/*
+		 * Slashed, because `update_post_meta()` removes backslashes from the value
+		 * it is given. Unslashed JSON loses the escape on every double quote, so a
+		 * quote in a card's text makes the result unreadable, and text written for
+		 * the purpose is read as more keys of the card — a second `url` among them,
+		 * in place of the one that was checked.
+		 */
+		update_post_meta( $project_id, $key, wp_slash( wp_json_encode( $result ) ) );
 	}
 
 	/**
@@ -1049,6 +1084,82 @@ class IdeationOrchestrator {
 	}
 
 	/**
+	 * A card with only web addresses in its link and image fields.
+	 *
+	 * A card is built from a provider's payload, and these fields are rendered as
+	 * link and image targets wherever the card is shown. One that is not an
+	 * `http` or `https` address is emptied rather than passed on. The card itself
+	 * is kept: a result is still worth reading without its link, and discarding
+	 * it whole would lose a usable source to one bad field.
+	 *
+	 * An empty string is how a provider writes "no link" or "no image". It is not
+	 * an address that failed the check, so it is left as the provider sent it.
+	 *
+	 * @param  array $card Card as the provider returned it.
+	 * @return array
+	 */
+	private static function card_with_web_urls( array $card ): array {
+		foreach ( self::CARD_URL_FIELDS as $field ) {
+			if ( isset( $card[ $field ] ) && '' !== $card[ $field ] ) {
+				$card[ $field ] = SafeUrl::http_or_null( $card[ $field ] );
+			}
+		}
+
+		return $card;
+	}
+
+	/**
+	 * A batch of cards with only web addresses in their link and image fields.
+	 *
+	 * This is the form that says when it removed something. A card that lost its
+	 * link looks the same on the board as one that never had a link, and two cards
+	 * that lost theirs can be one source afterwards (see card_identity()), so
+	 * without a line here nothing records that the provider sent addresses that
+	 * were not kept. One line for the batch, and without the addresses: they are
+	 * the part of the payload that was not trusted.
+	 *
+	 * @param  array       $cards      Cards as the provider returned them.
+	 * @param  int         $project_id Ideation project post ID.
+	 * @param  string|null $ability_id Ability that produced the cards.
+	 * @return array
+	 */
+	private static function cards_with_web_urls( array $cards, int $project_id, ?string $ability_id ): array {
+		$removed = array();
+
+		foreach ( $cards as $key => $card ) {
+			$checked = self::card_with_web_urls( $card );
+
+			foreach ( self::CARD_URL_FIELDS as $field ) {
+				if ( isset( $card[ $field ] ) && ! isset( $checked[ $field ] ) ) {
+					$removed[ $field ] = ( $removed[ $field ] ?? 0 ) + 1;
+				}
+			}
+
+			$cards[ $key ] = $checked;
+		}
+
+		if ( ! empty( $removed ) ) {
+			$fields = array();
+			foreach ( $removed as $field => $count ) {
+				$fields[] = $field . ': ' . $count;
+			}
+
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- a provider's addresses were not kept; worth surfacing.
+			error_log(
+				sprintf(
+					'[VIP Workflows] Removed %d card address(es) that are not http or https (project %d, agent %s; %s).',
+					array_sum( $removed ),
+					$project_id,
+					(string) $ability_id,
+					implode( ', ', $fields )
+				)
+			);
+		}
+
+		return $cards;
+	}
+
+	/**
 	 * Store cards as research sources.
 	 *
 	 * Cards now declare their own source_type and origin. Falls back
@@ -1064,6 +1175,14 @@ class IdeationOrchestrator {
 
 		$table = $wpdb->prefix . 'vip_ideation_sources';
 		$now   = current_time( 'mysql' );
+
+		/*
+		 * Checked here as well as where a run takes its cards from the provider,
+		 * so that no caller can reach the insert with an address that skipped the
+		 * check. Before any identity is derived, so a card whose URL is removed is
+		 * identified by what is left of it — which is also what gets stored.
+		 */
+		$cards = self::cards_with_web_urls( $cards, $project_id, $ability_id );
 
 		/*
 		 * Identities already handled in THIS batch. The existence check below reads

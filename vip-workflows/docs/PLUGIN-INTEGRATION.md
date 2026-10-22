@@ -245,6 +245,8 @@ array(
 )
 ```
 
+`url`, `source_url` and `thumbnail` must be absolute `http://` or `https://` addresses. They become a card's `url`, `image` and `thumbnail`, and any other value that is not empty is dropped (stored as `null`) when the card is stored.
+
 #### Registering a Provider
 
 ```php

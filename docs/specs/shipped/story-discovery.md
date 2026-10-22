@@ -220,6 +220,8 @@ Returns the search filter definitions for a provider. For providers with `dynami
 **`POST /vip-workflows/v1/discovery/select`**
 Called when an editor selects a prompt. Body: `{ provider, prompt_id, prompt_data }`. Calls the provider's `seed` callback to generate a seed string, then delegates to the existing ideation seed flow (`IdeationOrchestrator::create_from_seed()`). Returns the new project state, same as `POST /vip-workflows/v1/ideation/seed`. Additionally stores the full prompt data as project meta (`_vip_discovery_prompt`) before delegating, so the structured context is available to research assistants and the mentor downstream. This storage happens in the select handler, not in `create_from_seed()`, keeping the core seed flow unaware of discovery.
 
+**Amended:** the prompt is checked before the `seed` callback receives it and before it is stored. `url` and each `meta.links[].url` are kept only when they are absolute `http://` or `https://` addresses; any other value that is not empty becomes `null`. The rest of the prompt is stored as sent.
+
 ---
 
 ## Landing Page UI

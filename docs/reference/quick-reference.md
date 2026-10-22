@@ -273,7 +273,7 @@ Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 **Media Providers** (image/video sources for ideation):
 - Implement `MediaProviderInterface` (get_id, get_name, is_configured, is_generative, search_media)
 - Register via `vip_workflows_media_providers` filter
-- Return standardized result arrays with `url`, `title`, `media_type`, `thumbnail`, `provider`, etc.
+- Return standardized result arrays with `url`, `title`, `media_type`, `thumbnail`, `provider`, etc. Addresses (`url`, `source_url`, `thumbnail`) must be absolute `http://` or `https://`; anything else is dropped when the card is stored
 - Non-generative providers run automatically; generative run on-demand
 - Built-in provider keys come from `VIPWorkflows\AI\Credentials` (core Settings → Connectors, or a `VIP_WORKFLOWS_*_KEY` constant). Third-party providers read their own key from a `wp-config.php` constant.
 - Optionally implement `MediaProviderRequirements::get_unmet_requirement()` (built with `RequirementFactory`) so an unconfigured provider can explain why, instead of Media Scout reporting a bare "unavailable"
