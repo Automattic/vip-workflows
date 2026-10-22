@@ -17,7 +17,11 @@ use Brain\Monkey\Functions;
 use VIPWorkflows\Abilities\Agents\StageAgent;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/agents/class-stage-agent.php';
+require_once dirname( __DIR__, 3 ) . '/includes/integrations/class-hourly-limit.php';
 
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+    define( 'MINUTE_IN_SECONDS', 60 );
+}
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
     define( 'HOUR_IN_SECONDS', 3600 );
 }
@@ -128,7 +132,8 @@ class StageAgentRateLimitTest extends TestCase
         $blocked = $this->invoke_rate_limit();
         $this->assertInstanceOf( \WP_Error::class, $blocked );
         $this->assertSame( 'vip_workflows_ai_rate_limited', $blocked->get_error_code() );
-        $this->assertSame( array( 'status' => 429 ), $blocked->get_error_data() );
+        $this->assertSame( 429, $blocked->get_error_data()['status'] );
+        $this->assertLessThanOrEqual( HOUR_IN_SECONDS, $blocked->get_error_data()['retry_after'] );
     }
 
     /**

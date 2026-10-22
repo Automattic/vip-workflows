@@ -28,6 +28,16 @@ class SsrfGuard {
 	 * (OpenAI hosts for DALL-E / gpt-image). Adding a new domain is a
 	 * security-review change.
 	 */
+	/**
+	 * Most bytes of a body that an open-web fetch reads into memory: 5 MB.
+	 *
+	 * The server that answers remote_get_validated() is the one the caller
+	 * named, and the extractors that read the body need the head of a page or
+	 * its readable text, so the read stops here and a longer body is cut.
+	 * A caller passes its own `limit_response_size` to change it.
+	 */
+	public const MAX_RESPONSE_BYTES = 5242880;
+
 	public const DEFAULT_ALLOWED_HOSTS = array(
 		'oaidalleapiprodscus.blob.core.windows.net',
 		'cdn.openai.com',
@@ -154,6 +164,8 @@ class SsrfGuard {
 	 * 2. redirection => 0 is forced via a scoped http_request_args filter so
 	 *    a server cannot 30x to a private-IP target after passing validation —
 	 *    defeating DNS-rebinding via redirect chains.
+	 * 3. The body read into memory stops at MAX_RESPONSE_BYTES unless the
+	 *    caller sets its own `limit_response_size`.
 	 *
 	 * Rejections are logged; the URL is omitted from the log to avoid leaking
 	 * attacker-controlled payloads.
@@ -187,6 +199,8 @@ class SsrfGuard {
 			$request_args['redirection'] = 0;
 			return $request_args;
 		};
+
+		$args = array_merge( array( 'limit_response_size' => self::MAX_RESPONSE_BYTES ), $args );
 
 		add_filter( 'http_request_args', $filter, PHP_INT_MAX, 2 );
 		try {

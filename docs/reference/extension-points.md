@@ -430,3 +430,31 @@ silently defeat the one that follows.
 
 **It fires on `recommend` only, not on `search`.** Prompts returned by the search modal
 do not carry anything a listener adds here.
+
+### 11. Hourly Ceilings
+
+Each action that spends an external service has a ceiling per account and per hour,
+and a request over it is refused with a 429 whose message says when to try again. A site
+changes a ceiling with the filter `vip_workflows_{action}_hourly_limit`, which receives
+the default and the subject (a user ID, or a project ID for a per-project action).
+Returning 0 switches that ceiling off.
+
+| Action | Default | Counts |
+|---|---|---|
+| `discovery_search` | 120 per account | A search the cache cannot answer, so one provider call |
+| `image_generation` | 30 per account | A request to generate an image |
+| `project_image_generation` | 20 per project | The same request, counted for the project |
+| `ai` | off (0) | An interactive stage-agent run; cron runs are never counted |
+
+```php
+// Allow a newsroom's photo desk more generated images, and nobody else.
+add_filter( 'vip_workflows_image_generation_hourly_limit', function ( int $limit, int $user_id ): int {
+    return user_can( $user_id, 'upload_files' ) ? 100 : $limit;
+}, 10, 2 );
+```
+
+The hour starts at the subject's first use and the count is dropped when it ends.
+`vip_workflows_hourly_limit_reached` fires with the action, the subject and the ceiling
+each time a request is refused, for a site that logs or alerts on it; the same refusal
+is recorded as the `hourly_limit_reached` telemetry event where the VIP Telemetry
+library is loaded.

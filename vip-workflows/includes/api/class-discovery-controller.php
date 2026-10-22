@@ -14,6 +14,7 @@ namespace VIPWorkflows\API;
 
 use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
+use VIPWorkflows\Integrations\HourlyLimit;
 use WP_REST_Controller;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -24,6 +25,19 @@ use WP_Error;
  * Discovery Controller.
  */
 class DiscoveryController extends WP_REST_Controller {
+
+	/**
+	 * Most characters in a search text.
+	 */
+	private const MAX_SEARCH_TEXT_LENGTH = 500;
+
+	/**
+	 * Searches an account may send to a provider in an hour, by default.
+	 *
+	 * Only a search the cache cannot answer counts. The filter
+	 * `vip_workflows_discovery_search_hourly_limit` changes it; 0 switches it off.
+	 */
+	private const DEFAULT_SEARCHES_PER_HOUR = 120;
 
 	/**
 	 * REST namespace.
@@ -106,7 +120,11 @@ class DiscoveryController extends WP_REST_Controller {
 					),
 					'text' => array(
 						'type'              => 'string',
+						'maxLength'         => self::MAX_SEARCH_TEXT_LENGTH,
 						'sanitize_callback' => 'sanitize_text_field',
+						// A `sanitize_callback` switches off the default validation,
+						// which is what applies `maxLength`.
+						'validate_callback' => 'rest_validate_request_arg',
 					),
 					'filters' => array(
 						'type' => 'string',
@@ -300,6 +318,17 @@ class DiscoveryController extends WP_REST_Controller {
 
 		if ( false !== $cached ) {
 			return new WP_REST_Response( $cached );
+		}
+
+		// A search the cache cannot answer calls the provider and leaves a
+		// cache entry, so each account gets so many of them an hour.
+		$allowed = HourlyLimit::spend(
+			'discovery_search',
+			self::DEFAULT_SEARCHES_PER_HOUR,
+			__( 'This account has reached its hourly limit for discovery searches.', 'vip-workflows' )
+		);
+		if ( is_wp_error( $allowed ) ) {
+			return $allowed;
 		}
 
 		try {
