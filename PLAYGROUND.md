@@ -18,4 +18,21 @@ Trunk moves daily, so this environment is deliberately not reproducible between 
 
 Open the printed URL. Playground logs you in as `admin` and lands on the Workflows dashboard.
 
+## Pull request previews
+
+Pull requests get a hosted preview built in CI from `.playground/blueprint.json`; see "Pull request previews" in `AGENTS.md`. To boot the same preview locally:
+
+```bash
+tools/package-plugin.sh 0.0.0-local vip-workflows
+mkdir -p dist/preview
+cp dist/vip-workflows-0.0.0-local.zip dist/preview/vip-workflows.zip
+node tools/playground/build-preview-blueprint.mjs dist/preview/blueprint.json
+sed 's#{{ARTIFACT_URL:vip-workflows}}#http://127.0.0.1:8765/vip-workflows.zip#' \
+  dist/preview/blueprint.json > dist/preview/local.json
+( cd dist/preview && python3 -m http.server 8765 ) &
+npx @wp-playground/cli@latest server --blueprint=dist/preview/local.json
+```
+
+## Limitations
+
 This smoke test uses SQLite and does not replace the wp-env integration or Playwright environments. The top-level `workflow-*` extensions are not mounted by the blueprint; add a `--mount` argument and activation step for each extension you want to exercise.
