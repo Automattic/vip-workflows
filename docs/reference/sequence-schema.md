@@ -80,7 +80,8 @@ A transition may capture inputs; at most **one** may be an assignment:
 ```
 
 - `meta_key` must be **unique across the whole sequence**. Import regenerates these keys, so a hand-authored `meta_key` survives create but is replaced on import.
-- `assignee_type` is `user`, `role`, or `agent` — the three `AssignmentManager::get_assignee_types()` registers, extensible through the `vip_workflows_assignee_types` filter. The editor offers a picker for `user` and `role`. Other strings are stored as given and not validated at write time, so use one only when an extension handles it.
+- `assignee_type` is `user`, `role`, or `agent`. The editor offers a picker for `user` and `role`. Other strings are stored as given and not validated at write time, so use one only when an extension handles it. An extension runs code when an assignment of its type is created by returning `array( '<type>' => array( 'on_assign' => $callable ) )` from the `vip_workflows_assignee_types` filter; the callable receives `( $post_id, $value, $input_config )`. `on_assign` is the only key read, and the filter does not restrict which types may be stored.
+- A `user` or `role` assignment names who works the stage the transition leads into. It stays pending while the post is in that stage and is completed (firing `vip_workflows_assignment_completed`) when the post leaves it, whether by a transition, a core status change that re-seats the stage, or a change or removal of the post's workflow. An `agent` assignment is completed or expired by its agent instead.
 - The legacy singular `input` key is refused alongside `inputs`; use `inputs` (plural).
 
 ## Metadata fields (`metadata_fields[]`)

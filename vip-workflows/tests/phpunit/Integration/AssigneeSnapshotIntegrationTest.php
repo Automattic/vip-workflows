@@ -334,6 +334,62 @@ class AssigneeSnapshotIntegrationTest extends TestCase
 	}
 
 	/**
+	 * Input keys the transition does not declare — a retired free-text note,
+	 * an arbitrary key a client made up — are neither stored in transition
+	 * meta nor logged as audit notes. The edge's assignment keys still are.
+	 */
+	public function test_undeclared_input_keys_are_not_stored_or_logged(): void
+	{
+		$reviewer_id = (int) self::factory()->user->create(
+			array(
+				'role'         => 'editor',
+				'display_name' => 'Jane Reviewer',
+			)
+		);
+		$post_id = $this->make_workflow_post();
+
+		$result = ( new StatusManager() )->transition(
+			$post_id,
+			'status_2',
+			array(
+				'input_data' => array(
+					'reviewer'             => $reviewer_id,
+					'reviewer__name'       => 'Reviewer',
+					'wfp_n1_why'           => 'Injected note.',
+					'wfp_n1_why__name'     => 'Why',
+					'approver'             => 'editor',
+					'approver__name'       => 'Approver',
+					'anything'             => 'Arbitrary text.',
+				),
+			)
+		);
+		$this->assertTrue( $result, 'The transition should commit.' );
+
+		$this->assertSame(
+			array(
+				array( 'label' => 'Reviewer', 'value' => 'Jane Reviewer' ),
+			),
+			$this->latest_event_data( $post_id, 'status_transition' )['notes'],
+			'Only the edge\'s assignment should reach the audit row.'
+		);
+
+		$stored = get_post_meta( $post_id, '_vip_workflows_transition_data', true );
+		$this->assertSame(
+			array(
+				'reviewer'       => $reviewer_id,
+				'reviewer__name' => 'Reviewer',
+			),
+			$stored['status_2'][0]['notes'],
+			'Only the edge\'s assignment keys should be stored in transition meta.'
+		);
+
+		$this->assertNull(
+			( new AssignmentManager() )->get( $post_id, 'approver' ),
+			'A different edge\'s assignment key must not assign anything.'
+		);
+	}
+
+	/**
 	 * An invalid assignee rejects the transition without replacing an existing
 	 * assignment or recording a successful status transition.
 	 */
