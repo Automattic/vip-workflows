@@ -41,9 +41,8 @@ do_action('vip_workflows_status_transition', $post_id, $new, $old, $sequence, $c
 do_action('vip_workflows_entered_{stage}', $post_id, $old_stage, $sequence, $context);
 do_action('vip_workflows_exited_{stage}', $post_id, $new_stage, $sequence, $context);
 
-// Tool events
-do_action('vip_workflows_ability_executed', $ability_id, $post_id, $result);
-do_action('vip_workflows_ability_failed', $ability_id, $post_id, $error);
+// Every EventBus event, including tool runs ('ability.executed' / 'ability.failed')
+do_action('vip_workflows_event_emitted', $event_type, $event_data, $event_id);
 
 // Registration
 do_action('vip_workflows_register_abilities');
