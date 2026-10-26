@@ -2,9 +2,8 @@
  * What a transition captures: an assignment, and nothing else.
  *
  * A transition used to capture a list of inputs of two kinds — free-text notes
- * and an assignment. Notes are no longer collected, so the section is
- * "Assignments" and adds only that. A note a stored sequence still carries stays
- * on the list, so the author can see and remove it, but says it does nothing.
+ * and an assignment. Notes are retired: the write gate refuses them and stored
+ * ones were migrated away, so the section is "Assignments" and adds only that.
  *
  * Assignments are capped at one, the one slot the editor collects an assignee
  * for when the transition is taken. The write gate refuses a config carrying
@@ -40,13 +39,6 @@ function renderInspector( transition, onChange = () => {} ) {
 		/>
 	);
 }
-
-const note = ( noteName, id = 'n1' ) => ( {
-	type: 'textarea',
-	note_id: id,
-	note_name: noteName,
-	meta_key: `wfp_${ id }_${ noteName.toLowerCase() }`,
-} );
 
 const assignment = () => ( {
 	type: 'assignment',
@@ -104,70 +96,20 @@ describe( 'Transition assignments', () => {
 		expect( screen.getByText( '1 assignment' ) ).toBeInTheDocument();
 	} );
 
-	it( 'still offers an assignment beside a stored note', () => {
-		renderInspector( { to: 'review', inputs: [ note( 'Why' ) ] } );
-
-		expect( addControl() ).toBeInTheDocument();
-	} );
-
-	it( 'lists a stored note as no longer collected, with nothing to open', () => {
-		renderInspector( {
-			to: 'review',
-			inputs: [ note( 'Why' ), assignment() ],
-		} );
-
-		// An inert row with a tip, not a "Configure" button: a popover with
-		// nothing focusable in it could not be dismissed from the keyboard.
-		expect(
-			screen.queryByRole( 'button', { name: 'Configure Why' } )
-		).toBeNull();
-		expect( screen.getByText( 'No longer collected' ) ).toBeInTheDocument();
-		expect(
-			screen.getByRole( 'button', { name: 'About Why' } )
-		).toBeInTheDocument();
-
-		// Stored notes to remove are what a shut section reports.
-		expect( screen.getByText( '1 input to remove' ) ).toBeInTheDocument();
-	} );
-
-	it( 'does not flag an assignment whose key a stored note also carries', () => {
-		// Only an assignment writes under its key, so a note's stale key is no
-		// collision.
-		renderInspector( {
-			to: 'review',
-			inputs: [
-				{ ...note( 'Why' ), meta_key: 'wfp_n1abcde' },
-				assignment(),
-			],
-		} );
-
-		expect( screen.queryByText( 'Duplicate key' ) ).toBeNull();
-		expect( screen.getByText( 'Assignment' ) ).toBeInTheDocument();
-	} );
-
-	it( 'removes the input the row belongs to, leaving the rest in order', async () => {
+	it( 'removes the assignment, leaving the transition assigning nothing', async () => {
 		const onChange = jest.fn();
-		renderInspector(
-			{
-				to: 'review',
-				inputs: [
-					note( 'Why', 'n1' ),
-					assignment(),
-					note( 'What', 'n2' ),
-				],
-			},
-			onChange
-		);
+		renderInspector( { to: 'review', inputs: [ assignment() ] }, onChange );
 
 		await act( async () => {
 			fireEvent.click(
-				screen.getAllByRole( 'button', { name: 'Remove input' } )[ 0 ]
+				screen.getByRole( 'button', {
+					name: 'Remove input',
+					hidden: true,
+				} )
 			);
 		} );
 
-		expect( onChange ).toHaveBeenCalledWith( {
-			inputs: [ assignment(), note( 'What', 'n2' ) ],
-		} );
+		expect( onChange ).toHaveBeenCalledWith( { inputs: [] } );
 	} );
 
 	it( 'flags a stored assignment with no key, since Save is already blocked', async () => {

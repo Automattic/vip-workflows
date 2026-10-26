@@ -408,11 +408,9 @@ class AssignmentManager {
 			return;
 		}
 
-		// A transition captures a list, and at most one entry in it assigns work —
-		// the cap Sequence::prepare_config_for_write() enforces, so the loop finds
-		// one slot or none. Walked as a list rather than reached for by index
-		// because an assignment is not required to lead the list: a stored note can
-		// sit ahead of it, and the note's position is not this method's business.
+		// A transition captures a list holding at most one assignment and nothing
+		// else — the rules Sequence::prepare_config_for_write() enforces — so the
+		// loop finds one slot or none.
 		foreach ( $inputs as $input_config ) {
 			if ( ! is_array( $input_config ) || 'assignment' !== ( $input_config['type'] ?? '' ) ) {
 				continue;

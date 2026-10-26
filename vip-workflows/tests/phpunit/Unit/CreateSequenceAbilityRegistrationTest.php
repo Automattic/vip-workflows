@@ -95,6 +95,11 @@ class CreateSequenceAbilityRegistrationTest extends TestCase
         $meta_items = $props['metadata_fields']['items'];
         $this->assertSame( array( 'key', 'label', 'type' ), $meta_items['required'] );
         $this->assertSame( array( 'text', 'textarea', 'select', 'date', 'user' ), $meta_items['properties']['type']['enum'] );
+
+        // A transition captures only an assignment, and each needs its slot key.
+        $input_items = $status_items['properties']['transitions']['items']['properties']['inputs']['items'];
+        $this->assertSame( array( 'assignment' ), $input_items['properties']['type']['enum'] );
+        $this->assertSame( array( 'type', 'meta_key' ), $input_items['required'] );
     }
 
     public function test_agent_routing_schema_exposes_only_binary_outcomes(): void

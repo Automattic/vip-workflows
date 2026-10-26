@@ -611,6 +611,38 @@ class SequenceTest extends TestCase
     }
 
     /**
+     * The retired restrict-to-assignee gate is dropped by the gate itself, so
+     * no write path (import and validate-sequence included) can persist or
+     * echo back a restriction nothing enforces. Everything else on the
+     * transition survives, and a second pass is a no-op.
+     */
+    public function test_gate_drops_the_retired_requires_assignment_key(): void
+    {
+        $config = Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array(
+                    'key'         => 'draft',
+                    'label'       => 'Draft',
+                    'transitions' => array(
+                        array(
+                            'to'                  => 'review',
+                            'label'               => 'Send to review',
+                            'requires_assignment' => array( 'meta_key' => 'legal_reviewer', 'match' => 'current_user' ),
+                        ),
+                    ),
+                ),
+                array( 'key' => 'review', 'label' => 'Review', 'status' => 'pending' ),
+            ),
+        ) );
+
+        $this->assertSame(
+            array( 'to' => 'review', 'label' => 'Send to review' ),
+            $config['statuses'][0]['transitions'][0]
+        );
+        $this->assertSame( $config, Sequence::prepare_config_for_write( $config ), 'A second replay changes nothing.' );
+    }
+
+    /**
      * A missing `status` region defaults to 'draft' at write time (write-time
      * normalization, never a read-time fallback).
      */
@@ -1219,6 +1251,75 @@ class SequenceTest extends TestCase
         );
 
         $this->assertSame( $config, Sequence::prepare_config_for_write( $config, Sequence::TYPE_PHASE ) );
+    }
+
+    /**
+     * The gate holds a phase sequence to the lifecycle it owes, so a write that
+     * never passes the REST controller — a repository call, an import — cannot
+     * store an Ideation phase a post has no way out of.
+     */
+    public function test_gate_refuses_a_phase_sequence_whose_phases_never_hand_off(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessageMatches( '/ideation.+editorial/' );
+
+        Sequence::prepare_config_for_write(
+            array(
+                'phases' => array(
+                    array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array() ),
+                    array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+                ),
+            ),
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    /**
+     * A required phase missing outright is named as the missing phase.
+     */
+    public function test_gate_refuses_a_phase_sequence_missing_a_required_phase(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'editorial' );
+
+        Sequence::prepare_config_for_write(
+            array(
+                'phases' => array(
+                    array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array( array( 'to' => 'editorial' ) ) ),
+                ),
+            ),
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    /**
+     * A phase config with no `phases` list, or a phase without a key or a list
+     * of transitions, is malformed and refused rather than read around.
+     *
+     * @dataProvider malformed_phase_config_provider
+     *
+     * @param array $config Malformed phase config.
+     */
+    public function test_gate_refuses_a_malformed_phase_config( array $config ): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+
+        Sequence::prepare_config_for_write( $config, Sequence::TYPE_PHASE );
+    }
+
+    /**
+     * Malformed phase configs.
+     *
+     * @return array<string, array{0: array}>
+     */
+    public function malformed_phase_config_provider(): array
+    {
+        return array(
+            'no phases'           => array( array() ),
+            'phases not a list'   => array( array( 'phases' => 'ideation' ) ),
+            'phase without a key' => array( array( 'phases' => array( array( 'transitions' => array() ) ) ) ),
+            'no transitions list' => array( array( 'phases' => array( array( 'key' => 'ideation' ) ) ) ),
+        );
     }
 
     /**

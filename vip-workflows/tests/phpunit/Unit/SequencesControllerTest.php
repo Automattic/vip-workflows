@@ -695,7 +695,7 @@ class SequencesControllerTest extends TestCase
      * as a singular `input`. build_config() rebuilds each transition from an
      * allowlist that names only `inputs`, so without a conversion at the boundary
      * the key is neither read nor refused — the save returns 200 having deleted
-     * the note or the assignment slot the caller sent. Converted the same way the
+     * the assignment slot the caller sent. Converted the same way the
      * import boundary converts it, through the same function.
      */
     public function test_create_item_converts_the_retired_singular_input(): void
@@ -829,6 +829,68 @@ class SequencesControllerTest extends TestCase
         $this->assertInstanceOf( 'WP_Error', $response );
         $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
         $this->assertSame( 422, $response->get_error_data()['status'] ?? null );
+    }
+
+    /**
+     * A stage name of only whitespace sanitizes to empty. It is rejected as a
+     * controlled 422 rather than stored as a blank name writers would meet on
+     * the board and on the "Move to …" button.
+     */
+    public function test_create_item_rejects_whitespace_only_stage_label_with_422(): void
+    {
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 ); // slug not taken.
+        $this->wpdb->shouldNotReceive( 'insert' );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'sanitize_hex_color' )->alias( fn( $v ) => $v );
+        // Real sanitize_text_field() trims; the default stub passes through.
+        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => trim( (string) $v ) );
+
+        $request = $this->create_mock_request(
+            array(
+                'name'     => 'Blank Stage',
+                'statuses' => array(
+                    array( 'key' => 'draft', 'label' => 'Draft', 'transitions' => array( array( 'to' => 'review' ) ) ),
+                    array( 'key' => 'review', 'label' => '   ' ),
+                ),
+            )
+        );
+
+        $response = $this->controller->create_item( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
+        $this->assertStringContainsString( 'review', $response->get_error_message() );
+    }
+
+    /**
+     * Updating a sequence with a whitespace-only stage name is rejected the same
+     * way, before anything is written.
+     */
+    public function test_update_item_rejects_whitespace_only_stage_label_with_422(): void
+    {
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row( array( 'id' => 5 ) ) );
+        $this->wpdb->shouldNotReceive( 'update' );
+
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'sanitize_hex_color' )->alias( fn( $v ) => $v );
+        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => trim( (string) $v ) );
+
+        $request = $this->create_mock_request(
+            array(
+                'id'       => 5,
+                'name'     => 'Test Sequence',
+                'statuses' => array( array( 'key' => 'draft', 'label' => ' ' ) ),
+            )
+        );
+
+        $response = $this->controller->update_item( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
     }
 
     // =========================================================================
@@ -1114,6 +1176,82 @@ class SequencesControllerTest extends TestCase
 
         $this->assertInstanceOf( 'WP_Error', $response );
         $this->assertSame( 'invalid_sequence_statuses', $response->get_error_code() );
+    }
+
+    /**
+     * An imported stage whose name is only whitespace is refused with the same
+     * 422 create and update return, before anything is written.
+     */
+    public function test_import_sequence_rejects_whitespace_only_stage_label_with_422(): void
+    {
+        $this->wpdb->shouldNotReceive( 'insert' );
+
+        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => trim( (string) $v ) );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => 'workflow',
+                    'name'   => 'Test',
+                    'config' => array(
+                        'statuses' => array(
+                            array( 'key' => 'draft', 'label' => 'Draft' ),
+                            array( 'key' => 'review', 'label' => '   ' ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
+        $this->assertSame( 422, $response->get_error_data()['status'] ?? null );
+        $this->assertStringContainsString( 'review', $response->get_error_message() );
+    }
+
+    /**
+     * A stage with no key is left for the write gate, which names that
+     * problem; the name check would only point at a blank key.
+     */
+    public function test_require_stage_names_leaves_a_keyless_stage_to_the_gate(): void
+    {
+        Functions\when( 'sanitize_text_field' )->alias( fn( $v ) => trim( (string) $v ) );
+
+        SequencesController::require_stage_names(
+            array(
+                array( 'key' => '', 'label' => '' ),
+                array( 'key' => 'draft', 'label' => 'Draft' ),
+            )
+        );
+
+        $this->expectException( \InvalidArgumentException::class );
+        SequencesController::require_stage_names( array( array( 'key' => 'draft', 'label' => array() ) ) );
+    }
+
+    /**
+     * A phase sequence with no phases is refused for that, not for lacking
+     * stages it was never meant to have.
+     */
+    public function test_import_sequence_validates_phases(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => 'phase',
+                    'name'   => 'Empty Lifecycle',
+                    'config' => array( 'phases' => array() ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'invalid_sequence_phases', $response->get_error_code() );
     }
 
     /**
@@ -1520,6 +1658,224 @@ class SequencesControllerTest extends TestCase
         $this->assertInstanceOf( 'WP_Error', $response );
         $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
         $this->assertSame( 422, $response->get_error_data()['status'] ?? null );
+    }
+
+    /**
+     * A phase sequence's export imports again, and is stored as the phase write
+     * path stores it. The export carries `phases` and no `statuses`, which the
+     * import used to refuse as a sequence with no stages.
+     */
+    public function test_import_sequence_round_trips_a_phase_export(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+
+        $phases = $this->lifecycle_phases();
+        $row    = $this->create_sequence_row(
+            array(
+                'type'   => Sequence::TYPE_PHASE,
+                'name'   => 'Lifecycle',
+                'config' => json_encode( array( 'version' => '1.0', 'phases' => $phases ) ),
+            )
+        );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+
+        $export = $this->controller->export_sequence( $this->create_mock_request( array( 'id' => 1 ) ) )->get_data();
+        $this->assertArrayNotHasKey( 'statuses', $export['config'], 'a phase export carries no stages' );
+
+        $captured = $this->expect_import_insert();
+
+        $response = $this->controller->import_sequence(
+            $this->create_mock_request( array( 'sequence_json' => $export ) )
+        );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertSame( 201, $response->get_status() );
+        $this->assertSame( Sequence::TYPE_PHASE, $captured->data['type'] );
+        $this->assertSame(
+            array( 'version' => '1.0', 'phases' => $phases ),
+            json_decode( $captured->data['config'], true )
+        );
+    }
+
+    /**
+     * A hand-written phase file is stored as the editor would store it: fields a
+     * phase hand-off does not carry are dropped, keys are sanitized, and phases
+     * and hand-offs outside the published graph are stripped.
+     */
+    public function test_import_sequence_sanitizes_a_hand_written_phase_file(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+        $captured = $this->expect_import_insert();
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => Sequence::TYPE_PHASE,
+                    'name'   => 'Hand Written',
+                    'config' => array(
+                        // A stray stage list must not decide how a phase file is read.
+                        'statuses' => array( array( 'key' => 'draft', 'label' => 'Draft' ) ),
+                        'phases'   => array(
+                            array(
+                                'key'         => ' ideation ',
+                                'label'       => 'Ideation',
+                                'transitions' => array(
+                                    array(
+                                        'to'                  => 'editorial',
+                                        'label'               => 'Approve',
+                                        'requires_assignment' => true,
+                                        'inputs'              => array(
+                                            array( 'type' => 'assignment', 'meta_key' => 'wfp_owner', 'label' => 'Owner' ),
+                                        ),
+                                    ),
+                                    // Not a hand-off the phase graph allows.
+                                    array( 'to' => 'published', 'label' => 'Skip ahead' ),
+                                ),
+                            ),
+                            array( 'key' => 'editorial', 'label' => 'Editorial' ),
+                            // Not a phase the graph names.
+                            array( 'key' => 'archive', 'label' => 'Archive' ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertSame( 201, $response->get_status() );
+
+        $stored = json_decode( $captured->data['config'], true );
+        $this->assertArrayNotHasKey( 'statuses', $stored );
+        $this->assertSame( array( 'ideation', 'editorial' ), array_column( $stored['phases'], 'key' ) );
+
+        $hand_offs = $stored['phases'][0]['transitions'];
+        $this->assertCount( 1, $hand_offs );
+        $this->assertSame( 'editorial', $hand_offs[0]['to'] );
+        $this->assertArrayNotHasKey( 'inputs', $hand_offs[0] );
+        $this->assertArrayNotHasKey( 'requires_assignment', $hand_offs[0] );
+    }
+
+    /**
+     * A phase file missing the hand-off the lifecycle requires is refused, as a
+     * save from the editor would be, rather than stored as a phase a post
+     * cannot leave.
+     */
+    public function test_import_sequence_refuses_a_phase_file_missing_the_required_hand_off(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 );
+        $this->wpdb->shouldNotReceive( 'insert' );
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        $phases                   = $this->lifecycle_phases();
+        $phases[0]['transitions'] = array();
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => Sequence::TYPE_PHASE,
+                    'name'   => 'No Hand-off',
+                    'config' => array( 'phases' => $phases ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_invalid_config', $response->get_error_code() );
+        $this->assertSame( 422, $response->get_error_data()['status'] ?? null );
+        $this->assertMatchesRegularExpression( '/ideation.+editorial/', $response->get_error_message() );
+    }
+
+    /**
+     * A phase file with no phases is refused before anything is written, and
+     * a stage list does not stand in for them.
+     */
+    public function test_import_sequence_refuses_a_phase_file_without_phases(): void
+    {
+        $this->seed_plugin_with_ideation_enabled( true );
+        $this->wpdb->shouldNotReceive( 'insert' );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => Sequence::TYPE_PHASE,
+                    'name'   => 'Stages Only',
+                    'config' => array(
+                        'statuses' => array( array( 'key' => 'draft', 'label' => 'Draft' ) ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'invalid_sequence_phases', $response->get_error_code() );
+    }
+
+    /**
+     * The lifecycle phases, as the phase write path stores them.
+     *
+     * @return array
+     */
+    private function lifecycle_phases(): array
+    {
+        return array(
+            array(
+                'key'         => 'ideation',
+                'label'       => 'Ideation',
+                'transitions' => array(
+                    array(
+                        'to'             => 'editorial',
+                        'label'          => 'Approve',
+                        'required_tools' => array(),
+                        'allowed_roles'  => array( 'editor' ),
+                        'notifications'  => array(),
+                    ),
+                ),
+            ),
+            array(
+                'key'         => 'editorial',
+                'label'       => 'Editorial',
+                'transitions' => array(),
+            ),
+        );
+    }
+
+    /**
+     * Expect one import write and capture the row it inserts.
+     *
+     * @return object Holder whose `data` is set to the inserted row.
+     */
+    private function expect_import_insert(): object
+    {
+        $captured = (object) array( 'data' => null );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 ); // Slug not taken.
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row() );
+        $this->wpdb->shouldReceive( 'insert' )->once()->andReturnUsing(
+            function ( $table, $data ) use ( $captured ) {
+                $captured->data = $data;
+                return 1;
+            }
+        );
+        $this->wpdb->shouldReceive( 'update' )->andReturn( 1 );
+        $this->wpdb->insert_id = 1;
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+
+        return $captured;
     }
 
     // =========================================================================
@@ -2245,15 +2601,16 @@ class SequencesControllerTest extends TestCase
                             array(
                                 'to'     => 'review',
                                 'inputs' => array(
-                                    array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why', 'required' => true ),
                                     array(
                                         'type'          => 'assignment',
                                         'meta_key'      => 'legal_reviewer',
                                         'assignee_type' => 'user',
                                         'label'         => 'Pick a reviewer',
+                                        'required'      => true,
                                         'filter'        => array( 'roles' => array( 'editor' ) ),
+                                        // Not on the allowlist: never stored.
+                                        'note_name'     => 'Why',
                                     ),
-                                    array( 'type' => 'textarea', 'note_id' => 'n2', 'note_name' => 'Anything else' ),
                                 ),
                             ),
                         ),
@@ -2279,23 +2636,56 @@ class SequencesControllerTest extends TestCase
 
         $this->assertArrayNotHasKey( 'requires_assignment', $stored['statuses'][1]['transitions'][0], 'The allowlist drops a gate nothing enforces.' );
 
-        $this->assertCount( 3, $inputs, 'Every input reaches storage.' );
-        $this->assertSame(
-            array( 'textarea', 'assignment', 'textarea' ),
-            array_column( $inputs, 'type' ),
-            'In the order the author arranged them.'
+        $this->assertCount( 1, $inputs, 'The assignment reaches storage.' );
+        $this->assertSame( 'assignment', $inputs[0]['type'] );
+        $this->assertSame( 'legal_reviewer', $inputs[0]['meta_key'] );
+        $this->assertSame( 'user', $inputs[0]['assignee_type'] );
+        $this->assertSame( 'Pick a reviewer', $inputs[0]['label'] );
+        $this->assertTrue( $inputs[0]['required'] );
+        $this->assertSame( array( 'editor' ), $inputs[0]['filter']['roles'] );
+        $this->assertArrayNotHasKey( 'note_name', $inputs[0], 'The allowlist drops a note name nothing reads.' );
+    }
+
+    /**
+     * A free-text note is retired: the editor never collects it, so a save that
+     * declares one is refused rather than stored and reported as a success.
+     */
+    public function test_create_item_rejects_a_note_input(): void
+    {
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row() );
+        $this->wpdb->shouldReceive( 'insert' )->never();
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+
+        $request = $this->create_mock_request(
+            array(
+                'name'     => 'Retired Note',
+                'type'     => Sequence::TYPE_WORKFLOW,
+                'statuses' => array(
+                    array(
+                        'key'         => 'draft',
+                        'label'       => 'Draft',
+                        'transitions' => array(
+                            array(
+                                'to'     => 'review',
+                                'inputs' => array(
+                                    array( 'type' => 'textarea', 'note_name' => 'Why', 'required' => true ),
+                                ),
+                            ),
+                        ),
+                    ),
+                    array( 'key' => 'review', 'label' => 'Review' ),
+                ),
+            )
         );
 
-        $this->assertSame( 'Why', $inputs[0]['note_name'] );
-        $this->assertTrue( $inputs[0]['required'] );
-        $this->assertArrayNotHasKey( 'note_id', $inputs[0], 'The allowlist drops a note id nothing reads.' );
+        $response = $this->controller->create_item( $request );
 
-        $this->assertSame( 'legal_reviewer', $inputs[1]['meta_key'] );
-        $this->assertSame( 'user', $inputs[1]['assignee_type'] );
-        $this->assertSame( 'Pick a reviewer', $inputs[1]['label'] );
-        $this->assertSame( array( 'editor' ), $inputs[1]['filter']['roles'] );
-
-        $this->assertSame( 'Anything else', $inputs[2]['note_name'] );
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertStringContainsString( 'may capture only an "assignment"', $response->get_error_message() );
     }
 
     /**
@@ -2466,6 +2856,62 @@ class SequencesControllerTest extends TestCase
 
         $this->assertInstanceOf( 'WP_Error', $result );
         $this->assertSame( 'duplicate_assignment_key', $result->get_error_code() );
+    }
+
+    /**
+     * Editor-made keys are opaque minted ids no author recognises, so a
+     * repeated key is reported by the two transitions that share it.
+     */
+    public function test_duplicate_assignment_key_error_names_both_transitions(): void
+    {
+        $this->stub_real_sanitize_key();
+
+        $result = $this->controller->validate_assignment_keys(
+            array(
+                array(
+                    'key'         => 'draft',
+                    'transitions' => array(
+                        array( 'to' => 'review', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'wfp_n1_0_abcde' ) ) ),
+                    ),
+                ),
+                array(
+                    'key'         => 'review',
+                    'transitions' => array(
+                        array( 'to' => 'legal', 'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'wfp_n1_0_abcde' ) ) ),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'duplicate_assignment_key', $result->get_error_code() );
+
+        $message = $result->get_error_message();
+        $this->assertStringContainsString( 'from "draft" to "review"', $message );
+        $this->assertStringContainsString( 'from "review" to "legal"', $message );
+        $this->assertStringNotContainsString( 'wfp_n1_0_abcde', $message );
+
+        $this->assertSame(
+            array(
+                'status'   => 400,
+                'meta_key' => 'wfp_n1_0_abcde',
+            ),
+            $result->get_error_data()
+        );
+    }
+
+    /**
+     * REST callers are told what an input carries, the slot key included.
+     */
+    public function test_rest_args_describe_transition_inputs(): void
+    {
+        $method = new \ReflectionMethod( SequencesController::class, 'get_create_args' );
+        $args   = $method->invoke( $this->controller );
+
+        $this->assertSame(
+            SequencesController::get_transition_inputs_schema(),
+            $args['statuses']['items']['properties']['transitions']['items']['properties']['inputs']
+        );
     }
 
     // =========================================================================
@@ -2766,7 +3212,8 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
-     * The config the write gate would store for a phase sequence.
+     * The config the write gate would store for a phase sequence: built the way
+     * create and update build it, then put through the repository's gate.
      *
      * @param array $phases Phases as the request carries them.
      * @return array The stored config.
@@ -2776,13 +3223,16 @@ class SequencesControllerTest extends TestCase
     {
         $method = new \ReflectionMethod( SequencesController::class, 'build_config' );
 
-        return $method->invoke(
-            $this->controller,
-            Sequence::TYPE_PHASE,
-            $phases,
-            array(),
-            array(),
-            array()
+        return Sequence::prepare_config_for_write(
+            $method->invoke(
+                $this->controller,
+                Sequence::TYPE_PHASE,
+                $phases,
+                array(),
+                array(),
+                array()
+            ),
+            Sequence::TYPE_PHASE
         );
     }
 

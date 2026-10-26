@@ -591,6 +591,180 @@ class SchemaTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // drop_retired_transition_inputs
+    // -------------------------------------------------------------------------
+
+    /**
+     * Invoke the private static helper via reflection.
+     *
+     * @param  array $config Sequence config.
+     * @return array
+     */
+    private function drop_retired_inputs( array $config ): array
+    {
+        $method = new \ReflectionMethod( Schema::class, 'drop_retired_transition_inputs' );
+
+        return $method->invoke( null, $config, 7, 'test-slug' );
+    }
+
+    /**
+     * The migration that clears retired notes is registered, so it reaches every
+     * install that recorded an earlier version.
+     */
+    public function test_retired_input_migration_is_registered(): void
+    {
+        $this->assertContains( '2.25.0', array_column( $this->registered_migrations(), 'version' ) );
+    }
+
+    /**
+     * Notes go; the assignment stays, and so does everything else on the
+     * transition.
+     */
+    public function test_drops_notes_and_keeps_the_assignment(): void
+    {
+        $assignment = [ 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ];
+
+        $config = $this->drop_retired_inputs(
+            [
+                'statuses' => [
+                    [
+                        'key'         => 'draft',
+                        'transitions' => [
+                            [
+                                'to'     => 'review',
+                                'label'  => 'Send',
+                                'inputs' => [
+                                    [ 'type' => 'textarea', 'note_name' => 'Why', 'required' => true ],
+                                    $assignment,
+                                    [ 'type' => 'text', 'note_name' => 'Old' ],
+                                ],
+                            ],
+                        ],
+                    ],
+                    [ 'key' => 'review' ],
+                ],
+            ]
+        );
+
+        $this->assertSame(
+            [ 'to' => 'review', 'label' => 'Send', 'inputs' => [ $assignment ] ],
+            $config['statuses'][0]['transitions'][0]
+        );
+    }
+
+    /**
+     * A singular note in the oldest shape is removed too, so the gate's
+     * conversion never meets it.
+     */
+    public function test_drops_a_singular_note_input(): void
+    {
+        $config = $this->drop_retired_inputs(
+            [
+                'statuses' => [
+                    [
+                        'key'         => 'draft',
+                        'transitions' => [
+                            [ 'to' => 'review', 'input' => [ 'type' => 'textarea', 'note_name' => 'Why' ] ],
+                            [ 'to' => 'legal', 'input' => [ 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ] ],
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $this->assertSame( [ 'to' => 'review' ], $config['statuses'][0]['transitions'][0] );
+        $this->assertSame( 'assignment', $config['statuses'][0]['transitions'][1]['input']['type'] );
+    }
+
+    /**
+     * The singular `none` sentinel, and a typeless singular input, are not
+     * retired notes: they are left for the gate, which turns them into no
+     * inputs, so the replay does not log them as drops.
+     */
+    public function test_keeps_the_singular_none_sentinel_for_the_gate(): void
+    {
+        $config = $this->drop_retired_inputs(
+            [
+                'statuses' => [
+                    [
+                        'key'         => 'draft',
+                        'transitions' => [
+                            [ 'to' => 'review', 'input' => [ 'type' => 'none' ] ],
+                            [ 'to' => 'legal', 'input' => [] ],
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $this->assertSame( [ 'type' => 'none' ], $config['statuses'][0]['transitions'][0]['input'] );
+        $this->assertSame( [], $config['statuses'][0]['transitions'][1]['input'] );
+    }
+
+    /**
+     * Malformed entries are left for the write gate to reject loudly.
+     */
+    public function test_keeps_malformed_inputs_for_the_gate(): void
+    {
+        $config = $this->drop_retired_inputs(
+            [
+                'statuses' => [
+                    [
+                        'key'         => 'draft',
+                        'transitions' => [
+                            [ 'to' => 'review', 'inputs' => 'a note' ],
+                            [ 'to' => 'legal', 'inputs' => [ 'a note' ] ],
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $this->assertSame( 'a note', $config['statuses'][0]['transitions'][0]['inputs'] );
+        $this->assertSame( [ 'a note' ], $config['statuses'][0]['transitions'][1]['inputs'] );
+    }
+
+    /**
+     * Once notes are dropped, the stored row passes the write gate, and a second
+     * pass changes nothing — the replay's no-op check depends on it.
+     */
+    public function test_a_cleared_row_passes_the_gate_and_is_idempotent(): void
+    {
+        $stored = [
+            'statuses' => [
+                [
+                    'key'         => 'draft',
+                    'label'       => 'Draft',
+                    'status'      => 'draft',
+                    'transitions' => [
+                        [
+                            'to'     => 'review',
+                            'inputs' => [ [ 'type' => 'textarea', 'note_name' => 'Why' ] ],
+                        ],
+                    ],
+                ],
+                [ 'key' => 'review', 'label' => 'Review', 'status' => 'pending' ],
+            ],
+        ];
+
+        $once  = \VIPWorkflows\Sequences\Sequence::prepare_config_for_write( $this->drop_retired_inputs( $stored ) );
+        $twice = \VIPWorkflows\Sequences\Sequence::prepare_config_for_write( $this->drop_retired_inputs( $once ) );
+
+        $this->assertArrayNotHasKey( 'inputs', $once['statuses'][0]['transitions'][0] );
+        $this->assertSame( $once, $twice );
+    }
+
+    /**
+     * A phase sequence carries no `statuses`, so the helper is a no-op on it.
+     */
+    public function test_retired_input_helper_ignores_a_config_without_statuses(): void
+    {
+        $config = [ 'phases' => [ [ 'key' => 'ideation' ] ] ];
+
+        $this->assertSame( $config, $this->drop_retired_inputs( $config ) );
+    }
+
+    // -------------------------------------------------------------------------
     // assign_regions_from_legacy_flags
     // -------------------------------------------------------------------------
 

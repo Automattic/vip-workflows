@@ -137,9 +137,23 @@ function execute_validate_sequence( ?array $input = null ) {
 	}
 
 	// Phase sequences carry a `phases` graph rather than stages with regions, and the
-	// gate exempts them from every stage rule. Say so instead of reporting a
-	// vacuous pass.
+	// gate exempts them from every stage rule — but not from the lifecycle they
+	// owe. The config is built the way create, update and import build it (phases
+	// and hand-offs outside the graph dropped) and then put through the same gate,
+	// so a config reported valid here is one the writer accepts, and one refused
+	// there is refused here with the same message.
 	if ( Sequence::TYPE_PHASE === $type ) {
+		$built_config = null;
+
+		try {
+			$built_config = Sequence::prepare_config_for_write(
+				$controller->build_phase_config( $statuses ),
+				$type
+			);
+		} catch ( \InvalidArgumentException $e ) {
+			$errors[] = $e->getMessage();
+		}
+
 		return array(
 			'sequence_id'           => $source_id,
 			'type'                  => $type,
@@ -150,11 +164,19 @@ function execute_validate_sequence( ?array $input = null ) {
 			'regions_missing_entry' => array(),
 			// Withheld on rejection for the same reason as the stage path below:
 			// a config a controller check refused is not one a caller may write.
-			'normalized_config'     => empty( $errors ) ? $config : null,
+			'normalized_config'     => empty( $errors ) ? $built_config : null,
 			'notes'                 => array(
-				__( 'Phase sequences are exempt from the stage graph rules; the write gate normalizes nothing for them.', 'vip-workflows' ),
+				__( 'Phase sequences are exempt from the stage graph rules; they are checked for the lifecycle hand-offs they must declare, after phases and hand-offs outside the phase graph are dropped.', 'vip-workflows' ),
 			),
 		);
+	}
+
+	// A stage whose name sanitizes to empty is refused by create, update and
+	// import before the write gate runs, so it is reported here too.
+	try {
+		SequencesController::require_stage_names( $statuses );
+	} catch ( \InvalidArgumentException $e ) {
+		$errors[] = $e->getMessage();
 	}
 
 	// Both stage x status invariants, read without tripping them. The throwing read
