@@ -39,6 +39,8 @@ import {
 	NODE_TYPE,
 	START_ID,
 	canReconnect,
+	endsAfterMove,
+	endpointMoveVerdict,
 	END_ID,
 	TERMINAL_NODE_TYPE,
 } from '../../src/admin/components/graph/graph-model';
@@ -944,6 +946,89 @@ describe( 'canReconnect', () => {
 	} );
 } );
 
+describe( 'endpointMoveVerdict', () => {
+	// The one verdict for moving an edge's end: the canvas paints a held
+	// endpoint with it and the transition panel builds its From/To options
+	// from it, so both halves — the connection rule and `canReconnect` — are
+	// asked in one place.
+	const edge = { from: 'draft', to: 'review' };
+	const allowAll = () => true;
+
+	it( 'states the pair a move would make, for either end', () => {
+		expect( endsAfterMove( edge, 'target', 'done' ) ).toEqual( {
+			from: 'draft',
+			to: 'done',
+		} );
+		expect( endsAfterMove( edge, 'source', 'done' ) ).toEqual( {
+			from: 'done',
+			to: 'review',
+		} );
+	} );
+
+	it( 'calls a move onto the end it already has unchanged', () => {
+		const rule = jest.fn( allowAll );
+		expect(
+			endpointMoveVerdict( stages(), edge, 'target', 'review', rule )
+		).toBe( 'unchanged' );
+		expect( rule ).not.toHaveBeenCalled();
+	} );
+
+	it( 'accepts a move both halves allow', () => {
+		expect(
+			endpointMoveVerdict( stages(), edge, 'target', 'done', allowAll )
+		).toBe( 'valid' );
+	} );
+
+	it( 'refuses a move the connection rule refuses, though the model would take it', () => {
+		expect(
+			canReconnect( stages(), 'draft', 'review', 'draft', 'done' )
+		).toBe( true );
+		const rule = jest.fn( () => false );
+		expect(
+			endpointMoveVerdict( stages(), edge, 'target', 'done', rule )
+		).toBe( 'invalid' );
+		expect( rule ).toHaveBeenCalledWith( {
+			source: 'draft',
+			target: 'done',
+			sourceHandle: null,
+		} );
+	} );
+
+	it( 'refuses a move the model refuses, though the connection rule allows it', () => {
+		// A self-loop: no rule needed to refuse it, `canReconnect` does.
+		expect(
+			endpointMoveVerdict( stages(), edge, 'source', 'review', allowAll )
+		).toBe( 'invalid' );
+	} );
+
+	it( 'hands the edge’s outcome to both halves', () => {
+		const routed = stages().map( ( s ) =>
+			s.key === 'draft'
+				? {
+						...s,
+						agent: { ability_id: 'x', routing: { pass: 'review' } },
+				  }
+				: s
+		);
+		const rule = jest.fn( allowAll );
+		// An outcome's departure is fixed: moving its source is refused.
+		expect(
+			endpointMoveVerdict(
+				routed,
+				{ ...edge, outcome: 'pass' },
+				'source',
+				'done',
+				rule
+			)
+		).toBe( 'invalid' );
+		expect( rule ).toHaveBeenCalledWith( {
+			source: 'done',
+			target: 'review',
+			sourceHandle: 'pass',
+		} );
+	} );
+} );
+
 describe( 'canReconnectToNewStage', () => {
 	// The canvas paints a ghost card wherever this says yes, so its only
 	// contract is that it agrees with the mutation it predicts. A verdict that
@@ -1125,6 +1210,88 @@ describe( 'dangling transitions', () => {
 		const message = ( warnings.review || [] ).join( ' ' );
 		expect( message ).toContain( 'Schedule' );
 		expect( message ).toContain( 'ghost' );
+	} );
+
+	it( 'names an unlabelled transition by the label its button carries', () => {
+		const s = stages();
+		s[ 1 ].transitions.push( { to: 'ghost' } );
+		const { warnings } = validateSequence( { name: 'Flow', stages: s } );
+
+		expect( warnings.review ).toEqual( [
+			expect.stringContaining( '“Move to ghost” transition' ),
+		] );
+	} );
+} );
+
+/*
+ * An unauthored transition label is never stored — the button derives "Move to
+ * {destination}" when it is read. A slot fault naming the transition by its raw
+ * label, falling back to the destination key, would point the author at a
+ * transition no button in the editor is called.
+ */
+describe( 'assignment slot faults name the transition', () => {
+	const assignment = ( metaKey ) => ( {
+		type: 'assignment',
+		assignee_type: 'role',
+		label: 'Pick desk',
+		required: true,
+		meta_key: metaKey,
+	} );
+
+	const withInputs = ( draftInputs, reviewInputs ) =>
+		stages().map( ( s ) => {
+			if ( 'draft' === s.key ) {
+				return {
+					...s,
+					transitions: [ { to: 'review', inputs: draftInputs } ],
+				};
+			}
+			if ( 'review' === s.key ) {
+				return {
+					...s,
+					transitions: [ { to: 'done', inputs: reviewInputs } ],
+				};
+			}
+			return s;
+		} );
+
+	it( 'by its derived label when it names no assignment key', () => {
+		const { errors } = validateSequence( {
+			name: 'Flow',
+			stages: withInputs( [ assignment( '' ) ], [] ),
+		} );
+
+		expect( messages( errors ) ).toEqual( [
+			expect.stringContaining(
+				'The “Move to Review” transition assigns work but names no assignment key'
+			),
+		] );
+	} );
+
+	it( 'by its derived label when it reuses another transition’s slot', () => {
+		const { errors } = validateSequence( {
+			name: 'Flow',
+			stages: withInputs(
+				[ assignment( 'wfp_nshared' ) ],
+				[ assignment( 'wfp_nshared' ) ]
+			),
+		} );
+
+		expect( messages( errors ) ).toEqual( [
+			expect.stringContaining(
+				'The “Move to Done” transition assigns to the same slot as another transition'
+			),
+		] );
+	} );
+
+	it( 'by its authored label when it has one', () => {
+		const next = withInputs( [ assignment( '' ) ], [] );
+		next[ 0 ].transitions[ 0 ].label = 'Send to legal';
+		const { errors } = validateSequence( { name: 'Flow', stages: next } );
+
+		expect( messages( errors ) ).toEqual( [
+			expect.stringContaining( 'The “Send to legal” transition' ),
+		] );
 	} );
 } );
 

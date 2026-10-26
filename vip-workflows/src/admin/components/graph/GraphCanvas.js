@@ -101,8 +101,10 @@ import {
 	TERMINAL_NODE_TYPE,
 	REGION_NODE_TYPE,
 	parseEdgeId,
-	canReconnect,
+	edgeId,
 	canReconnectToNewStage,
+	endsAfterMove,
+	endpointMoveVerdict,
 	isAgentStage,
 	isRequiredHandOff,
 	START_ID,
@@ -121,7 +123,7 @@ import { EdgePlanProvider } from './EdgePlanProvider';
 import EdgeOverlay from './EdgeOverlay';
 import EdgeAnchors from './EdgeAnchors';
 import { revealNodeIds, revealViewport } from './canvas-reveal';
-import { regionLabel, stageRegion, REGION_ORDER } from './regions';
+import { regionLabel, stageRegion } from './regions';
 
 // Note: React Flow's base stylesheet (`@xyflow/react/dist/style.css`) is imported
 // from the admin entry (`src/admin/index.js`), not here. Its filename matches
@@ -202,7 +204,8 @@ function inspectorReserve( el ) {
  * the strip starts below the lowest of them.
  *
  * @param {HTMLElement} el The canvas pane.
- * @return {Object} `{ x, y, width, height }` relative to the pane.
+ * @return {Object} `{ y, width, height }` relative to the pane; the strip
+ *                  always starts at its left edge.
  */
 function visibleCanvas( el ) {
 	const editor = el.closest( '.wf-sequence-editor' );
@@ -219,7 +222,6 @@ function visibleCanvas( el ) {
 	const reserve = inspectorReserve( el );
 	if ( reserve > 0 ) {
 		return {
-			x: 0,
 			y: top,
 			width: Math.max( 0, el.clientWidth - reserve ),
 			height: Math.max( 0, el.clientHeight - top ),
@@ -237,7 +239,6 @@ function visibleCanvas( el ) {
 			? Math.min( el.clientHeight, panelTop - paneTop )
 			: el.clientHeight;
 	return {
-		x: 0,
 		y: top,
 		width: el.clientWidth,
 		height: Math.max( 0, bottom - top ),
@@ -320,23 +321,22 @@ export function classifyPositionChanges( moves, inFlight ) {
 }
 
 /**
- * The endpoints an edge would have after one of its ends moved to `candidate`.
+ * What a canvas menu was opened on, as a string: its identity.
  *
- * One statement of it, asked once while the end is held and again when it is
- * let go: the verdict painted under the pointer and the move committed on
- * release have to be the same pair, or the canvas promises one thing and does
- * another.
- *
- * @param {Object}  edge      The edge being dragged — `{ from, to }`.
- * @param {string}  end       Which end is moving: `'source'` or `'target'`.
- * @param {?string} candidate Node the end is over, or null over open canvas.
- * @return {{ from: string, to: string }} The prospective endpoints.
+ * @param {Object}  menu          The open menu's state.
+ * @param {?string} menu.stageKey Stage card it was opened on.
+ * @param {?Object} menu.edge     Transition it was opened on.
+ * @param {?string} menu.region   Region band it was opened on.
+ * @return {string} A key that differs whenever the target does.
  */
-function endsAfterMove( edge, end, candidate ) {
-	return {
-		from: end === 'source' ? candidate : edge.from,
-		to: end === 'target' ? candidate : edge.to,
-	};
+function menuTargetKey( { stageKey, edge, region } ) {
+	if ( stageKey ) {
+		return `stage:${ stageKey }`;
+	}
+	if ( edge ) {
+		return `edge:${ edgeId( edge.from, edge.to, edge.outcome || null ) }`;
+	}
+	return `canvas:${ region || '' }`;
 }
 
 function Flow( {
@@ -365,6 +365,11 @@ function Flow( {
 	onPlaceStage,
 	onSetStageStatus,
 	onAddRegion,
+	// The statuses the server allows that aren't drawn yet — what "Add post
+	// status…" offers. Computed once by the editor, which hands the same list
+	// to the modal the item opens, so the item cannot be live while the modal
+	// has nothing to offer.
+	addableRegions,
 	onRemoveRegion,
 	// A selection made *for* the author rather than by them — the blocked-save
 	// notice's "Show transition". `{ target }`, a new object per press; see
@@ -1438,6 +1443,10 @@ function Flow( {
 	// that answered a subtly different question ("is there an edge worth
 	// selecting" rather than "will the endpoint move"). `reconnectEdge` gates on
 	// the same predicate, so held and released still agree.
+	//
+	// Both halves are put together by `endpointMoveVerdict` in the model, which
+	// the transition panel's From/To selects ask as well: a rule added to
+	// `isValidConnection` is enforced there too, not only on drag.
 	const reconnectVerdict = useCallback(
 		( edge, end, candidate, onPane, client ) => {
 			if ( ! candidate ) {
@@ -1473,29 +1482,13 @@ function Flow( {
 					? 'create'
 					: 'invalid';
 			}
-			const { from, to } = endsAfterMove( edge, end, candidate );
-			if ( from === edge.from && to === edge.to ) {
-				return 'unchanged';
-			}
-			if (
-				! isValidConnection( {
-					source: from,
-					target: to,
-					sourceHandle: edge.outcome,
-				} )
-			) {
-				return 'invalid';
-			}
-			return canReconnect(
+			return endpointMoveVerdict(
 				stages,
-				edge.from,
-				edge.to,
-				from,
-				to,
-				edge.outcome
-			)
-				? 'valid'
-				: 'invalid';
+				edge,
+				end,
+				candidate,
+				isValidConnection
+			);
 		},
 		[ stages, isValidConnection, onReconnectTransitionToNewStage, dropSite ]
 	);
@@ -1617,15 +1610,23 @@ function Flow( {
 	// sitting against the read-out of the same setting. A menu item cannot ask
 	// "which stage?" without a submenu, and `role="menu"` is a promise about the
 	// keyboard that this menu keeps for one level only.
-	const menuItems = useMemo( () => {
+	//
+	// The menu's name comes back with its items, decided by the same branch: it
+	// is named for what it acts on, since that is the one thing the items
+	// themselves don't say — "Set post status to “Draft”" is the same sentence
+	// whichever stage it was opened over. Which region a canvas menu was opened
+	// on is carried by the item that names it ("Remove “Pending Review”"), so
+	// all three canvas cases share one name.
+	const menuContent = useMemo( () => {
 		if ( ! menu ) {
-			return [];
+			return null;
 		}
 
 		if ( menu.stageKey ) {
+			const label = __( 'Stage actions', 'vip-workflows' );
 			const stage = stages.find( ( s ) => s.key === menu.stageKey );
 			if ( ! stage ) {
-				return [];
+				return { label, items: [] };
 			}
 			const current = stageRegion( stage );
 			const items = regions
@@ -1690,7 +1691,7 @@ function Flow( {
 				onSelect: () => onDeleteNode( stage.key ),
 			} );
 
-			return items;
+			return { label, items };
 		}
 
 		if ( menu.edge ) {
@@ -1698,7 +1699,7 @@ function Flow( {
 			// The edge to End *is* the terminal flag, so deleting it is said in
 			// the words of the thing it changes rather than as the deletion of a
 			// transition nobody drew.
-			return [
+			const items = [
 				to === END_ID
 					? {
 							id: 'clear-terminal',
@@ -1717,17 +1718,18 @@ function Flow( {
 							onSelect: () => onDeleteEdge( from, to, outcome ),
 					  },
 			];
+			return {
+				label: __( 'Transition actions', 'vip-workflows' ),
+				items,
+			};
 		}
 
-		const remaining = REGION_ORDER.filter(
-			( r ) => ! regions.includes( r )
-		);
 		const items = [
 			{
 				id: 'add-region',
 				icon: plus,
 				label: __( 'Add post status…', 'vip-workflows' ),
-				disabled: remaining.length === 0,
+				disabled: addableRegions.length === 0,
 				onSelect: () => onAddRegion?.(),
 			},
 		];
@@ -1745,13 +1747,14 @@ function Flow( {
 			} );
 		}
 
-		return items;
+		return { label: __( 'Canvas actions', 'vip-workflows' ), items };
 	}, [
 		menu,
 		stages,
 		isPhase,
 		regionMeta,
 		regions,
+		addableRegions,
 		onAddRegion,
 		onRemoveRegion,
 		onSetStageStatus,
@@ -1760,16 +1763,6 @@ function Flow( {
 		onDeleteNode,
 		onSelectNode,
 	] );
-
-	const menuLabel = useMemo( () => {
-		if ( menu?.stageKey ) {
-			return __( 'Stage actions', 'vip-workflows' );
-		}
-		if ( menu?.edge ) {
-			return __( 'Transition actions', 'vip-workflows' );
-		}
-		return __( 'Canvas actions', 'vip-workflows' );
-	}, [ menu ] );
 
 	return (
 		<div
@@ -1902,16 +1895,17 @@ function Flow( {
 			</ReactFlow>
 			{ menu && (
 				<CanvasMenu
+					// One instance per thing it was opened on. The menu takes
+					// its roving index and the element to hand focus back to
+					// when it mounts, so a menu re-targeted while open — the
+					// context-menu key pressed on another focused card, with
+					// no pointerdown in between to close the first — has to
+					// be a new one, or it would carry the last target's.
+					key={ menuTargetKey( menu ) }
 					x={ menu.x }
 					y={ menu.y }
-					items={ menuItems }
-					// Named for what it acts on, since that is the one thing
-					// the items themselves don't say: "Set post status to
-					// “Draft”" is the same sentence whichever stage it was
-					// opened over. Which region a canvas menu was opened on is
-					// carried by the item that names it ("Remove “Pending
-					// Review”"), so all three canvas cases share one name.
-					label={ menuLabel }
+					items={ menuContent.items }
+					label={ menuContent.label }
 					onClose={ closeMenu }
 				/>
 			) }

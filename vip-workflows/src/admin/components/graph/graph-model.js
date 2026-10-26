@@ -253,8 +253,10 @@ export function buildGraph( stages, options = {} ) {
 
 	// The projection options `drawnOutcomes` answers under, so the edge ids
 	// drawn here and the edge ids an error's target names are built from one
-	// rule rather than two that agree by coincidence.
-	const drawnAs = { isPhase, stageExists: ( key ) => keys.has( key ) };
+	// rule rather than two that agree by coincidence. No `stageExists`: a
+	// transition to a stage that is gone returns before it is drawn, so every
+	// one asked about here exists.
+	const drawnAs = { isPhase };
 
 	// Stages with at least one incoming transition; the rest are entry points.
 	const hasIncoming = new Set();
@@ -1218,7 +1220,7 @@ export function publishSettingFixesRoute( stage, targetKey ) {
  * @param {?Function} [options.stageExists] Whether a stage key is still on the canvas.
  * @return {string[]} The outcomes, in `AGENT_OUTCOMES` order.
  */
-export function drawnOutcomes(
+function drawnOutcomes(
 	stage,
 	targetKey,
 	{ isPhase = false, stageExists = null } = {}
@@ -1244,7 +1246,7 @@ export function drawnOutcomes(
  * @param {Object} [options] Projection options — see `drawnOutcomes`.
  * @return {?string} The outcome, or null when the edge carries none.
  */
-export function drawnOutcome( stage, targetKey, options ) {
+function drawnOutcome( stage, targetKey, options ) {
 	return drawnOutcomes( stage, targetKey, options )[ 0 ] || null;
 }
 
@@ -1268,6 +1270,29 @@ const edgeTarget = ( stage, transition, options ) => ( {
 	to: transition.to,
 	outcome: drawnOutcome( stage, transition.to, options ),
 } );
+
+/**
+ * Where a fault in one of a stage's transitions points.
+ *
+ * Usually the transition's own edge. But an edge is addressed by `from->to`
+ * (plus the outcome on an AI stage), and a stage stored before the
+ * one-transition-per-target rule can hold two transitions to the same stage —
+ * two transitions with one address. Selecting that address opens whichever
+ * comes first, which need not be the one at fault, and edits made there land
+ * on both. So a fault in either of them points at the stage instead: its
+ * panel lists both rows, and the message names the one it means.
+ *
+ * @param {Object} stage      The stage the transition leaves.
+ * @param {Object} transition The transition at fault.
+ * @param {Object} [options]  Projection options — see `drawnOutcomes`.
+ * @return {Object} An edge target, or the stage's node target when the edge
+ *                  address is shared.
+ */
+const transitionTarget = ( stage, transition, options ) =>
+	( stage.transitions || [] ).filter( ( t ) => t.to === transition.to )
+		.length > 1
+		? nodeTarget( stage.key )
+		: edgeTarget( stage, transition, options );
 
 /**
  * @param {string} region Status region.
@@ -1299,7 +1324,7 @@ function targetStageKey( target ) {
  * A target's identity, for telling apart two faults that read the same.
  *
  * A message is not a fault's name. An unlabelled transition is named by its
- * destination (`transition.label || transition.to`), so two stages each holding
+ * destination ("Move to {destination}"), so two stages each holding
  * an unlabelled transition to the same place word their faults identically
  * while pointing at two different transitions — two things to fix, in two
  * places, each with its own way to it.
@@ -1652,6 +1677,71 @@ export function canReconnect(
 		stages.some( ( s ) => s.key === newTo ) &&
 		! findTransition( stages, newFrom, newTo )
 	);
+}
+
+/**
+ * The endpoints an edge would have after one of its ends moved to `candidate`.
+ *
+ * One statement of it, asked by the canvas while the end is held and again
+ * when it is let go, and by the transition panel's From/To selects: the
+ * verdict painted under the pointer, the move committed on release and the
+ * options a select offers have to be about the same pair.
+ *
+ * @param {Object}  edge      The edge being moved — `{ from, to }`.
+ * @param {string}  end       Which end is moving: `'source'` or `'target'`.
+ * @param {?string} candidate Node the end would land on.
+ * @return {{ from: string, to: string }} The prospective endpoints.
+ */
+export function endsAfterMove( edge, end, candidate ) {
+	return {
+		from: end === 'source' ? candidate : edge.from,
+		to: end === 'target' ? candidate : edge.to,
+	};
+}
+
+/**
+ * What moving one end of an edge onto a node would do.
+ *
+ * The whole verdict, in the order it is asked: a move that lands where the
+ * end already is changes nothing; then the canvas's own rule for a hand-drawn
+ * connection, so an endpoint can reach exactly what a fresh connection can;
+ * then `canReconnect`, which decides whether this particular move is a move at
+ * all. The canvas paints its held endpoint with this, and the transition panel
+ * builds its From/To options from it, so a rule added to either half is
+ * enforced by both — a select cannot offer a destination a drag would refuse.
+ *
+ * @param {Array}    stages            Existing stages.
+ * @param {Object}   edge              The edge — `{ from, to, outcome? }`.
+ * @param {string}   end               Which end is moving: `'source'` or `'target'`.
+ * @param {string}   candidate         Node id the end would land on.
+ * @param {Function} isValidConnection The canvas's connection rule, called
+ *                                     with `{ source, target, sourceHandle }`.
+ * @return {'unchanged'|'valid'|'invalid'} The verdict.
+ */
+export function endpointMoveVerdict(
+	stages,
+	edge,
+	end,
+	candidate,
+	isValidConnection
+) {
+	const { from, to } = endsAfterMove( edge, end, candidate );
+	if ( from === edge.from && to === edge.to ) {
+		return 'unchanged';
+	}
+	const outcome = edge.outcome || null;
+	if (
+		! isValidConnection( {
+			source: from,
+			target: to,
+			sourceHandle: outcome,
+		} )
+	) {
+		return 'invalid';
+	}
+	return canReconnect( stages, edge.from, edge.to, from, to, outcome )
+		? 'valid'
+		: 'invalid';
 }
 
 /**
@@ -2386,7 +2476,7 @@ export function validateSequence( {
 							'The “%1$s” transition points to a stage that doesn’t exist (%2$s). Reconnect or remove it.',
 							'vip-workflows'
 						),
-						t.label || t.to,
+						transitionLabel( t, stageLabel( stages, t.to ) ),
 						t.to
 					)
 				);
@@ -2417,18 +2507,23 @@ export function validateSequence( {
 		for ( const transition of stage.transitions || [] ) {
 			// A transition captures a list, of which at most one entry assigns
 			// work — a cap the server refuses a save for breaking, and one the
-			// add control in the inspector will not let an author reach. Walked
-			// as a list all the same: an assignment need not lead the list, and a
-			// config imported past the editor can carry two.
+			// add control in the inspector will not let an author reach; import
+			// passes through the same server gate, so no saved config carries two.
+			// Walked as a list all the same because an assignment need not lead it.
 			for ( const input of transition.inputs || [] ) {
 				if ( input?.type !== 'assignment' ) {
 					continue;
 				}
 
-				// Named the way the dangling-target rule above names one: the button
-				// label the author typed, falling back to the destination key, so
-				// the message points at a transition they can find.
-				const transitionName = transition.label || transition.to;
+				// Named the way the dangling-target rule above names one: the label
+				// its button will carry. An unauthored label is never stored, so the
+				// raw label is blank on nearly every transition — falling back to the
+				// destination key would name it something no button in the editor
+				// says. `transitionLabel` derives "Move to {destination}" instead.
+				const transitionName = transitionLabel(
+					transition,
+					stageLabel( stages, transition.to )
+				);
 				const key = normalizeSlotKey( input.meta_key );
 
 				if ( '' === key ) {
@@ -2441,7 +2536,7 @@ export function validateSequence( {
 							),
 							transitionName
 						),
-						edgeTarget( stage, transition, drawnAs )
+						transitionTarget( stage, transition, drawnAs )
 					);
 					continue;
 				}
@@ -2456,7 +2551,7 @@ export function validateSequence( {
 							),
 							transitionName
 						),
-						edgeTarget( stage, transition, drawnAs )
+						transitionTarget( stage, transition, drawnAs )
 					);
 					continue;
 				}

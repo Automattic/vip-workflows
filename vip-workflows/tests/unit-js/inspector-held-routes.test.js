@@ -43,6 +43,7 @@ function renderInspector(
 		onDeleteStage: () => {},
 		onUpdateTransition: () => {},
 		onDeleteTransition: () => {},
+		isValidConnection: () => true,
 	};
 	const panel = ( allow ) => (
 		<Inspector
