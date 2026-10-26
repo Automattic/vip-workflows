@@ -201,10 +201,12 @@ function inspectorReserve( el ) {
  * always asked for from one — the refused-save notice holds the button — so
  * the strip starts below the lowest of them.
  *
+ * Exported for its tests, which stand in the rects a browser would measure.
+ *
  * @param {HTMLElement} el The canvas pane.
  * @return {Object} `{ x, y, width, height }` relative to the pane.
  */
-function visibleCanvas( el ) {
+export function visibleCanvas( el ) {
 	const editor = el.closest( '.wf-sequence-editor' );
 	const paneTop = el.getBoundingClientRect().top;
 	// Measured against the pane, so jsdom's all-zero rects answer 0.
@@ -1164,7 +1166,9 @@ function Flow( {
 			return;
 		}
 		pendingRecenter.current = false;
-		centerOn( layout.nodes, { duration: 200 } );
+		// Linear, because d3's default zooms out mid-flight on a long pan,
+		// and centering keeps the zoom the author is at.
+		centerOn( layout.nodes, { duration: 200, interpolate: 'linear' } );
 	}, [ layout, centerOn ] );
 
 	// --- Showing a fault ----------------------------------------------------
@@ -1823,8 +1827,14 @@ function Flow( {
 				// out from under a stationary pointer, so CSS `:hover` drops
 				// (the outcome badges fade) with no mouse event fired — and a
 				// stale id here would keep an arrowhead yielding to a badge
-				// that is no longer painted.
-				onMoveStart={ () => setHoveredNodeId( null ) }
+				// that is no longer painted. An edge slides away the same way,
+				// and a stale edge id would leave its pill up (and clickable)
+				// over whatever is now under it, with the line and its end
+				// marks still in the hover tone.
+				onMoveStart={ () => {
+					setHoveredNodeId( null );
+					setHoveredEdgeId( null );
+				} }
 				onNodeClick={ ( _e, node ) => {
 					if ( node.type === NODE_TYPE ) {
 						onSelectNode( node.id );

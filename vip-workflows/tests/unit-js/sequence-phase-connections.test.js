@@ -12,7 +12,7 @@
  * published graph is the whole of what the canvas will accept, whatever is in
  * it — including a shape nothing ships today, which is the point.
  *
- * The canvas is stubbed down to the one prop under test. React Flow measures a
+ * The canvas is stubbed (helpers/sequence-editor). React Flow measures a
  * viewport jsdom does not lay out, and `isValidConnection` is a pure predicate
  * it hands the canvas — calling it directly is the connection gesture, minus a
  * drag jsdom cannot perform.
@@ -20,40 +20,29 @@
  * @package
  */
 
+import { fireEvent, screen, waitFor } from './helpers/render-wp-component';
 import {
-	act,
-	fireEvent,
-	render,
-	screen,
-	waitFor,
-} from './helpers/render-wp-component';
-
-import apiFetch from '@wordpress/api-fetch';
+	IDEATION_TO_EDITORIAL,
+	LIFECYCLE,
+	LIFECYCLE_CONNECTED,
+	canvas,
+	nameField,
+	renderSequenceEditor,
+	resetCanvas,
+	saveButton,
+	sequenceOptions,
+} from './helpers/sequence-editor';
 
 jest.mock( '@wordpress/api-fetch' );
 
-// The predicate the editor hands the canvas, held where a test can call it.
-let isValidConnection;
-
 jest.mock(
 	'../../src/admin/components/graph/GraphCanvas',
-	() =>
-		function GraphCanvasStub( props ) {
-			isValidConnection = props.isValidConnection;
-			return <div data-testid="canvas" />;
-		}
+	() => require( './helpers/graph-canvas-stub' ).GraphCanvasStub
 );
 
-import SequenceGraphEditor from '../../src/admin/components/graph/SequenceGraphEditor';
-
-const phaseSequence = ( phases ) => ( {
-	id: 3,
-	name: 'Content Lifecycle',
-	description: '',
-	status: 'active',
-	type: 'phase',
-	config: { phases },
-} );
+// The predicate the editor hands the canvas.
+const isValidConnection = ( connection ) =>
+	canvas().isValidConnection( connection );
 
 /** Every write the editor made, in order. */
 let writes;
@@ -66,69 +55,28 @@ let writes;
  * @param {Array} required    The hand-offs the server requires of a phase
  *                            sequence, as { from, to } pairs. Defaults to the
  *                            whole published graph.
- * @return {Promise<void>} Resolves once the canvas holds the predicate.
+ * @return {Promise<Object>} The server's record of the requests made.
  */
 async function renderPhaseEditor(
 	transitions,
 	phases,
 	required = transitions
 ) {
-	apiFetch.mockImplementation( ( { path, method, data } ) => {
-		if ( path === '/vip-workflows/v1/sequences/options' ) {
-			return Promise.resolve( {
-				post_types: [ { value: 'post', label: 'Posts' } ],
-				phase_transitions: transitions,
-				required_phase_transitions: required,
-			} );
-		}
-		if (
-			path.startsWith( '/vip-workflows/v1/abilities' ) ||
-			path === '/vip-workflows/v1/notifications/channels'
-		) {
-			return Promise.resolve( [] );
-		}
-		if ( method === 'POST' || method === 'PUT' ) {
-			writes.push( { path, method, data } );
-		}
-		return Promise.resolve( phaseSequence( phases ) );
+	const server = await renderSequenceEditor( {
+		mode: 'phase',
+		config: { phases },
+		options: sequenceOptions( {
+			phase_transitions: transitions,
+			required_phase_transitions: required,
+		} ),
 	} );
-
-	render(
-		<SequenceGraphEditor
-			sequenceId={ 3 }
-			mode="phase"
-			onCancel={ jest.fn() }
-		/>
-	);
-
-	await waitFor( () =>
-		expect( isValidConnection ).toBeInstanceOf( Function )
-	);
-	await act( async () => {
-		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
-	} );
+	writes = server.writes;
+	return server;
 }
-
-const IDEATION_TO_EDITORIAL = [ { from: 'ideation', to: 'editorial' } ];
-
-const LIFECYCLE = [
-	{ key: 'ideation', label: 'Ideation', transitions: [] },
-	{ key: 'editorial', label: 'Editorial', transitions: [] },
-];
-
-const LIFECYCLE_CONNECTED = [
-	{
-		key: 'ideation',
-		label: 'Ideation',
-		transitions: [ { to: 'editorial', label: 'Create Draft' } ],
-	},
-	{ key: 'editorial', label: 'Editorial', transitions: [] },
-];
 
 describe( 'What a phase sequence may connect', () => {
 	beforeEach( () => {
-		isValidConnection = undefined;
-		writes = [];
+		resetCanvas();
 	} );
 
 	it( 'accepts the hand-off the server published', async () => {
@@ -204,42 +152,15 @@ describe( 'What a phase sequence may connect', () => {
 	// Anything typed in the window between the two responses went with it, with
 	// Save switched off and both exit guards stood down on the loss.
 	it( 'reads the sequence once, not once per response', async () => {
-		const calls = [];
-		apiFetch.mockImplementation( ( { path } ) => {
-			calls.push( path );
-			if ( path === '/vip-workflows/v1/sequences/options' ) {
-				return Promise.resolve( {
-					post_types: [ { value: 'post', label: 'Posts' } ],
-					phase_transitions: IDEATION_TO_EDITORIAL,
-					required_phase_transitions: IDEATION_TO_EDITORIAL,
-				} );
-			}
-			if (
-				path.startsWith( '/vip-workflows/v1/abilities' ) ||
-				path === '/vip-workflows/v1/notifications/channels'
-			) {
-				return Promise.resolve( [] );
-			}
-			return Promise.resolve( phaseSequence( LIFECYCLE ) );
-		} );
-
-		render(
-			<SequenceGraphEditor
-				sequenceId={ 3 }
-				mode="phase"
-				onCancel={ jest.fn() }
-			/>
+		const { calls } = await renderPhaseEditor(
+			IDEATION_TO_EDITORIAL,
+			LIFECYCLE
 		);
-
-		await waitFor( () =>
-			expect( isValidConnection ).toBeInstanceOf( Function )
-		);
-		await act( async () => {
-			await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
-		} );
 
 		expect(
-			calls.filter( ( path ) => path === '/vip-workflows/v1/sequences/3' )
+			calls.filter(
+				( { path } ) => path === '/vip-workflows/v1/sequences/3'
+			)
 		).toHaveLength( 1 );
 	} );
 } );
@@ -256,13 +177,8 @@ describe( 'What a phase sequence may connect', () => {
  * to go.
  */
 describe( 'What a phase sequence may not save without', () => {
-	const saveButton = () =>
-		screen.getByRole( 'button', { name: /^(Save|Saving…|Saved!)$/ } );
-	const nameField = () => screen.getByRole( 'textbox', { name: /^Name/ } );
-
 	beforeEach( () => {
-		isValidConnection = undefined;
-		writes = [];
+		resetCanvas();
 	} );
 
 	it( 'refuses the save when a required hand-off is missing', async () => {

@@ -18,7 +18,13 @@
  * @package
  */
 
-import { render, act, fireEvent, screen } from './helpers/render-wp-component';
+import {
+	render,
+	act,
+	fireEvent,
+	screen,
+	waitFor,
+} from './helpers/render-wp-component';
 import { Component, useState, useMemo } from '@wordpress/element';
 
 import GraphCanvas from '../../src/admin/components/graph/GraphCanvas';
@@ -380,5 +386,66 @@ describe( 'GraphCanvas keyboard selection', () => {
 		// selection back out of it re-selected the stage just cleared.
 		await press( 'Clear' );
 		expect( screen.getByTestId( 'selected' ) ).toHaveTextContent( 'null' );
+	} );
+} );
+
+describe( 'GraphCanvas Reset layout', () => {
+	// d3's default zoom interpolation travels a long pan by zooming out and
+	// back in, even when the zoom at both ends is the same. Reset keeps the
+	// author's zoom, so the canvas should slide back, not shrink and grow.
+	it( 'pans back to the graph without zooming out on the way', async () => {
+		const { container } = render( <Editor /> );
+		await settle();
+		const viewport = container.querySelector( '.react-flow__viewport' );
+		const pane = container.querySelector( '.react-flow__pane' );
+		const transform = () => viewport.style.transform;
+		// The first centering waits a frame for React Flow to measure.
+		await waitFor( () =>
+			expect( transform() ).not.toEqual( 'translate(0px,0px) scale(1)' )
+		);
+		const home = transform();
+
+		// Drag the canvas well away from where the graph was centered.
+		fireEvent.mouseDown( pane, {
+			clientX: 100,
+			clientY: 100,
+			button: 0,
+			view: window,
+		} );
+		fireEvent.mouseMove( window, {
+			clientX: 1000,
+			clientY: 700,
+			view: window,
+		} );
+		fireEvent.mouseUp( window, {
+			clientX: 1000,
+			clientY: 700,
+			view: window,
+		} );
+		await settle();
+		expect( transform() ).not.toEqual( home );
+
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'Reset layout' } )
+		);
+		// Sample the 200ms animation as it runs, one frame of React at a time.
+		const frames = [];
+		for ( let i = 0; i < 30; i++ ) {
+			// eslint-disable-next-line no-await-in-loop
+			await act( async () => {
+				await new Promise( ( resolve ) => setTimeout( resolve, 10 ) );
+			} );
+			frames.push( transform() );
+		}
+
+		// The default interpolation dips to about 0.68 on this pan. A linear
+		// one holds the zoom, give or take floating-point rounding.
+		const lowest = Math.min(
+			...frames.map( ( frame ) =>
+				Number( frame.match( /scale\(([^)]+)\)/ )[ 1 ] )
+			)
+		);
+		expect( lowest ).toBeCloseTo( 1, 6 );
+		expect( frames[ frames.length - 1 ] ).toEqual( home );
 	} );
 } );
