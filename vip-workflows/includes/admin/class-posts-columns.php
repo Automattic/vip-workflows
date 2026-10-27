@@ -267,7 +267,7 @@ class PostsColumns {
 	 * preflight is contractually request-free — it runs over every selected row
 	 * in Bulk Edit — so the map is rendered into the row data rather than
 	 * fetched. Its React twin is `getEntryStageLabels()` in
-	 * src/entries/confirm-workflow-side-effect.js, which builds the same shape
+	 * src/common/confirm-workflow-side-effect.js, which builds the same shape
 	 * from the status endpoint's `all_statuses`.
 	 *
 	 * A region is absent when Sequence::get_region_entry_stage() gives no
@@ -391,8 +391,8 @@ class PostsColumns {
 		AdminStyles::enqueue_classic();
 
 		// The shared warn/veto decision table and its copy
-		// (src/entries/confirm-workflow-side-effect.js), built as its own
-		// webpack entry. It is framework-free precisely so that this classic
+		// (src/common/confirm-workflow-side-effect.js), published by its own
+		// webpack entry (src/entries/side-effect.js). It is framework-free precisely so that this classic
 		// inline script can consume it — through the `vipWorkflowsSideEffect`
 		// global — exactly as the React surfaces import it. Quick Edit, Bulk Edit
 		// and the block editor must never reach different answers, or use
@@ -482,8 +482,8 @@ class PostsColumns {
 	var guard = {$guard};
 
 	// The shared decision table and copy
-	// (src/entries/confirm-workflow-side-effect.js), published as a global for
-	// the classic list-table surfaces. Never reimplemented here — a second copy
+	// (src/common/confirm-workflow-side-effect.js), published as a global for
+	// the classic list-table surfaces by src/entries/side-effect.js. Never reimplemented here — a second copy
 	// of the region math, or of the words, is exactly how the surfaces drift.
 	function guardApi() {
 		var api = window.vipWorkflowsSideEffect;

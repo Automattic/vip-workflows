@@ -263,7 +263,8 @@ src/
 │   ├── store.js                              # WordPress data store
 │   └── components/
 │       ├── index.js                          # Component exports
-│       ├── WorkflowPanel.js                  # Stage, progress, transitions, actions
+│       ├── WorkflowSummaryRows.js            # Summary panel rows: workflow + metadata
+│       ├── WorkflowPanel.js                  # Stage, progress, transitions, history
 │       ├── WorkflowHistoryModal.js           # Transition trail (DataViews, code-split)
 │       ├── WorkflowSaveGuard.js              # editor.preSavePost guard — no chrome
 │       ├── MetadataPanel.js                  # Editorial metadata fields
@@ -276,12 +277,13 @@ src/
 │       └── BylineList.js                     # Byline display
 │
 ├── common/                                   # JS shared across entries
+│   ├── confirm-workflow-side-effect.js       # Status-change decision table + copy
 │   ├── event-description.js                  # One sentence per workflow event
 │   ├── ToolFailuresModal.js                  # Hard failures and soft warnings
 │   └── use-confirm.js                        # Confirm / acknowledge dialogs
 │
 ├── entries/                                  # Build entries with no page tree of their own
-│   ├── confirm-workflow-side-effect.js       # Status-change decision table + copy
+│   ├── side-effect.js                        # Publishes the decision table as a global
 │   └── classic-admin.css                     # Styles for the classic wp-admin screens
 │
 ├── styles/                                   # CSS shared across entries

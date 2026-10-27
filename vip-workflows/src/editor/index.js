@@ -6,7 +6,11 @@
 
 import { useState } from '@wordpress/element';
 import { registerPlugin } from '@wordpress/plugins';
-import { PluginSidebar, PluginSidebarMoreMenuItem } from '@wordpress/editor';
+import {
+	PluginPostStatusInfo,
+	PluginSidebar,
+	PluginSidebarMoreMenuItem,
+} from '@wordpress/editor';
 import { Stack } from '@wordpress/ui';
 import { replace as workflowIcon } from '@wordpress/icons';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
@@ -18,7 +22,7 @@ import { WorkflowPanel } from './components/WorkflowPanel';
 import { WorkflowSaveGuard } from './components/WorkflowSaveGuard';
 import { WorkflowRequiredModal } from './components/WorkflowRequiredModal';
 import { CommandPalette } from './components/CommandPalette';
-import { MetadataPanel } from './components/MetadataPanel';
+import { WorkflowSummaryRows } from './components/WorkflowSummaryRows';
 
 import './style.css';
 
@@ -47,8 +51,8 @@ function WorkflowPlugin() {
 
 	// The enforcement modal assigns the sequence itself and then says so. One
 	// read of the status endpoint re-sources everything that changed — the
-	// panel's sequence and stage, and the Metadata section's fields — because
-	// the store answers both from the same payload.
+	// Summary panel's Workflow row and metadata fields, and the panel's stage —
+	// because the store answers all of them from the same payload.
 	//
 	// The panels used to be thrown away and rebuilt on a counter passed as
 	// their `key` instead. A remount is not synchronisation: it re-runs each
@@ -85,6 +89,17 @@ function WorkflowPlugin() {
 				/>
 			) }
 
+			{ /* Which workflow the post is in, and the metadata fields its
+			     sequence declares, are properties of the post — so they sit
+			     with Status, Slug and Author in the document sidebar's Summary
+			     panel. The fill lands after core's rows, above Move to trash.
+			     `PluginPostStatusInfo` wraps its children in a `PanelRow`,
+			     whose flex row layout is neutralised in style.css so the rows
+			     keep their own full-width layout. */ }
+			<PluginPostStatusInfo className="vip-workflows-post-summary">
+				<WorkflowSummaryRows />
+			</PluginPostStatusInfo>
+
 			{ /* Same icon the plugin uses for its top-level wp-admin menu. */ }
 			<PluginSidebarMoreMenuItem
 				target="vip-workflows-sidebar"
@@ -103,26 +118,14 @@ function WorkflowPlugin() {
 				     (`PostPanelSection`): no card, no border of its own, just
 				     the standard panel inset, which lives on
 				     `.vip-workflows-sidebar` in style.css keyed to the direct
-				     child. The runs within the panel rule themselves apart.
+				     child. The sidebar's own header already says "Workflow".
 
-				     Nothing here carries a heading of its own. The sidebar's
-				     own header already says "Workflow", and the panel opens
-				     with the document sidebar's label-beside-value rows — the
-				     sequence the post is in, then the fields that sequence
-				     declares — which name themselves. */ }
+				     What is here acts on the post's movement through its
+				     workflow. Which workflow it is in, and the fields that
+				     workflow declares, are rows in the document sidebar's
+				     Summary panel. */ }
 				<Stack className="vip-workflows-sidebar" direction="column">
-					{ /* Editorial metadata is nested, not a sibling section.
-					     The panel's foot — Show history, and the way out of
-					     the workflow — lives inside WorkflowPanel, and those
-					     two act on the workflow rather than on the post, so
-					     they belong after the fields the writer fills in, not
-					     between the rail and them. The panel seats this
-					     between its rail and its foot. It still renders
-					     nothing at all when the active sequence declares no
-					     fields, and its hairline comes with it (style.css). */ }
-					<WorkflowPanel>
-						<MetadataPanel />
-					</WorkflowPanel>
+					<WorkflowPanel />
 				</Stack>
 			</PluginSidebar>
 		</>

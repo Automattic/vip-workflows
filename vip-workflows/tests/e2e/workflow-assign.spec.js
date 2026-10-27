@@ -1,8 +1,8 @@
 /**
- * Choosing a post's workflow from the editor sidebar.
+ * Choosing a post's workflow from the document sidebar's Summary panel.
  *
- * Which sequence a post belongs to is a property of the post, so the sidebar
- * draws it the way the document sidebar draws any other one: a label beside a
+ * Which sequence a post belongs to is a property of the post, so it sits with
+ * Status and Author and is drawn the way they are: a label beside a
  * value you press, whose popover holds a searchable list. That single row
  * serves both states — it replaced a select-plus-Start form on a post with no
  * workflow, and an unlabelled heading (with no way to change it at all) on a
@@ -24,6 +24,7 @@ const {
 	getEditorialSequence,
 	getWorkflowStatus,
 	openWorkflowPanel,
+	openWorkflowSummaryRows,
 } = require( './helpers/workflow' );
 
 test.describe( 'VIP Workflows — assign a workflow (editor UI)', () => {
@@ -53,12 +54,10 @@ test.describe( 'VIP Workflows — assign a workflow (editor UI)', () => {
 		postId = post.id;
 
 		await admin.editPost( postId );
-		const panel = await openWorkflowPanel( page );
+		const rows = await openWorkflowSummaryRows( page );
 
 		// The row's value is the affordance: no workflow yet, so it invites one.
-		await panel
-			.getByRole( 'button', { name: 'Select a workflow' } )
-			.click();
+		await rows.getByRole( 'button', { name: 'Select a workflow' } ).click();
 
 		const dialog = page.getByRole( 'dialog', { name: 'Workflow' } );
 		await expect( dialog ).toBeVisible();
@@ -72,12 +71,13 @@ test.describe( 'VIP Workflows — assign a workflow (editor UI)', () => {
 		// names the sequence the post now belongs to.
 		await expect( dialog ).toBeHidden();
 		await expect(
-			panel.getByRole( 'button', {
+			rows.getByRole( 'button', {
 				name: `Change workflow: ${ sequence.name }`,
 			} )
 		).toBeVisible();
 
 		// The rail arrives with it: the post is seated, not merely labelled.
+		const panel = await openWorkflowPanel( page );
 		await expect(
 			panel.locator( '.vip-workflows-rail__stage' )
 		).toBeVisible();
@@ -102,9 +102,9 @@ test.describe( 'VIP Workflows — assign a workflow (editor UI)', () => {
 		sequenceId = other.id;
 
 		await admin.editPost( postId );
-		const panel = await openWorkflowPanel( page );
+		const rows = await openWorkflowSummaryRows( page );
 
-		const trigger = panel.getByRole( 'button', {
+		const trigger = rows.getByRole( 'button', {
 			name: /^Change workflow: /,
 		} );
 		await trigger.click();

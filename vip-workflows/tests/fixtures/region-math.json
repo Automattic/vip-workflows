@@ -5,7 +5,7 @@
 		"",
 		"The same rule is implemented THREE times: StatusManager::status_to_region() /",
 		"crosses_publish_boundary() in PHP, and statusToRegion() /",
-		"evaluateStatusChange() in src/entries/confirm-workflow-side-effect.js. Until",
+		"evaluateStatusChange() in src/common/confirm-workflow-side-effect.js. Until",
 		"this file existed they were synced only by a 'MUST change together' comment,",
 		"and they had already drifted twice — `inherit` was filtered in PHP but not JS,",
 		"and an unresolvable region failed closed in PHP while the client merely warned.",

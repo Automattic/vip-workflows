@@ -36,7 +36,7 @@ import { useConfirm } from '../../common/use-confirm';
 import {
 	getTransitionWarningsMessage,
 	getTransitionWarningsTitle,
-} from '../../entries/confirm-workflow-side-effect';
+} from '../../common/confirm-workflow-side-effect';
 
 import './KanbanBoard.css';
 
@@ -547,12 +547,14 @@ export function KanbanBoard() {
 						{ __( 'Hidden:', 'vip-workflows' ) }
 					</Text>
 					{ hiddenColumnInfo.map( ( col ) => (
+						// wpds-allow system/inline-style -- borderColor is the column's colour from the sequence config, known only at runtime.
 						<Button
 							key={ col.key }
 							className="vip-workflows-kanban-hidden-column-badge"
 							onClick={ () => toggleColumnVisibility( col.key ) }
 							style={ { borderColor: col.color } }
 						>
+							{ /* wpds-allow system/raw-element -- colour swatch dot, not text; it has no <Text> analog. */ }
 							<span
 								className="vip-workflows-kanban-hidden-column-badge__dot"
 								style={ { backgroundColor: col.color } }
