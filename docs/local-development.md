@@ -44,4 +44,6 @@ npm run check:all
 npm run test:php:integration
 ```
 
+The design-system section of `check:all` runs [loupe](https://github.com/dabowman/loupe), which `npm run setup` does not install; without it that section is skipped with a warning. [`tools/code-quality/README.md`](../tools/code-quality/README.md#running-it) says how to install it at the commit CI pins.
+
 Run `vip-workflows/vendor/bin/phpcbf` on changed PHP files before committing.

@@ -265,8 +265,9 @@ Each decision is load-bearing:
 **Gate annotation.** loupe doesn't flag this reset: the tags aren't bound to a
 design-system component, so it needs no directive. If a rule ever does read
 `font: revert-layer` as raw type styling — it isn't — annotate it with
-`wpds-allow <that rule's id> -- <reason>`, giving the "defers to the DS layer"
-reason.
+`wpds-allow <that rule's id> -- <reason>` on its own line above the
+declaration (loupe ignores a directive trailing one), giving the "defers to
+the DS layer" reason.
 
 ### Detecting new cases (runtime audit)
 

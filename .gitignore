@@ -22,4 +22,4 @@ showcase/out/
 capture-stderr.log
 
 # loupe engine checkout (CI clones it here; see tools/code-quality/README.md)
-/.loupe-engine/
+/.loupe-engine

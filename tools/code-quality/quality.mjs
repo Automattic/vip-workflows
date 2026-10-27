@@ -60,7 +60,8 @@ const CSS_EXT = new Set(['.css', '.scss', '.sass']);
 const out = (m) => process.stdout.write(`${m}\n`);
 const note = (m) => process.stderr.write(`${m}\n`);
 const banner = (m) => note(`\n──────── ${m} ────────`);
-const spawnFailure = (r) => r.error?.message || (r.signal ? `signal ${r.signal}` : 'unknown');
+const spawnFailure = (r) =>
+	r.error?.message || (r.signal ? `signal ${r.signal}` : r.status === null ? 'unknown' : `exit ${r.status}`);
 
 // ── plugin discovery ─────────────────────────────────────────────────────────
 // Shared with the integration runner, so the two never disagree about what a
@@ -109,7 +110,9 @@ function gitChangedFiles() {
 		'git',
 		// quotepath=false + -z → raw, NUL-terminated, unquoted paths (handles
 		// non-ASCII / special filenames that the default output would mangle).
-		['-c', 'core.quotepath=false', 'status', '--porcelain', '--no-renames', '-z'],
+		// --untracked-files=all lists the files inside a new directory; without it
+		// git reports the directory alone and no linter is handed its files.
+		['-c', 'core.quotepath=false', 'status', '--porcelain', '--no-renames', '--untracked-files=all', '-z'],
 		{ cwd: ROOT, encoding: 'utf8' }
 	);
 	if (r.error || r.signal || r.status === null) {
@@ -206,13 +209,14 @@ function runWpScriptsLint(plugin, cmd, files, label) {
 }
 
 /**
- * @param mode  'all' — whole-plugin scan; 'list' — only the files in `files`.
+ * @param mode       'all' — whole-plugin scan; 'list' — only the files in `files`.
+ * @param loupeMode  the same, for loupe alone (see `loupeMode` at the entrypoint).
  *
  * Three sections in fixed order — the loupe design-system worklist FIRST (it's
  * the primary review surface), then blocking PHP, then advisory JS/CSS — each
  * under a banner so an agent can navigate straight to its domain.
  */
-function lint(mode, files) {
+function lint(mode, files, loupeMode = mode) {
 	let ok = true;
 	let advisories = 0;
 
@@ -238,7 +242,7 @@ function lint(mode, files) {
 
 	// 1) Design-system conformance (loupe) — the worklist.
 	banner('DESIGN SYSTEM (loupe)');
-	ok = runLoupeCheck(mode, files) && ok;
+	ok = runLoupeCheck(loupeMode, files) && ok;
 
 	// 2) PHP (phpcs) — blocking.
 	banner('PHP (phpcs)');
@@ -283,37 +287,53 @@ function loupeBin() {
 	return existsSync(checkout) ? checkout : 'loupe';
 }
 
-function runLoupe(args, opts = {}) {
-	return spawnSync(loupeBin(), args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 1 << 27, ...opts });
-}
+const LOUPE_MISSING = '⚠ loupe: not installed — install the loupe plugin or set LOUPE_BIN; skipped.';
 
-// Plugin-owned JS/CSS files in the scope; loupe judges nothing else.
-function uiFiles(files) {
-	return files.filter((f) => owner(f) && (JS_EXT.has(extname(f).toLowerCase()) || CSS_EXT.has(extname(f).toLowerCase())));
+// loupe's own config and baseline. A change to either can move findings in any
+// file, so it is checked repo-wide, and flagged as a gate-rules change below.
+const LOUPE_CONFIG = /^(loupe\.config\.(json|js|mjs)|\.louperc\.json|\.loupe-baseline\.json)$/;
+
+// stderr goes straight through: loupe explains a run it kept going on there
+// (an unreadable baseline, a skipped registry), and a captured copy was dropped.
+function runLoupe(args, opts = {}) {
+	return spawnSync(loupeBin(), args, {
+		cwd: ROOT,
+		encoding: 'utf8',
+		maxBuffer: 1 << 27,
+		stdio: ['ignore', 'pipe', 'inherit'],
+		...opts,
+	});
 }
 
 // Exit codes are loupe's contract: 0 clean, 1 blocking findings, 2 could not run.
+const loupeFailed = (r) => Boolean(r.error || r.signal || r.status === null || r.status > 1);
+
+// The `loupe check` scope: everything, or the plugin-owned JS/CSS in the list.
+// Null when the list holds none, since an empty `--files` means the whole repo.
+function loupeScope(mode, files) {
+	if (mode === 'all' || files.some((f) => LOUPE_CONFIG.test(f))) return ['--all'];
+	const ui = files.filter((f) => owner(f) && (JS_EXT.has(extname(f).toLowerCase()) || CSS_EXT.has(extname(f).toLowerCase())));
+	return ui.length ? ['--files', ui.join(',')] : null;
+}
+
 function runLoupeCheck(mode, files) {
-	let scope = ['--all'];
-	if (mode !== 'all') {
-		const ui = uiFiles(files);
-		if (!ui.length) {
-			out('✓ loupe: nothing to check.');
-			return true;
-		}
-		scope = ['--files', ui.join(',')];
-	}
-	const r = runLoupe(['check', ...scope]);
-	if (r.error?.code === 'ENOENT') {
-		note('⚠ loupe: not installed — install the loupe plugin or set LOUPE_BIN; skipped.');
+	const scope = loupeScope(mode, files);
+	if (!scope) {
+		out('✓ loupe: nothing to check.');
 		return true;
 	}
-	if (r.error || r.signal || r.status === null || r.status > 1) {
-		note(`✗ loupe: could not run (${r.error ? spawnFailure(r) : `exit ${r.status}`}).`);
-		note((r.stderr || '').trimEnd());
+	// --no-color: FORCE_COLOR would otherwise paint a report that is captured and
+	// relayed (phpcs gets --no-colors for the same reason).
+	const r = runLoupe(['check', ...scope, '--no-color']);
+	if (r.error?.code === 'ENOENT') {
+		note(LOUPE_MISSING);
+		return true;
+	}
+	if (loupeFailed(r)) {
+		note(`✗ loupe: could not run (${spawnFailure(r)}).`);
 		return false;
 	}
-	note((r.stdout || '').trimEnd() || '✓ loupe: clean.');
+	note((r.stdout || '').trimEnd() || (r.status === 0 ? '✓ loupe: clean.' : '✗ loupe: blocked, but printed no report.'));
 	return r.status === 0;
 }
 
@@ -399,8 +419,8 @@ function test(mode, files) {
 // Runs the mechanical fixers — phpcbf, eslint --fix, stylelint --fix — over the
 // scope. It MUTATES files, so it's a separate verb from the read-only gate and
 // never fails on findings (only on a fixer that couldn't run). Design-system
-// findings are not touched here: `loupe fix` applies the ones the engine can
-// settle without judgement, and the rest are refactors for a person.
+// findings are not touched here: `loupe fix --changed` applies the ones the
+// engine can settle without judgement, and the rest are refactors for a person.
 function runPhpcbf(standard, targets, label) {
 	if (!targets.length) return;
 	if (!existsSync(PHPCBF)) {
@@ -469,7 +489,7 @@ function fix(mode, files) {
 		for (const [p, fs] of Object.entries(js)) runWpScriptsFix(p, 'lint-js', fs, 'lint-js');
 		for (const [p, fs] of Object.entries(css)) runWpScriptsFix(p, 'lint-style', fs, 'lint-style');
 	}
-	out('✓ fix: ran the available formatters. Re-run `lint` to see what remains (design-system findings are not auto-fixed; see \`loupe fix\`).');
+	out('✓ fix: ran the available formatters. Re-run `lint` to see what remains (design-system findings are not auto-fixed; see `loupe fix --changed`).');
 	return true;
 }
 
@@ -522,25 +542,25 @@ function phpcsJson(mode, files) {
 	return acc;
 }
 
-// null when loupe couldn't run, so a consumer can't read a missing report as clean.
+// The report is null when loupe is missing or couldn't run, so a consumer can't
+// read a missing report as clean. `failed` (found, but it couldn't run) fails the
+// run as it does in `lint`; a missing loupe is a skip.
 function loupeJson(mode, files) {
-	let scope = ['--all'];
-	if (mode !== 'all') {
-		const ui = uiFiles(files);
-		if (!ui.length) return { findings: [] };
-		scope = ['--files', ui.join(',')];
-	}
+	const scope = loupeScope(mode, files);
+	if (!scope) return { report: { blocking: false, findings: [] }, failed: false };
 	const r = runLoupe(['check', ...scope, '--format', 'json']);
-	try {
-		return JSON.parse(r.stdout || '');
-	} catch {
-		note(`⚠ loupe (json): could not run (${r.error ? spawnFailure(r) : `exit ${r.status}`}).`);
-		return null;
+	if (r.error?.code === 'ENOENT') {
+		note(LOUPE_MISSING);
+		return { report: null, failed: false };
 	}
-}
-
-function buildJson(mode, files) {
-	return { loupe: loupeJson(mode, files), php: phpcsJson(mode, files) };
+	let report = null;
+	try {
+		if (!loupeFailed(r)) report = JSON.parse(r.stdout);
+	} catch {
+		// A truncated or garbled report is a run that didn't complete.
+	}
+	if (!report) note(`✗ loupe (json): could not run (${spawnFailure(r)}).`);
+	return { report, failed: !report };
 }
 
 // ── entrypoint ─────────────────────────────────────────────────────────────────
@@ -554,6 +574,7 @@ if (cmd === 'suppressions') {
 		note('✗ loupe: not installed — install the loupe plugin or set LOUPE_BIN.');
 		process.exit(2);
 	}
+	if (r.error || r.signal) note(`✗ loupe: could not run (${spawnFailure(r)}).`);
 	process.exit(r.status ?? 2);
 }
 
@@ -572,42 +593,49 @@ const mode = scope === 'all' ? 'all' : 'list';
 let files = [];
 if (scope === 'changed') files = gitChangedFiles();
 else if (scope === 'list') files = explicit.map(toRel);
+// loupe's analysis is repo-wide, so a change can create a finding in a file it
+// didn't touch (a class moved onto a design-system component turns that class's
+// CSS into an override). --changed therefore reports loupe repo-wide, as CI
+// does; the baseline keeps that to what is new. A named file list stays scoped.
+const loupeMode = scope === 'changed' && files.length ? 'all' : mode;
 
 // Loudly surface any change to the gate's own rules — weakening a linter to pass
 // is legitimate sometimes, but it must never be silent. Not blocking; just seen.
 const RULE_FILES = /^(tools\/code-quality\/|.*\.phpcs\.xml\.dist$|.*\.eslintrc|.*\.stylelintrc)/;
-const touchedRules = files.filter((f) => RULE_FILES.test(f.split('\\').join('/')));
+const touchedRules = files.filter((f) => [RULE_FILES, LOUPE_CONFIG].some((re) => re.test(f.split('\\').join('/'))));
 if (touchedRules.length) {
 	note('⚠ gate rules modified — human review required:');
 	for (const f of touchedRules) note(`    ${f}`);
 }
 
+let ok = true;
 // --json → emit a structured findings payload (loupe + phpcs) and nothing else
 // on stdout. For agents consuming findings programmatically.
 if (flags.includes('--json')) {
-	const payload = buildJson(mode, files);
+	const loupe = loupeJson(loupeMode, files);
+	const payload = { loupe: loupe.report, php: phpcsJson(mode, files) };
 	out(JSON.stringify(payload, null, 2));
-	const blocking = payload.loupe?.blocking === true || payload.php.some((p) => p.type === 'error');
-	process.exit(blocking ? 1 : 0);
+	ok = !loupe.failed && payload.loupe?.blocking !== true && !payload.php.some((p) => p.type === 'error');
+} else {
+	switch (cmd) {
+		case 'lint':
+			ok = lint(mode, files, loupeMode);
+			break;
+		case 'test':
+			ok = test(mode, files);
+			break;
+		case 'check':
+			ok = lint(mode, files, loupeMode);
+			ok = test(mode, files) && ok;
+			break;
+		case 'fix':
+			ok = fix(mode, files);
+			break;
+		default:
+			note('usage: quality.mjs <lint|test|check|fix|suppressions> [--changed|--all|<file>...] [--json]');
+			process.exit(2);
+	}
 }
-
-let ok = true;
-switch (cmd) {
-	case 'lint':
-		ok = lint(mode, files);
-		break;
-	case 'test':
-		ok = test(mode, files);
-		break;
-	case 'check':
-		ok = lint(mode, files);
-		ok = test(mode, files) && ok;
-		break;
-	case 'fix':
-		ok = fix(mode, files);
-		break;
-	default:
-		note('usage: quality.mjs <lint|test|check|fix|suppressions> [--changed|--all|<file>...] [--json]');
-		process.exit(2);
-}
-process.exit(ok ? 0 : 1);
+// exitCode, not exit(): exit() drops output a pipe hasn't drained yet, which cut
+// the --json payload (~60KB before its first finding) off mid-string.
+process.exitCode = ok ? 0 : 1;
