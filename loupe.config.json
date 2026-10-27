@@ -1,0 +1,37 @@
+{
+	"extends": "wpds",
+	"namespaces": {
+		"project": [ "vip-", "wf-" ]
+	},
+	"designSystem": {
+		"tokenSources": [
+			"vip-workflows/node_modules/@wordpress/theme/prebuilt/css/design-tokens.css"
+		]
+	},
+	"sources": {
+		"ignore": [
+			"**/node_modules/**",
+			"**/build/**",
+			"**/dist/**",
+			"**/vendor/**",
+			"**/.git/**",
+			"**/coverage/**",
+			"**/.next/**",
+			"**/out/**",
+			"**/storybook-static/**",
+			"**/build-style/**",
+			"**/build-module/**",
+			"**/build-types/**",
+			"**/__snapshots__/**",
+			"**/.claude/worktrees/**",
+			"**/*.min.css",
+			"**/*.min.js",
+			"**/*.bundle.js",
+			"**/_tmp/**"
+		]
+	},
+	"rules": {
+		"css/dead-class": "error"
+	},
+	"baseline": ".loupe-baseline.json"
+}

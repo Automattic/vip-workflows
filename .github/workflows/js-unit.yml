@@ -41,8 +41,22 @@ jobs:
       - name: Run tooling tests
         run: npm run test:tools
 
+      # The design-system gate (`lint:all`) runs loupe, which is not an npm
+      # package. Its engine is committed prebuilt, so a checkout is the install.
+      # Pinned to a commit; bump it deliberately, since a newer engine can add
+      # findings the baseline never recorded.
+      - name: Checkout loupe
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: dabowman/loupe
+          ref: e890529a5b2bb85bc835ab1b445236a897d65fd3 # 0.8.0
+          path: .loupe-engine
+          persist-credentials: false
+
       - name: Run linters
         run: |
+          # Fails here if the checkout gave no runnable engine; lint:all would skip.
+          .loupe-engine/bin/loupe version
           npm run lint:all
           npm --prefix vip-workflows run lint:js
           npm --prefix vip-workflows run lint:css

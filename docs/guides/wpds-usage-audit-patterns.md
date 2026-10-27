@@ -224,8 +224,8 @@ An **unlayered**, canvas-scoped rule that (a) out-specifies wp-admin's globals a
 ```css
 .wrap:has( .vip-workflows-admin-page )
 	:where( p, h1, h2, h3, h4, h5, h6 ):where( :not( .description ) ) {
-	font: revert-layer; /* wpds-allow R5 -- defer to @layer wp-ui-components */
-	margin: 0;          /* wpds-allow R2 -- DS is margin-free; Stack owns spacing */
+	font: revert-layer; /* defer to @layer wp-ui-components */
+	margin: 0;          /* DS is margin-free; Stack owns spacing */
 }
 ```
 
@@ -262,9 +262,12 @@ Each decision is load-bearing:
 - a wp-admin rule is **ID-scoped** (`#wpbody-content …`, (1,0,1)) and out-specifies
   (0,2,0) — that collision needs its own targeted override, not the blanket reset.
 
-**Gate annotation.** The gate reads `font: revert-layer` as raw type styling
-(R5) — it isn't — so annotate it `wpds-allow R5` with the "defers to the DS
-layer" reason.
+**Gate annotation.** loupe doesn't flag this reset: the tags aren't bound to a
+design-system component, so it needs no directive. If a rule ever does read
+`font: revert-layer` as raw type styling — it isn't — annotate it with
+`wpds-allow <that rule's id> -- <reason>` on its own line above the
+declaration (loupe ignores a directive trailing one), giving the "defers to
+the DS layer" reason.
 
 ### Detecting new cases (runtime audit)
 
