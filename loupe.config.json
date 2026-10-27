@@ -1,0 +1,11 @@
+{
+	"extends": "wpds",
+	"namespaces": {
+		"project": [ "vip-", "wf-", "ideation-", "research-", "calendar-", "kanban-" ]
+	},
+	"designSystem": {
+		"tokenSources": [
+			"vip-workflows/node_modules/@wordpress/theme/prebuilt/css/design-tokens.css"
+		]
+	}
+}
