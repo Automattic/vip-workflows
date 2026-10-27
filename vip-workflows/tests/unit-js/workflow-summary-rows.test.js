@@ -24,6 +24,7 @@ import {
 	waitFor,
 	act,
 	fireEvent,
+	within,
 } from './helpers/render-wp-component';
 import apiFetch from '@wordpress/api-fetch';
 
@@ -552,6 +553,17 @@ describe( 'WorkflowSummaryRows', () => {
 			combobox.compareDocumentPosition( remove ) &
 				Node.DOCUMENT_POSITION_FOLLOWING
 		).toBeTruthy();
+	} );
+
+	it( 'offers no reset on the picker, leaving removal to its own button', async () => {
+		await renderRows( assignedStatus() );
+
+		const dialog = await openRow( 'Change workflow: Weekend Magazine' );
+
+		expect( screen.getByRole( 'combobox' ) ).toBeInTheDocument();
+		expect(
+			within( dialog ).queryByRole( 'button', { name: 'Reset' } )
+		).not.toBeInTheDocument();
 	} );
 
 	it( 'confirms, then removes the post from its workflow', async () => {

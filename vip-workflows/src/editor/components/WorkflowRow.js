@@ -173,13 +173,22 @@ export function WorkflowRow( {
 							'Search workflows…',
 							'vip-workflows'
 						) }
+						// No reset button: this picker either picks a workflow or
+						// leaves the post where it is. Taking the post out of its
+						// workflow is Remove from workflow's job, below.
+						allowReset={ false }
 						onChange={ ( selected ) => {
+							// An empty value picks nothing, so the popover stays
+							// open for the writer to keep choosing.
+							if ( ! selected ) {
+								return;
+							}
+
 							onClose();
 
-							// Clearing the input reports an empty value; so does
-							// re-picking the sequence the post is already in.
-							// Neither is a change to make.
-							if ( ! selected || selected === currentId ) {
+							// Re-picking the sequence the post is already in is
+							// not a change to make.
+							if ( selected === currentId ) {
 								return;
 							}
 
