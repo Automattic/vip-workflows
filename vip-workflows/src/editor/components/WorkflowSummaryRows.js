@@ -24,7 +24,10 @@
  */
 
 import { useEffect, useState } from '@wordpress/element';
-import { Notice as DismissibleNotice } from '@wordpress/components';
+import {
+	__experimentalDivider as Divider,
+	Notice as DismissibleNotice,
+} from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
 import { useDispatch, useSelect } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
@@ -42,23 +45,24 @@ import {
 import { MetadataPanel } from './MetadataPanel';
 import { WorkflowRow } from './WorkflowRow';
 
+import './WorkflowSummaryRows.css';
+
 /**
  * The Workflow row and the metadata rows, for the Summary panel.
  *
  * @return {JSX.Element} The rows.
  */
 export function WorkflowSummaryRows() {
-	const { workflow, loading, workflowEnforcement } = useSelect(
-		( select ) => {
+	const { workflow, loading, workflowEnforcement, metadataFields } =
+		useSelect( ( select ) => {
 			const s = select( STORE_NAME );
 			return {
 				workflow: s.getWorkflowStatus(),
 				loading: ! s.isWorkflowStatusResolved(),
 				workflowEnforcement: s.getWorkflowEnforcement(),
+				metadataFields: s.getMetadataFields(),
 			};
-		},
-		[]
-	);
+		}, [] );
 
 	const { fetchWorkflowStatus, assignSequence, removeWorkflow } =
 		useDispatch( STORE_NAME );
@@ -215,32 +219,60 @@ export function WorkflowSummaryRows() {
 		);
 	};
 
+	const workflowRow = renderWorkflowRow();
+
+	// The same answer MetadataPanel gives itself for whether it draws any rows.
+	const hasMetadataRows = !! metadataFields && metadataFields.length > 0;
+
+	// The divider sets the workflow's rows off from core's as their own group,
+	// so it is drawn only when there is a group to set off.
+	const hasRows = !! workflowRow || hasMetadataRows;
+
+	// One tree whether or not the divider shows, so the rows are not remounted
+	// (and an open popover closed) when the first status read lands.
 	return (
 		<Stack
-			className="vip-workflows-summary-rows"
+			className={
+				hasRows
+					? 'vip-workflows-summary-rows vip-workflows-summary-rows--grouped'
+					: 'vip-workflows-summary-rows'
+			}
 			direction="column"
-			gap="xs"
+			// Below the divider: 12px, the same as the space above it (see
+			// WorkflowSummaryRows.css).
+			gap="md"
 		>
-			{ renderWorkflowRow() }
-			{ /* The server can refuse an assignment — a sequence that models
-			     no stage in the post's status region — and a removal can fail;
-			     either answer is what the author needs. */ }
-			{ actionError && (
-				<DismissibleNotice
-					status="error"
-					isDismissible
-					onRemove={ () => setActionError( null ) }
-					className="vip-workflows-summary-rows__error"
-				>
-					{ actionError }
-				</DismissibleNotice>
+			{ hasRows && (
+				<Divider className="vip-workflows-summary-rows__divider" />
 			) }
-			{ /* The fields are the post's, not the sequence's: they are stored
-			     on the post, are known from the server bootstrap before the
-			     status read lands, and stay editable whatever state the
-			     workflow is in. Renders nothing when there are none. */ }
-			<MetadataPanel />
-			{ confirmDialog }
+			{ /* Core's own rows sit in a VStack at `spacing={ 1 }`, 4px apart;
+			     `xs` is that 4px, so the workflow's rows keep core's rhythm. */ }
+			<Stack
+				className="vip-workflows-summary-rows__list"
+				direction="column"
+				gap="xs"
+			>
+				{ workflowRow }
+				{ /* The server can refuse an assignment — a sequence that models
+				     no stage in the post's status region — and a removal can fail;
+				     either answer is what the author needs. */ }
+				{ actionError && (
+					<DismissibleNotice
+						status="error"
+						isDismissible
+						onRemove={ () => setActionError( null ) }
+						className="vip-workflows-summary-rows__error"
+					>
+						{ actionError }
+					</DismissibleNotice>
+				) }
+				{ /* The fields are the post's, not the sequence's: they are stored
+				     on the post, are known from the server bootstrap before the
+				     status read lands, and stay editable whatever state the
+				     workflow is in. Renders nothing when there are none. */ }
+				<MetadataPanel />
+				{ confirmDialog }
+			</Stack>
 		</Stack>
 	);
 }

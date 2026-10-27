@@ -690,4 +690,43 @@ describe( 'WorkflowSummaryRows', () => {
 			screen.getByRole( 'button', { name: 'Change Desk: Foreign' } )
 		).toBeInTheDocument();
 	} );
+
+	it( 'rules the workflow rows off from core’s with a divider above the Workflow row', async () => {
+		await renderRows( assignedStatus() );
+
+		const divider = screen.getByRole( 'separator' );
+		const workflowTrigger = screen.getByRole( 'button', {
+			name: 'Change workflow: Weekend Magazine',
+		} );
+
+		expect(
+			// eslint-disable-next-line no-bitwise
+			divider.compareDocumentPosition( workflowTrigger ) &
+				Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+	} );
+
+	it( 'draws no divider when there are no workflow rows to set off', async () => {
+		await renderRows( unassignedStatus( [] ) );
+
+		expect( screen.queryByRole( 'separator' ) ).not.toBeInTheDocument();
+	} );
+
+	it( 'keeps the divider over the metadata rows while the status is still loading', async () => {
+		seedEditorStore( { metadataFields: [ DESK_FIELD ] } );
+		apiFetch.mockImplementation( () => new Promise( () => {} ) );
+
+		render( <WorkflowSummaryRows /> );
+
+		const divider = screen.getByRole( 'separator' );
+		const deskTrigger = screen.getByRole( 'button', {
+			name: 'Change Desk: Foreign',
+		} );
+
+		expect(
+			// eslint-disable-next-line no-bitwise
+			divider.compareDocumentPosition( deskTrigger ) &
+				Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+	} );
 } );

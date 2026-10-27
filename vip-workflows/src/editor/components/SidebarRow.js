@@ -136,6 +136,10 @@ export function SidebarRow( {
 			}
 			direction="row"
 			align="flex-start"
+			// Core's PostPanelRow is an HStack at its default `spacing={ 2 }`,
+			// calc(4px * 2) = 8px between label and control. `sm` is that 8px;
+			// without it the value column starts 8px left of core's rows.
+			gap="sm"
 		>
 			<Text className="vip-workflows-sidebar-row__label">{ label }</Text>
 			{ /* A column so the error can sit under the value it belongs to

@@ -1,0 +1,26 @@
+/**
+ * Workflow summary rows styles.
+ *
+ * The workflow's rows follow core's last Summary row as a group of their own,
+ * ruled off by a divider with the same space on both sides of it. Above the
+ * divider, core's row list already puts 4px (its VStack `spacing={ 1 }`)
+ * between the last core row and this fill; the padding here adds `sm` (8px) to
+ * make 12px. Below it, the group's `gap="md"` (12px) matches. The rows
+ * themselves span the full width, so their label and value columns line up
+ * with core's across the divider.
+ */
+
+.vip-workflows-summary-rows--grouped {
+	padding-top: var( --wpds-dimension-padding-sm );
+}
+
+/* The block editor's sidebar styles every `hr` in it
+   (`.interface-complementary-area hr`): a 1px $gray-100 rule, which is the
+   divider's colour here, and `margin: 1.5em 0`, which would put ~20px of its
+   own on each side on top of the spacing above. The spacing is this group's,
+   so that margin is cleared; the selector out-specifies core's (0,1,1). */
+/* wpds-allow R6 -- Divider's margin props cannot beat core's sidebar hr rule, which overrides its margins. */
+.vip-workflows-summary-rows > .vip-workflows-summary-rows__divider {
+	/* wpds-allow R3 -- clears core's own hr margin; the spacing itself is the parent Stack's gap and the group's padding. */
+	margin: 0;
+}
