@@ -16,14 +16,22 @@ import { STORE_NAME } from './store';
 import { refreshPostEntity } from './refresh-post-entity';
 import { WorkflowPanel } from './components/WorkflowPanel';
 import { WorkflowSaveGuard } from './components/WorkflowSaveGuard';
+import { TransitionFlow } from './components/TransitionFlow';
+import { WorkflowHeaderAction } from './components/WorkflowHeaderAction';
 import { WorkflowRequiredModal } from './components/WorkflowRequiredModal';
 import { CommandPalette } from './components/CommandPalette';
 import { MetadataPanel } from './components/MetadataPanel';
 
 import './style.css';
 
-// Hydrate the store from the server-rendered localized data.
-wp.data.dispatch( STORE_NAME ).hydrate( window.vipWorkflowsEditor || {} );
+// Hydrate the store from the server-rendered localized data. The status
+// endpoint's answer, served with the page, goes in the way a fetched one does,
+// so everything the store derives from it is derived in one place.
+const { workflowStatus, ...bootstrap } = window.vipWorkflowsEditor || {};
+wp.data.dispatch( STORE_NAME ).hydrate( bootstrap );
+if ( workflowStatus ) {
+	wp.data.dispatch( STORE_NAME ).receiveWorkflowStatus( workflowStatus );
+}
 
 /**
  * Main Workflow Plugin Component
@@ -75,6 +83,16 @@ function WorkflowPlugin() {
 			     not the sidebar happens to be open, and it evaluates nothing for
 			     a post that is not in a workflow. */ }
 			<WorkflowSaveGuard />
+
+			{ /* Every transition, from the sidebar rail or the header button,
+			     runs here: its confirms and dialogs must outlive whichever
+			     surface was pressed. Mounted unconditionally for the same
+			     reason as the guard. */ }
+			<TransitionFlow />
+
+			{ /* The post's next move in the editor header, standing in for
+			     core's Publish button where that button could only fail. */ }
+			<WorkflowHeaderAction />
 
 			{ showModal && (
 				<WorkflowRequiredModal

@@ -73,6 +73,31 @@ const DEFAULT_STATE = {
 	// status payload of its own, and without this the slower of the two lands
 	// last and reinstates the state the user just left.
 	workflowStatusRequest: 0,
+
+	// A transition someone asked for and the transition flow has not yet
+	// picked up: `{ transition, anchor, source }`. Two surfaces start moves —
+	// the rail in the sidebar and the split button in the editor header — and
+	// neither owns the dialogs a move can open (the publish confirm, the
+	// assignee popover, the blocked and warnings dialogs). Those live in one
+	// always-mounted TransitionFlow, so a request is handed to it here rather
+	// than handled by whichever surface happened to be clicked. `anchor` is the
+	// DOM node an input popover opens against.
+	transitionRequest: null,
+
+	// The destination of the move in flight, or null. Shared for the same
+	// reason: a move started from the header has to disable the rail, and the
+	// reverse.
+	transitioningTo: null,
+
+	// A workflow-level write in flight — assigning, switching or removing the
+	// workflow, claiming or releasing the post. Not a move, but a move started
+	// under it would race it, so every surface stands down for it too
+	// (`isTransitioning`).
+	workflowWriting: false,
+
+	// The last refused move, worded for the author, until they dismiss it or
+	// start another. Shown by the sidebar panel.
+	transitionError: null,
 };
 
 const actions = {
@@ -126,6 +151,57 @@ const actions = {
 	 */
 	failWorkflowStatusRequest() {
 		return { type: 'FAIL_WORKFLOW_STATUS_REQUEST' };
+	},
+
+	/**
+	 * Ask the transition flow to move the post along a transition.
+	 *
+	 * Every human-started move goes through here, so the confirmations, input
+	 * capture and refusal dialogs are the same whichever surface was pressed.
+	 *
+	 * @param {Object}       transition The transition, as the rail lists it.
+	 * @param {?HTMLElement} anchor     Element an input popover opens against.
+	 * @param {string}       source     'panel' or 'header' — where a refusal is reported.
+	 */
+	requestTransition( transition, anchor = null, source = 'panel' ) {
+		return {
+			type: 'REQUEST_TRANSITION',
+			request: { transition, anchor, source },
+		};
+	},
+
+	/**
+	 * Mark the pending request as taken by the transition flow.
+	 */
+	clearTransitionRequest() {
+		return { type: 'CLEAR_TRANSITION_REQUEST' };
+	},
+
+	/**
+	 * Record which destination is in flight, or null once nothing is.
+	 *
+	 * @param {?string} to Destination stage key.
+	 */
+	setTransitioningTo( to ) {
+		return { type: 'SET_TRANSITIONING_TO', to };
+	},
+
+	/**
+	 * Record whether a workflow-level write is in flight.
+	 *
+	 * @param {boolean} writing Whether one is.
+	 */
+	setWorkflowWriting( writing ) {
+		return { type: 'SET_WORKFLOW_WRITING', writing };
+	},
+
+	/**
+	 * Record, or clear, the refusal the sidebar panel reports.
+	 *
+	 * @param {?string} message Refusal worded for the author.
+	 */
+	setTransitionError( message ) {
+		return { type: 'SET_TRANSITION_ERROR', message };
 	},
 
 	/**
@@ -184,13 +260,20 @@ const actions = {
 		async ( { dispatch, select, registry } ) => {
 			const postId = select.getPostId();
 
+			dispatch.setWorkflowWriting( true );
+
 			// The route answers with the post's new status payload, so the
 			// assignment and the state it produced arrive together.
-			const status = await apiFetch( {
-				path: sequencePath( postId ),
-				method: 'POST',
-				data: { sequence_id: sequenceId },
-			} );
+			let status;
+			try {
+				status = await apiFetch( {
+					path: sequencePath( postId ),
+					method: 'POST',
+					data: { sequence_id: sequenceId },
+				} );
+			} finally {
+				dispatch.setWorkflowWriting( false );
+			}
 
 			dispatch.receiveWorkflowStatus( status );
 
@@ -198,6 +281,38 @@ const actions = {
 			// and seating it can cross a region boundary — so core's own chrome
 			// (Publish button, Summary status) has to re-read the record.
 			refreshPostEntity( registry, select.getPostType(), postId );
+		},
+
+	/**
+	 * Return a post whose stage agent failed to the stage it came from.
+	 *
+	 * The failed AI stage's one exit, offered by the sidebar panel and the
+	 * header button alike. It runs as the move in flight (`transitioningTo`),
+	 * so both surfaces stand down together while it does. Rejects with the
+	 * server's error for the caller to report where the author is looking.
+	 */
+	revertAgentStage:
+		() =>
+		async ( { dispatch, select, registry } ) => {
+			const postId = select.getPostId();
+			const revertTo = select.getWorkflowStatus()?.agent_job?.revert_to;
+
+			dispatch.setTransitioningTo( revertTo?.key ?? null );
+
+			try {
+				// The response is a full status payload, exactly like a
+				// transition's: a revert can cross a region boundary, so the
+				// editor chrome must adopt the change too.
+				const status = await apiFetch( {
+					path: `/vip-workflows/v1/workflow/post/${ postId }/agent-revert`,
+					method: 'POST',
+				} );
+
+				dispatch.receiveWorkflowStatus( status );
+				refreshPostEntity( registry, select.getPostType(), postId );
+			} finally {
+				dispatch.setTransitioningTo( null );
+			}
 		},
 
 	/**
@@ -214,12 +329,18 @@ const actions = {
 		async ( { dispatch, select, registry } ) => {
 			const postId = select.getPostId();
 
-			await apiFetch( {
-				path: sequencePath( postId ),
-				method: 'DELETE',
-			} );
+			dispatch.setWorkflowWriting( true );
 
-			await dispatch.fetchWorkflowStatus();
+			try {
+				await apiFetch( {
+					path: sequencePath( postId ),
+					method: 'DELETE',
+				} );
+
+				await dispatch.fetchWorkflowStatus();
+			} finally {
+				dispatch.setWorkflowWriting( false );
+			}
 
 			// Matches assignment: the workflow identity the editor renders from
 			// is gone from the database, so the record it renders from must be
@@ -236,6 +357,21 @@ function reducer( state = DEFAULT_STATE, action ) {
 				...state,
 				...action.data,
 			};
+
+		case 'REQUEST_TRANSITION':
+			return { ...state, transitionRequest: action.request };
+
+		case 'CLEAR_TRANSITION_REQUEST':
+			return { ...state, transitionRequest: null };
+
+		case 'SET_TRANSITIONING_TO':
+			return { ...state, transitioningTo: action.to };
+
+		case 'SET_WORKFLOW_WRITING':
+			return { ...state, workflowWriting: action.writing };
+
+		case 'SET_TRANSITION_ERROR':
+			return { ...state, transitionError: action.message };
 
 		case 'BEGIN_WORKFLOW_STATUS_REQUEST':
 			return {
@@ -303,6 +439,11 @@ const selectors = {
 	getWorkflowStatus: ( state ) => state.workflowStatus,
 	isWorkflowStatusResolved: ( state ) => state.workflowStatusResolved,
 	getWorkflowStatusRequest: ( state ) => state.workflowStatusRequest,
+	getTransitionRequest: ( state ) => state.transitionRequest,
+	getTransitioningTo: ( state ) => state.transitioningTo,
+	isTransitioning: ( state ) =>
+		null !== state.transitioningTo || state.workflowWriting,
+	getTransitionError: ( state ) => state.transitionError,
 };
 
 const store = createReduxStore( STORE_NAME, {

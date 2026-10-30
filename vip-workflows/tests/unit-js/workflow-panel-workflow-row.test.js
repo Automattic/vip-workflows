@@ -41,6 +41,7 @@ jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
  * selectors, so a named test store stands in for all of it.
  */
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
@@ -61,6 +62,7 @@ register(
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			removeNotice: () => ( { type: 'NOOP' } ),
 		},
 	} )
 );
@@ -81,6 +83,8 @@ register(
 import { STORE_NAME, seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 const SEQUENCE_PATH = '/vip-workflows/v1/workflow/post/42/sequence';
@@ -188,7 +192,12 @@ async function renderPanel( status, { onAssign = null, ideation = {} } = {} ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(

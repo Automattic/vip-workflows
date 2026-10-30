@@ -338,6 +338,41 @@ export function getTransitionPublishConfirmLabel() {
 }
 
 /**
+ * Title for the confirm that precedes moving a live post with unsaved edits.
+ *
+ * @return {string} Translated title.
+ */
+export function getLiveEditsConfirmTitle() {
+	return __( 'Publish your changes?', 'vip-workflows' );
+}
+
+/**
+ * Label for the button that saves a live post's edits and moves it on.
+ *
+ * @return {string} Translated label.
+ */
+export function getLiveEditsConfirmLabel() {
+	return __( 'Publish changes', 'vip-workflows' );
+}
+
+/**
+ * Copy for the confirm that precedes moving a live post with unsaved edits.
+ *
+ * Every move saves the post first, so the next stage works on what is on
+ * screen. On a live post that save is an Update: the edits go public, and
+ * stay public if the move is then refused — which a workflow step such as
+ * "Send to legal" does not otherwise say.
+ *
+ * @return {string} Translated message.
+ */
+export function getLiveEditsWarning() {
+	return __(
+		'This post is live. Moving it saves your unsaved changes, and they become publicly visible right away.',
+		'vip-workflows'
+	);
+}
+
+/**
  * Copy for the confirm that precedes a transition that publishes the post.
  *
  * A transition into a publish-region stage crosses the publish boundary, so
