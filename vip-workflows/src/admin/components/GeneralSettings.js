@@ -257,7 +257,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				<RoleCheckboxGroup
 					label={ __( 'Workflow override', 'vip-workflows' ) }
 					description={ __(
-						'Change post status outside the workflow.',
+						'Skip role limits and required fields, and change status outside the workflow.',
 						'vip-workflows'
 					) }
 					roles={ roles }
