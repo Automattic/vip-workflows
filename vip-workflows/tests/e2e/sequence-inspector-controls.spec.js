@@ -85,9 +85,7 @@ test.describe( 'VIP Workflows — sequence inspector controls', () => {
 		await page
 			.getByRole( 'button', { name: 'Add post status', exact: true } )
 			.click();
-		await page
-			.getByRole( 'menuitem', { name: /^Pending Review/ } )
-			.click();
+		await page.getByRole( 'menuitem', { name: /^Pending Review/ } ).click();
 		const pending = page.locator(
 			'.wf-region-labels__label[data-region="pending"]'
 		);
