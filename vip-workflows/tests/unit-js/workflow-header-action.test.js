@@ -843,7 +843,7 @@ describe( 'WorkflowHeaderAction', () => {
 
 		await waitFor( () =>
 			expect( createErrorNotice ).toHaveBeenCalledWith(
-				expect.stringContaining( 'cannot be saved yet' ),
+				expect.stringContaining( 'can’t be saved yet' ),
 				expect.anything()
 			)
 		);
@@ -1049,7 +1049,7 @@ describe( 'WorkflowHeaderAction', () => {
 				name: 'Send to Review',
 			} );
 			expect( createInfoNotice ).toHaveBeenCalledWith(
-				expect.stringContaining( 'The AI agent updated this post' ),
+				expect.stringContaining( 'The agent updated this post' ),
 				expect.objectContaining( { actions: expect.any( Array ) } )
 			);
 

@@ -287,7 +287,7 @@ export function TransitionFlow() {
 			agentOutranEditorRef.current = true;
 			createInfoNotice(
 				__(
-					'The AI agent updated this post. Reload to see its changes — this discards your unsaved edits.',
+					'The agent updated this post. Reloading discards unsaved edits.',
 					'vip-workflows'
 				),
 				{
@@ -444,7 +444,7 @@ export function TransitionFlow() {
 					throw {
 						code: 'save_locked',
 						message: __(
-							'The post cannot be saved yet, so it was not moved. Wait for any upload to finish, then try again.',
+							'The post can’t be saved yet. Wait for uploads to finish, then try again.',
 							'vip-workflows'
 						),
 					};

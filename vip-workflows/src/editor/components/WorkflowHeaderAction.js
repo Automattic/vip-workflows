@@ -171,7 +171,7 @@ export function WorkflowHeaderAction() {
 		} catch ( err ) {
 			createErrorNotice(
 				err.message ||
-					__( 'Failed to move the post back', 'vip-workflows' ),
+					__( 'Could not move the post back. Try again.', 'vip-workflows' ),
 				{ id: HEADER_NOTICE_ID, isDismissible: true }
 			);
 		}

@@ -447,7 +447,7 @@ test.describe( 'VIP Workflows — stage agents', () => {
 		// an author whose Workflow sidebar is closed.
 		const refresh = page
 			.locator( '.components-notice' )
-			.filter( { hasText: 'The AI agent updated this post' } );
+			.filter( { hasText: 'The agent updated this post' } );
 		await expect( refresh ).toBeVisible( { timeout: 15000 } );
 		await expect(
 			refresh.getByRole( 'button', { name: 'Reload' } )

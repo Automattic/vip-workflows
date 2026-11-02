@@ -367,7 +367,7 @@ export function getLiveEditsConfirmLabel() {
  */
 export function getLiveEditsWarning() {
 	return __(
-		'This post is live. Moving it saves your unsaved changes, and they become publicly visible right away.',
+		'This post is live. Moving it publishes your unsaved changes.',
 		'vip-workflows'
 	);
 }
