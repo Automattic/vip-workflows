@@ -276,12 +276,17 @@ class AssigneeSnapshotIntegrationTest extends TestCase
 
 	/**
 	 * Omitting an optional assignment preserves it without recording a clear.
+	 *
+	 * The slot keeps its assignee and assignment record. Leaving `status_1`
+	 * still completes it, as it completes any pending user assignment of the
+	 * stage the post leaves.
 	 */
 	public function test_an_omitted_assignment_is_preserved_without_an_unassigned_snapshot(): void {
 		$post_id            = $this->make_workflow_post();
 		$assignment_manager = new AssignmentManager();
 		$assignment_manager->assign( $post_id, 'reviewer', $this->author_id, 'user' );
 		$existing = $assignment_manager->get( $post_id, 'reviewer' );
+		$this->assertSame( AssignmentManager::STATUS_PENDING, $existing['status'] );
 
 		$result = ( new StatusManager() )->transition(
 			$post_id,
@@ -290,7 +295,20 @@ class AssigneeSnapshotIntegrationTest extends TestCase
 		);
 
 		$this->assertTrue( $result, 'The transition should commit.' );
-		$this->assertSame( $existing, $assignment_manager->get( $post_id, 'reviewer' ) );
+		$stored = $assignment_manager->get( $post_id, 'reviewer' );
+		$this->assertSame(
+			array_diff_key( $existing, array( 'status' => true ) ),
+			array_diff_key(
+				$stored,
+				array(
+					'status'       => true,
+					'completed_at' => true,
+					'completed_by' => true,
+				)
+			)
+		);
+		$this->assertSame( AssignmentManager::STATUS_COMPLETED, $stored['status'] );
+		$this->assertSame( get_current_user_id(), $stored['completed_by'] );
 		$this->assertSame( 'status_2', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
 		$this->assertSame( array(), $this->latest_event_data( $post_id, 'status_transition' )['notes'] );
 	}

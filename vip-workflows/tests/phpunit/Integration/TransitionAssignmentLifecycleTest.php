@@ -17,6 +17,7 @@ namespace VIPWorkflows\Tests\Integration;
 
 use VIPWorkflows\Sequences\SequenceRepository;
 use VIPWorkflows\Workflow\AssignmentManager;
+use VIPWorkflows\Workflow\PostTypeManager;
 use VIPWorkflows\Workflow\StatusManager;
 use WP_REST_Request;
 
@@ -148,6 +149,21 @@ class TransitionAssignmentLifecycleTest extends TestCase {
 	}
 
 	/**
+	 * Build a StatusManager whose PostTypeManager mapping includes the sequence
+	 * created in set_up(). assign_sequence() checks post-type eligibility
+	 * against that mapping, which is normally built once on `init`, before
+	 * this test's sequence exists.
+	 *
+	 * @return StatusManager
+	 */
+	private function status_manager_with_mapping(): StatusManager {
+		$post_type_manager = new PostTypeManager();
+		$post_type_manager->register_post_types();
+
+		return new StatusManager( null, $post_type_manager );
+	}
+
+	/**
 	 * The assignment stays pending while the post is in the stage it was made for.
 	 */
 	public function test_assignment_is_pending_in_the_stage_it_led_into(): void {
@@ -273,7 +289,7 @@ class TransitionAssignmentLifecycleTest extends TestCase {
 			)
 		);
 
-		$this->assertTrue( ( new StatusManager() )->assign_sequence( $post_id, $this->sequence_id ) );
+		$this->assertTrue( $this->status_manager_with_mapping()->assign_sequence( $post_id, $this->sequence_id ) );
 
 		$this->assertSame(
 			AssignmentManager::STATUS_PENDING,
@@ -288,7 +304,7 @@ class TransitionAssignmentLifecycleTest extends TestCase {
 	public function test_reassigning_the_sequence_from_another_stage_completes_the_assignment(): void {
 		$post_id = $this->make_post_in_review();
 
-		$this->assertTrue( ( new StatusManager() )->assign_sequence( $post_id, $this->sequence_id ) );
+		$this->assertTrue( $this->status_manager_with_mapping()->assign_sequence( $post_id, $this->sequence_id ) );
 
 		$this->assertSame(
 			AssignmentManager::STATUS_COMPLETED,
