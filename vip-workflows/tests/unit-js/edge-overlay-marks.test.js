@@ -7,10 +7,11 @@
  *
  * ## The yield rule
  *
- * An arrowhead yields to an AI stage's outcome badge (the head would stamp
- * itself over the badge's glyph), but only while the badge is painted, and
- * never to the anonymous drag grip. `coveredOutcomeBadge` is the geometric
- * half of that rule: which badge, if any, a mark's tip lands on. The painted
+ * An arrowhead yields to an AI stage's outcome badge or to a stage's drag
+ * grip (the head would stamp itself over the handle's glyph), but only while
+ * that handle is painted. `coveredOutcomeBadge` and `coversGrip` are the
+ * geometric half of that rule: which handle, if any, a mark's tip lands on.
+ * The painted
  * half (hover, connection-in-flight) lives in the component against a live
  * React Flow store, which is why the geometry is exported and pinned here.
  *
@@ -18,8 +19,9 @@
  * around: a back edge arriving dead centre on a bottom border lands its tip
  * inside the drag grip's bounds, and the grip is transparent at rest — so a
  * suppressed arrowhead there left *nothing* to say where the edge lands.
- * Only a handle whose id names an agent outcome may claim a head; the grip's
- * id is null, and it never does.
+ * So geometry alone never hides a head on the grip: `coveredOutcomeBadge`
+ * skips the null-id grip, and `coversGrip` is only asked alongside the
+ * signals that say the grip is painted.
  *
  * Rects mirror what React Flow measures for a 200×80 stage: 22px pill
  * handles straddling the bottom border (y 69–91), the outcome trio clustered
@@ -30,6 +32,7 @@
 
 import {
 	coveredOutcomeBadge,
+	coversGrip,
 	readEdgeStates,
 	selectEdgeStates,
 } from '../../src/admin/components/graph/EdgeOverlay';
@@ -162,5 +165,22 @@ describe( 'edge-state signature', () => {
 		expect( readEdgeStates( selectEdgeStates( { edges: [] } ) ) ).toEqual(
 			{}
 		);
+	} );
+} );
+
+describe( 'coversGrip', () => {
+	it( 'finds the grip under the dead-centre back edge', () => {
+		expect( coversGrip( { x: 100, y: 81.5 }, GRIP_HANDLES ) ).toBe( true );
+	} );
+
+	it( 'ignores an outcome badge in the same spot', () => {
+		expect( coversGrip( { x: 100, y: 81.5 }, OUTCOME_HANDLES ) ).toBe(
+			false
+		);
+	} );
+
+	it( 'is clear beside the grip and with nothing measured', () => {
+		expect( coversGrip( { x: 30, y: 81.5 }, GRIP_HANDLES ) ).toBe( false );
+		expect( coversGrip( { x: 100, y: 81.5 }, undefined ) ).toBe( false );
 	} );
 } );

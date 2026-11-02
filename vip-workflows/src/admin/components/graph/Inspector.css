@@ -450,6 +450,20 @@
 	outline-offset: 1px;
 }
 
+/* The room a grip or a remove button takes, held by a row that has neither
+   (`Fact`'s `reserveGrip`, `RemoveSpacer`), so every row in a list puts its
+   name and its value on the same edges whether or not it can be dragged or
+   removed. The widths are the grip's 16px glyph and a small icon button. */
+.wf-inspector__grip-spacer {
+	flex: 0 0 auto; /* wpds-allow R4 -- holds its width in the row; <Stack> has no per-child grow prop */
+	width: 16px;
+}
+
+.wf-inspector__remove-spacer {
+	flex: 0 0 auto; /* wpds-allow R4 -- holds its width in the row; <Stack> has no per-child grow prop */
+	width: 24px;
+}
+
 /* Grips and remove buttons are hidden at rest and revealed on hover or focus,
    so the list reads as content at a glance and shows its controls only when an
    author is acting on a row. The grip fades; the button appears without a

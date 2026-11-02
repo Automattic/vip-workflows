@@ -60,7 +60,7 @@ import {
 	verticalListSortingStrategy,
 	sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
-import { Fact, SortableFact } from './InspectorFacts';
+import { Fact, RemoveSpacer, SortableFact } from './InspectorFacts';
 import { reorderList } from './graph-model';
 
 /**
@@ -212,7 +212,7 @@ function FieldRow( {
 
 	const trailing = (
 		<>
-			{ removable && (
+			{ removable ? (
 				<Button
 					icon={ trash }
 					label={ removeLabel }
@@ -221,6 +221,11 @@ function FieldRow( {
 					isDestructive
 					size="small"
 				/>
+			) : (
+				// Every row of every list keeps the same columns, so a row with
+				// nothing to remove holds the button's room and its value still
+				// ends where its neighbours' do.
+				<RemoveSpacer />
 			) }
 			{ configurable && isOpen && (
 				<Popover
@@ -279,7 +284,13 @@ function FieldRow( {
 		);
 	}
 
-	return <Fact { ...contentProps }>{ summary.leading }</Fact>;
+	// Same reasoning at the leading edge: a list nobody can reorder still
+	// starts its names where a sortable list's do.
+	return (
+		<Fact reserveGrip { ...contentProps }>
+			{ summary.leading }
+		</Fact>
+	);
 }
 
 /**

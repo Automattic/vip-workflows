@@ -71,6 +71,7 @@
 
 import { useState, useEffect, useMemo } from '@wordpress/element';
 import {
+	Button,
 	TextControl,
 	SelectControl,
 	ComboboxControl,
@@ -79,7 +80,7 @@ import {
 	MenuItem,
 	MenuItemsChoice,
 } from '@wordpress/components';
-import { chevronDown } from '@wordpress/icons';
+import { chevronDown, trash } from '@wordpress/icons';
 import { Stack, Text } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
 import { paletteOptions } from '../../utils/stage-palette';
@@ -93,6 +94,7 @@ import InspectorSection from './InspectorSection';
 import InspectorDangerZone from './InspectorDangerZone';
 import {
 	AGENT_OUTCOMES,
+	END_ID,
 	agentOutcomeLabel,
 	edgeId,
 	isAgentStage,
@@ -846,6 +848,7 @@ export default function StageInspector( {
 									return (
 										<Fact
 											key={ outcome }
+											reserveGrip
 											className={ [
 												'wf-stage-inspector__route',
 												`is-${ outcome }`,
@@ -907,52 +910,107 @@ export default function StageInspector( {
 								} ) }
 							</Stack>
 						) }
-						<InspectorFieldList
-							items={ displayedTransitions }
-							onChange={ handleTransitionsChange }
-							describe={ ( transition ) => {
-								const disabled = isTransitionDisabled(
-									transition.to
-								);
-								const destination = describeTarget(
-									transition.to
-								);
-								const label = transitionLabel(
-									transition,
-									nameTarget( transition.to )
-								);
-								const problem = exitProblem( transition.to );
-								return {
-									label,
-									value: exitValue( destination, {
-										problem,
-										disabled,
-									} ),
-									invalid: Boolean( problem ),
-									selectLabel: exitSelectLabel(
+						{ /* A final stage's way out is the end of the
+						     workflow, so the list says so rather than
+						     calling the stage exit-less. */ }
+						{ ( displayedTransitions.length > 0 ||
+							! stage.is_terminal ) && (
+							<InspectorFieldList
+								items={ displayedTransitions }
+								onChange={ handleTransitionsChange }
+								describe={ ( transition ) => {
+									const disabled = isTransitionDisabled(
+										transition.to
+									);
+									const destination = describeTarget(
+										transition.to
+									);
+									const label = transitionLabel(
+										transition,
+										nameTarget( transition.to )
+									);
+									const problem = exitProblem(
+										transition.to
+									);
+									return {
 										label,
-										problem
-									),
-									className: [
-										'wf-stage-inspector__route',
-										disabled && ! problem && 'is-disabled',
-									]
-										.filter( Boolean )
-										.join( ' ' ),
-								};
-							} }
-							onItemSelect={ ( transition ) =>
-								onSelectEdge(
-									edgeId( stage.key, transition.to, null )
-								)
-							}
-							sortable
-							removeLabel={ __( 'Remove exit', 'vip-workflows' ) }
-							emptyLabel={ __(
-								'No exits yet. Add one or drag from a handle.',
-								'vip-workflows'
-							) }
-						/>
+										value: exitValue( destination, {
+											problem,
+											disabled,
+										} ),
+										invalid: Boolean( problem ),
+										selectLabel: exitSelectLabel(
+											label,
+											problem
+										),
+										className: [
+											'wf-stage-inspector__route',
+											disabled &&
+												! problem &&
+												'is-disabled',
+										]
+											.filter( Boolean )
+											.join( ' ' ),
+									};
+								} }
+								onItemSelect={ ( transition ) =>
+									onSelectEdge(
+										edgeId( stage.key, transition.to, null )
+									)
+								}
+								sortable
+								removeLabel={ __(
+									'Remove exit',
+									'vip-workflows'
+								) }
+								emptyLabel={ __(
+									'No exits yet. Add one or drag from a handle.',
+									'vip-workflows'
+								) }
+							/>
+						) }
+						{ stage.is_terminal && (
+							<Stack
+								render={ <ul /> }
+								direction="column"
+								gap="xs"
+								className="wf-inspector__facts wf-inspector-field-list"
+							>
+								<Fact
+									reserveGrip
+									className="wf-stage-inspector__route"
+									label={ __(
+										'End of workflow',
+										'vip-workflows'
+									) }
+									value=""
+									onSelect={ () =>
+										onSelectEdge(
+											edgeId( stage.key, END_ID )
+										)
+									}
+									selectLabel={ __(
+										'Select End of workflow',
+										'vip-workflows'
+									) }
+									trailing={
+										<Button
+											icon={ trash }
+											label={ __(
+												'Remove exit',
+												'vip-workflows'
+											) }
+											showTooltip
+											onClick={ () =>
+												onDeleteExit( END_ID )
+											}
+											isDestructive
+											size="small"
+										/>
+									}
+								/>
+							</Stack>
+						) }
 					</div>
 				</InspectorSection>
 

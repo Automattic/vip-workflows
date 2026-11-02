@@ -46,7 +46,11 @@ import {
 	act,
 } from './helpers/render-wp-component';
 
-import { isTransitionDisabled } from '../../src/admin/components/graph/graph-model';
+import {
+	END_ID,
+	edgeId,
+	isTransitionDisabled,
+} from '../../src/admin/components/graph/graph-model';
 import StageInspector from '../../src/admin/components/graph/StageInspector';
 
 const AGENTS = [
@@ -281,6 +285,44 @@ describe( 'StageInspector transition read-out', () => {
 		expect( screen.getByText( /No exits yet/ ) ).toHaveTextContent(
 			'Add one or drag from a handle'
 		);
+	} );
+
+	// A final stage's way out is the end of the workflow. Calling it exit-less
+	// sends an author looking for a connection that is already there.
+	it( 'lists the end of the workflow as a final stage’s exit', () => {
+		const onSelectEdge = jest.fn();
+		const onDeleteExit = jest.fn();
+		renderInspector(
+			stage( { transitions: [], is_terminal: true } ),
+			jest.fn(),
+			{ onSelectEdge, onDeleteExit }
+		);
+
+		expect( screen.queryByText( /No exits yet/ ) ).toBeNull();
+
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'Select End of workflow' } )
+		);
+		expect( onSelectEdge ).toHaveBeenCalledWith(
+			edgeId( 'review', END_ID )
+		);
+
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'Remove exit' } )
+		);
+		expect( onDeleteExit ).toHaveBeenCalledWith( END_ID );
+	} );
+
+	it( 'lists the end after the transitions a final stage also has', () => {
+		renderInspector( stage( { is_terminal: true } ) );
+
+		const names = screen
+			.getAllByRole( 'button', { name: /^Select / } )
+			.map( ( button ) => button.getAttribute( 'aria-label' ) );
+		expect( names ).toEqual( [
+			'Select Approve',
+			'Select End of workflow',
+		] );
 	} );
 
 	it( 'marks a transition the stage’s agent has taken over', () => {
