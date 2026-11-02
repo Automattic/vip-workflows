@@ -1842,7 +1842,7 @@ class SequencesController extends WP_REST_Controller {
 				throw new \InvalidArgumentException(
 					sprintf(
 						/* translators: %s: the stage's key, e.g. "in_review". */
-						esc_html__( 'The stage keyed “%s” has no name. Give it a name writers can see.', 'vip-workflows' ),
+						esc_html__( 'The stage keyed “%s” has no valid name.', 'vip-workflows' ),
 						esc_html( $key )
 					)
 				);
