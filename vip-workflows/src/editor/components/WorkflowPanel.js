@@ -669,7 +669,7 @@ export function WorkflowPanel() {
 			<Stack className="vip-workflows-panel" direction="column" gap="lg">
 				<Text variant="body-md" className="vip-workflows-panel__empty">
 					{ __(
-						'This post belongs to a workflow that no longer exists, so its status cannot be changed.',
+						'This post’s workflow was deleted, so its status is locked.',
 						'vip-workflows'
 					) }
 				</Text>
@@ -688,7 +688,7 @@ export function WorkflowPanel() {
 				<Text variant="body-md" className="vip-workflows-panel__empty">
 					{ hasSequences
 						? __(
-								'This post is not in a workflow. Choose one from the Workflow row in the Summary panel.',
+								'Not in a workflow. Choose one in the Workflow row.',
 								'vip-workflows'
 						  )
 						: __(

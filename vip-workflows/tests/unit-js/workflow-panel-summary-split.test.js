@@ -179,7 +179,7 @@ describe( 'WorkflowPanel after the Summary panel split', () => {
 
 		expect(
 			screen.getByText(
-				'This post belongs to a workflow that no longer exists, so its status cannot be changed.'
+				'This post’s workflow was deleted, so its status is locked.'
 			)
 		).toBeInTheDocument();
 		expect(
@@ -195,7 +195,7 @@ describe( 'WorkflowPanel after the Summary panel split', () => {
 		} );
 
 		expect(
-			screen.getByText( /Choose one from the Workflow row/ )
+			screen.getByText( /Choose one in the Workflow row/ )
 		).toBeInTheDocument();
 		expect(
 			screen.queryByRole( 'button', { name: 'Select a workflow' } )

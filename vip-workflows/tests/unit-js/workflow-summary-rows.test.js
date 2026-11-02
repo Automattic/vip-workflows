@@ -463,7 +463,7 @@ describe( 'WorkflowSummaryRows', () => {
 		expect( trigger ).toHaveAttribute( 'aria-invalid', 'true' );
 		expect(
 			screen.getByText(
-				'This post belongs to a workflow that no longer exists, so its status cannot be changed.'
+				'This post’s workflow was deleted, so its status is locked.'
 			)
 		).toBeInTheDocument();
 	} );

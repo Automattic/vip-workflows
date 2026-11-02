@@ -102,14 +102,14 @@ export function WorkflowRow( {
 				disabled={ disabled }
 				invalid
 				errorMessage={ __(
-					'This post belongs to a workflow that no longer exists, so its status cannot be changed.',
+					'This post’s workflow was deleted, so its status is locked.',
 					'vip-workflows'
 				) }
 				renderContent={ ( { onClose } ) => (
 					<>
 						<Text variant="body-md" render={ <p /> }>
 							{ __(
-								'Remove the post from it to edit it as an ordinary post.',
+								'Remove it from the workflow to change its status.',
 								'vip-workflows'
 							) }
 						</Text>
