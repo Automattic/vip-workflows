@@ -45,8 +45,8 @@ class AssignmentManagerTest extends TestCase
 
     /**
      * A transition captures a list, and the assignment need not lead it. Reaching
-     * for `inputs[0]` would find whichever note the author happened to put first
-     * and write no assignment at all.
+     * for `inputs[0]` would find a retired note a stored sequence still carries
+     * ahead of it, and write no assignment at all.
      */
     public function test_process_transition_input_finds_an_assignment_after_a_note(): void
     {
@@ -112,7 +112,9 @@ class AssignmentManagerTest extends TestCase
     /**
      * An assignment nobody supplied a value for is skipped rather than written
      * empty — the writer dismissed the picker, and a slot holding nothing would
-     * satisfy no gate while looking like it had been filled.
+     * name no assignee while looking like it had been filled. This is the
+     * ABSENT-key case: the transition itself may carry no assignment input,
+     * so `input_data` never mentioning the slot must not touch it.
      */
     public function test_process_transition_input_skips_an_assignment_with_no_value(): void
     {
@@ -132,78 +134,95 @@ class AssignmentManagerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // user_satisfies_requirement — no assignment
+    // process_transition_input / unassign — clearing an optional assignment
     // -------------------------------------------------------------------------
 
-    public function test_returns_false_when_assignment_missing(): void
+    /**
+     * Stub get_post_meta/delete_post_meta for unassign(), seeded with an
+     * existing assignment.
+     *
+     * @param array $existing Assignment array `get_post_meta` should answer
+     *                        with for any key (simulates one already stored).
+     * @param array $deleted  Filled with every storage key delete_post_meta
+     *                        was called with.
+     */
+    private function capture_unassign(array $existing, array &$deleted): void
     {
-        Functions\when('get_post_meta')->justReturn(false);
-
-        $this->assertFalse(
-            $this->manager->user_satisfies_requirement(1, 1, [ 'meta_key' => 'ai_check', 'match' => 'completed' ])
+        Functions\when('get_post_meta')->alias(
+            function ($post_id, $key, $single) use ($existing) {
+                return $existing;
+            }
+        );
+        Functions\when('delete_post_meta')->alias(
+            function ($post_id, $key) use (&$deleted) {
+                $deleted[] = $key;
+                return true;
+            }
         );
     }
 
-    // -------------------------------------------------------------------------
-    // user_satisfies_requirement — 'completed' match mode (agent gate)
-    // -------------------------------------------------------------------------
-
-    public function test_completed_match_with_completed_status_returns_true(): void
+    /**
+     * An explicit empty value — present in input_data, unlike the "skipped"
+     * case above — clears whatever was previously assigned. This is the one
+     * way an optional assignment popover has to submit "no one" after a
+     * prior assignment.
+     */
+    public function test_process_transition_input_clears_an_assignment_submitted_empty(): void
     {
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'completed', 'type' => 'agent', 'value' => 'agent-1' ]);
-
-        $this->assertTrue(
-            $this->manager->user_satisfies_requirement(1, 0, [ 'meta_key' => 'ai_check', 'match' => 'completed' ])
+        $written = array();
+        $this->capture_assignments($written);
+        $deleted = array();
+        $this->capture_unassign(
+            array( 'value' => 7, 'type' => 'user', 'status' => 'pending' ),
+            $deleted
         );
+
+        $this->manager->process_transition_input(
+            42,
+            array(
+                'to'     => 'review',
+                'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ) ),
+            ),
+            array( 'legal_reviewer' => '' )
+        );
+
+        $this->assertSame(array(), $written, 'Clearing must not also write a new assignment.');
+        $this->assertSame(array( '_vip_workflows_assignment_legal_reviewer' ), $deleted);
     }
 
-    public function test_completed_match_with_pending_status_returns_false(): void
+    /**
+     * unassign() deletes the slot's post meta when something was there.
+     */
+    public function test_unassign_deletes_an_existing_assignment(): void
     {
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'pending', 'type' => 'agent', 'value' => 'agent-1' ]);
-
-        $this->assertFalse(
-            $this->manager->user_satisfies_requirement(1, 0, [ 'meta_key' => 'ai_check', 'match' => 'completed' ])
+        $deleted = array();
+        $this->capture_unassign(
+            array( 'value' => 7, 'type' => 'user', 'status' => 'pending' ),
+            $deleted
         );
+
+        $this->manager->unassign(42, 'legal_reviewer');
+
+        $this->assertSame(array( '_vip_workflows_assignment_legal_reviewer' ), $deleted);
     }
 
-    public function test_completed_match_with_expired_status_returns_false(): void
+    /**
+     * unassign() is a no-op, not an error, when the slot was never assigned —
+     * "reach a state with nothing here", not "undo a specific assignment".
+     */
+    public function test_unassign_is_a_noop_when_nothing_was_assigned(): void
     {
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'expired', 'type' => 'agent', 'value' => 'agent-1' ]);
-
-        $this->assertFalse(
-            $this->manager->user_satisfies_requirement(1, 0, [ 'meta_key' => 'ai_check', 'match' => 'completed' ])
+        $deleted = array();
+        Functions\when('get_post_meta')->justReturn('');
+        Functions\when('delete_post_meta')->alias(
+            function ($post_id, $key) use (&$deleted) {
+                $deleted[] = $key;
+                return true;
+            }
         );
-    }
 
-    // -------------------------------------------------------------------------
-    // user_satisfies_requirement — 'current_user' match mode (user gate)
-    // -------------------------------------------------------------------------
+        $this->manager->unassign(42, 'legal_reviewer');
 
-    public function test_current_user_match_with_completed_assignment_returns_false(): void
-    {
-        // Non-pending assignments must not satisfy user-gate transitions.
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'completed', 'type' => 'user', 'value' => 42 ]);
-
-        $this->assertFalse(
-            $this->manager->user_satisfies_requirement(1, 42, [ 'meta_key' => 'editor', 'match' => 'current_user' ])
-        );
-    }
-
-    public function test_current_user_match_with_matching_user_returns_true(): void
-    {
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'pending', 'type' => 'user', 'value' => 42 ]);
-
-        $this->assertTrue(
-            $this->manager->user_satisfies_requirement(1, 42, [ 'meta_key' => 'editor', 'match' => 'current_user' ])
-        );
-    }
-
-    public function test_current_user_match_with_different_user_returns_false(): void
-    {
-        Functions\when('get_post_meta')->justReturn([ 'status' => 'pending', 'type' => 'user', 'value' => 42 ]);
-
-        $this->assertFalse(
-            $this->manager->user_satisfies_requirement(1, 99, [ 'meta_key' => 'editor', 'match' => 'current_user' ])
-        );
+        $this->assertSame(array(), $deleted);
     }
 }

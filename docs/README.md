@@ -6,6 +6,7 @@
 - [Local development](local-development.md) — install, build, and run the project.
 - [Testing](../vip-workflows/docs/TESTING.md) — unit, integration, and end-to-end test environments.
 - [Extending VIP Workflows](guides/extending-vip-workflows.md) — supported extension points and examples.
+- [Authoring a sequence without the UI](guides/authoring-a-sequence-without-the-ui.md) — design a workflow as JSON and create it over REST, MCP, or `wp eval-file`.
 
 ## Reference
 
@@ -18,6 +19,7 @@
 - [Extension points](reference/extension-points.md)
 - [AI models and providers](reference/ai-supported-models.md)
 - [Quick reference](reference/quick-reference.md)
+- [Sequence schema](reference/sequence-schema.md) — the field-by-field reference for authoring a workflow config.
 - [Stage-agent verdict threat model](reference/stage-agent-verdict-threat-model.md)
 
 ## Guides
@@ -34,4 +36,5 @@
 
 - [Shipped feature specifications](specs/README.md)
 - [Multimedia sequence demo](demos/multimedia-sequence.json)
+- [Sequence examples](examples/) — the Editorial Review pipeline in the FLAT and WRAPPED shapes.
 - [Plugin integration](../vip-workflows/docs/PLUGIN-INTEGRATION.md)

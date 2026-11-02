@@ -6,6 +6,7 @@
  */
 
 import { useCallback, useState } from '@wordpress/element';
+import { isSafeUrl } from '../../../../common/safe-url';
 import { __ } from '@wordpress/i18n';
 
 import { markdownToPlainText } from '../../markdown';
@@ -495,7 +496,7 @@ export function CardActions( {
 			{ url && (
 				<Button
 					icon={ external }
-					href={ url }
+					href={ isSafeUrl( url ) ? url : undefined }
 					target="_blank"
 					label={ __( 'Open', 'vip-workflows' ) }
 					showTooltip

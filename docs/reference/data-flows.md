@@ -33,11 +33,7 @@ StatusManager::transition($post_id, 'review', $options)
 4. Check role-based permissions (allowed_roles)
     ↓
     If user lacks role → return WP_Error (403)
-5. Check assignment requirements (requires_assignment)
-    ↓
-    If required and user doesn't match → return WP_Error (403)
-    (unless Settings::can_user_bypass_workflow())
-6. Run required tools (if not bypassed)
+5. Run required tools (if not bypassed)
     ↓
     AbilityExecutor::execute('readability', ['post_id' => $post_id], 'transition')
         ↓
@@ -52,17 +48,16 @@ StatusManager::transition($post_id, 'review', $options)
     If soft_warnings[] and not acknowledged → return array with warnings_pending
     ↓
     Log blocked transition to audit trail (if blocked)
-7. If the edge crosses a status-region boundary:
+6. If the edge crosses a status-region boundary:
     wp_update_post(['post_status' => <target region status>]) — written through
     core BEFORE the stage write; committed status read back and accepted
     (same-region moves never touch post_status; trashed posts are rejected up front)
-8. Update meta: _vip_workflows_current_stage_key
-9. Mark assignment requirement completed (if applicable)
-10. Process transition input data (if provided)
-11. Store transition data in _vip_workflows_transition_data
-12. Log to wp_vip_workflows_events with notes
-13. Fire action: do_action('vip_workflows_status_transition', ...)
-14. Fire action: do_action('vip_workflows_entered_review', ...)
+7. Update meta: _vip_workflows_current_stage_key
+8. Process transition input data (if provided)
+9. Store transition data in _vip_workflows_transition_data
+10. Log to wp_vip_workflows_events with notes
+11. Fire action: do_action('vip_workflows_status_transition', ...)
+12. Fire action: do_action('vip_workflows_entered_review', ...)
     ↓
 EventBus stores the event (audit log, post history, recent activity)
     ↓

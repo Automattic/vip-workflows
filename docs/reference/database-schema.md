@@ -278,7 +278,6 @@ Stored in `wp_postmeta`:
 | `_vip_workflows_assigned_to` | integer | Assigned user ID |
 | `_vip_workflows_assigned_desk` | integer | Assigned desk ID |
 | `_vip_workflows_transition_data` | array | Per-status transition history (serialized) |
-| `wfp_{note_id}_{slug}` | mixed | Transition input notes (dynamic keys from sequence config) |
 | `_vip_ideation_asst_{id}` | array | Per-assistant execution state for ideation projects |
 
 `_vip_asset_analysis` and `_vip_asset_attached_to` no longer exist — they belonged to the standalone Workflow Notes/asset subsystem removed in schema `2.16.0`. Uploaded-file AI analysis is now stored on the `wp_vip_ideation_sources` row itself (`content`, `excerpt`, `ai_analysis` columns above), not in post meta.

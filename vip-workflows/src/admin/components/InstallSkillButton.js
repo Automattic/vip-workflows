@@ -18,12 +18,14 @@ const SKILL_NAMES = {
 	agent: 'create-vip-workflows-agent',
 	tool: 'create-vip-workflows-tool',
 	'notification-channel': 'create-vip-workflows-notification-channel',
+	sequence: 'create-vip-workflows-sequence',
 };
 
 const SKILL_LABELS = {
 	agent: 'Research Agent',
 	tool: 'Editorial Tool',
 	'notification-channel': 'Notification Channel',
+	sequence: 'Workflow Sequence',
 };
 
 function buildInstallScript( skillName ) {

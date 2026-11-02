@@ -134,7 +134,11 @@ not about closing a hole.
 
 - `region_entry`, still exactly one per used region.
 - Both validation errors: a region with stages and no checkpoint, and a region
-  with more than one.
+  with more than one. Both now carry a `target` (`regionTarget( region )`) as
+  part of `validateSequence()`'s `{ message, target }` return shape added in
+  [Point a blocking error at the transition or stage at fault](https://github.com/Automattic/vip-workflows/pull/18)
+  — Save routes the author straight to the region's Post status panel instead
+  of leaving them to find it.
 - The border-slot rendering and the drag-a-stage-into-the-slot gesture. Its
   meaning sharpens: the slot is where core drops a post, which is a real and
   distinct concept rather than a restatement of the edge rule.
@@ -295,7 +299,8 @@ stored row remains valid. Two notes:
 - `vip-workflows/includes/database/class-schema.php` —
   `replay_stored_stage_configs()`
 - `vip-workflows/src/admin/components/graph/graph-model.js` —
-  `validateSequence()`, `regionEntryStage()`
+  `validateSequence()`, `regionEntryStage()` (re-exported here; now actually
+  defined in `./regions.js` and imported back in)
 - `vip-workflows/src/admin/components/graph/SequenceGraphEditor.js` —
   `isValidConnection` (the `isStageKey`-based connection validator) and
   `reconnectEdge`/`reconnectEdgeToNewStage` (the inline both-endpoints-are-stages

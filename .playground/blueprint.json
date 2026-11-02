@@ -1,0 +1,61 @@
+{
+	"$schema": "https://playground.wordpress.net/blueprint-schema.json",
+	"meta": {
+		"title": "VIP Workflows — pull request preview",
+		"description": "Installs the VIP Workflows build from a pull request, seeds demo content and role users, and lands on the Workflows dashboard.",
+		"author": "vip-workflows"
+	},
+	"landingPage": "/wp-admin/admin.php?page=vip-workflows",
+	"preferredVersions": {
+		"php": "8.2",
+		"wp": "latest"
+	},
+	"phpExtensionBundles": [ "kitchen-sink" ],
+	"features": {
+		"networking": true
+	},
+	"steps": [
+		{
+			"step": "defineWpConfigConsts",
+			"consts": {
+				"WP_DEBUG": true,
+				"WP_DEBUG_LOG": true,
+				"WP_DEBUG_DISPLAY": false,
+				"SCRIPT_DEBUG": true
+			}
+		},
+		{
+			"step": "login",
+			"username": "admin",
+			"password": "password"
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "https://github.com/WordPress/mcp-adapter/releases/latest/download/mcp-adapter.zip"
+			},
+			"options": { "activate": true }
+		},
+		{
+			"step": "installPlugin",
+			"pluginData": {
+				"resource": "url",
+				"url": "{{ARTIFACT_URL:vip-workflows}}"
+			},
+			"options": { "activate": true }
+		},
+		{
+			"step": "runPHP",
+			"code": "<?php\nrequire_once '/wordpress/wp-load.php';\n\nforeach ( array( 'editor', 'author', 'contributor' ) as $role ) {\n\tif ( username_exists( $role ) ) {\n\t\tcontinue;\n\t}\n\twp_insert_user(\n\t\tarray(\n\t\t\t'user_login'   => $role,\n\t\t\t'user_pass'    => 'password',\n\t\t\t'user_email'   => $role . '@example.test',\n\t\t\t'display_name' => ucfirst( $role ) . ' User',\n\t\t\t'role'         => $role,\n\t\t)\n\t);\n}\n"
+		},
+		{
+			"step": "importWxr",
+			"file": {
+				"resource": "literal",
+				"name": "vip-workflows-content.xml",
+				"contents": "{{REPO_WXR:tools/vip-workflows-content.xml}}"
+			}
+		}
+	]
+}

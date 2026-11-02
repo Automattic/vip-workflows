@@ -57,8 +57,14 @@ apply_filters('vip_workflows_media_providers', $providers);
 
 ```
 # Sequences (type: workflow/editorial, phase)
-GET/POST    /vip-workflows/v1/sequences
-GET/PUT/DEL /vip-workflows/v1/sequences/{id}
+GET/POST    /vip-workflows/v1/sequences                      # GET edit_posts; POST create: FLAT body {name*, statuses*, ...}; manage_options
+GET/PUT/DEL /vip-workflows/v1/sequences/{id}                 # GET edit_posts; PUT/PATCH is a FULL replacement, PUT+DEL manage_options
+GET         /vip-workflows/v1/sequences/slug/{slug}          # same item shape as /{id}; edit_posts
+POST        /vip-workflows/v1/sequences/import               # WRAPPED under a key: {sequence_json:{type,name,description?,config}, name?:override}; creates a DRAFT; manage_options
+GET         /vip-workflows/v1/sequences/{id}/export          # WRAPPED {name,type,description,config} (import shape); edit_posts
+GET         /vip-workflows/v1/sequences/options              # eligible post types + phase graph; edit_posts
+GET         /vip-workflows/v1/sequences/{id}/stats           # per-stage counts (author-scoped); edit_posts
+POST        /vip-workflows/v1/sequences/{id}/repair-regions  # normalize a stored region shape; manage_options
 
 # Workflow
 GET         /vip-workflows/v1/workflow/post/{id}/status
@@ -115,6 +121,8 @@ GET         /vip-workflows/v1/audit-log/users
 >
 > **There is no Jobs REST namespace.** An earlier job-registry framework (`/jobs`, `/jobs/{id}/settings`, `/jobs/{id}/run`) was removed — see [architecture.md §7](architecture.md#7-scheduled-cleanup). The only scheduled work today is the nightly `Maintenance\Cleanup` routine, which has no settings or run-now endpoint.
 
+> **Authoring a sequence without the UI.** Two JSON shapes: create with the **FLAT** shape (`POST /sequences`, or the `vip-workflows/create-sequence` ability) — see [`docs/examples/editorial-review.flat.json`](../examples/editorial-review.flat.json); import or round-trip with the **WRAPPED** shape (`POST /sequences/import`, the shape `/export` emits) — see [`docs/examples/editorial-review.wrapped.json`](../examples/editorial-review.wrapped.json). Import always creates a **draft**, so activate it afterwards. Writes need `manage_options`; `export`/`options`/`stats` need only `edit_posts`. For the field-by-field shape and the region rules, follow the `create-vip-workflows-sequence` skill or the canonical template `includes/sequences/templates/editorial-basic.json`.
+
 ---
 
 ## Known Issues & Important Patterns
@@ -142,30 +150,27 @@ GET         /vip-workflows/v1/audit-log/users
 - Blocked transitions logged to `wp_vip_workflows_events` via `log_blocked_transition()`
 
 **Bypass Permissions**:
-- `Settings::can_user_bypass_workflow()` - Skip assignment requirements
+- `Settings::can_user_bypass_workflow()` - Skip role restrictions and required fields, and turn the publish-boundary veto on a direct status change into a confirm
 - `Settings::can_user_bypass_tool_checks()` - Skip hard check enforcement
-- Checked in `StatusManager::transition()` before enforcement
+- Checked in `StatusManager::transition()` before enforcement (and, for the first, in `Sequence::get_role_permitted_transitions()` and `PublishBoundaryGuard`)
 - Default: Administrators can bypass both (configurable in Settings → General)
 
-**Transition Input Notes**:
-- Sequence defines `input` object with `note_id`, `note_name`, `meta_key`
-- Frontend sends `inputData` object with notes array during transition
+**Transition Inputs**:
+- A transition's `inputs` list carries at most one `assignment` (`meta_key`,
+  `assignee_type`, `label`, `filter`)
+- Frontend sends `inputData` — the assignee under the assignment's `meta_key`,
+  plus optional `{meta_key}_notes` — during the transition
 - Backend stores in TWO places:
   1. `_vip_workflows_transition_data` meta (per-status history)
   2. `wp_vip_workflows_events` table (audit log with notes column)
-- Meta keys generated as `wfp_{note_id}_{sanitized_slug}`
-
-**Assignment Requirements**:
-- Sequence defines `requires_assignment` with `meta_key` and `match` rule
-- Match types: `current_user`, `current_user_role`, `completed` (agent-driven, status-based rather than identity-based)
-- Validated via `AssignmentManager::user_satisfies_requirement()`
-- Transitions locked/unlocked in frontend via `_locked` and `_locked_reason` props
-- Can be bypassed if user has `can_user_bypass_workflow()` permission
+- Free-text note inputs (`textarea`, `text`) are no longer collected; a stored
+  one is passed over by the sidebar and listed for removal in the sequence editor
 
 **Held Transitions (`_locked` / `_locked_reason` / `_locked_code`)**:
 - A transition the user may see but not take carries `_locked: true` plus
-  `_locked_reason` (a finished sentence for the reader). Assignment, role and
-  capability locks are all projected this way, as is the required-metadata gate
+  `_locked_reason` (a finished sentence for the reader). A disabled required
+  tool is projected this way, as is the required-metadata gate; a role or core
+  capability the user lacks drops the edge from the list instead
 - `_locked_code` names the RULE holding it, for code rather than for a reader.
   Only the required-metadata gate sets one today
   (`Sequence::CODE_REQUIRED_METADATA`, the same string
@@ -205,8 +210,7 @@ GET         /vip-workflows/v1/audit-log/users
 - `SequenceGraphEditor.js` serves both editorial (`type: 'workflow'`) and phase sequences via a `mode` prop
 - `graph-model.js` is the pure model: stages ↔ nodes/edges projection, mutations, `validateSequence()`
 - `GraphCanvas.js` wraps `@xyflow/react`; inspectors (`StageInspector.js`, `TransitionInspector.js`, `SequenceSettingsInspector.js`, `PhaseStageInspector.js`) edit the current selection
-- `TransitionInspector.js` generates `note_id` as random string (e.g., `n123abc`) and auto-generates `meta_key` as `wfp_{note_id}_{slug}`
-- Assignment input type pre-fills `meta_key: "_vip_workflows_assigned_to"`
+- An assignment input gets its `meta_key` minted when it is added (`wfp_{id}`); authors never type it
 
 **Build System**:
 - Webpack builds multiple entry points (admin, editor, ideation, notifications)

@@ -28,6 +28,7 @@ import { plus } from '@wordpress/icons';
 import { ModalActions } from '../../common/ModalActions';
 import AdminPage from './AdminPage';
 import { CardGridView } from './CardGridView';
+import { HowToModal } from './HowToModal';
 import { SummaryCard } from './SummaryCard';
 
 import './SequencesList.css';
@@ -78,6 +79,7 @@ export function SequencesList() {
 	const [ error, setError ] = useState( null );
 	const [ availablePostTypes, setAvailablePostTypes ] = useState( [] );
 	const [ showImportModal, setShowImportModal ] = useState( false );
+	const [ showHowTo, setShowHowTo ] = useState( false );
 	const [ activeTab, setActiveTab ] = useState( 'workflow' );
 	const { createErrorNotice } = useDispatch( noticesStore );
 
@@ -325,11 +327,22 @@ export function SequencesList() {
 			</>
 		) : null;
 
+	// The same skill the docs point at, offered where sequences are managed —
+	// the Tools, Agents and Notifications screens each carry their own.
+	const subtitle = (
+		<>
+			{ SUBTITLE }{ ' ' }
+			<Button variant="link" onClick={ () => setShowHowTo( true ) }>
+				{ __( 'How to author one as JSON.', 'vip-workflows' ) }
+			</Button>
+		</>
+	);
+
 	return (
 		<AdminPage
 			breadcrumbs={ BREADCRUMBS }
 			title={ TITLE }
-			subtitle={ SUBTITLE }
+			subtitle={ subtitle }
 			actions={ actions }
 		>
 			<Stack direction="column" gap="lg">
@@ -405,6 +418,34 @@ export function SequencesList() {
 						onSuccess={ fetchSequences }
 						allSequences={ sequences }
 					/>
+				) }
+				{ showHowTo && (
+					<HowToModal
+						title={ __(
+							'Author a sequence as JSON',
+							'vip-workflows'
+						) }
+						skillType="sequence"
+						onClose={ () => setShowHowTo( false ) }
+					>
+						<Text variant="body-md" render={ <p /> }>
+							{ __(
+								'Create a sequence with the FLAT shape, or import the WRAPPED shape an export emits:',
+								'vip-workflows'
+							) }
+						</Text>
+						<pre className="vip-workflows-code">{ `POST /wp-json/vip-workflows/v1/sequences
+{ "name": "Editorial review", "statuses": [ ... ] }
+
+POST /wp-json/vip-workflows/v1/sequences/import
+{ "sequence_json": { "type": "workflow", "name": "...", "config": { ... } } }` }</pre>
+						<Text variant="body-md" render={ <p /> }>
+							{ __(
+								'Imports arrive as drafts, so activate them. The skill has the full shape.',
+								'vip-workflows'
+							) }
+						</Text>
+					</HowToModal>
 				) }
 			</Stack>
 		</AdminPage>

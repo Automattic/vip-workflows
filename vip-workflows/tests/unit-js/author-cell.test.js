@@ -1,10 +1,11 @@
 /**
  * Unit tests for the shared author cell.
  *
- * Three kinds of actor turn up in the plugin's lists — a person, an agent, and
- * the site itself — and they must read as one column: the same box in the same
- * place, differing only in what fills it. These pin that shape, and that an
- * agent-made entry stays distinguishable from a person's at a glance.
+ * Four kinds of actor turn up in the plugin's lists — a person, an agent, the
+ * site itself, and a role — and they must read as one column: the same box in
+ * the same place, differing only in what fills it. These pin that shape, and
+ * that an agent-made entry (or a role assignment) stays distinguishable from a
+ * person's at a glance.
  */
 
 import { render } from './helpers/render-wp-component';
@@ -13,9 +14,10 @@ import { eventActorField } from '../../src/common/workflow-event-fields';
 
 const html = ( ui ) => render( ui ).container.innerHTML;
 
-// The shape every route serves (see `VIPWorkflows\Workflow\Actor`). Built here
-// rather than spelled out per test so a test reads as "this person" instead of
-// as three loose props.
+// The shape every route serves (see `VIPWorkflows\Workflow\Actor` and
+// `AssignmentManager::describe_assignee()`). Built here rather than spelled
+// out per test so a test reads as "this person" instead of as three loose
+// props.
 const person = {
 	type: 'user',
 	display_name: 'Ada Lovelace',
@@ -27,12 +29,13 @@ const agent = {
 	avatar: null,
 };
 const site = { type: 'system', display_name: 'System', avatar: null };
+const role = { type: 'role', display_name: 'Editor', avatar: null };
 
 describe( 'AuthorCell', () => {
 	it( 'gives every kind of actor the same avatar box', () => {
 		// The point of the cell: a mixed column lines up, because the picture,
-		// the initials and the two glyphs all occupy one shape.
-		[ person, agent, site ].forEach( ( actor ) => {
+		// the initials and the glyphs all occupy one shape.
+		[ person, agent, site, role ].forEach( ( actor ) => {
 			const { container } = render( <AuthorCell actor={ actor } /> );
 
 			expect(
@@ -71,6 +74,20 @@ describe( 'AuthorCell', () => {
 				'.vip-workflows-dataview-avatar--system svg'
 			)
 		).not.toBeNull();
+	} );
+
+	it( 'renders a role assignment with the people glyph, not a nameless person', () => {
+		const { container } = render( <AuthorCell actor={ role } /> );
+
+		expect( container.textContent ).toContain( 'Editor' );
+		expect(
+			container.querySelector(
+				'.vip-workflows-dataview-avatar--role svg'
+			)
+		).not.toBeNull();
+		// A role has no picture and no initials fallback drawn from its name —
+		// the glyph is the whole answer, same as an agent or the site.
+		expect( container.innerHTML ).not.toContain( '<img' );
 	} );
 
 	it( 'never takes a picture for an actor that is not a person', () => {

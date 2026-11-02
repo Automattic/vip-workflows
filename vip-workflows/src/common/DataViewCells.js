@@ -12,7 +12,7 @@
 
 import { __ } from '@wordpress/i18n';
 import { Link, Stack, Text } from '@wordpress/ui';
-import { wordpress } from '@wordpress/icons';
+import { people, wordpress } from '@wordpress/icons';
 
 import { Avatar } from './Avatar';
 import { sparkle } from './icons';
@@ -20,10 +20,13 @@ import { sparkle } from './icons';
 import './DataViewCells.css';
 
 // What stands in for a picture, per kind of actor. A person is absent from this
-// map on purpose: they have a picture, or initials taken from their name.
+// map on purpose: they have a picture, or initials taken from their name. A
+// role is a bucket of possible people rather than one of them, so it gets a
+// glyph too rather than falling through to a nameless person's initials.
 const ACTOR_GLYPHS = {
 	agent: sparkle,
 	system: wordpress,
+	role: people,
 };
 
 /**
@@ -72,10 +75,10 @@ export function TitleLink( { href, target, children } ) {
 }
 
 /**
- * Who did something — an avatar followed by a name.
+ * Who — or what — this names, as an avatar followed by a name.
  *
- * Three kinds of actor turn up in these lists and all three read the same way,
- * because a reader scanning a column wants one shape, not three. What differs is
+ * Four kinds of actor turn up in these lists and all four read the same way,
+ * because a reader scanning a column wants one shape, not four. What differs is
  * only what fills the avatar:
  *
  *  - a person: their picture, falling back to their initials. The shared
@@ -86,6 +89,10 @@ export function TitleLink( { href, target, children } ) {
  *    beside it says which agent.
  *  - the site itself: the WordPress mark, for an event no user can be credited
  *    for — a cron run, a deleted account.
+ *  - a role: the people glyph, for a workflow assignment made to anyone
+ *    holding a role rather than to one person. Falling through to the default
+ *    person treatment here would draw a nameless-looking initials circle that
+ *    reads as "a person with no photo" rather than as what it actually is.
  *
  * The row is a `<Stack>` rendered as a `<span>`: the cell sits inside a table
  * cell on the list pages and inside the audit log's inline meta row ("date ·

@@ -2,9 +2,11 @@
 /**
  * Import Sequence ability.
  *
- * Imports a workflow sequence from an exported JSON definition. Thin adapter over
- * SequencesController::import_sequence() so slug dedup, metadata validation,
- * assignment-meta regeneration, and the phase-type Ideation gate are reused.
+ * Imports a workflow sequence from the WRAPPED envelope the export endpoint
+ * emits — {type, name, description, config}, passed under `sequence_json`. Thin
+ * adapter over SequencesController::import_sequence() so slug dedup, metadata
+ * validation, assignment-meta regeneration, and the phase-type Ideation gate are
+ * reused.
  *
  * @package VIPWorkflows
  */
@@ -70,7 +72,7 @@ function register_import_sequence(): void {
 		'vip-workflows/import-sequence',
 		array(
 			'label'               => __( 'Import sequence', 'vip-workflows' ),
-			'description'         => __( 'Imports a workflow sequence from an exported JSON definition. The imported sequence is created as a draft.', 'vip-workflows' ),
+			'description'         => __( 'Imports a workflow sequence from a WRAPPED envelope passed as the sequence_json parameter: {type, name, description, config} with the stages under config.statuses, the shape the export endpoint emits, not the FLAT create-sequence body. The imported sequence is created as a draft; activate it afterwards.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',

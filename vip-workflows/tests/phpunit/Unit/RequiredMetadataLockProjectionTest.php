@@ -2,9 +2,9 @@
 /**
  * A rule that blocks a move has to say so before the move is attempted.
  *
- * Every other blocking rule in the sequence advertises itself: an unsatisfied
- * `requires_assignment` comes back on the transition as `_locked` plus a reason,
- * and the board, My Queue and the editor rail all read it. The required-field
+ * Every other blocking rule in the sequence advertises itself: a disabled
+ * required tool comes back on the transition as `_locked` plus a reason, and
+ * the board, My Queue and the editor rail all read it. The required-field
  * gate was the one that stayed silent until the 422, so the board computed a
  * card as a legal drop target, the drop was refused, the card snapped back and
  * an audit row was written for a move the board had just shown as permitted.
@@ -71,10 +71,11 @@ class RequiredMetadataLockProjectionTest extends TestCase
      * A draft -> review -> published sequence spanning three regions, carrying
      * one metadata field.
      *
-     * @param  bool $required Whether the `section` field is required.
+     * @param  bool  $required      Whether the `section` field is required.
+     * @param  array $publish_tools Tools the Publish transition requires.
      * @return Sequence
      */
-    private function sequence( bool $required ): Sequence
+    private function sequence( bool $required, array $publish_tools = array() ): Sequence
     {
         $config = array(
             'post_types'      => array( 'post' ),
@@ -92,7 +93,7 @@ class RequiredMetadataLockProjectionTest extends TestCase
                     'status'       => 'pending',
                     'region_entry' => true,
                     'transitions'  => array(
-                        array( 'to' => 'published', 'label' => 'Publish' ),
+                        array( 'to' => 'published', 'label' => 'Publish', 'required_tools' => $publish_tools ),
                         array( 'to' => 'draft', 'label' => 'Send back' ),
                     ),
                 ),
@@ -333,9 +334,9 @@ class RequiredMetadataLockProjectionTest extends TestCase
      * code, and the block editor needs it. Fields typed into the sidebar are
      * editor-store edits until the post is saved, so the editor holds meta this
      * projection has not seen — it re-judges THIS lock against what the author
-     * has actually filled in, and takes every other lock (role, assignment,
-     * capability) on trust. Without a name on the lock it cannot tell them
-     * apart, and either re-judges all of them or none.
+     * has actually filled in, and takes the other lock (a disabled required
+     * tool) on trust. Without a name on the lock it cannot tell them apart, and
+     * either re-judges both or neither.
      */
     public function test_the_metadata_lock_names_the_rule_holding_it(): void
     {
@@ -355,6 +356,33 @@ class RequiredMetadataLockProjectionTest extends TestCase
         // editor's projected view of the rule and the 422 that enforces it are
         // one name rather than two that have to be kept in step.
         $this->assertSame( 'required_fields_missing', Sequence::CODE_REQUIRED_METADATA );
+    }
+
+    /**
+     * A disabled required tool outranks the metadata lock on the same edge.
+     *
+     * The metadata lock is the one the editor releases once the fields are
+     * filled in the sidebar. Left in charge of an edge whose required tool is
+     * switched off, it would enable a move the tool gate refuses on every
+     * click — so the tool lock takes the edge, with no code to re-judge.
+     */
+    public function test_a_disabled_required_tool_outranks_the_metadata_lock(): void
+    {
+        $this->stub_editor();
+        $this->stub_section_value( '' );
+        Functions\when( 'get_option' )->alias(
+            fn( $option ) => 'vip_workflows_ability_settings' === $option
+                ? array( 'test/seo' => array( 'enabled' => false ) )
+                : array()
+        );
+
+        $offered = $this->by_destination(
+            $this->sequence( true, array( 'test/seo' ) )->get_role_permitted_transitions( 'review', 5, self::POST_ID )
+        );
+
+        $this->assertTrue( $offered['published']['_locked'] );
+        $this->assertArrayNotHasKey( '_locked_code', $offered['published'] );
+        $this->assertStringContainsString( 'test/seo', $offered['published']['_locked_reason'] );
     }
 
     /**

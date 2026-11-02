@@ -1,0 +1,42 @@
+name: PR Preview - Build
+
+# Builds the core plugin from pull request code and bundles it with the
+# Playground blueprint generated from .playground/blueprint.json. Runs with
+# read-only permissions; "PR Preview - Publish" hosts the result and adds the
+# Preview button to the pull request description.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-build.yml@1b15093d61b5e98cdfeb31466f34ade495762cd7 # v4
+    with:
+      node-version: '22'
+      php-version: '8.2'
+      artifacts: vip-workflows=dist/preview/vip-workflows.zip
+      blueprint-from-build: dist/preview/blueprint.json
+      build-command: |
+        set -euo pipefail
+
+        # Stamp a prerelease version so the Plugins screen shows which pull
+        # request and commit the preview is running.
+        base_version="$(sed -n 's/.*Version: *//p' vip-workflows/vip-workflows.php | head -n 1 | tr -d '[:space:]')"
+        head_sha="${{ github.event.pull_request.head.sha }}"
+        version="${base_version}-pr.${{ github.event.pull_request.number }}.${head_sha:0:7}"
+
+        ./tools/package-plugin.sh "$version" vip-workflows
+
+        mkdir -p dist/preview
+        cp "dist/vip-workflows-${version}.zip" dist/preview/vip-workflows.zip
+        node tools/playground/build-preview-blueprint.mjs dist/preview/blueprint.json
+
+        unzip -l dist/preview/vip-workflows.zip | tail -n 1

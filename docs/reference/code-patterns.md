@@ -338,9 +338,10 @@ $settings->update_tool_settings('seo-check', [
 ```php
 use VIPWorkflows\Admin\Settings;
 
-// Check if current user can bypass workflow assignment checks
+// Check if current user can bypass workflow rules (role restrictions, required
+// fields, and the publish-boundary veto on direct status changes)
 if (Settings::can_user_bypass_workflow()) {
-    // User can transition without being assigned
+    // User can transition past the sequence's own rules
 }
 
 // Check if current user can bypass tool checks
@@ -354,12 +355,17 @@ if (Settings::can_user_bypass_tool_checks()) {
 
 ### 12. Working with Transition Inputs
 
-A transition captures any number of inputs, in the order the author arranged
-them, and the editor asks for them in that order before the post moves. At most
-one of them may be an `assignment` — it is the slot `requires_assignment` gates
-on and the one `AssignmentManager` fills, so a second names nothing
-distinguishable, and `Sequence::prepare_config_for_write()` refuses a config
-carrying two. A transition that captures nothing declares no `inputs` key at all.
+A transition captures an `assignment`: the editor asks for an assignee (and
+optional notes) before the post moves. At most one input may be an assignment —
+the one slot the editor collects an assignee for — and
+`Sequence::prepare_config_for_write()` refuses a config carrying two. The
+sequence editor mints an assignment's `meta_key` when the input is added; authors
+never type it. A transition that captures nothing declares no `inputs` key at
+all.
+
+A free-text note (`textarea`, or the older `text`) is no longer collected. A
+stored sequence may still carry one; the editor sidebar passes over it, and the
+sequence editor lists it only so the author can remove it.
 
 ```php
 // In sequence config:
@@ -368,22 +374,12 @@ $transition = [
     'label' => 'Submit for Review',
     'inputs' => [
         [
-            'type' => 'textarea',  // or 'text', 'assignment'
-            'note_id' => 'n123abc',
-            'note_name' => 'Submission Notes',
-            'meta_key' => 'wfp_n123abc_submission_notes',
-            'required' => true,
-        ],
-        [
             'type' => 'assignment',
-            'meta_key' => 'legal_reviewer',
+            'meta_key' => 'wfp_n1726000000abcde',
             'assignee_type' => 'user',
         ],
     ],
 ];
-
-// Every input writes under its own meta key, which is why two on one transition
-// may never share one: the values arrive as a single flat map.
 
 // When transition executes, input data stored in:
 // 1. Post meta: _vip_workflows_transition_data (per-status history)

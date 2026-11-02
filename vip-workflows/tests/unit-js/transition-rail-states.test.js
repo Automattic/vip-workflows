@@ -354,13 +354,13 @@ describe( 'TransitionRail degenerate states', () => {
 					to: 'hired',
 					label: 'Hire',
 					_locked: true,
-					_locked_reason: 'Requires the Editor role.',
+					_locked_reason: 'Required checks are switched off: x/links',
 				},
 				{
 					to: 'rejected',
 					label: 'Reject',
 					_locked: true,
-					_locked_reason: 'You are not assigned to this post.',
+					_locked_reason: 'Required checks are switched off: x/seo',
 				},
 			],
 		} );
@@ -368,9 +368,11 @@ describe( 'TransitionRail degenerate states', () => {
 		expect(
 			screen.getByRole( 'button', { name: 'Hire' } )
 		).toHaveAttribute( 'aria-disabled', 'true' );
-		expect( screen.getByText( 'Requires the Editor role.' ) ).toBeVisible();
 		expect(
-			screen.getByText( 'You are not assigned to this post.' )
+			screen.getByText( 'Required checks are switched off: x/links' )
+		).toBeVisible();
+		expect(
+			screen.getByText( 'Required checks are switched off: x/seo' )
 		).toBeVisible();
 		expect( endPill() ).not.toBeInTheDocument();
 	} );
@@ -486,7 +488,7 @@ describe( 'TransitionRail degenerate states', () => {
 					to: 'review',
 					label: 'Submit for review',
 					_locked: true,
-					_locked_reason: 'You are not assigned to this post.',
+					_locked_reason: 'Required checks are switched off: x/seo',
 					status_info: { key: 'review', label: 'Review' },
 				},
 			],

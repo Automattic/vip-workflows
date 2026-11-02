@@ -269,7 +269,7 @@ describe( 'WorkflowPanel transition order', () => {
 			{
 				...transition( 'review', 'Skip checks, send to Review' ),
 				_locked: true,
-				_locked_reason: 'Only the assignee may do this.',
+				_locked_reason: 'Required checks are switched off: x/seo',
 			},
 		] );
 
@@ -279,7 +279,7 @@ describe( 'WorkflowPanel transition order', () => {
 			} )
 		).toHaveAttribute( 'aria-disabled', 'true' );
 		expect(
-			screen.getByText( 'Only the assignee may do this.' )
+			screen.getByText( 'Required checks are switched off: x/seo' )
 		).toBeVisible();
 	} );
 } );

@@ -48,61 +48,64 @@ See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarc
 
 ```json
 {
-  "version": "2.0",
   "post_types": ["post"],
   "statuses": [
     {
       "key": "draft",
       "label": "Draft",
-      "color": "#3498db",
+      "status": "draft",
+      "region_entry": true,
       "transitions": [
         {
           "to": "review",
-          "label": "Submit for Review",
-          "required_tools": ["readability"]
+          "label": "Submit for review",
+          "required_tools": ["vip-workflows/readability"]
         }
       ]
     },
     {
       "key": "review",
-      "label": "In Review",
-      "color": "#f39c12",
+      "label": "In review",
+      "status": "draft",
       "transitions": [
         {
-          "to": "approved",
+          "to": "published",
           "label": "Approve",
-          "allowed_roles": ["editor", "administrator"],
-          "requires_assignment": {
-            "meta_key": "_vip_workflows_assigned_to",
-            "match": "current_user"
-          }
+          "allowed_roles": ["editor", "administrator"]
         },
         {
           "to": "draft",
-          "label": "Request Changes",
+          "label": "Request changes",
           "inputs": [
             {
-              "type": "textarea",
-              "note_id": "n123abc",
-              "note_name": "Change Requests",
-              "meta_key": "wfp_n123abc_change_requests",
-              "required": true
+              "type": "assignment",
+              "meta_key": "reviewer",
+              "assignee_type": "user",
+              "label": "Who makes the changes?"
             }
           ]
         }
       ]
+    },
+    {
+      "key": "published",
+      "label": "Published",
+      "status": "publish",
+      "region_entry": true,
+      "is_terminal": true
     }
   ]
 }
 ```
+
+> This is the config **core**. In a FLAT create body it sits at the top level next to `name`; in a WRAPPED import/export envelope it sits under `config`. For the field-by-field shape and the region rules, see [sequence-schema.md](sequence-schema.md).
 
 **Workflow sequences can**:
 - Apply to any registered post type (`post`, `page`, or a CPT the site registers)
 - Define workflow stages (stored in post meta), each mapped to a core status region
 - Specify allowed transitions between statuses
 - Require tools to pass before transitions
-- Require assignments before transitions (with role filtering)
-- Request input/notes on specific transitions
+- Assign work to a user or role as a transition is taken (with role filtering)
 - Restrict transitions by user role
 
 **Phase sequences** define gates between the content lifecycle phases (Ideation, Editorial). The Ideation phase can have transitions to Editorial, each with configurable required tools (`context: phase`), allowed roles, and notifications. The Editorial phase is read-only in the phase sequence since its internal workflow is managed by its own sequence type.

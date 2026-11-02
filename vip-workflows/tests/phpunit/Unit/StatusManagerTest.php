@@ -1116,7 +1116,7 @@ class StatusManagerTest extends TestCase
      * The agent actor does not consult the CURRENT user — it runs in a user-less
      * cron context, so there is nobody to consult — but it is still bound by the
      * capabilities of the actor it names. It waives the workflow's own rules (the
-     * sequence role table, requires_assignment), never core capabilities.
+     * sequence role table), never core capabilities.
      */
     public function test_agent_actor_is_bound_by_the_named_actors_capabilities(): void
     {

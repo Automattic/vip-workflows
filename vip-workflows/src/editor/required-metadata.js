@@ -174,9 +174,9 @@ function buildLockReason( missingFields ) {
 /**
  * Re-decide the required-metadata locks against the fields as they stand now.
  *
- * Every other lock on a transition is passed through untouched: a role, an
- * assignment or a capability is a fact about the user or the post that only the
- * server can settle, and `_locked_code` is what tells the two apart.
+ * Every other lock on a transition is passed through untouched: a disabled
+ * required tool is a site setting that only the server can settle, and
+ * `_locked_code` is what tells the two apart.
  *
  * Returns the original array when there is nothing to re-judge, so a post whose
  * sequence has no required fields — the overwhelming majority — pays a single

@@ -11,8 +11,9 @@
  *
  * - Clicking a transition that requires input opens the popover, not a modal.
  * - Committing fires the transition with exactly the payload the modals sent
- *   (`wfp_{note_id}_{slug}` note keys; assignment `meta_key` plus optional
- *   `_notes` keys).
+ *   (assignment `meta_key` plus optional `_notes` keys).
+ * - A stored note is not asked for. Notes are no longer collected, so a
+ *   transition still carrying one moves without it.
  * - Dismissing (Close, Escape) abandons the transition: nothing fires.
  * - Both assignment branches survive: user (searchable combobox) and role
  *   (role list).
@@ -101,35 +102,19 @@ const USERS = [
 ];
 
 /**
- * A transition requiring a textarea note, as the REST route delivers it.
- *
- * @param {Object} inputOverrides Overrides for the input config.
- * @return {Object} A transition.
- */
-function noteTransition( inputOverrides = {} ) {
-	return {
-		to: 'review',
-		label: 'Send to Review',
-		status_info: { key: 'review', label: 'Review' },
-		inputs: [
-			{
-				type: 'textarea',
-				note_id: 'n1',
-				note_name: 'Editor note',
-				required: false,
-				...inputOverrides,
-			},
-		],
-	};
-}
-
-/**
  * A transition requiring an assignment, as the REST route delivers it.
  *
- * @param {string} assigneeType 'user' or 'role' — or a type with no picker.
+ * Not `required` unless asked for: almost no stored sequence has ever
+ * toggled that on (it did nothing until now), so the common, real-world
+ * case — an optional assignment — is this fixture's default rather than
+ * something every other test in this file has to opt into.
+ *
+ * @param {string} assigneeType     'user' or 'role' — or a type with no picker.
+ * @param {Object} [inputOverrides] Extra/overriding keys for the assignment
+ *                                  input, e.g. `{ required: true }`.
  * @return {Object} A transition.
  */
-function assignmentTransition( assigneeType ) {
+function assignmentTransition( assigneeType, inputOverrides = {} ) {
 	return {
 		to: 'assigned',
 		label: 'Assign reviewer',
@@ -139,6 +124,7 @@ function assignmentTransition( assigneeType ) {
 				type: 'assignment',
 				assignee_type: assigneeType,
 				meta_key: 'wfp_a1_assignee',
+				...inputOverrides,
 			},
 		],
 	};
@@ -275,14 +261,14 @@ afterEach( () => {
 
 describe( 'WorkflowPanel transition input popover', () => {
 	it( 'opens a side-anchored popover, not a modal, named for the action', async () => {
-		await renderWith( [ noteTransition() ] );
-		await openPopoverFor( 'Send to Review' );
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		await openPopoverFor( 'Assign reviewer' );
 
 		// The popover announces as a named dialog — the role the Modal had,
 		// which a bare aria-label on a role-less div would not restore.
-		expect( screen.getByRole( 'dialog', { name: 'Send to Review' } ) ).toBe(
-			popover()
-		);
+		expect(
+			screen.getByRole( 'dialog', { name: 'Assign reviewer' } )
+		).toBe( popover() );
 
 		// No full-screen modal.
 		expect(
@@ -293,48 +279,36 @@ describe( 'WorkflowPanel transition input popover', () => {
 		expect(
 			screen.getByRole( 'button', { name: 'Close' } )
 		).toBeInTheDocument();
-
-		// The note's input, labelled with the note's name, and the commit
-		// action with its kept verb.
-		expect( screen.getByLabelText( 'Editor note' ) ).toBeInTheDocument();
-		expect(
-			screen.getByRole( 'button', { name: 'Submit' } )
-		).toBeInTheDocument();
 	} );
 
-	it( 'commits the note with exactly the payload the modal sent', async () => {
-		await renderWith( [ noteTransition() ] );
-		await openPopoverFor( 'Send to Review' );
-
-		fireEvent.change( screen.getByLabelText( 'Editor note' ), {
-			target: { value: 'Checked twice' },
-		} );
-		await act( async () => {
-			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
-		} );
-
-		expect( firedTransitions() ).toEqual( [
+	it( 'moves without asking for a note a stored transition still carries', async () => {
+		await renderWith( [
 			{
-				to_status: 'review',
-				acknowledge_warnings: false,
-				input_data: {
-					wfp_n1_editor_note: 'Checked twice',
-					wfp_n1_editor_note__name: 'Editor note',
-				},
+				to: 'review',
+				label: 'Send to Review',
+				status_info: { key: 'review', label: 'Review' },
+				inputs: [
+					{
+						type: 'textarea',
+						note_id: 'n1',
+						note_name: 'Editor note',
+						required: true,
+					},
+				],
 			},
 		] );
+		await openPopoverFor( 'Send to Review' );
 
-		// The popover closed with the commit.
-		await waitFor( () => expect( popover() ).not.toBeInTheDocument() );
+		expect( popover() ).not.toBeInTheDocument();
+		expect( firedTransitions() ).toEqual( [
+			{ to_status: 'review', acknowledge_warnings: false },
+		] );
 	} );
 
 	it( 'abandons the transition on Close — nothing fires', async () => {
-		await renderWith( [ noteTransition() ] );
-		await openPopoverFor( 'Send to Review' );
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		await openPopoverFor( 'Assign reviewer' );
 
-		fireEvent.change( screen.getByLabelText( 'Editor note' ), {
-			target: { value: 'Never sent' },
-		} );
 		await act( async () => {
 			fireEvent.click( screen.getByRole( 'button', { name: 'Close' } ) );
 		} );
@@ -344,14 +318,17 @@ describe( 'WorkflowPanel transition input popover', () => {
 	} );
 
 	it( 'abandons the transition on Escape — nothing fires', async () => {
-		await renderWith( [ noteTransition() ] );
-		await openPopoverFor( 'Send to Review' );
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		await openPopoverFor( 'Assign reviewer' );
 
 		await act( async () => {
-			fireEvent.keyDown( screen.getByLabelText( 'Editor note' ), {
-				key: 'Escape',
-				keyCode: 27,
-			} );
+			fireEvent.keyDown(
+				screen.getByRole( 'button', { name: 'Editor' } ),
+				{
+					key: 'Escape',
+					keyCode: 27,
+				}
+			);
 		} );
 
 		expect( popover() ).not.toBeInTheDocument();
@@ -359,8 +336,8 @@ describe( 'WorkflowPanel transition input popover', () => {
 	} );
 
 	it( 'abandons the transition when focus moves outside — nothing fires', async () => {
-		await renderWith( [ noteTransition() ] );
-		await openPopoverFor( 'Send to Review' );
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		await openPopoverFor( 'Assign reviewer' );
 
 		await waitFor( () =>
 			expect( popover().contains( document.activeElement ) ).toBe( true )
@@ -377,29 +354,14 @@ describe( 'WorkflowPanel transition input popover', () => {
 		expect( firedTransitions() ).toEqual( [] );
 	} );
 
-	it( 'refuses an empty required note and stays open', async () => {
-		await renderWith( [ noteTransition( { required: true } ) ] );
-		await openPopoverFor( 'Send to Review' );
-
-		await act( async () => {
-			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
-		} );
-
-		expect(
-			screen.getByText( 'This field is required.' )
-		).toBeInTheDocument();
-		expect( popover() ).toBeInTheDocument();
-		expect( firedTransitions() ).toEqual( [] );
-	} );
-
 	it( 'the warnings acknowledgement re-sends the captured input', async () => {
 		// The first POST answers warnings_pending; the acknowledge POST
 		// succeeds. The input captured by the popover must ride BOTH requests
 		// — the server consumes it only after the warning gates, so an
-		// acknowledge without it completes the move with the note silently
-		// absent.
+		// acknowledge without it completes the move with the assignment
+		// silently absent.
 		await renderWith(
-			[ noteTransition() ],
+			[ assignmentTransition( 'role' ) ],
 			[
 				{
 					warnings_pending: true,
@@ -407,10 +369,10 @@ describe( 'WorkflowPanel transition input popover', () => {
 				},
 			]
 		);
-		await openPopoverFor( 'Send to Review' );
+		await openPopoverFor( 'Assign reviewer' );
 
-		fireEvent.change( screen.getByLabelText( 'Editor note' ), {
-			target: { value: 'Checked twice' },
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
 		} );
 		await act( async () => {
 			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
@@ -425,17 +387,17 @@ describe( 'WorkflowPanel transition input popover', () => {
 		} );
 
 		const inputData = {
-			wfp_n1_editor_note: 'Checked twice',
-			wfp_n1_editor_note__name: 'Editor note',
+			wfp_a1_assignee: 'editor',
+			wfp_a1_assignee__name: 'Assignee',
 		};
 		expect( firedTransitions() ).toEqual( [
 			{
-				to_status: 'review',
+				to_status: 'assigned',
 				acknowledge_warnings: false,
 				input_data: inputData,
 			},
 			{
-				to_status: 'review',
+				to_status: 'assigned',
 				acknowledge_warnings: true,
 				input_data: inputData,
 			},
@@ -450,7 +412,7 @@ describe( 'WorkflowPanel transition input popover', () => {
 			},
 		];
 
-		await renderWith( [ noteTransition() ], [], {
+		await renderWith( [ assignmentTransition( 'role' ) ], [], {
 			agent_pending: false,
 			agent_job: {
 				status: 'warnings_pending',
@@ -487,8 +449,8 @@ describe( 'WorkflowPanel transition input popover', () => {
 	} );
 
 	it( 'moves focus into the popover and returns it to the trigger on close', async () => {
-		await renderWith( [ noteTransition() ] );
-		const trigger = await openPopoverFor( 'Send to Review' );
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		const trigger = await openPopoverFor( 'Assign reviewer' );
 
 		await waitFor( () =>
 			expect( popover().contains( document.activeElement ) ).toBe( true )
@@ -537,6 +499,7 @@ describe( 'WorkflowPanel transition input popover', () => {
 				acknowledge_warnings: false,
 				input_data: {
 					wfp_a1_assignee: 7,
+					wfp_a1_assignee__name: 'Assignee',
 					wfp_a1_assignee_notes: 'Please review',
 					wfp_a1_assignee_notes__name: 'Notes',
 				},
@@ -544,37 +507,49 @@ describe( 'WorkflowPanel transition input popover', () => {
 		] );
 	} );
 
-	it( 'role assignment: lists roles, Back returns to them, and empty notes are omitted', async () => {
-		await renderWith( [ assignmentTransition( 'role' ) ] );
+	it( 'role assignment: lists roles, selecting one marks it, and empty notes are omitted', async () => {
+		await renderWith( [
+			assignmentTransition( 'role', { required: true } ),
+		] );
 		await openPopoverFor( 'Assign reviewer' );
 
-		// The role list.
+		// The role list and the notes field render together from the start —
+		// there is no separate step to reach. The label says a role is
+		// required, matching the fixture's own `required: true`.
 		expect(
-			screen.getByRole( 'button', { name: 'Editor' } )
+			screen.getByText( 'Select a role', { exact: true } )
 		).toBeInTheDocument();
+		const editorButton = screen.getByRole( 'button', { name: 'Editor' } );
+		expect( editorButton ).toBeInTheDocument();
 		expect(
 			screen.getByRole( 'button', { name: 'Author' } )
 		).toBeInTheDocument();
-
-		// Picking a role reaches the notes step; Back returns to the list.
-		await act( async () => {
-			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
-		} );
 		expect(
 			screen.getByRole( 'textbox', { name: 'Notes (optional)' } )
 		).toBeInTheDocument();
-		await act( async () => {
-			fireEvent.click( screen.getByRole( 'button', { name: 'Back' } ) );
-		} );
+
+		// Required, and nothing is selected yet, so committing is not yet
+		// possible.
 		expect(
-			screen.getByRole( 'button', { name: 'Editor' } )
-		).toBeInTheDocument();
+			screen.getByRole( 'button', { name: 'Submit' } )
+		).toBeDisabled();
+
+		// Picking a role marks it selected rather than committing or
+		// navigating away, so another role can still be picked before Submit.
+		await act( async () => {
+			fireEvent.click( editorButton );
+		} );
+		expect( editorButton ).toHaveAttribute( 'aria-pressed', 'true' );
 		expect( firedTransitions() ).toEqual( [] );
 
-		// Committing without notes sends only the assignment key.
-		await act( async () => {
-			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
-		} );
+		// Required means no Clear action — there is no state this popover
+		// can submit that un-assigns the post.
+		expect(
+			screen.queryByRole( 'button', { name: 'Clear' } )
+		).not.toBeInTheDocument();
+
+		// Committing without notes sends the assignment and the name its
+		// history row reads — not the minted key.
 		await act( async () => {
 			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
 		} );
@@ -583,9 +558,146 @@ describe( 'WorkflowPanel transition input popover', () => {
 			{
 				to_status: 'assigned',
 				acknowledge_warnings: false,
-				input_data: { wfp_a1_assignee: 'editor' },
+				input_data: {
+					wfp_a1_assignee: 'editor',
+					wfp_a1_assignee__name: 'Assignee',
+				},
 			},
 		] );
+	} );
+
+	it( 'role assignment: an optional assignment says so, and Submit works with nothing picked', async () => {
+		await renderWith( [ assignmentTransition( 'role' ) ] );
+		await openPopoverFor( 'Assign reviewer' );
+
+		// The field's own label names the assignment optional — the one
+		// place this popover currently says so.
+		expect(
+			screen.getByText( 'Select a role (optional)', { exact: true } )
+		).toBeInTheDocument();
+
+		// Optional: Submit is available even before anything is picked, and
+		// there is nothing to Clear yet.
+		expect(
+			screen.getByRole( 'button', { name: 'Submit' } )
+		).toBeEnabled();
+		expect(
+			screen.queryByRole( 'button', { name: 'Clear' } )
+		).not.toBeInTheDocument();
+
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
+		} );
+
+		// Submitted with no assignee: the meta_key rides as an explicit
+		// empty value (not omitted), which is how the server tells "assign
+		// to no one" apart from "this transition carries no assignment
+		// input at all".
+		expect( firedTransitions() ).toEqual( [
+			{
+				to_status: 'assigned',
+				acknowledge_warnings: false,
+				input_data: {
+					wfp_a1_assignee: '',
+					wfp_a1_assignee__name: 'Assignee',
+				},
+			},
+		] );
+	} );
+
+	it( 'role assignment: Clear un-assigns a role the post already carries', async () => {
+		await renderWith( [ assignmentTransition( 'role' ) ], [], {
+			assignments: {
+				wfp_a1_assignee: { value: 'editor', type: 'role' },
+			},
+		} );
+		await openPopoverFor( 'Assign reviewer' );
+
+		const editorButton = screen.getByRole( 'button', { name: 'Editor' } );
+		expect( editorButton ).toHaveAttribute( 'aria-pressed', 'true' );
+
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Clear' } ) );
+		} );
+
+		// Clearing deselects — no role reads as pressed any more — and
+		// Submit stays available, since the assignment is optional.
+		expect( editorButton ).toHaveAttribute( 'aria-pressed', 'false' );
+		expect(
+			screen.queryByRole( 'button', { name: 'Clear' } )
+		).not.toBeInTheDocument();
+		expect(
+			screen.getByRole( 'button', { name: 'Submit' } )
+		).toBeEnabled();
+
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
+		} );
+
+		expect( firedTransitions() ).toEqual( [
+			{
+				to_status: 'assigned',
+				acknowledge_warnings: false,
+				input_data: {
+					wfp_a1_assignee: '',
+					wfp_a1_assignee__name: 'Assignee',
+				},
+			},
+		] );
+	} );
+
+	it( "preselects the post's existing role assignee for this input's slot", async () => {
+		await renderWith( [ assignmentTransition( 'role' ) ], [], {
+			assignments: {
+				wfp_a1_assignee: { value: 'editor', type: 'role' },
+			},
+		} );
+		await openPopoverFor( 'Assign reviewer' );
+
+		// The post is already assigned to Editor — the popover shows that
+		// rather than asking the user to re-pick from a blank slate.
+		expect(
+			screen.getByRole( 'button', { name: 'Editor' } )
+		).toHaveAttribute( 'aria-pressed', 'true' );
+		expect(
+			screen.getByRole( 'button', { name: 'Submit' } )
+		).toBeEnabled();
+
+		// Submitting as-is re-sends the existing assignee, e.g. to attach a
+		// note to it.
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
+		} );
+
+		expect( firedTransitions() ).toEqual( [
+			{
+				to_status: 'assigned',
+				acknowledge_warnings: false,
+				input_data: {
+					wfp_a1_assignee: 'editor',
+					wfp_a1_assignee__name: 'Assignee',
+				},
+			},
+		] );
+	} );
+
+	it( 'preselects an existing user assignee though its id was stored as a string', async () => {
+		// Stored assignment values pass through sanitize_text_field
+		// server-side, so a user id comes back as a numeric string — it
+		// must still match the combobox's numeric option id.
+		await renderWith( [ assignmentTransition( 'user' ) ], [], {
+			assignments: {
+				wfp_a1_assignee: { value: '7', type: 'user' },
+			},
+		} );
+		await openPopoverFor( 'Assign reviewer' );
+
+		expect(
+			await screen.findByDisplayValue( 'Jane Doe' )
+		).toBeInTheDocument();
+		expect(
+			screen.getByRole( 'button', { name: 'Submit' } )
+		).toBeEnabled();
 	} );
 
 	/*

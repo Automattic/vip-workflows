@@ -16,6 +16,7 @@ use VIPWorkflows\Database\Schema;
 use VIPWorkflows\Abilities\AbilityExecutor;
 use VIPWorkflows\Abilities\AbilitySettings;
 use VIPWorkflows\Workflow\AssignmentManager;
+use VIPWorkflows\Telemetry\Tracker;
 
 /**
  * Manages workflow status transitions for posts.
@@ -523,7 +524,7 @@ class StatusManager {
 		// board acting on a stuck post) can still transition and gets asked
 		// first.
 		//
-		// Get transitions filtered by user role and assignment.
+		// Get transitions filtered by user role.
 		$transitions = $sequence->get_transitions_for_user( $current_stage, $user_id, $post_id );
 
 		// On an AI stage, only the agent's routed destinations are anyone's to
@@ -553,14 +554,15 @@ class StatusManager {
 					'required_tools' => $transition['required_tools'] ?? array(),
 				);
 
-				// What the transition captures, in the order the author arranged
-				// it — the editor collects them in that order before the move.
+				// What the transition captures, as stored. The editor collects its
+				// assignment before the move and passes over anything else — a
+				// retired note a stored sequence may still carry.
 				if ( ! empty( $transition['inputs'] ) ) {
 					$mapped['inputs'] = $transition['inputs'];
 				}
 
-				// Preserve the lock the sequence projected — assignment or
-				// required metadata. `_locked_code` names the rule and is only
+				// Preserve the lock the sequence projected — required metadata
+				// or a disabled tool. `_locked_code` names the rule and is only
 				// set by the gates that have one; the editor reads it to tell
 				// the lock it may re-judge against unsaved meta from the ones
 				// it must take on trust (see Sequence::CODE_REQUIRED_METADATA).
@@ -631,8 +633,9 @@ class StatusManager {
 		}
 
 		// An agent-driven exit transition (from StageAgentRunner) runs in a
-		// user-less cron context and is trusted: it bypasses the assignment, role,
-		// and capability checks that apply to human callers (but never the trash
+		// user-less cron context and is trusted: it bypasses the role check that
+		// applies to human callers, and its capability checks run against the
+		// actor it names rather than the current user (it never skips the trash
 		// rejection above). This flag is only ever set by the in-process runner —
 		// WorkflowController builds $options explicitly and never forwards it, so
 		// it cannot be injected via REST.
@@ -734,11 +737,9 @@ class StatusManager {
 			);
 		}
 
-		// Null for a revert — a go-back has no authored edge, so it carries no
-		// label, tools, inputs or assignment requirement.
-		$transition_config      = $sequence->get_transition( $current_stage, $to_status );
-		$assignment_manager     = new AssignmentManager();
-		$assignment_requirement = null;
+		// A failed-agent revert may have no matching authored edge and does not
+		// collect assignment inputs.
+		$transition_config = $sequence->get_transition( $current_stage, $to_status );
 
 		/*
 		 * An agent run executes at uid 0 under cron, so it names the identity it
@@ -746,8 +747,8 @@ class StatusManager {
 		 * rather than against whoever is current.
 		 *
 		 * `agent_actor` waives the workflow's own configuration rules — the role
-		 * table and requires_assignment — because those describe which *human* may
-		 * push a button. It was never entitled to waive core capabilities.
+		 * table — because those describe which *human* may push a button. It was
+		 * never entitled to waive core capabilities.
 		 */
 		if ( $is_agent_actor ) {
 			$actor_id = (int) ( $options['agent_actor_user'] ?? 0 );
@@ -803,22 +804,26 @@ class StatusManager {
 			);
 		}
 
-		// Check requires_assignment.
-		if ( ! $is_agent_actor && ! empty( $transition_config['requires_assignment'] ) ) {
-			$assignment_requirement = $assignment_manager->normalize_requirement( $transition_config['requires_assignment'] );
-
-			if ( ! $assignment_manager->user_satisfies_requirement( $post_id, get_current_user_id(), $assignment_requirement ) ) {
-				if ( ! \VIPWorkflows\Admin\Settings::can_user_bypass_workflow() ) {
-					return new \WP_Error(
-						'assignment_required',
-						$assignment_manager->get_error_message( $post_id, $assignment_requirement ),
-						array( 'status' => 403 )
-					);
-				}
+		// Reject incomplete assignments before tools run or any post state changes.
+		// A failed-agent revert does not collect inputs, even if an authored edge
+		// happens to connect the same stages.
+		$assignment_manager = new AssignmentManager();
+		if ( ! $is_revert && is_array( $transition_config ) ) {
+			$assignment_validation = $assignment_manager->validate_transition_input( $transition_config, $options['input_data'] ?? array() );
+			if ( is_wp_error( $assignment_validation ) ) {
+				return $assignment_validation;
 			}
 		}
 
 		$acknowledge_warnings = ! empty( $options['acknowledge_warnings'] );
+
+		// Reject invalid targets before tools run or post/stage changes commit.
+		if ( is_array( $transition_config ) ) {
+			$assignee_validation = ( new AssignmentManager() )->validate_transition_assignees( $transition_config, $options['input_data'] ?? array() );
+			if ( is_wp_error( $assignee_validation ) ) {
+				return $assignee_validation;
+			}
+		}
 
 		// Interrupting a running stage agent is a confirm, not a block.
 		//
@@ -903,12 +908,10 @@ class StatusManager {
 		// the transition: the answer is to type it into the panel that is already
 		// open.
 		//
-		// `bypass_workflow_roles` DOES apply, for the same reason it applies to
-		// requires_assignment a dozen lines above: both are workflow rules about
-		// the person performing the move, and a role that is trusted to move a
-		// post without satisfying its assignment requirement is trusted to move
-		// one without every field filled in. Exempting one and not the other was
-		// an inconsistency, not a decision.
+		// `bypass_workflow_roles` DOES apply: this is a workflow rule about the
+		// person performing the move, and a role trusted to move a post past the
+		// sequence's own rules is trusted to move one without every field filled
+		// in.
 		//
 		// The agent actor and the go-back are exempt for the reason they are exempt
 		// everywhere else: an AI stage's own exit transition IS its run finishing,
@@ -924,14 +927,49 @@ class StatusManager {
 			$metadata_check = $this->check_required_metadata( $post_id, $sequence );
 
 			if ( is_wp_error( $metadata_check ) ) {
+				$missing = $metadata_check->get_error_data()['hard_failures'] ?? array();
+				$this->record_gate(
+					array(
+						'gate'       => 'required_metadata',
+						'result'     => 'blocked',
+						'hard_count' => count( $missing ),
+					)
+				);
 				$this->log_blocked_transition( $post_id, $current_stage, $to_status, $metadata_check );
 				return $metadata_check;
 			}
+
+			// A pass is not recorded. The editor locks an edge while a required
+			// field is empty, so most blocks never reach here and a pass count is
+			// no denominator for them; and a move with tool warnings passes this
+			// gate twice, once per request.
+		} elseif ( Sequence::crosses_into_publish( $from_region, $to_region ) && ! $is_agent_actor && ! $is_revert && ! $acknowledge_warnings && $this->reports_metadata_gate( $sequence ) ) {
+			// Only a bypass role reaches here. Not on the request that confirms tool
+			// warnings: the request that raised them already recorded the bypass.
+			$this->record_gate(
+				array(
+					'gate'   => 'required_metadata',
+					'result' => 'bypassed',
+				)
+			);
+		}
+
+		// Who an agent's gate events are recorded as: the person who started the
+		// run, else the user the agent acts for. A person's are recorded as them.
+		$telemetry_user = $is_agent_actor ? (int) ( $options['telemetry_user'] ?? 0 ) : 0;
+		if ( $is_agent_actor && $telemetry_user <= 0 ) {
+			$telemetry_user = (int) ( $options['agent_actor_user'] ?? 0 );
 		}
 
 		// Run required tools and check for hard failures (unless user can bypass).
 		if ( ! \VIPWorkflows\Admin\Settings::can_user_bypass_tool_checks() ) {
-			$tool_check = $this->run_transition_tools( $post_id, $transition_config, $acknowledge_warnings );
+			$tool_check = $this->run_transition_tools(
+				$post_id,
+				$transition_config,
+				$acknowledge_warnings,
+				$is_agent_actor ? 'agent' : 'user',
+				$telemetry_user
+			);
 
 			if ( is_wp_error( $tool_check ) ) {
 				$this->log_blocked_transition( $post_id, $current_stage, $to_status, $tool_check );
@@ -941,6 +979,16 @@ class StatusManager {
 			if ( is_array( $tool_check ) && ! empty( $tool_check['warnings_pending'] ) ) {
 				return $tool_check;
 			}
+		} elseif ( ! empty( $transition_config['required_tools'] ) ) {
+			$this->record_gate(
+				array(
+					'gate'           => 'tools',
+					'result'         => 'bypassed',
+					'tools_required' => is_array( $transition_config['required_tools'] ) ? count( $transition_config['required_tools'] ) : 0,
+				),
+				$is_agent_actor ? 'agent' : 'user',
+				$telemetry_user
+			);
 		}
 
 		// The committed post_status BEFORE this transition writes anything —
@@ -964,8 +1012,8 @@ class StatusManager {
 		// the stage this transition validated against.
 		//
 		// Everything above — is_transition_allowed(), the region math, the
-		// capability and assignment checks — was decided from $current_stage, read
-		// at the top of this method. Two concurrent transitions on the same post
+		// capability checks — was decided from $current_stage, read at the top
+		// of this method. Two concurrent transitions on the same post
 		// both read it, both validate, and both write; the second silently
 		// overwrites the first, having validated an edge that no longer starts
 		// where it thought. Passing $current_stage as update_post_meta()'s
@@ -983,13 +1031,8 @@ class StatusManager {
 			}
 		}
 
-		// Mark required assignment as completed (keeps audit trail).
-		if ( $assignment_requirement ) {
-			$assignment_manager->mark_completed( $post_id, $assignment_requirement['meta_key'] );
-		}
-
-		// Process new assignment input if present. A revert has no transition
-		// config (see above) and therefore no input to process.
+		// Process submitted assignment input for an authored edge. A failed-agent
+		// revert supplies no inputs, so existing assignments remain untouched.
 		if ( is_array( $transition_config ) ) {
 			$assignment_manager->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array() );
 		}
@@ -1009,7 +1052,7 @@ class StatusManager {
 		);
 
 		// Log the transition.
-		$this->log_transition( $post_id, $current_stage, $to_status, $options, $context );
+		$this->log_transition( $post_id, $current_stage, $to_status, $options, $context, $transition_config );
 
 		// Dispatch the stage-change events. Fired here (after any region-status
 		// write is committed and stage meta is written) rather than from
@@ -1749,20 +1792,60 @@ class StatusManager {
 	}
 
 	/**
+	 * Resolve an assignment input's raw value to the display name it had at
+	 * the moment of the transition.
+	 *
+	 * Delegates to `AssignmentManager::describe_assignee()` — the one place
+	 * that knows how each assignee type's stored value maps to a display
+	 * name — rather than re-deciding by type here too.
+	 *
+	 * @param  string|null $assignee_type 'user', 'role', or 'agent'; null when
+	 *                                    the transition declares no assignment
+	 *                                    input.
+	 * @param  mixed       $value         The raw stored value.
+	 * @return string|null Display name, or null when it cannot be resolved
+	 *                      (unknown type, deleted user, retired role/ability).
+	 */
+	private static function resolve_assignee_display_name( ?string $assignee_type, $value ): ?string {
+		if ( null === $assignee_type || '' === (string) $value ) {
+			return null;
+		}
+
+		$assignee = ( new AssignmentManager() )->describe_assignee( $assignee_type, $value );
+
+		return $assignee['display_name'] ?? null;
+	}
+
+	/**
 	 * Log a status transition.
 	 *
-	 * @param int    $post_id     Post ID.
-	 * @param string $from_status From status.
-	 * @param string $to_status   To status.
-	 * @param array  $options     Additional options.
-	 * @param array  $context     Stage-change context ('cause', 'committed_status', 'previous_status') — the same array passed to dispatch_stage_change().
+	 * @param int        $post_id           Post ID.
+	 * @param string     $from_status       From status.
+	 * @param string     $to_status         To status.
+	 * @param array      $options           Additional options.
+	 * @param array      $context           Stage-change context ('cause', 'committed_status', 'previous_status') — the same array passed to dispatch_stage_change().
+	 * @param array|null $transition_config The edge's authored config, when there is one — used to resolve the assignment input's assignee to a display name. Null for a revert, which carries no input to resolve.
 	 */
-	private function log_transition( int $post_id, string $from_status, string $to_status, array $options, array $context ): void {
+	private function log_transition( int $post_id, string $from_status, string $to_status, array $options, array $context, ?array $transition_config = null ): void {
 		global $wpdb;
 
 		$sequence = $this->get_sequence_for_post( $post_id );
 
 		$post = get_post( $post_id );
+
+		// The transition's assignment input, if it declares one — identifies
+		// which input_data key holds the assignee and what kind of value it
+		// stores (user id, role slug, agent id), so its raw value below can be
+		// resolved to a display name.
+		$assignment_meta_key = null;
+		$assignee_type       = null;
+		foreach ( ( $transition_config['inputs'] ?? array() ) as $candidate_input ) {
+			if ( isset( $candidate_input['type'] ) && 'assignment' === $candidate_input['type'] ) {
+				$assignment_meta_key = $candidate_input['meta_key'] ?? null;
+				$assignee_type       = $candidate_input['assignee_type'] ?? null;
+				break;
+			}
+		}
 
 		// Extract note content from input_data.
 		$notes = array();
@@ -1772,10 +1855,26 @@ class StatusManager {
 				if ( strpos( $key, '__name' ) !== false ) {
 					continue;
 				}
-				// Skip assignment metadata (if there's a corresponding _notes key, this is just the assignment value).
-				if ( isset( $options['input_data'][ $key . '_notes' ] ) ) {
-					continue;
+
+				// The assignee is a raw id/slug; resolve it to the name it
+				// had at the moment of the transition — the same reasoning
+				// as snapshot_stage_label(): a later rename or role edit
+				// must not rewrite what this entry says. An explicit empty
+				// value is a clear rather than an assignment (see
+				// AssignmentManager::unassign()) — named outright rather
+				// than left to resolve to nothing and print as a blank
+				// value next to the field's label.
+				if ( $assignment_meta_key && $key === $assignment_meta_key ) {
+					if ( ! $value ) {
+						$value = __( 'Unassigned', 'vip-workflows' );
+					} else {
+						$display_name = self::resolve_assignee_display_name( $assignee_type, $value );
+						if ( null !== $display_name ) {
+							$value = $display_name;
+						}
+					}
 				}
+
 				// Get the display name if available.
 				$name_key = $key . '__name';
 				$label = isset( $options['input_data'][ $name_key ] ) ? $options['input_data'][ $name_key ] : $key;
@@ -2202,12 +2301,14 @@ class StatusManager {
 	/**
 	 * Run required tools for a transition and check for hard failures.
 	 *
-	 * @param  int   $post_id              Post ID.
-	 * @param  array $transition_config    Transition configuration from sequence.
-	 * @param  bool  $acknowledge_warnings Whether user has acknowledged warnings.
+	 * @param  int    $post_id              Post ID.
+	 * @param  array  $transition_config    Transition configuration from sequence.
+	 * @param  bool   $acknowledge_warnings Whether user has acknowledged warnings.
+	 * @param  string $initiator            'user' or 'agent', for telemetry.
+	 * @param  int    $as_user              User to record telemetry as, or 0 for the current user.
 	 * @return true|array|\WP_Error True if all pass, array with warnings_pending, or WP_Error if blocked.
 	 */
-	private function run_transition_tools( int $post_id, ?array $transition_config, bool $acknowledge_warnings = false ) {
+	private function run_transition_tools( int $post_id, ?array $transition_config, bool $acknowledge_warnings = false, string $initiator = 'user', int $as_user = 0 ) {
 		// No transition config or no required tools = pass.
 		if ( ! $transition_config || empty( $transition_config['required_tools'] ) ) {
 			return true;
@@ -2216,6 +2317,7 @@ class StatusManager {
 		$required_tools = $transition_config['required_tools'];
 		$executor       = new AbilityExecutor();
 		$settings       = AbilitySettings::get_instance();
+		$started        = microtime( true );
 
 		/*
 		 * Only pass schema-valid input to abilities. Transition-eligible abilities
@@ -2233,6 +2335,7 @@ class StatusManager {
 		$hard_failures  = array();
 		$soft_warnings  = array();
 		$all_results    = array();
+		$tools_errored  = 0; // Tools that reached no verdict, each with exactly one hard failure.
 
 		foreach ( $required_tools as $tool_id ) {
 			try {
@@ -2246,6 +2349,7 @@ class StatusManager {
 						'message'  => __( 'This required check is switched off. Re-enable it, or remove it from this transition.', 'vip-workflows' ),
 						'severity' => 'hard',
 					);
+					++$tools_errored;
 
 					continue;
 				}
@@ -2268,6 +2372,7 @@ class StatusManager {
 						'message'  => '' !== $reason ? $reason : __( 'Check could not be completed', 'vip-workflows' ),
 						'severity' => 'hard',
 					);
+					++$tools_errored;
 
 					continue;
 				}
@@ -2316,11 +2421,14 @@ class StatusManager {
 					'message'  => $e->getMessage(),
 					'severity' => 'hard',
 				);
+				++$tools_errored;
 			}
 		}
 
 		// If there are hard failures, block the transition.
 		if ( ! empty( $hard_failures ) ) {
+			$this->record_tool_gate( 'blocked', $required_tools, $hard_failures, $soft_warnings, $tools_errored, $started, $initiator, $as_user );
+
 			return new \WP_Error(
 				'tool_check_failed',
 				__( 'Transition blocked by required checks.', 'vip-workflows' ),
@@ -2334,6 +2442,8 @@ class StatusManager {
 
 		// If only soft warnings and user hasn't acknowledged them, return for confirmation.
 		if ( ! empty( $soft_warnings ) && ! $acknowledge_warnings ) {
+			$this->record_tool_gate( 'warnings_pending', $required_tools, $hard_failures, $soft_warnings, $tools_errored, $started, $initiator, $as_user );
+
 			return array(
 				'warnings_pending' => true,
 				'soft_warnings'    => $soft_warnings,
@@ -2345,7 +2455,74 @@ class StatusManager {
 			$this->log_tool_warnings( $post_id, $transition_config['to'] ?? 'unknown', $soft_warnings );
 		}
 
+		$this->record_tool_gate( empty( $soft_warnings ) ? 'passed' : 'warnings_acknowledged', $required_tools, $hard_failures, $soft_warnings, $tools_errored, $started, $initiator, $as_user );
+
 		return true;
+	}
+
+	/**
+	 * Record the outcome of a required-tools gate, as counts.
+	 *
+	 * @param string $result         passed | blocked | warnings_pending | warnings_acknowledged.
+	 * @param mixed  $required_tools The transition's required tool ids, as stored.
+	 * @param array  $hard_failures  The gate's blocking failures.
+	 * @param array  $soft_warnings  The gate's warnings.
+	 * @param int    $tools_errored  Tools that broke or were switched off. Each has one entry in $hard_failures.
+	 * @param float  $started        microtime( true ) when the gate began.
+	 * @param string $initiator      'user' or 'agent'.
+	 * @param int    $as_user        User to record telemetry as, or 0 for the current user.
+	 */
+	private function record_tool_gate( string $result, $required_tools, array $hard_failures, array $soft_warnings, int $tools_errored, float $started, string $initiator, int $as_user ): void {
+		if ( ! Tracker::is_available() ) {
+			return;
+		}
+
+		// Counted by where each failure came from, not by its key: a tool's own
+		// issue can carry the key `execution_error` too.
+		$this->record_gate(
+			array(
+				'gate'           => 'tools',
+				'result'         => $result,
+				'hard_count'     => count( $hard_failures ) - $tools_errored,
+				'soft_count'     => count( $soft_warnings ),
+				'tools_required' => is_array( $required_tools ) ? count( $required_tools ) : 0,
+				'tools_errored'  => $tools_errored,
+				'duration_ms'    => (int) ( ( microtime( true ) - $started ) * 1000 ),
+			),
+			$initiator,
+			$as_user
+		);
+	}
+
+	/**
+	 * Whether the required-fields gate should be recorded: telemetry is loaded and the sequence requires a field.
+	 *
+	 * @param  Sequence $sequence The sequence the post is seated in.
+	 * @return bool
+	 */
+	private function reports_metadata_gate( Sequence $sequence ): bool {
+		if ( ! Tracker::is_available() ) {
+			return false;
+		}
+
+		foreach ( $sequence->get_metadata_fields() as $field ) {
+			if ( ! empty( $field['required'] ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Record a transition gate event.
+	 *
+	 * @param array  $properties Event properties.
+	 * @param string $initiator  'user' or 'agent'.
+	 * @param int    $as_user    User to record telemetry as, or 0 for the current user.
+	 */
+	private function record_gate( array $properties, string $initiator = 'user', int $as_user = 0 ): void {
+		Tracker::record( 'transition_gate_finished', array_merge( $properties, array( 'initiator' => $initiator ) ), $as_user > 0 ? $as_user : null );
 	}
 
 	/**

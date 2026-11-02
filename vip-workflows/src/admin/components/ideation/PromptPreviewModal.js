@@ -5,6 +5,7 @@
  */
 
 import { __ } from '@wordpress/i18n';
+import { isSafeUrl } from '../../../common/safe-url';
 import { Modal, Button } from '@wordpress/components';
 import { Badge, Link, Stack, Text } from '@wordpress/ui';
 
@@ -150,7 +151,14 @@ export default function PromptPreviewModal( {
 						>
 							{ meta.links.map( ( link, i ) => (
 								<li key={ i }>
-									<Link href={ link.url } openInNewTab>
+									<Link
+										href={
+											isSafeUrl( link.url )
+												? link.url
+												: undefined
+										}
+										openInNewTab
+									>
 										{ link.description || link.url }
 									</Link>
 								</li>
@@ -217,7 +225,9 @@ export default function PromptPreviewModal( {
 				{ prompt.url && (
 					<Button
 						variant="tertiary"
-						href={ prompt.url }
+						href={
+							isSafeUrl( prompt.url ) ? prompt.url : undefined
+						}
 						target="_blank"
 						rel="noopener noreferrer"
 						__next40pxDefaultSize

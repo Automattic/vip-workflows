@@ -260,10 +260,9 @@ class TransitionInputsTest extends TestCase
     }
 
     /**
-     * Two assignments name no single slot — and the slot is what
-     * `requires_assignment` gates on and what AssignmentManager fills. Collapsing
-     * one would discard an assignment an author configured, so the write is
-     * refused instead.
+     * A transition's assignment is the one slot the editor collects an assignee
+     * for. Collapsing a second would discard an assignment an author
+     * configured, so the write is refused instead.
      */
     public function test_gate_refuses_two_assignment_inputs_on_one_transition(): void
     {

@@ -23,6 +23,14 @@ require_once dirname( __DIR__, 3 ) . '/includes/abilities/agents/class-stage-age
  */
 class StageAgentHelpersTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // generate() applies a per-user AI rate ceiling; cron context is exempt.
+        Functions\when( 'wp_doing_cron' )->justReturn( true );
+    }
+
     // --- is_sentinel ---------------------------------------------------------
 
     /**
