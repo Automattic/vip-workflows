@@ -1893,7 +1893,7 @@ class SequencesController extends WP_REST_Controller {
 							'invalid_assignment_key',
 							sprintf(
 								/* translators: %s: stage key */
-								__( 'Stage "%s" has a transition that assigns work without an assignment key (meta_key). Every assignment slot needs a key that is unique within the sequence.', 'vip-workflows' ),
+								__( 'A transition from “%s” has no assignment key. Give it a unique one.', 'vip-workflows' ),
 								$stage_key
 							),
 							array( 'status' => 400 )
@@ -1907,7 +1907,7 @@ class SequencesController extends WP_REST_Controller {
 							'duplicate_assignment_key',
 							sprintf(
 								/* translators: 1: first stage key, 2: first transition's target stage key, 3: second stage key, 4: second transition's target stage key */
-								__( 'The transitions from "%1$s" to "%2$s" and from "%3$s" to "%4$s" use the same assignment key (meta_key), so each would overwrite the other’s assignment. Give every assignment its own key.', 'vip-workflows' ),
+								__( 'The transitions from “%1$s” to “%2$s” and from “%3$s” to “%4$s” share an assignment key. Give each its own.', 'vip-workflows' ),
 								$slot_keys[ $key ]['stage'],
 								$slot_keys[ $key ]['to'],
 								$stage_key,

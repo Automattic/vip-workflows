@@ -2887,8 +2887,8 @@ class SequencesControllerTest extends TestCase
         $this->assertSame( 'duplicate_assignment_key', $result->get_error_code() );
 
         $message = $result->get_error_message();
-        $this->assertStringContainsString( 'from "draft" to "review"', $message );
-        $this->assertStringContainsString( 'from "review" to "legal"', $message );
+        $this->assertStringContainsString( 'from “draft” to “review”', $message );
+        $this->assertStringContainsString( 'from “review” to “legal”', $message );
         $this->assertStringNotContainsString( 'wfp_n1_0_abcde', $message );
 
         $this->assertSame(
