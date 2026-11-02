@@ -98,7 +98,7 @@ export default function SequenceSettingsInspector( {
 				<InspectorSection
 					title={ __( 'Structure', 'vip-workflows' ) }
 					help={ __(
-						'Everything content moves through is drawn on the canvas. A stage added here lands in Draft with nothing leading to it yet, and opens its own panel — where its post status and the ways out of it are set.',
+						'New stages start in Draft, unconnected.',
 						'vip-workflows'
 					) }
 				>
