@@ -588,7 +588,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $deleted ) {
 			return new WP_Error(
 				'rest_sequence_delete_failed',
-				__( 'Failed to delete sequence.', 'vip-workflows' ),
+				__( 'Could not delete the sequence. Try again.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -846,7 +846,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $id ) {
 			return new WP_Error(
 				'rest_sequence_create_failed',
-				__( 'Failed to create sequence.', 'vip-workflows' ),
+				__( 'Could not create the sequence. Try again.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -932,7 +932,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $new_id ) {
 			return new WP_Error(
 				'rest_sequence_update_failed',
-				__( 'Failed to update sequence.', 'vip-workflows' ),
+				__( 'Could not update the sequence. Try again.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -1507,7 +1507,7 @@ class SequencesController extends WP_REST_Controller {
 		if ( ! $sequence_id ) {
 			return new WP_Error(
 				'sequence_import_failed',
-				__( 'Failed to import sequence.', 'vip-workflows' ),
+				__( 'Could not import the sequence. Try again.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}
