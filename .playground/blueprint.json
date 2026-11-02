@@ -7,7 +7,7 @@
 	},
 	"landingPage": "/wp-admin/admin.php?page=vip-workflows",
 	"preferredVersions": {
-		"php": "8.2",
+		"php": "8.3",
 		"wp": "latest"
 	},
 	"phpExtensionBundles": [ "kitchen-sink" ],
