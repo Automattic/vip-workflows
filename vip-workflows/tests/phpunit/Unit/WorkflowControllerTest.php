@@ -1586,7 +1586,11 @@ class WorkflowControllerTest extends TestCase
         $this->wpdb->postmeta = 'wp_postmeta';
         Functions\when( 'maybe_unserialize' )->alias( fn( $value ) => unserialize( $value ) );
         $this->wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $text ) => $text );
-        $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing( fn( $query ) => $query );
+        // The per-post assignment read keeps its post ID, so the mock below can
+        // answer it for that post alone.
+        $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing(
+            fn( $query, ...$args ) => false !== strpos( $query, 'post_id = %d' ) ? str_replace( 'post_id = %d', 'post_id = ' . (int) $args[0], $query ) : $query
+        );
 
         // Resolve the involvement lookup independently from sequence reads.
         $this->wpdb->shouldReceive( 'get_results' )->byDefault()->andReturnUsing(
@@ -1603,6 +1607,19 @@ class WorkflowControllerTest extends TestCase
                 }
                 if ( false !== strpos( $query, 'SELECT post_id, meta_value' ) ) {
                     return $assignments;
+                }
+                // AssignmentManager::get_all() for one post.
+                if ( preg_match( '/SELECT meta_key, meta_value .* post_id = (\d+)/s', $query, $m ) ) {
+                    $rows = array();
+                    foreach ( $assignments as $row ) {
+                        if ( (int) $m[1] === (int) $row->post_id ) {
+                            $rows[] = (object) array(
+                                'meta_key'   => '_vip_workflows_assignment_reviewer',
+                                'meta_value' => $row->meta_value,
+                            );
+                        }
+                    }
+                    return $rows;
                 }
                 return $sequence_rows;
             }
@@ -1842,6 +1859,7 @@ class WorkflowControllerTest extends TestCase
 
     /**
      * Claims and pending user slots qualify; completed, role and other-user slots do not.
+     * A row's assignee is its pending assignment, or its claim when nothing is pending.
      */
     public function test_get_my_work_preserves_claim_and_pending_user_involvement(): void
     {
@@ -1868,7 +1886,7 @@ class WorkflowControllerTest extends TestCase
 
         $this->assertSame( array( 1, 2, 3 ), array_column( $data, 'post_id' ) );
         $this->assertSame( 7, $data[0]['assignee']['id'] );
-        $this->assertNull( $data[1]['assignee'], 'A pending slot is not the single claim.' );
+        $this->assertSame( 7, $data[1]['assignee']['id'], 'A pending assignment is shown as the assignee.' );
     }
 
     /**

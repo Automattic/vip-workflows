@@ -153,7 +153,7 @@ class MyWorkVisibilityTest extends TestCase {
 		$this->assertSame( 'Review', $by_id[ $claimed ]['status_label'] );
 		$this->assertSame( $this->author_id, $by_id[ $claimed ]['assignee']['id'] );
 		$this->assertSame( $this->other_id, $by_id[ $assigned ]['author']['id'] );
-		$this->assertNull( $by_id[ $assigned ]['assignee'], 'An assignment slot is distinct from a claim.' );
+		$this->assertSame( $this->author_id, $by_id[ $assigned ]['assignee']['id'], 'A pending assignment is shown as the assignee.' );
 	}
 
 	/**
