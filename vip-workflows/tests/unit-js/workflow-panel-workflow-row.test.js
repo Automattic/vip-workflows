@@ -352,6 +352,25 @@ describe( 'WorkflowPanel workflow row', () => {
 		expect( assignPosts()[ 0 ][ 0 ].data ).toEqual( { sequence_id: 9 } );
 	} );
 
+	it( 'offers no reset beside the selected workflow', async () => {
+		// ComboboxControl's built-in reset rendered as soon as the popover
+		// opened, and pressing it only closed the popover. Leaving a workflow
+		// is the panel's confirmed removal, which a required workflow withholds;
+		// the row must not offer a second, ungated way to clear it.
+		await renderPanel( assignedStatus() );
+
+		fireEvent.click(
+			screen.getByRole( 'button', {
+				name: 'Change workflow: Weekend Magazine',
+			} )
+		);
+
+		expect( await screen.findByRole( 'combobox' ) ).toBeInTheDocument();
+		expect(
+			screen.queryByRole( 'button', { name: 'Reset' } )
+		).not.toBeInTheDocument();
+	} );
+
 	it( 'surfaces a refused assignment rather than swallowing it', async () => {
 		await renderPanel( unassignedStatus() );
 

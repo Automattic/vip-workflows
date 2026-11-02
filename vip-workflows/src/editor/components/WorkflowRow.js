@@ -90,6 +90,11 @@ export function WorkflowRow( {
 					// The popover header already names the row; a second copy
 					// of the word above the input says it twice.
 					hideLabelFromVision
+					// No reset button: clearing the field is not a gesture
+					// this row supports. Leaving a workflow is the panel's
+					// confirmed remove action, which is withheld when the
+					// workflow is required; a reset here would bypass both.
+					allowReset={ false }
 					value={ currentId }
 					options={ options }
 					// No `onFilterValueChange`: the whole list arrives with the
