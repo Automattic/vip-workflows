@@ -156,6 +156,11 @@ const MAX_ZOOM = 2;
 const REVEAL_MS = 200;
 const REDUCED_MOTION = '( prefers-reduced-motion: reduce )';
 
+// How the view travels when the author presses "Fit view" or "Reset layout" in
+// the Controls panel, so the two buttons move the canvas the same way. Linear,
+// because d3's default zooms out mid-flight on a long pan.
+const CONTROL_TRANSITION = { duration: 200, interpolate: 'linear' };
+
 /**
  * Width the floating inspector takes out of the canvas, in pixels.
  *
@@ -1166,9 +1171,8 @@ function Flow( {
 			return;
 		}
 		pendingRecenter.current = false;
-		// Linear, because d3's default zooms out mid-flight on a long pan,
-		// and centering keeps the zoom the author is at.
-		centerOn( layout.nodes, { duration: 200, interpolate: 'linear' } );
+		// Centering keeps the zoom the author is at.
+		centerOn( layout.nodes, CONTROL_TRANSITION );
 	}, [ layout, centerOn ] );
 
 	// --- Showing a fault ----------------------------------------------------
@@ -1884,7 +1888,10 @@ function Flow( {
 					onSelectRegion={ onSelectRegion }
 					onContextMenu={ openMenu }
 				/>
-				<Controls showInteractive={ false }>
+				<Controls
+					showInteractive={ false }
+					fitViewOptions={ CONTROL_TRANSITION }
+				>
 					<ControlButton
 						onClick={ handleResetLayout }
 						title={ __( 'Reset layout', 'vip-workflows' ) }
