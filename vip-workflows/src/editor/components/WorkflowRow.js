@@ -93,7 +93,9 @@ export function WorkflowRow( {
 					// No reset button: clearing the field is not a gesture
 					// this row supports. Leaving a workflow is the panel's
 					// confirmed remove action, which is withheld when the
-					// workflow is required; a reset here would bypass both.
+					// workflow is required. A reset here could never honour
+					// that, so it only closed the popover and offered a
+					// removal it did not perform.
 					allowReset={ false }
 					value={ currentId }
 					options={ options }
@@ -106,9 +108,10 @@ export function WorkflowRow( {
 					onChange={ ( selected ) => {
 						onClose();
 
-						// Clearing the input reports an empty value; so does
-						// re-picking the sequence the post is already in.
-						// Neither is a change to make.
+						// Re-picking the sequence the post is already in is
+						// not a change to make. With the reset button gone,
+						// nothing should report an empty value; if
+						// ComboboxControl ever does, it is not a selection.
 						if ( ! selected || selected === currentId ) {
 							return;
 						}
