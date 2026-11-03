@@ -122,13 +122,20 @@ class EditorIntegration implements ModuleInterface {
 		// preloads its requests. The header decides from it whether core's
 		// Publish button is hidden, and asked for after the editor has painted,
 		// that answer arrived one paint late: Publish showed on every load and
-		// then vanished. A refused read leaves the store to ask, as before.
+		// then vanished. A refused read leaves the store to read it on mount,
+		// as before. It is still logged: the person can edit this post, so the
+		// read should never be refused, and a refusal is worth knowing about.
 		$status_response = rest_do_request(
 			new \WP_REST_Request( 'GET', "/vip-workflows/v1/workflow/post/{$post_id}/status" )
 		);
-		$workflow_status = $status_response->is_error()
-			? null
-			: rest_get_server()->response_to_data( $status_response, false );
+		$workflow_status = null;
+		if ( $status_response->is_error() ) {
+			$status_error = $status_response->as_error();
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Could not preload the workflow status for post %d; the editor will read it on mount: %s (%s)', (int) $post_id, $status_error->get_error_message(), $status_error->get_error_code() ) );
+		} else {
+			$workflow_status = rest_get_server()->response_to_data( $status_response, false );
+		}
 
 		// Inline JSON rather than wp_localize_script(): localize casts every
 		// top-level scalar to a string, which handed the editor store a string
