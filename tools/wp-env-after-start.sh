@@ -30,15 +30,23 @@ echo "→ Configuring pretty permalinks"
 # committed fixture is frozen at its export dates; shift-wxr-dates.php (shared
 # with the pull request preview) writes a throwaway copy under tools/
 # (gitignored) and that is imported — the fixture itself is never touched.
-# Re-import is GUID-idempotent, so first-import dates persist.
+# Re-import is GUID-idempotent, so first-import dates persist. The shift runs
+# in the cli container (tools/ is mapped to /var/www/html/wp-env-tools) so it
+# does not depend on PHP being installed on the host.
+CONTAINER_TOOLS="/var/www/html/wp-env-tools"
 CONTENT_NAME="vip-workflows-content.xml"
-if command -v php >/dev/null 2>&1 \
-	&& php "$ROOT/tools/playground/shift-wxr-dates.php" \
-		"$ROOT/tools/$CONTENT_NAME" "$ROOT/tools/.vip-workflows-content.current.xml"; then
-	CONTENT_NAME=".vip-workflows-content.current.xml"
+SHIFTED_NAME=".vip-workflows-content.current.xml"
+echo "→ Shifting seeded content dates to end today"
+if "${WPENV[@]}" run cli php "$CONTAINER_TOOLS/playground/shift-wxr-dates.php" \
+	"$CONTAINER_TOOLS/$CONTENT_NAME" "$CONTAINER_TOOLS/$SHIFTED_NAME"; then
+	CONTENT_NAME="$SHIFTED_NAME"
 	echo "→ Shifted seeded content dates to end today for import"
 else
-	echo "→ Importing seeded content unmodified (no date shift applied)"
+	{
+		echo "⚠ Date shift failed: shift-wxr-dates.php exited non-zero in the cli container (see output above)."
+		echo "⚠ Importing seeded content with its original export dates, so the date-windowed"
+		echo "⚠ Kanban and Calendar views will show no demo posts. Imported posts keep these dates."
+	} >&2
 fi
 
 # Dev-content import is a local convenience; e2e tests seed their own data via
@@ -47,7 +55,7 @@ fi
 echo "→ Ensuring WordPress Importer is installed and active"
 if "${WPENV[@]}" run cli wp plugin install wordpress-importer --activate; then
 	echo "→ Importing dev content (existing posts with matching GUIDs are skipped)"
-	"${WPENV[@]}" run cli wp import "/var/www/html/wp-env-tools/$CONTENT_NAME" --authors=create || true
+	"${WPENV[@]}" run cli wp import "$CONTAINER_TOOLS/$CONTENT_NAME" --authors=create || true
 else
 	echo "→ Skipping dev content import (WordPress Importer unavailable)"
 fi
