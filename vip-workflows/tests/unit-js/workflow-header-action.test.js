@@ -25,7 +25,7 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 // See workflow-panel-publish-confirm.test.js for why these are stubbed: ESM-only
 // deps the components name but do not otherwise exercise.
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
-jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/editor', () => require( './helpers/editor-package' ) );
 jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
@@ -135,6 +135,7 @@ import {
 	REPLACES_PUBLISH_CLASS,
 } from '../../src/editor/components/WorkflowHeaderAction';
 import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
+import { PluginPrePublishPanel } from '@wordpress/editor';
 /* eslint-enable import/first */
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
@@ -206,12 +207,14 @@ function transitionPosts() {
 /**
  * Render the header slot with the button and the flow, against a payload.
  *
- * @param {Object}   status     Status endpoint response.
- * @param {Function} transition Answers the transition POST; unresolved by default.
+ * @param {Object}      status     Status endpoint response.
+ * @param {Function}    transition Answers the transition POST; unresolved by default.
+ * @param {JSX.Element} [plugins]  Other plugins' fills, rendered alongside.
  */
 async function renderHeader(
 	status,
-	transition = () => new Promise( () => {} )
+	transition = () => new Promise( () => {} ),
+	plugins = null
 ) {
 	apiFetch.mockImplementation( ( { path, method } ) => {
 		if ( path === STATUS_PATH && method !== 'POST' ) {
@@ -230,6 +233,7 @@ async function renderHeader(
 			</div>
 			<TransitionFlow />
 			<WorkflowHeaderAction />
+			{ plugins }
 		</SlotFillProvider>
 	);
 
@@ -397,6 +401,91 @@ describe( 'WorkflowHeaderAction', () => {
 			await screen.findByText( 'Publish this post?' )
 		).toBeInTheDocument();
 		expect( transitionPosts() ).toHaveLength( 0 );
+	} );
+
+	/**
+	 * Core's Publish is hidden, and its pre-publish panel cannot be the way
+	 * through, so other plugins' pre-publish checks have to be shown by the
+	 * step that does publish.
+	 */
+	it( 'shows other plugins’ pre-publish checks before publishing', async () => {
+		await renderHeader(
+			statusResponse( { transitions: [ TO_LIVE, TO_REVIEW ] } ),
+			undefined,
+			<PluginPrePublishPanel>
+				<p>SEO check passed</p>
+			</PluginPrePublishPanel>
+		);
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Publish Now' } )
+			).click();
+		} );
+
+		const dialog = await screen.findByRole( 'dialog', {
+			name: 'Publish this post?',
+		} );
+		expect( dialog ).toHaveTextContent( 'SEO check passed' );
+		expect( dialog ).toHaveTextContent( 'Visibility: Public' );
+		expect( transitionPosts() ).toHaveLength( 0 );
+
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Publish' } ).click();
+		} );
+
+		await waitFor( () =>
+			expect( transitionPosts() ).toEqual( [
+				expect.objectContaining( { to_status: 'live' } ),
+			] )
+		);
+	} );
+
+	it( 'keeps a move that publishes nothing to one click', async () => {
+		await renderHeader(
+			statusResponse(),
+			undefined,
+			<PluginPrePublishPanel>
+				<p>SEO check passed</p>
+			</PluginPrePublishPanel>
+		);
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Send to Review' } )
+			).click();
+		} );
+
+		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
+		expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
+		expect( screen.queryByText( 'SEO check passed' ) ).toBeNull();
+	} );
+
+	/**
+	 * Locking saving is how a plugin holds a publish; core's Publish stands
+	 * down while it is held, and so does this one.
+	 */
+	it( 'holds Publish while a plugin has saving locked', async () => {
+		setCoreEditor( { savingLocked: true } );
+		await renderHeader(
+			statusResponse( { transitions: [ TO_LIVE, TO_REVIEW ] } )
+		);
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Publish Now' } )
+			).click();
+		} );
+
+		const publish = await screen.findByRole( 'button', {
+			name: 'Publish',
+		} );
+		expect( publish ).toHaveAttribute( 'aria-disabled', 'true' );
+
+		await act( async () => {
+			setCoreEditor( { savingLocked: false } );
+		} );
+		expect( publish ).not.toHaveAttribute( 'aria-disabled', 'true' );
 	} );
 
 	/**
@@ -1062,6 +1151,56 @@ describe( 'WorkflowHeaderAction', () => {
 				expect( transitionPosts() ).toHaveLength( 1 )
 			);
 			expect( savePost ).not.toHaveBeenCalled();
+		} finally {
+			jest.useRealTimers();
+		}
+	} );
+
+	/**
+	 * A clean editor reloads a moment after its stage agent finishes. Any
+	 * status read in that moment re-renders the flow, and must not cancel the
+	 * reload: the finished edge is not seen twice, so a cancelled reload
+	 * leaves the editor holding the pre-agent copy for its next save.
+	 */
+	it( 'still reloads when a status read lands inside the reload delay', async () => {
+		// jsdom's location cannot be replaced or spied on, and it reports a
+		// reload as navigation it does not implement — through console.error.
+		// That report is the reload, as far as this test can see it.
+		const reloaded = () =>
+			console.error.mock.calls.filter( ( [ error ] ) =>
+				String( error?.message ?? error ).includes( 'navigation' )
+			).length;
+		jest.useFakeTimers();
+
+		try {
+			await renderHeader(
+				statusResponse( { agent_pending: true, transitions: [] } )
+			);
+			await act( async () => {} );
+
+			apiFetch.mockImplementation( () =>
+				Promise.resolve( statusResponse() )
+			);
+			await act( async () => {
+				jest.advanceTimersByTime( 5000 );
+			} );
+			await screen.findByRole( 'button', { name: 'Send to Review' } );
+
+			await act( async () => {
+				jest.advanceTimersByTime( 400 );
+			} );
+			await act( async () => {
+				dispatch( STORE_NAME ).receiveWorkflowStatus(
+					statusResponse()
+				);
+			} );
+			expect( reloaded() ).toBe( 0 );
+
+			await act( async () => {
+				jest.advanceTimersByTime( 400 );
+			} );
+			expect( reloaded() ).toBe( 1 );
+			expect( console ).toHaveErrored();
 		} finally {
 			jest.useRealTimers();
 		}

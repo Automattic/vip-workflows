@@ -38,6 +38,16 @@ whether or not the sidebar is open.
   starts such a move with the sidebar closed. For the same reason it announces every stage
   change (`speak()`), however the post moved; the rail only plays the agent
   flash.
+- `PrePublishConfirm` — the publish confirm. A move into a publish-region
+  stage on a post that is not live yet stops here first; every other move
+  stays one click. Core's pre-publish panel cannot be the way through (its
+  Publish saves with `publish`, which the publish-boundary guard refuses), so
+  this dialog renders `PluginPrePublishPanel.Slot` itself: SEO, social and
+  checklist plugins' fills show here as they would before core's Publish. Of
+  core's own pre-publish content it repeats only the visibility label; the
+  schedule is covered by the warning (the move publishes now), and core's tag
+  and featured-image suggestions are left to the sidebar. Its Publish stands
+  down while saving is locked, as core's does.
 - `WorkflowHeaderAction` — the split button in the editor header (a fill into
   the `PinnedItems/core` slot). The main half runs the stage's **primary
   transition** — the first in authored order, labelled with the author's own

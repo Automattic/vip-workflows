@@ -22,6 +22,7 @@ const {
 	deletePost,
 	getWorkflowStatus,
 	openWorkflowPanel,
+	transition,
 } = require( './helpers/workflow' );
 
 const SETTINGS_PATH = '/vip-workflows/v1/settings/general';
@@ -158,6 +159,66 @@ test.describe( 'VIP Workflows — header split button (editor UI)', () => {
 		expect(
 			await page.evaluate( () => window.vipWorkflowsPublishFrames )
 		).toBe( 0 );
+	} );
+
+	/**
+	 * Core's Publish is hidden, so the step before a publishing move is where
+	 * other plugins' pre-publish checks show. A fill registered the way any
+	 * plugin registers one has to appear there, before anything is published.
+	 */
+	test( 'shows other plugins’ pre-publish checks before publishing', async ( {
+		admin,
+		page,
+		requestUtils,
+	} ) => {
+		await setBypassRoles( requestUtils, [] );
+		( { postId } = await createWorkflowPost( requestUtils, {
+			title: 'Header action pre-publish e2e',
+		} ) );
+		await transition( requestUtils, postId, 'review' );
+		await transition( requestUtils, postId, 'ready' );
+
+		await admin.editPost( postId );
+
+		await page.evaluate( () => {
+			const { createElement } = window.wp.element;
+			window.wp.plugins.registerPlugin( 'vip-workflows-e2e-pre-publish', {
+				render: () =>
+					createElement(
+						window.wp.editor.PluginPrePublishPanel,
+						{ title: 'E2E check', initialOpen: true },
+						'Checked by another plugin'
+					),
+			} );
+		} );
+
+		const primary = page
+			.getByRole( 'region', { name: 'Editor top bar' } )
+			.locator( '.vip-workflows-header-action__main' );
+		await expect( primary ).toHaveText( 'Publish now' );
+		await primary.click();
+
+		const dialog = page.getByRole( 'dialog', {
+			name: 'Publish this post?',
+		} );
+		await expect(
+			dialog.getByText( 'Checked by another plugin' )
+		).toBeVisible();
+
+		// Nothing is published until the step is answered.
+		expect(
+			( await getWorkflowStatus( requestUtils, postId ) ).current.key
+		).toBe( 'ready' );
+
+		await dialog.getByRole( 'button', { name: 'Publish' } ).click();
+
+		await expect
+			.poll(
+				async () =>
+					( await getWorkflowStatus( requestUtils, postId ) ).current
+						.key
+			)
+			.toBe( 'publish' );
 	} );
 
 	test( 'keeps core Publish for a person who can bypass the workflow', async ( {

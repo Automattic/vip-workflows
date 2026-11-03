@@ -43,9 +43,6 @@ import {
 	getLiveEditsWarning,
 	getStatusChangeConfirmLabel,
 	getStatusChangeConfirmTitle,
-	getTransitionPublishConfirmLabel,
-	getTransitionPublishConfirmTitle,
-	getTransitionPublishWarning,
 } from '../../entries/confirm-workflow-side-effect';
 import { refreshPostEntity } from '../refresh-post-entity';
 import {
@@ -54,6 +51,7 @@ import {
 } from '../required-metadata';
 import { TransitionAssignmentPopover } from './TransitionInputPopover';
 import { ToolFailuresModal } from '../../common/ToolFailuresModal';
+import { PrePublishConfirm } from './PrePublishConfirm';
 
 /**
  * The id a refusal reported from the header is posted under, so a second
@@ -142,6 +140,10 @@ export function TransitionFlow() {
 	 */
 	const [ assignmentRequest, setAssignmentRequest ] = useState( null ); // { toStatus, input, transitionLabel, anchor, initialValue }
 
+	// The pre-publish step a publishing move is waiting on, with the resolver
+	// its answer settles. See PrePublishConfirm.
+	const [ prePublish, setPrePublish ] = useState( null ); // { stageLabel, scheduled, resolve }
+
 	// Which surface asked for the move being run, so its refusal is reported
 	// where the author is looking. Survives the warnings re-fire, which is the
 	// same move continued. 'header' is the editor's own notice area, which is
@@ -161,6 +163,16 @@ export function TransitionFlow() {
 
 	// The stage last announced, and whether its agent was running then.
 	const announcedRef = useRef( null );
+
+	// The reload that follows a stage agent into a clean editor. Kept here,
+	// not in the effect that starts it: that effect re-runs on every status
+	// read, and a read landing inside the delay would cancel the reload in
+	// its cleanup, with nothing to start it again — the pending → finished
+	// edge has already been spent. The editor would keep the pre-agent copy,
+	// and its next save would write that back over the agent's work. Only
+	// leaving the editor stops it.
+	const reloadTimerRef = useRef( null );
+	useEffect( () => () => clearTimeout( reloadTimerRef.current ), [] );
 
 	const { savePost } = useDispatch( editorStore );
 	const { createErrorNotice, createInfoNotice, removeNotice } =
@@ -302,13 +314,16 @@ export function TransitionFlow() {
 					],
 				}
 			);
-		} else {
+		} else if ( ! reloadTimerRef.current ) {
 			// B: clean editor — reload discards nothing. Held just long
 			// enough for the rail's outcome flash and the announcement to
 			// land first; nobody clicked, so the flash is the only thing
-			// saying which way the agent routed.
-			const timer = setTimeout( () => window.location.reload(), 800 );
-			return () => clearTimeout( timer );
+			// saying which way the agent routed. Started once: see
+			// reloadTimerRef.
+			reloadTimerRef.current = setTimeout(
+				() => window.location.reload(),
+				800
+			);
 		}
 	}, [
 		agentIsPending,
@@ -648,16 +663,16 @@ export function TransitionFlow() {
 			workflow?.current?.status !== 'publish' &&
 			savedStatus !== 'publish';
 
+		// The question is the pre-publish step, where other plugins' checks
+		// (PluginPrePublishPanel) get their turn, as they would before core's
+		// Publish. A move that publishes nothing stays one click.
 		if ( publishes ) {
-			const proceed = await confirm(
-				getTransitionPublishWarning( {
+			const proceed = await new Promise( ( resolve ) =>
+				setPrePublish( {
 					stageLabel: transition.status_info?.label || transition.to,
 					scheduled: savedStatus === 'future',
-				} ),
-				{
-					title: getTransitionPublishConfirmTitle(),
-					confirmLabel: getTransitionPublishConfirmLabel(),
-				}
+					resolve,
+				} )
 			);
 
 			if ( ! proceed ) {
@@ -840,6 +855,21 @@ export function TransitionFlow() {
 					notesRequired={ false }
 					onSubmit={ handleAssignmentSelect }
 					onClose={ () => setAssignmentRequest( null ) }
+				/>
+			) }
+
+			{ prePublish && (
+				<PrePublishConfirm
+					stageLabel={ prePublish.stageLabel }
+					scheduled={ prePublish.scheduled }
+					onConfirm={ () => {
+						setPrePublish( null );
+						prePublish.resolve( true );
+					} }
+					onCancel={ () => {
+						setPrePublish( null );
+						prePublish.resolve( false );
+					} }
 				/>
 			) }
 

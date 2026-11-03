@@ -26,16 +26,19 @@ jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
 
 /*
  * `@wordpress/editor` pulls @wordpress/blocks, whose ESM-only dependencies Jest
- * cannot parse. The panel only needs the store's name plus a few post-state
- * selectors, so a named test store stands in for all of it.
+ * cannot parse. The panel needs the store's name plus a few post-state
+ * selectors, so a named test store stands in for it; the confirm also renders
+ * the pre-publish slot, which the stand-in package provides.
  */
-jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/editor', () => require( './helpers/editor-package' ) );
 jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
 // eslint-disable-next-line import/first
 import { createReduxStore, register } from '@wordpress/data';
+// eslint-disable-next-line import/first
+import { SlotFillProvider } from '@wordpress/components';
 
 // The committed post status, settable per test: the confirm keys off what is
 // persisted, so an already-live post must be able to differ from a draft one.
@@ -69,6 +72,7 @@ register(
 			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => false,
 			isSavingPost: () => false,
+			isPostSavingLocked: () => false,
 		},
 		actions: { savePost: () => ( { type: 'NOOP' } ) },
 	} )
@@ -173,10 +177,10 @@ async function renderPanel( status ) {
 	} );
 
 	render(
-		<>
+		<SlotFillProvider>
 			<TransitionFlow />
 			<WorkflowPanel />
-		</>
+		</SlotFillProvider>
 	);
 
 	await waitFor( () => expect( button( 'Send Live' ) ).toBeInTheDocument() );
