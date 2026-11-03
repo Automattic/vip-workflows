@@ -5,6 +5,9 @@
 # Personal Claude Code config (quality-gate hooks etc.) — not team-shared.
 .claude/settings.local.json
 
+# Agent worktrees (each is a full checkout of the repo).
+/.claude/worktrees/
+
 # Build and CI logs pulled down for debugging.
 *.log
 

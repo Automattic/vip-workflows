@@ -16,7 +16,7 @@ Run every package's configured linters and unit tests:
 npm run check:all
 ```
 
-Its design-system section needs loupe, which `npm run setup` does not install; see [`tools/code-quality/README.md`](../../tools/code-quality/README.md#running-it).
+Its design-system section needs loupe, which `npm run setup` does not install. Claude Code offers it from the repo's `.claude/settings.json`; see [`tools/code-quality/README.md`](../../tools/code-quality/README.md#in-claude-code).
 
 Targeted commands for the core plugin:
 

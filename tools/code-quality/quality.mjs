@@ -22,7 +22,7 @@
  *
  * Routing:
  *   UI    → loupe (design-system conformance; see loupe.config.json). Findings
- *           recorded in .loupe-baseline.json are accepted; a new blocking finding
+ *           recorded in .loupe/baseline.json are accepted; a new blocking finding
  *           BLOCKS. Skipped when loupe isn't installed.
  *   PHP   → phpcs (vip-workflows/vendor/bin). Each plugin uses its own
  *           .phpcs.xml.dist if present, else the shared extension ruleset.
@@ -289,9 +289,10 @@ function loupeBin() {
 
 const LOUPE_MISSING = '⚠ loupe: not installed — install the loupe plugin or set LOUPE_BIN; skipped.';
 
-// loupe's own config and baseline. A change to either can move findings in any
-// file, so it is checked repo-wide, and flagged as a gate-rules change below.
-const LOUPE_CONFIG = /^(loupe\.config\.(json|js|mjs)|\.louperc\.json|\.loupe-baseline\.json)$/;
+// loupe's config, and everything under .loupe/ (baseline, token stylesheet,
+// project extensions). A change to any of them can move findings in any file,
+// so it is checked repo-wide, and flagged as a gate-rules change below.
+const LOUPE_CONFIG = /^(loupe\.config\.(json|js|mjs)|\.louperc\.json|\.loupe\/.+)$/;
 
 // stderr goes straight through: loupe explains a run it kept going on there
 // (an unreadable baseline, a skipped registry), and a captured copy was dropped.

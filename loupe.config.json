@@ -5,7 +5,7 @@
 	},
 	"designSystem": {
 		"tokenSources": [
-			"vip-workflows/node_modules/@wordpress/theme/prebuilt/css/design-tokens.css"
+			".loupe/tokens/wpds-design-tokens.css"
 		]
 	},
 	"sources": {
@@ -33,5 +33,5 @@
 	"rules": {
 		"css/dead-class": "error"
 	},
-	"baseline": ".loupe-baseline.json"
+	"baseline": ".loupe/baseline.json"
 }

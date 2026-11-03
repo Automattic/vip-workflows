@@ -93,8 +93,11 @@ Design System: overrides of WPDS components, layout and type in CSS, hardcoded
 values where a `--wpds-*` token exists, raw elements with a WPDS analog,
 superseded components, and rebuilt patterns. `loupe.config.json` at the repo
 root selects the `wpds` preset, names the project's class namespaces, points at
-`@wordpress/theme`'s token stylesheet (so it needs `npm run setup` first), names
-the baseline file, and makes `css/dead-class` blocking, as css-hygiene's R1 was.
+the token stylesheet and baseline in [`.loupe/`](../../.loupe/README.md), and
+makes `css/dead-class` blocking, as css-hygiene's R1 was. The token stylesheet is
+a committed copy of `@wordpress/theme`'s, so token rules work in a checkout with
+no `node_modules`, such as an agent worktree; `loupe-tokens.test.mjs` fails when
+it drifts from the installed package.
 loupe walks the filesystem rather than git, so its `sources.ignore` restates the
 preset's list (arrays replace on merge) and adds the gitignored `_tmp/` scratch
 directory.
@@ -105,7 +108,31 @@ reaching through a component's class into an element it renders (`.x svg`).
 Listing those prefixes in `namespaces.external` would bring the first back as a
 blocking `system/override`.
 
-### Running it
+### In Claude Code
+
+The committed `.claude/settings.json` offers the loupe plugin (marketplace
+`dabowman/loupe`) when you trust the repo, enables it, and turns its hooks on
+with `"env": { "LOUPE": "on" }`. Accept the install prompt and start a new
+session. Then:
+
+- after each `Edit`/`Write`, the `PostToolUse` hook checks the file just written;
+  the `Stop` hook checks everything changed in the turn.
+- a finding in the baseline never reports. A new one does.
+- the plugin's skills (`loupe-authoring`, `loupe-patterns`, `loupe-remediation`)
+  and `/loupe-audit`, `/loupe-fix`, `/loupe-baseline`, `/loupe-report` are
+  available, and `loupe` is on `PATH`.
+
+Whether a new blocking finding stops the turn is the plugin's **Block turns on
+findings** option, which is per user (`/plugin` → loupe → configure). Off, the
+hook only shows you a one-line summary and the agent never sees the findings.
+On, the report goes back to the agent to fix, up to three attempts per file
+before the gate stands down for the session. On is the setting that keeps
+agent-written UI on the system.
+
+`LOUPE_OFF=1 claude` silences the hooks for one session. `loupe status` shows
+what the hook will do here and why.
+
+### Running it outside Claude Code
 
 loupe is not an npm dependency. `quality.mjs` finds it, in order:
 
@@ -127,13 +154,13 @@ git -C .loupe-engine checkout <ref>
 or symlink a pinned checkout's `bin/loupe` onto your `PATH`.
 
 `loupe status` prints the effective config and each rule's severity; its
-BLOCKS/advisory column is about the Claude Code hook, which is off here, while
-`lint` and CI fail on every `error` rule. `loupe explain <rule>` prints a rule's
+BLOCKS/advisory column is about the Claude Code hook and follows your **Block
+turns on findings** option, while `lint` and CI fail on every `error` rule. `loupe explain <rule>` prints a rule's
 guidance.
 
 ### The baseline
 
-`.loupe-baseline.json` records the findings that existed when loupe was adopted.
+`.loupe/baseline.json` records the findings that existed when loupe was adopted.
 They are accepted; a blocking finding whose key isn't there fails the gate. A
 key is rule + file + normalized code, with no line number and no count. So
 reformatting a file doesn't resurrect its findings, but a new finding with the
@@ -144,7 +171,7 @@ finding reports as new.
 
 `loupe baseline` re-records every current finding, so it accepts whatever is in
 the tree. Re-run it to shrink the file after fixing baselined findings, or after
-one of those key changes, and check that the `.loupe-baseline.json` diff only
+one of those key changes, and check that the `.loupe/baseline.json` diff only
 removes or renames entries. Never re-baseline to get a new finding past the gate
 — fix it or suppress it.
 
@@ -184,9 +211,9 @@ A directive without a rule id or a reason, or a blanket form, is itself a
 1 when there are any.
 
 **Rewriting the gate's rules isn't silent.** Any change under
-`tools/code-quality/`, to `loupe.config.json` or `.loupe-baseline.json`, a
+`tools/code-quality/`, to `loupe.config.json` or anything under `.loupe/`, a
 `.phpcs.xml.dist`, or an eslint/stylelint config prints `⚠ gate rules modified —
-human review required`. A change to loupe's config or baseline also runs loupe
+human review required`. A change to loupe's config or `.loupe/` also runs loupe
 over the whole repo.
 
 ---
@@ -196,4 +223,5 @@ over the whole repo.
 | File | Role |
 |---|---|
 | `quality.mjs` | orchestrator — scope resolution, loupe, PHP/JS lint, unit tests, exit codes |
+| `loupe-tokens.test.mjs` | fails when `.loupe/tokens/` drifts from the installed `@wordpress/theme` |
 | `phpcs-extensions.xml` | shared PHPCS baseline for the `workflow-*` extension plugins |
