@@ -118,7 +118,8 @@ AbilityExecutor::execute('vip-workflows/seo-check', ['post_id' => $post_id, 'opt
 4. Create AbilityResult object — success/summary/error/duration_ms are its own
    properties; score/status/issues live in $result->output
 5. Store in wp_vip_ability_results
-6. Fire action: do_action('vip_workflows_ability_executed', ...)
+6. Emit EventBus event 'ability.executed' (or 'ability.failed'), which fires
+   do_action('vip_workflows_event_emitted', $event_type, $event_data, $event_id)
     ↓
 Return result to client
     ↓

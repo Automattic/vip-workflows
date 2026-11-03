@@ -1,0 +1,30 @@
+name: PR Preview - Publish
+
+# Runs from the default branch with write access and never checks out pull
+# request code. Uploads the zip built by "PR Preview - Build" to the public
+# ci-artifacts prerelease, fills the artifact URL into the bundled blueprint,
+# and adds the Preview in WordPress Playground button to the PR description.
+#
+# workflow_run always reads this file from the default branch, so changes here
+# take effect only after they merge.
+
+on:
+  workflow_run:
+    workflows: ['PR Preview - Build']
+    types: [completed]
+
+# Declared at both the workflow and the calling job; the run fails at startup
+# without logs if either is missing.
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  publish:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-publish.yml@1b15093d61b5e98cdfeb31466f34ade495762cd7 # v4
+    with:
+      blueprint-from-artifact: true
+      artifacts-to-keep: '2'

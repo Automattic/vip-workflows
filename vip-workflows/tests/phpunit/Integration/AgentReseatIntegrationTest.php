@@ -185,7 +185,7 @@ class AgentReseatIntegrationTest extends TestCase
 			 */
 			public bool $called = false;
 
-			public function execute( string $ability_name, array $input = array(), string $context = '' ): AbilityResult {
+			public function execute( string $ability_name, array $input = array(), string $context = '', string $source = 'rest' ): AbilityResult {
 				$this->called = true;
 				return new AbilityResult();
 			}
@@ -219,7 +219,7 @@ class AgentReseatIntegrationTest extends TestCase
 		// The agent "runs" and, mid-execution, a core-driven status change
 		// lands (pending → draft crosses a region boundary → reseat).
 		$executor = new class() extends AbilityExecutor {
-			public function execute( string $ability_name, array $input = array(), string $context = '' ): AbilityResult {
+			public function execute( string $ability_name, array $input = array(), string $context = '', string $source = 'rest' ): AbilityResult {
 				wp_update_post(
 					array(
 						'ID'          => (int) $input['post_id'],

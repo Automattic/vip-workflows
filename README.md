@@ -9,7 +9,7 @@ VIP Workflows is a workflow-orchestration platform for WordPress. It gives edito
 ## Requirements
 
 - WordPress 7.0 or newer
-- PHP 8.2 or newer
+- PHP 8.3 or newer
 - Node.js 22 and Composer 2 for development
 - Docker for the wp-env integration and end-to-end test environments
 
@@ -61,7 +61,7 @@ npm run check:all
 
 The full test strategy, including the isolated integration database and Playwright environment, is documented in [Testing](vip-workflows/docs/TESTING.md).
 
-GitHub Actions runs PHPCS, JavaScript lint and unit tests, PHPUnit on PHP 8.2–8.5, real-WordPress integration tests, and Playwright end-to-end tests.
+GitHub Actions runs PHPCS, JavaScript lint and unit tests, PHPUnit on PHP 8.3–8.5, real-WordPress integration tests, and Playwright end-to-end tests.
 
 ## Documentation
 
