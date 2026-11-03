@@ -859,55 +859,23 @@ class StageAgentRunner implements ModuleInterface {
 			return null;
 		}
 
+		// An errored run reports its own failure in the same message slot, so the
+		// underlying error is logged before the hold message replaces it.
+		if ( 'error' === $outcome && '' !== $error ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Agent stage "%s" on post %d errored and its error route publishes: %s', $from_key, $post_id, $error ) );
+		}
+
 		// Points at the sequence, not at a manual move: a held route is withheld
 		// from people while the agent owns the stage
 		// (StatusManager::agent_routed_targets), so "transition it yourself" named
 		// something nobody could reach.
-		if ( 'error' === $outcome ) {
-			$message = sprintf(
-				/* translators: %s: the error the run reported. */
-				__( 'The error route publishes, which AI stages can’t do. Reroute it. Error: %s', 'vip-workflows' ),
-				'' !== $error ? $error : __( 'no detail given', 'vip-workflows' )
-			);
-		} else {
-			$routing = $sequence->get_status( $from_key )['agent']['routing'] ?? array();
-
-			$message = is_array( $routing ) && self::publish_setting_fixes_route( $routing, $to_key )
-				? sprintf(
-					/* translators: %s: agent outcome key (pass or fail). */
-					__( '“%s” route publishes, which AI stages can’t do. Allow it in sequence settings or reroute.', 'vip-workflows' ),
-					$outcome
-				)
-				: sprintf(
-					/* translators: %s: agent outcome key (pass or fail). */
-					__( '“%s” route publishes, which AI stages can’t do. Route it to a stage before publishing.', 'vip-workflows' ),
-					$outcome
-				);
-		}
+		$message = __( 'The agent run completed, but attempted to publish this post. AI stages are not permitted to publish.', 'vip-workflows' );
 
 		return array(
 			'message' => $message,
 			'reason'  => 'publish_held',
 		);
-	}
-
-	/**
-	 * Whether turning on `allow_agent_publish` is advice worth giving for a held route.
-	 *
-	 * Only when a pass verdict is the one thing that reaches the destination. With
-	 * a fail or error route there too — a fail with no route of its own falls back
-	 * to the error route — the setting would publish failed and errored runs, the
-	 * cheap way around the boundary the threat model warns about, so those get the
-	 * reroute advice alone.
-	 *
-	 * @param  array  $routing The AI stage's outcome routing.
-	 * @param  string $to_key  The held destination.
-	 * @return bool
-	 */
-	public static function publish_setting_fixes_route( array $routing, string $to_key ): bool {
-		return ( $routing['pass'] ?? '' ) === $to_key
-			&& ( $routing['fail'] ?? '' ) !== $to_key
-			&& ( $routing['error'] ?? '' ) !== $to_key;
 	}
 
 	/**

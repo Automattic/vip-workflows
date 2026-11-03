@@ -363,7 +363,7 @@ export default function TransitionInspector( {
 							? sprintf(
 									/* translators: %s: destination stage name. */
 									__(
-										'%s publishes, which AI stages can’t do. Allow it in sequence settings or reroute.',
+										'%s publishes, which is prevented by Sequence settings, please reroute.',
 										'vip-workflows'
 									),
 									targetLabel
@@ -371,7 +371,7 @@ export default function TransitionInspector( {
 							: sprintf(
 									/* translators: %s: destination stage name. */
 									__(
-										'%s publishes, which AI stages can’t do. Reroute it; allowing it would publish failed runs too.',
+										'%s publishes, which is prevented by Sequence settings, please reroute. Allowing it would publish failed runs too.',
 										'vip-workflows'
 									),
 									targetLabel

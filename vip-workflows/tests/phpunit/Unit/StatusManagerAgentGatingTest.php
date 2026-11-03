@@ -698,7 +698,7 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->assertSame( 'unrouted_agent_exit', $result->get_error_code() );
         // The destination IS routed, so the refusal names the setting holding it
         // rather than calling it unrouted.
-        $this->assertStringContainsString( 'sequence settings', $result->get_error_message() );
+        $this->assertSame( 'This stage is run by an agent, and Sequence settings don’t allow AI stages to publish. Move the post to another stage first.', $result->get_error_message() );
         $this->assertStringNotContainsString( 'only the destinations its outcomes route to', $result->get_error_message() );
     }
 
@@ -869,18 +869,6 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->assertInstanceOf( 'WP_Error', $result );
         $this->assertSame( 'tool_check_failed', $result->get_error_code() );
         $this->assertSame( 'tool_disabled', $result->get_error_data()['hard_failures'][0]['key'] );
-    }
-
-    /**
-     * The setting is suggested only where a pass verdict alone reaches the held
-     * destination — never where it would also publish failed or errored runs.
-     */
-    public function test_publish_setting_is_suggested_only_for_pass_only_routes(): void
-    {
-        $this->assertTrue( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'fail' => 'draft' ), 'live' ) );
-        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'error' => 'live' ), 'live' ) );
-        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'fail' => 'live' ), 'live' ) );
-        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'review', 'error' => 'live' ), 'live' ) );
     }
 
     /**

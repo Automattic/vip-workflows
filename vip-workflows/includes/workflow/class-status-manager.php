@@ -680,10 +680,8 @@ class StatusManager {
 
 				if ( ! in_array( $to_status, $routing, true ) ) {
 					$message = __( 'This stage belongs to an AI agent; only the destinations its outcomes route to can be taken.', 'vip-workflows' );
-				} elseif ( StageAgentRunner::publish_setting_fixes_route( $routing, $to_status ) ) {
-					$message = __( 'This route publishes, which AI stages can’t do. Allow it in sequence settings or reroute.', 'vip-workflows' );
 				} else {
-					$message = __( 'This route publishes, which AI stages can’t do. Route it to a stage before publishing.', 'vip-workflows' );
+					$message = __( 'This stage is run by an agent, and Sequence settings don’t allow AI stages to publish. Move the post to another stage first.', 'vip-workflows' );
 				}
 
 				return new \WP_Error( 'unrouted_agent_exit', $message, array( 'status' => 403 ) );

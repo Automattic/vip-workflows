@@ -538,6 +538,29 @@ describe( 'transition mutations', () => {
 		const next = removeTransition( stages(), 'draft', 'review' );
 		expect( findTransition( next, 'draft', 'review' ) ).toBeNull();
 	} );
+
+	it( 'removeTransition relies on one transition per target', () => {
+		// It deletes by target, so it is exact only while no edit can give a
+		// stage a second transition to the same target.
+		const toReview = ( list ) =>
+			list
+				.find( ( s ) => s.key === 'draft' )
+				.transitions.filter( ( t ) => t.to === 'review' );
+		const added = addTransition( stages(), 'draft', 'review', {
+			label: 'Again',
+		} );
+		const rewired = rewireTransition(
+			addTransition( stages(), 'draft', 'done' ),
+			'draft',
+			'done',
+			'review'
+		);
+		expect( toReview( added ) ).toHaveLength( 1 );
+		expect( toReview( rewired ) ).toHaveLength( 1 );
+
+		const next = removeTransition( added, 'draft', 'review' );
+		expect( toReview( next ) ).toHaveLength( 0 );
+	} );
 } );
 
 describe( 'addStageFromNode', () => {
@@ -2042,29 +2065,24 @@ describe( 'validateSequence for AI stages', () => {
 			stages: agentStages( { pass: 'done' } ),
 		} );
 		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
-			'sequence settings'
+			'Sequence settings do not allow AI stages to publish, please route the pass outcome to another stage.'
 		);
 		expect( result.errors ).toEqual( [] );
 	} );
 
-	// Turning the setting on would publish failed and errored runs too, so a
-	// held route anything but pass leads along only gets the reroute advice.
-	it( 'suggests the setting only for a route pass alone takes', () => {
+	it( 'names each held outcome in its warning', () => {
 		const warn = ( routing ) =>
 			validateSequence( {
 				name: 'Flow',
 				stages: agentStages( routing ),
 			} ).warnings.review.join( ' ' );
 
-		expect( warn( { pass: 'done', fail: 'draft' } ) ).toContain(
-			'sequence settings'
+		expect( warn( { pass: 'draft', error: 'done' } ) ).toContain(
+			'please route the error outcome to another stage.'
 		);
-		expect( warn( { pass: 'draft', error: 'done' } ) ).not.toContain(
-			'sequence settings'
-		);
-		expect( warn( { pass: 'done', fail: 'done' } ) ).not.toContain(
-			'sequence settings'
-		);
+		const shared = warn( { pass: 'done', fail: 'done' } );
+		expect( shared ).toContain( 'route the pass outcome' );
+		expect( shared ).toContain( 'route the fail outcome' );
 	} );
 
 	it( 'holds only routes that cross into publish or private', () => {
@@ -2097,7 +2115,9 @@ describe( 'validateSequence for AI stages', () => {
 			stages: agentStages( { pass: 'done' } ),
 		} );
 		const warnings = ( result.warnings.review || [] ).join( ' ' );
-		expect( warnings ).toContain( 'which AI stages can’t do' );
+		expect( warnings ).toContain(
+			'Sequence settings do not allow AI stages to publish, please route the pass outcome to another stage.'
+		);
 		expect( warnings ).not.toContain( 'no outcome routed anywhere' );
 	} );
 
@@ -2131,7 +2151,7 @@ describe( 'validateSequence for AI stages', () => {
 
 		expect( result.warnings.featured || [] ).toEqual( [] );
 		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
-			'sequence settings'
+			'Sequence settings do not allow AI stages to publish, please route the pass outcome to another stage.'
 		);
 	} );
 

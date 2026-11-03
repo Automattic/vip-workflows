@@ -62,8 +62,12 @@ describe( 'Inspector held publication routes', () => {
 		const panel = renderInspector();
 		expect( panel.getByText( 'On pass · Disabled' ) ).toBeInTheDocument();
 		expect(
-			panel.getByText( /publishes, which AI stages can’t do/ )
-		).toHaveTextContent( 'Allow it in sequence settings' );
+			panel.getByText(
+				/publishes, which is prevented by Sequence settings/
+			)
+		).toHaveTextContent(
+			'publishes, which is prevented by Sequence settings, please reroute.'
+		);
 
 		// Imported truthy strings must not waive the runtime's strict opt-in.
 		panel.setPublish( 'true' );
@@ -71,7 +75,9 @@ describe( 'Inspector held publication routes', () => {
 		panel.setPublish( true );
 		expect( panel.getByText( 'On pass' ) ).toBeInTheDocument();
 		expect(
-			panel.queryByText( /publishes, which AI stages can’t do/ )
+			panel.queryByText(
+				/publishes, which is prevented by Sequence settings/
+			)
 		).not.toBeInTheDocument();
 	} );
 
@@ -84,11 +90,11 @@ describe( 'Inspector held publication routes', () => {
 			panel.getByText( 'On pass, On fail · Disabled' )
 		).toBeInTheDocument();
 		const warning = panel.getByText(
-			/publishes, which AI stages can’t do/
+			/publishes, which is prevented by Sequence settings/
 		);
 		expect( warning ).toHaveTextContent( 'would publish failed runs too' );
-		expect( warning ).not.toHaveTextContent(
-			'Allow it in sequence settings'
+		expect( warning ).toHaveTextContent(
+			'please reroute. Allowing it would publish failed runs too.'
 		);
 	} );
 

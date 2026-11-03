@@ -58,6 +58,18 @@ class CopyStandardTest extends PHPUnitTestCase
         'The permission_callback for ability',
         // REST schema descriptions, read by API clients.
         'Serialized availability.',
+        // AI-stage publish-boundary notice, worded in review and kept verbatim.
+        'This stage is run by an agent, and Sequence settings don’t allow AI stages',
+    );
+
+    /**
+     * Strings that keep `please` by design, by the start of the string. The
+     * AI-stage publish-boundary notices were worded in review and are kept
+     * verbatim.
+     */
+    private const PLEASE_EXEMPT = array(
+        'Sequence settings do not allow AI stages to publish, please route the',
+        '%s publishes, which is prevented by Sequence settings, please reroute.',
     );
 
     /**
@@ -160,7 +172,18 @@ class CopyStandardTest extends PHPUnitTestCase
 
     public function test_no_please(): void
     {
-        $offenders = $this->offenders( '/\bplease\b/i' );
+        $offenders = array();
+
+        foreach ( $this->offenders( '/\bplease\b/i' ) as $relative => $strings ) {
+            foreach ( $strings as $string ) {
+                foreach ( self::PLEASE_EXEMPT as $prefix ) {
+                    if ( str_starts_with( $string, $prefix ) ) {
+                        continue 2;
+                    }
+                }
+                $offenders[ $relative ][] = $string;
+            }
+        }
 
         $this->assertSame(
             array(),

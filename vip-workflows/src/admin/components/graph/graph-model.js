@@ -947,6 +947,10 @@ export function updateTransition( stages, from, to, changes ) {
 /**
  * Remove a transition.
  *
+ * Matches by target alone, which is exact only because a stage holds at most
+ * one transition per target (`addTransition` and `rewireTransition` refuse a
+ * second, and the editor collapses duplicates on load).
+ *
  * @param {Array}  stages Existing stages.
  * @param {string} from   Source stage key.
  * @param {string} to     Target stage key.
@@ -1177,7 +1181,7 @@ export function outcomesRoutedTo( stage, targetKey ) {
  *
  * Only when a pass verdict alone leads there. With fail or error routed there
  * too, the setting would publish failed and errored runs — the cheap way around
- * the boundary. Mirrors `StageAgentRunner::publish_setting_fixes_route()`.
+ * the boundary.
  *
  * @param {Object} stage     The AI stage.
  * @param {string} targetKey The held destination.
@@ -2350,23 +2354,14 @@ export function validateSequence( {
 			for ( const outcome of held ) {
 				addWarning(
 					stage.key,
-					publishSettingFixesRoute( stage, routing[ outcome ] )
-						? sprintf(
-								/* translators: %s: agent outcome label */
-								__(
-									'“%s” route publishes, which AI stages can’t do. Allow it in sequence settings or reroute.',
-									'vip-workflows'
-								),
-								agentOutcomeLabel( outcome )
-						  )
-						: sprintf(
-								/* translators: %s: agent outcome label */
-								__(
-									'“%s” route publishes, which AI stages can’t do. Route it to a stage before publishing.',
-									'vip-workflows'
-								),
-								agentOutcomeLabel( outcome )
-						  )
+					sprintf(
+						/* translators: %s: agent outcome key (pass, fail or error). */
+						__(
+							'Sequence settings do not allow AI stages to publish, please route the %s outcome to another stage.',
+							'vip-workflows'
+						),
+						outcome
+					)
 				);
 			}
 		}

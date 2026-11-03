@@ -791,9 +791,9 @@ class StageAgentRunnerExecuteTest extends TestCase
         ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
 
         // The held run's forward transitions stay withheld, so the message must
-        // send the editor to the sequence setting, not to a manual transition.
+        // name the publish boundary, not send the editor to a manual transition.
         $this->assertSame( 'failed', $job['status'] );
-        $this->assertStringContainsString( 'sequence settings', $job['error'] );
+        $this->assertSame( 'The agent run completed, but attempted to publish this post. AI stages are not permitted to publish.', $job['error'] );
         $this->assertStringNotContainsString( 'transition it yourself', $job['error'] );
     }
 
@@ -857,10 +857,9 @@ class StageAgentRunnerExecuteTest extends TestCase
 
         ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
 
-        // Turning the setting on would publish every errored run, so the message
-        // sends the author to reroute errors instead.
+        // An errored run is held with the same publish-boundary message.
         $this->assertSame( 'failed', $job['status'] );
-        $this->assertStringNotContainsString( 'sequence settings', $job['error'] );
+        $this->assertSame( 'The agent run completed, but attempted to publish this post. AI stages are not permitted to publish.', $job['error'] );
     }
 
     /**
