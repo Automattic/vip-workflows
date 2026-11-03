@@ -299,9 +299,10 @@ class AssignmentManager {
 	 *
 	 * A transition's user or role assignment names who works the stage that
 	 * transition leads into, so it is done once the post moves on. Callers run
-	 * this on every stage change, before the moving transition captures its own
-	 * assignment, so a pending user or role slot always belongs to the post's
-	 * current stage.
+	 * this on every stage change, forward or backward, before the moving
+	 * transition captures its own assignment. The one exception is a
+	 * failed-agent revert: StatusManager skips this call for it, so the
+	 * assignments survive the agent run that failed.
 	 *
 	 * Agent slots are left alone: AgentRunner completes or expires those when
 	 * the agent finishes.

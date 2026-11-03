@@ -1041,8 +1041,10 @@ class StatusManager {
 
 		// The post has left its stage, so the user and role assignments made for
 		// that stage are done. Runs before this edge captures its own assignment,
-		// which belongs to the stage being entered. A self-edge stays put.
-		if ( $current_stage !== $to_status ) {
+		// which belongs to the stage being entered. A self-edge stays put. A
+		// failed-agent revert is not the work moving on: it undoes a move whose
+		// agent run failed, so the assignments it finds stay pending.
+		if ( $current_stage !== $to_status && ! $is_revert ) {
 			$assignment_manager->complete_on_stage_exit( $post_id );
 		}
 

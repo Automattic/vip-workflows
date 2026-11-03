@@ -156,8 +156,13 @@ class RequiredAssignmentTransitionTest extends TestCase {
 		// No assignment slots, so a stage exit has none to complete.
 		$wpdb->postmeta = 'wp_postmeta';
 		$wpdb->shouldReceive( 'esc_like' )->andReturnArg( 0 )->byDefault();
-		$wpdb->shouldReceive( 'prepare' )->andReturn( '' )->byDefault();
-		$wpdb->shouldReceive( 'get_results' )->andReturn( array() )->byDefault();
+		// AssignmentManager::get_all(), read when a transition leaves a stage. A
+		// changed query matches nothing and fails instead of returning no rows.
+		$wpdb->shouldReceive( 'prepare' )
+			->with( 'SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = %d AND meta_key LIKE %s', Mockery::type( 'int' ), '_vip_workflows_assignment_%' )
+			->andReturn( 'assignment-read' )
+			->byDefault();
+		$wpdb->shouldReceive( 'get_results' )->with( 'assignment-read' )->andReturn( array() )->byDefault();
 		$wpdb->insert_id = 1;
 		$wpdb->shouldReceive( 'insert' )->andReturnUsing(
 			function ( $table, $data ) {
@@ -422,10 +427,63 @@ class RequiredAssignmentTransitionTest extends TestCase {
 		$this->meta[ StatusManager::STAGE_META_KEY ] = 'ready';
 		$this->post->post_status                     = 'publish';
 		$before                                      = $this->meta[ self::ASSIGNMENT_KEY ];
+		$this->serve_assignment_slots_from_meta();
 
 		$this->assertTrue( $manager->transition( 42, 'draft', array( 'agent_revert' => true ) ) );
 		$this->assertSame( $before, $this->meta[ self::ASSIGNMENT_KEY ] );
 		$this->assertSame( 'draft', $this->post->post_status );
 		$this->assertSame( 'draft', $this->meta[ StatusManager::STAGE_META_KEY ] );
+	}
+
+	/**
+	 * A failed-agent revert sends the post back after its agent run fails, so
+	 * it completes none of the pending user assignments.
+	 */
+	public function test_revert_keeps_pending_assignments(): void {
+		$manager                                     = $this->manager( array() );
+		$this->meta[ StatusManager::STAGE_META_KEY ] = 'ready';
+		$this->post->post_status                     = 'publish';
+		$this->serve_assignment_slots_from_meta();
+
+		$this->assertTrue( $manager->transition( 42, 'draft', array( 'agent_revert' => true ) ) );
+		$this->assertSame( 'pending', $this->meta[ self::ASSIGNMENT_KEY ]['status'] );
+		$this->assertSame( 'pending', $this->meta[ self::OTHER_ASSIGNMENT_KEY ]['status'] );
+		$this->assertNotContains( 'vip_workflows_assignment_completed', $this->actions );
+	}
+
+	/**
+	 * Any other stage exit completes the pending user assignments.
+	 */
+	public function test_leaving_the_stage_completes_pending_assignments(): void {
+		$manager = $this->manager( array() );
+		$this->serve_assignment_slots_from_meta();
+
+		$this->assertTrue( $manager->transition( 42, 'ready' ) );
+		$this->assertSame( 'completed', $this->meta[ self::ASSIGNMENT_KEY ]['status'] );
+		$this->assertSame( 'completed', $this->meta[ self::OTHER_ASSIGNMENT_KEY ]['status'] );
+		$this->assertSame( 2, count( array_keys( $this->actions, 'vip_workflows_assignment_completed', true ) ) );
+	}
+
+	/**
+	 * Answer AssignmentManager::get_all() with the fixture's assignment slots.
+	 */
+	private function serve_assignment_slots_from_meta(): void {
+		global $wpdb;
+		// Rows carry the stored array as-is, so no unserialize is needed.
+		Functions\when( 'maybe_unserialize' )->returnArg();
+		$wpdb->shouldReceive( 'get_results' )->with( 'assignment-read' )->andReturnUsing(
+			function () {
+				$rows = array();
+				foreach ( $this->meta as $key => $value ) {
+					if ( 0 === strpos( (string) $key, '_vip_workflows_assignment_' ) ) {
+						$rows[] = (object) array(
+							'meta_key'   => $key, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Stubbed result row.
+							'meta_value' => $value, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Stubbed result row.
+						);
+					}
+				}
+				return $rows;
+			}
+		);
 	}
 }

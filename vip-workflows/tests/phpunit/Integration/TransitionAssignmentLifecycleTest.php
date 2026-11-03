@@ -226,6 +226,33 @@ class TransitionAssignmentLifecycleTest extends TestCase {
 	}
 
 	/**
+	 * A failed-agent revert sends the post back without finishing its
+	 * assignments: the reviewer stays pending and no completed hook fires.
+	 */
+	public function test_a_failed_agent_revert_keeps_the_assignment(): void {
+		$post_id   = $this->make_post_in_review();
+		$completed = array();
+		add_action(
+			'vip_workflows_assignment_completed',
+			static function ( $id, $meta_key ) use ( &$completed ) {
+				$completed[] = array( $id, $meta_key );
+			},
+			10,
+			2
+		);
+
+		// The option revert_failed_agent_stage() passes once it has resolved
+		// the failed run's origin stage.
+		$this->assertTrue( ( new StatusManager() )->transition( $post_id, 'ideas', array( 'agent_revert' => true ) ) );
+
+		$manager = new AssignmentManager();
+		$this->assertSame( 'ideas', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
+		$this->assertSame( AssignmentManager::STATUS_PENDING, $manager->get( $post_id, 'reviewer' )['status'] );
+		$this->assertSame( 'reviewer', $manager->get_current( $post_id )['meta_key'] );
+		$this->assertSame( array(), $completed );
+	}
+
+	/**
 	 * Agent slots finish when the agent runner says so, not on a stage change.
 	 */
 	public function test_leaving_the_stage_leaves_agent_slots_to_their_runner(): void {
