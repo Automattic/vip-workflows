@@ -445,8 +445,10 @@ test.describe( 'VIP Workflows — stage agents', () => {
 		// instead — as one of the editor's own notices, because the wait on the
 		// agent belongs to the always-mounted transition flow and has to reach
 		// an author whose Workflow sidebar is closed.
+		// Scoped by the editor's notice list rather than a notice class: the
+		// notice component's own class names change between Gutenberg releases.
 		const refresh = page
-			.locator( '.components-notice' )
+			.locator( '.editor-notices > * > *' )
 			.filter( { hasText: 'The agent updated this post' } );
 		await expect( refresh ).toBeVisible( { timeout: 15000 } );
 		await expect(
