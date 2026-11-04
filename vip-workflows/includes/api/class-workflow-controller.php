@@ -1639,6 +1639,10 @@ class WorkflowController extends WP_REST_Controller {
 		// One assignment read for the whole list, not one per row: an author
 		// with thousands of posts would otherwise cost thousands of queries.
 		$current_assignments = $assignment_manager->get_current_for_posts( array_column( $items, 'post_id' ) );
+		if ( $current_assignments instanceof WP_Error ) {
+			// A partial list would show the unread posts as unassigned.
+			return $current_assignments;
+		}
 		foreach ( $items as $index => $item ) {
 			$items[ $index ]['assignee'] = $this->get_my_work_assignee(
 				$assignment_manager,

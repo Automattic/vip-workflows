@@ -207,12 +207,15 @@ class AssignmentManager {
 	 * The same rule as get_current(), for a list that would otherwise run one
 	 * query per post.
 	 *
+	 * A chunk whose query fails fails the whole read. Treating its posts as
+	 * having nothing pending would report every one of them unassigned.
+	 *
 	 * @param  int[] $post_ids Post IDs.
-	 * @return array<int, array{meta_key: string, assignment: array}|null> Each post's
-	 *               current assignment, keyed by post ID. A post with nothing
-	 *               pending maps to null.
+	 * @return array<int, array{meta_key: string, assignment: array}|null>|\WP_Error Each
+	 *               post's current assignment, keyed by post ID, where a post with
+	 *               nothing pending maps to null; or a 500 when any chunk's query fails.
 	 */
-	public function get_current_for_posts( array $post_ids ): array {
+	public function get_current_for_posts( array $post_ids ) {
 		global $wpdb;
 
 		$post_ids = array_values( array_unique( array_map( 'intval', $post_ids ) ) );
@@ -234,6 +237,16 @@ class AssignmentManager {
 				)
 			);
 			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+
+			if ( null === $results || '' !== $wpdb->last_error ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( '[VIP Workflows] Current assignments could not be read: assignment_read_failed' );
+				return new \WP_Error(
+					'assignment_read_failed',
+					__( 'Assignments could not be read.', 'vip-workflows' ),
+					array( 'status' => 500 )
+				);
+			}
 
 			foreach ( $results as $row ) {
 				$key  = str_replace( $prefix, '', $row->meta_key );

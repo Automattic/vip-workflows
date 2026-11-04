@@ -84,8 +84,9 @@ class CurrentAssignmentTest extends TestCase {
 		global $wpdb;
 		$this->previous_wpdb = $wpdb;
 		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Unit storage double, restored in tearDown().
-		$wpdb           = Mockery::mock( 'wpdb' );
-		$wpdb->postmeta = 'wp_postmeta';
+		$wpdb             = Mockery::mock( 'wpdb' );
+		$wpdb->postmeta   = 'wp_postmeta';
+		$wpdb->last_error = '';
 		$wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $value ) => $value );
 		$wpdb->shouldReceive( 'prepare' )->andReturnUsing( fn( $query ) => $query );
 		$wpdb->shouldReceive( 'get_results' )->andReturnUsing(
@@ -251,8 +252,9 @@ class CurrentAssignmentTest extends TestCase {
 	public function test_current_assignments_for_many_posts_are_read_in_one_query(): void {
 		global $wpdb;
 		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Replaced for this test; tearDown() restores the original.
-		$wpdb           = Mockery::mock( 'wpdb' );
-		$wpdb->postmeta = 'wp_postmeta';
+		$wpdb             = Mockery::mock( 'wpdb' );
+		$wpdb->postmeta   = 'wp_postmeta';
+		$wpdb->last_error = '';
 		$wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $value ) => $value );
 		$wpdb->shouldReceive( 'prepare' )
 			->once()
@@ -365,8 +367,9 @@ class CurrentAssignmentTest extends TestCase {
 		$queried = array();
 
 		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Replaced for this test; tearDown() restores the original.
-		$wpdb           = Mockery::mock( 'wpdb' );
-		$wpdb->postmeta = 'wp_postmeta';
+		$wpdb             = Mockery::mock( 'wpdb' );
+		$wpdb->postmeta   = 'wp_postmeta';
+		$wpdb->last_error = '';
 		$wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $value ) => $value );
 		$wpdb->shouldReceive( 'prepare' )->andReturnUsing(
 			function ( $query, $args ) {
@@ -400,5 +403,81 @@ class CurrentAssignmentTest extends TestCase {
 		$this->assertSame( 'reviewer', $batched[1]['meta_key'] );
 		$this->assertNull( $batched[3], 'A finished assignment is not current.' );
 		$this->assertNull( $batched[5], 'A post with no assignment has none.' );
+	}
+	/**
+	 * A chunk whose query fails fails the whole read, whether get_results()
+	 * answers null or the database reports an error. No partial map comes
+	 * back, so no post is reported unassigned because its chunk was unread.
+	 *
+	 * @dataProvider failed_chunk_reads
+	 *
+	 * @param bool $returns_null Whether the failed query answers null rather than an empty list.
+	 */
+	public function test_current_assignments_fail_when_a_chunk_cannot_be_read( bool $returns_null ): void {
+		global $wpdb;
+
+		$chunk    = AssignmentManager::CURRENT_FOR_POSTS_CHUNK;
+		$post_ids = range( 1, 2 * $chunk + 1 );
+		$reads    = 0;
+
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Replaced for this test; tearDown() restores the original.
+		$wpdb             = Mockery::mock( 'wpdb' );
+		$wpdb->postmeta   = 'wp_postmeta';
+		$wpdb->last_error = '';
+		$wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $value ) => $value );
+		$wpdb->shouldReceive( 'prepare' )->andReturn( 'chunk-read' );
+		$wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+			function () use ( $wpdb, $returns_null, &$reads ) {
+				++$reads;
+				$wpdb->last_error = '';
+				if ( 2 !== $reads ) {
+					return array(
+						(object) array(
+							'post_id'    => (string) $reads,
+							'meta_key'   => '_vip_workflows_assignment_reviewer',
+							'meta_value' => array(
+								'value'       => 7,
+								'type'        => 'user',
+								'status'      => 'pending',
+								'assigned_at' => '2026-09-21 12:00:00.100000',
+							),
+						),
+					);
+				}
+				$wpdb->last_error = 'Lost connection to server during query';
+				return $returns_null ? null : array();
+			}
+		);
+
+		$log_file = tempnam( sys_get_temp_dir(), 'vipwf-log-' );
+		$previous = ini_set( 'error_log', $log_file );
+		try {
+			$result = $this->manager->get_current_for_posts( $post_ids );
+		} finally {
+			ini_set( 'error_log', $previous );
+		}
+		$log = (string) file_get_contents( $log_file );
+		unlink( $log_file );
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'assignment_read_failed', $result->get_error_code() );
+		$this->assertSame( array( 'status' => 500 ), $result->get_error_data() );
+		$this->assertSame( 2, $reads, 'The read stops at the failed chunk.' );
+		$this->assertStringContainsString( '[VIP Workflows]', $log );
+		$this->assertStringContainsString( 'assignment_read_failed', $log );
+		$this->assertStringNotContainsString( 'Lost connection', $log, 'The database error text is not logged.' );
+		$this->assertStringNotContainsString( 'chunk-read', $log, 'The SQL is not logged.' );
+	}
+
+	/**
+	 * The two ways a failed read shows itself.
+	 *
+	 * @return array<string, array{bool}>
+	 */
+	public static function failed_chunk_reads(): array {
+		return array(
+			'get_results() answers null'  => array( true ),
+			'last_error set, empty list' => array( false ),
+		);
 	}
 }

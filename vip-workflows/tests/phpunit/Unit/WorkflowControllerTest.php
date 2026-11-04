@@ -1814,6 +1814,31 @@ class WorkflowControllerTest extends TestCase
     }
 
     /**
+     * A failed current-assignment read fails My Work rather than showing the
+     * unread rows as unassigned.
+     */
+    public function test_get_my_work_reports_current_assignment_read_failure(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ) );
+        \WP_Query::$next_posts = array(
+            $this->create_mock_post( array( 'ID' => 1, 'post_author' => 7, 'post_modified' => '2026-01-02 00:00:00' ) ),
+        );
+        $this->wpdb->shouldReceive( 'get_results' )
+            ->once()
+            ->withArgs( fn( $query ) => false !== strpos( $query, 'SELECT post_id, meta_key, meta_value' ) )
+            ->andReturnUsing( function () {
+                $this->wpdb->last_error = 'database unavailable';
+                return null;
+            } );
+
+        $result = $this->controller->get_my_work( $this->create_mock_request() );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'assignment_read_failed', $result->get_error_code() );
+        $this->assertSame( 500, $result->get_error_data()['status'] );
+    }
+
+    /**
      * Query failure must not masquerade as the final, empty page.
      */
     public function test_my_work_pagination_reports_database_failure(): void
