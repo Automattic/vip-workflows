@@ -244,6 +244,59 @@ async function renderHeader(
 	);
 }
 
+/**
+ * Press the header's main half — Send to Review in the default payload.
+ */
+async function pressSendToReview() {
+	await act( async () => {
+		(
+			await screen.findByRole( 'button', { name: 'Send to Review' } )
+		).click();
+	} );
+}
+
+/**
+ * Press a button in an open dialog.
+ *
+ * @param {string} name The button's accessible name.
+ */
+async function pressDialogButton( name ) {
+	await act( async () => {
+		fireEvent.click( await screen.findByRole( 'button', { name } ) );
+	} );
+}
+
+/**
+ * Whether jsdom has reported a page reload. Its location cannot be replaced
+ * or spied on, and it reports a reload as navigation it does not implement —
+ * through console.error. That report is the reload, as far as a test can see.
+ *
+ * @return {number} How many reloads were asked for.
+ */
+function reloads() {
+	return console.error.mock.calls.filter( ( [ error ] ) =>
+		String( error?.message ?? error ).includes( 'navigation' )
+	).length;
+}
+
+/**
+ * Render a post whose stage agent is running, then let it finish and route
+ * the post on while the author has unsaved edits. Needs fake timers.
+ */
+async function agentFinishesUnderEdits() {
+	await renderHeader(
+		statusResponse( { agent_pending: true, transitions: [] } )
+	);
+	await act( async () => {} );
+
+	apiFetch.mockImplementation( () => Promise.resolve( statusResponse() ) );
+	setCoreEditor( { dirty: true } );
+
+	await act( async () => {
+		jest.advanceTimersByTime( 5000 );
+	} );
+}
+
 describe( 'WorkflowHeaderAction', () => {
 	beforeEach( () => {
 		apiFetch.mockReset();
@@ -298,22 +351,56 @@ describe( 'WorkflowHeaderAction', () => {
 
 	/**
 	 * Core will not save a post with no title, content or excerpt — savePost()
-	 * returns without a request — so a pre-move save there could only be
-	 * reported as failed.
+	 * returns without a request. Moved anyway, the next stage would get the
+	 * stored copy while the editor shows the cleared one, so the move stops
+	 * and says how to go on.
 	 */
-	it( 'moves a dirty post core will not save without trying to save it', async () => {
+	it( 'stops a dirty post core will not save, and says how to go on', async () => {
 		setCoreEditor( { dirty: true, saveable: false } );
 		await renderHeader( statusResponse() );
 
-		await act( async () => {
-			(
-				await screen.findByRole( 'button', { name: 'Send to Review' } )
-			).click();
-		} );
+		await pressSendToReview();
+
+		await waitFor( () =>
+			expect( createErrorNotice ).toHaveBeenCalledWith(
+				'Your edits can’t be saved without a title, content, or excerpt. Add one, or undo the edits.',
+				expect.objectContaining( {
+					id: 'vip-workflows-transition-refused',
+				} )
+			)
+		);
+		expect( savePost ).not.toHaveBeenCalled();
+		expect( transitionPosts() ).toHaveLength( 0 );
+	} );
+
+	it( 'moves a clean post core would not save, as nothing is left behind', async () => {
+		setCoreEditor( { saveable: false } );
+		await renderHeader( statusResponse() );
+
+		await pressSendToReview();
 
 		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
 		expect( savePost ).not.toHaveBeenCalled();
 		expect( createErrorNotice ).not.toHaveBeenCalled();
+	} );
+
+	it( 'stops a post whose edits become unsaveable while a save is in flight', async () => {
+		setCoreEditor( { saving: true } );
+		await renderHeader( statusResponse() );
+
+		await pressSendToReview();
+		await act( async () => {
+			setCoreEditor( { saving: false, dirty: true, saveable: false } );
+		} );
+
+		await waitFor( () =>
+			expect( createErrorNotice ).toHaveBeenCalledWith(
+				expect.stringContaining( 'can’t be saved' ),
+				expect.anything()
+			)
+		);
+		expect( savePost ).not.toHaveBeenCalled();
+		expect( transitionPosts() ).toHaveLength( 0 );
 	} );
 
 	/**
@@ -529,27 +616,57 @@ describe( 'WorkflowHeaderAction', () => {
 		expect( transitionPosts() ).toHaveLength( 0 );
 	} );
 
-	/**
-	 * On a live post a save publishes, so meta boxes nothing can tell have
-	 * changed are left for the post's own Update.
-	 */
-	it( 'leaves a clean live post unsaved, meta boxes or not', async () => {
-		setHasMetaBoxes( true );
+	it( 'moves a clean live post with no meta boxes in one click', async () => {
 		setCoreEditor( LIVE );
 		await renderHeader( statusResponse( LIVE_STATUS ) );
 
-		await act( async () => {
-			(
-				await screen.findByRole( 'button', { name: 'Send to Review' } )
-			).click();
-		} );
+		await pressSendToReview();
 
 		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
 		expect( savePost ).not.toHaveBeenCalled();
-		expect(
-			screen.queryByText( 'Publish your changes?' )
-		).not.toBeInTheDocument();
+		expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
 	} );
+
+	/**
+	 * Meta box edits do not show in the dirty flag, and on a live post saving
+	 * them publishes whatever changed. Nothing can tell whether anything did,
+	 * so the author chooses.
+	 */
+	it.each( [
+		[ 'Save and move', 1, 1 ],
+		[ 'Move without saving', 0, 1 ],
+		[ 'Cancel', 0, 0 ],
+	] )(
+		'asks about a clean live post’s meta boxes: %s',
+		async ( answer, saves, moves ) => {
+			setHasMetaBoxes( true );
+			setCoreEditor( LIVE );
+			await renderHeader( statusResponse( LIVE_STATUS ) );
+
+			await pressSendToReview();
+
+			expect(
+				await screen.findByText( 'Save the fields below the editor?' )
+			).toBeInTheDocument();
+			expect(
+				screen.getByText(
+					'This post is live. Saving these fields publishes any changes to them.'
+				)
+			).toBeInTheDocument();
+			expect( savePost ).not.toHaveBeenCalled();
+			expect( transitionPosts() ).toHaveLength( 0 );
+
+			await pressDialogButton( answer );
+
+			await waitFor( () =>
+				expect( transitionPosts() ).toHaveLength( moves )
+			);
+			expect( savePost ).toHaveBeenCalledTimes( saves );
+			expect(
+				screen.queryByText( 'Save the fields below the editor?' )
+			).not.toBeInTheDocument();
+		}
+	);
 
 	/**
 	 * The save before a move is an Update on a live post: the edits go public,
@@ -579,6 +696,70 @@ describe( 'WorkflowHeaderAction', () => {
 
 		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
 		expect( savePost ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	/**
+	 * The question is asked when the move is pressed, but the save comes
+	 * later — after a save in flight lands, or an assignee is picked. Edits
+	 * made in between would go public unasked, so the flow looks again just
+	 * before saving.
+	 */
+	it( 'asks before publishing edits made while an earlier save was in flight', async () => {
+		setCoreEditor( { ...LIVE, saving: true } );
+		await renderHeader( statusResponse( LIVE_STATUS ) );
+
+		await pressSendToReview();
+		expect(
+			screen.queryByText( 'Publish your changes?' )
+		).not.toBeInTheDocument();
+
+		// The earlier save lands; the author has typed since.
+		await act( async () => {
+			setCoreEditor( { saving: false, dirty: true } );
+		} );
+
+		expect(
+			await screen.findByText( 'Publish your changes?' )
+		).toBeInTheDocument();
+		expect( savePost ).not.toHaveBeenCalled();
+		expect( transitionPosts() ).toHaveLength( 0 );
+
+		await pressDialogButton( 'Publish changes' );
+
+		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'saves nothing when edits made during that wait are not confirmed', async () => {
+		setCoreEditor( { ...LIVE, saving: true } );
+		await renderHeader( statusResponse( LIVE_STATUS ) );
+
+		await pressSendToReview();
+		await act( async () => {
+			setCoreEditor( { saving: false, dirty: true } );
+		} );
+
+		await pressDialogButton( 'Cancel' );
+
+		expect( savePost ).not.toHaveBeenCalled();
+		expect( transitionPosts() ).toHaveLength( 0 );
+		expect( createErrorNotice ).not.toHaveBeenCalled();
+		expect(
+			screen.getByRole( 'button', { name: 'Send to Review' } )
+		).not.toBeDisabled();
+	} );
+
+	it( 'asks once about a live post’s edits, not again before the save', async () => {
+		setCoreEditor( { ...LIVE, dirty: true } );
+		await renderHeader( statusResponse( LIVE_STATUS ) );
+
+		await pressSendToReview();
+		await pressDialogButton( 'Publish changes' );
+
+		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
+		expect(
+			screen.queryByText( 'Publish your changes?' )
+		).not.toBeInTheDocument();
 	} );
 
 	it( 'leaves a live post and its edits alone when that is cancelled', async () => {
@@ -1094,6 +1275,13 @@ describe( 'WorkflowHeaderAction', () => {
 				proceed.click();
 			} );
 
+			// The author has typed since; the agent's version is what moves.
+			expect(
+				await screen.findByText( 'Your edits won’t move' )
+			).toBeInTheDocument();
+			expect( transitionPosts() ).toHaveLength( 0 );
+			await pressDialogButton( 'Move the agent’s version' );
+
 			await waitFor( () =>
 				expect( transitionPosts() ).toEqual( [
 					expect.objectContaining( {
@@ -1118,38 +1306,113 @@ describe( 'WorkflowHeaderAction', () => {
 		jest.useFakeTimers();
 
 		try {
-			await renderHeader(
-				statusResponse( { agent_pending: true, transitions: [] } )
-			);
-			await act( async () => {} );
+			await agentFinishesUnderEdits();
 
-			// The agent finishes and routes the post on; the author has
-			// typed in the meantime.
-			apiFetch.mockImplementation( () =>
-				Promise.resolve( statusResponse() )
-			);
-			setCoreEditor( { dirty: true } );
-
-			await act( async () => {
-				jest.advanceTimersByTime( 5000 );
-			} );
-
-			const next = await screen.findByRole( 'button', {
-				name: 'Send to Review',
-			} );
+			await screen.findByRole( 'button', { name: 'Send to Review' } );
 			expect( createInfoNotice ).toHaveBeenCalledWith(
 				expect.stringContaining( 'The agent updated this post' ),
 				expect.objectContaining( { actions: expect.any( Array ) } )
 			);
+		} finally {
+			jest.useRealTimers();
+		}
+	} );
 
-			// The editor now holds the older copy. Moving the post on must
-			// not save that back over what the agent wrote.
-			await act( async () => {
-				next.click();
-			} );
+	/**
+	 * Once the agent has outrun the editor, the database holds its version
+	 * and the screen an older copy with edits on top. Saving would undo the
+	 * agent, and moving without saving leaves the edits behind — so the
+	 * move says which content goes, and offers the reload instead.
+	 */
+	it( 'asks which version moves after the agent outran unsaved edits', async () => {
+		jest.useFakeTimers();
+
+		try {
+			await agentFinishesUnderEdits();
+			await pressSendToReview();
+
+			expect(
+				await screen.findByText( 'Your edits won’t move' )
+			).toBeInTheDocument();
+			expect(
+				screen.getByText(
+					'The agent’s version moves, not your unsaved edits. Reloading shows it and discards them.'
+				)
+			).toBeInTheDocument();
+			expect(
+				screen.getByRole( 'button', { name: 'Reload' } )
+			).toHaveClass( 'is-primary' );
+			expect( transitionPosts() ).toHaveLength( 0 );
+		} finally {
+			jest.useRealTimers();
+		}
+	} );
+
+	it( 'moves the agent’s version without saving over it when told to', async () => {
+		jest.useFakeTimers();
+
+		try {
+			await agentFinishesUnderEdits();
+			await pressSendToReview();
+			await pressDialogButton( 'Move the agent’s version' );
+
 			await waitFor( () =>
 				expect( transitionPosts() ).toHaveLength( 1 )
 			);
+			expect( savePost ).not.toHaveBeenCalled();
+		} finally {
+			jest.useRealTimers();
+		}
+	} );
+
+	it( 'reloads instead of moving when Reload is chosen', async () => {
+		jest.useFakeTimers();
+
+		try {
+			await agentFinishesUnderEdits();
+			await pressSendToReview();
+			await pressDialogButton( 'Reload' );
+
+			expect( reloads() ).toBe( 1 );
+			expect( console ).toHaveErrored();
+			expect( transitionPosts() ).toHaveLength( 0 );
+			expect( savePost ).not.toHaveBeenCalled();
+		} finally {
+			jest.useRealTimers();
+		}
+	} );
+
+	it( 'leaves the post where it is when that is cancelled', async () => {
+		jest.useFakeTimers();
+
+		try {
+			await agentFinishesUnderEdits();
+			await pressSendToReview();
+			await pressDialogButton( 'Cancel' );
+
+			expect( reloads() ).toBe( 0 );
+			expect( transitionPosts() ).toHaveLength( 0 );
+			expect( savePost ).not.toHaveBeenCalled();
+			expect( createErrorNotice ).not.toHaveBeenCalled();
+		} finally {
+			jest.useRealTimers();
+		}
+	} );
+
+	it( 'moves without asking once the edits are gone', async () => {
+		jest.useFakeTimers();
+
+		try {
+			await agentFinishesUnderEdits();
+			setCoreEditor( { dirty: false } );
+			await pressSendToReview();
+
+			await waitFor( () =>
+				expect( transitionPosts() ).toHaveLength( 1 )
+			);
+			expect(
+				screen.queryByText( 'Your edits won’t move' )
+			).not.toBeInTheDocument();
 			expect( savePost ).not.toHaveBeenCalled();
 		} finally {
 			jest.useRealTimers();
@@ -1163,13 +1426,6 @@ describe( 'WorkflowHeaderAction', () => {
 	 * leaves the editor holding the pre-agent copy for its next save.
 	 */
 	it( 'still reloads when a status read lands inside the reload delay', async () => {
-		// jsdom's location cannot be replaced or spied on, and it reports a
-		// reload as navigation it does not implement — through console.error.
-		// That report is the reload, as far as this test can see it.
-		const reloaded = () =>
-			console.error.mock.calls.filter( ( [ error ] ) =>
-				String( error?.message ?? error ).includes( 'navigation' )
-			).length;
 		jest.useFakeTimers();
 
 		try {
@@ -1194,12 +1450,12 @@ describe( 'WorkflowHeaderAction', () => {
 					statusResponse()
 				);
 			} );
-			expect( reloaded() ).toBe( 0 );
+			expect( reloads() ).toBe( 0 );
 
 			await act( async () => {
 				jest.advanceTimersByTime( 400 );
 			} );
-			expect( reloaded() ).toBe( 1 );
+			expect( reloads() ).toBe( 1 );
 			expect( console ).toHaveErrored();
 		} finally {
 			jest.useRealTimers();

@@ -35,7 +35,7 @@ import apiFetch from '@wordpress/api-fetch';
 import { speak } from '@wordpress/a11y';
 import { __, sprintf } from '@wordpress/i18n';
 import { STORE_NAME } from '../store';
-import { useConfirm } from '../../common/use-confirm';
+import { useConfirm, CONFIRM_ALTERNATIVE } from '../../common/use-confirm';
 import {
 	getAgentInterruptWarning,
 	getLiveEditsConfirmLabel,
@@ -68,6 +68,14 @@ export const HEADER_NOTICE_ID = 'vip-workflows-transition-refused';
  * @type {string}
  */
 const AGENT_REFRESH_NOTICE_ID = 'vip-workflows-agent-refresh';
+
+/**
+ * The code a move is abandoned under when the author backs out of one of its
+ * questions. Nothing was written, so nothing is reported.
+ *
+ * @type {string}
+ */
+const MOVE_CANCELLED = 'vip_workflows_move_cancelled';
 
 /**
  * Resolves once core is not in the middle of saving the post.
@@ -160,6 +168,14 @@ export function TransitionFlow() {
 	// Until a reload the database holds what the agent wrote and the editor an
 	// older copy, so a move must not save that copy back over it.
 	const agentOutranEditorRef = useRef( false );
+
+	// The answers the author has given about the move in flight: publish a
+	// live post's edits (`liveEdits`), save a live post's meta boxes or not
+	// (`metaBoxes`), move the agent's version over unsaved edits
+	// (`agentVersion`). Asked when the move is pressed and re-checked just
+	// before its save, so the second look asks only about what changed in
+	// between. A new move starts with none.
+	const consentRef = useRef( {} );
 
 	// The stage last announced, and whether its agent was running then.
 	const announcedRef = useRef( null );
@@ -344,6 +360,7 @@ export function TransitionFlow() {
 		// Nobody pressed anything for this dialog to open, and the sidebar may
 		// be closed, so a refusal of its Continue goes to the editor notice.
 		sourceRef.current = 'header';
+		consentRef.current = {};
 
 		setWarningsModal( {
 			toStatus: agentJobState.to_status,
@@ -367,6 +384,134 @@ export function TransitionFlow() {
 			setAssignmentRequest( null );
 		}
 	}, [ transitions, assignmentRequest ] );
+
+	/**
+	 * Decides whether the move about to run saves the post first, asking the
+	 * author whatever that decision needs from them.
+	 *
+	 * A move is judged, and acted on, against the *persisted* post: an AI
+	 * stage runs its agent against the database row, a required metadata
+	 * field is read with get_post_meta(), and the next person in the workflow
+	 * opens what was saved. The author's unsaved edits are only in the editor
+	 * store. So a dirty post is saved first, every time — the header button
+	 * stands where Publish did, and pressing it carries the same promise that
+	 * the work on screen is the work that moves on. Where that promise cannot
+	 * be kept silently, the author is told:
+	 *
+	 * - A stage agent has outrun the editor: the database holds what the agent
+	 *   wrote and the editor an older copy, so saving would undo the agent's
+	 *   work. The move goes on without a save — but over unsaved edits only
+	 *   once the author has chosen that over reloading.
+	 * - Unsaved edits core will not save (no title, no content, no excerpt):
+	 *   savePost() would return without a request and the next stage would get
+	 *   the older stored copy. The move is stopped.
+	 * - A live post's save is an Update: unsaved edits go public, and stay
+	 *   public if the move is then refused. Asked first.
+	 * - Classic meta boxes are a form core posts after its own save, and
+	 *   isEditedPostDirty() cannot see them. Short of live the post is saved
+	 *   whenever the screen has them, as core's Publish would — nothing goes
+	 *   public. On a live post that save publishes whatever changed in them,
+	 *   and nothing here can tell whether anything did, so the author chooses.
+	 *
+	 * Run twice per move: when it is pressed, so the questions come before an
+	 * assignee is picked, and again just before the save, after a save in
+	 * flight has landed — the post can become dirty in between. Answers are
+	 * kept in consentRef, so the second run asks only about what is new.
+	 *
+	 * @return {Promise<boolean>} Whether to save before the move. Rejects
+	 *                            with MOVE_CANCELLED when the author backs
+	 *                            out, or with an error to report.
+	 */
+	const decideSave = async () => {
+		const editor = registry.select( editorStore );
+		const consent = consentRef.current;
+		const dirty = editor.isEditedPostDirty();
+		const live = 'publish' === editor.getCurrentPostAttribute( 'status' );
+
+		if ( agentOutranEditorRef.current ) {
+			if ( dirty && ! consent.agentVersion ) {
+				const choice = await confirm(
+					__(
+						'The agent’s version moves, not your unsaved edits. Reloading shows it and discards them.',
+						'vip-workflows'
+					),
+					{
+						title: __( 'Your edits won’t move', 'vip-workflows' ),
+						confirmLabel: __( 'Reload', 'vip-workflows' ),
+						alternativeLabel: __(
+							'Move the agent’s version',
+							'vip-workflows'
+						),
+					}
+				);
+
+				if ( true === choice ) {
+					window.location.reload();
+				}
+				if ( CONFIRM_ALTERNATIVE !== choice ) {
+					throw { code: MOVE_CANCELLED };
+				}
+				consent.agentVersion = true;
+			}
+			return false;
+		}
+
+		if ( dirty ) {
+			if ( ! editor.isEditedPostSaveable() ) {
+				throw {
+					code: 'unsaveable',
+					message: __(
+						'Your edits can’t be saved without a title, content, or excerpt. Add one, or undo the edits.',
+						'vip-workflows'
+					),
+				};
+			}
+
+			if ( live && ! consent.liveEdits ) {
+				const proceed = await confirm( getLiveEditsWarning(), {
+					title: getLiveEditsConfirmTitle(),
+					confirmLabel: getLiveEditsConfirmLabel(),
+				} );
+
+				if ( ! proceed ) {
+					throw { code: MOVE_CANCELLED };
+				}
+				consent.liveEdits = true;
+			}
+			return true;
+		}
+
+		if ( ! registry.select( editPostStore ).hasMetaBoxes() ) {
+			return false;
+		}
+
+		if ( live && undefined === consent.metaBoxes ) {
+			const choice = await confirm(
+				__(
+					'This post is live. Saving these fields publishes any changes to them.',
+					'vip-workflows'
+				),
+				{
+					title: __(
+						'Save the fields below the editor?',
+						'vip-workflows'
+					),
+					confirmLabel: __( 'Save and move', 'vip-workflows' ),
+					alternativeLabel: __(
+						'Move without saving',
+						'vip-workflows'
+					),
+				}
+			);
+
+			if ( true !== choice && CONFIRM_ALTERNATIVE !== choice ) {
+				throw { code: MOVE_CANCELLED };
+			}
+			consent.metaBoxes = true === choice;
+		}
+
+		return ( ! live || consent.metaBoxes ) && editor.isEditedPostSaveable();
+	};
 
 	const handleTransition = (
 		toStatus,
@@ -407,46 +552,19 @@ export function TransitionFlow() {
 			requestData.comment = comment;
 		}
 
-		// A move is judged, and acted on, against the *persisted* post: an AI
-		// stage runs its agent against the database row, a required metadata
-		// field is read with get_post_meta(), and the next person in the
-		// workflow opens what was saved. The author's unsaved edits are only
-		// in the editor store. So a dirty post is saved first, every time —
-		// the header button stands where Publish did, and pressing it carries
-		// the same promise that the work on screen is the work that moves on.
-		// "Saved" has to mean it, though: a save core has in flight is waited
-		// out rather than raced, and one core has locked is not forced.
+		// Whether to save first is decided again here, not only when the move
+		// was pressed: a save core has in flight is waited out rather than
+		// raced, and the post can become dirty during that wait or while an
+		// assignee is picked. See decideSave.
 		const targetTransition = transitions.find( ( t ) => t.to === toStatus );
 		const targetIsAiStage =
 			!! targetTransition?.status_info?.agent?.ability_id;
 		let saved = false;
 
 		whenSaveSettles( registry )
-			.then( () => {
-				// The one exception to saving first: an editor a stage agent
-				// has outrun holds the older copy, and saving it would undo
-				// the agent's work without a word. The move goes on what the
-				// database holds; the reload notice settles the rest.
-				//
-				// Nor is a post core will not save at all — no title, no
-				// content, no excerpt. savePost() returns without a request
-				// there, so asking would only report a failed save; the post
-				// moves on as the database already holds it.
-				//
-				// Classic meta boxes are a form core posts after its own save,
-				// and isEditedPostDirty() cannot see them. Short of live, the
-				// post is saved whenever the screen has them, as core's
-				// Publish would — nothing goes public. A live post's meta
-				// boxes wait for its Update: saving them publishes them, and
-				// nothing here can tell whether they changed to ask about it.
-				saved =
-					! agentOutranEditorRef.current &&
-					( editor.isEditedPostDirty() ||
-						( 'publish' !== savedStatus &&
-							registry
-								.select( editPostStore )
-								.hasMetaBoxes() ) ) &&
-					editor.isEditedPostSaveable();
+			.then( decideSave )
+			.then( ( shouldSave ) => {
+				saved = shouldSave;
 
 				if ( ! saved ) {
 					return;
@@ -538,6 +656,11 @@ export function TransitionFlow() {
 			} )
 			.catch( ( err ) => {
 				setTransitioningTo( null );
+
+				// The author backed out of a question; nothing was written.
+				if ( MOVE_CANCELLED === err?.code ) {
+					return;
+				}
 
 				// A refusal that carries per-item detail: a required tool's
 				// hard check, or a required metadata field left empty. Both
@@ -634,6 +757,8 @@ export function TransitionFlow() {
 			return; // Button should be disabled, but just in case
 		}
 
+		consentRef.current = {};
+
 		// Moving the stage while a stage agent runs cancels that agent. The
 		// server no longer refuses this — a human can always stop an agent —
 		// so the only thing owed to the user is knowing they are about to.
@@ -680,28 +805,16 @@ export function TransitionFlow() {
 			}
 		}
 
-		// The save that precedes every move (handleTransition) is an Update on
-		// a post that is already live: the author's unsaved edits go public
-		// with it, and stay public if the move is then refused. Pressing a
-		// workflow step — send to legal, say — does not say that, so it is
-		// asked here. Only when there is something to publish: the same
-		// conditions handleTransition saves under.
-		const editor = registry.select( editorStore );
-		const publishesEdits =
-			'publish' === savedStatus &&
-			! agentOutranEditorRef.current &&
-			editor.isEditedPostDirty() &&
-			editor.isEditedPostSaveable();
-
-		if ( publishesEdits ) {
-			const proceed = await confirm( getLiveEditsWarning(), {
-				title: getLiveEditsConfirmTitle(),
-				confirmLabel: getLiveEditsConfirmLabel(),
-			} );
-
-			if ( ! proceed ) {
-				return;
+		// Whether the move saves first, and anything the author has to be asked
+		// about that save, comes before an assignee is picked. handleTransition
+		// looks again just before the save. See decideSave.
+		try {
+			await decideSave();
+		} catch ( err ) {
+			if ( MOVE_CANCELLED !== err?.code ) {
+				reportError( err.message );
 			}
+			return;
 		}
 
 		/*

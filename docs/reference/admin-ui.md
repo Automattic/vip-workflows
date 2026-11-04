@@ -26,9 +26,19 @@ whether or not the sidebar is open.
   confirms, the assignee popover, the blocked and warnings dialogs, the
   save-before-move and the request itself. The save runs for any unsaved
   edit and, short of a live post, whenever the screen has classic meta boxes
-  (which the dirty flag cannot see), as core's Publish would. On a live post
-  that save is an Update, so a move with unsaved edits asks first ("Publish
-  your changes?"); a clean live post's meta boxes are left for its Update. Surfaces hand it a request through
+  (which the dirty flag cannot see), as core's Publish would. The save
+  decision is made when the move is pressed and made again just before the
+  save — after a save in flight lands or an assignee is picked — so edits
+  made in between are asked about too; a moment that needs no question
+  stays one click. On a live post that save is an Update, so a move with
+  unsaved edits asks first ("Publish your changes?"), and a clean live post
+  on a screen with meta boxes asks whether to save those fields (Save and
+  move / Move without saving / Cancel). Unsaved edits core will not save —
+  no title, content, or excerpt — stop the move with an error notice rather
+  than send the older stored copy on. After a stage agent has rewritten the
+  post under unsaved edits, the flow never saves over the agent; a move then
+  asks first ("Your edits won’t move": Reload / Move the agent’s version /
+  Cancel). Surfaces hand it a request through
   the editor store (`requestTransition`) and read the move in flight back
   (`getTransitioningTo`), so a dialog never belongs to a sidebar that can close
   or a dropdown that closes on focus-out. It also follows a move into an AI
