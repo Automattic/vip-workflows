@@ -280,7 +280,12 @@ function lint(mode, files, loupeMode = mode) {
 // loupe is not an npm dependency: it ships as a Claude Code plugin and a CLI.
 // Resolution order: $LOUPE_BIN, then a manual checkout at .loupe-engine/, then
 // `loupe` on PATH. A missing loupe is a setup gap, skipped like a missing phpcs.
-// CI has none of them, so CI skips this section.
+//
+// loupe is a harness tool for now: it runs in Claude Code sessions and local
+// runs, never in CI. `lint`, `check` and `--json` skip it when CI is set.
+const IN_CI = Boolean(process.env.CI);
+const LOUPE_IN_CI = '– loupe: not run in CI; it gates Claude Code sessions and local runs.';
+
 function loupeBin() {
 	if (process.env.LOUPE_BIN) return process.env.LOUPE_BIN;
 	const checkout = join(ROOT, '.loupe-engine', 'bin', 'loupe');
@@ -288,6 +293,22 @@ function loupeBin() {
 }
 
 const LOUPE_MISSING = '⚠ loupe: not installed — install the loupe plugin or set LOUPE_BIN; skipped.';
+
+// loupe.config.json reads a committed copy of @wordpress/theme's token
+// stylesheet, so token rules work in a checkout with no node_modules (an agent
+// worktree). Where the package is installed, a copy that has drifted from it
+// would judge against the wrong token set: say so, with the fix.
+const TOKENS_VENDORED = '.loupe/tokens/wpds-design-tokens.css';
+const TOKENS_INSTALLED = 'vip-workflows/node_modules/@wordpress/theme/prebuilt/css/design-tokens.css';
+
+function warnTokenDrift() {
+	const installed = join(ROOT, TOKENS_INSTALLED);
+	if (!existsSync(installed)) return;
+	const vendored = join(ROOT, TOKENS_VENDORED);
+	if (existsSync(vendored) && readFileSync(vendored, 'utf8') === readFileSync(installed, 'utf8')) return;
+	note(`⚠ loupe: ${TOKENS_VENDORED} is out of date with @wordpress/theme. Refresh it:`);
+	note(`    cp ${TOKENS_INSTALLED} ${TOKENS_VENDORED}`);
+}
 
 // loupe's config, and everything under .loupe/ (baseline, token stylesheet,
 // project extensions). A change to any of them can move findings in any file,
@@ -318,6 +339,11 @@ function loupeScope(mode, files) {
 }
 
 function runLoupeCheck(mode, files) {
+	if (IN_CI) {
+		out(LOUPE_IN_CI);
+		return true;
+	}
+	warnTokenDrift();
 	const scope = loupeScope(mode, files);
 	if (!scope) {
 		out('✓ loupe: nothing to check.');
@@ -547,6 +573,11 @@ function phpcsJson(mode, files) {
 // read a missing report as clean. `failed` (found, but it couldn't run) fails the
 // run as it does in `lint`; a missing loupe is a skip.
 function loupeJson(mode, files) {
+	if (IN_CI) {
+		note(LOUPE_IN_CI);
+		return { report: null, failed: false };
+	}
+	warnTokenDrift();
 	const scope = loupeScope(mode, files);
 	if (!scope) return { report: { blocking: false, findings: [] }, failed: false };
 	const r = runLoupe(['check', ...scope, '--format', 'json']);

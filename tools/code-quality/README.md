@@ -96,8 +96,9 @@ root selects the `wpds` preset, names the project's class namespaces, points at
 the token stylesheet and baseline in [`.loupe/`](../../.loupe/README.md), and
 makes `css/dead-class` blocking, as css-hygiene's R1 was. The token stylesheet is
 a committed copy of `@wordpress/theme`'s, so token rules work in a checkout with
-no `node_modules`, such as an agent worktree; `loupe-tokens.test.mjs` fails when
-it drifts from the installed package.
+no `node_modules`, such as an agent worktree. Where `@wordpress/theme` is
+installed, `lint` warns when the copy has drifted from it and prints the `cp`
+that refreshes it.
 loupe walks the filesystem rather than git, so its `sources.ignore` restates the
 preset's list (arrays replace on merge) and adds the gitignored `_tmp/` scratch
 directory.
@@ -141,8 +142,9 @@ loupe is not an npm dependency. `quality.mjs` finds it, in order:
 3. `loupe` on `PATH` (the loupe Claude Code plugin puts it there)
 
 If none is found, the section is skipped with a warning, like a missing phpcs.
-CI doesn't install loupe, so CI always skips it: the gate runs in Claude Code
-sessions and in local `lint`/`check` runs only. To run it outside Claude Code,
+loupe is not part of CI: when `CI` is set, `lint`, `check` and `--json` skip the
+design-system section, so the gate runs in Claude Code sessions and local runs
+only. To run it outside Claude Code,
 use the engine the baseline was recorded with (see [The baseline](#the-baseline)),
 not loupe's latest:
 
@@ -224,5 +226,4 @@ over the whole repo.
 | File | Role |
 |---|---|
 | `quality.mjs` | orchestrator — scope resolution, loupe, PHP/JS lint, unit tests, exit codes |
-| `loupe-tokens.test.mjs` | fails when `.loupe/tokens/` drifts from the installed `@wordpress/theme` |
 | `phpcs-extensions.xml` | shared PHPCS baseline for the `workflow-*` extension plugins |
