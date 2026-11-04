@@ -278,9 +278,9 @@ function lint(mode, files, loupeMode = mode) {
 
 // ── design-system conformance (loupe) ──────────────────────────────────────────
 // loupe is not an npm dependency: it ships as a Claude Code plugin and a CLI.
-// Resolution order: $LOUPE_BIN, then a checkout at .loupe-engine/ (what CI
-// clones), then `loupe` on PATH. A missing loupe is a setup gap, skipped like a
-// missing phpcs.
+// Resolution order: $LOUPE_BIN, then a manual checkout at .loupe-engine/, then
+// `loupe` on PATH. A missing loupe is a setup gap, skipped like a missing phpcs.
+// CI has none of them, so CI skips this section.
 function loupeBin() {
 	if (process.env.LOUPE_BIN) return process.env.LOUPE_BIN;
 	const checkout = join(ROOT, '.loupe-engine', 'bin', 'loupe');
@@ -596,7 +596,7 @@ if (scope === 'changed') files = gitChangedFiles();
 else if (scope === 'list') files = explicit.map(toRel);
 // loupe's analysis is repo-wide, so a change can create a finding in a file it
 // didn't touch (a class moved onto a design-system component turns that class's
-// CSS into an override). --changed therefore reports loupe repo-wide, as CI
+// CSS into an override). --changed therefore reports loupe repo-wide, as --all
 // does; the baseline keeps that to what is new. A named file list stays scoped.
 const loupeMode = scope === 'changed' && files.length ? 'all' : mode;
 

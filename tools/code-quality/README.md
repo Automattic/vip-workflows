@@ -29,7 +29,7 @@ node tools/code-quality/quality.mjs <lint|test|check|fix|suppressions> [--change
 works even though the `check` script bakes in `--changed`.
 
 loupe always analyzes the whole repo. Under `--changed` it reports on the whole
-repo too, as CI does: a change can create a finding in a file it didn't touch,
+repo too, as `--all` does: a change can create a finding in a file it didn't touch,
 and the baseline keeps the report to what is new. A `<file>…` list reports on
 those files only.
 
@@ -137,25 +137,25 @@ what the hook will do here and why.
 loupe is not an npm dependency. `quality.mjs` finds it, in order:
 
 1. `$LOUPE_BIN`
-2. a checkout at `.loupe-engine/` (CI clones it there — gitignored)
+2. a checkout at `.loupe-engine/` (gitignored)
 3. `loupe` on `PATH` (the loupe Claude Code plugin puts it there)
 
 If none is found, the section is skipped with a warning, like a missing phpcs.
-CI's lint step runs `.loupe-engine/bin/loupe version` first, so a missing
-engine fails the job there instead. To run it outside Claude Code, use the
-commit CI pins (the `ref:` in `.github/workflows/js-unit.yml`), not loupe's
-latest:
+CI doesn't install loupe, so CI always skips it: the gate runs in Claude Code
+sessions and in local `lint`/`check` runs only. To run it outside Claude Code,
+use the engine the baseline was recorded with (see [The baseline](#the-baseline)),
+not loupe's latest:
 
 ```
 git clone https://github.com/dabowman/loupe .loupe-engine
-git -C .loupe-engine checkout <ref>
+git -C .loupe-engine checkout e890529a5b2bb85bc835ab1b445236a897d65fd3
 ```
 
 or symlink a pinned checkout's `bin/loupe` onto your `PATH`.
 
 `loupe status` prints the effective config and each rule's severity; its
 BLOCKS/advisory column is about the Claude Code hook and follows your **Block
-turns on findings** option, while `lint` and CI fail on every `error` rule. `loupe explain <rule>` prints a rule's
+turns on findings** option, while `lint` fails on every `error` rule. `loupe explain <rule>` prints a rule's
 guidance.
 
 ### The baseline
@@ -175,9 +175,10 @@ one of those key changes, and check that the `.loupe/baseline.json` diff only
 removes or renames entries. Never re-baseline to get a new finding past the gate
 — fix it or suppress it.
 
-CI pins the loupe commit in `.github/workflows/js-unit.yml`. A newer engine can
-report findings the baseline never saw, so bump the pin and re-baseline in the
-same change.
+The baseline was recorded with loupe 0.8.0 (`e890529`). A newer engine can
+report findings the baseline never saw, and the plugin updates itself, so after
+a loupe update that surfaces findings nobody wrote, re-baseline in its own
+change and say which engine version recorded it.
 
 ### Suppressing a needed exception
 
