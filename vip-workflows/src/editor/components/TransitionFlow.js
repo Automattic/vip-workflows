@@ -174,7 +174,8 @@ export function TransitionFlow() {
 	// (`metaBoxes`), move the agent's version over unsaved edits
 	// (`agentVersion`). Asked when the move is pressed and re-checked just
 	// before its save, so the second look asks only about what changed in
-	// between. A new move starts with none.
+	// between. `liveEdits` holds the edits object the yes was given for, so
+	// an edit made after it is asked about again. A new move starts with none.
 	const consentRef = useRef( {} );
 
 	// The stage last announced, and whether its agent was running then.
@@ -416,7 +417,8 @@ export function TransitionFlow() {
 	 * Run twice per move: when it is pressed, so the questions come before an
 	 * assignee is picked, and again just before the save, after a save in
 	 * flight has landed — the post can become dirty in between. Answers are
-	 * kept in consentRef, so the second run asks only about what is new.
+	 * kept in consentRef, so the second run asks only about what is new: a
+	 * yes to a live post's edits covers only the edits it was given for.
 	 *
 	 * @return {Promise<boolean>} Whether to save before the move. Rejects
 	 *                            with MOVE_CANCELLED when the author backs
@@ -467,7 +469,13 @@ export function TransitionFlow() {
 				};
 			}
 
-			if ( live && ! consent.liveEdits ) {
+			// A yes covers the edits on screen when it was given, not edits
+			// made after it: those would go public unasked. Core's edits
+			// object is replaced on every change, so a different object
+			// means something was edited since, and the question comes again.
+			// The loop also catches an edit landing while the dialog is open.
+			let edits = live ? editor.getPostEdits() : null;
+			while ( live && consent.liveEdits?.edits !== edits ) {
 				const proceed = await confirm( getLiveEditsWarning(), {
 					title: getLiveEditsConfirmTitle(),
 					confirmLabel: getLiveEditsConfirmLabel(),
@@ -476,7 +484,8 @@ export function TransitionFlow() {
 				if ( ! proceed ) {
 					throw { code: MOVE_CANCELLED };
 				}
-				consent.liveEdits = true;
+				consent.liveEdits = { edits };
+				edits = editor.getPostEdits();
 			}
 			return true;
 		}

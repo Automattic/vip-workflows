@@ -52,6 +52,8 @@ const CORE_EDITOR = {
 	canPublish: true,
 	otherEntitiesDirty: false,
 	dirty: false,
+	// Core replaces its edits object on every edit; a new object is an edit.
+	edits: {},
 	saveable: true,
 	saveFailed: false,
 	saving: false,
@@ -88,6 +90,7 @@ register(
 			isCurrentPostPublished: ( state ) => state.published,
 			hasNonPostEntityChanges: ( state ) => state.otherEntitiesDirty,
 			isEditedPostDirty: ( state ) => state.dirty,
+			getPostEdits: ( state ) => state.edits,
 			isEditedPostSaveable: ( state ) => state.saveable,
 			didPostSaveRequestFail: ( state ) => state.saveFailed,
 			isSavingPost: ( state ) => state.saving,
@@ -760,6 +763,96 @@ describe( 'WorkflowHeaderAction', () => {
 		expect(
 			screen.queryByText( 'Publish your changes?' )
 		).not.toBeInTheDocument();
+	} );
+
+	/**
+	 * A yes covers the edits on screen when it was given. Edits typed while
+	 * the move waits for a save in flight were never agreed to, so they are
+	 * asked about before the move's save would publish them.
+	 */
+	it( 'asks again about live edits made after the first yes', async () => {
+		setCoreEditor( { ...LIVE, dirty: true, saving: true } );
+		await renderHeader( statusResponse( LIVE_STATUS ) );
+
+		await pressSendToReview();
+		await pressDialogButton( 'Publish changes' );
+
+		// The move waits for the save in flight. The author types meanwhile,
+		// then that save lands with the new edit still unsaved.
+		await act( async () => {
+			setCoreEditor( { edits: { title: 'Typed during the wait' } } );
+		} );
+		await act( async () => {
+			setCoreEditor( { saving: false } );
+		} );
+
+		expect(
+			await screen.findByText( 'Publish your changes?' )
+		).toBeInTheDocument();
+		expect( savePost ).not.toHaveBeenCalled();
+		expect( transitionPosts() ).toHaveLength( 0 );
+
+		await pressDialogButton( 'Publish changes' );
+
+		await waitFor( () => expect( transitionPosts() ).toHaveLength( 1 ) );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+	} );
+
+	it( 'saves and moves nothing when the later edits are not confirmed', async () => {
+		setCoreEditor( { ...LIVE, dirty: true, saving: true } );
+		await renderHeader( statusResponse( LIVE_STATUS ) );
+
+		await pressSendToReview();
+		await pressDialogButton( 'Publish changes' );
+
+		await act( async () => {
+			setCoreEditor( { edits: { title: 'Typed during the wait' } } );
+		} );
+		await act( async () => {
+			setCoreEditor( { saving: false } );
+		} );
+
+		await pressDialogButton( 'Cancel' );
+
+		expect( savePost ).not.toHaveBeenCalled();
+		expect( transitionPosts() ).toHaveLength( 0 );
+		expect( createErrorNotice ).not.toHaveBeenCalled();
+		expect(
+			screen.getByRole( 'button', { name: 'Send to Review' } )
+		).not.toBeDisabled();
+	} );
+
+	/**
+	 * Edits typed while the move's own save is out are not in that save, so
+	 * they are not published by it. The move is not sent either: the next
+	 * stage would get a post that is not what the author sees.
+	 */
+	it( 'does not move a live post edited during its own save', async () => {
+		let landSave;
+		savePost.mockImplementationOnce( () => ( { dispatch: editor } ) => {
+			editor.setCoreEditor( { saving: true } );
+			return new Promise( ( resolve ) => {
+				landSave = () => {
+					editor.setCoreEditor( { saving: false } );
+					resolve();
+				};
+			} );
+		} );
+		setCoreEditor( { ...LIVE, dirty: true } );
+		await renderHeader( statusResponse( LIVE_STATUS ) );
+
+		await pressSendToReview();
+		await pressDialogButton( 'Publish changes' );
+		await waitFor( () => expect( savePost ).toHaveBeenCalledTimes( 1 ) );
+
+		await act( async () => {
+			setCoreEditor( { edits: { title: 'Typed during the save' } } );
+			landSave();
+		} );
+
+		await waitFor( () => expect( createErrorNotice ).toHaveBeenCalled() );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect( transitionPosts() ).toHaveLength( 0 );
 	} );
 
 	it( 'leaves a live post and its edits alone when that is cancelled', async () => {
