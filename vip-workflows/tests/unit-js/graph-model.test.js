@@ -26,6 +26,8 @@ import {
 	reconnectEdgeToNewStage,
 	canReconnectToNewStage,
 	entryStageKey,
+	markInitialStage,
+	reorderStages,
 	disconnectEdge,
 	setStageAgent,
 	routeOutcome,
@@ -309,9 +311,27 @@ describe( 'setEntryStage', () => {
 		] );
 	} );
 
-	it( 'is a no-op when already first or missing', () => {
-		expect( setEntryStage( stages(), 'draft' ) ).toEqual( stages() );
+	it( 'only flags the stage when already first, and ignores a missing key', () => {
+		const expected = stages();
+		expected[ 0 ].is_initial = true;
+		expect( setEntryStage( stages(), 'draft' ) ).toEqual( expected );
 		expect( setEntryStage( stages(), 'nope' ) ).toEqual( stages() );
+	} );
+
+	it( 'moves the is_initial flag to a draft-region target', () => {
+		const input = markInitialStage( stages() );
+		const next = setEntryStage( input, 'review' );
+		expect(
+			next.filter( ( s ) => s.is_initial ).map( ( s ) => s.key )
+		).toEqual( [ 'review' ] );
+		expect( entryStageKey( next ) ).toBe( 'review' );
+	} );
+
+	it( 'leaves the is_initial flag alone for a target outside the draft region', () => {
+		const input = markInitialStage( stages() );
+		const next = setEntryStage( input, 'done' );
+		expect( next[ 0 ].key ).toBe( 'done' );
+		expect( entryStageKey( next ) ).toBe( 'draft' );
 	} );
 
 	it( 'claims the draft region entry checkpoint for a draft-region target', () => {
@@ -345,6 +365,74 @@ describe( 'setEntryStage', () => {
 		// …and the draft region's checkpoint is untouched.
 		expect( next.find( ( s ) => s.key === 'draft' ).region_entry ).toBe(
 			true
+		);
+	} );
+} );
+
+describe( 'the start stage', () => {
+	it( 'follows the is_initial flag over the draft checkpoint and array order', () => {
+		const input = stages();
+		input[ 1 ].is_initial = true;
+		expect( entryStageKey( input ) ).toBe( 'review' );
+	} );
+
+	it( 'flags exactly one stage, the one Start points at', () => {
+		const input = stages();
+		input[ 2 ].is_initial = true;
+		input[ 2 ].region_entry = true;
+		const next = markInitialStage( input );
+		expect(
+			next.filter( ( s ) => s.is_initial ).map( ( s ) => s.key )
+		).toEqual( [ 'done' ] );
+	} );
+
+	it( 'flags the draft checkpoint when no stage carries the flag yet', () => {
+		const next = markInitialStage( stages() );
+		expect(
+			next.filter( ( s ) => s.is_initial ).map( ( s ) => s.key )
+		).toEqual( [ 'draft' ] );
+		expect( 'is_initial' in next[ 1 ] ).toBe( false );
+	} );
+
+	it( 'stays on its stage when the stages list is reordered', () => {
+		const before = markInitialStage( stages() );
+		// "Review" dragged to the top of the stages list.
+		const reordered = reorderStages( before, [
+			before[ 1 ],
+			before[ 0 ],
+			before[ 2 ],
+		] );
+		expect( reordered.map( ( s ) => s.key ) ).toEqual( [
+			'review',
+			'draft',
+			'done',
+		] );
+		expect( entryStageKey( reordered ) ).toBe( 'draft' );
+		// What the save sends still names "Draft", not the new first stage.
+		expect(
+			markInitialStage( reordered )
+				.filter( ( s ) => s.is_initial )
+				.map( ( s ) => s.key )
+		).toEqual( [ 'draft' ] );
+	} );
+
+	it( 'stays on its stage when a reorder moves another stage to the top', () => {
+		// A stage list no save has flagged yet: Start rests on the first stage
+		// because no draft checkpoint is marked. The reorder must not move it.
+		const before = stages().map( ( s ) => ( {
+			...s,
+			region_entry: false,
+		} ) );
+		expect( entryStageKey( before ) ).toBe( 'draft' );
+		const reordered = reorderStages( before, [
+			before[ 2 ],
+			before[ 0 ],
+			before[ 1 ],
+		] );
+		expect( entryStageKey( reordered ) ).toBe( 'draft' );
+		const { edges } = buildGraph( reordered );
+		expect( edges.find( ( e ) => e.source === START_ID ).target ).toBe(
+			'draft'
 		);
 	} );
 } );
@@ -1416,16 +1504,28 @@ describe( 'validateSequence', () => {
 	} );
 
 	it( 'warns when the flow entry sits outside the draft region', () => {
-		// done (publish region) dragged to the front of the sequence.
+		// done (publish region) is the stage new posts start in.
 		const input = stages();
+		input[ 2 ].is_initial = true;
+		const result = validateSequence( {
+			name: 'Flow',
+			stages: input,
+		} );
+		expect( result.valid ).toBe( true );
+		expect( ( result.warnings.done || [] ).join( ' ' ) ).toContain(
+			'draft'
+		);
+	} );
+
+	it( 'does not warn about the flow entry when a reorder puts another stage first', () => {
+		const input = markInitialStage( stages() );
 		const reordered = [ input[ 2 ], input[ 0 ], input[ 1 ] ];
 		const result = validateSequence( {
 			name: 'Flow',
 			stages: reordered,
 		} );
-		expect( result.valid ).toBe( true );
-		expect( ( result.warnings.done || [] ).join( ' ' ) ).toContain(
-			'draft'
+		expect( ( result.warnings.done || [] ).join( ' ' ) ).not.toContain(
+			'New posts start as drafts'
 		);
 	} );
 

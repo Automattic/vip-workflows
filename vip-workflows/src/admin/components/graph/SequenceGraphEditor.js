@@ -65,6 +65,7 @@ import {
 	isAgentOutcome,
 	isAgentStage,
 	isRequiredHandOff,
+	markInitialStage,
 	stageLabel,
 	START_ID,
 	END_ID,
@@ -200,6 +201,9 @@ const newWorkflowStages = () => [
 		// into it. Every used region needs exactly one, and the write gate
 		// refuses a config that gets that wrong.
 		region_entry: true,
+		// New posts start here. The flag, not array order, is what the server
+		// reads, so reordering the stages list cannot move it.
+		is_initial: true,
 		transitions: [ { to: 'publish' } ],
 	},
 	{
@@ -1528,7 +1532,11 @@ export default function SequenceGraphEditor( {
 				}
 
 				const validToolIds = availableTools.map( ( t ) => t.id );
-				const cleanedStatuses = stages.map( ( status ) => {
+				// Every save names the stage new posts start in. Without the
+				// flag the server takes the first stage in the array, and the
+				// stages list reorders that array.
+				const flagged = markInitialStage( stages );
+				const cleanedStatuses = flagged.map( ( status ) => {
 					const next = { ...status };
 					// Drop a partial AI-stage agent (routing left behind by a
 					// cleared ability) — the server rejects an agent without

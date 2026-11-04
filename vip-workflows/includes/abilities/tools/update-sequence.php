@@ -209,7 +209,7 @@ function register_update_sequence(): void {
 								),
 								'is_initial'     => array(
 									'type'        => 'boolean',
-									'description' => __( 'Whether this is the initial status.', 'vip-workflows' ),
+									'description' => __( 'Marks the stage new posts start in. At most one stage; when none is marked, the first stage is. Stage order does not decide it, so keep the flag on its stage when reordering.', 'vip-workflows' ),
 								),
 								'is_dead_end'    => array(
 									'type'        => 'boolean',

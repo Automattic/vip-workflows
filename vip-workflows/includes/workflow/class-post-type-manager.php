@@ -171,7 +171,8 @@ class PostTypeManager {
 			return;
 		}
 
-		// Get the initial stage (honors an explicit is_initial flag, like assign_sequence()).
+		// The stage flagged `is_initial` — never the first stage by array order,
+		// which the Sequence editor's stages list rearranges.
 		if ( empty( $sequence->get_statuses() ) ) {
 			return;
 		}

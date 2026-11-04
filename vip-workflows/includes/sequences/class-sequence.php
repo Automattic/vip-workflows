@@ -325,9 +325,18 @@ class Sequence {
 	}
 
 	/**
-	 * Get the initial status for new posts.
+	 * Get the stage new posts start in: the one stage flagged `is_initial`.
+	 *
+	 * Stage order plays no part. The write gate (prepare_config_for_write)
+	 * guarantees exactly one flagged stage on every config it writes, and the
+	 * 2.25.0 schema migration replays stored configs through it, so a config
+	 * written before the flag existed keeps the start stage it had (its first
+	 * stage). A config with no flagged stage therefore reached the database
+	 * around both paths — a data-integrity error, never answered from the array
+	 * order, which the Sequence editor's stages list rearranges.
 	 *
 	 * @return string
+	 * @throws \InvalidArgumentException If no stage is flagged `is_initial` (data-integrity error).
 	 */
 	public function get_initial_status(): string {
 		$statuses = $this->get_statuses();
@@ -336,10 +345,18 @@ class Sequence {
 			return 'draft';
 		}
 
-		// Honor an explicit is_initial flag; otherwise fall back to the first status.
 		$flagged = $this->get_status_by_flag( 'is_initial' );
 
-		return $flagged['key'] ?? $statuses[0]['key'];
+		if ( null === $flagged ) {
+			throw new \InvalidArgumentException(
+				sprintf(
+					'Sequence “%s” marks no stage where new posts start — the config predates the write gate or was written around it.',
+					esc_html( $this->slug )
+				)
+			);
+		}
+
+		return (string) $flagged['key'];
 	}
 
 	/**
@@ -1226,6 +1243,11 @@ class Sequence {
 	 * - Every used region has exactly one `region_entry: true` checkpoint. None
 	 *   marked → the first stage (array order) in the region is auto-assigned;
 	 *   more than one → throws.
+	 * - Exactly one stage carries `is_initial: true`: the stage new posts start
+	 *   in. None marked → the first stage (array order) is flagged, which is the
+	 *   stage a flagless config always started posts in; more than one, or a
+	 *   non-boolean value → throws. The Sequence editor writes the flag on every
+	 *   save, so reordering its stages list never moves the start stage.
 	 * - Every transition target references a defined stage. A dangling target (a
 	 *   typo, or a core status like `future` that is not a workflow stage) would
 	 *   let is_transition_allowed() pass while get_stage_status() has nothing to
@@ -1252,7 +1274,7 @@ class Sequence {
 	 * @param  array  $config Sequence config array.
 	 * @param  string $type   Sequence type (workflow/pitch/phase).
 	 * @return array The normalized config to persist.
-	 * @throws \InvalidArgumentException If the config has no stages, an empty or duplicate stage key, an invalid stage status region, more than one region entry per region, or a transition to an undefined stage.
+	 * @throws \InvalidArgumentException If the config has no stages, an empty or duplicate stage key, an invalid stage status region, more than one region entry per region, more than one start stage, or a transition to an undefined stage.
 	 */
 	public static function prepare_config_for_write( array $config, string $type = self::TYPE_WORKFLOW ): array {
 		// Phase sequences carry a `phases` graph, not `statuses`; the stage rules
@@ -1358,6 +1380,18 @@ class Sequence {
 				unset( $stage['region_entry'] );
 			} else {
 				$stage['region_entry'] = true;
+			}
+
+			// Start marker: the same boolean-only rule, for the same reason.
+			if ( array_key_exists( 'is_initial', $stage ) && null !== $stage['is_initial'] && ! is_bool( $stage['is_initial'] ) ) {
+				throw new \InvalidArgumentException(
+					sprintf( 'Stage “%s” has an is_initial value that is not true or false.', esc_html( $key ) )
+				);
+			}
+			if ( empty( $stage['is_initial'] ) ) {
+				unset( $stage['is_initial'] );
+			} else {
+				$stage['is_initial'] = true;
 			}
 
 			// Transitions, when present, must be an array of transition objects,
@@ -1478,6 +1512,29 @@ class Sequence {
 			if ( 0 === $entries ) {
 				$normalized[ $first_index ]['region_entry'] = true;
 			}
+		}
+
+		// Exactly one stage is where new posts start. More than one is ambiguous.
+		// None flags the first stage (array order) — the stage a config without
+		// the flag has always started posts in, so a write that predates the flag
+		// keeps its behavior. Once flagged, order no longer decides it.
+		$initial_keys = array();
+		foreach ( $normalized as $stage ) {
+			if ( ! empty( $stage['is_initial'] ) ) {
+				$initial_keys[] = $stage['key'];
+			}
+		}
+		if ( count( $initial_keys ) > 1 ) {
+			throw new \InvalidArgumentException(
+				sprintf(
+					'Only one stage can be where new posts start, but “%1$s” and “%2$s” are both marked.',
+					esc_html( $initial_keys[0] ),
+					esc_html( $initial_keys[1] )
+				)
+			);
+		}
+		if ( empty( $initial_keys ) ) {
+			$normalized[0]['is_initial'] = true;
 		}
 
 		// Every transition must target a stage defined in this same sequence.

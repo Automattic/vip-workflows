@@ -857,8 +857,101 @@ class StageAgentRunnerExecuteTest extends TestCase
 
         ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
 
-        // An errored run is held with the same publish-boundary message.
+        // An errored run did not complete: the hold says it failed, and carries
+        // the error the run reported so the editor knows what to fix.
         $this->assertSame( 'failed', $job['status'] );
+        $this->assertSame( 'The agent run failed, and its error route would publish this post. AI stages are not permitted to publish. Error: provider timed out', $job['error'] );
+        $this->assertStringNotContainsString( 'completed', $job['error'] );
+    }
+
+    /**
+     * An ability's own WP_Error reaches the editor the same way an exception does.
+     */
+    public function test_held_error_route_shows_the_ability_error(): void
+    {
+        $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn(
+                $this->ai_sequence(
+                    array( 'pass' => 'review', 'error' => 'live' ),
+                    'publish'
+                )
+            );
+        $status_manager->shouldReceive( 'transition' )->never();
+        $this->seed_status_manager( $status_manager );
+
+        $result             = self::make_result( false );
+        $result->error      = 'The style guide could not be loaded.';
+        $result->error_code = 'style_guide_missing';
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->once()->andReturn( $result );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $this->assertSame( 'failed', $job['status'] );
+        $this->assertSame( 'The agent run failed, and its error route would publish this post. AI stages are not permitted to publish. Error: The style guide could not be loaded.', $job['error'] );
+    }
+
+    /**
+     * An error with no text still reads as a failure, without an empty "Error:".
+     */
+    public function test_held_error_route_without_a_message_still_says_the_run_failed(): void
+    {
+        $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn(
+                $this->ai_sequence(
+                    array( 'pass' => 'review', 'error' => 'live' ),
+                    'publish'
+                )
+            );
+        $status_manager->shouldReceive( 'transition' )->never();
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->once()->andThrow( new \RuntimeException( '' ) );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $this->assertSame( 'The agent run failed, and its error route would publish this post. AI stages are not permitted to publish.', $job['error'] );
+    }
+
+    /**
+     * A `fail` verdict is a completed run, so it keeps the completed wording.
+     */
+    public function test_held_fail_verdict_keeps_the_completed_message(): void
+    {
+        $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn(
+                $this->ai_sequence(
+                    array( 'pass' => 'review', 'fail' => 'live', 'error' => 'review' ),
+                    'publish'
+                )
+            );
+        $status_manager->shouldReceive( 'transition' )->never();
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )
+            ->once()
+            ->andReturn( self::make_result( true, array( 'status' => 'fail', 'summary' => 'needs work' ) ) );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
         $this->assertSame( 'The agent run completed, but attempted to publish this post. AI stages are not permitted to publish.', $job['error'] );
     }
 

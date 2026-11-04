@@ -31,6 +31,7 @@ import SequenceIdentityFields from './SequenceIdentityFields';
 import MetadataFieldsEditor, {
 	MetadataFieldsAdd,
 } from './MetadataFieldsEditor';
+import { reorderStages } from './graph-model';
 import InspectorFieldList, {
 	InspectorFieldListAdd,
 } from './InspectorFieldList';
@@ -99,7 +100,9 @@ export default function SequenceSettingsInspector( {
 	// InspectorFieldList calls onChange with the whole array for both remove
 	// and reorder. A remove delivers a shorter array — detect which stage was
 	// taken out and delegate to the full removal, which also cleans up
-	// transitions pointing at the deleted stage.
+	// transitions pointing at the deleted stage. A reorder keeps Start on the
+	// stage it pointed at: new posts start in the flagged stage, not in
+	// whichever stage the list puts first.
 	const handleStagesListChange = ( newList ) => {
 		if ( newList.length < stages.length ) {
 			const removed = stages.find(
@@ -110,7 +113,7 @@ export default function SequenceSettingsInspector( {
 			}
 			return;
 		}
-		onStagesChange( newList );
+		onStagesChange( reorderStages( stages, newList ) );
 	};
 
 	// Regions are strings, but InspectorFieldList works with objects. Wrap

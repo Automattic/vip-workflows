@@ -184,13 +184,18 @@ class SequenceTest extends TestCase
     }
 
     /**
-     * Test get_initial_status returns first status for workflow.
+     * A stored config with no start flag is a data-integrity error, not a cue to
+     * read the first stage: the write gate and the 2.25.0 migration flag one on
+     * every config, and array order is what the Sequence editor rearranges.
      */
-    public function test_get_initial_status_workflow(): void
+    public function test_get_initial_status_throws_when_no_stage_is_flagged(): void
     {
         $sequence = $this->create_sequence();
 
-        $this->assertSame( 'draft', $sequence->get_initial_status() );
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'marks no stage where new posts start' );
+
+        $sequence->get_initial_status();
     }
 
     /**
@@ -713,6 +718,7 @@ class SequenceTest extends TestCase
                 'is_terminal'  => false,
                 'status'       => 'draft',
                 'region_entry' => true,
+                'is_initial'   => true,
                 'transitions'  => array( array( 'to' => 'publish' ) ),
             ),
             array(
@@ -728,6 +734,93 @@ class SequenceTest extends TestCase
         $config = Sequence::prepare_config_for_write( array( 'statuses' => $seeded ) );
 
         $this->assertSame( $seeded, $config['statuses'] );
+    }
+
+    /**
+     * A config written without a start flag gets one on its first stage — the
+     * stage a flagless config always started posts in — and only that one.
+     */
+    public function test_gate_flags_the_first_stage_when_none_is_marked(): void
+    {
+        $config = Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array( 'key' => 'draft', 'label' => 'Draft' ),
+                array( 'key' => 'review', 'label' => 'Review' ),
+            ),
+        ) );
+
+        $this->assertTrue( $config['statuses'][0]['is_initial'] );
+        $this->assertArrayNotHasKey( 'is_initial', $config['statuses'][1] );
+    }
+
+    /**
+     * Once a stage is flagged, its position does not matter: a reordered config
+     * keeps starting posts where the flag says. This is the stages-list reorder
+     * the Sequence editor saves.
+     */
+    public function test_gate_and_read_path_follow_the_flag_after_a_reorder(): void
+    {
+        $config = Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array( 'key' => 'review', 'label' => 'Review' ),
+                array( 'key' => 'draft', 'label' => 'Draft', 'is_initial' => true ),
+                array( 'key' => 'live', 'label' => 'Live', 'status' => 'publish' ),
+            ),
+        ) );
+
+        $this->assertArrayNotHasKey( 'is_initial', $config['statuses'][0] );
+        $this->assertTrue( $config['statuses'][1]['is_initial'] );
+
+        $sequence = $this->create_sequence( array( 'statuses' => $config['statuses'] ) );
+        $this->assertSame( 'draft', $sequence->get_initial_status() );
+    }
+
+    /**
+     * Two start stages is ambiguous, and is refused by name rather than resolved
+     * by order.
+     */
+    public function test_gate_rejects_more_than_one_start_stage(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'Only one stage can be where new posts start, but “draft” and “review” are both marked.' );
+
+        Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array( 'key' => 'draft', 'label' => 'Draft', 'is_initial' => true ),
+                array( 'key' => 'review', 'label' => 'Review', 'is_initial' => true ),
+            ),
+        ) );
+    }
+
+    /**
+     * The start marker is a boolean, never coerced: the string "false" is truthy.
+     */
+    public function test_gate_rejects_a_non_boolean_start_marker(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'Stage “draft” has an is_initial value that is not true or false.' );
+
+        Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array( 'key' => 'draft', 'label' => 'Draft', 'is_initial' => 'false' ),
+            ),
+        ) );
+    }
+
+    /**
+     * An explicit `false` is the same as no flag, and is not persisted.
+     */
+    public function test_gate_drops_a_false_start_marker(): void
+    {
+        $config = Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array( 'key' => 'draft', 'label' => 'Draft' ),
+                array( 'key' => 'review', 'label' => 'Review', 'is_initial' => false ),
+            ),
+        ) );
+
+        $this->assertArrayNotHasKey( 'is_initial', $config['statuses'][1] );
+        $this->assertTrue( $config['statuses'][0]['is_initial'] );
     }
 
     /**
@@ -988,7 +1081,7 @@ class SequenceTest extends TestCase
         $config = array(
             'statuses' => array(
                 array(
-                    'key' => 'writing', 'label' => 'Writing', 'status' => 'draft', 'region_entry' => true,
+                    'key' => 'writing', 'label' => 'Writing', 'status' => 'draft', 'region_entry' => true, 'is_initial' => true,
                     'transitions' => array( array( 'to' => 'live' ) ),
                 ),
                 array( 'key' => 'live', 'label' => 'Live', 'status' => 'publish', 'region_entry' => true ),

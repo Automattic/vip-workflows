@@ -845,11 +845,16 @@ class StageAgentRunner implements ModuleInterface {
 	 *                            code or exception class), '' otherwise. Never the
 	 *                            message: that text comes from extensions and
 	 *                            providers, and is not fit for the server log.
+	 * @param  string $error      The error an errored run reported, '' otherwise. The
+	 *                            same text fail_in_place() stores in the job marker
+	 *                            for an errored run with no route, so a held error
+	 *                            route tells the editor as much as an unrouted one.
+	 *                            Shown to the editor, never logged.
 	 * @return array{message: string, reason: string}|null Message for the editor and a stop
 	 *               reason for telemetry (publish_held, left_workflow or
 	 *               unreadable_region), or null to proceed.
 	 */
-	private function publication_hold( int $post_id, string $from_key, string $to_key, string $outcome, string $error_code ): ?array {
+	private function publication_hold( int $post_id, string $from_key, string $to_key, string $outcome, string $error_code, string $error = '' ): ?array {
 		$status_manager = \VIPWorkflows\Plugin::get_instance()->get_status_manager();
 		$sequence       = $status_manager->get_sequence_for_post( $post_id );
 
@@ -894,10 +899,9 @@ class StageAgentRunner implements ModuleInterface {
 			return null;
 		}
 
-		// An errored run reports its own failure in the same message slot, so the
-		// cause is logged before the hold message replaces it. Only the code: the
-		// message is free-form text from an extension or provider and may carry
-		// secrets or line breaks. The full message stays in the stored result.
+		// Only the code is logged: the message is free-form text from an extension
+		// or provider and may carry secrets or line breaks. It goes to the editor
+		// in the hold message below instead.
 		if ( 'error' === $outcome && '' !== $error_code ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log(
@@ -916,7 +920,22 @@ class StageAgentRunner implements ModuleInterface {
 		// from people while the agent owns the stage
 		// (StatusManager::agent_routed_targets), so "transition it yourself" named
 		// something nobody could reach.
-		$message = __( 'The agent run completed, but attempted to publish this post. AI stages are not permitted to publish.', 'vip-workflows' );
+		//
+		// An errored run did not complete, and saying it did hides the failure
+		// the editor has to fix. It gets its own message, carrying the error the
+		// run reported — the one place that error reaches the editor, since the
+		// hold replaces the message an unrouted error would have stored.
+		if ( 'error' === $outcome ) {
+			$message = '' !== $error
+				? sprintf(
+					/* translators: %s: the error the agent run reported. */
+					__( 'The agent run failed, and its error route would publish this post. AI stages are not permitted to publish. Error: %s', 'vip-workflows' ),
+					$error
+				)
+				: __( 'The agent run failed, and its error route would publish this post. AI stages are not permitted to publish.', 'vip-workflows' );
+		} else {
+			$message = __( 'The agent run completed, but attempted to publish this post. AI stages are not permitted to publish.', 'vip-workflows' );
+		}
 
 		return array(
 			'message' => $message,
@@ -970,7 +989,7 @@ class StageAgentRunner implements ModuleInterface {
 		// because every agent-driven move arrives through this method — a routed
 		// error is an exit transition like any other, and routing one at a
 		// publishing stage must not be the cheap way around the boundary.
-		$hold = $this->publication_hold( $post_id, $stage_key, $target, $outcome, $error_code );
+		$hold = $this->publication_hold( $post_id, $stage_key, $target, $outcome, $error_code, 'error' === $outcome ? $comment : '' );
 		if ( null !== $hold ) {
 			$this->fail_in_place( $post_id, $stage_key, $ability_id, $hold['message'], $from_stage, array_merge( $run, array( 'stop_reason' => $hold['reason'] ) ) );
 			return;

@@ -48,8 +48,9 @@ export const STAGE_WIDTH = 200;
 export const STAGE_HEIGHT = 80;
 
 // Synthetic flow endpoints. These are rendered on the canvas but are NOT stored
-// stages: the Start node's edge points at the entry stage (which the runtime
-// reads as `statuses[0]`), and a stage's edge to the End node marks it terminal
+// stages: the Start node's edge points at the entry stage (the one stage the
+// save marks `is_initial`, which is where the server puts new posts), and a
+// stage's edge to the End node marks it terminal
 // (`is_terminal`). Their ids are namespaced so they can't collide with a stage
 // key (`sanitize_key` would never produce these).
 export const TERMINAL_NODE_TYPE = 'terminal';
@@ -438,10 +439,7 @@ export function buildGraph( stages, options = {} ) {
 	} );
 
 	// Synthetic Start / End endpoints (workflow only). Start connects to the
-	// flow entry — the draft region's entry checkpoint ("where content
-	// enters"; `setEntryStage` keeps it at `statuses[0]`, but legacy data may
-	// not, so fall back to `statuses[0]` when no draft stage is marked). Each
-	// terminal stage connects to End.
+	// flow entry — see `entryStageKey`. Each terminal stage connects to End.
 	if ( ! isPhase && stages.length > 0 ) {
 		const entryKey = entryStageKey( stages );
 
@@ -764,10 +762,15 @@ export function setStageStatus( stages, key, status ) {
 }
 
 /**
- * The stage the synthetic Start edge points at — the draft region's entry
- * checkpoint ("where content enters"; `setEntryStage` keeps it at
- * `statuses[0]`, but legacy data may not, so fall back to `statuses[0]` when no
- * draft stage is marked).
+ * The stage the synthetic Start edge points at: the stage marked `is_initial`,
+ * which is where the server puts new posts. The save writes that flag (see
+ * `markInitialStage`), so on a stored sequence the answer never depends on
+ * stage order — reordering the stages list cannot move Start.
+ *
+ * Only a stage list no save has touched yet can carry no flag: a sequence
+ * started in this editor, or one whose start stage was just removed. There the
+ * draft region's entry checkpoint stands in ("where content enters"), then
+ * `statuses[0]`, and the next save writes the flag on whichever that is.
  *
  * Shared by the projection that draws that edge and the gestures that move it,
  * so "where does Start point" has one answer: a gesture that cannot change this
@@ -780,6 +783,10 @@ export function entryStageKey( stages ) {
 	if ( stages.length === 0 ) {
 		return null;
 	}
+	const flagged = stages.find( ( s ) => Boolean( s.is_initial ) );
+	if ( flagged ) {
+		return flagged.key;
+	}
 	const draftEntry = stages.find(
 		( s ) => Boolean( s.region_entry ) && stageRegion( s ) === 'draft'
 	);
@@ -787,15 +794,68 @@ export function entryStageKey( stages ) {
 }
 
 /**
+ * Flag one stage `is_initial` and clear the flag from every other.
+ *
+ * @param {Array}  stages Existing stages.
+ * @param {string} key    The stage new posts start in.
+ * @return {Array} New stages array. Stages that need no change keep their identity.
+ */
+function flagInitialStage( stages, key ) {
+	return stages.map( ( stage ) => {
+		if ( stage.key === key ) {
+			return stage.is_initial === true
+				? stage
+				: { ...stage, is_initial: true };
+		}
+		if ( ! ( 'is_initial' in stage ) ) {
+			return stage;
+		}
+		const next = { ...stage };
+		delete next.is_initial;
+		return next;
+	} );
+}
+
+/**
+ * Mark exactly one stage `is_initial`: the one Start points at now.
+ *
+ * The server puts new posts in the flagged stage, and refuses a sequence that
+ * flags more than one. Writing the flag on every save is what keeps stage
+ * order out of it: a sequence written without one has its first stage flagged
+ * by the server, and a reorder in the stages list changes which stage that is.
+ *
+ * @param {Array} stages Existing stages.
+ * @return {Array} Stages with the flag on the entry stage and on no other.
+ */
+export function markInitialStage( stages ) {
+	return flagInitialStage( stages, entryStageKey( stages ) );
+}
+
+/**
+ * Put the stages in a new order without moving Start.
+ *
+ * The stages list hands back the whole array in its new order. Start stays on
+ * the stage it pointed at before the move, flagged so that no later reading of
+ * the array can put it anywhere else.
+ *
+ * @param {Array} stages    Stages before the move.
+ * @param {Array} reordered The same stages, in their new order.
+ * @return {Array} The reordered stages, with Start's stage flagged.
+ */
+export function reorderStages( stages, reordered ) {
+	return flagInitialStage( reordered, entryStageKey( stages ) );
+}
+
+/**
  * Make a stage the flow entry. The synthetic Start edge and the draft
  * region's `region_entry` are the same concept — "where content enters" — so
  * pointing Start at a draft-region stage claims that region's entry
- * checkpoint: the stage moves to the front of the array (`statuses[0]`) and
- * becomes the draft region's sole entry.
+ * checkpoint and the `is_initial` flag (no other stage keeps either), and the
+ * stage moves to the front of the array.
  *
  * Dropping Start on a stage outside the draft region only reorders — the
- * target region's checkpoint is left alone, and `validateSequence` warns that
- * the flow entry sits outside the draft region.
+ * flag and the target region's checkpoint are left alone, and
+ * `validateSequence` warns when the flow entry sits outside the draft region.
  *
  * @param {Array}  stages Existing stages.
  * @param {string} key    Stage to promote to entry.
@@ -813,7 +873,7 @@ export function setEntryStage( stages, key ) {
 	if ( stageRegion( target ) !== 'draft' ) {
 		return reordered;
 	}
-	return setRegionEntry( reordered, key );
+	return setRegionEntry( flagInitialStage( reordered, key ), key );
 }
 
 // ---------------------------------------------------------------------------
@@ -1521,7 +1581,7 @@ export function addStageFromNode( stages, sourceKey, options = {} ) {
  * Apply a new connection drawn on the canvas.
  *
  * A drag off an outcome handle routes that outcome; otherwise Start → stage
- * re-assigns the flow entry (`statuses[0]`), stage → End marks the source stage
+ * re-assigns the flow entry (`is_initial`), stage → End marks the source stage
  * terminal, and stage → stage adds a transition.
  *
  * @param {Array}   stages         Existing stages.
@@ -2572,7 +2632,7 @@ export function validateSequence( {
 			}
 		};
 
-		reach( stages[ 0 ].key );
+		reach( entryStageKey( stages ) );
 		stages.forEach( ( stage ) => {
 			if ( stage.region_entry ) {
 				reach( stage.key );
@@ -2615,12 +2675,15 @@ export function validateSequence( {
 				);
 			} );
 
-		// The flow entry (statuses[0], the Start edge) should live in the
-		// draft region — new content is created as a draft, so an entry
-		// outside it never receives new posts.
-		if ( stageRegion( stages[ 0 ] ) !== 'draft' ) {
+		// The flow entry (the Start edge) should live in the draft region —
+		// new content is created as a draft, so an entry outside it never
+		// receives new posts.
+		const entryStage = stages.find(
+			( s ) => s.key === entryStageKey( stages )
+		);
+		if ( stageRegion( entryStage ) !== 'draft' ) {
 			addWarning(
-				stages[ 0 ].key,
+				entryStage.key,
 				__(
 					'New posts start as drafts, so they skip this stage. Move it into the “Draft” status group.',
 					'vip-workflows'
