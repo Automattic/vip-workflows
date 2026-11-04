@@ -224,10 +224,14 @@ class Story implements ModuleInterface {
 	/**
 	 * Get all objects linked to this story, optionally filtered by type.
 	 *
+	 * A failed read is an error, not an empty list: a caller must be able to
+	 * tell a story with no linked objects from a table it could not read.
+	 *
 	 * @param string|null $type Filter by object_type (ideation, post). Null for all.
-	 * @return array Array of [ 'object_id' => int, 'object_type' => string, 'added_at' => string ].
+	 * @return array|WP_Error Array of [ 'object_id' => int, 'object_type' => string, 'added_at' => string ],
+	 *                        or WP_Error when the join table cannot be read.
 	 */
-	public function get_objects( ?string $type = null ): array {
+	public function get_objects( ?string $type = null ): array|WP_Error {
 		global $wpdb;
 
 		$table = $wpdb->prefix . 'vip_story_objects';
@@ -251,7 +255,13 @@ class Story implements ModuleInterface {
 				ARRAY_A
 			);
 
-		return $results ? $results : array();
+		if ( null === $results || '' !== $wpdb->last_error ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Could not read the objects of story %d: %s', $this->post->ID, $wpdb->last_error ) );
+			return new WP_Error( 'story_objects_read_failed', __( 'Could not load the story\'s linked objects.', 'vip-workflows' ), array( 'status' => 500 ) );
+		}
+
+		return $results;
 	}
 
 	/**
@@ -307,9 +317,15 @@ class Story implements ModuleInterface {
 	 * the ideator need not be able to read the draft written from it — so the
 	 * link alone does not put an object's title in front of a reader. Both
 	 * object post types map `read_post` through core's post capabilities.
+	 *
+	 * @return array|WP_Error Serialized story, or WP_Error when its linked
+	 *                        objects cannot be read.
 	 */
-	public function to_array(): array {
+	public function to_array(): array|WP_Error {
 		$objects = $this->get_objects();
+		if ( $objects instanceof WP_Error ) {
+			return $objects;
+		}
 
 		$object_summary = array();
 		foreach ( $objects as $obj ) {

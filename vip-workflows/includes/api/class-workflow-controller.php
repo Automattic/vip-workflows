@@ -1559,8 +1559,7 @@ class WorkflowController extends WP_REST_Controller {
 					// checked against the post. `read_post`, not `edit_post`: an
 					// author's post stays in their list after it publishes, and a
 					// Contributor can read their own published post but not edit
-					// it. The second pass below is author-scoped at the query, so
-					// only this one needs the check.
+					// it. The non-workflow pass below applies the same check.
 					if ( ! current_user_can( 'read_post', $post->ID ) ) {
 						continue;
 					}
@@ -1627,6 +1626,14 @@ class WorkflowController extends WP_REST_Controller {
 		}
 
 		foreach ( $non_workflow_posts as $post ) {
+			// Authorship selected the row; it does not grant access to it. A
+			// site can narrow `read_post` per post or per post type through
+			// `map_meta_cap` or a custom post type's capabilities, so this pass
+			// is checked against the post like the workflow pass above.
+			if ( ! current_user_can( 'read_post', $post->ID ) ) {
+				continue;
+			}
+
 			// A post outside any workflow can still be claimed — the claim meta
 			// isn't itself workflow-scoped — so this fallback bucket carries an
 			// assignee too, for the same reason it carries an author.

@@ -164,13 +164,27 @@ class StoryObjectsVisibilityTest extends TestCase {
 	}
 
 	/**
-	 * A read that fails answers an empty list, for the typed lookup too.
+	 * A story with no linked objects answers an empty list, typed or not.
 	 *
-	 * The two lookups used to be two copies of the query with their own
-	 * returns; this pins the one contract they share now that there is one
-	 * return. The `query` filter swaps the SELECT for one MySQL refuses.
+	 * The counterweight to the failure case below: empty is a real answer,
+	 * and it must stay distinguishable from a read that failed.
 	 */
-	public function test_a_failed_read_answers_an_empty_list(): void {
+	public function test_a_story_with_no_objects_answers_an_empty_list(): void {
+		$empty = Story::create( 'A story with nothing linked', Story::STATUS_EDITORIAL );
+		$this->assertInstanceOf( Story::class, $empty );
+
+		$this->assertSame( array(), $empty->get_objects( 'post' ) );
+		$this->assertSame( array(), $empty->get_objects() );
+		$this->assertSame( array(), $empty->to_array()['objects'] );
+	}
+
+	/**
+	 * A read that fails answers an error, for the typed lookup too, and the
+	 * serializer passes it on rather than reporting a story with no objects.
+	 *
+	 * The `query` filter swaps the SELECT for one MySQL refuses.
+	 */
+	public function test_a_failed_read_answers_an_error(): void {
 		global $wpdb;
 
 		$break = static function ( string $sql ): string {
@@ -184,8 +198,10 @@ class StoryObjectsVisibilityTest extends TestCase {
 		$wpdb->suppress_errors( true );
 
 		try {
-			$this->assertSame( array(), $this->story->get_objects( 'post' ) );
-			$this->assertSame( array(), $this->story->get_objects() );
+			foreach ( array( $this->story->get_objects( 'post' ), $this->story->get_objects(), $this->story->to_array() ) as $result ) {
+				$this->assertWPError( $result );
+				$this->assertSame( 'story_objects_read_failed', $result->get_error_code() );
+			}
 		} finally {
 			$wpdb->suppress_errors( false );
 			remove_filter( 'query', $break );

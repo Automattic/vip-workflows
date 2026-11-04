@@ -203,4 +203,48 @@ class MyWorkPerObjectGateTest extends TestCase {
 		$this->assertSame( $draft, $rows[0]['post_id'] );
 		$this->assertSame( $author, $rows[0]['author']['id'] );
 	}
+
+	/**
+	 * An author denied `read_post` on their own non-workflow post gets no row.
+	 *
+	 * Authorship selects the row in the non-workflow pass; it does not prove
+	 * access. A site can narrow `read_post` per post through `map_meta_cap`,
+	 * so the row is checked like a workflow row. The author's other post in
+	 * no workflow stays listed, which pins that the filter is what drops it.
+	 */
+	public function test_an_author_denied_read_post_on_their_own_non_workflow_post_gets_no_row(): void {
+		$author = (int) self::factory()->user->create( array( 'role' => 'author' ) );
+		$hidden = (int) self::factory()->post->create(
+			array(
+				'post_author' => $author,
+				'post_status' => 'draft',
+				'post_title'  => 'A post in no workflow, hidden from its author',
+			)
+		);
+		$listed = (int) self::factory()->post->create(
+			array(
+				'post_author' => $author,
+				'post_status' => 'draft',
+				'post_title'  => 'A post in no workflow, readable by its author',
+			)
+		);
+
+		$deny = static function ( array $caps, string $cap, int $user_id, array $args ) use ( $hidden ): array {
+			if ( 'read_post' === $cap && isset( $args[0] ) && $hidden === (int) $args[0] ) {
+				return array( 'do_not_allow' );
+			}
+
+			return $caps;
+		};
+		add_filter( 'map_meta_cap', $deny, 10, 4 );
+
+		try {
+			$rows = $this->work_as( $author );
+		} finally {
+			remove_filter( 'map_meta_cap', $deny, 10 );
+		}
+
+		$this->assertSame( array( $listed ), array_column( $rows, 'post_id' ) );
+		$this->assertNull( $rows[0]['workflow_name'] );
+	}
 }
