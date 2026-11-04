@@ -320,4 +320,85 @@ class CurrentAssignmentTest extends TestCase {
 
 		$this->assertSame( array(), $this->manager->get_current_for_posts( array() ) );
 	}
+
+	/**
+	 * A list longer than one chunk is read in one query per chunk, every post
+	 * in exactly one of them, and the merged result is what reading each post
+	 * on its own gives.
+	 */
+	public function test_current_assignments_for_many_posts_are_read_in_chunks(): void {
+		global $wpdb;
+
+		$chunk    = AssignmentManager::CURRENT_FOR_POSTS_CHUNK;
+		$post_ids = range( 1, 2 * $chunk + 1 );
+
+		// Every third post's assignment is finished, every fifth has none, and
+		// the rest have two pending slots of which the later one is current.
+		$rows = array();
+		foreach ( $post_ids as $post_id ) {
+			if ( 0 === $post_id % 5 ) {
+				continue;
+			}
+			$status = 0 === $post_id % 3 ? 'completed' : 'pending';
+			$rows[] = (object) array(
+				'post_id'    => (string) $post_id,
+				'meta_key'   => '_vip_workflows_assignment_reviewer',
+				'meta_value' => array(
+					'value'       => $post_id,
+					'type'        => 'user',
+					'status'      => $status,
+					'assigned_at' => '2026-09-21 12:00:00.200000',
+				),
+			);
+			$rows[] = (object) array(
+				'post_id'    => (string) $post_id,
+				'meta_key'   => '_vip_workflows_assignment_approver',
+				'meta_value' => array(
+					'value'       => 'editor',
+					'type'        => 'role',
+					'status'      => $status,
+					'assigned_at' => '2026-09-21 12:00:00.100000',
+				),
+			);
+		}
+
+		$queried = array();
+
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Replaced for this test; tearDown() restores the original.
+		$wpdb           = Mockery::mock( 'wpdb' );
+		$wpdb->postmeta = 'wp_postmeta';
+		$wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $value ) => $value );
+		$wpdb->shouldReceive( 'prepare' )->andReturnUsing(
+			function ( $query, $args ) {
+				$ids = array_slice( $args, 0, -1 );
+				$this->assertSame( count( $ids ), substr_count( $query, '%d' ), 'One placeholder per post ID.' );
+				return wp_json_encode( $ids );
+			}
+		);
+		$wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+			function ( $prepared ) use ( $rows, &$queried ) {
+				$ids       = json_decode( $prepared, true );
+				$queried[] = $ids;
+				return array_values( array_filter( $rows, fn( $row ) => in_array( (int) $row->post_id, $ids, true ) ) );
+			}
+		);
+		Functions\when( 'wp_json_encode' )->alias( 'json_encode' );
+
+		$batched = $this->manager->get_current_for_posts( $post_ids );
+
+		$this->assertCount( 3, $queried, 'Three chunks for two chunks and one post.' );
+		$this->assertSame( array( $chunk, $chunk, 1 ), array_map( 'count', $queried ) );
+		$this->assertSame( $post_ids, array_merge( ...$queried ), 'Each post is queried once, in order.' );
+
+		$queried = array();
+		$single  = array();
+		foreach ( $post_ids as $post_id ) {
+			$single += $this->manager->get_current_for_posts( array( $post_id ) );
+		}
+
+		$this->assertSame( $single, $batched, 'Chunking does not change the result.' );
+		$this->assertSame( 'reviewer', $batched[1]['meta_key'] );
+		$this->assertNull( $batched[3], 'A finished assignment is not current.' );
+		$this->assertNull( $batched[5], 'A post with no assignment has none.' );
+	}
 }

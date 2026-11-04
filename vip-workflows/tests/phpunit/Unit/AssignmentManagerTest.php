@@ -16,10 +16,27 @@ class AssignmentManagerTest extends TestCase
 {
     private AssignmentManager $manager;
 
+    /**
+     * Database global to restore after a test replaces it.
+     *
+     * @var mixed
+     */
+    private $previous_wpdb;
+
     protected function setUp(): void
     {
+        global $wpdb;
         parent::setUp();
-        $this->manager = new AssignmentManager();
+        $this->manager       = new AssignmentManager();
+        $this->previous_wpdb = $wpdb;
+    }
+
+    protected function tearDown(): void
+    {
+        global $wpdb;
+        // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restore the saved database global.
+        $wpdb = $this->previous_wpdb;
+        parent::tearDown();
     }
 
     // -------------------------------------------------------------------------
@@ -405,5 +422,119 @@ class AssignmentManagerTest extends TestCase
 
         $this->assertSame(0, $calls);
         $this->assertSame('user', $written['_vip_workflows_assignment_legal_reviewer']['type']);
+    }
+
+    // -------------------------------------------------------------------------
+    // process_transition_input — conditional writes against an expected slot
+    // -------------------------------------------------------------------------
+
+    /**
+     * Replace wpdb with a double whose conditional delete reports $rows.
+     *
+     * @param int|false $rows    Rows the DELETE reports.
+     * @param array     $deletes Filled with each DELETE's WHERE clause.
+     * @param array     $actions Filled with each fired action name.
+     */
+    private function conditional_delete_reports( $rows, array &$deletes, array &$actions ): void
+    {
+        global $wpdb;
+        // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Unit double; restored in tearDown().
+        $wpdb           = \Mockery::mock('wpdb');
+        $wpdb->postmeta = 'wp_postmeta';
+        $wpdb->shouldReceive('delete')->andReturnUsing(
+            function ($table, $where) use ($rows, &$deletes) {
+                $deletes[] = $where;
+                return $rows;
+            }
+        );
+        Functions\when('maybe_serialize')->alias(fn($value) => serialize($value)); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Mirrors core.
+        Functions\when('do_action')->alias(
+            function ($hook) use (&$actions) {
+                $actions[] = $hook;
+            }
+        );
+    }
+
+    /**
+     * The optional-assignment transition the clear tests submit an empty value to.
+     *
+     * @return array
+     */
+    private function optional_assignment_transition(): array
+    {
+        return array(
+            'to'     => 'draft',
+            'inputs' => array(
+                array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer', 'assignee_type' => 'user', 'label' => 'Legal reviewer' ),
+            ),
+        );
+    }
+
+    /**
+     * Clearing a slot that still holds what was read deletes it by that value.
+     */
+    public function test_conditional_clear_deletes_the_slot_it_read(): void
+    {
+        $deletes  = array();
+        $actions  = array();
+        $previous = array( 'value' => 7, 'type' => 'user', 'status' => 'pending' );
+        $this->conditional_delete_reports(1, $deletes, $actions);
+
+        $result = $this->manager->process_transition_input(
+            42,
+            $this->optional_assignment_transition(),
+            array( 'legal_reviewer' => '' ),
+            array( 'legal_reviewer' => $previous )
+        );
+
+        $this->assertSame(array(), $result);
+        $this->assertSame(serialize($previous), $deletes[0]['meta_value']); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Expected column value.
+        $this->assertSame('_vip_workflows_assignment_legal_reviewer', $deletes[0]['meta_key']);
+        $this->assertSame(array( 'vip_workflows_assignment_removed' ), $actions);
+    }
+
+    /**
+     * Clearing a slot another request reassigned in the meantime is a 409,
+     * and the reassignment is not deleted or announced as removed.
+     */
+    public function test_conditional_clear_of_a_changed_slot_is_a_conflict(): void
+    {
+        $deletes = array();
+        $actions = array();
+        $this->conditional_delete_reports(0, $deletes, $actions);
+
+        $result = $this->manager->process_transition_input(
+            42,
+            $this->optional_assignment_transition(),
+            array( 'legal_reviewer' => '' ),
+            array( 'legal_reviewer' => array( 'value' => 7, 'type' => 'user', 'status' => 'pending' ) )
+        );
+
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('assignment_conflict', $result->get_error_code());
+        $this->assertSame(409, $result->get_error_data()['status']);
+        $this->assertStringContainsString('Legal reviewer', $result->get_error_message());
+        $this->assertSame(array(), $actions);
+    }
+
+    /**
+     * A database error is a 500, not a conflict.
+     */
+    public function test_conditional_write_database_error_is_a_failure(): void
+    {
+        $deletes = array();
+        $actions = array();
+        $this->conditional_delete_reports(false, $deletes, $actions);
+
+        $result = $this->manager->process_transition_input(
+            42,
+            $this->optional_assignment_transition(),
+            array( 'legal_reviewer' => '' ),
+            array( 'legal_reviewer' => array( 'value' => 7, 'type' => 'user', 'status' => 'pending' ) )
+        );
+
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('assignment_write_failed', $result->get_error_code());
+        $this->assertSame(500, $result->get_error_data()['status']);
     }
 }

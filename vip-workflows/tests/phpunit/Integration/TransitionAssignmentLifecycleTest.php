@@ -49,8 +49,8 @@ class TransitionAssignmentLifecycleTest extends TestCase {
 
 	/**
 	 * Create a draft-region sequence: Ideas assigns a reviewer on the way to
-	 * Review; Review assigns an approver role on the way to Approval, or moves
-	 * to Done with no assignment.
+	 * Review; Review assigns an approver role on the way to Approval, moves
+	 * to Done with no assignment, or stays put to hand the post to an owner.
 	 */
 	public function set_up(): void {
 		parent::set_up();
@@ -102,6 +102,17 @@ class TransitionAssignmentLifecycleTest extends TestCase {
 								),
 							),
 							array( 'to' => 'done' ),
+							array(
+								'to'     => 'review',
+								'inputs' => array(
+									array(
+										'type'          => 'assignment',
+										'meta_key'      => 'owner',
+										'assignee_type' => 'user',
+										'label'         => 'Owner',
+									),
+								),
+							),
 						),
 					),
 					array(
@@ -279,6 +290,157 @@ class TransitionAssignmentLifecycleTest extends TestCase {
 		$manager = new AssignmentManager();
 		$this->assertSame( AssignmentManager::STATUS_COMPLETED, $manager->get( $post_id, 'reviewer' )['status'] );
 		$this->assertNull( $manager->get_current( $post_id ), 'Nothing may stay pending for a stage the post has left.' );
+	}
+
+	/**
+	 * Hand a post in Review to an owner through the Review → Review self-edge.
+	 *
+	 * @param  int $post_id Post ID.
+	 * @param  int $user_id Owner.
+	 * @return mixed transition()'s result.
+	 */
+	private function hand_to_owner( int $post_id, int $user_id ) {
+		return ( new StatusManager() )->transition(
+			$post_id,
+			'review',
+			array( 'input_data' => array( 'owner' => $user_id ) )
+		);
+	}
+
+	/**
+	 * Land another request's write to a slot just before this request's own
+	 * write to it reaches the database.
+	 *
+	 * @param  string   $verb  SQL verb of this request's write ('UPDATE' or 'INSERT').
+	 * @param  callable $write The other request's write.
+	 * @return callable The `query` filter, to remove afterwards.
+	 */
+	private function interleave_before_slot_write( string $verb, callable $write ): callable {
+		$fired  = false;
+		$filter = static function ( $query ) use ( $verb, $write, &$fired ) {
+			if ( ! $fired && 0 === stripos( ltrim( $query ), $verb ) && false !== strpos( $query, '_vip_workflows_assignment_owner' ) ) {
+				$fired = true;
+				$write();
+			}
+			return $query;
+		};
+		add_filter( 'query', $filter );
+
+		return $filter;
+	}
+
+	/**
+	 * Self-edges one after another each replace the owner: the conditional
+	 * write matches the value a real meta read returns.
+	 */
+	public function test_sequential_self_edges_each_reassign_the_slot(): void {
+		$post_id = $this->make_post_in_review();
+		$second  = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
+
+		$this->assertTrue( $this->hand_to_owner( $post_id, $this->reviewer_id ) );
+		$this->assertTrue( $this->hand_to_owner( $post_id, $second ) );
+
+		$owner = ( new AssignmentManager() )->get( $post_id, 'owner' );
+		$this->assertSame( $second, (int) $owner['value'] );
+		$this->assertSame( AssignmentManager::STATUS_PENDING, $owner['status'] );
+	}
+
+	/**
+	 * Two self-edges hand the post to different owners at once. The other
+	 * request's write lands between this one's read of the slot and its
+	 * write, so this one is refused with a 409: the other owner stays, and
+	 * this transition is not logged.
+	 */
+	public function test_concurrent_self_edges_on_one_slot_refuse_the_later_writer(): void {
+		global $wpdb;
+
+		$post_id = $this->make_post_in_review();
+		$this->assertTrue( $this->hand_to_owner( $post_id, $this->admin_id ) );
+		$theirs = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
+
+		$history_before = ( new StatusManager() )->count_transition_history( $post_id );
+
+		$filter = $this->interleave_before_slot_write(
+			'UPDATE',
+			static function () use ( $wpdb, $post_id, $theirs ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Simulates another request's write.
+				$wpdb->update(
+					$wpdb->postmeta,
+					array(
+						'meta_value' => serialize( // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- The stored form of another request's assignment.
+							array(
+								'value'       => $theirs,
+								'type'        => 'user',
+								'status'      => AssignmentManager::STATUS_PENDING,
+								'assigned_at' => '2026-01-01 00:00:00.000000',
+								'assigned_by' => $theirs,
+							)
+						),
+					),
+					array(
+						'post_id'  => $post_id,
+						'meta_key' => '_vip_workflows_assignment_owner',
+					)
+				);
+			}
+		);
+		$result = $this->hand_to_owner( $post_id, $this->reviewer_id );
+		remove_filter( 'query', $filter );
+
+		$this->assertWPError( $result );
+		$this->assertSame( 'assignment_conflict', $result->get_error_code() );
+		$this->assertSame( 409, $result->get_error_data()['status'] );
+
+		wp_cache_delete( $post_id, 'post_meta' );
+		$this->assertSame( $theirs, (int) ( new AssignmentManager() )->get( $post_id, 'owner' )['value'], 'The other owner stays.' );
+		$this->assertSame( $history_before, ( new StatusManager() )->count_transition_history( $post_id ), 'The refused transition is not logged.' );
+	}
+
+	/**
+	 * Two self-edges fill an empty slot at once. Both pass add_post_meta()'s
+	 * unique check; this one's row is the later, so it is removed and the
+	 * transition is refused, leaving one row: the other request's.
+	 */
+	public function test_concurrent_first_assignment_of_a_slot_refuses_the_later_row(): void {
+		global $wpdb;
+
+		$post_id = $this->make_post_in_review();
+		$theirs  = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
+
+		$filter = $this->interleave_before_slot_write(
+			'INSERT',
+			static function () use ( $wpdb, $post_id, $theirs ) {
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Simulates another request's insert.
+				$wpdb->insert(
+					$wpdb->postmeta,
+					array(
+						'post_id'    => $post_id,
+						'meta_key'   => '_vip_workflows_assignment_owner', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Test fixture row.
+						'meta_value' => serialize( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value, WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Test fixture row.
+							array(
+								'value'       => $theirs,
+								'type'        => 'user',
+								'status'      => AssignmentManager::STATUS_PENDING,
+								'assigned_at' => '2026-01-01 00:00:00.000000',
+								'assigned_by' => $theirs,
+							)
+						),
+					)
+				);
+			}
+		);
+		$result = $this->hand_to_owner( $post_id, $this->reviewer_id );
+		remove_filter( 'query', $filter );
+
+		$this->assertWPError( $result );
+		$this->assertSame( 'assignment_conflict', $result->get_error_code() );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Count the slot's rows.
+		$rows = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key = %s", $post_id, '_vip_workflows_assignment_owner' ) );
+		$this->assertSame( 1, $rows, 'Only the first row survives.' );
+
+		wp_cache_delete( $post_id, 'post_meta' );
+		$this->assertSame( $theirs, (int) ( new AssignmentManager() )->get( $post_id, 'owner' )['value'] );
 	}
 
 	/**

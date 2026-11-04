@@ -164,6 +164,11 @@ GET         /vip-workflows/v1/audit-log/users
   declares (`meta_key`, `{meta_key}_notes`, and each one's `__name` label);
   any other `input_data` key fails the transition with a 400
   (`unknown_transition_input`) naming the key, and nothing is written
+- A self-edge (a stage to itself) writes its assignment slot only if the slot
+  still holds what the transition read when it started. A concurrent write to
+  the slot fails the later transition with a 409 (`assignment_conflict`), and
+  nothing is written. A stage-changing edge is serialized by the stage
+  compare-and-swap instead, since each slot key belongs to one edge
 - Backend stores in TWO places:
   1. `_vip_workflows_transition_data` meta (per-status history)
   2. `wp_vip_workflows_events` table (audit log with notes column)

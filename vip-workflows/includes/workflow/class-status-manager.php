@@ -754,6 +754,26 @@ class StatusManager {
 			}
 		}
 
+		// A self-edge writes no stage, so the stage compare-and-swap below does
+		// not stop two of them racing on the same slot: both would validate
+		// against the slot as it is now, and the later write would replace the
+		// earlier one while both report success. Read the slots this edge will
+		// write now, from the same meta read as $current_stage, and write each
+		// only if it still holds this value.
+		//
+		// A stage-changing edge needs no such check. Its slot key is unique to
+		// the edge (SequencesController::validate_assignment_keys()), so a
+		// concurrent writer of the slot is a concurrent taker of the edge, and
+		// the stage compare-and-swap already refuses the loser before it writes
+		// its assignment. A snapshot here would also be wrong for it: other
+		// transitions may take the post out of this stage and back before the
+		// swap, legitimately rewriting the slot on the way.
+		$is_self_edge  = $current_stage === $to_status;
+		$slot_snapshot = null;
+		if ( $is_self_edge && is_array( $transition_config ) ) {
+			$slot_snapshot = $assignment_manager->get_transition_slots( $post_id, $transition_config, $options['input_data'] ?? array() );
+		}
+
 		/*
 		 * An agent run executes at uid 0 under cron, so it names the identity it
 		 * acts for and the capability checks below are evaluated against that
@@ -1055,7 +1075,25 @@ class StatusManager {
 		// Process submitted assignment input for an authored edge. A failed-agent
 		// revert supplies no inputs, so it captures no new assignment.
 		if ( is_array( $transition_config ) ) {
-			$assigned_slots = $assignment_manager->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array() );
+			$assigned_slots = $assignment_manager->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array(), $slot_snapshot );
+
+			// Only a self-edge writes conditionally, and it has written nothing
+			// before this point: no status, no stage, no completed slots. So the
+			// refusal is the whole outcome, the same as a lost stage swap.
+			if ( is_wp_error( $assigned_slots ) ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log(
+					sprintf(
+						'[VIP Workflows] Post %d: transition "%s" -> "%s" was abandoned; assignment slot "%s" was not written (%s).',
+						$post_id,
+						$current_stage,
+						$to_status,
+						(string) ( $assigned_slots->get_error_data()['meta_key'] ?? '' ),
+						$assigned_slots->get_error_code()
+					)
+				);
+				return $assigned_slots;
+			}
 
 			// The stage compare-and-swap above does not cover this assignment
 			// write. A concurrent transition can move the post on in between: it

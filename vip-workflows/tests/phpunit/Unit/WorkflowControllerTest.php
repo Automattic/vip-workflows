@@ -1848,7 +1848,11 @@ class WorkflowControllerTest extends TestCase
         $this->assertSame( 2001, $workflow_rows[2000]['post_id'] );
         $this->assertCount( 2001, $plain_rows );
         $this->assertSame( 2001, $plain_rows[2000]['post_id'] );
-        $this->assertSame( 1, $this->my_work_assignment_reads, 'Assignments are read once for every row, not once per row.' );
+        $this->assertSame(
+            (int) ceil( 2001 / \VIPWorkflows\Workflow\AssignmentManager::CURRENT_FOR_POSTS_CHUNK ),
+            $this->my_work_assignment_reads,
+            'Assignments are read once per chunk of rows, not once per row.'
+        );
     }
 
     /**

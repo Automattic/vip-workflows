@@ -24,6 +24,14 @@ class AssignmentManager {
 	public const STATUS_COMPLETED = 'completed';
 	public const STATUS_EXPIRED   = 'expired';
 
+	/**
+	 * The most post IDs get_current_for_posts() puts in one query's IN list.
+	 *
+	 * A longer list is read in several queries, so a large page of posts
+	 * never builds a statement past the server's packet size limit.
+	 */
+	public const CURRENT_FOR_POSTS_CHUNK = 500;
+
 	// =========================================================================
 	// Assignment CRUD
 	// =========================================================================
@@ -38,19 +46,41 @@ class AssignmentManager {
 	 * @param array  $config        Optional config from sequence input.
 	 */
 	public function assign( int $post_id, string $meta_key, $value, string $assignee_type, array $config = array() ): void {
-		$storage_key = $this->get_storage_key( $meta_key );
+		$assignment = $this->build_assignment( $value, $assignee_type );
 
+		update_post_meta( $post_id, $this->get_storage_key( $meta_key ), $assignment );
+
+		$this->announce_assignment( $post_id, $meta_key, $assignment, $config );
+	}
+
+	/**
+	 * The stored shape of a new, pending assignment.
+	 *
+	 * @param  mixed  $value         Assigned value (user ID, role slug, agent ID).
+	 * @param  string $assignee_type Type of assignee (user, role, agent).
+	 * @return array
+	 */
+	private function build_assignment( $value, string $assignee_type ): array {
 		// Preserve ordering when multiple assignments occur within one second.
-		$assignment = array(
+		return array(
 			'value'       => $value,
 			'type'        => $assignee_type,
 			'status'      => self::STATUS_PENDING,
 			'assigned_at' => current_time( 'Y-m-d H:i:s.u' ),
 			'assigned_by' => get_current_user_id(),
 		);
+	}
 
-		update_post_meta( $post_id, $storage_key, $assignment );
-
+	/**
+	 * Run the side effects of a stored assignment: its on_assign actions and
+	 * the created hook.
+	 *
+	 * @param int    $post_id    Post ID.
+	 * @param string $meta_key   Assignment slot key.
+	 * @param array  $assignment Assignment data as stored.
+	 * @param array  $config     Sequence input config.
+	 */
+	private function announce_assignment( int $post_id, string $meta_key, array $assignment, array $config ): void {
 		$this->trigger_assign_actions( $post_id, $meta_key, $assignment, $config );
 
 		/**
@@ -86,6 +116,17 @@ class AssignmentManager {
 
 		delete_post_meta( $post_id, $storage_key );
 
+		$this->announce_unassignment( $post_id, $meta_key, $existing );
+	}
+
+	/**
+	 * Fire the removed hook for a cleared slot.
+	 *
+	 * @param int    $post_id  Post ID.
+	 * @param string $meta_key Assignment slot key.
+	 * @param array  $existing The assignment the slot held.
+	 */
+	private function announce_unassignment( int $post_id, string $meta_key, array $existing ): void {
 		/**
 		 * Fires when an assignment is cleared.
 		 *
@@ -160,7 +201,8 @@ class AssignmentManager {
 	}
 
 	/**
-	 * The current assignment of each of many posts, read in one query.
+	 * The current assignment of each of many posts, read in one query per
+	 * CURRENT_FOR_POSTS_CHUNK posts.
 	 *
 	 * The same rule as get_current(), for a list that would otherwise run one
 	 * query per post.
@@ -178,24 +220,27 @@ class AssignmentManager {
 			return array();
 		}
 
-		$prefix       = '_vip_workflows_assignment_';
-		$placeholders = implode( ', ', array_fill( 0, count( $post_ids ), '%d' ) );
-
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Same uncached read as get_all(), for many posts; $placeholders holds only %d tokens.
-		$results = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$placeholders} ) AND meta_key LIKE %s",
-				array_merge( $post_ids, array( $wpdb->esc_like( $prefix ) . '%' ) )
-			)
-		);
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
-
+		$prefix  = '_vip_workflows_assignment_';
 		$by_post = array_fill_keys( $post_ids, array() );
-		foreach ( $results as $row ) {
-			$key  = str_replace( $prefix, '', $row->meta_key );
-			$data = maybe_unserialize( $row->meta_value );
-			if ( is_array( $data ) ) {
-				$by_post[ (int) $row->post_id ][ $key ] = $data;
+
+		foreach ( array_chunk( $post_ids, self::CURRENT_FOR_POSTS_CHUNK ) as $chunk ) {
+			$placeholders = implode( ', ', array_fill( 0, count( $chunk ), '%d' ) );
+
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Same uncached read as get_all(), for many posts; $placeholders holds only %d tokens.
+			$results = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$placeholders} ) AND meta_key LIKE %s",
+					array_merge( $chunk, array( $wpdb->esc_like( $prefix ) . '%' ) )
+				)
+			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+
+			foreach ( $results as $row ) {
+				$key  = str_replace( $prefix, '', $row->meta_key );
+				$data = maybe_unserialize( $row->meta_value );
+				if ( is_array( $data ) ) {
+					$by_post[ (int) $row->post_id ][ $key ] = $data;
+				}
 			}
 		}
 
@@ -535,6 +580,29 @@ class AssignmentManager {
 	}
 
 	/**
+	 * The slots a transition's input will write, as they stand now.
+	 *
+	 * StatusManager::transition() reads this when it validates a self-edge and
+	 * hands it back to process_transition_input(), which writes each slot only
+	 * if it still holds the value read here.
+	 *
+	 * @param  int   $post_id    Post ID.
+	 * @param  array $transition Transition config from sequence.
+	 * @param  array $input_data User-provided input data.
+	 * @return array<string, array|null> Each slot's assignment keyed by slot key,
+	 *                                   null for a slot that holds none.
+	 */
+	public function get_transition_slots( int $post_id, array $transition, array $input_data ): array {
+		$slots = array();
+
+		foreach ( $this->get_written_inputs( $transition, $input_data ) as $meta_key => $input_config ) {
+			$slots[ $meta_key ] = $this->get( $post_id, $meta_key );
+		}
+
+		return $slots;
+	}
+
+	/**
 	 * Process assignment input from a transition.
 	 *
 	 * Called by StatusManager::transition() after validate_transition_input().
@@ -547,48 +615,221 @@ class AssignmentManager {
 	 * "no one" after a prior assignment, which `array_key_exists()` is what
 	 * tells apart from "nothing submitted".
 	 *
-	 * @param  int   $post_id    Post ID.
-	 * @param  array $transition Transition config from sequence.
-	 * @param  array $input_data User-provided input data.
-	 * @return string[] The slot keys this call assigned (not the ones it cleared).
+	 * With `$expected`, every write is a compare-and-set: a slot is written
+	 * only if it still holds what get_transition_slots() read. A slot that
+	 * changed in between was written by a concurrent transition, so this
+	 * one returns a 409 instead of overwriting it, and writes nothing.
+	 * A transition assigns at most one slot (the cap
+	 * Sequence::prepare_config_for_write() enforces), so a refusal leaves no
+	 * other slot half-written.
+	 *
+	 * @param  int        $post_id    Post ID.
+	 * @param  array      $transition Transition config from sequence.
+	 * @param  array      $input_data User-provided input data.
+	 * @param  array|null $expected   Slots as get_transition_slots() read them, or null to write unconditionally.
+	 * @return string[]|\WP_Error The slot keys this call assigned (not the ones it cleared),
+	 *                            or a 409 when a slot changed after `$expected` was read.
+	 * @throws \LogicException When `$expected` has no entry for a slot the input writes.
 	 */
-	public function process_transition_input( int $post_id, array $transition, array $input_data ): array {
-		$inputs   = $transition['inputs'] ?? array();
+	public function process_transition_input( int $post_id, array $transition, array $input_data, ?array $expected = null ) {
 		$assigned = array();
-
-		if ( ! is_array( $inputs ) ) {
-			return $assigned;
-		}
 
 		// A transition captures a list, and at most one entry in it assigns work —
 		// the cap Sequence::prepare_config_for_write() enforces, so the loop finds
 		// one slot or none. Walked as a list rather than reached for by index
 		// because an assignment is not required to lead the list: a stored note can
 		// sit ahead of it, and the note's position is not this method's business.
+		foreach ( $this->get_written_inputs( $transition, $input_data ) as $meta_key => $input_config ) {
+			$assignee_type  = $input_config['assignee_type'] ?? 'user';
+			$assigned_value = $input_data[ $meta_key ];
+
+			if ( null === $expected ) {
+				if ( ! $assigned_value ) {
+					$this->unassign( $post_id, $meta_key );
+					continue;
+				}
+
+				$this->assign( $post_id, $meta_key, $assigned_value, $assignee_type, $input_config );
+				$assigned[] = $meta_key;
+				continue;
+			}
+
+			if ( ! array_key_exists( $meta_key, $expected ) ) {
+				throw new \LogicException( sprintf( 'No expected value was read for assignment slot "%s".', esc_html( $meta_key ) ) );
+			}
+
+			$previous   = $expected[ $meta_key ];
+			$assignment = $assigned_value ? $this->build_assignment( $assigned_value, $assignee_type ) : null;
+			$written    = $this->compare_and_set( $post_id, $this->get_storage_key( $meta_key ), $previous, $assignment );
+
+			if ( true !== $written ) {
+				return $this->slot_write_error( $written, $meta_key, $input_config );
+			}
+
+			if ( null === $assignment ) {
+				if ( null !== $previous ) {
+					$this->announce_unassignment( $post_id, $meta_key, $previous );
+				}
+				continue;
+			}
+
+			$this->announce_assignment( $post_id, $meta_key, $assignment, $input_config );
+			$assigned[] = $meta_key;
+		}
+
+		return $assigned;
+	}
+
+	/**
+	 * The assignment inputs of a transition that its input data writes,
+	 * keyed by slot key.
+	 *
+	 * @param  array $transition Transition config from sequence.
+	 * @param  array $input_data User-provided input data.
+	 * @return array<string, array> Input configs keyed by slot key.
+	 */
+	private function get_written_inputs( array $transition, array $input_data ): array {
+		$inputs  = $transition['inputs'] ?? array();
+		$written = array();
+
+		if ( ! is_array( $inputs ) ) {
+			return $written;
+		}
+
 		foreach ( $inputs as $input_config ) {
 			if ( ! is_array( $input_config ) || 'assignment' !== ( $input_config['type'] ?? '' ) ) {
 				continue;
 			}
 
-			$meta_key      = $input_config['meta_key'] ?? null;
-			$assignee_type = $input_config['assignee_type'] ?? 'user';
-
+			$meta_key = $input_config['meta_key'] ?? null;
 			if ( ! $meta_key || ! array_key_exists( $meta_key, $input_data ) ) {
 				continue;
 			}
 
-			$assigned_value = $input_data[ $meta_key ];
-
-			if ( ! $assigned_value ) {
-				$this->unassign( $post_id, $meta_key );
-				continue;
-			}
-
-			$this->assign( $post_id, $meta_key, $assigned_value, $assignee_type, $input_config );
-			$assigned[] = $meta_key;
+			$written[ (string) $meta_key ] = $input_config;
 		}
 
-		return $assigned;
+		return $written;
+	}
+
+	/**
+	 * Write a slot only if it still holds the expected assignment.
+	 *
+	 * The UPDATE and DELETE carry the expected serialized value in their
+	 * WHERE clause, the same conditional write update_post_meta() makes with
+	 * a `$prev_value`. They are issued directly because update_post_meta()
+	 * falls back to an unconditional insert when the row is gone, and
+	 * delete_post_meta() deletes by the IDs it selected first. The new value
+	 * is unslashed and serialized exactly as update_post_meta() stores it.
+	 *
+	 * A slot that held nothing is filled through add_post_meta() with
+	 * `$unique`. That check is a read before the insert, so two writers can
+	 * both pass it. The older row wins: a writer whose row is not the first
+	 * for the slot deletes it and loses.
+	 *
+	 * @param  int        $post_id     Post ID.
+	 * @param  string     $storage_key Full meta key of the slot.
+	 * @param  array|null $expected    What the slot must hold, null for nothing.
+	 * @param  array|null $assignment  What to write, null to clear the slot.
+	 * @return true|string True when written, 'assignment_conflict' when the slot
+	 *                     changed, or 'assignment_write_failed' on a database error.
+	 */
+	private function compare_and_set( int $post_id, string $storage_key, ?array $expected, ?array $assignment ) {
+		global $wpdb;
+
+		if ( null === $expected ) {
+			if ( null === $assignment ) {
+				// Clearing a slot that held nothing writes nothing. It only has to
+				// be still empty.
+				wp_cache_delete( $post_id, 'post_meta' );
+				return is_array( get_post_meta( $post_id, $storage_key, true ) ) ? 'assignment_conflict' : true;
+			}
+
+			$meta_id = add_post_meta( $post_id, $storage_key, $assignment, true );
+			if ( ! $meta_id ) {
+				// Refused either because the slot is filled now, or by the database.
+				wp_cache_delete( $post_id, 'post_meta' );
+				return is_array( get_post_meta( $post_id, $storage_key, true ) ) ? 'assignment_conflict' : 'assignment_write_failed';
+			}
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- Must see a row another request inserted just now.
+			$first_id = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					"SELECT MIN(meta_id) FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key = %s",
+					$post_id,
+					$storage_key
+				)
+			);
+
+			if ( $first_id !== (int) $meta_id ) {
+				delete_metadata_by_mid( 'post', (int) $meta_id );
+				return 'assignment_conflict';
+			}
+
+			return true;
+		}
+
+		$where = array(
+			'post_id'    => $post_id,
+			'meta_key'   => $storage_key, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- One post's row, by post_id.
+			'meta_value' => maybe_serialize( $expected ), // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- The compare half of the compare-and-set.
+		);
+
+		if ( null === $assignment ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Conditional delete; the post meta cache is cleared below.
+			$rows = $wpdb->delete( $wpdb->postmeta, $where );
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Conditional update; the post meta cache is cleared below.
+			$rows = $wpdb->update( $wpdb->postmeta, array( 'meta_value' => maybe_serialize( wp_unslash( $assignment ) ) ), $where ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- The value written.
+		}
+
+		wp_cache_delete( $post_id, 'post_meta' );
+
+		if ( false === $rows ) {
+			return 'assignment_write_failed';
+		}
+
+		return $rows > 0 ? true : 'assignment_conflict';
+	}
+
+	/**
+	 * The error a refused slot write returns.
+	 *
+	 * @param  string $code         'assignment_conflict' or 'assignment_write_failed'.
+	 * @param  string $meta_key     Assignment slot key.
+	 * @param  array  $input_config The slot's input config.
+	 * @return \WP_Error
+	 */
+	private function slot_write_error( string $code, string $meta_key, array $input_config ): \WP_Error {
+		$label = $input_config['label'] ?? $meta_key;
+
+		if ( 'assignment_conflict' === $code ) {
+			return new \WP_Error(
+				'assignment_conflict',
+				sprintf(
+					/* translators: %s: Assignment field label. */
+					__( 'Someone else changed “%s” while your change was being applied. Reload and try again.', 'vip-workflows' ),
+					$label
+				),
+				array(
+					'status'   => 409,
+					'meta_key' => $meta_key,
+				)
+			);
+		}
+
+		return new \WP_Error(
+			'assignment_write_failed',
+			sprintf(
+				/* translators: %s: Assignment field label. */
+				__( '“%s” could not be saved.', 'vip-workflows' ),
+				$label
+			),
+			array(
+				'status'   => 500,
+				'meta_key' => $meta_key,
+			)
+		);
 	}
 
 	/**
