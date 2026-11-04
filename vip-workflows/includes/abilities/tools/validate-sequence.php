@@ -12,7 +12,8 @@
  * all run, for every sequence type — and then Sequence::prepare_config_for_write(),
  * a pure function (static, no database access, returns the normalized config,
  * throws on a malformed graph). Anything this reports valid is what the repository
- * would accept, by construction.
+ * would accept, by construction. Retired note inputs are removed first, as import
+ * removes them, and each removal is reported in `notes`.
  *
  * Every independent check runs and contributes, so a config that breaks more than
  * one category (metadata, agents, assignments, and the stage graph) is named by
@@ -85,6 +86,19 @@ function execute_validate_sequence( ?array $input = null ) {
 
 		$type      = isset( $input['type'] ) ? (string) $input['type'] : Sequence::TYPE_WORKFLOW;
 		$source_id = null;
+	}
+
+	// A file exported by an older version may carry retired free-text note inputs.
+	// Import removes them before validating, the same cleanup the 2.25.0 migration
+	// applies to stored rows, so they are removed here too: otherwise this would
+	// call invalid a file the import it predicts accepts. Only the known note types
+	// go; any other input that is not an assignment is still reported below. Phase
+	// sequences carry no transition inputs, and import strips nothing from them.
+	$retired_notes = array();
+	if ( Sequence::TYPE_PHASE !== $type ) {
+		$stripped      = Sequence::drop_retired_note_inputs( $config );
+		$config        = $stripped['config'];
+		$retired_notes = $stripped['dropped'];
 	}
 
 	// The controller gate, which create_item()/update_item()/import_sequence()
@@ -217,8 +231,40 @@ function execute_validate_sequence( ?array $input = null ) {
 		'stages_missing_region' => $stages_missing_region,
 		'regions_missing_entry' => $regions_missing_entry,
 		'normalized_config'     => empty( $errors ) ? $normalized_config : null,
-		'notes'                 => array(),
+		'notes'                 => describe_retired_note_removal( $retired_notes ),
 	);
+}
+
+/**
+ * Describe the retired note inputs removed before validation.
+ *
+ * One advisory per transition that lost a note, so a caller validating an old
+ * export sees what import will remove rather than finding it gone afterwards.
+ *
+ * @since 0.0.1
+ *
+ * @param  array<int, array{from: string, to: string, count: int}> $dropped What Sequence::drop_retired_note_inputs() removed.
+ * @return string[] Human-readable advisories, empty when nothing was removed.
+ */
+function describe_retired_note_removal( array $dropped ): array {
+	$notes = array();
+
+	foreach ( $dropped as $removal ) {
+		$notes[] = sprintf(
+			/* translators: 1: stage key holding the transition, 2: target stage key, 3: number of note inputs removed. */
+			_n(
+				'The transition from "%1$s" to "%2$s" declares %3$d retired note input. Import removes it, so it is left out of the validated config; create and update refuse it.',
+				'The transition from "%1$s" to "%2$s" declares %3$d retired note inputs. Import removes them, so they are left out of the validated config; create and update refuse them.',
+				$removal['count'],
+				'vip-workflows'
+			),
+			$removal['from'],
+			$removal['to'],
+			$removal['count']
+		);
+	}
+
+	return $notes;
 }
 
 /**
@@ -353,7 +399,7 @@ function register_validate_sequence(): void {
 					),
 					'notes'                 => array(
 						'type'        => 'array',
-						'description' => __( 'Advisories about the scope of the check itself.', 'vip-workflows' ),
+						'description' => __( 'Advisories about the scope of the check itself, and any retired note inputs removed before validating, as import removes them.', 'vip-workflows' ),
 						'items'       => array( 'type' => 'string' ),
 					),
 				),
