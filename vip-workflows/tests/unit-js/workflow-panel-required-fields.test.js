@@ -14,8 +14,9 @@
  * editor store and nothing else until a save, while the server's gate reads
  * post meta. A transition the gate can refuse therefore has to flush the post
  * first, or the author is refused for a field whose value is on screen in front
- * of them. The gate only judges a move that crosses INTO the publish region, so
- * that is the only move a required field makes the panel save for.
+ * of them. The same holds for a required tool, which runs on any move that
+ * declares it and reads the saved post — so a dirty post is saved before every
+ * move, and the save has to finish before the transition request goes out.
  *
  * Which leaves the case the author actually hits first, since the server also
  * projects that gate onto the edge as `_locked`: the button is DISABLED, so the
@@ -446,26 +447,24 @@ describe( 'WorkflowPanel required-field refusal', () => {
 	} );
 
 	/**
-	 * The narrowing, stated: a sequence with no required field has nothing the
-	 * transition can be refused for, so a dirty post's unsaved work is left
-	 * where the author left it.
+	 * The save does not depend on what the panel can predict about the server's
+	 * gates: a sequence with no required field can still declare required
+	 * tools, and those read the saved post. A dirty post is saved first.
 	 */
-	it( 'leaves a dirty post alone when no field is required', async () => {
+	it( 'saves a dirty post when no field is required', async () => {
 		postIsDirty = true;
 
 		await renderAndTransition( STATUS_WITH_OPTIONAL_FIELD );
 
-		expect( savePost ).not.toHaveBeenCalled();
-		expect( sequence ).toEqual( [ 'transition' ] );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect( sequence ).toEqual( [ 'save', 'transition' ] );
 	} );
 
 	/**
-	 * The gate only judges a move into the publish region, so a required field
-	 * gives a move that stays short of it no reason to write the post. Saving
-	 * here would be a write on every step through the sequence, for a refusal
-	 * that cannot happen.
+	 * A move that stays short of the publish region is not judged for required
+	 * fields, but its required tools still run against the saved post.
 	 */
-	it( 'leaves a dirty post alone on a move that does not cross into publish', async () => {
+	it( 'saves a dirty post on a move that does not cross into publish', async () => {
 		postIsDirty = true;
 
 		await renderAndTransition( STATUS_REQUIRED_FIELD_NO_CROSSING, {
@@ -473,23 +472,22 @@ describe( 'WorkflowPanel required-field refusal', () => {
 			publish: false,
 		} );
 
-		expect( savePost ).not.toHaveBeenCalled();
-		expect( sequence ).toEqual( [ 'transition' ] );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect( sequence ).toEqual( [ 'save', 'transition' ] );
 	} );
 
 	/**
-	 * Nor does a move between two publish-region stages: the post is already
-	 * live, so there is no boundary left for the gate to defend.
+	 * Nor is a move between two publish-region stages an exception.
 	 */
-	it( 'leaves a dirty post alone on a move within the publish region', async () => {
+	it( 'saves a dirty post on a move within the publish region', async () => {
 		postIsDirty = true;
 
 		await renderAndTransition( STATUS_REQUIRED_FIELD_WITHIN_PUBLISH, {
 			publish: false,
 		} );
 
-		expect( savePost ).not.toHaveBeenCalled();
-		expect( sequence ).toEqual( [ 'transition' ] );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect( sequence ).toEqual( [ 'save', 'transition' ] );
 	} );
 
 	/**
@@ -599,5 +597,157 @@ describe( 'WorkflowPanel required-field refusal', () => {
 		expect(
 			screen.getByText( /Required fields are empty/ )
 		).toHaveTextContent( 'Assigned editor' );
+	} );
+} );
+
+/**
+ * Required tools on a move that never reaches the publish region.
+ *
+ * The server runs a stage's required tools on every transition that declares
+ * them, and a tool such as readability reads the saved post. An author who
+ * edits the content and moves the post to review would otherwise be passed or
+ * refused on the old content. Both outcomes are pinned: the save has to have
+ * FINISHED before the transition request is sent, not merely started.
+ */
+describe( 'WorkflowPanel save before a required-tool move', () => {
+	// A draft-region stage moving to review, with no metadata fields at all —
+	// nothing the panel can see says this move depends on the saved post.
+	const STATUS_REVIEW_MOVE = {
+		...STATUS_RESPONSE,
+		metadata_fields: [],
+	};
+
+	const TOOL_REFUSAL = {
+		code: 'tool_check_failed',
+		message: 'Transition blocked by required checks.',
+		data: {
+			status: 422,
+			hard_failures: [
+				{
+					tool: 'vip-workflows/readability',
+					message: 'Readability score is below the minimum.',
+				},
+			],
+			soft_warnings: [],
+		},
+	};
+
+	/**
+	 * Hold the save open until the test lets it go, so the panel cannot send
+	 * the transition while it is still in flight without the order showing it.
+	 */
+	function deferSave() {
+		let finish;
+		savePost.mockImplementationOnce( () => {
+			sequence.push( 'save:start' );
+			return new Promise( ( resolve ) => {
+				finish = () => {
+					postIsDirty = false;
+					sequence.push( 'save:done' );
+					resolve();
+				};
+			} );
+		} );
+		return () => finish();
+	}
+
+	/**
+	 * Render the review move and click it, with the transition POST answered by
+	 * `respond` and the save held open until the returned callback is called.
+	 *
+	 * @param {Function} respond Called for the POST; returns its promise.
+	 * @return {Promise<Function>} Releases the held save.
+	 */
+	async function clickReviewWithHeldSave( respond ) {
+		const releaseSave = deferSave();
+
+		apiFetch.mockImplementation( ( { path, method } ) => {
+			if ( path === STATUS_PATH && method !== 'POST' ) {
+				return Promise.resolve( STATUS_REVIEW_MOVE );
+			}
+			if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
+				return Promise.resolve( [] );
+			}
+			if ( 'POST' === method ) {
+				sequence.push( 'transition' );
+				return respond();
+			}
+			return Promise.resolve( {} );
+		} );
+
+		render( <WorkflowPanel /> );
+
+		await waitFor( () =>
+			expect(
+				screen.getByRole( 'button', { name: 'Send to Review' } )
+			).toBeInTheDocument()
+		);
+
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Send to Review' } ).click();
+		} );
+
+		return releaseSave;
+	}
+
+	beforeEach( () => {
+		apiFetch.mockReset();
+		savePost.mockClear();
+		postIsDirty = true;
+		editedMeta = {};
+		sequence = [];
+		seedEditorStore();
+	} );
+
+	it( 'saves unsaved edits before a move whose required tools pass', async () => {
+		const releaseSave = await clickReviewWithHeldSave( () =>
+			Promise.resolve( STATUS_REVIEW_MOVE )
+		);
+
+		// The save is in flight: nothing may have been sent yet.
+		expect( sequence ).toEqual( [ 'save:start' ] );
+
+		await act( async () => {
+			releaseSave();
+		} );
+
+		await waitFor( () =>
+			expect( sequence ).toEqual( [
+				'save:start',
+				'save:done',
+				'transition',
+			] )
+		);
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect(
+			screen.queryByRole( 'dialog', { name: 'Transition blocked' } )
+		).not.toBeInTheDocument();
+	} );
+
+	it( 'saves unsaved edits before a move whose required tools refuse it', async () => {
+		const releaseSave = await clickReviewWithHeldSave( () =>
+			Promise.reject( TOOL_REFUSAL )
+		);
+
+		expect( sequence ).toEqual( [ 'save:start' ] );
+
+		await act( async () => {
+			releaseSave();
+		} );
+
+		// The refusal is the server's verdict on the saved content, and it is
+		// shown as one.
+		expect(
+			await screen.findByRole( 'dialog', { name: 'Transition blocked' } )
+		).toBeInTheDocument();
+		expect(
+			screen.getByText( 'Readability score is below the minimum.' )
+		).toBeInTheDocument();
+		expect( sequence ).toEqual( [
+			'save:start',
+			'save:done',
+			'transition',
+		] );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
 	} );
 } );

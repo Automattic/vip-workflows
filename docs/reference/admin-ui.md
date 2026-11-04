@@ -47,7 +47,11 @@ rail and its history — lives in one `PluginSidebar` named "Workflow".
   row (assign, switch and remove, each through the editor store) and
   `MetadataPanel`
 - `WorkflowPanel.js` — the post's movement through its workflow: assignment and
-  claim, stage-agent states, the transition rail, and Show history
+  claim, stage-agent states, the transition rail, and Show history. A post with
+  unsaved edits is always saved before any transition is sent, because the
+  server judges every move (required tools, required fields, an AI stage's
+  agent) against the saved post. If the save does not persist, the transition
+  is not sent and the panel shows the save-failure notice
 - `TransitionRail.js` — the current stage and every way out of it, drawn as
   one figure. A transition's required tools are not listed: they run when it
   fires, and a refusal opens `ToolFailuresModal`

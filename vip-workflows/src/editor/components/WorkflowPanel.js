@@ -79,47 +79,31 @@ const WorkflowHistoryModal = lazy( () => import( './WorkflowHistoryModal' ) );
  * The post's place in its workflow, and everything that moves it.
  */
 export function WorkflowPanel() {
-	const {
-		postId,
-		postType,
-		postStatus,
-		savedStatus,
-		workflow,
-		hasRequiredMetadata,
-		loading,
-	} = useSelect( ( select ) => {
-		const s = select( STORE_NAME );
-		const editor = select( editorStore );
-		return {
-			postId: s.getPostId(),
-			postType: s.getPostType(),
-			// Live core visibility — decoupled from the workflow stage, so
-			// the panel can show whether a post-publish-stage post is
-			// actually live.
-			postStatus: editor.getEditedPostAttribute( 'status' ),
-			// The committed status, for the publish confirm: the server
-			// decides the boundary crossing against what is persisted, so
-			// an unsaved status edit must not change whether we ask.
-			savedStatus: editor.getCurrentPostAttribute( 'status' ),
-			// The whole of the post's workflow state, as the store last read
-			// it. Not held here: an assignment or a removal performed anywhere
-			// in the editor has to reach this panel, and a copy cannot be
-			// reached.
-			workflow: s.getWorkflowStatus(),
-			// Whether the sequence declares any REQUIRED metadata field.
-			// The server's gate reads those fields out of post meta, and the
-			// Summary rows write them through useEntityProp — an editor-store edit
-			// that is not in the database until the post is saved. So this,
-			// together with whether the move crosses into the publish region,
-			// is what tells a transition whether it depends on persisted meta.
-			hasRequiredMetadata: ( s.getMetadataFields() || [] ).some(
-				( field ) => !! field.required
-			),
-			// A resolved read that answered "no workflow" is not the same as
-			// no read yet, and only the second is a spinner.
-			loading: ! s.isWorkflowStatusResolved(),
-		};
-	}, [] );
+	const { postId, postType, postStatus, savedStatus, workflow, loading } =
+		useSelect( ( select ) => {
+			const s = select( STORE_NAME );
+			const editor = select( editorStore );
+			return {
+				postId: s.getPostId(),
+				postType: s.getPostType(),
+				// Live core visibility — decoupled from the workflow stage, so
+				// the panel can show whether a post-publish-stage post is
+				// actually live.
+				postStatus: editor.getEditedPostAttribute( 'status' ),
+				// The committed status, for the publish confirm: the server
+				// decides the boundary crossing against what is persisted, so
+				// an unsaved status edit must not change whether we ask.
+				savedStatus: editor.getCurrentPostAttribute( 'status' ),
+				// The whole of the post's workflow state, as the store last read
+				// it. Not held here: an assignment or a removal performed anywhere
+				// in the editor has to reach this panel, and a copy cannot be
+				// reached.
+				workflow: s.getWorkflowStatus(),
+				// A resolved read that answered "no workflow" is not the same as
+				// no read yet, and only the second is a spinner.
+				loading: ! s.isWorkflowStatusResolved(),
+			};
+		}, [] );
 
 	// The stage's ways out, with the required-metadata locks re-decided against
 	// the fields as they stand in the editor rather than as they stand in the
@@ -283,8 +267,8 @@ export function WorkflowPanel() {
 			requestData.comment = comment;
 		}
 
-		// Two things the server judges against the *persisted* post, both of
-		// which the author may have only in the editor store:
+		// The server judges a transition against the *persisted* post, and the
+		// author may have changes only in the editor store:
 		//
 		// - An AI stage runs its agent asynchronously against the database row,
 		//   so unsaved edits would hand the agent a stale — or, for a
@@ -297,31 +281,20 @@ export function WorkflowPanel() {
 		//   screen in front of them — and clicking again does the same thing.
 		//   A required-field refusal is precisely the case where the fix IS an
 		//   unsaved meta edit, so the edit has to go first.
+		// - A required tool runs on every move that declares it, not only on a
+		//   publish crossing, and tools such as readability read the saved post.
+		//   An author who edits the content and moves it on would be passed or
+		//   refused on the old content.
 		//
-		//   The server only holds a move for required fields when it crosses
-		//   INTO the publish region (Sequence::crosses_into_publish(), judged on
-		//   stage regions: the target's is publish and the current stage's is
-		//   not). Every other move is never refused for them, so it has no
-		//   reason to write the post first. Same stage-region test the publish
-		//   confirm below asks, minus the saved-status clause that is about
-		//   whether going live is news, not about what the gate judges.
-		//
-		// Still narrowed rather than "save on every dirty transition": a
-		// transition that depends on neither leaves the author's unsaved work
-		// exactly where they left it.
+		// So a dirty post is always saved first, whatever the move. Narrowing the
+		// save to the moves that "need" it means predicting what every server-side
+		// gate reads, and any miss judges the move on content the author is no
+		// longer looking at.
 		const targetTransition = transitions.find( ( t ) => t.to === toStatus );
 		const targetIsAiStage =
 			!! targetTransition?.status_info?.agent?.ability_id;
-		const crossesIntoPublish =
-			targetTransition?.status_info?.status === 'publish' &&
-			workflow?.current?.status !== 'publish';
-		const needsPersistedPost =
-			targetIsAiStage || ( hasRequiredMetadata && crossesIntoPublish );
-		const editor = registry.select( editorStore );
-		const ensureSaved =
-			needsPersistedPost && editor.isEditedPostDirty()
-				? savePost()
-				: Promise.resolve();
+		const needsSave = registry.select( editorStore ).isEditedPostDirty();
+		const ensureSaved = needsSave ? savePost() : Promise.resolve();
 
 		ensureSaved
 			.then( () => {
@@ -331,7 +304,7 @@ export function WorkflowPanel() {
 				// the server will judge against a row that is not what the author
 				// is looking at.
 				if (
-					needsPersistedPost &&
+					needsSave &&
 					registry.select( editorStore ).isEditedPostDirty()
 				) {
 					throw {
@@ -413,12 +386,12 @@ export function WorkflowPanel() {
 					} );
 
 					if ( REQUIRED_METADATA_LOCK === err.code ) {
-						// The decision to save before transitioning reads the
-						// required fields off the last status read. A sequence
-						// that gained one since the editor loaded would skip the
-						// save, be refused here, and be refused again on the
-						// next click — the loop this guard exists to end. Re-read
-						// so the next attempt knows to persist first.
+						// The post was saved before this request, so the field
+						// really is empty on the server. A sequence that gained
+						// it since the editor loaded would otherwise leave the
+						// move offered and refused on every click. Re-read so the
+						// rail picks up the server's lock and holds the move until
+						// the field is filled.
 						fetchWorkflowStatus();
 					}
 				} else {
