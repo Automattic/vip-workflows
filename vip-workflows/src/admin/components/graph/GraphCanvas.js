@@ -158,8 +158,15 @@ const REDUCED_MOTION = '( prefers-reduced-motion: reduce )';
 
 // How the view travels when the author presses "Fit view" or "Reset layout" in
 // the Controls panel, so the two buttons move the canvas the same way. Linear,
-// because d3's default zooms out mid-flight on a long pan.
-const CONTROL_TRANSITION = { duration: 200, interpolate: 'linear' };
+// because d3's default zooms out mid-flight on a long pan. The author asked for
+// the move, but not to watch the canvas slide there, so under reduced motion
+// both buttons jump instead. Read when used, like the reveal's, rather than
+// once at load, so a preference changed mid-session is honored.
+const CONTROL_MS = 200;
+const controlTransition = () => ( {
+	duration: window.matchMedia( REDUCED_MOTION ).matches ? 0 : CONTROL_MS,
+	interpolate: 'linear',
+} );
 
 /**
  * Width the floating inspector takes out of the canvas, in pixels.
@@ -1172,7 +1179,7 @@ function Flow( {
 		}
 		pendingRecenter.current = false;
 		// Centering keeps the zoom the author is at.
-		centerOn( layout.nodes, CONTROL_TRANSITION );
+		centerOn( layout.nodes, controlTransition() );
 	}, [ layout, centerOn ] );
 
 	// --- Showing a fault ----------------------------------------------------
@@ -1890,7 +1897,7 @@ function Flow( {
 				/>
 				<Controls
 					showInteractive={ false }
-					fitViewOptions={ CONTROL_TRANSITION }
+					fitViewOptions={ controlTransition() }
 				>
 					<ControlButton
 						onClick={ handleResetLayout }
