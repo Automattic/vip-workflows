@@ -863,6 +863,122 @@ class StageAgentRunnerExecuteTest extends TestCase
     }
 
     /**
+     * Run an errored agent whose error route publishes, and return what it logged.
+     *
+     * @param  callable $arrange Configures the executor mock's execute() expectation.
+     * @return string The captured error_log output.
+     */
+    private function held_error_route_log( callable $arrange ): string
+    {
+        $this->stub_meta();
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn(
+                $this->ai_sequence(
+                    array( 'pass' => 'review', 'error' => 'live' ),
+                    'publish'
+                )
+            );
+        $status_manager->shouldReceive( 'transition' )->never();
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $arrange( $executor->shouldReceive( 'execute' )->once() );
+
+        // phpunit.xml routes error_log to /dev/null; capture it here.
+        $log_file = tempnam( sys_get_temp_dir(), 'vipwf-log-' );
+        $previous = ini_set( 'error_log', $log_file );
+        try {
+            ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+        } finally {
+            ini_set( 'error_log', $previous );
+        }
+
+        $log = (string) file_get_contents( $log_file );
+        unlink( $log_file );
+
+        return $log;
+    }
+
+    /**
+     * Assert the hold wrote one line and nothing in the log was split by injected text.
+     *
+     * The run also writes fail_in_place()'s own line, which carries the hold
+     * message, so the check is per line: each one is a whole error_log entry.
+     *
+     * @param string $log Captured error_log output.
+     */
+    private function assert_log_lines_are_unbroken( string $log ): void
+    {
+        $this->assertSame( 1, substr_count( $log, 'Agent error route held at publish boundary' ), 'Exactly one hold line.' );
+        foreach ( explode( "\n", rtrim( $log, "\n" ) ) as $line ) {
+            $this->assertMatchesRegularExpression( '/^\[\d{2}-\w{3}-\d{4} [\d:]+ \w+\] /', $line, 'Every line is a whole log entry.' );
+        }
+    }
+
+    /**
+     * A held error route logs the exception class, never the exception message.
+     *
+     * The message is free-form text from an extension or provider: it can carry
+     * credentials, and a line break in it would forge a second log entry.
+     */
+    public function test_held_error_route_logs_the_exception_class_not_its_message(): void
+    {
+        $log = $this->held_error_route_log(
+            static function ( $expectation ): void {
+                $expectation->andThrow( new \RuntimeException( "token=sk-SECRET\n[VIP Workflows] forged entry" ) );
+            }
+        );
+
+        $this->assertStringContainsString(
+            '[VIP Workflows] Agent error route held at publish boundary: post=42 stage=ai_desk target=live outcome=error code=RuntimeException',
+            $log
+        );
+        $this->assertStringNotContainsString( 'sk-SECRET', $log );
+        $this->assertStringNotContainsString( 'forged entry', $log );
+        $this->assert_log_lines_are_unbroken( $log );
+    }
+
+    /**
+     * An ability's WP_Error reaches the log as its code, reduced to a safe token.
+     */
+    public function test_held_error_route_logs_a_sanitized_error_code(): void
+    {
+        $log = $this->held_error_route_log(
+            static function ( $expectation ): void {
+                $result             = self::make_result( false );
+                $result->error      = "Provider rejected key sk-SECRET\nsecond line";
+                $result->error_code = "provider.http_error\r\n[forged] <b>x</b>";
+                $expectation->andReturn( $result );
+            }
+        );
+
+        $this->assertStringContainsString( 'code=provider.http_errorforgedbxb', $log );
+        $this->assertStringNotContainsString( 'sk-SECRET', $log );
+        $this->assertStringNotContainsString( 'second line', $log );
+        $this->assert_log_lines_are_unbroken( $log );
+    }
+
+    /**
+     * A logged code is capped, so one log line stays bounded whatever an ability sets.
+     */
+    public function test_held_error_route_caps_the_logged_code(): void
+    {
+        $log = $this->held_error_route_log(
+            static function ( $expectation ): void {
+                $result             = self::make_result( false );
+                $result->error      = 'failed';
+                $result->error_code = str_repeat( 'a', 500 );
+                $expectation->andReturn( $result );
+            }
+        );
+
+        $this->assertStringContainsString( 'code=' . str_repeat( 'a', 100 ) . "\n", $log );
+        $this->assertStringNotContainsString( str_repeat( 'a', 101 ), $log );
+    }
+
+    /**
      * An opted-in sequence still takes its error route into publish.
      */
     public function test_error_route_publishes_when_the_sequence_opts_in(): void

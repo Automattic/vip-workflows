@@ -122,6 +122,13 @@ class StageAgentRunner implements ModuleInterface {
 	private const PUBLICATION_REGIONS = array( 'publish', 'private' );
 
 	/**
+	 * Longest token log_token() writes to a log line.
+	 *
+	 * @var int
+	 */
+	private const LOG_TOKEN_MAX = 100;
+
+	/**
 	 * The ability id currently executing a stage agent, or '' when none is.
 	 *
 	 * Static because the impersonation it shadows (wp_set_current_user) is itself
@@ -462,6 +469,7 @@ class StageAgentRunner implements ModuleInterface {
 				$stage_key,
 				$ability_id,
 				$e->getMessage(),
+				get_class( $e ),
 				$routing,
 				$from_stage,
 				$chain,
@@ -510,7 +518,14 @@ class StageAgentRunner implements ModuleInterface {
 			$message = ! empty( $result->error )
 				? $result->error
 				: __( 'The agent returned an unrecognized result.', 'vip-workflows' );
-			$this->resolve_error( $post_id, $stage_key, $ability_id, $message, $routing, $from_stage, $chain, $actor_user, $run );
+			// A failure the ability built itself carries no code; a successful run
+			// with no recognized verdict is a contract violation, not a failure.
+			if ( ! empty( $result->error_code ) ) {
+				$error_code = $result->error_code;
+			} else {
+				$error_code = empty( $result->success ) ? 'ability_failure' : 'unrecognized_result';
+			}
+			$this->resolve_error( $post_id, $stage_key, $ability_id, $message, $error_code, $routing, $from_stage, $chain, $actor_user, $run );
 			return;
 		}
 
@@ -561,15 +576,16 @@ class StageAgentRunner implements ModuleInterface {
 	 * @param string $stage_key  Stage the agent ran (or was to run) in.
 	 * @param string $ability_id Agent ability ID.
 	 * @param string $message    The error.
+	 * @param string $error_code Machine-readable cause (WP_Error code or exception class), for logs.
 	 * @param array  $routing    The stage's routing map.
 	 * @param string $from_stage Stage the post entered from ('' when unknown).
 	 * @param int    $chain      Chain length this run represents.
 	 * @param int    $actor_user User the routed exit transition acts for.
 	 * @param array  $run        Telemetry details for the run. See run_stage_agent().
 	 */
-	private function resolve_error( int $post_id, string $stage_key, string $ability_id, string $message, array $routing, string $from_stage, int $chain, int $actor_user, array $run = array() ): void {
+	private function resolve_error( int $post_id, string $stage_key, string $ability_id, string $message, string $error_code, array $routing, string $from_stage, int $chain, int $actor_user, array $run = array() ): void {
 		if ( ! empty( $routing['error'] ) ) {
-			$this->finish( $post_id, $stage_key, $ability_id, $routing['error'], 'error', $chain, $actor_user, $from_stage, $message, $run );
+			$this->finish( $post_id, $stage_key, $ability_id, $routing['error'], 'error', $chain, $actor_user, $from_stage, $message, $run, $error_code );
 			return;
 		}
 
@@ -818,12 +834,15 @@ class StageAgentRunner implements ModuleInterface {
 	 * @param  string $from_key  Stage the post is seated in.
 	 * @param  string $to_key    Stage the agent routed to.
 	 * @param  string $outcome   Outcome that chose the route.
-	 * @param  string $error     Underlying error on an error-routed run, '' otherwise.
+	 * @param  string $error_code Machine-readable cause on an error-routed run (WP_Error
+	 *                            code or exception class), '' otherwise. Never the
+	 *                            message: that text comes from extensions and
+	 *                            providers, and is not fit for the server log.
 	 * @return array{message: string, reason: string}|null Message for the editor and a stop
 	 *               reason for telemetry (publish_held, left_workflow or
 	 *               unreadable_region), or null to proceed.
 	 */
-	private function publication_hold( int $post_id, string $from_key, string $to_key, string $outcome, string $error ): ?array {
+	private function publication_hold( int $post_id, string $from_key, string $to_key, string $outcome, string $error_code ): ?array {
 		$status_manager = \VIPWorkflows\Plugin::get_instance()->get_status_manager();
 		$sequence       = $status_manager->get_sequence_for_post( $post_id );
 
@@ -843,7 +862,16 @@ class StageAgentRunner implements ModuleInterface {
 			// non-publishing. Held rather than passed through: the check belongs to
 			// this method, not to whatever the transition happens to refuse next.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflows] Agent stage "%s" on post %d routes to "%s", whose region could not be read: %s', $from_key, $post_id, $to_key, $e->getMessage() ) );
+			error_log(
+				sprintf(
+					'[VIP Workflows] Agent route held, destination region unreadable: post=%d stage=%s target=%s outcome=%s code=%s',
+					$post_id,
+					self::log_token( $from_key ),
+					self::log_token( $to_key ),
+					self::log_token( $outcome ),
+					self::log_token( get_class( $e ) )
+				)
+			);
 
 			return array(
 				'message' => sprintf(
@@ -860,10 +888,21 @@ class StageAgentRunner implements ModuleInterface {
 		}
 
 		// An errored run reports its own failure in the same message slot, so the
-		// underlying error is logged before the hold message replaces it.
-		if ( 'error' === $outcome && '' !== $error ) {
+		// cause is logged before the hold message replaces it. Only the code: the
+		// message is free-form text from an extension or provider and may carry
+		// secrets or line breaks. The full message stays in the stored result.
+		if ( 'error' === $outcome && '' !== $error_code ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflows] Agent stage "%s" on post %d errored and its error route publishes: %s', $from_key, $post_id, $error ) );
+			error_log(
+				sprintf(
+					'[VIP Workflows] Agent error route held at publish boundary: post=%d stage=%s target=%s outcome=%s code=%s',
+					$post_id,
+					self::log_token( $from_key ),
+					self::log_token( $to_key ),
+					self::log_token( $outcome ),
+					self::log_token( $error_code )
+				)
+			);
 		}
 
 		// Points at the sequence, not at a manual move: a held route is withheld
@@ -876,6 +915,22 @@ class StageAgentRunner implements ModuleInterface {
 			'message' => $message,
 			'reason'  => 'publish_held',
 		);
+	}
+
+	/**
+	 * Reduce a value to a bounded token that is safe in a server log line.
+	 *
+	 * Keeps letters, digits, `_`, `.`, `-` and `\` (namespaced class names) and
+	 * caps the length, so nothing written through it can break the line, forge
+	 * another entry or carry prose.
+	 *
+	 * @param  string $value Identifier-like value: a key, an error code or a class name.
+	 * @return string The token, or `-` when nothing safe remains.
+	 */
+	private static function log_token( string $value ): string {
+		$token = substr( (string) preg_replace( '/[^A-Za-z0-9_.\\\\-]/', '', $value ), 0, self::LOG_TOKEN_MAX );
+
+		return '' === $token ? '-' : $token;
 	}
 
 	/**
@@ -900,14 +955,15 @@ class StageAgentRunner implements ModuleInterface {
 	 * @param string $from_stage Stage the post entered from, kept for a fail-in-place fallback.
 	 * @param string $comment    Audit comment for the exit transition — the error message on an error-routed run, '' otherwise.
 	 * @param array  $run        Telemetry details for the run. See run_stage_agent().
+	 * @param string $error_code Machine-readable cause on an error-routed run, '' otherwise.
 	 */
-	private function finish( int $post_id, string $stage_key, string $ability_id, string $target, string $outcome, int $chain, int $actor_user, string $from_stage = '', string $comment = '', array $run = array() ): void {
+	private function finish( int $post_id, string $stage_key, string $ability_id, string $target, string $outcome, int $chain, int $actor_user, string $from_stage = '', string $comment = '', array $run = array(), string $error_code = '' ): void {
 		// Before anything is cleared or counted: a move that makes the post
 		// readable waits for a person. Checked here rather than at the call sites
 		// because every agent-driven move arrives through this method — a routed
 		// error is an exit transition like any other, and routing one at a
 		// publishing stage must not be the cheap way around the boundary.
-		$hold = $this->publication_hold( $post_id, $stage_key, $target, $outcome, $comment );
+		$hold = $this->publication_hold( $post_id, $stage_key, $target, $outcome, $error_code );
 		if ( null !== $hold ) {
 			$this->fail_in_place( $post_id, $stage_key, $ability_id, $hold['message'], $from_stage, array_merge( $run, array( 'stop_reason' => $hold['reason'] ) ) );
 			return;
