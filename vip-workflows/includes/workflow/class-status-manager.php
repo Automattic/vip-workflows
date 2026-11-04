@@ -823,6 +823,12 @@ class StatusManager {
 			if ( is_wp_error( $assignee_validation ) ) {
 				return $assignee_validation;
 			}
+
+			// An assignee who cannot read the post would never see it in My Work.
+			$assignee_access = $assignment_manager->validate_assignee_access( $post_id, $transition_config, $options['input_data'] ?? array() );
+			if ( is_wp_error( $assignee_access ) ) {
+				return $assignee_access;
+			}
 		}
 
 		// Interrupting a running stage agent is a confirm, not a block.

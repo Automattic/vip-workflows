@@ -15,6 +15,7 @@ use VIPWorkflows\Story\Story;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 use VIPWorkflows\Ideation\Research\IdeationPostTypes;
 use VIPWorkflows\Workflow\Actor;
+use VIPWorkflows\Workflow\AssignmentManager;
 use VIPWorkflows\Workflow\StagePalette;
 use VIPWorkflows\Workflow\StatusManager;
 use WP_REST_Controller;
@@ -658,6 +659,20 @@ class WorkflowController extends WP_REST_Controller {
 		// no permitted edges keeps edit_post and stays in the editor with their
 		// unsaved work, so emitting the flag would state something false to every
 		// consumer of this endpoint.
+		// A role assignment is accepted even when some of the role's members
+		// cannot open the post; the assigner is told here instead. The key is
+		// present only when there is something to say.
+		if ( ! empty( $options['input_data'] ) ) {
+			$sequence          = $status_manager->get_sequence_for_post( $post_id );
+			$transition_config = $sequence ? $sequence->get_transition( (string) $current_stage, (string) $to_status ) : null;
+			$warnings          = is_array( $transition_config )
+				? ( new AssignmentManager() )->get_assignee_access_warnings( $post_id, $transition_config, $options['input_data'] )
+				: array();
+			if ( ! empty( $warnings ) ) {
+				$data['warnings'] = $warnings;
+			}
+		}
+
 		$response->set_data( $data );
 
 		return $response;

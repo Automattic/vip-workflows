@@ -33,6 +33,10 @@ StatusManager::transition($post_id, 'review', $options)
 4. Check role-based permissions (allowed_roles)
     ↓
     If user lacks role → return WP_Error (403)
+    ↓
+    Validate submitted assignees: a user assignee must exist and pass
+    user_can($assignee, 'read_post', $post_id) → else WP_Error (422
+    invalid_assignee / 400 assignee_cannot_read), nothing written
 5. Run required tools (if not bypassed)
     ↓
     AbilityExecutor::execute('readability', ['post_id' => $post_id], 'transition')
@@ -63,7 +67,8 @@ EventBus stores the event (audit log, post history, recent activity)
     ↓
 NotificationDispatcher delivers on the routed channels
     ↓
-Return success to client
+Return success to client (WorkflowController adds `warnings[]` when a role
+assignee's members cannot all read the post)
     ↓
 Editor sidebar updates to show new status and history
 ```

@@ -415,6 +415,13 @@ is the floor where the row offers an action. A count is scoped rather than
 filtered: a caller below `edit_others_posts` counts their own posts, the scope
 core gives the per-status counts on `edit.php`.
 
+A row filter can hide work that was handed to someone. My Work drops an
+assignment its assignee cannot read, so the write side refuses it first:
+`AssignmentManager::validate_assignee_access()` rejects a user assignee who
+fails `read_post` (`400 assignee_cannot_read`), and a role assignee is accepted
+with a `warnings[]` entry from `get_assignee_access_warnings()`. A new filter
+that can hide assigned work needs the same pairing.
+
 ```php
 foreach ( $query->posts as $post ) {
     // The route gate said the caller may use this feature. This says whether

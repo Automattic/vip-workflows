@@ -81,6 +81,7 @@ A transition may capture inputs; at most **one** may be an assignment:
 
 - `meta_key` must be **unique across the whole sequence**. Import regenerates these keys, so a hand-authored `meta_key` survives create but is replaced on import.
 - `assignee_type` is `user`, `role`, or `agent` — the three `AssignmentManager::get_assignee_types()` registers, extensible through the `vip_workflows_assignee_types` filter. The editor offers a picker for `user` and `role`. Other strings are stored as given and not validated at write time, so use one only when an extension handles it.
+- An assignee must be able to open the post. A `user` assignee who fails `read_post` on it is refused: the transition answers `400` with code `assignee_cannot_read`, names the person, and writes nothing. Access is judged against the post as it stands when the transition is requested. A `role` assignee is never refused, because its members can change; when some or all of its members cannot open the post, the transition still succeeds and its response carries a `warnings` array (see `POST /workflow/post/{id}/transition` in [quick-reference.md](quick-reference.md)). Without this, the assignment would exist but never reach the assignee's My Work, which lists only posts its reader can open.
 - The legacy singular `input` key is refused alongside `inputs`; use `inputs` (plural).
 
 ## Metadata fields (`metadata_fields[]`)

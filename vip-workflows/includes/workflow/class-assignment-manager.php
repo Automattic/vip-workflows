@@ -25,6 +25,11 @@ class AssignmentManager {
 	public const STATUS_EXPIRED   = 'expired';
 
 	/**
+	 * Most members of a role checked for read access to an assigned post.
+	 */
+	public const ROLE_ACCESS_CHECK_LIMIT = 200;
+
+	/**
 	 * Get all registered assignee types.
 	 *
 	 * @return array
@@ -502,9 +507,197 @@ class AssignmentManager {
 		return true;
 	}
 
+	/**
+	 * Refuse a user assignee who cannot read the post.
+	 *
+	 * My Work lists an assigned post only for an assignee who passes
+	 * `read_post` on it, so an assignment to someone who cannot open the post
+	 * would never reach them. Refusing it here tells the assigner while they
+	 * can still choose someone else.
+	 *
+	 * StatusManager calls this with validate_transition_assignees(), before
+	 * any post state changes, so access is judged against the post as it
+	 * stands when the transition is requested.
+	 *
+	 * Role assignees are not refused: the members of a role can change after
+	 * the assignment is made. get_assignee_access_warnings() reports them.
+	 *
+	 * @param  int   $post_id    Post ID.
+	 * @param  array $transition Transition config from sequence.
+	 * @param  array $input_data User-provided input data.
+	 * @return true|\WP_Error True when every supplied user assignee can read the post.
+	 */
+	public function validate_assignee_access( int $post_id, array $transition, array $input_data ) {
+		foreach ( $this->get_supplied_assignees( $transition, $input_data ) as $assignee ) {
+			if ( 'user' !== $assignee['type'] ) {
+				continue;
+			}
+
+			$user_id = (int) $assignee['value'];
+			if ( user_can( $user_id, 'read_post', $post_id ) ) {
+				continue;
+			}
+
+			$user = get_userdata( $user_id );
+
+			return new \WP_Error(
+				'assignee_cannot_read',
+				sprintf(
+					/* translators: %s: Display name of the chosen assignee. */
+					__( '%s can’t open this post, so they can’t be assigned to it.', 'vip-workflows' ),
+					$user ? $user->display_name : (string) $user_id
+				),
+				array(
+					'status'        => 400,
+					'meta_key'      => $assignee['meta_key'],
+					'assignee_type' => 'user',
+					'user_id'       => $user_id,
+				)
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * Describe role assignees whose members cannot all read the post.
+	 *
+	 * A role assignment is never refused for access; this flags it instead.
+	 * Call it after the transition commits, so access is judged against the
+	 * post's final status.
+	 *
+	 * At most ROLE_ACCESS_CHECK_LIMIT members are checked per role. A role
+	 * with no members is judged by the capabilities the role itself grants.
+	 *
+	 * @param  int   $post_id    Post ID.
+	 * @param  array $transition Transition config from sequence.
+	 * @param  array $input_data User-provided input data.
+	 * @return array[] Warnings, each with `type`, `meta_key`, `role` and `message`.
+	 */
+	public function get_assignee_access_warnings( int $post_id, array $transition, array $input_data ): array {
+		$warnings = array();
+
+		foreach ( $this->get_supplied_assignees( $transition, $input_data ) as $assignee ) {
+			if ( 'role' !== $assignee['type'] || ! is_string( $assignee['value'] ) ) {
+				continue;
+			}
+
+			$role_slug = $assignee['value'];
+			$role      = get_role( $role_slug );
+			if ( ! $role ) {
+				continue;
+			}
+
+			$member_ids = get_users(
+				array(
+					'role'   => $role_slug,
+					'fields' => 'ID',
+					'number' => self::ROLE_ACCESS_CHECK_LIMIT,
+				)
+			);
+
+			if ( empty( $member_ids ) ) {
+				$readable_count = $this->role_can_read_post( $role, $post_id ) ? 1 : 0;
+				$checked_count  = 1;
+			} else {
+				$checked_count  = count( $member_ids );
+				$readable_count = count(
+					array_filter(
+						$member_ids,
+						static fn( $member_id ) => user_can( (int) $member_id, 'read_post', $post_id )
+					)
+				);
+			}
+
+			if ( $readable_count === $checked_count ) {
+				continue;
+			}
+
+			$role_names = wp_roles()->get_names();
+			$role_name  = isset( $role_names[ $role_slug ] ) ? translate_user_role( $role_names[ $role_slug ] ) : $role_slug;
+
+			$message = 0 === $readable_count
+				/* translators: %s: Role name. */
+				? __( 'No one with the %s role can open this post, so the assignment won’t appear in anyone’s My Work.', 'vip-workflows' )
+				/* translators: %s: Role name. */
+				: __( 'Some people with the %s role can’t open this post, so the assignment won’t appear in their My Work.', 'vip-workflows' );
+
+			$warnings[] = array(
+				'type'     => 'assignee_cannot_read',
+				'meta_key' => $assignee['meta_key'],
+				'role'     => $role_slug,
+				'message'  => sprintf( $message, $role_name ),
+			);
+		}
+
+		return $warnings;
+	}
+
 	// =========================================================================
 	// Private Helpers
 	// =========================================================================
+
+	/**
+	 * Assignees a transition's input names, one per assignment slot.
+	 *
+	 * Slots absent from the input or submitted empty are skipped: they assign
+	 * no one.
+	 *
+	 * @param  array $transition Transition config from sequence.
+	 * @param  array $input_data User-provided input data.
+	 * @return array[] Each with `meta_key`, `type` and `value`.
+	 */
+	private function get_supplied_assignees( array $transition, array $input_data ): array {
+		$inputs = $transition['inputs'] ?? array();
+		if ( ! is_array( $inputs ) ) {
+			return array();
+		}
+
+		$assignees = array();
+		foreach ( $inputs as $input_config ) {
+			if ( ! is_array( $input_config ) || 'assignment' !== ( $input_config['type'] ?? '' ) ) {
+				continue;
+			}
+
+			$meta_key = $input_config['meta_key'] ?? null;
+			if ( ! $meta_key || ! array_key_exists( $meta_key, $input_data ) ) {
+				continue;
+			}
+
+			$value = $input_data[ $meta_key ];
+			// The same test process_transition_input() uses to clear a slot.
+			if ( ! $value ) {
+				continue;
+			}
+
+			$assignees[] = array(
+				'meta_key' => $meta_key,
+				'type'     => $input_config['assignee_type'] ?? 'user',
+				'value'    => $value,
+			);
+		}
+
+		return $assignees;
+	}
+
+	/**
+	 * Whether a role's own capabilities let a non-author read the post.
+	 *
+	 * Used for a role with no members, where there is no user to check.
+	 *
+	 * @param  \WP_Role $role    Role.
+	 * @param  int      $post_id Post ID.
+	 * @return bool
+	 */
+	private function role_can_read_post( \WP_Role $role, int $post_id ): bool {
+		foreach ( map_meta_cap( 'read_post', 0, $post_id ) as $capability ) {
+			if ( ! $role->has_cap( $capability ) ) {
+				return false;
+			}
+		}
+
+		return true;
+	}
 
 	/**
 	 * Whether an assignee value resolves to a real target for its type.

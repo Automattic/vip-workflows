@@ -225,4 +225,107 @@ class AssignmentManagerTest extends TestCase
 
         $this->assertSame(array(), $deleted);
     }
+
+    // -------------------------------------------------------------------------
+    // get_assignee_access_warnings — role assignees the role cannot all read
+    // -------------------------------------------------------------------------
+
+    /**
+     * A transition whose one input assigns a role.
+     *
+     * @return array Transition config.
+     */
+    private function role_transition(): array
+    {
+        return array(
+            'to'     => 'review',
+            'inputs' => array(
+                array(
+                    'type'          => 'assignment',
+                    'meta_key'      => 'desk',
+                    'assignee_type' => 'role',
+                ),
+            ),
+        );
+    }
+
+    /**
+     * Stub the role registry with one role whose members are the given IDs.
+     *
+     * @param array $member_ids Users holding the role.
+     * @param array $role_caps  Capabilities the role grants.
+     */
+    private function stub_role(array $member_ids, array $role_caps = array()): void
+    {
+        $role = \Mockery::mock('WP_Role');
+        $role->shouldReceive('has_cap')->andReturnUsing(fn($cap) => in_array($cap, $role_caps, true));
+        Functions\when('get_role')->alias(fn($slug) => 'contributor' === $slug ? $role : null);
+        Functions\when('get_users')->justReturn($member_ids);
+        $roles = \Mockery::mock('WP_Roles');
+        $roles->shouldReceive('get_names')->andReturn(array( 'contributor' => 'Contributor' ));
+        Functions\when('wp_roles')->justReturn($roles);
+        Functions\when('translate_user_role')->returnArg();
+    }
+
+    public function test_role_with_some_members_unable_to_read_is_flagged(): void
+    {
+        $this->stub_role(array( 3, 4 ));
+        Functions\when('user_can')->alias(fn($user_id) => 3 === (int) $user_id);
+
+        $warnings = $this->manager->get_assignee_access_warnings(42, $this->role_transition(), array( 'desk' => 'contributor' ));
+
+        $this->assertSame(
+            array(
+                array(
+                    'type'     => 'assignee_cannot_read',
+                    'meta_key' => 'desk',
+                    'role'     => 'contributor',
+                    'message'  => 'Some people with the Contributor role can’t open this post, so the assignment won’t appear in their My Work.',
+                ),
+            ),
+            $warnings
+        );
+    }
+
+    public function test_role_with_no_member_able_to_read_says_no_one(): void
+    {
+        $this->stub_role(array( 3, 4 ));
+        Functions\when('user_can')->justReturn(false);
+
+        $warnings = $this->manager->get_assignee_access_warnings(42, $this->role_transition(), array( 'desk' => 'contributor' ));
+
+        $this->assertCount(1, $warnings);
+        $this->assertSame('No one with the Contributor role can open this post, so the assignment won’t appear in anyone’s My Work.', $warnings[0]['message']);
+    }
+
+    public function test_role_whose_members_can_all_read_is_not_flagged(): void
+    {
+        $this->stub_role(array( 3, 4 ));
+        Functions\when('user_can')->justReturn(true);
+
+        $this->assertSame(array(), $this->manager->get_assignee_access_warnings(42, $this->role_transition(), array( 'desk' => 'contributor' )));
+    }
+
+    public function test_empty_role_is_judged_by_its_own_capabilities(): void
+    {
+        Functions\when('map_meta_cap')->justReturn(array( 'edit_others_posts' ));
+
+        $this->stub_role(array(), array( 'read' ));
+        $this->assertCount(1, $this->manager->get_assignee_access_warnings(42, $this->role_transition(), array( 'desk' => 'contributor' )));
+
+        $this->stub_role(array(), array( 'read', 'edit_others_posts' ));
+        $this->assertSame(array(), $this->manager->get_assignee_access_warnings(42, $this->role_transition(), array( 'desk' => 'contributor' )));
+    }
+
+    public function test_user_and_cleared_slots_raise_no_role_warning(): void
+    {
+        Functions\expect('get_users')->never();
+        $transition = $this->role_transition();
+
+        $this->assertSame(array(), $this->manager->get_assignee_access_warnings(42, $transition, array( 'desk' => '' )));
+        $this->assertSame(array(), $this->manager->get_assignee_access_warnings(42, $transition, array()));
+
+        $transition['inputs'][0]['assignee_type'] = 'user';
+        $this->assertSame(array(), $this->manager->get_assignee_access_warnings(42, $transition, array( 'desk' => 7 )));
+    }
 }
