@@ -156,9 +156,63 @@ class AssignmentManager {
 	 *                      assignment, or null when nothing is pending.
 	 */
 	public function get_current( int $post_id ): ?array {
+		return $this->pick_current( $this->get_all( $post_id ) );
+	}
+
+	/**
+	 * The current assignment of each of many posts, read in one query.
+	 *
+	 * The same rule as get_current(), for a list that would otherwise run one
+	 * query per post.
+	 *
+	 * @param  int[] $post_ids Post IDs.
+	 * @return array<int, array{meta_key: string, assignment: array}|null> Each post's
+	 *               current assignment, keyed by post ID. A post with nothing
+	 *               pending maps to null.
+	 */
+	public function get_current_for_posts( array $post_ids ): array {
+		global $wpdb;
+
+		$post_ids = array_values( array_unique( array_map( 'intval', $post_ids ) ) );
+		if ( ! $post_ids ) {
+			return array();
+		}
+
+		$prefix       = '_vip_workflows_assignment_';
+		$placeholders = implode( ', ', array_fill( 0, count( $post_ids ), '%d' ) );
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Same uncached read as get_all(), for many posts; $placeholders holds only %d tokens.
+		$results = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$placeholders} ) AND meta_key LIKE %s",
+				array_merge( $post_ids, array( $wpdb->esc_like( $prefix ) . '%' ) )
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+
+		$by_post = array_fill_keys( $post_ids, array() );
+		foreach ( $results as $row ) {
+			$key  = str_replace( $prefix, '', $row->meta_key );
+			$data = maybe_unserialize( $row->meta_value );
+			if ( is_array( $data ) ) {
+				$by_post[ (int) $row->post_id ][ $key ] = $data;
+			}
+		}
+
+		return array_map( array( $this, 'pick_current' ), $by_post );
+	}
+
+	/**
+	 * The most recently made pending assignment among a post's slots.
+	 *
+	 * @param  array $assignments Assignments keyed by slot key, as get_all() returns them.
+	 * @return array{meta_key: string, assignment: array}|null The slot key and its
+	 *                      assignment, or null when nothing is pending.
+	 */
+	private function pick_current( array $assignments ): ?array {
 		$current = null;
 
-		foreach ( $this->get_all( $post_id ) as $meta_key => $assignment ) {
+		foreach ( $assignments as $meta_key => $assignment ) {
 			if ( self::STATUS_PENDING !== ( $assignment['status'] ?? null ) ) {
 				continue;
 			}
@@ -310,7 +364,43 @@ class AssignmentManager {
 	 * @param int $post_id Post ID.
 	 */
 	public function complete_on_stage_exit( int $post_id ): void {
-		foreach ( $this->get_all( $post_id ) as $meta_key => $assignment ) {
+		$this->complete_pending_person_slots( $post_id, $this->get_all( $post_id ) );
+	}
+
+	/**
+	 * Complete the named slots, for a stage the post left while they were
+	 * being written.
+	 *
+	 * StatusManager::transition() calls this when a concurrent transition
+	 * moved the post on between its stage write and its assignment write. The
+	 * assignment belongs to a stage the post is no longer in, so it is done
+	 * for the same reason complete_on_stage_exit() completes one. Only the
+	 * named slots are touched: the transition that moved the post on may have
+	 * written its own assignment for the stage it entered.
+	 *
+	 * @param int      $post_id   Post ID.
+	 * @param string[] $meta_keys Assignment slot keys the transition wrote.
+	 */
+	public function complete_slots_for_left_stage( int $post_id, array $meta_keys ): void {
+		$assignments = array();
+		foreach ( $meta_keys as $meta_key ) {
+			$assignment = $this->get( $post_id, $meta_key );
+			if ( $assignment ) {
+				$assignments[ $meta_key ] = $assignment;
+			}
+		}
+
+		$this->complete_pending_person_slots( $post_id, $assignments );
+	}
+
+	/**
+	 * Complete every pending user or role assignment in a set of slots.
+	 *
+	 * @param int   $post_id     Post ID.
+	 * @param array $assignments Assignments keyed by slot key.
+	 */
+	private function complete_pending_person_slots( int $post_id, array $assignments ): void {
+		foreach ( $assignments as $meta_key => $assignment ) {
 			if ( self::STATUS_PENDING !== ( $assignment['status'] ?? null ) ) {
 				continue;
 			}
@@ -371,21 +461,53 @@ class AssignmentManager {
 	}
 
 	/**
-	 * Keep only the input keys a transition declares.
+	 * Reject input keys a transition does not declare.
 	 *
 	 * `input_data` arrives as a free-form map, and StatusManager stores it in
 	 * transition meta and writes every key into the audit log as a labelled
 	 * note. Only the transition's assignment input is collected, so only its
-	 * keys survive: the assignee under `meta_key`, the optional
-	 * `{meta_key}_notes`, and the `__name` label of each. Anything else —
-	 * a retired free-text note, a key the transition never declared — is
-	 * dropped before it can be stored or logged.
+	 * keys are accepted: the assignee under `meta_key`, the optional
+	 * `{meta_key}_notes`, and the `__name` label of each. Any other key, such
+	 * as a retired free-text note or a key the transition never declared,
+	 * fails the transition with a 400 naming the key, so a client learns
+	 * that its data was not saved instead of losing it.
 	 *
 	 * @param  array|null $transition Transition config from sequence, or null when no authored edge applies.
 	 * @param  array      $input_data User-provided input data.
-	 * @return array The subset of `$input_data` the transition declares.
+	 * @return true|\WP_Error True when every key is declared, or a 400 naming the first undeclared key.
 	 */
-	public function filter_transition_input( ?array $transition, array $input_data ): array {
+	public function check_transition_input_keys( ?array $transition, array $input_data ) {
+		$allowed = array_flip( $this->get_declared_input_keys( $transition ) );
+
+		foreach ( array_keys( $input_data ) as $key ) {
+			if ( isset( $allowed[ $key ] ) ) {
+				continue;
+			}
+
+			return new \WP_Error(
+				'unknown_transition_input',
+				sprintf(
+					/* translators: %s: Input key submitted with the transition. */
+					__( 'This transition doesn’t accept the “%s” input.', 'vip-workflows' ),
+					(string) $key
+				),
+				array(
+					'status' => 400,
+					'key'    => (string) $key,
+				)
+			);
+		}
+
+		return true;
+	}
+
+	/**
+	 * The input keys a transition declares.
+	 *
+	 * @param  array|null $transition Transition config from sequence, or null when no authored edge applies.
+	 * @return string[] The assignee key, its notes key, and the `__name` label of each, for every assignment input.
+	 */
+	private function get_declared_input_keys( ?array $transition ): array {
 		$inputs = $transition['inputs'] ?? array();
 
 		if ( ! is_array( $inputs ) ) {
@@ -409,7 +531,7 @@ class AssignmentManager {
 			$allowed[] = $meta_key . '_notes__name';
 		}
 
-		return array_intersect_key( $input_data, array_flip( $allowed ) );
+		return $allowed;
 	}
 
 	/**
@@ -425,15 +547,17 @@ class AssignmentManager {
 	 * "no one" after a prior assignment, which `array_key_exists()` is what
 	 * tells apart from "nothing submitted".
 	 *
-	 * @param int   $post_id    Post ID.
-	 * @param array $transition Transition config from sequence.
-	 * @param array $input_data User-provided input data.
+	 * @param  int   $post_id    Post ID.
+	 * @param  array $transition Transition config from sequence.
+	 * @param  array $input_data User-provided input data.
+	 * @return string[] The slot keys this call assigned (not the ones it cleared).
 	 */
-	public function process_transition_input( int $post_id, array $transition, array $input_data ): void {
-		$inputs = $transition['inputs'] ?? array();
+	public function process_transition_input( int $post_id, array $transition, array $input_data ): array {
+		$inputs   = $transition['inputs'] ?? array();
+		$assigned = array();
 
 		if ( ! is_array( $inputs ) ) {
-			return;
+			return $assigned;
 		}
 
 		// A transition captures a list, and at most one entry in it assigns work —
@@ -461,7 +585,10 @@ class AssignmentManager {
 			}
 
 			$this->assign( $post_id, $meta_key, $assigned_value, $assignee_type, $input_config );
+			$assigned[] = $meta_key;
 		}
+
+		return $assigned;
 	}
 
 	/**

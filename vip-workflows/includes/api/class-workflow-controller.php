@@ -1566,7 +1566,8 @@ class WorkflowController extends WP_REST_Controller {
 						'post_status'         => $post->post_status,
 						'post_status_label'   => $this->get_core_status_label( $post ),
 						'author'              => Actor::from_user( $post->post_author ),
-						'assignee'            => $this->get_my_work_assignee( $assignment_manager, $post->ID ),
+						// Filled in below, from one read for every row.
+						'assignee'            => null,
 						'featured_image_url'  => $featured_image_url ? $featured_image_url : null,
 						'created_date'        => $post->post_date,
 						'modified_date'       => $post->post_modified,
@@ -1627,10 +1628,22 @@ class WorkflowController extends WP_REST_Controller {
 				'post_status'         => $post->post_status,
 				'post_status_label'   => $this->get_core_status_label( $post ),
 				'author'              => Actor::from_user( $post->post_author ),
-				'assignee'            => $this->get_my_work_assignee( $assignment_manager, $post->ID ),
+				// Filled in below, from one read for every row.
+				'assignee'            => null,
 				'featured_image_url'  => $featured_image_url ? $featured_image_url : null,
 				'created_date'        => $post->post_date,
 				'modified_date'       => $post->post_modified,
+			);
+		}
+
+		// One assignment read for the whole list, not one per row: an author
+		// with thousands of posts would otherwise cost thousands of queries.
+		$current_assignments = $assignment_manager->get_current_for_posts( array_column( $items, 'post_id' ) );
+		foreach ( $items as $index => $item ) {
+			$items[ $index ]['assignee'] = $this->get_my_work_assignee(
+				$assignment_manager,
+				$item['post_id'],
+				$current_assignments[ $item['post_id'] ]
 			);
 		}
 
@@ -1644,12 +1657,12 @@ class WorkflowController extends WP_REST_Controller {
 	 * claimed the post stands in. This is the rule the board's cards use for
 	 * `assigned_to`, so a post shows the same assignee in both places.
 	 *
-	 * @param \VIPWorkflows\Workflow\AssignmentManager $assignment_manager Assignment reader.
+	 * @param \VIPWorkflows\Workflow\AssignmentManager $assignment_manager Assignment describer.
 	 * @param int                                      $post_id            Post ID.
+	 * @param array|null                               $current            The post's current assignment, from AssignmentManager::get_current_for_posts().
 	 * @return array|null The assignee, or null when the post has neither.
 	 */
-	private function get_my_work_assignee( \VIPWorkflows\Workflow\AssignmentManager $assignment_manager, int $post_id ): ?array {
-		$current = $assignment_manager->get_current( $post_id );
+	private function get_my_work_assignee( \VIPWorkflows\Workflow\AssignmentManager $assignment_manager, int $post_id, ?array $current ): ?array {
 		if ( $current ) {
 			$assignee = $assignment_manager->describe_assignee(
 				$current['assignment']['type'],

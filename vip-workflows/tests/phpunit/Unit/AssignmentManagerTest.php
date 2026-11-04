@@ -23,71 +23,103 @@ class AssignmentManagerTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // filter_transition_input — only declared keys survive
+    // check_transition_input_keys — only declared keys are accepted
     // -------------------------------------------------------------------------
 
     /**
-     * The assignment's value, notes and their labels survive; every other key
-     * is dropped, including a retired note's `wfp_` keys.
+     * A transition with an assignment input and a retired free-text note.
+     *
+     * @return array
      */
-    public function test_filter_transition_input_keeps_only_the_assignment_keys(): void
+    private function transition_with_assignment(): array
     {
-        $filtered = $this->manager->filter_transition_input(
-            array(
-                'to'     => 'review',
-                'inputs' => array(
-                    array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why' ),
-                    array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer', 'assignee_type' => 'user' ),
-                ),
+        return array(
+            'to'     => 'review',
+            'inputs' => array(
+                array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why' ),
+                array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer', 'assignee_type' => 'user' ),
             ),
-            array(
-                'legal_reviewer'             => 7,
-                'legal_reviewer__name'       => 'Legal reviewer',
-                'legal_reviewer_notes'       => 'Check the claims.',
-                'legal_reviewer_notes__name' => 'Notes',
-                'wfp_n1_why'                 => 'Because.',
-                'wfp_n1_why__name'           => 'Why',
-                'other'                      => 'Arbitrary.',
-                'other__name'                => 'Other',
-            )
-        );
-
-        $this->assertSame(
-            array(
-                'legal_reviewer'             => 7,
-                'legal_reviewer__name'       => 'Legal reviewer',
-                'legal_reviewer_notes'       => 'Check the claims.',
-                'legal_reviewer_notes__name' => 'Notes',
-            ),
-            $filtered
         );
     }
 
     /**
-     * A transition that declares no assignment — or no authored edge at all —
-     * accepts no input.
+     * The assignment's value, notes and their labels are accepted.
      */
-    public function test_filter_transition_input_drops_everything_without_an_assignment(): void
+    public function test_check_transition_input_keys_accepts_the_assignment_keys(): void
     {
-        $input = array(
-            'wfp_n1_why'     => 'Because.',
-            'legal_reviewer' => 7,
-        );
-
-        $this->assertSame(
-            array(),
-            $this->manager->filter_transition_input(
+        $this->assertTrue(
+            $this->manager->check_transition_input_keys(
+                $this->transition_with_assignment(),
                 array(
-                    'to'     => 'review',
-                    'inputs' => array(
-                        array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why' ),
-                    ),
-                ),
-                $input
+                    'legal_reviewer'             => 7,
+                    'legal_reviewer__name'       => 'Legal reviewer',
+                    'legal_reviewer_notes'       => 'Check the claims.',
+                    'legal_reviewer_notes__name' => 'Notes',
+                )
             )
         );
-        $this->assertSame(array(), $this->manager->filter_transition_input(array( 'to' => 'review' ), $input));
-        $this->assertSame(array(), $this->manager->filter_transition_input(null, $input));
+    }
+
+    /**
+     * Any other key, including a retired note's `wfp_` key, is a 400 that
+     * names the key.
+     *
+     * @dataProvider undeclared_input_provider
+     *
+     * @param array  $input    Submitted input.
+     * @param string $expected The key the error should name.
+     */
+    public function test_check_transition_input_keys_rejects_an_undeclared_key( array $input, string $expected ): void
+    {
+        $result = $this->manager->check_transition_input_keys($this->transition_with_assignment(), $input);
+
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('unknown_transition_input', $result->get_error_code());
+        $this->assertSame(400, $result->get_error_data()['status']);
+        $this->assertSame($expected, $result->get_error_data()['key']);
+        $this->assertSame(
+            'This transition doesn’t accept the “' . $expected . '” input.',
+            $result->get_error_message()
+        );
+    }
+
+    /**
+     * Undeclared input mixed with or without declared input.
+     *
+     * @return array
+     */
+    public static function undeclared_input_provider(): array
+    {
+        return array(
+            'retired note'           => array( array( 'legal_reviewer' => 7, 'wfp_n1_why' => 'Because.' ), 'wfp_n1_why' ),
+            'arbitrary key'          => array( array( 'other' => 'Arbitrary.' ), 'other' ),
+            'retired note label'     => array( array( 'wfp_n1_why__name' => 'Why' ), 'wfp_n1_why__name' ),
+            'another slot\'s key'    => array( array( 'approver' => 'editor' ), 'approver' ),
+        );
+    }
+
+    /**
+     * A transition that declares no assignment, or no authored edge at all,
+     * accepts no input.
+     */
+    public function test_check_transition_input_keys_rejects_everything_without_an_assignment(): void
+    {
+        $input = array( 'legal_reviewer' => 7 );
+
+        $no_assignment = array(
+            'to'     => 'review',
+            'inputs' => array(
+                array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why' ),
+            ),
+        );
+
+        foreach ( array( $no_assignment, array( 'to' => 'review' ), null ) as $transition ) {
+            $result = $this->manager->check_transition_input_keys($transition, $input);
+            $this->assertInstanceOf(\WP_Error::class, $result);
+            $this->assertSame('legal_reviewer', $result->get_error_data()['key']);
+        }
+
+        $this->assertTrue($this->manager->check_transition_input_keys(null, array()));
     }
 
     // -------------------------------------------------------------------------

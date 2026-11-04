@@ -226,6 +226,62 @@ class TransitionAssignmentLifecycleTest extends TestCase {
 	}
 
 	/**
+	 * Two transitions interleave: this one moves Ideas → Review, then another
+	 * request moves the post on to Done before this one writes its reviewer.
+	 * The other request's stage-exit pass ran before the reviewer existed, so
+	 * this transition sees the stage has changed and completes the reviewer
+	 * itself rather than leaving it pending in a stage the post has left.
+	 */
+	public function test_an_assignment_written_after_a_concurrent_move_is_completed(): void {
+		global $wpdb;
+
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_status' => 'draft',
+				'post_author' => $this->admin_id,
+			)
+		);
+		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->sequence_id );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ideas' );
+
+		// The other request's stage write lands between this transition's stage
+		// write and its assignment write. It goes straight to the table, as a
+		// write from another request would, so this request's meta cache does
+		// not see it.
+		$interleave = static function ( $id ) use ( $post_id, $wpdb ) {
+			if ( $id !== $post_id ) {
+				return;
+			}
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Simulates another request's write.
+			$wpdb->update(
+				$wpdb->postmeta,
+				array( 'meta_value' => 'done' ),
+				array(
+					'post_id'  => $post_id,
+					'meta_key' => StatusManager::STAGE_META_KEY,
+				)
+			);
+			// Prime this request's cache with the stale stage, as an earlier read would have.
+			wp_cache_set( $post_id, array( StatusManager::STAGE_META_KEY => array( 'review' ) ), 'post_meta' );
+		};
+		add_action( 'vip_workflows_assignment_created', $interleave );
+
+		$result = ( new StatusManager() )->transition(
+			$post_id,
+			'review',
+			array( 'input_data' => array( 'reviewer' => $this->reviewer_id ) )
+		);
+		remove_action( 'vip_workflows_assignment_created', $interleave );
+
+		$this->assertTrue( $result );
+		$this->assertSame( 'done', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
+
+		$manager = new AssignmentManager();
+		$this->assertSame( AssignmentManager::STATUS_COMPLETED, $manager->get( $post_id, 'reviewer' )['status'] );
+		$this->assertNull( $manager->get_current( $post_id ), 'Nothing may stay pending for a stage the post has left.' );
+	}
+
+	/**
 	 * A failed-agent revert sends the post back without finishing its
 	 * assignments: the reviewer stays pending and no completed hook fires.
 	 */

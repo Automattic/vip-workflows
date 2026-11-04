@@ -352,11 +352,17 @@ class AssigneeSnapshotIntegrationTest extends TestCase
 	}
 
 	/**
-	 * Input keys the transition does not declare — a retired free-text note,
-	 * an arbitrary key a client made up — are neither stored in transition
-	 * meta nor logged as audit notes. The edge's assignment keys still are.
+	 * An input key the transition does not declare (a retired free-text note,
+	 * another edge's slot, an arbitrary key a client made up) fails the
+	 * transition with a 400 naming the key. Nothing is stored, logged or
+	 * assigned, and the post stays where it was.
+	 *
+	 * @dataProvider undeclared_input_provider
+	 *
+	 * @param string $key   The undeclared key.
+	 * @param mixed  $value Its value.
 	 */
-	public function test_undeclared_input_keys_are_not_stored_or_logged(): void
+	public function test_an_undeclared_input_key_rejects_the_transition_without_changes( string $key, $value ): void
 	{
 		$reviewer_id = (int) self::factory()->user->create(
 			array(
@@ -371,40 +377,63 @@ class AssigneeSnapshotIntegrationTest extends TestCase
 			'status_2',
 			array(
 				'input_data' => array(
-					'reviewer'             => $reviewer_id,
-					'reviewer__name'       => 'Reviewer',
-					'wfp_n1_why'           => 'Injected note.',
-					'wfp_n1_why__name'     => 'Why',
-					'approver'             => 'editor',
-					'approver__name'       => 'Approver',
-					'anything'             => 'Arbitrary text.',
+					'reviewer'       => $reviewer_id,
+					'reviewer__name' => 'Reviewer',
+					$key            => $value,
 				),
 			)
 		);
-		$this->assertTrue( $result, 'The transition should commit.' );
 
-		$this->assertSame(
-			array(
-				array( 'label' => 'Reviewer', 'value' => 'Jane Reviewer' ),
-			),
-			$this->latest_event_data( $post_id, 'status_transition' )['notes'],
-			'Only the edge\'s assignment should reach the audit row.'
+		$this->assertWPError( $result );
+		$this->assertSame( 'unknown_transition_input', $result->get_error_code() );
+		$this->assertSame( 400, $result->get_error_data()['status'] );
+		$this->assertSame( $key, $result->get_error_data()['key'] );
+		$this->assertSame( 'This transition doesn’t accept the “' . $key . '” input.', $result->get_error_message() );
+
+		$this->assertSame( 'status_1', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ), 'The post must not move.' );
+		$this->assertSame( '', get_post_meta( $post_id, '_vip_workflows_transition_data', true ), 'Nothing should be stored in transition meta.' );
+		$this->assertNull( ( new AssignmentManager() )->get( $post_id, 'reviewer' ), 'The declared assignment must not be written either.' );
+		$this->assertNull( ( new AssignmentManager() )->get( $post_id, 'approver' ), 'Another edge\'s slot must not be assigned.' );
+	}
+
+	/**
+	 * Undeclared keys.
+	 *
+	 * @return array
+	 */
+	public static function undeclared_input_provider(): array
+	{
+		return array(
+			'retired note'         => array( 'wfp_n1_why', 'Injected note.' ),
+			'another edge\'s slot' => array( 'approver', 'editor' ),
+			'arbitrary key'        => array( 'anything', 'Arbitrary text.' ),
+		);
+	}
+
+	/**
+	 * The v1 REST route answers an undeclared key with a 400 naming it.
+	 */
+	public function test_the_rest_route_answers_an_undeclared_key_with_a_400(): void
+	{
+		$post_id = $this->make_workflow_post();
+
+		$request = new \WP_REST_Request( 'POST', '/vip-workflows/v1/workflow/post/' . $post_id . '/transition' );
+		$request->set_header( 'Content-Type', 'application/json' );
+		$request->set_body(
+			(string) wp_json_encode(
+				array(
+					'to_status'  => 'status_2',
+					'input_data' => array( 'note' => 'Please review.' ),
+				)
+			)
 		);
 
-		$stored = get_post_meta( $post_id, '_vip_workflows_transition_data', true );
-		$this->assertSame(
-			array(
-				'reviewer'       => $reviewer_id,
-				'reviewer__name' => 'Reviewer',
-			),
-			$stored['status_2'][0]['notes'],
-			'Only the edge\'s assignment keys should be stored in transition meta.'
-		);
+		$response = rest_get_server()->dispatch( $request );
 
-		$this->assertNull(
-			( new AssignmentManager() )->get( $post_id, 'approver' ),
-			'A different edge\'s assignment key must not assign anything.'
-		);
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'unknown_transition_input', $response->get_data()['code'] );
+		$this->assertSame( 'This transition doesn’t accept the “note” input.', $response->get_data()['message'] );
+		$this->assertSame( 'status_1', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
 	}
 
 	/**

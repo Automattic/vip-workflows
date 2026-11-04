@@ -243,4 +243,81 @@ class CurrentAssignmentTest extends TestCase {
 		$this->assertSame( 'copy-reviewer', $description['display_name'] );
 		$this->assertSame( $ui_agents[0]['label'], $description['display_name'] );
 	}
+
+	/**
+	 * Many posts' current assignments come from one query, with the same
+	 * selection rule get_current() applies to each post.
+	 */
+	public function test_current_assignments_for_many_posts_are_read_in_one_query(): void {
+		global $wpdb;
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Replaced for this test; tearDown() restores the original.
+		$wpdb           = Mockery::mock( 'wpdb' );
+		$wpdb->postmeta = 'wp_postmeta';
+		$wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $value ) => $value );
+		$wpdb->shouldReceive( 'prepare' )
+			->once()
+			->with(
+				'SELECT post_id, meta_key, meta_value FROM wp_postmeta WHERE post_id IN ( %d, %d, %d ) AND meta_key LIKE %s',
+				array( 10, 11, 12, '_vip_workflows_assignment_%' )
+			)
+			->andReturn( 'batched-read' );
+		$wpdb->shouldReceive( 'get_results' )
+			->once()
+			->with( 'batched-read' )
+			->andReturn(
+				array(
+					(object) array(
+						'post_id'    => '10',
+						'meta_key'   => '_vip_workflows_assignment_reviewer',
+						'meta_value' => array(
+							'value'       => 7,
+							'type'        => 'user',
+							'status'      => 'pending',
+							'assigned_at' => '2026-09-21 12:00:00.100000',
+						),
+					),
+					(object) array(
+						'post_id'    => '10',
+						'meta_key'   => '_vip_workflows_assignment_approver',
+						'meta_value' => array(
+							'value'       => 'editor',
+							'type'        => 'role',
+							'status'      => 'pending',
+							'assigned_at' => '2026-09-21 12:00:00.200000',
+						),
+					),
+					(object) array(
+						'post_id'    => '11',
+						'meta_key'   => '_vip_workflows_assignment_reviewer',
+						'meta_value' => array(
+							'value'       => 8,
+							'type'        => 'user',
+							'status'      => 'completed',
+							'assigned_at' => '2026-09-21 12:00:00.300000',
+						),
+					),
+				)
+			);
+
+		// Post 10 appears twice in the input; it is queried once.
+		$current = $this->manager->get_current_for_posts( array( 10, 11, 12, 10 ) );
+
+		$this->assertSame( array( 10, 11, 12 ), array_keys( $current ) );
+		$this->assertSame( 'approver', $current[10]['meta_key'], 'The most recent pending assignment wins.' );
+		$this->assertSame( 'editor', $current[10]['assignment']['value'] );
+		$this->assertNull( $current[11], 'A completed assignment is not current.' );
+		$this->assertNull( $current[12], 'A post with no assignment has none.' );
+	}
+
+	/**
+	 * No posts means no query.
+	 */
+	public function test_current_assignments_for_no_posts_skip_the_query(): void {
+		global $wpdb;
+		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Replaced for this test; tearDown() restores the original.
+		$wpdb = Mockery::mock( 'wpdb' );
+		$wpdb->shouldNotReceive( 'get_results' );
+
+		$this->assertSame( array(), $this->manager->get_current_for_posts( array() ) );
+	}
 }

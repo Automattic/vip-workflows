@@ -58,6 +58,13 @@ class WorkflowControllerTest extends TestCase
     private $wpdb;
 
     /**
+     * Batched My Work assignment reads seen by the wpdb double.
+     *
+     * @var int
+     */
+    private int $my_work_assignment_reads = 0;
+
+    /**
      * Set up test fixtures.
      */
     protected function setUp(): void
@@ -1586,10 +1593,17 @@ class WorkflowControllerTest extends TestCase
         $this->wpdb->postmeta = 'wp_postmeta';
         Functions\when( 'maybe_unserialize' )->alias( fn( $value ) => unserialize( $value ) );
         $this->wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $text ) => $text );
-        // The per-post assignment read keeps its post ID, so the mock below can
-        // answer it for that post alone.
+        // The batched assignment read keeps its post IDs, so the mock below can
+        // answer it for those posts alone.
+        $this->my_work_assignment_reads = 0;
         $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing(
-            fn( $query, ...$args ) => false !== strpos( $query, 'post_id = %d' ) ? str_replace( 'post_id = %d', 'post_id = ' . (int) $args[0], $query ) : $query
+            function ( $query, ...$args ) {
+                if ( false === strpos( $query, 'post_id IN' ) ) {
+                    return $query;
+                }
+                $ids = array_slice( $args[0], 0, -1 );
+                return preg_replace( '/post_id IN \( [^)]* \)/', 'post_id IN ( ' . implode( ', ', array_map( 'intval', $ids ) ) . ' )', $query );
+            }
         );
 
         // Resolve the involvement lookup independently from sequence reads.
@@ -1608,12 +1622,15 @@ class WorkflowControllerTest extends TestCase
                 if ( false !== strpos( $query, 'SELECT post_id, meta_value' ) ) {
                     return $assignments;
                 }
-                // AssignmentManager::get_all() for one post.
-                if ( preg_match( '/SELECT meta_key, meta_value .* post_id = (\d+)/s', $query, $m ) ) {
+                // AssignmentManager::get_current_for_posts() for every row.
+                if ( preg_match( '/SELECT post_id, meta_key, meta_value .* post_id IN \( ([\d, ]*) \)/s', $query, $m ) ) {
+                    ++$this->my_work_assignment_reads;
+                    $ids  = array_map( 'intval', explode( ', ', $m[1] ) );
                     $rows = array();
                     foreach ( $assignments as $row ) {
-                        if ( (int) $m[1] === (int) $row->post_id ) {
+                        if ( in_array( (int) $row->post_id, $ids, true ) ) {
                             $rows[] = (object) array(
+                                'post_id'    => $row->post_id,
                                 'meta_key'   => '_vip_workflows_assignment_reviewer',
                                 'meta_value' => $row->meta_value,
                             );
@@ -1831,6 +1848,7 @@ class WorkflowControllerTest extends TestCase
         $this->assertSame( 2001, $workflow_rows[2000]['post_id'] );
         $this->assertCount( 2001, $plain_rows );
         $this->assertSame( 2001, $plain_rows[2000]['post_id'] );
+        $this->assertSame( 1, $this->my_work_assignment_reads, 'Assignments are read once for every row, not once per row.' );
     }
 
     /**

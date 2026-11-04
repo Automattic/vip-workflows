@@ -366,6 +366,32 @@ class RequiredAssignmentTransitionTest extends TestCase {
 	}
 
 	/**
+	 * A concurrent transition moves the post on after this one writes the
+	 * stage but before it writes its assignment. The re-read after the write
+	 * sees the other stage and completes the new assignment.
+	 */
+	public function test_assignment_is_completed_when_the_stage_moves_on_during_the_write(): void {
+		$manager = $this->manager( array( $this->assignment_input( true ) ) );
+		Functions\when( 'update_post_meta' )->alias(
+			function ( $post_id, $key, $value ) {
+				$this->writes[]     = array( 'update_meta', $key, $value );
+				$this->meta[ $key ] = $value;
+				if ( self::ASSIGNMENT_KEY === $key && 'pending' === ( $value['status'] ?? null ) ) {
+					// Another request's stage write lands here.
+					$this->meta[ StatusManager::STAGE_META_KEY ] = 'draft';
+				}
+				return true;
+			}
+		);
+
+		$this->assertTrue( $manager->transition( 42, 'ready', array( 'input_data' => array( 'reviewer' => '11' ) ) ) );
+		$this->assertSame( '11', $this->meta[ self::ASSIGNMENT_KEY ]['value'] );
+		$this->assertSame( 'completed', $this->meta[ self::ASSIGNMENT_KEY ]['status'] );
+		$this->assertContains( 'vip_workflows_assignment_completed', $this->actions );
+		$this->assertSame( 'pending', $this->meta[ self::OTHER_ASSIGNMENT_KEY ]['status'], 'Only the slot this transition wrote is completed.' );
+	}
+
+	/**
 	 * Omitting an optional assignment means no assignment change was requested.
 	 */
 	public function test_optional_assignment_is_preserved_when_omitted(): void {

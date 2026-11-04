@@ -160,9 +160,10 @@ GET         /vip-workflows/v1/audit-log/users
   `assignee_type`, `label`, `filter`)
 - Frontend sends `inputData` — the assignee under the assignment's `meta_key`,
   plus optional `{meta_key}_notes` — during the transition
-- `StatusManager::transition()` keeps only the keys the edge's assignment
+- `StatusManager::transition()` accepts only the keys the edge's assignment
   declares (`meta_key`, `{meta_key}_notes`, and each one's `__name` label);
-  any other `input_data` key is dropped before it is stored or logged
+  any other `input_data` key fails the transition with a 400
+  (`unknown_transition_input`) naming the key, and nothing is written
 - Backend stores in TWO places:
   1. `_vip_workflows_transition_data` meta (per-status history)
   2. `wp_vip_workflows_events` table (audit log with notes column)

@@ -741,13 +741,17 @@ class StatusManager {
 		// collect assignment inputs.
 		$transition_config = $sequence->get_transition( $current_stage, $to_status );
 
-		// Keep only the input keys this edge declares. Every key that survives is
+		// Accept only the input keys this edge declares. Every accepted key is
 		// stored in transition meta and logged as a labelled note, so a client
 		// cannot attach arbitrary free text to the post's history by naming keys
-		// the transition never asked for.
+		// the transition never asked for. An undeclared key fails the request
+		// rather than being dropped, so the client knows it was not saved.
 		$assignment_manager = new AssignmentManager();
 		if ( ! empty( $options['input_data'] ) ) {
-			$options['input_data'] = $assignment_manager->filter_transition_input( $transition_config, $options['input_data'] );
+			$input_keys_check = $assignment_manager->check_transition_input_keys( $transition_config, $options['input_data'] );
+			if ( is_wp_error( $input_keys_check ) ) {
+				return $input_keys_check;
+			}
 		}
 
 		/*
@@ -1051,7 +1055,30 @@ class StatusManager {
 		// Process submitted assignment input for an authored edge. A failed-agent
 		// revert supplies no inputs, so it captures no new assignment.
 		if ( is_array( $transition_config ) ) {
-			$assignment_manager->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array() );
+			$assigned_slots = $assignment_manager->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array() );
+
+			// The stage compare-and-swap above does not cover this assignment
+			// write. A concurrent transition can move the post on in between: it
+			// writes the stage, then completes the pending assignments it finds,
+			// and this one may not have existed yet. Re-reading the stage AFTER
+			// the assignment write closes that gap. Either the other transition
+			// saw this assignment and completed it, or this read sees its stage.
+			if ( $assigned_slots ) {
+				$stage_now = $this->read_stage_uncached( $post_id );
+				if ( $stage_now !== $to_status ) {
+					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					error_log(
+						sprintf(
+							'[VIP Workflows] Post %d: moved to "%s" while transition "%s" -> "%s" was writing its assignment; completing it.',
+							$post_id,
+							$stage_now,
+							$current_stage,
+							$to_status
+						)
+					);
+					$assignment_manager->complete_slots_for_left_stage( $post_id, $assigned_slots );
+				}
+			}
 		}
 
 		// Store transition input data if provided.
@@ -1078,6 +1105,21 @@ class StatusManager {
 		$this->dispatch_stage_change( $post_id, $to_status, $current_stage, $sequence, $context );
 
 		return true;
+	}
+
+	/**
+	 * Read a post's workflow stage from the database, not the meta cache.
+	 *
+	 * Another request may have written the stage since this one primed its
+	 * cache, and the caller needs to see that write.
+	 *
+	 * @param  int $post_id Post ID.
+	 * @return string The stored stage key, or '' when none is stored.
+	 */
+	private function read_stage_uncached( int $post_id ): string {
+		wp_cache_delete( $post_id, 'post_meta' );
+
+		return (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
 	}
 
 	/**
