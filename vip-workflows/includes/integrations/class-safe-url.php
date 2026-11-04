@@ -14,9 +14,10 @@
  * never sees — the ones in a discovery provider's `recommend` and `search`
  * answers, and the ones stored before this check existed.
  *
- * A source an editor adds by its URL does not come through here. That path
- * fetches the address first, and only an `http` or `https` address can be
- * fetched (`SsrfGuard`, `UrlMetaExtractor`).
+ * A source an editor adds by its URL comes through here too, before its
+ * identity is derived or its address fetched, so an address that is refused
+ * for a card is refused for a manual source, and one that is accepted gives
+ * both the same identity.
  *
  * An address that WordPress itself made for a card — the file of a generated
  * image, a post in the archive — is the one kind that can be valid without a
