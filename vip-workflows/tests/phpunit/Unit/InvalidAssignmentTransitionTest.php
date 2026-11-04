@@ -131,6 +131,7 @@ class InvalidAssignmentTransitionTest extends TestCase {
 		);
 		Functions\when( 'current_user_can' )->justReturn( true );
 		Functions\when( 'user_can' )->justReturn( true );
+		Functions\when( 'get_post_status_object' )->alias( fn( $status ) => (object) array( 'name' => $status ) );
 		Functions\when( 'get_current_user_id' )->justReturn( 5 );
 		Functions\when( 'get_userdata' )->alias(
 			fn( $user_id ) => in_array( (int) $user_id, array( 5, 7, 11 ), true ) ? (object) array(

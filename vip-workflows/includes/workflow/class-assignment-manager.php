@@ -508,7 +508,7 @@ class AssignmentManager {
 	}
 
 	/**
-	 * Refuse a user assignee who cannot read the post.
+	 * Refuse a user assignee who cannot read the post once it has moved.
 	 *
 	 * My Work lists an assigned post only for an assignee who passes
 	 * `read_post` on it, so an assignment to someone who cannot open the post
@@ -516,25 +516,49 @@ class AssignmentManager {
 	 * can still choose someone else.
 	 *
 	 * StatusManager calls this with validate_transition_assignees(), before
-	 * any post state changes, so access is judged against the post as it
-	 * stands when the transition is requested.
+	 * any post state changes. The assignment lives on the post after the move,
+	 * so access is judged against $status_after, the core status the post
+	 * will hold once the transition commits: a move into `publish` can open
+	 * the post to an assignee who cannot read the draft, and a move out of it
+	 * can close the post to one who reads it now.
 	 *
 	 * Role assignees are not refused: the members of a role can change after
 	 * the assignment is made. get_assignee_access_warnings() reports them.
 	 *
-	 * @param  int   $post_id    Post ID.
-	 * @param  array $transition Transition config from sequence.
-	 * @param  array $input_data User-provided input data.
+	 * @param  int    $post_id      Post ID.
+	 * @param  array  $transition   Transition config from sequence.
+	 * @param  array  $input_data   User-provided input data.
+	 * @param  string $status_after Core status the post will hold after the transition.
 	 * @return true|\WP_Error True when every supplied user assignee can read the post.
 	 */
-	public function validate_assignee_access( int $post_id, array $transition, array $input_data ) {
-		foreach ( $this->get_supplied_assignees( $transition, $input_data ) as $assignee ) {
-			if ( 'user' !== $assignee['type'] ) {
-				continue;
-			}
+	public function validate_assignee_access( int $post_id, array $transition, array $input_data, string $status_after ) {
+		$user_assignees = array_filter(
+			$this->get_supplied_assignees( $transition, $input_data ),
+			static fn( $assignee ) => 'user' === $assignee['type']
+		);
+		if ( empty( $user_assignees ) ) {
+			return true;
+		}
 
+		$current_status = (string) get_post_status( $post_id );
+		if ( $status_after !== $current_status && ! get_post_status_object( $status_after ) ) {
+			return new \WP_Error(
+				'assignee_access_unresolved',
+				sprintf(
+					/* translators: %s: Post status slug. */
+					__( 'Can’t check who may open this post after the move: the status “%s” is not registered.', 'vip-workflows' ),
+					$status_after
+				),
+				array(
+					'status'      => 409,
+					'post_status' => $status_after,
+				)
+			);
+		}
+
+		foreach ( $user_assignees as $assignee ) {
 			$user_id = (int) $assignee['value'];
-			if ( user_can( $user_id, 'read_post', $post_id ) ) {
+			if ( $this->user_can_read_post_as( $user_id, $post_id, $status_after, $current_status ) ) {
 				continue;
 			}
 
@@ -678,6 +702,89 @@ class AssignmentManager {
 		}
 
 		return $assignees;
+	}
+
+	/**
+	 * Whether a user could read the post if it held $status.
+	 *
+	 * Nothing is written. For the length of one user_can() call, two filters
+	 * scoped to this post make core's `read_post` mapping see $status:
+	 *
+	 * - `get_post_status`: map_meta_cap( 'read_post' ) reads the status
+	 *   through get_post_status() to decide between public (`read`), the
+	 *   author (`read`), private (`read_private_posts`) and everything else.
+	 * - `map_meta_cap`: for everything else it maps through `edit_post`,
+	 *   which reads `$post->post_status` directly and adds
+	 *   `edit_published_posts` (publish, future) or `edit_private_posts`
+	 *   (private) for a non-author. That one status-dependent capability is
+	 *   swapped for the one $status would add. It runs first, so later
+	 *   map_meta_cap filters see core's mapping for $status.
+	 *
+	 * Both use the post type's own capability names, so custom capabilities
+	 * are honoured. A post type without map_meta_cap maps `read_post` to a
+	 * single capability that does not depend on status.
+	 *
+	 * @param  int    $user_id        User ID.
+	 * @param  int    $post_id        Post ID.
+	 * @param  string $status         Status to judge access against.
+	 * @param  string $current_status Status the post holds now.
+	 * @return bool
+	 */
+	private function user_can_read_post_as( int $user_id, int $post_id, string $status, string $current_status ): bool {
+		if ( $status === $current_status ) {
+			return user_can( $user_id, 'read_post', $post_id );
+		}
+
+		$as_status = static function ( $post_status, $post ) use ( $post_id, $status ) {
+			return ( $post instanceof \WP_Post && $post_id === (int) $post->ID ) ? $status : $post_status;
+		};
+
+		$edit_caps_as_status = static function ( $caps, $cap, $cap_user_id, $args ) use ( $post_id, $status ) {
+			if ( 'edit_post' !== $cap || ! isset( $args[0] ) || $post_id !== (int) $args[0] ) {
+				return $caps;
+			}
+
+			$post      = get_post( $post_id );
+			$post_type = $post ? get_post_type_object( $post->post_type ) : null;
+			if ( ! $post_type || ! $post_type->map_meta_cap || ( $post->post_author && (int) $cap_user_id === (int) $post->post_author ) ) {
+				return $caps;
+			}
+
+			$status_cap = static function ( string $post_status ) use ( $post_type ): ?string {
+				if ( in_array( $post_status, array( 'publish', 'future' ), true ) ) {
+					return $post_type->cap->edit_published_posts;
+				}
+
+				return 'private' === $post_status ? $post_type->cap->edit_private_posts : null;
+			};
+
+			$stored_cap = $status_cap( (string) $post->post_status );
+			$target_cap = $status_cap( $status );
+			if ( $stored_cap === $target_cap ) {
+				return $caps;
+			}
+
+			if ( null !== $stored_cap ) {
+				$index = array_search( $stored_cap, $caps, true );
+				if ( false !== $index ) {
+					unset( $caps[ $index ] );
+				}
+			}
+			if ( null !== $target_cap ) {
+				$caps[] = $target_cap;
+			}
+
+			return array_values( $caps );
+		};
+
+		add_filter( 'get_post_status', $as_status, PHP_INT_MAX, 2 );
+		add_filter( 'map_meta_cap', $edit_caps_as_status, PHP_INT_MIN, 4 );
+		try {
+			return user_can( $user_id, 'read_post', $post_id );
+		} finally {
+			remove_filter( 'get_post_status', $as_status, PHP_INT_MAX );
+			remove_filter( 'map_meta_cap', $edit_caps_as_status, PHP_INT_MIN );
+		}
 	}
 
 	/**

@@ -418,7 +418,8 @@ core gives the per-status counts on `edit.php`.
 A row filter can hide work that was handed to someone. My Work drops an
 assignment its assignee cannot read, so the write side refuses it first:
 `AssignmentManager::validate_assignee_access()` rejects a user assignee who
-fails `read_post` (`400 assignee_cannot_read`), and a role assignee is accepted
+fails `read_post` against the status the post will hold after the move
+(`400 assignee_cannot_read`), and a role assignee is accepted
 with a `warnings[]` entry from `get_assignee_access_warnings()`. A new filter
 that can hide assigned work needs the same pairing.
 
