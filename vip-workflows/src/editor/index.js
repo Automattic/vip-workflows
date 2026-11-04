@@ -22,7 +22,10 @@ import { WorkflowPanel } from './components/WorkflowPanel';
 import { WorkflowSaveGuard } from './components/WorkflowSaveGuard';
 import { WorkflowRequiredModal } from './components/WorkflowRequiredModal';
 import { CommandPalette } from './components/CommandPalette';
-import { WorkflowSummaryRows } from './components/WorkflowSummaryRows';
+import {
+	SummaryRowsFallback,
+	SummaryRowsFill,
+} from './components/SummaryRowsFallback';
 
 import './style.css';
 
@@ -95,9 +98,10 @@ function WorkflowPlugin() {
 			     panel. The fill lands after core's rows, above Move to trash.
 			     `PluginPostStatusInfo` wraps its children in a `PanelRow`,
 			     whose flex row layout is neutralised in style.css so the rows
-			     keep their own full-width layout. */ }
+			     keep their own full-width layout. The fill counts itself in the
+			     store while it is mounted; see SummaryRowsFallback.js. */ }
 			<PluginPostStatusInfo className="vip-workflows-post-summary">
-				<WorkflowSummaryRows />
+				<SummaryRowsFill />
 			</PluginPostStatusInfo>
 
 			{ /* Same icon the plugin uses for its top-level wp-admin menu. */ }
@@ -123,8 +127,10 @@ function WorkflowPlugin() {
 				     What is here acts on the post's movement through its
 				     workflow. Which workflow it is in, and the fields that
 				     workflow declares, are rows in the document sidebar's
-				     Summary panel. */ }
+				     Summary panel. Where that panel cannot show them, the
+				     same rows are drawn here instead, above the panel. */ }
 				<Stack className="vip-workflows-sidebar" direction="column">
+					<SummaryRowsFallback />
 					<WorkflowPanel />
 				</Stack>
 			</PluginSidebar>

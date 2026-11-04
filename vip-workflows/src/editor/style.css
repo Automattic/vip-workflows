@@ -36,6 +36,14 @@
 	padding: var(--wpds-dimension-padding-lg);
 }
 
+/* The Summary rows, drawn here only where core's Summary panel cannot show
+   them (components/SummaryRowsFallback.js). Ruled off from the workflow panel
+   below the way core rules off its document sidebar sections. */
+.vip-workflows-sidebar > .vip-workflows-sidebar__details {
+	/* wpds-allow R6 -- rule between sidebar sections; @wordpress/ui ships no Divider and <Stack> exposes no border prop. */
+	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+}
+
 .vip-workflows-panel__empty {
 	/* wpds-allow R6 -- <Text> styles typography only; it declares and exposes no color. */
 	color: var(--wpds-color-foreground-content-neutral-weak);

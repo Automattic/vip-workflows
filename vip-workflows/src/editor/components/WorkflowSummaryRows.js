@@ -50,9 +50,13 @@ import './WorkflowSummaryRows.css';
 /**
  * The Workflow row and the metadata rows, for the Summary panel.
  *
+ * @param {Object}  props
+ * @param {boolean} props.grouped Rule the rows off from core's rows above them.
+ *                                False where nothing sits above them: the
+ *                                workflow sidebar's fallback copy.
  * @return {JSX.Element} The rows.
  */
-export function WorkflowSummaryRows() {
+export function WorkflowSummaryRows( { grouped = true } = {} ) {
 	const { workflow, loading, workflowEnforcement, metadataFields } =
 		useSelect( ( select ) => {
 			const s = select( STORE_NAME );
@@ -226,7 +230,7 @@ export function WorkflowSummaryRows() {
 
 	// The divider sets the workflow's rows off from core's as their own group,
 	// so it is drawn only when there is a group to set off.
-	const hasRows = !! workflowRow || hasMetadataRows;
+	const hasRows = grouped && ( !! workflowRow || hasMetadataRows );
 
 	// One tree whether or not the divider shows, so the rows are not remounted
 	// (and an open popover closed) when the first status read lands.

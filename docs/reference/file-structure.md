@@ -264,6 +264,7 @@ src/
 │   └── components/
 │       ├── index.js                          # Component exports
 │       ├── WorkflowSummaryRows.js            # Summary panel rows: workflow + metadata
+│       ├── SummaryRowsFallback.js            # Summary rows fill + Workflow sidebar fallback
 │       ├── WorkflowPanel.js                  # Stage, progress, transitions, history
 │       ├── WorkflowHistoryModal.js           # Transition trail (DataViews, code-split)
 │       ├── WorkflowSaveGuard.js              # editor.preSavePost guard — no chrome

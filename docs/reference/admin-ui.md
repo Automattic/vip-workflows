@@ -35,17 +35,33 @@ rail and its history — lives in one `PluginSidebar` named "Workflow".
   invalid state, whose popover offers only removal. The slot is a render-prop
   slot, so the rows take nothing from React context around the fill; they read
   through `wp.data` and `useEntityProp`. The whole run is behind
-  `! isEditorPanelRemoved( 'post-status' )`, and the experimental DataForm
-  Summary renders no `PluginPostStatusInfo` slot at all.
-- One `Stack` (`.vip-workflows-sidebar`) holding `WorkflowPanel`. No card and no
-  heading of its own: `PluginSidebar` already names the sidebar "Workflow". The
-  panel reads: assignment and claim → transition rail → foot (Show history).
+  `! isEditorPanelRemoved( 'post-status' )`, and some experimental DataForm
+  Summary builds (`window.__experimentalDataFormInspector`, posts and pages)
+  render no `PluginPostStatusInfo` slot at all. The fill is
+  `SummaryRowsFill`, which counts itself in the editor store
+  (`areSummaryRowsMounted()`, `haveSummaryRowsMounted()`) while it is mounted.
+  Preferences → Panels offers no switch for the Summary panel, and
+  `toggleEditorPanelEnabled( 'post-status' )` does not hide it.
+- One `Stack` (`.vip-workflows-sidebar`) holding `SummaryRowsFallback` and
+  `WorkflowPanel`. No card: `PluginSidebar` already names the sidebar
+  "Workflow". The panel reads: assignment and claim → transition rail → foot
+  (Show history).
+- `SummaryRowsFallback` draws the same `WorkflowSummaryRows`, under a "Details"
+  section heading, only where the Summary panel cannot show them: while the
+  `post-status` panel is removed, or while the experimental DataForm Summary is
+  active and the fill has not mounted once this session. It never draws while
+  the fill is mounted. "Not mounted right now" alone is not the test: the
+  document sidebar and the Workflow sidebar share one area, so the Summary
+  panel is never mounted while the Workflow sidebar is open.
 - `CommandPalette` and `WorkflowRequiredModal` — no chrome of their own.
 
 **Main Components**:
 - `WorkflowSummaryRows.js` — the Summary panel's workflow rows: the Workflow
   row (assign, switch and remove, each through the editor store) and
   `MetadataPanel`
+- `SummaryRowsFallback.js` — `SummaryRowsFill` (the fill's content, counted in
+  the store while mounted) and `SummaryRowsFallback` (the Workflow sidebar's
+  copy where the Summary panel cannot show the rows)
 - `WorkflowPanel.js` — the post's movement through its workflow: assignment and
   claim, stage-agent states, the transition rail, and Show history. A post with
   unsaved edits is always saved before any transition is sent, because the
