@@ -20,7 +20,7 @@ The `statuses` / `post_types` / `settings` / `metadata_fields` payload is **iden
 | Field | Required | Notes |
 | --- | --- | --- |
 | `name` | yes | The sequence name. |
-| `type` | — | `"workflow"` (default) or `"phase"`. Phase sequences (part of the Ideation experiment) carry their phase graph in the same `statuses` field (stored, exported and imported as `config.phases`) and are exempt from the stage-region rules below. They must instead declare the lifecycle hand-offs published as `required_phase_transitions` by `/sequences/options`; the shared write gate refuses one that does not on every write path (create, update, import, direct repository writes), and `validate-sequence` reports the same refusal. |
+| `type` | — | `"workflow"` (default) or `"phase"`. Phase sequences (part of the Ideation experiment) carry their phase graph in the same `statuses` field (stored, exported and imported as `config.phases`) and are exempt from the stage-region rules below. They must instead declare the lifecycle hand-offs published as `required_phase_transitions` by `/sequences/options`; the shared write gate refuses one that does not on every write path (create, update, import, direct repository writes), and `validate-sequence` reports the same refusal. The gate also refuses a malformed phase graph: a phase without a non-empty string `key` and a `transitions` list, a phase key declared twice, a transition that is not an object with a non-empty string `to`, and two transitions from one phase to the same target. |
 | `description` | — | Free text. |
 | `status` | — (FLAT only) | Lifecycle: `"active"` (default) or `"draft"`. Accepted by `POST /sequences`, `create-sequence`, and `PUT /sequences/{id}`; the `update-sequence` ability does not take it. Import always creates a draft regardless. |
 | `post_types` | — | Array of post-type slugs the sequence attaches to, e.g. `["post"]`. Discover eligible types with `GET /sequences/options`. |
@@ -73,7 +73,7 @@ In the canonical example the `draft` region's entry is the `draft` stage and the
 
 ### Transition inputs and assignments (`inputs[]`)
 
-An assignment is the only input a transition captures, and a transition may declare at most **one**. Any other `type` (such as the retired free-text note, `textarea` or `text`) is refused on every write path, import included:
+An assignment is the only input a transition captures, and a transition may declare at most **one**. Any other `type` is refused on every write path, import included. The one exception is the retired free-text note (`textarea`, or the older `text`): import removes note inputs from the file before validating it, the same cleanup the 2.25.0 migration applies to stored sequences, so a file exported by an older version still imports. Create, update and `validate-sequence` refuse a note. Any other unknown or missing `type` is refused on import too, never removed:
 
 ```json
 { "type": "assignment", "meta_key": "reviewer", "assignee_type": "user", "label": "Assign a reviewer" }

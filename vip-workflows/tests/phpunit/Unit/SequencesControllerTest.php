@@ -2808,6 +2808,119 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
+     * An old export carrying retired note inputs imports cleanly: the notes are
+     * removed the way the 2.25.0 migration removes them from stored rows, and
+     * the assignment beside them survives with a fresh key.
+     */
+    public function test_import_sequence_drops_retired_note_inputs(): void
+    {
+        $captured = null;
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row() );
+        $this->wpdb->shouldReceive( 'insert' )->once()->andReturnUsing(
+            function ( $table, $data ) use ( &$captured ) {
+                $captured = $data;
+                return 1;
+            }
+        );
+        $this->wpdb->shouldReceive( 'update' )->andReturn( 1 );
+        $this->wpdb->insert_id = 1;
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'wp_generate_password' )->justReturn( 'abcde' );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => 'workflow',
+                    'name'   => 'Old Export With Notes',
+                    'config' => array(
+                        'statuses' => array(
+                            array(
+                                'key'         => 'draft',
+                                'label'       => 'Draft',
+                                'transitions' => array(
+                                    array(
+                                        'to'     => 'review',
+                                        'inputs' => array(
+                                            array( 'type' => 'textarea', 'note_name' => 'Why', 'required' => true ),
+                                            array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ),
+                                        ),
+                                    ),
+                                    array(
+                                        'to'    => 'legal',
+                                        'input' => array( 'type' => 'text', 'note_name' => 'Old note' ),
+                                    ),
+                                ),
+                            ),
+                            array( 'key' => 'review', 'label' => 'Review' ),
+                            array( 'key' => 'legal', 'label' => 'Legal' ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertSame( 201, $response->get_status() );
+
+        $stored      = json_decode( $captured['config'], true );
+        $transitions = $stored['statuses'][0]['transitions'];
+
+        $this->assertCount( 1, $transitions[0]['inputs'], 'Only the assignment survives.' );
+        $this->assertSame( 'assignment', $transitions[0]['inputs'][0]['type'] );
+        $this->assertStringStartsWith( 'wfp_n', $transitions[0]['inputs'][0]['meta_key'] );
+        $this->assertArrayNotHasKey( 'input', $transitions[1], 'A singular note is removed outright.' );
+        $this->assertArrayNotHasKey( 'inputs', $transitions[1] );
+    }
+
+    /**
+     * An input type that is neither an assignment nor a known retired note is
+     * not stripped on import: the file is refused with the gate's error.
+     */
+    public function test_import_sequence_rejects_an_unknown_input_type(): void
+    {
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( 0 );
+        $this->wpdb->shouldReceive( 'insert' )->never();
+
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        $request = $this->create_mock_request(
+            array(
+                'sequence_json' => array(
+                    'type'   => 'workflow',
+                    'name'   => 'Unknown Input',
+                    'config' => array(
+                        'statuses' => array(
+                            array(
+                                'key'         => 'draft',
+                                'label'       => 'Draft',
+                                'transitions' => array(
+                                    array(
+                                        'to'     => 'review',
+                                        'inputs' => array( array( 'type' => 'checklist' ) ),
+                                    ),
+                                ),
+                            ),
+                            array( 'key' => 'review', 'label' => 'Review' ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $response = $this->controller->import_sequence( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'invalid_transition_input', $response->get_error_code() );
+        $this->assertStringContainsString( 'declares a "checklist" input', $response->get_error_message() );
+    }
+
+    /**
      * A slot with no key assigns nothing — a required field left empty,
      * rejected rather than stored.
      */

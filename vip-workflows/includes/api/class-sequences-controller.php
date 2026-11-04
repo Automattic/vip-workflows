@@ -1384,6 +1384,13 @@ class SequencesController extends WP_REST_Controller {
 				return $agent_validation;
 			}
 
+			// A file exported by an older version may carry free-text note inputs,
+			// which are retired. They are removed exactly as the 2.25.0 migration
+			// removes them from stored rows, so an old export imports the way an
+			// old row upgrades. Only the known note types are removed: any other
+			// input that is not an assignment is still refused below.
+			$sequence_json['config'] = Sequence::drop_retired_note_inputs( $sequence_json['config'] )['config'];
+
 			// A file exported by an older version declares what a transition captures
 			// as a single `input`. Converted here, at the boundary, because everything
 			// below — the slot validator, the key regenerator — reads `inputs` and

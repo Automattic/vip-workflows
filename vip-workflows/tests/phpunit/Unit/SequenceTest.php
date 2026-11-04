@@ -1319,7 +1319,182 @@ class SequenceTest extends TestCase
             'phases not a list'   => array( array( 'phases' => 'ideation' ) ),
             'phase without a key' => array( array( 'phases' => array( array( 'transitions' => array() ) ) ) ),
             'no transitions list' => array( array( 'phases' => array( array( 'key' => 'ideation' ) ) ) ),
+            'empty phase key'     => array( array( 'phases' => array( array( 'key' => '', 'transitions' => array() ) ) ) ),
         );
+    }
+
+    /**
+     * A phase transition the runtime would trip over is refused, even when a
+     * valid Ideation-to-Editorial hand-off follows it and the lifecycle check
+     * alone would pass. get_phase_transition() reads each entry as an object
+     * with a string `to`, so a scalar entry would be a PHP error at hand-off.
+     *
+     * @dataProvider malformed_phase_transition_provider
+     *
+     * @param mixed  $bad     The malformed transition entry.
+     * @param string $message Expected error message.
+     */
+    public function test_gate_refuses_a_malformed_phase_transition( $bad, string $message ): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( $message );
+
+        Sequence::prepare_config_for_write(
+            array(
+                'phases' => array(
+                    array(
+                        'key'         => 'ideation',
+                        'label'       => 'Ideation',
+                        'transitions' => array( $bad, array( 'to' => 'editorial' ) ),
+                    ),
+                    array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+                ),
+            ),
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    /**
+     * Malformed phase transition entries.
+     *
+     * @return array<string, array{0: mixed, 1: string}>
+     */
+    public function malformed_phase_transition_provider(): array
+    {
+        $message = 'Every transition on the “ideation” phase must name the phase it goes to.';
+
+        return array(
+            'scalar entry'      => array( 'editorial', $message ),
+            'null entry'        => array( null, $message ),
+            'no target'         => array( array( 'label' => 'Promote' ), $message ),
+            'non-string target' => array( array( 'to' => 7 ), $message ),
+            'empty target'      => array( array( 'to' => '' ), $message ),
+        );
+    }
+
+    /**
+     * Two transitions from one phase to the same target are refused: the
+     * runtime reads the first, so the second would be a copy nothing honors.
+     */
+    public function test_gate_refuses_a_duplicate_phase_transition_target(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'The “ideation” phase may hand off to “editorial” only once.' );
+
+        Sequence::prepare_config_for_write(
+            array(
+                'phases' => array(
+                    array(
+                        'key'         => 'ideation',
+                        'label'       => 'Ideation',
+                        'transitions' => array(
+                            array( 'to' => 'editorial', 'allowed_roles' => array( 'editor' ) ),
+                            array( 'to' => 'editorial' ),
+                        ),
+                    ),
+                    array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+                ),
+            ),
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    /**
+     * A phase declared twice is refused, even when one copy carries the
+     * hand-off: the lifecycle check and the runtime would read different copies.
+     */
+    public function test_gate_refuses_a_duplicate_phase_key(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'A phase sequence may declare the “ideation” phase only once.' );
+
+        Sequence::prepare_config_for_write(
+            array(
+                'phases' => array(
+                    array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array() ),
+                    array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array( array( 'to' => 'editorial' ) ) ),
+                    array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+                ),
+            ),
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    // =========================================================================
+    // drop_retired_note_inputs
+    // =========================================================================
+
+    /**
+     * The known note types go, in both shapes; the assignment and the rest of
+     * the transition stay, and each drop is reported.
+     */
+    public function test_drop_retired_note_inputs_removes_only_known_note_types(): void
+    {
+        $assignment = array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' );
+
+        $result = Sequence::drop_retired_note_inputs(
+            array(
+                'statuses' => array(
+                    array(
+                        'key'         => 'draft',
+                        'transitions' => array(
+                            array(
+                                'to'     => 'review',
+                                'label'  => 'Send',
+                                'inputs' => array(
+                                    array( 'type' => 'textarea', 'note_name' => 'Why' ),
+                                    $assignment,
+                                    array( 'type' => 'text', 'note_name' => 'Old' ),
+                                ),
+                            ),
+                            array( 'to' => 'legal', 'input' => array( 'type' => 'text', 'note_name' => 'Why' ) ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertSame(
+            array( 'to' => 'review', 'label' => 'Send', 'inputs' => array( $assignment ) ),
+            $result['config']['statuses'][0]['transitions'][0]
+        );
+        $this->assertSame( array( 'to' => 'legal' ), $result['config']['statuses'][0]['transitions'][1] );
+        $this->assertSame(
+            array(
+                array( 'from' => 'draft', 'to' => 'review', 'count' => 2 ),
+                array( 'from' => 'draft', 'to' => 'legal', 'count' => 1 ),
+            ),
+            $result['dropped']
+        );
+    }
+
+    /**
+     * An unknown input type, or an input with no type, is not a known retired
+     * note: it is left in place for the gate to refuse, never stripped.
+     */
+    public function test_drop_retired_note_inputs_leaves_unknown_and_typeless_inputs(): void
+    {
+        $config = array(
+            'statuses' => array(
+                array(
+                    'key'         => 'draft',
+                    'transitions' => array(
+                        array( 'to' => 'review', 'inputs' => array( array( 'type' => 'checklist' ), array( 'label' => 'Typeless' ) ) ),
+                        array( 'to' => 'legal', 'input' => array( 'type' => 'checklist' ) ),
+                    ),
+                ),
+                array( 'key' => 'review' ),
+                array( 'key' => 'legal' ),
+            ),
+        );
+
+        $result = Sequence::drop_retired_note_inputs( $config );
+
+        $this->assertSame( $config, $result['config'] );
+        $this->assertSame( array(), $result['dropped'] );
+
+        $this->expectException( \InvalidArgumentException::class );
+        Sequence::prepare_config_for_write( $result['config'] );
     }
 
     /**

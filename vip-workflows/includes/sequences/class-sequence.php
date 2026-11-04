@@ -77,6 +77,17 @@ class Sequence {
 	);
 
 	/**
+	 * Capture input types that were retired: the free-text note, as `textarea`
+	 * and the older `text`.
+	 *
+	 * The only types drop_retired_note_inputs() removes. Anything else that is
+	 * not an assignment is refused by the write gate, never stripped.
+	 *
+	 * @var string[]
+	 */
+	public const RETIRED_INPUT_TYPES = array( 'textarea', 'text' );
+
+	/**
 	 * Sequence ID.
 	 *
 	 * @var int
@@ -1362,11 +1373,15 @@ class Sequence {
 	 *
 	 * A `phases` list that is absent, or an entry without a string key or with a
 	 * non-list `transitions`, is malformed rather than incomplete, and is refused
-	 * as such: SequencesController::build_phase_config() never produces one.
+	 * as such: SequencesController::build_phase_config() never produces one. So is
+	 * a transition that is not an object naming its target phase, a phase key
+	 * declared twice, or two transitions from one phase to the same target —
+	 * shapes a direct repository write could otherwise store and the hand-off
+	 * would trip over at runtime.
 	 *
 	 * @param  array $config Phase sequence config.
 	 * @return void
-	 * @throws \InvalidArgumentException If the config is malformed, or a required phase or hand-off is missing.
+	 * @throws \InvalidArgumentException If the config is malformed (including a malformed transition, a duplicate phase key or a duplicate target), or a required phase or hand-off is missing.
 	 */
 	private static function require_phase_lifecycle( array $config ): void {
 		if ( ! isset( $config['phases'] ) || ! is_array( $config['phases'] ) ) {
@@ -1377,13 +1392,59 @@ class Sequence {
 
 		$declared = array();
 		foreach ( $config['phases'] as $phase ) {
-			if ( ! is_array( $phase ) || ! isset( $phase['key'] ) || ! is_string( $phase['key'] ) || ! isset( $phase['transitions'] ) || ! is_array( $phase['transitions'] ) ) {
+			if ( ! is_array( $phase ) || ! isset( $phase['key'] ) || ! is_string( $phase['key'] ) || '' === $phase['key'] || ! isset( $phase['transitions'] ) || ! is_array( $phase['transitions'] ) ) {
 				throw new \InvalidArgumentException(
 					esc_html__( 'Every phase in a phase sequence must have a key and a list of transitions.', 'vip-workflows' )
 				);
 			}
 
-			$declared[ $phase['key'] ] = array_column( $phase['transitions'], 'to' );
+			$key = $phase['key'];
+
+			// One entry per phase. Two under one key disagree at runtime: this
+			// check would read the last, get_phase_transition() reads the first.
+			if ( isset( $declared[ $key ] ) ) {
+				throw new \InvalidArgumentException(
+					sprintf(
+						/* translators: %s: phase key, e.g. "ideation". */
+						esc_html__( 'A phase sequence may declare the “%s” phase only once.', 'vip-workflows' ),
+						esc_html( $key )
+					)
+				);
+			}
+
+			// Each transition is read as an object with a string `to` at runtime
+			// (get_phase_transition()), so a scalar entry or a missing target is
+			// refused here rather than skipped: a skipped entry would let the
+			// lifecycle check pass on a later valid one and the hand-off fail.
+			$targets = array();
+			foreach ( $phase['transitions'] as $transition ) {
+				if ( ! is_array( $transition ) || ! isset( $transition['to'] ) || ! is_string( $transition['to'] ) || '' === $transition['to'] ) {
+					throw new \InvalidArgumentException(
+						sprintf(
+							/* translators: %s: phase key, e.g. "ideation". */
+							esc_html__( 'Every transition on the “%s” phase must name the phase it goes to.', 'vip-workflows' ),
+							esc_html( $key )
+						)
+					);
+				}
+
+				// One transition per target, for the same reason as one entry per
+				// phase: the readers would disagree about which copy governs.
+				if ( in_array( $transition['to'], $targets, true ) ) {
+					throw new \InvalidArgumentException(
+						sprintf(
+							/* translators: 1: source phase key, 2: target phase key. */
+							esc_html__( 'The “%1$s” phase may hand off to “%2$s” only once.', 'vip-workflows' ),
+							esc_html( $key ),
+							esc_html( $transition['to'] )
+						)
+					);
+				}
+
+				$targets[] = $transition['to'];
+			}
+
+			$declared[ $key ] = $targets;
 		}
 
 		$required = self::phase_edges( self::REQUIRED_PHASES );
@@ -1711,6 +1772,103 @@ class Sequence {
 	}
 
 	/**
+	 * Remove the retired free-text note inputs from every transition.
+	 *
+	 * An assignment is the only input a transition captures. Free-text notes
+	 * (`textarea`, or the older `text`) were retired from the editor, and the
+	 * write gate refuses any input that is not an assignment. A note is already
+	 * inert — the editor passes it over when the transition is taken — so
+	 * removing one changes nothing an author or editor sees. Two callers meet
+	 * configs written before the retirement: the stored-config replay (the 2.25.0
+	 * migration) and import, which reads files exported by older versions. Both
+	 * run this ahead of the gate, so an old row and an old file upgrade the same
+	 * way.
+	 *
+	 * Deliberately narrow: only the KNOWN retired types in RETIRED_INPUT_TYPES are
+	 * removed. An input of any other type, an input with no type, `inputs` that is
+	 * not a list, or an entry that is not an object is left in place for the gate
+	 * to refuse loudly — guessing that an unknown entry is safe to discard would
+	 * be a silent repair. Both shapes are covered, because the oldest configs
+	 * still carry the singular `input` key: a singular note is removed outright.
+	 * The singular `none` sentinel (or a typeless singular input, which the gate
+	 * reads as `none`) is not a note and is left for the gate, which turns it
+	 * into no inputs.
+	 *
+	 * The retired `requires_assignment` key needs nothing here: the gate drops it
+	 * from every transition it normalizes.
+	 *
+	 * @param  array $config Sequence config (stage-based).
+	 * @return array{config: array, dropped: array<int, array{from: string, to: string, count: int}>}
+	 *               `dropped` names each transition that lost a note, by the stage
+	 *               holding it and its target, with how many notes it lost.
+	 */
+	public static function drop_retired_note_inputs( array $config ): array {
+		$dropped = array();
+
+		if ( empty( $config['statuses'] ) || ! is_array( $config['statuses'] ) ) {
+			return array(
+				'config'  => $config,
+				'dropped' => $dropped,
+			);
+		}
+
+		$is_note = static function ( $input ): bool {
+			return is_array( $input ) && in_array( $input['type'] ?? null, self::RETIRED_INPUT_TYPES, true );
+		};
+
+		foreach ( $config['statuses'] as &$stage ) {
+			if ( ! is_array( $stage ) || empty( $stage['transitions'] ) || ! is_array( $stage['transitions'] ) ) {
+				continue;
+			}
+
+			foreach ( $stage['transitions'] as &$transition ) {
+				if ( ! is_array( $transition ) ) {
+					continue;
+				}
+
+				$count = 0;
+
+				if ( isset( $transition['input'] ) && $is_note( $transition['input'] ) ) {
+					unset( $transition['input'] );
+					++$count;
+				}
+
+				if ( isset( $transition['inputs'] ) && is_array( $transition['inputs'] ) ) {
+					$kept = array();
+					foreach ( $transition['inputs'] as $input ) {
+						if ( $is_note( $input ) ) {
+							++$count;
+							continue;
+						}
+						$kept[] = $input;
+					}
+
+					// Rewritten only when a note was removed, so a config with none
+					// re-encodes byte-identically and the replay's no-op check holds.
+					if ( $count ) {
+						$transition['inputs'] = $kept;
+					}
+				}
+
+				if ( $count ) {
+					$dropped[] = array(
+						'from'  => is_string( $stage['key'] ?? null ) ? $stage['key'] : '',
+						'to'    => is_string( $transition['to'] ?? null ) ? $transition['to'] : '',
+						'count' => $count,
+					);
+				}
+			}
+			unset( $transition );
+		}
+		unset( $stage );
+
+		return array(
+			'config'  => $config,
+			'dropped' => $dropped,
+		);
+	}
+
+	/**
 	 * A transition's capture inputs, in the one shape every reader walks.
 	 *
 	 * A transition captures a list of inputs. It used to capture exactly one, held
@@ -1733,8 +1891,9 @@ class Sequence {
 	 * the editor collects an assignee for when the transition is taken. Any other
 	 * type — the retired free-text note (`textarea`, or the older `text`) — is
 	 * refused, so no write path can store an input the editor would pass over
-	 * without a word. Rows stored before the rule are cleared by the 2.25.0
-	 * migration, not tolerated here.
+	 * without a word. Stored rows and imported files written before the rule
+	 * have their notes removed ahead of this, by drop_retired_note_inputs(); a
+	 * note is not tolerated here.
 	 *
 	 * At most one input may be an assignment. Collapsing a second would discard
 	 * an assignment an author configured, so it is refused on write instead.

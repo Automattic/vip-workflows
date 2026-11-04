@@ -725,6 +725,34 @@ class SchemaTest extends TestCase
     }
 
     /**
+     * Only the known note types are dropped. An unknown input type, or one with
+     * no type, is left on the row, so the gate refuses it and the replay records
+     * the row for review instead of silently changing it.
+     */
+    public function test_keeps_unknown_and_typeless_inputs_for_the_gate(): void
+    {
+        $unknown  = [ 'type' => 'checklist', 'items' => [ 'Facts' ] ];
+        $typeless = [ 'label' => 'Something' ];
+
+        $config = $this->drop_retired_inputs(
+            [
+                'statuses' => [
+                    [
+                        'key'         => 'draft',
+                        'transitions' => [
+                            [ 'to' => 'review', 'inputs' => [ $unknown, $typeless ] ],
+                            [ 'to' => 'legal', 'input' => $unknown ],
+                        ],
+                    ],
+                ],
+            ]
+        );
+
+        $this->assertSame( [ $unknown, $typeless ], $config['statuses'][0]['transitions'][0]['inputs'] );
+        $this->assertSame( $unknown, $config['statuses'][0]['transitions'][1]['input'] );
+    }
+
+    /**
      * Once notes are dropped, the stored row passes the write gate, and a second
      * pass changes nothing — the replay's no-op check depends on it.
      */

@@ -514,7 +514,9 @@ class Schema {
 			// The gate strips `requires_assignment` itself. Notes are dropped
 			// ahead of the gate by drop_retired_transition_inputs(), which every
 			// replay runs, so earlier replays on a fresh upgrade do not reject a
-			// note-bearing row either.
+			// note-bearing row either. Only the known note types are dropped; an
+			// unknown input type is left for the gate, so its row is recorded for
+			// review rather than silently changed. Import runs the same cleanup.
 			//
 			// Idempotent: a replayed row carries neither field, so a second pass
 			// produces byte-identical JSON and writes nothing.
@@ -1397,76 +1399,32 @@ class Schema {
 	}
 
 	/**
-	 * Drop the capture inputs a transition no longer collects.
+	 * Drop the capture inputs a transition no longer collects, and log each drop.
 	 *
-	 * An assignment is the only input a transition captures. Free-text notes
-	 * (`textarea`, or the older `text`) were retired from the editor first, and
-	 * the write gate now refuses any input that is not an assignment, so a stored
-	 * note would make the gate reject its whole row. A note is already inert —
-	 * the editor passes it over when the transition is taken — so removing it
-	 * changes nothing an author or editor sees, and it is removed here, ahead of
-	 * the gate.
+	 * The cleanup itself is Sequence::drop_retired_note_inputs(), shared with
+	 * import so an old stored row and an old exported file upgrade the same way.
+	 * It removes only the known retired note types (`textarea`, `text`). Every
+	 * replay runs this, so earlier replays on a fresh upgrade do not reject a
+	 * note-bearing row either.
 	 *
-	 * Both shapes are covered, because every replay runs this and the oldest ones
-	 * still meet the singular `input` key: a singular note is removed outright.
-	 * The `none` sentinel is left for the gate, which turns it into no inputs,
-	 * so it is neither dropped nor logged as a retired input here.
-	 *
-	 * Deliberately narrow: a malformed entry — `inputs` that is not a list, or an
-	 * entry that is not an object — is left for the gate to reject loudly.
+	 * An input of any other non-assignment type, or one with no type, is left in
+	 * place: the gate then refuses the row, and the replay records it for the
+	 * sequences-needing-review notice like any other row it cannot normalize.
 	 *
 	 * @param  array  $config Stored sequence config.
 	 * @param  int    $id     Sequence ID, for logging.
 	 * @param  string $slug   Sequence slug, for logging.
-	 * @return array Config with every non-assignment capture input removed.
+	 * @return array Config with every retired note input removed.
 	 */
 	private static function drop_retired_transition_inputs( array $config, int $id, string $slug ): array {
-		if ( empty( $config['statuses'] ) || ! is_array( $config['statuses'] ) ) {
-			return $config;
+		$result = Sequence::drop_retired_note_inputs( $config );
+
+		foreach ( $result['dropped'] as $drop ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Sequence %d ("%s"): dropped %d retired capture input(s) from the transition on stage "%s" to "%s"; a transition captures only an assignment.', $id, $slug, $drop['count'], $drop['from'], $drop['to'] ) );
 		}
 
-		foreach ( $config['statuses'] as &$stage ) {
-			if ( ! is_array( $stage ) || empty( $stage['transitions'] ) || ! is_array( $stage['transitions'] ) ) {
-				continue;
-			}
-
-			foreach ( $stage['transitions'] as &$transition ) {
-				if ( ! is_array( $transition ) ) {
-					continue;
-				}
-
-				$dropped = 0;
-
-				// The `none` sentinel (or a typeless singular input, which the gate
-				// reads as `none`) is not a retired input: the gate already turns it
-				// into no inputs, so it is left there rather than logged as a drop.
-				if ( isset( $transition['input'] ) && is_array( $transition['input'] ) && ! in_array( $transition['input']['type'] ?? 'none', array( 'assignment', 'none' ), true ) ) {
-					unset( $transition['input'] );
-					++$dropped;
-				}
-
-				if ( isset( $transition['inputs'] ) && is_array( $transition['inputs'] ) ) {
-					$kept = array();
-					foreach ( $transition['inputs'] as $input ) {
-						if ( is_array( $input ) && 'assignment' !== ( $input['type'] ?? '' ) ) {
-							++$dropped;
-							continue;
-						}
-						$kept[] = $input;
-					}
-					$transition['inputs'] = $kept;
-				}
-
-				if ( $dropped ) {
-					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					error_log( sprintf( '[VIP Workflows] Sequence %d ("%s"): dropped %d retired capture input(s) from the transition on stage "%s" to "%s"; a transition captures only an assignment.', $id, $slug, $dropped, is_string( $stage['key'] ?? null ) ? $stage['key'] : '', is_string( $transition['to'] ?? null ) ? $transition['to'] : '' ) );
-				}
-			}
-			unset( $transition );
-		}
-		unset( $stage );
-
-		return $config;
+		return $result['config'];
 	}
 
 	/**
