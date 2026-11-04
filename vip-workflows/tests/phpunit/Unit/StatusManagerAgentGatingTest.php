@@ -369,7 +369,7 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->stub_current_user_roles( array( 'editor' ) );
         $this->stub_granted_caps();
         Functions\when( 'get_post_status' )->justReturn( 'draft' );
-        $this->stub_editor_connections( 2 );
+        $this->stub_room_presence_users( 2 );
 
         $manager = $this->gated_status_manager( $this->sequence_into_an_ai_stage() );
         $result  = $manager->transition( 42, 'review' );
@@ -389,7 +389,7 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->stub_granted_caps();
         Functions\when( 'get_post_status' )->justReturn( 'draft' );
         Functions\when( 'wp_update_post' )->justReturn( new \WP_Error( 'update_failed', 'stop here' ) );
-        $this->stub_editor_connections( 1 );
+        $this->stub_room_presence_users( 1 );
 
         $manager = $this->gated_status_manager( $this->sequence_into_an_ai_stage() );
         $result  = $manager->transition( 42, 'review' );
@@ -412,7 +412,7 @@ class StatusManagerAgentGatingTest extends TestCase
         Functions\when( 'user_can' )->justReturn( true );
         Functions\when( 'get_post_status' )->justReturn( 'draft' );
         Functions\when( 'wp_update_post' )->justReturn( new \WP_Error( 'update_failed', 'stop here' ) );
-        $this->stub_editor_connections( 2 );
+        $this->stub_room_presence_users( 2 );
 
         $manager = $this->gated_status_manager( $this->sequence_into_an_ai_stage() );
         $result  = $manager->transition(
@@ -428,7 +428,7 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->assertNotSame( 'co_editing', $result->get_error_code() );
         $this->assertSame(
             0,
-            \VIPRealTimeCollaboration\Presence\EditorConnections::$asked,
+            \VIPRealTimeCollaboration\Presence\RoomPresence::$asked,
             'an agent hop is checked by the runner, not here'
         );
     }

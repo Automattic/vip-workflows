@@ -22,22 +22,24 @@ namespace VIPWorkflows\Workflow;
  *
  * WordPress itself cannot answer this — a post lock records one user, and
  * under collaboration it is shared — so the count comes from the collaboration
- * provider. VIP Real-Time Collaboration reports open editor connections per
- * post; it counts connections, not users, so one person in two tabs is two.
- * Without it the count is 0 and nothing is held.
+ * provider. VIP Real-Time Collaboration has every editor with a connected
+ * room report the post on the heartbeat, and counts the users whose report is
+ * recent. It counts people actively editing, not tabs, and an editor whose
+ * tab is in the background or idle drops out of the count within half a
+ * minute. Without it the count is 0 and nothing is held.
  */
 class CoEditing {
 
 	/**
-	 * Number of editor connections open on a post right now, as far as the
-	 * collaboration provider knows. 0 when nothing reports.
+	 * Number of users editing the post right now, as far as the collaboration
+	 * provider knows. 0 when nothing reports.
 	 *
 	 * @param int $post_id Post ID.
 	 * @return int
 	 */
-	public static function editor_connections( int $post_id ): int {
-		return class_exists( '\VIPRealTimeCollaboration\Presence\EditorConnections' )
-			? (int) \VIPRealTimeCollaboration\Presence\EditorConnections::get_count( $post_id )
+	public static function editing_users( int $post_id ): int {
+		return class_exists( '\VIPRealTimeCollaboration\Presence\RoomPresence' )
+			? (int) \VIPRealTimeCollaboration\Presence\RoomPresence::count_users( $post_id )
 			: 0;
 	}
 
@@ -48,6 +50,6 @@ class CoEditing {
 	 * @return bool
 	 */
 	public static function is_shared( int $post_id ): bool {
-		return self::editor_connections( $post_id ) > 1;
+		return self::editing_users( $post_id ) > 1;
 	}
 }

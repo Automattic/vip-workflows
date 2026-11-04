@@ -125,10 +125,10 @@ abstract class TestCase extends YoastTestCase
         ( new \ReflectionProperty( \VIPWorkflows\Integrations\GuidelineContextProvider::class, 'reported' ) )
             ->setValue( null, array() );
 
-        // The editor connection count a test reported; a leftover count holds a
+        // The editing-user count a test reported; a leftover count holds a
         // later test's AI stage back.
-        \VIPRealTimeCollaboration\Presence\EditorConnections::$connections = 0;
-        \VIPRealTimeCollaboration\Presence\EditorConnections::$asked       = 0;
+        \VIPRealTimeCollaboration\Presence\RoomPresence::$users = 0;
+        \VIPRealTimeCollaboration\Presence\RoomPresence::$asked = 0;
 
         // The shared Telemetry double a test installed; a leftover one would
         // record a later test's events.
@@ -242,15 +242,15 @@ abstract class TestCase extends YoastTestCase
     }
 
     /**
-     * Report a number of open editor connections through the
-     * VIP Real-Time Collaboration double (see tests/phpunit/stubs/editor-connections.php).
-     * `EditorConnections::$asked` counts how many times CoEditing read it.
+     * Report a number of users editing each post through the
+     * VIP Real-Time Collaboration double (see tests/phpunit/stubs/room-presence.php).
+     * `RoomPresence::$asked` counts how many times CoEditing read it.
      *
-     * @param int $connections Connections to report.
+     * @param int $users Users to report.
      */
-    protected function stub_editor_connections( int $connections ): void
+    protected function stub_room_presence_users( int $users ): void
     {
-        \VIPRealTimeCollaboration\Presence\EditorConnections::$connections = $connections;
+        \VIPRealTimeCollaboration\Presence\RoomPresence::$users = $users;
     }
 
     /**

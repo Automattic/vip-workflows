@@ -1715,7 +1715,7 @@ class StageAgentRunnerExecuteTest extends TestCase
     public function test_a_post_open_in_more_than_one_editor_is_not_run(): void
     {
         $telemetry = $this->install_telemetry();
-        $this->stub_editor_connections( 2 );
+        $this->stub_room_presence_users( 2 );
         $this->stub_meta();
         $job = array();
         $this->capture_job_meta( $job );
