@@ -120,14 +120,37 @@ test.describe( 'VIP Workflows — Summary rows fallback', () => {
 	} );
 
 	test.describe( 'with the DataForm Summary experiment on', () => {
+		/*
+		 * Whether this environment can turn the experiment on at all. The
+		 * switch exists only in Gutenberg plugin builds that still ship the
+		 * DataForm Summary as an experiment: without the plugin there is no
+		 * experiments page, and after the Summary was stabilized the switch is
+		 * gone. Either way there is no DataForm-without-slot build to drive, so
+		 * the case is skipped and the not-mounted path is covered by
+		 * tests/unit-js/summary-rows-fallback.test.js instead.
+		 */
+		let experimentAvailable = false;
+
 		test.beforeAll( async ( { requestUtils } ) => {
-			await requestUtils.setGutenbergExperiments( [
-				'gutenberg-dataform-inspector',
-			] );
+			const response = await requestUtils.request.get(
+				'/wp-admin/admin.php?page=gutenberg-experiments'
+			);
+			const html = response.ok() ? await response.text() : '';
+			experimentAvailable =
+				html.includes( 'name="_wpnonce"' ) &&
+				html.includes( 'gutenberg-dataform-inspector' );
+
+			if ( experimentAvailable ) {
+				await requestUtils.setGutenbergExperiments( [
+					'gutenberg-dataform-inspector',
+				] );
+			}
 		} );
 
 		test.afterAll( async ( { requestUtils } ) => {
-			await requestUtils.setGutenbergExperiments( [] );
+			if ( experimentAvailable ) {
+				await requestUtils.setGutenbergExperiments( [] );
+			}
 		} );
 
 		/*
@@ -142,6 +165,11 @@ test.describe( 'VIP Workflows — Summary rows fallback', () => {
 			page,
 			requestUtils,
 		} ) => {
+			test.skip(
+				! experimentAvailable,
+				'This environment has no DataForm Summary experiment switch.'
+			);
+
 			const post = await createDraftPost( requestUtils, {
 				title: 'DataForm Summary e2e',
 			} );
