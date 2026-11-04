@@ -253,8 +253,8 @@ function describe_retired_note_removal( array $dropped ): array {
 		$notes[] = sprintf(
 			/* translators: 1: stage key holding the transition, 2: target stage key, 3: number of note inputs removed. */
 			_n(
-				'The transition from "%1$s" to "%2$s" declares %3$d retired note input. Import removes it, so it is left out of the validated config; create and update refuse it.',
-				'The transition from "%1$s" to "%2$s" declares %3$d retired note inputs. Import removes them, so they are left out of the validated config; create and update refuse them.',
+				'The transition from “%1$s” to “%2$s” declares %3$d retired note input. Import removes it, so it is left out of the validated config; create and update refuse it.',
+				'The transition from “%1$s” to “%2$s” declares %3$d retired note inputs. Import removes them, so they are left out of the validated config; create and update refuse them.',
 				$removal['count'],
 				'vip-workflows'
 			),

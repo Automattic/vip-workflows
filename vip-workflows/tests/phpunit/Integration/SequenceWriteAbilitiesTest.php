@@ -872,8 +872,8 @@ class SequenceWriteAbilitiesTest extends TestCase
         $this->assertTrue( $result['valid'], 'Retired notes are removed, not reported: ' . implode( ' | ', $result['errors'] ) );
         $this->assertSame( array(), $result['errors'] );
         $this->assertCount( 2, $result['notes'], 'One advisory per transition that lost a note.' );
-        $this->assertStringContainsString( '"writing" to "live" declares 2 retired note inputs', $result['notes'][0] );
-        $this->assertStringContainsString( '"legacy" to "live" declares 1 retired note input.', $result['notes'][1] );
+        $this->assertStringContainsString( '“writing” to “live” declares 2 retired note inputs', $result['notes'][0] );
+        $this->assertStringContainsString( '“legacy” to “live” declares 1 retired note input.', $result['notes'][1] );
 
         foreach ( $result['normalized_config']['statuses'] as $stage ) {
             foreach ( $stage['transitions'] ?? array() as $transition ) {
