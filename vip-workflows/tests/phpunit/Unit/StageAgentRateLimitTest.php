@@ -32,7 +32,7 @@ if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
 class StageAgentRateLimitTest extends TestCase
 {
     /**
-     * Backing store for the mocked transient counter.
+     * Backing store for the mocked object-cache counter.
      *
      * @var array<string, int>
      */
@@ -48,16 +48,27 @@ class StageAgentRateLimitTest extends TestCase
         Functions\when( 'wp_doing_cron' )->justReturn( false );
         Functions\when( 'get_current_user_id' )->justReturn( 7 );
 
-        // A stateful transient double so the counter accumulates across calls.
-        Functions\when( 'get_transient' )->alias(
-            function ( $key ) {
-                return $this->store[ $key ] ?? false;
+        // A stateful object-cache double so the counter accumulates across calls.
+        Functions\when( 'wp_using_ext_object_cache' )->justReturn( true );
+        Functions\when( 'wp_cache_add' )->alias(
+            function ( $key, $value ) {
+                if ( isset( $this->store[ $key ] ) ) {
+                    return false;
+                }
+                $this->store[ $key ] = (int) $value;
+                return true;
             }
         );
-        Functions\when( 'set_transient' )->alias(
-            function ( $key, $value ) {
-                $this->store[ $key ] = $value;
-                return true;
+        Functions\when( 'wp_cache_incr' )->alias(
+            function ( $key, $offset = 1 ) {
+                $this->store[ $key ] += $offset;
+                return $this->store[ $key ];
+            }
+        );
+        Functions\when( 'wp_cache_decr' )->alias(
+            function ( $key, $offset = 1 ) {
+                $this->store[ $key ] = max( 0, $this->store[ $key ] - $offset );
+                return $this->store[ $key ];
             }
         );
     }

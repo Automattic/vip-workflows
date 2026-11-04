@@ -669,21 +669,24 @@ class IdeationController extends WP_REST_Controller {
 		$prompt     = $request->get_param( 'prompt' );
 
 		// Each image is a call to the generative provider, so an account gets
-		// so many an hour, and so does a project.
-		$allowed = HourlyLimit::spend(
-			'image_generation',
-			self::DEFAULT_IMAGES_PER_HOUR,
-			__( 'This account has reached its hourly limit for generated images.', 'vip-workflows' )
-		);
-		if ( is_wp_error( $allowed ) ) {
-			return $allowed;
-		}
-
-		$allowed = HourlyLimit::spend(
-			'project_image_generation',
-			self::DEFAULT_IMAGES_PER_PROJECT_PER_HOUR,
-			__( 'This project has reached its hourly limit for generated images.', 'vip-workflows' ),
-			$project_id
+		// so many an hour, and so does a project. Both uses are reserved
+		// together: the account's first, then the project's, and when the
+		// project refuses, the account's use is given back, so a request
+		// refused by either limit spends neither.
+		$allowed = HourlyLimit::spend_all(
+			array(
+				array(
+					'image_generation',
+					self::DEFAULT_IMAGES_PER_HOUR,
+					__( 'This account has reached its hourly limit for generated images.', 'vip-workflows' ),
+				),
+				array(
+					'project_image_generation',
+					self::DEFAULT_IMAGES_PER_PROJECT_PER_HOUR,
+					__( 'This project has reached its hourly limit for generated images.', 'vip-workflows' ),
+					$project_id,
+				),
+			)
 		);
 		if ( is_wp_error( $allowed ) ) {
 			return $allowed;

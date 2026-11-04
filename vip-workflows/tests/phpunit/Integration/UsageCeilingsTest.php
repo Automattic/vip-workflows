@@ -21,6 +21,7 @@ use VIPWorkflows\AI\Credentials;
 use VIPWorkflows\API\DiscoveryController;
 use VIPWorkflows\API\IdeationController;
 use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Integrations\HourlyLimit;
 use VIPWorkflows\Ideation\Research\IdeationPostTypes;
 use WP_REST_Request;
 
@@ -61,8 +62,19 @@ class UsageCeilingsTest extends TestCase {
 	 */
 	private string $token;
 
+	/**
+	 * Whether the run had a persistent object cache before the test.
+	 *
+	 * @var bool
+	 */
+	private bool $ext_object_cache = false;
+
 	public function set_up(): void {
 		parent::set_up();
+
+		// The counts are kept in the database, the backend of a site without a
+		// persistent object cache; the unit tests cover the cache backend.
+		$this->ext_object_cache = (bool) wp_using_ext_object_cache( false );
 
 		self::$searches = 0;
 		$this->ceilings = array();
@@ -123,8 +135,9 @@ class UsageCeilingsTest extends TestCase {
 	public function tear_down(): void {
 		global $wpdb;
 
-		// Counts and cached searches live in transients, outside the transaction.
-		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE '%vip_workflows_%_rate_%' OR option_name LIKE '%vip_discovery_search_%'" ); // phpcs:ignore WordPress.DB
+		// Counts live in options rows and cached searches in transients.
+		$wpdb->query( "DELETE FROM {$wpdb->options} WHERE option_name LIKE 'vip\\_workflows\\_hourly\\_%' OR option_name LIKE '%vip_discovery_search_%'" ); // phpcs:ignore WordPress.DB
+		wp_using_ext_object_cache( $this->ext_object_cache );
 
 		$GLOBALS['wp_rest_server'] = null;
 
@@ -274,5 +287,64 @@ class UsageCeilingsTest extends TestCase {
 		}
 
 		$this->assertSame( array(), $this->reached );
+	}
+
+	public function test_an_image_request_the_project_refuses_spends_no_account_use(): void {
+		$this->ceilings['image_generation']         = 2;
+		$this->ceilings['project_image_generation'] = 1;
+		$full                                       = $this->a_project();
+
+		$this->assertSame( 'no_provider', $this->generate_image_for( $full )->get_data()['code'] );
+
+		// Refused by the project, again and again: the account keeps its second use.
+		for ( $i = 0; $i < 5; $i++ ) {
+			$this->assertRefused( $this->generate_image_for( $full ), 'vip_workflows_project_image_generation_rate_limited' );
+		}
+
+		$this->assertSame( 'no_provider', $this->generate_image_for( $this->a_project() )->get_data()['code'] );
+		$this->assertRefused( $this->generate_image_for( $this->a_project() ), 'vip_workflows_image_generation_rate_limited' );
+	}
+
+	// ─── The database counter ───────────────────────────────────
+
+	/**
+	 * The stored count of an action for a subject in the current hour.
+	 */
+	private function stored_count( string $action, int $subject ): ?string {
+		global $wpdb;
+
+		$name = HourlyLimit::OPTION_PREFIX . intdiv( time(), HOUR_IN_SECONDS ) . "_{$action}_{$subject}";
+
+		return $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) ); // phpcs:ignore WordPress.DB
+	}
+
+	public function test_the_database_counter_stops_at_the_ceiling_and_is_not_autoloaded(): void {
+		global $wpdb;
+
+		$this->ceilings['discovery_search'] = 3;
+		$user                               = get_current_user_id();
+
+		for ( $i = 0; $i < 3; $i++ ) {
+			$this->assertTrue( HourlyLimit::spend( 'discovery_search', 120, 'Reached.' ), "use $i" );
+		}
+		$this->assertSame( '3', $this->stored_count( 'discovery_search', $user ) );
+
+		$this->assertWPError( HourlyLimit::spend( 'discovery_search', 120, 'Reached.' ) );
+		$this->assertSame( '3', $this->stored_count( 'discovery_search', $user ), 'the refused use is not counted' );
+
+		$name = HourlyLimit::OPTION_PREFIX . intdiv( time(), HOUR_IN_SECONDS ) . "_discovery_search_{$user}";
+		$this->assertSame( 'off', $wpdb->get_var( $wpdb->prepare( "SELECT autoload FROM {$wpdb->options} WHERE option_name = %s", $name ) ) ); // phpcs:ignore WordPress.DB
+	}
+
+	public function test_the_first_use_in_an_hour_removes_the_counts_of_earlier_hours(): void {
+		global $wpdb;
+
+		$earlier = HourlyLimit::OPTION_PREFIX . ( intdiv( time(), HOUR_IN_SECONDS ) - 1 ) . '_discovery_search_1';
+		$wpdb->insert( $wpdb->options, array( 'option_name' => $earlier, 'option_value' => '9', 'autoload' => 'off' ) ); // phpcs:ignore WordPress.DB
+
+		$this->assertTrue( HourlyLimit::spend( 'discovery_search', 120, 'Reached.' ) );
+
+		$this->assertNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $earlier ) ) ); // phpcs:ignore WordPress.DB
+		$this->assertSame( '1', $this->stored_count( 'discovery_search', get_current_user_id() ) );
 	}
 }
