@@ -43,9 +43,11 @@ class SafeUrl {
 	/**
 	 * Reduce a value to a web address, or to nothing.
 	 *
-	 * Only a value that starts with `http://` or `https://` is returned, so a
-	 * value in any other scheme is refused however it is written: there is no
-	 * list of bad schemes for a variant spelling to get past.
+	 * Only a value that starts with `http://` or `https://` and names a host is
+	 * returned, so a value in any other scheme is refused however it is written:
+	 * there is no list of bad schemes for a variant spelling to get past. An
+	 * address with an empty or malformed authority (`https://`, `http://?x=1`)
+	 * is refused as well: it would be stored as a link that cannot resolve.
 	 *
 	 * What the normalization decides is which web addresses are accepted. Before
 	 * it reads the scheme, a browser discards C0 control characters and spaces
@@ -59,7 +61,7 @@ class SafeUrl {
 	 * stores the result as a field, and a field that holds nothing is null.
 	 *
 	 * @param mixed $value Candidate URL. A payload is decoded JSON, so any type can arrive.
-	 * @return string|null The address when it is absolute `http` or `https`, null otherwise.
+	 * @return string|null The address when it is absolute `http` or `https` with a host, null otherwise.
 	 */
 	public static function http_or_null( $value ): ?string {
 		if ( ! is_string( $value ) ) {
@@ -68,7 +70,11 @@ class SafeUrl {
 
 		$url = self::as_a_browser_reads_it( $value );
 
-		return 1 === preg_match( '#^https?://#i', $url ) ? $url : null;
+		if ( 1 !== preg_match( '#^https?://#i', $url ) ) {
+			return null;
+		}
+
+		return self::has_a_host( $url ) ? $url : null;
 	}
 
 	/**
@@ -110,6 +116,43 @@ class SafeUrl {
 		}
 
 		return self::http_or_null( $url );
+	}
+
+	/**
+	 * Whether a web address names a host that a link can reach.
+	 *
+	 * The scheme alone does not make an address: `https://`, `https:///`,
+	 * `http://?x=1` and `https://:80` start the right way and name no host, so
+	 * they are stored as links that lead nowhere. `wp_parse_url()` returns false
+	 * for an authority it cannot read, and no host for one that is empty.
+	 *
+	 * A host that parses is then checked for the characters that cannot appear
+	 * in one (the forbidden host code points of the URL standard): a space, a
+	 * control character, or a delimiter such as `<` or `|` means the value is
+	 * not an address. An IPv6 literal is bracketed, and is checked as one.
+	 * Characters outside ASCII pass, so an internationalized host is kept.
+	 *
+	 * @param string $url Address that starts with `http://` or `https://`.
+	 * @return bool
+	 */
+	private static function has_a_host( string $url ): bool {
+		$parts = wp_parse_url( $url );
+
+		if ( ! is_array( $parts ) || empty( $parts['scheme'] ) || ! isset( $parts['host'] ) ) {
+			return false;
+		}
+
+		if ( ! in_array( strtolower( $parts['scheme'] ), array( 'http', 'https' ), true ) ) {
+			return false;
+		}
+
+		$host = (string) $parts['host'];
+
+		if ( str_starts_with( $host, '[' ) ) {
+			return 1 === preg_match( '#^\[[0-9a-f:.]+\]$#i', $host );
+		}
+
+		return 1 === preg_match( '#^[^\x00-\x20\x7f\#%/:<>?@\[\\\\\]^|"\'`{}]+$#', $host );
 	}
 
 	/**

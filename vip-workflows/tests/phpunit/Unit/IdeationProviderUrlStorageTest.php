@@ -469,6 +469,39 @@ class IdeationProviderUrlStorageTest extends TestCase {
 		$this->assertCount( 1, $this->stored_sources() );
 	}
 
+	public function test_a_url_with_no_host_is_not_stored(): void {
+		$this->store( array( $this->article( array( 'url' => 'https://' ) ) ) );
+
+		$rows = $this->stored_sources();
+
+		$this->assertCount( 1, $rows );
+		$this->assertNull( $rows[0]['url'] );
+	}
+
+	public function test_distinct_cards_with_the_same_url_that_has_no_host_are_distinct_sources(): void {
+		// A rejected URL is not identity: each card is identified by its title and
+		// body instead, so two different results stay two rows.
+		$this->store(
+			array(
+				$this->article( array( 'url' => 'https://' ) ),
+				$this->article(
+					array(
+						'url'     => 'https://',
+						'title'   => 'Snowpack is above average',
+						'content' => 'A wet spring refilled the high country.',
+					)
+				),
+			)
+		);
+
+		$rows = $this->stored_sources();
+
+		$this->assertCount( 2, $rows );
+		$this->assertNull( $rows[0]['url'] );
+		$this->assertNull( $rows[1]['url'] );
+		$this->assertNotSame( $rows[0]['source_id'], $rows[1]['source_id'] );
+	}
+
 	// ─── Every card, on every path ───────────────────────────────
 
 	public function test_every_card_of_a_run_is_checked_not_only_the_first(): void {
