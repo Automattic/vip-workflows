@@ -11,6 +11,13 @@ on:
   pull_request_target:
     types: [closed]
 
+# Shares one group per pull request with "PR Preview - Publish": cleanup waits
+# for a publish run that is already in progress, then deletes what it uploaded.
+# A publish run that starts after the close sees it and uploads nothing.
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
