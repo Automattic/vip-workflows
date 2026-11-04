@@ -886,11 +886,26 @@ class StageAgentRunnerExecuteTest extends TestCase
         $executor = Mockery::mock( AbilityExecutor::class );
         $arrange( $executor->shouldReceive( 'execute' )->once() );
 
+        return self::capture_log(
+            static function () use ( $executor ): void {
+                ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+            }
+        );
+    }
+
+    /**
+     * Run a callback and return everything it wrote through error_log().
+     *
+     * @param  callable $run Code under test.
+     * @return string The captured error_log output.
+     */
+    private static function capture_log( callable $run ): string
+    {
         // phpunit.xml routes error_log to /dev/null; capture it here.
         $log_file = tempnam( sys_get_temp_dir(), 'vipwf-log-' );
         $previous = ini_set( 'error_log', $log_file );
         try {
-            ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+            $run();
         } finally {
             ini_set( 'error_log', $previous );
         }
@@ -902,19 +917,30 @@ class StageAgentRunnerExecuteTest extends TestCase
     }
 
     /**
+     * Assert every captured line is one whole error_log entry: no injected line break got through.
+     *
+     * @param string $log Captured error_log output.
+     */
+    private function assert_every_line_is_an_entry( string $log ): void
+    {
+        $this->assertNotSame( '', $log, 'Something was logged.' );
+        foreach ( explode( "\n", rtrim( $log, "\n" ) ) as $line ) {
+            $this->assertMatchesRegularExpression( '/^\[\d{2}-\w{3}-\d{4} [\d:]+ \w+\] \[VIP Workflows\] /', $line, 'Every line is a whole log entry.' );
+        }
+    }
+
+    /**
      * Assert the hold wrote one line and nothing in the log was split by injected text.
      *
-     * The run also writes fail_in_place()'s own line, which carries the hold
-     * message, so the check is per line: each one is a whole error_log entry.
+     * The run also writes fail_in_place()'s own line, so the check is per
+     * line: each one is a whole error_log entry.
      *
      * @param string $log Captured error_log output.
      */
     private function assert_log_lines_are_unbroken( string $log ): void
     {
         $this->assertSame( 1, substr_count( $log, 'Agent error route held at publish boundary' ), 'Exactly one hold line.' );
-        foreach ( explode( "\n", rtrim( $log, "\n" ) ) as $line ) {
-            $this->assertMatchesRegularExpression( '/^\[\d{2}-\w{3}-\d{4} [\d:]+ \w+\] /', $line, 'Every line is a whole log entry.' );
-        }
+        $this->assert_every_line_is_an_entry( $log );
     }
 
     /**
@@ -954,7 +980,7 @@ class StageAgentRunnerExecuteTest extends TestCase
             }
         );
 
-        $this->assertStringContainsString( 'code=provider.http_errorforgedbxb', $log );
+        $this->assertStringContainsString( 'code=provider.http_errorforgedbx/b', $log );
         $this->assertStringNotContainsString( 'sk-SECRET', $log );
         $this->assertStringNotContainsString( 'second line', $log );
         $this->assert_log_lines_are_unbroken( $log );
@@ -976,6 +1002,135 @@ class StageAgentRunnerExecuteTest extends TestCase
 
         $this->assertStringContainsString( 'code=' . str_repeat( 'a', 100 ) . "\n", $log );
         $this->assertStringNotContainsString( str_repeat( 'a', 101 ), $log );
+    }
+
+    /**
+     * A run that fails in place logs identifiers and its cause code, never the exception message.
+     */
+    public function test_fail_in_place_logs_the_exception_class_not_its_message(): void
+    {
+        $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ) );
+        $status_manager->shouldReceive( 'transition' )->never();
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )
+            ->once()
+            ->andThrow( new \RuntimeException( "token=sk-SECRET\n[VIP Workflows] forged entry" ) );
+
+        $log = self::capture_log(
+            static function () use ( $executor ): void {
+                ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+            }
+        );
+
+        $this->assertSame(
+            1,
+            substr_count(
+                $log,
+                '[VIP Workflows] Agent stopped in place: post=42 stage=ai_desk agent=workflow-agent-reformat-to-template/reformat-to-template reason=execution_error code=RuntimeException' . "\n"
+            )
+        );
+        $this->assertStringNotContainsString( 'sk-SECRET', $log );
+        $this->assertStringNotContainsString( 'forged entry', $log );
+        $this->assert_every_line_is_an_entry( $log );
+        // The editor still gets the full message.
+        $this->assertSame( "token=sk-SECRET\n[VIP Workflows] forged entry", $job['error'] );
+    }
+
+    /**
+     * An ability's own failure text stays out of the log; only its sanitized code is written.
+     */
+    public function test_fail_in_place_logs_the_ability_error_code_not_its_message(): void
+    {
+        $this->stub_meta();
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ) );
+        $status_manager->shouldReceive( 'transition' )->never();
+        $this->seed_status_manager( $status_manager );
+
+        $result             = self::make_result( false );
+        $result->error      = "Provider rejected key sk-SECRET\nsecond line";
+        $result->error_code = "provider.http_error\r\n[forged]";
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->once()->andReturn( $result );
+
+        $log = self::capture_log(
+            static function () use ( $executor ): void {
+                ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+            }
+        );
+
+        $this->assertStringContainsString( 'reason=execution_error code=provider.http_errorforged' . "\n", $log );
+        $this->assertStringNotContainsString( 'sk-SECRET', $log );
+        $this->assertStringNotContainsString( 'second line', $log );
+        $this->assert_every_line_is_an_entry( $log );
+    }
+
+    /**
+     * A refused exit transition logs the WP_Error code, not the WP_Error message.
+     */
+    public function test_refused_exit_logs_the_wp_error_code_not_its_message(): void
+    {
+        $this->stub_meta();
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ) );
+        $status_manager->shouldReceive( 'transition' )
+            ->once()
+            ->andReturn( new \WP_Error( 'transition_failed', "Checklist note: password=hunter2\nforged line" ) );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )
+            ->once()
+            ->andReturn( self::make_result( true, array( 'status' => 'pass', 'summary' => 'ok' ) ) );
+
+        $log = self::capture_log(
+            static function () use ( $executor ): void {
+                ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+            }
+        );
+
+        $this->assertStringContainsString( 'reason=exit_refused code=transition_failed' . "\n", $log );
+        $this->assertStringNotContainsString( 'hunter2', $log );
+        $this->assertStringNotContainsString( 'forged line', $log );
+        $this->assert_every_line_is_an_entry( $log );
+    }
+
+    /**
+     * A stage key read back from stored post meta reaches the log only as a token.
+     */
+    public function test_stale_failure_log_reduces_the_stored_stage_key_to_a_token(): void
+    {
+        Functions\when( 'get_post_meta' )->justReturn(
+            array(
+                'stage_key' => "next_ai_stage\n[VIP Workflows] forged entry",
+                'status'    => 'pending',
+            )
+        );
+
+        $log = self::capture_log(
+            static function (): void {
+                $method = new \ReflectionMethod( StageAgentRunner::class, 'fail_in_place' );
+                $method->invoke( new StageAgentRunner(), 42, 'ai_desk', 'workflow-agent-reformat-to-template/reformat-to-template', 'stale failure: sk-SECRET' );
+            }
+        );
+
+        $this->assertStringContainsString( 'owner=next_ai_stageVIPWorkflowsforgedentry' . "\n", $log );
+        $this->assertStringNotContainsString( 'sk-SECRET', $log );
+        $this->assertStringNotContainsString( 'forged entry', $log );
+        $this->assert_every_line_is_an_entry( $log );
     }
 
     /**

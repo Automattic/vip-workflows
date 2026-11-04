@@ -284,7 +284,15 @@ class StageAgentRunner implements ModuleInterface {
 			$message = is_wp_error( $scheduled )
 				? $scheduled->get_error_message()
 				: __( 'The agent run could not be scheduled.', 'vip-workflows' );
-			$this->fail_in_place( $post_id, $new_status, $status['agent']['ability_id'], $message, $old_status, array( 'stop_reason' => 'dispatch_failed' ) );
+			$this->fail_in_place(
+				$post_id,
+				$new_status,
+				$status['agent']['ability_id'],
+				$message,
+				$old_status,
+				array( 'stop_reason' => 'dispatch_failed' ),
+				is_wp_error( $scheduled ) ? (string) $scheduled->get_error_code() : ''
+			);
 		}
 	}
 
@@ -308,9 +316,9 @@ class StageAgentRunner implements ModuleInterface {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log(
 			sprintf(
-				'VIP Workflows: agent run for post %d at stage "%s" already queued; the existing event will serve the new pending job.',
+				'[VIP Workflows] Agent run already queued; the existing event serves the new pending job: post=%d stage=%s',
 				$post_id,
-				$stage_key
+				self::log_token( $stage_key )
 			)
 		);
 	}
@@ -589,7 +597,7 @@ class StageAgentRunner implements ModuleInterface {
 			return;
 		}
 
-		$this->fail_in_place( $post_id, $stage_key, $ability_id, $message, $from_stage, $run );
+		$this->fail_in_place( $post_id, $stage_key, $ability_id, $message, $from_stage, $run, $error_code );
 	}
 
 	/**
@@ -637,12 +645,11 @@ class StageAgentRunner implements ModuleInterface {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log(
 			sprintf(
-				'VIP Workflows: agent run for post %d abandoned — dispatched for stage "%s" but %s mid-execution; the run\'s outcome was discarded.',
+				'[VIP Workflows] Agent run abandoned mid-execution, outcome discarded: post=%d stage=%s reason=%s current=%s',
 				$post_id,
-				$stage_key,
-				$superseded
-					? 'a newer run was queued for the same stage'
-					: sprintf( 'the post moved to stage "%s"', (string) $current_stage )
+				self::log_token( $stage_key ),
+				$superseded ? 'superseded' : 'stage_moved',
+				self::log_token( (string) $current_stage )
 			)
 		);
 
@@ -920,15 +927,15 @@ class StageAgentRunner implements ModuleInterface {
 	/**
 	 * Reduce a value to a bounded token that is safe in a server log line.
 	 *
-	 * Keeps letters, digits, `_`, `.`, `-` and `\` (namespaced class names) and
-	 * caps the length, so nothing written through it can break the line, forge
-	 * another entry or carry prose.
+	 * Keeps letters, digits, `_`, `.`, `-`, `\` (namespaced class names) and `/`
+	 * (ability IDs) and caps the length, so nothing written through it can break
+	 * the line, forge another entry or carry prose.
 	 *
-	 * @param  string $value Identifier-like value: a key, an error code or a class name.
+	 * @param  string $value Identifier-like value: a key, an error code, an ability ID or a class name.
 	 * @return string The token, or `-` when nothing safe remains.
 	 */
-	private static function log_token( string $value ): string {
-		$token = substr( (string) preg_replace( '/[^A-Za-z0-9_.\\\\-]/', '', $value ), 0, self::LOG_TOKEN_MAX );
+	public static function log_token( string $value ): string {
+		$token = substr( (string) preg_replace( '#[^A-Za-z0-9_.\\\\/-]#', '', $value ), 0, self::LOG_TOKEN_MAX );
 
 		return '' === $token ? '-' : $token;
 	}
@@ -1045,7 +1052,7 @@ class StageAgentRunner implements ModuleInterface {
 			// sees it and can act, rather than leaving it silently stranded. Always
 			// in place, even for a stage with an error route: the error route is an
 			// exit transition too, and this exit just refused.
-			$this->fail_in_place( $post_id, $stage_key, $ability_id, $transitioned->get_error_message(), $from_stage, array_merge( $run, array( 'stop_reason' => 'exit_refused' ) ) );
+			$this->fail_in_place( $post_id, $stage_key, $ability_id, $transitioned->get_error_message(), $from_stage, array_merge( $run, array( 'stop_reason' => 'exit_refused' ) ), (string) $transitioned->get_error_code() );
 			return;
 		}
 
@@ -1090,10 +1097,10 @@ class StageAgentRunner implements ModuleInterface {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log(
 				sprintf(
-					'VIP Workflows: suppressed stale warning marker for post %d at stage "%s" — stage "%s" owns the current job marker.',
+					'[VIP Workflows] Stale warning marker suppressed, another stage owns the job: post=%d stage=%s owner=%s',
 					$post_id,
-					$stage_key,
-					(string) $existing['stage_key']
+					self::log_token( $stage_key ),
+					self::log_token( (string) $existing['stage_key'] )
 				)
 			);
 			return;
@@ -1133,10 +1140,23 @@ class StageAgentRunner implements ModuleInterface {
 	 * @param string $message    Failure message.
 	 * @param string $from_stage Stage the post entered from ('' when unknown).
 	 * @param array  $run        Telemetry details for the run, including why it stopped.
+	 * @param string $error_code Machine-readable cause (WP_Error code or exception class), for logs.
 	 */
-	private function fail_in_place( int $post_id, string $stage_key, string $ability_id, string $message, string $from_stage = '', array $run = array() ): void {
+	private function fail_in_place( int $post_id, string $stage_key, string $ability_id, string $message, string $from_stage = '', array $run = array(), string $error_code = '' ): void {
+		// Identifiers only. The message is free-form text from an extension, a
+		// provider or a WP_Error and may carry secrets or line breaks; it stays
+		// in the job marker for the editor, not in the server log.
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( sprintf( 'VIP Workflows: agent "%s" failed for post %d at stage "%s": %s', $ability_id, $post_id, $stage_key, $message ) );
+		error_log(
+			sprintf(
+				'[VIP Workflows] Agent stopped in place: post=%d stage=%s agent=%s reason=%s code=%s',
+				$post_id,
+				self::log_token( $stage_key ),
+				self::log_token( $ability_id ),
+				self::log_token( (string) ( $run['stop_reason'] ?? '' ) ),
+				self::log_token( $error_code )
+			)
+		);
 
 		// A stale run must not clobber a job a newer stage already owns (e.g. a
 		// checkpoint reseat or a bypass admin moved the post on and its next
@@ -1148,10 +1168,10 @@ class StageAgentRunner implements ModuleInterface {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log(
 				sprintf(
-					'VIP Workflows: suppressed stale failure marker for post %d at stage "%s" — stage "%s" owns the current job marker.',
+					'[VIP Workflows] Stale failure marker suppressed, another stage owns the job: post=%d stage=%s owner=%s',
 					$post_id,
-					$stage_key,
-					(string) $existing['stage_key']
+					self::log_token( $stage_key ),
+					self::log_token( (string) $existing['stage_key'] )
 				)
 			);
 			return;
