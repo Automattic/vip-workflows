@@ -1,6 +1,15 @@
-# Shipped feature specifications
+# Feature specifications
+
+## Proposed
+
+Design specs awaiting review. They describe intended behavior, not current behavior.
+
+- [Error-state pattern](planned/error-state-pattern.md)
+
+## Shipped
 
 These documents describe implemented behavior and the design decisions behind it. Source code and tests remain authoritative where a document has drifted.
+
 
 - [AI agent](shipped/ai-agent.md)
 - [Content hierarchy](shipped/content-hierarchy.md)
