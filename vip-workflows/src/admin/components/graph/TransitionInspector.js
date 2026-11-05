@@ -187,12 +187,6 @@ export default function TransitionInspector( {
 		( input ) => 'assignment' === input.type
 	);
 
-	// Everything else on the list is a stored input the editor sidebar no
-	// longer collects — a retired note, or a kind this build does not know.
-	const uncollectedCount = inputs.filter(
-		( input ) => 'assignment' !== input.type
-	).length;
-
 	// One row per stored id, resolved against what this site offers. Every id
 	// gets a row, including one nothing answers to: the list is the stored array
 	// made visible, and an entry it declined to show would be an entry the author
@@ -298,24 +292,10 @@ export default function TransitionInspector( {
 
 	const subtitle = `${ sourceLabel } → ${ targetLabel }`;
 
-	// Collapsed-state gist, so the section reads while shut. An input left to
-	// remove outranks the assignment: it is the one thing in here that needs the
-	// author, and a shut section saying "None" would hide it.
-	let assignmentSummary = __( 'None', 'vip-workflows' );
-	if ( uncollectedCount ) {
-		assignmentSummary = sprintf(
-			/* translators: %d: how many stored inputs are no longer collected. */
-			_n(
-				'%d input to remove',
-				'%d inputs to remove',
-				uncollectedCount,
-				'vip-workflows'
-			),
-			uncollectedCount
-		);
-	} else if ( hasAssignment ) {
-		assignmentSummary = __( '1 assignment', 'vip-workflows' );
-	}
+	// Collapsed-state gist, so the section reads while shut.
+	const assignmentSummary = hasAssignment
+		? __( '1 assignment', 'vip-workflows' )
+		: __( 'None', 'vip-workflows' );
 
 	return (
 		<InspectorShell
@@ -607,62 +587,23 @@ export default function TransitionInspector( {
 						<InspectorFieldList
 							items={ inputs }
 							onChange={ updateInputs }
-							// Only an assignment writes under its key, so only
-							// assignments can collide: an uncollected input
-							// writes nothing, and its stale key is no reason
-							// to flag a live assignment beside it.
-							keyOf={ ( item ) =>
-								'assignment' === item.type
-									? item.meta_key || ''
-									: ''
-							}
+							// The write gate refuses any input that is not an
+							// assignment, so every row here is one, and its
+							// key is the slot two rows can collide on.
+							keyOf={ ( item ) => item.meta_key || '' }
 							// An assignment is started the moment it exists:
 							// its key is minted with it rather than derived
 							// from anything typed, so a blank one is a stored
 							// config `validateSequence` blocks Save on. A row
 							// that said nothing would leave the author with
 							// Save switched off and no row to point at.
-							isStarted={ ( item ) => 'assignment' === item.type }
-							// Anything else a stored sequence still carries —
-							// a retired note, or a kind this build does not
-							// know — stays on the list so the author can see
-							// and remove it. It has nothing to configure, so
-							// its row says why in a tip rather than opening a
-							// popover with nothing in it to focus.
-							describe={ ( item ) =>
-								'assignment' === item.type
-									? {
-											label:
-												item.label ||
-												__(
-													'Untitled',
-													'vip-workflows'
-												),
-											value: __(
-												'Assignment',
-												'vip-workflows'
-											),
-									  }
-									: {
-											label:
-												item.note_name ||
-												item.label ||
-												item.type ||
-												__(
-													'Untitled',
-													'vip-workflows'
-												),
-											value: __(
-												'No longer collected',
-												'vip-workflows'
-											),
-											tip: __(
-												'The editor no longer asks for this input when the transition is taken, so it does nothing. Remove it.',
-												'vip-workflows'
-											),
-											invalid: true,
-									  }
-							}
+							isStarted={ () => true }
+							describe={ ( item ) => ( {
+								label:
+									item.label ||
+									__( 'Untitled', 'vip-workflows' ),
+								value: __( 'Assignment', 'vip-workflows' ),
+							} ) }
 							renderConfig={ ( { item, update, problem } ) => (
 								<>
 									{ /* The row says the key is wrong, and there

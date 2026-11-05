@@ -970,4 +970,230 @@ class SequenceConfigMigrationTest extends TestCase
 		$this->assertSame( 'sequence_invalid', $error->get_error_code() );
 		$this->assertStringContainsString( 'revieww', $error->get_error_message() );
 	}
+
+	/**
+	 * The retired restrict-to-assignee gate is stripped from stored rows by the
+	 * 2.25.0 replay, so GET and export stop re-emitting a restriction nothing
+	 * enforces. The rest of the transition is left as it was.
+	 */
+	public function test_retired_assignment_gate_migration_strips_the_stored_key(): void
+	{
+		$id = $this->insert_unnormalized(
+			'legacy-requires-assignment',
+			array(
+				'post_types' => array( 'post' ),
+				'statuses'   => array(
+					array(
+						'key'          => 'draft',
+						'label'        => 'Draft',
+						'status'       => 'draft',
+						'region_entry' => true,
+						'transitions'  => array(
+							array(
+								'to'                  => 'review',
+								'label'               => 'Send to review',
+								'requires_assignment' => array( 'meta_key' => 'legal_reviewer', 'match' => 'current_user' ),
+							),
+						),
+					),
+					array( 'key' => 'review', 'label' => 'Review', 'status' => 'pending', 'region_entry' => true ),
+				),
+			)
+		);
+
+		$method     = new \ReflectionMethod( Schema::class, 'get_migrations' );
+		$migrations = array_values(
+			array_filter(
+				$method->invoke( new Schema() ),
+				static fn( array $migration ): bool => '2.25.0' === $migration['version']
+			)
+		);
+
+		$this->assertCount( 1, $migrations, 'The retired-gate replay must be registered.' );
+
+		( $migrations[0]['run'] )();
+
+		$this->assertSame(
+			array( 'to' => 'review', 'label' => 'Send to review' ),
+			$this->stored_config( $id )['statuses'][0]['transitions'][0]
+		);
+	}
+
+	/**
+	 * A config holding a retired note, already carrying regions.
+	 *
+	 * @param  string $review_label Label of the second stage, to tell saves apart.
+	 * @return array
+	 */
+	private static function note_bearing_config( string $review_label ): array
+	{
+		return array(
+			'post_types' => array( 'post' ),
+			'statuses'   => array(
+				array(
+					'key'          => 'draft',
+					'label'        => 'Draft',
+					'status'       => 'draft',
+					'region_entry' => true,
+					'transitions'  => array(
+						array(
+							'to'     => 'review',
+							'label'  => 'Send to review',
+							'inputs' => array( array( 'type' => 'textarea', 'note_name' => 'Why', 'required' => true ) ),
+						),
+					),
+				),
+				array( 'key' => 'review', 'label' => $review_label, 'status' => 'pending', 'region_entry' => true ),
+			),
+		);
+	}
+
+	/**
+	 * Run the 2.25.0 migration entry.
+	 */
+	private function run_retired_input_migration(): void
+	{
+		$method     = new \ReflectionMethod( Schema::class, 'get_migrations' );
+		$migrations = array_values(
+			array_filter(
+				$method->invoke( new Schema() ),
+				static fn( array $migration ): bool => '2.25.0' === $migration['version']
+			)
+		);
+
+		$this->assertCount( 1, $migrations );
+
+		( $migrations[0]['run'] )();
+	}
+
+	/**
+	 * Change a sequence's stored config just before the replay's conditional write
+	 * for it runs, the way a REST save landing between the read and the write would.
+	 *
+	 * @param  int $id    Sequence to change.
+	 * @param  int $times How many of the replay's writes to precede with a save.
+	 * @return \Closure The `query` filter, for removal.
+	 */
+	private function save_before_replay_write( int $id, int $times ): \Closure
+	{
+		$saves  = 0;
+		$filter = static function ( $query ) use ( $id, $times, &$saves ) {
+			global $wpdb;
+
+			if ( $saves < $times && is_string( $query ) && str_contains( $query, 'HEX(config)' ) && str_contains( $query, "WHERE id = {$id} AND" ) ) {
+				++$saves;
+
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->update(
+					$wpdb->prefix . 'vip_sequences',
+					array( 'config' => wp_json_encode( self::note_bearing_config( 'Save ' . $saves ) ) ),
+					array( 'id' => $id )
+				);
+			}
+
+			return $query;
+		};
+
+		add_filter( 'query', $filter );
+
+		return $filter;
+	}
+
+	/**
+	 * A save that lands between the replay's read and its write is kept: the
+	 * write does not match, the row is read again, and the cleanup is applied
+	 * to what the save stored.
+	 */
+	public function test_replay_keeps_a_save_that_lands_between_read_and_write(): void
+	{
+		delete_option( Schema::REGION_REVIEW_OPTION );
+
+		$id     = $this->insert_unnormalized( 'concurrent-save', self::note_bearing_config( 'Review' ) );
+		$filter = $this->save_before_replay_write( $id, 1 );
+
+		$this->run_retired_input_migration();
+		remove_filter( 'query', $filter );
+
+		$config = $this->stored_config( $id );
+
+		$this->assertSame( 'Save 1', $config['statuses'][1]['label'], 'The concurrent save is kept.' );
+		$this->assertSame(
+			array( 'to' => 'review', 'label' => 'Send to review' ),
+			$config['statuses'][0]['transitions'][0],
+			'The note is removed from the saved config.'
+		);
+		$this->assertSame( array(), (array) get_option( Schema::REGION_REVIEW_OPTION, array() ) );
+	}
+
+	/**
+	 * A row that changes again on the retry is left as last saved and recorded
+	 * for review, and the migration still cleans the other rows.
+	 */
+	public function test_replay_records_a_row_that_keeps_changing_and_continues(): void
+	{
+		delete_option( Schema::REGION_REVIEW_OPTION );
+
+		$busy   = $this->insert_unnormalized( 'busy-sequence', self::note_bearing_config( 'Review' ) );
+		$quiet  = $this->insert_unnormalized( 'quiet-sequence', self::note_bearing_config( 'Review' ) );
+		$filter = $this->save_before_replay_write( $busy, 2 );
+
+		$this->run_retired_input_migration();
+		remove_filter( 'query', $filter );
+
+		$this->assertSame( 'Save 2', $this->stored_config( $busy )['statuses'][1]['label'], 'The latest save is left as written.' );
+
+		$recorded = array_column( (array) get_option( Schema::REGION_REVIEW_OPTION, array() ), null, 'id' );
+		$this->assertArrayHasKey( $busy, $recorded );
+		$this->assertNotEmpty( $recorded[ $busy ]['error'] );
+		$this->assertArrayNotHasKey( $quiet, $recorded );
+
+		$this->assertArrayNotHasKey(
+			'inputs',
+			$this->stored_config( $quiet )['statuses'][0]['transitions'][0],
+			'The other rows are still cleaned.'
+		);
+	}
+
+	/**
+	 * The upgrade runs on `init`, so a REST client that reaches a note-bearing
+	 * sequence before any admin screen loads gets a cleaned sequence it can save.
+	 */
+	public function test_upgrade_on_init_lets_rest_save_a_note_bearing_sequence_with_no_admin_visit(): void
+	{
+		$version_option = (string) ( new \ReflectionClass( Schema::class ) )
+			->getReflectionConstant( 'VERSION_OPTION' )
+			->getValue();
+
+		$this->assertSame( 1, has_action( 'init', 'VIPWorkflows\\maybe_upgrade_schema' ), 'The upgrade runs early on init.' );
+		$this->assertFalse( has_action( 'admin_init', 'VIPWorkflows\\maybe_upgrade_schema' ), 'It no longer waits for an admin screen.' );
+
+		$id = $this->insert_unnormalized( 'rest-before-admin', self::note_bearing_config( 'Review' ) );
+		update_option( $version_option, '2.24.0' );
+
+		// A REST request: no admin screen, no user yet.
+		wp_set_current_user( 0 );
+		\VIPWorkflows\maybe_upgrade_schema();
+
+		$this->assertSame( Schema::VERSION, get_option( $version_option ) );
+		$this->assertArrayNotHasKey( 'inputs', $this->stored_config( $id )['statuses'][0]['transitions'][0] );
+
+		// The client reads the sequence and writes it back unchanged.
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$read = rest_get_server()->dispatch( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $id ) );
+		$this->assertSame( 200, $read->get_status() );
+
+		$config  = $read->get_data()['config'];
+		$request = new \WP_REST_Request( 'PUT', '/vip-workflows/v1/sequences/' . $id );
+		$request->set_body_params(
+			array(
+				'name'       => 'rest-before-admin',
+				'statuses'   => $config['statuses'],
+				'post_types' => $config['post_types'],
+			)
+		);
+
+		$write = rest_get_server()->dispatch( $request );
+		$this->assertSame( 200, $write->get_status(), (string) wp_json_encode( $write->get_data() ) );
+	}
 }

@@ -130,6 +130,8 @@ class InvalidAssignmentTransitionTest extends TestCase {
 			}
 		);
 		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'user_can' )->justReturn( true );
+		Functions\when( 'get_post_status_object' )->alias( fn( $status ) => (object) array( 'name' => $status ) );
 		Functions\when( 'get_current_user_id' )->justReturn( 5 );
 		Functions\when( 'get_userdata' )->alias(
 			fn( $user_id ) => in_array( (int) $user_id, array( 5, 7, 11 ), true ) ? (object) array(
@@ -400,6 +402,62 @@ class InvalidAssignmentTransitionTest extends TestCase {
 		$this->assertSame( $other, $this->meta[ self::OTHER_ASSIGNMENT_KEY ] );
 		$this->assertContains( 'vip_workflows_assignment_created', $this->actions );
 		$this->assertContains( 'status_transition', array_column( $this->audit_rows, 'event_type' ) );
+	}
+
+	/**
+	 * A user who cannot open the post would never see it in My Work, so the
+	 * transition is refused with their name and nothing is written.
+	 */
+	public function test_user_who_cannot_read_the_post_is_rejected_before_any_post_write(): void {
+		$manager = $this->manager( array( $this->assignment_input() ) );
+		$before  = $this->meta;
+		Functions\when( 'user_can' )->alias(
+			fn( $user_id, $capability, $post_id ) => ! ( 11 === (int) $user_id && 'read_post' === $capability && 42 === (int) $post_id )
+		);
+
+		$result = $manager->transition( 42, 'ready', array( 'input_data' => array( 'reviewer' => 11 ) ) );
+
+		$this->assertInstanceOf( \WP_Error::class, $result );
+		$this->assertSame( 'assignee_cannot_read', $result->get_error_code() );
+		$this->assertSame( 'Reviewer 11 can’t open this post, so they can’t be assigned to it.', $result->get_error_message() );
+		$this->assertSame( 400, $result->get_error_data()['status'] );
+		$this->assertSame( 'reviewer', $result->get_error_data()['meta_key'] );
+		$this->assertSame( 11, $result->get_error_data()['user_id'] );
+		$this->assertSame( 'draft', $this->post->post_status );
+		$this->assertSame( $before, $this->meta );
+		$this->assertSame( array(), $this->writes );
+		$this->assertSame( array(), $this->actions );
+		$this->assertNotContains( 'status_transition', array_column( $this->audit_rows, 'event_type' ) );
+	}
+
+	/**
+	 * The read check asks about the chosen user and this post, and a user who
+	 * passes it is assigned.
+	 */
+	public function test_user_who_can_read_the_post_is_assigned(): void {
+		$manager = $this->manager( array( $this->assignment_input() ) );
+		$checked = array();
+		Functions\when( 'user_can' )->alias(
+			function ( $user_id, $capability, $post_id ) use ( &$checked ) {
+				$checked[] = array( (int) $user_id, $capability, (int) $post_id );
+				return true;
+			}
+		);
+
+		$this->assertTrue( $manager->transition( 42, 'ready', array( 'input_data' => array( 'reviewer' => '11' ) ) ) );
+		$this->assertContains( array( 11, 'read_post', 42 ), $checked );
+		$this->assertSame( '11', $this->meta[ self::ASSIGNMENT_KEY ]['value'] );
+	}
+
+	/**
+	 * A role is never refused for access: its members are not known up front.
+	 */
+	public function test_role_assignee_is_not_refused_for_read_access(): void {
+		$manager = $this->manager( array( $this->assignment_input( 'role' ) ) );
+		Functions\when( 'user_can' )->justReturn( false );
+
+		$this->assertTrue( $manager->transition( 42, 'ready', array( 'input_data' => array( 'reviewer' => 'editor' ) ) ) );
+		$this->assertSame( 'editor', $this->meta[ self::ASSIGNMENT_KEY ]['value'] );
 	}
 
 	/**

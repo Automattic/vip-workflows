@@ -30,6 +30,7 @@
 		"fix": "node tools/code-quality/quality.mjs fix --changed",
 		"fix:all": "node tools/code-quality/quality.mjs fix --all",
 		"suppressions": "node tools/code-quality/quality.mjs suppressions",
+		"loupe:baseline": "node tools/code-quality/quality.mjs baseline",
 		"test:php:integration": "node scripts/run-integration-suites.mjs",
 		"test:php:integration:teardown": "wp-env run cli --config .wp-env.tests.json wp db query \"DROP DATABASE IF EXISTS wordpress_test\"",
 		"lint:wp-env-config": "node scripts/gen-wp-env-tests.js --check",

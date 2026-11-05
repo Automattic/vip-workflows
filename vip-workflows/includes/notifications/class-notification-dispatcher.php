@@ -294,7 +294,7 @@ class NotificationDispatcher implements ModuleInterface {
 				'severity' => 'success',
 				'title'    => __( 'Published', 'vip-workflows' ),
 				/* translators: %1$s: post title, %2$s: author name. */
-				'message'  => __( '"%1$s" published by %2$s', 'vip-workflows' ),
+				'message'  => __( '“%1$s” published by %2$s', 'vip-workflows' ),
 				'args'     => array( 'post_title', 'author_name' ),
 				'color'    => '#00a32a',
 				'icon'     => '✅',
@@ -303,7 +303,7 @@ class NotificationDispatcher implements ModuleInterface {
 				'severity' => 'info',
 				'title'    => __( 'Stage changed', 'vip-workflows' ),
 				/* translators: %1$s: post title, %2$s: previous workflow status label, %3$s: new workflow status label. */
-				'message'  => __( '"%1$s" moved from %2$s to %3$s', 'vip-workflows' ),
+				'message'  => __( '“%1$s” moved from %2$s to %3$s', 'vip-workflows' ),
 				'args'     => array( 'post_title', 'from_label', 'to_label' ),
 				'color'    => '#2271b1',
 				'icon'     => '📝',

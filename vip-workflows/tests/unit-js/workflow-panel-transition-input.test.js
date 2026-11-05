@@ -17,6 +17,8 @@
  * - Dismissing (Close, Escape) abandons the transition: nothing fires.
  * - Both assignment branches survive: user (searchable combobox) and role
  *   (role list).
+ * - A role assignee whose members cannot all open the post is accepted; each
+ *   `warnings` entry the response carries becomes a dismissible warning notice.
  * - An assignment naming a type with no picker — `agent`, withdrawn from the
  *   sequence editor, or anything an out-of-tree filter registered — says so
  *   and commits nothing. It used to open a placeholder that assigned the
@@ -55,12 +57,19 @@ register(
 	} )
 );
 
+// Warning notices the panel raised, as [ message, options ].
+const warningNotices = [];
+
 register(
 	createReduxStore( 'core/notices', {
 		reducer: ( state = {} ) => state,
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			createWarningNotice: ( message, options ) => {
+				warningNotices.push( [ message, options ] );
+				return { type: 'NOOP' };
+			},
 		},
 	} )
 );
@@ -257,6 +266,7 @@ beforeEach( () => {
 
 afterEach( () => {
 	apiFetch.mockReset();
+	warningNotices.length = 0;
 } );
 
 describe( 'WorkflowPanel transition input popover', () => {
@@ -279,30 +289,6 @@ describe( 'WorkflowPanel transition input popover', () => {
 		expect(
 			screen.getByRole( 'button', { name: 'Close' } )
 		).toBeInTheDocument();
-	} );
-
-	it( 'moves without asking for a note a stored transition still carries', async () => {
-		await renderWith( [
-			{
-				to: 'review',
-				label: 'Send to Review',
-				status_info: { key: 'review', label: 'Review' },
-				inputs: [
-					{
-						type: 'textarea',
-						note_id: 'n1',
-						note_name: 'Editor note',
-						required: true,
-					},
-				],
-			},
-		] );
-		await openPopoverFor( 'Send to Review' );
-
-		expect( popover() ).not.toBeInTheDocument();
-		expect( firedTransitions() ).toEqual( [
-			{ to_status: 'review', acknowledge_warnings: false },
-		] );
 	} );
 
 	it( 'abandons the transition on Close — nothing fires', async () => {
@@ -564,6 +550,68 @@ describe( 'WorkflowPanel transition input popover', () => {
 				},
 			},
 		] );
+	} );
+
+	it( 'role assignment: shows each access warning the response carries as a dismissible notice', async () => {
+		const message =
+			'Some people with the Editor role can’t open this post, so the assignment won’t appear in their My Work.';
+		await renderWith(
+			[ assignmentTransition( 'role', { required: true } ) ],
+			[
+				{
+					has_workflow: true,
+					sequence: { id: 1, name: 'Input Flow' },
+					current: { key: 'assigned', label: 'Assigned' },
+					transitions: [],
+					can_remove: false,
+					warnings: [
+						{
+							type: 'assignee_cannot_read',
+							meta_key: 'wfp_a1_assignee',
+							role: 'editor',
+							message,
+						},
+					],
+				},
+			]
+		);
+		await openPopoverFor( 'Assign reviewer' );
+
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
+		} );
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
+		} );
+
+		await waitFor( () =>
+			expect( warningNotices ).toEqual( [
+				[
+					message,
+					{
+						id: 'vip-workflows-assignee-access-wfp_a1_assignee',
+						isDismissible: true,
+					},
+				],
+			] )
+		);
+	} );
+
+	it( 'role assignment: a response without warnings raises no notice', async () => {
+		await renderWith( [
+			assignmentTransition( 'role', { required: true } ),
+		] );
+		await openPopoverFor( 'Assign reviewer' );
+
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
+		} );
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
+		} );
+
+		await waitFor( () => expect( firedTransitions() ).toHaveLength( 1 ) );
+		expect( warningNotices ).toEqual( [] );
 	} );
 
 	it( 'role assignment: an optional assignment says so, and Submit works with nothing picked', async () => {

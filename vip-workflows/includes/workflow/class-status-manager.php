@@ -554,9 +554,8 @@ class StatusManager {
 					'required_tools' => $transition['required_tools'] ?? array(),
 				);
 
-				// What the transition captures, as stored. The editor collects its
-				// assignment before the move and passes over anything else — a
-				// retired note a stored sequence may still carry.
+				// What the transition captures, as stored: at most one
+				// assignment, which the editor collects before the move.
 				if ( ! empty( $transition['inputs'] ) ) {
 					$mapped['inputs'] = $transition['inputs'];
 				}
@@ -854,6 +853,19 @@ class StatusManager {
 			$assignee_validation = $assignment_manager->validate_transition_assignees( $transition_config, $options['input_data'] ?? array() );
 			if ( is_wp_error( $assignee_validation ) ) {
 				return $assignee_validation;
+			}
+
+			// An assignee who cannot read the post would never see it in My Work.
+			// The assignment lives on the post after the move, so access is
+			// judged against the status this transition will commit.
+			$assignee_access = $assignment_manager->validate_assignee_access(
+				$post_id,
+				$transition_config,
+				$options['input_data'] ?? array(),
+				$this->status_after_transition( $post, $from_region, $to_region )
+			);
+			if ( is_wp_error( $assignee_access ) ) {
+				return $assignee_access;
 			}
 		}
 
@@ -1158,6 +1170,36 @@ class StatusManager {
 		wp_cache_delete( $post_id, 'post_meta' );
 
 		return (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
+	}
+
+	/**
+	 * The core status a transition will leave the post in.
+	 *
+	 * A same-region move writes no status, so the post keeps the one it holds
+	 * (pending, future or whatever core set). A region crossing writes the
+	 * target region through commit_post_status(), where core turns `publish`
+	 * into `future` for a post dated at least a minute ahead, as
+	 * wp_insert_post() does. A post with no GMT date is date-floating:
+	 * wp_update_post() dates it now, so it publishes.
+	 *
+	 * @param  \WP_Post $post        Post being transitioned.
+	 * @param  string   $from_region Source stage's region.
+	 * @param  string   $to_region   Target stage's region.
+	 * @return string Core post status.
+	 */
+	private function status_after_transition( \WP_Post $post, string $from_region, string $to_region ): string {
+		if ( $from_region === $to_region ) {
+			return (string) get_post_status( $post->ID );
+		}
+
+		if ( 'publish' === $to_region ) {
+			$post_date_gmt = (string) $post->post_date_gmt;
+			if ( '0000-00-00 00:00:00' !== $post_date_gmt && strtotime( $post_date_gmt ) - time() >= MINUTE_IN_SECONDS ) {
+				return 'future';
+			}
+		}
+
+		return $to_region;
 	}
 
 	/**

@@ -1271,6 +1271,21 @@ describe( 'validateSequence', () => {
 		expect( warnings.review.join( ' ' ) ).toContain( '“review”' );
 	} );
 
+	it( 'treats a name of only spaces as no name', () => {
+		// The server trims it to empty, so letting it through here would save
+		// a stage writers see as a blank.
+		const blank = stages().map( ( s ) =>
+			s.key === 'review' ? { ...s, label: '   ' } : s
+		);
+		const { valid, errors, warnings } = validateSequence( {
+			name: 'Flow',
+			stages: blank,
+		} );
+		expect( valid ).toBe( false );
+		expect( messages( errors ).join( ' ' ) ).toContain( 'has no name' );
+		expect( warnings.review.join( ' ' ) ).toContain( '“review”' );
+	} );
+
 	it( 'names the stage that has no key, by the name writers see', () => {
 		const unkeyed = stages().map( ( s ) =>
 			s.key === 'review' ? { ...s, key: '' } : s

@@ -41,9 +41,8 @@ do_action('vip_workflows_status_transition', $post_id, $new, $old, $sequence, $c
 do_action('vip_workflows_entered_{stage}', $post_id, $old_stage, $sequence, $context);
 do_action('vip_workflows_exited_{stage}', $post_id, $new_stage, $sequence, $context);
 
-// Tool events
-do_action('vip_workflows_ability_executed', $ability_id, $post_id, $result);
-do_action('vip_workflows_ability_failed', $ability_id, $post_id, $error);
+// Every EventBus event, including tool runs ('ability.executed' / 'ability.failed')
+do_action('vip_workflows_event_emitted', $event_type, $event_data, $event_id);
 
 // Registration
 do_action('vip_workflows_register_abilities');
@@ -68,7 +67,7 @@ POST        /vip-workflows/v1/sequences/{id}/repair-regions  # normalize a store
 
 # Workflow
 GET         /vip-workflows/v1/workflow/post/{id}/status
-POST        /vip-workflows/v1/workflow/post/{id}/transition
+POST        /vip-workflows/v1/workflow/post/{id}/transition    # 400 assignee_cannot_read for a user who can't read the post; success may add warnings[] {type, meta_key, role, message} for a role assignee
 GET         /vip-workflows/v1/workflow/post/{id}/history
 
 # Abilities (Tools)
@@ -282,7 +281,7 @@ Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 **Media Providers** (image/video sources for ideation):
 - Implement `MediaProviderInterface` (get_id, get_name, is_configured, is_generative, search_media)
 - Register via `vip_workflows_media_providers` filter
-- Return standardized result arrays with `url`, `title`, `media_type`, `thumbnail`, `provider`, etc.
+- Return standardized result arrays with `url`, `title`, `media_type`, `thumbnail`, `provider`, etc. Addresses (`url`, `source_url`, `thumbnail`) must be absolute `http://` or `https://`; anything else is dropped when the card is stored
 - Non-generative providers run automatically; generative run on-demand
 - Built-in provider keys come from `VIPWorkflows\AI\Credentials` (core Settings → Connectors, or a `VIP_WORKFLOWS_*_KEY` constant). Third-party providers read their own key from a `wp-config.php` constant.
 - Optionally implement `MediaProviderRequirements::get_unmet_requirement()` (built with `RequirementFactory`) so an unconfigured provider can explain why, instead of Media Scout reporting a bare "unavailable"
