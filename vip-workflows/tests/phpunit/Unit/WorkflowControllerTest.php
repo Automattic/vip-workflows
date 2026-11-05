@@ -1632,6 +1632,21 @@ class WorkflowControllerTest extends TestCase
             }
         );
 
+        // The pending-assignee index, as AssignmentManager::sync_pending_assignee_index()
+        // would have written it for these slots: pending user assignments only.
+        $this->wpdb->shouldReceive( 'get_col' )->byDefault()->andReturnUsing(
+            function ( $query ) use ( $assignments ) {
+                $ids = array();
+                foreach ( $assignments as $row ) {
+                    $assignment = unserialize( $row->meta_value );
+                    if ( 'pending' === $assignment['status'] && 'user' === $assignment['type'] && 7 === (int) $assignment['value'] ) {
+                        $ids[] = (string) $row->post_id;
+                    }
+                }
+                return $ids;
+            }
+        );
+
         // Resolve the involvement lookup independently from sequence reads.
         $this->wpdb->shouldReceive( 'get_results' )->byDefault()->andReturnUsing(
             function ( $query ) use ( $sequence_rows, $owned_ids, $assignments ) {
@@ -1644,9 +1659,6 @@ class WorkflowControllerTest extends TestCase
                         );
                     }
                     return array_map( fn( $id ) => (object) array( 'ID' => $id ), $ids );
-                }
-                if ( false !== strpos( $query, 'SELECT post_id, meta_value' ) ) {
-                    return $assignments;
                 }
                 // AssignmentManager::get_current_for_posts() for every row.
                 if ( preg_match( '/SELECT post_id, meta_key, meta_value .* post_id IN \( ([\d, ]*) \)/s', $query, $m ) ) {
@@ -1807,9 +1819,7 @@ class WorkflowControllerTest extends TestCase
                 $this->wpdb->last_error = 'database unavailable';
                 return array();
             } );
-        $this->wpdb->shouldReceive( 'get_results' )
-            ->never()
-            ->withArgs( fn( $query ) => false !== strpos( $query, 'SELECT post_id, meta_value' ) );
+        $this->wpdb->shouldReceive( 'get_col' )->never();
 
         $result = $this->controller->get_my_work( $this->create_mock_request() );
 
@@ -1824,9 +1834,8 @@ class WorkflowControllerTest extends TestCase
     public function test_get_my_work_reports_assignment_read_failure(): void
     {
         $this->seed_my_work( array( $this->my_work_sequence_row() ), array( 1 ) );
-        $this->wpdb->shouldReceive( 'get_results' )
+        $this->wpdb->shouldReceive( 'get_col' )
             ->once()
-            ->withArgs( fn( $query ) => false !== strpos( $query, 'SELECT post_id, meta_value' ) )
             ->andReturnUsing( function () {
                 $this->wpdb->last_error = 'database unavailable';
                 return array();

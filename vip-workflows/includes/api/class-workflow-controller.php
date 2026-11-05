@@ -1718,9 +1718,9 @@ class WorkflowController extends WP_REST_Controller {
 	/**
 	 * Find involvement before loading posts or paginating individual stages.
 	 *
-	 * Assignment slots contain serialized data, so inspect their records once
-	 * instead of issuing an assignment query for every post in every stage.
-	 * Actual post reads remain scoped by StageQuery and WP_Query.
+	 * Authorship, claims and pending user assignments are each read with one
+	 * indexed query, instead of an assignment query for every post in every
+	 * stage. Actual post reads remain scoped by StageQuery and WP_Query.
 	 *
 	 * @param int $user_id Current user ID.
 	 * @return int[]|WP_Error Involved post IDs, or a database read error.
@@ -1746,34 +1746,29 @@ class WorkflowController extends WP_REST_Controller {
 			return new WP_Error( 'my_work_read_failed', __( 'Could not load your work.', 'vip-workflows' ), array( 'status' => 500 ) );
 		}
 
-		$assignment_rows = $wpdb->get_results(
+		// One indexed lookup on a plain value, rather than reading every
+		// assignment on the site and unserializing each to find this user's.
+		// See AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY.
+		$assigned_ids = $wpdb->get_col(
 			$wpdb->prepare(
-				'SELECT post_id, meta_value FROM %i WHERE meta_key LIKE %s',
+				'SELECT post_id FROM %i WHERE meta_key = %s AND meta_value = %s',
 				$wpdb->postmeta,
-				$wpdb->esc_like( '_vip_workflows_assignment_' ) . '%'
+				\VIPWorkflows\Workflow\AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY,
+				(string) $user_id
 			)
 		);
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
-		if ( null === $assignment_rows || '' !== $wpdb->last_error ) {
+		if ( '' !== $wpdb->last_error ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( '[VIP Workflows] Could not read My Work assignments: ' . $wpdb->last_error );
 			return new WP_Error( 'my_work_read_failed', __( 'Could not load your work.', 'vip-workflows' ), array( 'status' => 500 ) );
 		}
 
-		$post_ids = array_map( 'intval', array_column( $owned_rows, 'ID' ) );
-		foreach ( $assignment_rows as $row ) {
-			$assignment = maybe_unserialize( $row->meta_value );
-			if ( ! is_array( $assignment ) || ! isset( $assignment['type'], $assignment['value'], $assignment['status'] ) ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflows] Invalid assignment data on post %d.', $row->post_id ) );
-				return new WP_Error( 'my_work_assignment_invalid', __( 'Could not load your work.', 'vip-workflows' ), array( 'status' => 500 ) );
-			}
-
-			if ( 'user' === $assignment['type'] && $user_id === (int) $assignment['value'] && 'pending' === $assignment['status'] ) {
-				$post_ids[] = (int) $row->post_id;
-			}
-		}
+		$post_ids = array_merge(
+			array_map( 'intval', array_column( $owned_rows, 'ID' ) ),
+			array_map( 'intval', $assigned_ids )
+		);
 
 		return array_values( array_unique( $post_ids ) );
 	}

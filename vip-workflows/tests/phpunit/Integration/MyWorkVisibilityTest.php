@@ -207,9 +207,11 @@ class MyWorkVisibilityTest extends TestCase {
 		remove_filter( 'query', $count_queries );
 
 		$this->assertCount( 31, $rows );
-		// One read finds the posts the user is involved in, one reads the
-		// assignments of the rows found.
-		$this->assertCount( 2, $assignment_queries, implode( "\n", $assignment_queries ) );
+		// The posts the user is involved in come from the pending-assignee
+		// index, not a scan of the assignments, so the only assignment read is
+		// the one for the rows found.
+		$this->assertCount( 1, $assignment_queries, implode( "\n", $assignment_queries ) );
+		$this->assertStringContainsString( 'post_id IN', $assignment_queries[0] );
 
 		$by_id = array_column( $rows, null, 'post_id' );
 		foreach ( $by_id as $post_id => $row ) {

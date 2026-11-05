@@ -37,6 +37,19 @@ class AssignmentManager {
 	 */
 	public const CURRENT_FOR_POSTS_CHUNK = 500;
 
+	/**
+	 * Post meta naming each user a post has a pending user assignment for, one
+	 * row per user.
+	 *
+	 * Assignments are stored as serialized arrays, so "which posts is this user
+	 * assigned to" cannot be asked of them in SQL: answering it meant reading
+	 * every assignment on the site and unserializing each one. This index is a
+	 * plain value per row, so it is one indexed lookup. It is derived data:
+	 * sync_pending_assignee_index() rebuilds a post's rows from its slots after
+	 * every write, and the slots stay the record.
+	 */
+	public const PENDING_ASSIGNEE_INDEX_KEY = '_vip_workflows_pending_assignee';
+
 	// =========================================================================
 	// Assignment CRUD
 	// =========================================================================
@@ -1238,6 +1251,52 @@ class AssignmentManager {
 				// Other types (e.g. agent) resolve through their registered
 				// handler; require a non-empty string or integer identifier.
 				return ( is_string( $value ) || is_int( $value ) ) && ! empty( $value ) && '' !== trim( (string) $value );
+		}
+	}
+
+	/**
+	 * Keep the pending-assignee index in step with every assignment write.
+	 *
+	 * Every write path fires one of these actions after it writes, including
+	 * process_transition_input()'s compare-and-set, whose direct SQL no meta
+	 * hook sees. Listening here rather than calling from each write keeps the
+	 * index out of the write paths themselves.
+	 */
+	public static function register_index_hooks(): void {
+		$sync = static function ( $post_id ): void {
+			( new self() )->sync_pending_assignee_index( (int) $post_id );
+		};
+
+		foreach ( array( 'created', 'removed', 'completed', 'expired' ) as $event ) {
+			add_action( 'vip_workflows_assignment_' . $event, $sync, 1 );
+		}
+	}
+
+	/**
+	 * Rebuild a post's pending-assignee index from its assignment slots.
+	 *
+	 * Rebuilt whole rather than patched per write, so every write path leaves
+	 * the same rows, and running it twice changes nothing. Only pending user
+	 * assignments are indexed: those are the ones that put a post in a
+	 * person's My Work.
+	 *
+	 * @param int $post_id Post ID.
+	 */
+	public function sync_pending_assignee_index( int $post_id ): void {
+		// compare_and_set() clears the cache, but a write through the meta API
+		// in the same request must be read back as written, not as cached.
+		wp_cache_delete( $post_id, 'post_meta' );
+
+		$user_ids = array();
+		foreach ( $this->get_all( $post_id ) as $assignment ) {
+			if ( self::STATUS_PENDING === ( $assignment['status'] ?? null ) && 'user' === ( $assignment['type'] ?? null ) ) {
+				$user_ids[ (int) $assignment['value'] ] = true;
+			}
+		}
+
+		delete_post_meta( $post_id, self::PENDING_ASSIGNEE_INDEX_KEY );
+		foreach ( array_keys( $user_ids ) as $user_id ) {
+			add_post_meta( $post_id, self::PENDING_ASSIGNEE_INDEX_KEY, (string) $user_id );
 		}
 	}
 

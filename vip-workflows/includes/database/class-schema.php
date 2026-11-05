@@ -21,7 +21,7 @@ class Schema {
 	/**
 	 * Database version.
 	 */
-	public const VERSION = '2.26.0';
+	public const VERSION = '2.27.0';
 
 	/**
 	 * Option name for storing DB version.
@@ -550,7 +550,55 @@ class Schema {
 					self::replay_stored_stage_configs( true );
 				},
 			),
+			// My Work finds a user's pending assignments through an index
+			// that every assignment write now keeps in step. Assignments made
+			// before it existed have no index rows, so build them once.
+			array(
+				'version' => '2.27.0',
+				'run'     => function (): void {
+					self::backfill_pending_assignee_index();
+				},
+			),
 		);
+	}
+
+	/**
+	 * Build the pending-assignee index for every post that has an assignment.
+	 *
+	 * Idempotent: AssignmentManager::sync_pending_assignee_index() rebuilds a
+	 * post's rows from its slots, so a re-run, or a post written since, ends
+	 * the same. Paged by post ID so the migration's memory is bounded on a
+	 * site with many assigned posts.
+	 *
+	 * @throws \RuntimeException When the assigned posts cannot be read.
+	 */
+	private static function backfill_pending_assignee_index(): void {
+		global $wpdb;
+
+		$manager = new \VIPWorkflows\Workflow\AssignmentManager();
+		$last_id = 0;
+
+		do {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off backfill over postmeta, paged by post ID; runs once per schema version
+			$post_ids = $wpdb->get_col(
+				$wpdb->prepare(
+					'SELECT DISTINCT post_id FROM %i WHERE meta_key LIKE %s AND post_id > %d ORDER BY post_id ASC LIMIT 500',
+					$wpdb->postmeta,
+					$wpdb->esc_like( '_vip_workflows_assignment_' ) . '%',
+					$last_id
+				)
+			);
+
+			if ( '' !== $wpdb->last_error ) {
+				throw new \RuntimeException( esc_html( 'Could not read assigned posts to index: ' . $wpdb->last_error ) );
+			}
+
+			foreach ( $post_ids as $post_id ) {
+				$manager->sync_pending_assignee_index( (int) $post_id );
+				$last_id = (int) $post_id;
+			}
+			$page_size = count( $post_ids );
+		} while ( 500 === $page_size );
 	}
 
 	/**

@@ -351,6 +351,9 @@ final class Plugin {
 
 		// Register post meta.
 		add_action( 'init', array( $this, 'register_meta' ) );
+
+		// My Work's lookup of a user's pending assignments.
+		\VIPWorkflows\Workflow\AssignmentManager::register_index_hooks();
 	}
 
 	/**
