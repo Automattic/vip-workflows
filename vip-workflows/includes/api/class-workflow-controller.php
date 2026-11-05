@@ -15,6 +15,7 @@ use VIPWorkflows\Story\Story;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 use VIPWorkflows\Ideation\Research\IdeationPostTypes;
 use VIPWorkflows\Workflow\Actor;
+use VIPWorkflows\Workflow\AssignmentManager;
 use VIPWorkflows\Workflow\StagePalette;
 use VIPWorkflows\Workflow\StatusManager;
 use WP_REST_Controller;
@@ -658,6 +659,20 @@ class WorkflowController extends WP_REST_Controller {
 		// no permitted edges keeps edit_post and stays in the editor with their
 		// unsaved work, so emitting the flag would state something false to every
 		// consumer of this endpoint.
+		// A role assignment is accepted even when some of the role's members
+		// cannot open the post; the assigner is told here instead. The key is
+		// present only when there is something to say.
+		if ( ! empty( $options['input_data'] ) ) {
+			$sequence          = $status_manager->get_sequence_for_post( $post_id );
+			$transition_config = $sequence ? $sequence->get_transition( (string) $current_stage, (string) $to_status ) : null;
+			$warnings          = is_array( $transition_config )
+				? ( new AssignmentManager() )->get_assignee_access_warnings( $post_id, $transition_config, $options['input_data'] )
+				: array();
+			if ( ! empty( $warnings ) ) {
+				$data['warnings'] = $warnings;
+			}
+		}
+
 		$response->set_data( $data );
 
 		return $response;
@@ -1491,9 +1506,9 @@ class WorkflowController extends WP_REST_Controller {
 	 * Get all active work items for current user.
 	 *
 	 * Returns posts where the user is involved (author, claimed, or has a pending
-	 * assignment), at any stage of any sequence — including terminal stages such
-	 * as Published, so a post does not vanish from an author's own work list the
-	 * moment it ships.
+	 * assignment) and that the user can read, at any stage of any sequence —
+	 * including terminal stages such as Published, so a post does not vanish
+	 * from an author's own work list the moment it ships.
 	 *
 	 * Every row carries two independent pairs, as the calendar endpoint does:
 	 * the workflow stage (`status_label` / `status_color`), which is NULL for a
@@ -1553,6 +1568,17 @@ class WorkflowController extends WP_REST_Controller {
 				}
 
 				foreach ( $posts as $post ) {
+					// Involvement selected the row; it does not grant access to it.
+					// A transition can assign anyone, and a claim or an authorship
+					// can outlive the rights it was made with, so the row is also
+					// checked against the post. `read_post`, not `edit_post`: an
+					// author's post stays in their list after it publishes, and a
+					// Contributor can read their own published post but not edit
+					// it. The non-workflow pass below applies the same check.
+					if ( ! current_user_can( 'read_post', $post->ID ) ) {
+						continue;
+					}
+
 					$claimed_by_id = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
 
 					$featured_image_url = get_the_post_thumbnail_url( $post->ID, 'medium' );
@@ -1615,6 +1641,14 @@ class WorkflowController extends WP_REST_Controller {
 		}
 
 		foreach ( $non_workflow_posts as $post ) {
+			// Authorship selected the row; it does not grant access to it. A
+			// site can narrow `read_post` per post or per post type through
+			// `map_meta_cap` or a custom post type's capabilities, so this pass
+			// is checked against the post like the workflow pass above.
+			if ( ! current_user_can( 'read_post', $post->ID ) ) {
+				continue;
+			}
+
 			// A post outside any workflow can still be claimed — the claim meta
 			// isn't itself workflow-scoped — so this fallback bucket carries an
 			// assignee too, for the same reason it carries an author.

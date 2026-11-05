@@ -41,6 +41,7 @@ import {
 import { Stack, Text } from '@wordpress/ui';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
+import { store as noticesStore } from '@wordpress/notices';
 import apiFetch from '@wordpress/api-fetch';
 import { __, sprintf } from '@wordpress/i18n';
 import { STORE_NAME } from '../store';
@@ -184,6 +185,7 @@ export function WorkflowPanel( { children } ) {
 	const [ actionError, setActionError ] = useState( null ); // every action failure — shown as a Notice, not a browser dialog
 
 	const { savePost } = useDispatch( editorStore );
+	const { createWarningNotice } = useDispatch( noticesStore );
 	const {
 		fetchWorkflowStatus,
 		receiveWorkflowStatus,
@@ -502,6 +504,17 @@ export function WorkflowPanel( { children } ) {
 				setTransitioning( false );
 				setTransitioningTo( null );
 				setWarningsModal( null );
+
+				// The move happened. A role assignee whose members cannot all
+				// open the post is accepted, and the response says so; tell
+				// the assigner, who can still pick someone else. One notice
+				// per assignment slot, so a repeat replaces rather than stacks.
+				( response.warnings || [] ).forEach( ( warning ) => {
+					createWarningNotice( warning.message, {
+						id: `vip-workflows-assignee-access-${ warning.meta_key }`,
+						isDismissible: true,
+					} );
+				} );
 
 				refreshPost();
 			} )

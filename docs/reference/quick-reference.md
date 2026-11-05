@@ -67,7 +67,7 @@ POST        /vip-workflows/v1/sequences/{id}/repair-regions  # normalize a store
 
 # Workflow
 GET         /vip-workflows/v1/workflow/post/{id}/status
-POST        /vip-workflows/v1/workflow/post/{id}/transition
+POST        /vip-workflows/v1/workflow/post/{id}/transition    # 400 assignee_cannot_read for a user who can't read the post; success may add warnings[] {type, meta_key, role, message} for a role assignee
 GET         /vip-workflows/v1/workflow/post/{id}/history
 
 # Abilities (Tools)
