@@ -120,6 +120,60 @@ class SafeUrlTest extends TestCase {
 	}
 
 	/**
+	 * Each starts with `http://` or `https://` and names no host a link can
+	 * reach, so each would be stored as a link that leads nowhere.
+	 *
+	 * @return array<string, array{0: string}>
+	 */
+	public static function addresses_with_no_host(): array {
+		return array(
+			'only the scheme'                => array( 'https://' ),
+			'the scheme and a path'          => array( 'https:///' ),
+			'the scheme and a query'         => array( 'http://?x=1' ),
+			'the scheme and a fragment'      => array( 'https://#top' ),
+			'only a port'                    => array( 'https://:80' ),
+			'only a user'                    => array( 'https://user@' ),
+			'a user and a path'              => array( 'https://user@/a' ),
+			'a space in the host'            => array( 'https://news example.test/' ),
+			'a forbidden character in the host' => array( 'https://news<example.test/' ),
+			'a port that is not a number'    => array( 'https://example.test:http/' ),
+			'a port out of range'            => array( 'https://example.test:99999/' ),
+			'an unclosed IPv6 literal'       => array( 'https://[::1/' ),
+			'an IPv6 literal with a name'    => array( 'https://[example.test]/' ),
+		);
+	}
+
+	/**
+	 * @dataProvider addresses_with_no_host
+	 */
+	public function test_an_address_with_no_host_is_not_returned( string $url ): void {
+		$this->assertNull( SafeUrl::http_or_null( $url ) );
+	}
+
+	/**
+	 * The host check does not narrow what counts as a web address.
+	 *
+	 * @return array<string, array{0: string}>
+	 */
+	public static function addresses_with_an_unusual_host(): array {
+		return array(
+			'a port'                  => array( 'https://example.test:8443/a' ),
+			'a user and a password'   => array( 'https://user:secret@example.test/a' ),
+			'an IPv4 address'         => array( 'http://192.0.2.1/a' ),
+			'an IPv6 literal'         => array( 'http://[2001:db8::1]:8080/a' ),
+			'an internationalized host' => array( 'https://bücher.example.test/a' ),
+			'a single-label host'     => array( 'http://localhost/a' ),
+		);
+	}
+
+	/**
+	 * @dataProvider addresses_with_an_unusual_host
+	 */
+	public function test_an_address_with_an_unusual_host_is_returned( string $url ): void {
+		$this->assertSame( $url, SafeUrl::http_or_null( $url ) );
+	}
+
+	/**
 	 * @return array<string, array{0: mixed}>
 	 */
 	public static function non_strings(): array {

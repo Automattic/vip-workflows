@@ -171,7 +171,7 @@ A media provider's `url`, `source_url` and `thumbnail` become those card fields,
 
 **Why.** The scheme decides what activating a link does, and a `javascript:` or `data:` address can arrive in a provider's payload or in a page that a provider scraped. The admin screens refuse such an address when they render, and that guard stays. But a stored value outlives the screen that renders it today, so each new reader would have to remember the guard.
 
-**What to do.** Return absolute addresses. A relative path (`/2026/story/`), a protocol-relative address (`//cdn.example/x.jpg`), `mailto:` and `data:` are all dropped. Two effects to know about:
+**What to do.** Return absolute addresses with a host. A relative path (`/2026/story/`), a protocol-relative address (`//cdn.example/x.jpg`), `mailto:` and `data:` are all dropped, and so is an address whose authority is empty or malformed (`https://`, `https:///`, `http://?x=1`, `https://:80`). Two effects to know about:
 
 - A card that loses its `url` is identified by `title` plus `content`, as any card with no URL is. Two such cards with the same title and body become one stored source.
 - A `seed` callback can receive `null` in `$prompt['url']` and in a link's `url`. Read them as `(string) ( $prompt['url'] ?? '' )`.

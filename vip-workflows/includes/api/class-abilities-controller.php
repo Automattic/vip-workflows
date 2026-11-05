@@ -135,6 +135,11 @@ class AbilitiesController extends WP_REST_Controller {
 						'type'              => 'integer',
 						'sanitize_callback' => 'absint',
 					),
+					'source'       => array(
+						'description' => __( 'The interface that asked for the run, for product telemetry. Not passed to the ability.', 'vip-workflows' ),
+						'type'        => 'string',
+						'enum'        => array( 'command_palette' ),
+					),
 					'content'      => array(
 						'description'       => __( 'Content to analyze (if no post_id).', 'vip-workflows' ),
 						'type'              => 'string',
@@ -383,9 +388,10 @@ class AbilitiesController extends WP_REST_Controller {
 			 * and is watching a spinner for it. That is exactly what the executor's
 			 * empty context means, so an ability that defers work for a transition
 			 * computes properly for this caller. Naming a surface would be a guess —
-			 * the route is open to any client with the capability.
+			 * the route is open to any client with the capability. The command
+			 * palette names itself in `source`, which only telemetry reads.
 			 */
-			$result = $this->executor->execute( $id, $context );
+			$result = $this->executor->execute( $id, $context, '', (string) ( $request->get_param( 'source' ) ?? 'rest' ) );
 
 			return new WP_REST_Response( $result->to_array() );
 

@@ -305,7 +305,7 @@ card per run, the second collapses genuinely different cards into one. See
 
 **Amended:** "stores whatever the ability returns" has one exception. A card's
 `url`, `image` and `thumbnail` are stored only when they are absolute `http://`
-or `https://` addresses. Any other value that is not empty becomes `null` and
+or `https://` addresses that name a host. Any other value that is not empty becomes `null` and
 the card is kept without it, and a card whose `url` is removed this way is
 identified as a card with no URL. See `VIPWorkflows\Integrations\SafeUrl`.
 
