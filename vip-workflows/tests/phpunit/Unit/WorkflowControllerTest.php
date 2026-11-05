@@ -1577,6 +1577,8 @@ class WorkflowControllerTest extends TestCase
      */
     private function seed_my_work( array $sequence_rows, ?array $owned_ids = null, array $assignments = array() ): void
     {
+        defined( 'DAY_IN_SECONDS' ) || define( 'DAY_IN_SECONDS', 86400 );
+
         Functions\when( 'get_current_user_id' )->justReturn( 7 );
 
         // Every row passes the per-post read check here; these cases are about
@@ -1622,7 +1624,7 @@ class WorkflowControllerTest extends TestCase
         // The batched assignment read keeps its post IDs, so the mock below can
         // answer it for those posts alone.
         $this->my_work_assignment_reads = 0;
-        $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing(
+        $this->wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing(
             function ( $query, ...$args ) {
                 if ( false === strpos( $query, 'post_id IN' ) ) {
                     return $query;
@@ -1969,6 +1971,40 @@ class WorkflowControllerTest extends TestCase
         $this->assertSame( array( 1, 2, 3 ), array_column( $data, 'post_id' ) );
         $this->assertSame( 7, $data[0]['assignee']['id'] );
         $this->assertSame( 7, $data[1]['assignee']['id'], 'A pending assignment is shown as the assignee.' );
+    }
+
+    /**
+     * My Work is bounded to posts modified in the last MY_WORK_WINDOW_DAYS
+     * days: both post queries carry the window, and so does the authorship
+     * read, the one reason a user can have thousands of posts.
+     */
+    public function test_get_my_work_only_reads_posts_modified_inside_the_window(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ), array( 1 ) );
+        $prepared = array();
+        $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing(
+            function ( $query, ...$args ) use ( &$prepared ) {
+                $prepared[] = array( $query, $args );
+                return $query;
+            }
+        );
+        \WP_Query::$next_posts = array();
+
+        $before = gmdate( 'Y-m-d H:i:s', time() - WorkflowController::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS - 5 );
+        $this->controller->get_my_work( $this->create_mock_request() );
+        $after = gmdate( 'Y-m-d H:i:s', time() - WorkflowController::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS + 5 );
+
+        $this->assertNotEmpty( \WP_Query::$constructed_args );
+        foreach ( \WP_Query::$constructed_args as $args ) {
+            $this->assertSame( 'post_modified_gmt', $args['date_query'][0]['column'] );
+            $this->assertGreaterThanOrEqual( $before, $args['date_query'][0]['after'] );
+            $this->assertLessThanOrEqual( $after, $args['date_query'][0]['after'] );
+        }
+
+        $authorship = array_values( array_filter( $prepared, fn( $call ) => false !== strpos( $call[0], 'post_author' ) ) );
+        $this->assertCount( 1, $authorship );
+        $this->assertStringContainsString( 'post_modified_gmt >= %s', $authorship[0][0] );
+        $this->assertSame( \WP_Query::$constructed_args[0]['date_query'][0]['after'], $authorship[0][1][2] );
     }
 
     /**

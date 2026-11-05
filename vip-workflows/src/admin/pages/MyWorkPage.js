@@ -24,7 +24,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { Spinner, Notice, SelectControl } from '@wordpress/components';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
@@ -156,6 +156,32 @@ function loadStoredView() {
 		throw new Error( 'The saved My Work view must be an object.' );
 	}
 	return { ...DEFAULT_VIEW, ...storedView };
+}
+
+/**
+ * The sentence that says how far back My Work looks.
+ *
+ * The server only returns posts modified inside its window
+ * (`WorkflowController::MY_WORK_WINDOW_DAYS`), so an older post the user is
+ * still involved with is not in the list. Saying so keeps a short list from
+ * reading as "this is all of your work". The number comes from the server,
+ * so the page and the query cannot disagree.
+ *
+ * @return {string} Translated sentence.
+ */
+function getWindowNote() {
+	const days = window.vipWorkflowsAdmin.myWork.windowDays;
+
+	return sprintf(
+		/* translators: %d: number of days My Work looks back. */
+		_n(
+			'Showing posts updated in the last %d day.',
+			'Showing posts updated in the last %d days.',
+			days,
+			'vip-workflows'
+		),
+		days
+	);
 }
 
 export function MyWorkPage() {
@@ -448,6 +474,7 @@ export function MyWorkPage() {
 						render={ <p /> }
 						className="vip-workflows-description"
 					>
+						{ getWindowNote() }{ ' ' }
 						{ __(
 							'New work assigned to you will appear here.',
 							'vip-workflows'
@@ -456,6 +483,13 @@ export function MyWorkPage() {
 				</Stack>
 			) : (
 				<div className="vip-workflows-my-work-panel vip-workflows-card-surface">
+					<Text
+						variant="body-sm"
+						render={ <p /> }
+						className="vip-workflows-description vip-workflows-my-work__window"
+					>
+						{ getWindowNote() }
+					</Text>
 					<DataViews
 						data={ data }
 						fields={ fields }

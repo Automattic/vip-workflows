@@ -29,6 +29,15 @@ use WP_Error;
  */
 class WorkflowController extends WP_REST_Controller {
 
+	/**
+	 * How far back My Work looks, in days, by when a post was last modified.
+	 *
+	 * My Work lists every post a user is involved with, across every stage of
+	 * every workflow and with no pagination, so the list grew for as long as
+	 * a person kept working. The window bounds it to recent work. The admin
+	 * page is told the number so it can say what the list leaves out.
+	 */
+	public const MY_WORK_WINDOW_DAYS = 60;
 
 	/**
 	 * Constructor.
@@ -1507,7 +1516,8 @@ class WorkflowController extends WP_REST_Controller {
 	 * Get all active work items for current user.
 	 *
 	 * Returns posts where the user is involved (author, claimed, or has a pending
-	 * assignment) and that the user can read, at any stage of any sequence —
+	 * assignment), that the user can read, and that were modified in the last
+	 * MY_WORK_WINDOW_DAYS days, at any stage of any sequence —
 	 * including terminal stages such as Published, so a post does not vanish
 	 * from an author's own work list the moment it ships.
 	 *
@@ -1532,7 +1542,15 @@ class WorkflowController extends WP_REST_Controller {
 			return new WP_REST_Response( array() );
 		}
 
-		$involved_post_ids = $this->get_my_work_post_ids( $current_user_id );
+		$since             = gmdate( 'Y-m-d H:i:s', time() - self::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS );
+		$recent            = array(
+			array(
+				'column'    => 'post_modified_gmt',
+				'after'     => $since,
+				'inclusive' => true,
+			),
+		);
+		$involved_post_ids = $this->get_my_work_post_ids( $current_user_id, $since );
 		if ( $involved_post_ids instanceof WP_Error ) {
 			return $involved_post_ids;
 		}
@@ -1559,6 +1577,7 @@ class WorkflowController extends WP_REST_Controller {
 							'posts_per_page' => 100,
 							// An empty post__in would select every post.
 							'post__in'       => $involved_post_ids ? $involved_post_ids : array( 0 ),
+							'date_query'     => $recent,
 							'orderby'        => 'date',
 							'order'          => 'DESC',
 						)
@@ -1626,6 +1645,7 @@ class WorkflowController extends WP_REST_Controller {
 					'post_type'      => $workflow_post_types,
 					'posts_per_page' => 100,
 					'author'         => $current_user_id,
+					'date_query'     => $recent,
 				)
 			)
 		);
@@ -1722,19 +1742,24 @@ class WorkflowController extends WP_REST_Controller {
 	 * indexed query, instead of an assignment query for every post in every
 	 * stage. Actual post reads remain scoped by StageQuery and WP_Query.
 	 *
-	 * @param int $user_id Current user ID.
+	 * Authorship is the one reason a user can have thousands of posts, so it
+	 * is bounded by the My Work window here as well as in the post queries.
+	 *
+	 * @param int    $user_id Current user ID.
+	 * @param string $since   GMT datetime; authored posts last modified before it are left out.
 	 * @return int[]|WP_Error Involved post IDs, or a database read error.
 	 */
-	private function get_my_work_post_ids( int $user_id ) {
+	private function get_my_work_post_ids( int $user_id, string $since ) {
 		global $wpdb;
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- request-specific involvement lookup before WP_Query pagination.
 		$owned_rows = $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT ID FROM %i WHERE post_author = %d
+				'SELECT ID FROM %i WHERE post_author = %d AND post_modified_gmt >= %s
 				UNION SELECT post_id AS ID FROM %i WHERE meta_key = %s AND meta_value = %s',
 				$wpdb->posts,
 				$user_id,
+				$since,
 				$wpdb->postmeta,
 				'_vip_workflows_assigned_to',
 				(string) $user_id

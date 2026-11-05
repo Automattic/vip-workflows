@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Tests\Integration;
 
+use VIPWorkflows\API\WorkflowController;
 use VIPWorkflows\Sequences\SequenceRepository;
 use VIPWorkflows\Workflow\Actor;
 use VIPWorkflows\Workflow\AssignmentManager;
@@ -100,16 +101,22 @@ class MyWorkVisibilityTest extends TestCase {
 	/**
 	 * Create a workflow post without running a transition.
 	 *
+	 * Dated yesterday unless told otherwise: My Work only lists posts modified
+	 * inside its window, and an inserted post's modified date is its post date.
+	 *
 	 * @param int    $author_id Post author.
 	 * @param string $stage     Workflow stage.
+	 * @param int    $days_ago  How long ago the post was written and last modified.
 	 * @return int Post ID.
 	 */
-	private function make_post( int $author_id, string $stage = 'review' ): int {
+	private function make_post( int $author_id, string $stage = 'review', int $days_ago = 1 ): int {
+		$date    = gmdate( 'Y-m-d H:i:s', time() - $days_ago * DAY_IN_SECONDS );
 		$post_id = (int) self::factory()->post->create(
 			array(
-				'post_author' => $author_id,
-				'post_status' => 'published' === $stage ? 'publish' : 'draft',
-				'post_date'   => '2026-01-01 12:00:00',
+				'post_author'   => $author_id,
+				'post_status'   => 'published' === $stage ? 'publish' : 'draft',
+				'post_date'     => $date,
+				'post_date_gmt' => $date,
 			)
 		);
 		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->sequence_id );
@@ -159,6 +166,43 @@ class MyWorkVisibilityTest extends TestCase {
 		$this->assertSame( $this->author_id, $by_id[ $claimed ]['assignee']['id'] );
 		$this->assertSame( $this->other_id, $by_id[ $assigned ]['author']['id'] );
 		$this->assertSame( $this->author_id, $by_id[ $assigned ]['assignee']['id'], 'A pending assignment is shown as the assignee.' );
+	}
+
+	/**
+	 * My Work only lists posts modified inside its window, whatever the reason
+	 * the user is involved, and a post comes back the moment it is edited.
+	 */
+	public function test_leaves_out_posts_last_modified_before_the_window(): void {
+		$old_days = WorkflowController::MY_WORK_WINDOW_DAYS + 30;
+
+		$recent   = $this->make_post( $this->author_id );
+		$authored = $this->make_post( $this->author_id, 'review', $old_days );
+		$claimed  = $this->make_post( $this->other_id, 'review', $old_days );
+		$assigned = $this->make_post( $this->other_id, 'review', $old_days );
+		update_post_meta( $claimed, '_vip_workflows_assigned_to', $this->author_id );
+		( new AssignmentManager() )->assign( $assigned, 'reviewer', $this->author_id, 'user' );
+
+		$old_date = gmdate( 'Y-m-d H:i:s', time() - $old_days * DAY_IN_SECONDS );
+		$outside  = (int) self::factory()->post->create(
+			array(
+				'post_author'   => $this->author_id,
+				'post_date'     => $old_date,
+				'post_date_gmt' => $old_date,
+			)
+		);
+
+		$this->assertSame( array( $recent ), array_column( $this->get_work(), 'post_id' ) );
+
+		wp_set_current_user( $this->other_id );
+		wp_update_post(
+			array(
+				'ID'         => $assigned,
+				'post_title' => 'Edited today',
+			)
+		);
+
+		$this->assertEqualsCanonicalizing( array( $recent, $assigned ), array_column( $this->get_work(), 'post_id' ) );
+		$this->assertNotContains( $outside, array_column( $this->get_work(), 'post_id' ) );
 	}
 
 	/**

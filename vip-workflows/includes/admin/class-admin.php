@@ -484,6 +484,9 @@ class Admin implements ModuleInterface {
 			),
 			'roles'       => $this->get_available_roles(),
 			'experiments' => $this->get_experiment_flags(),
+			'myWork'      => array(
+				'windowDays' => \VIPWorkflows\API\WorkflowController::MY_WORK_WINDOW_DAYS,
+			),
 		);
 
 		if ( self::screen_carries_skills( $hook_suffix ) ) {
