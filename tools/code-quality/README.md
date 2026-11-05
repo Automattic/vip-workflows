@@ -165,6 +165,26 @@ BLOCKS/advisory column is about the Claude Code hook and follows your **Block
 turns on findings** option, while `lint` fails on every `error` rule. `loupe explain <rule>` prints a rule's
 guidance.
 
+#### Rules that fail `lint`
+
+With loupe 0.8.0, the `wpds` preset and `loupe.config.json`, these rules are
+`error` and fail `lint` and `check` when a finding isn't in the baseline:
+
+| Rule | What it flags |
+|---|---|
+| `suppression/malformed` | A blanket or malformed suppression. Write `wpds-allow <ruleId> -- <reason>`. |
+| `stylesheet/unparsed` | A stylesheet that couldn't be parsed, so nothing in it was checked. |
+| `css/dead-class` | A CSS class used in no markup or reference file. This config raises it to `error`. |
+| `system/locked-component` | A private WordPress component (Badge, Tabs, Menu in 0.8.0). |
+| `system/override` | CSS that overrides a design-system component instead of using its props or tokens. |
+| `system/inline-style` | An inline style on a design-system component. |
+| `layout/in-css` | Flex layout written in CSS instead of `<Stack>` and `gap`. |
+| `layout/margin-on-child` | Margin on a child instead of the parent primitive's `gap`. |
+| `typography/in-css` | A text component typed in CSS instead of its style or size prop. |
+
+Every other rule is advisory. After bumping the engine, check this list against
+the rules `loupe status` marks "would block if enabled".
+
 ### The baseline
 
 `.loupe/baseline.json` records the findings that existed when loupe was adopted.
