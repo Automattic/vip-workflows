@@ -421,6 +421,31 @@ describe( 'WorkflowSummaryRows', () => {
 		);
 	} );
 
+	/**
+	 * A move runs from the rail or the header button, outside these rows, and
+	 * a workflow switched or removed under it would race its save and its
+	 * request. The rows read the move in flight from the store and stand down
+	 * until it lands.
+	 */
+	it( 'stands down while a move started elsewhere is in flight', async () => {
+		await renderRows( assignedStatus() );
+
+		const trigger = screen.getByRole( 'button', {
+			name: 'Change workflow: Weekend Magazine',
+		} );
+		expect( trigger ).toBeEnabled();
+
+		act( () => {
+			dispatch( STORE_NAME ).setTransitioningTo( 'review' );
+		} );
+		expect( trigger ).toBeDisabled();
+
+		act( () => {
+			dispatch( STORE_NAME ).setTransitioningTo( null );
+		} );
+		expect( trigger ).toBeEnabled();
+	} );
+
 	it( 'a removal from outside the rows reaches them, without remounting them', async () => {
 		await renderRows( assignedStatus() );
 

@@ -37,6 +37,7 @@ jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
  * selectors, so a named test store stands in for all of it.
  */
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 
 /*
  * DataViews measures the viewport to lay itself out, which jsdom does not do —
@@ -122,6 +123,7 @@ register(
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			removeNotice: () => ( { type: 'NOOP' } ),
 		},
 	} )
 );
@@ -146,6 +148,8 @@ register(
 import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 const HISTORY_PATH = '/vip-workflows/v1/workflow/post/42/history';
@@ -230,7 +234,12 @@ async function renderWithHistory( history ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(

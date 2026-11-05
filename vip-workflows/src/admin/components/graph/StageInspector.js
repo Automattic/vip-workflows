@@ -926,7 +926,7 @@ export default function StageInspector( {
 							<InspectorFieldList
 								items={ displayedTransitions }
 								onChange={ handleTransitionsChange }
-								describe={ ( transition ) => {
+								describe={ ( transition, index ) => {
 									const disabled = isTransitionDisabled(
 										transition.to
 									);
@@ -940,6 +940,13 @@ export default function StageInspector( {
 									const problem = exitProblem(
 										transition.to
 									);
+									// The first exit is the one the post
+									// editor's header button offers, so the
+									// order this list is dragged into is a
+									// choice with a visible effect. An AI
+									// stage's exits are its agent's, so none
+									// of them is a person's next step.
+									const primary = ! isAgent && 0 === index;
 									return {
 										label,
 										value: exitValue( destination, {
@@ -947,11 +954,28 @@ export default function StageInspector( {
 											disabled,
 										} ),
 										invalid: Boolean( problem ),
+										// The row's button is named by this
+										// label alone, so the badge inside it
+										// has to be said here too — beside the
+										// exit's label, where the badge sits,
+										// ahead of where the exit goes.
 										selectLabel: exitSelectLabel(
-											label,
+											primary
+												? sprintf(
+														/* translators: %s: the exit's label. */
+														__(
+															'%s (primary)',
+															'vip-workflows'
+														),
+														label
+												  )
+												: label,
 											destination,
 											{ problem, disabled }
 										),
+										badge: primary
+											? __( 'Primary', 'vip-workflows' )
+											: undefined,
 										className: [
 											'wf-stage-inspector__route',
 											disabled &&

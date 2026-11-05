@@ -15,7 +15,7 @@
  * @package
  */
 
-import { Icon, Stack, Text, Tooltip } from '@wordpress/ui';
+import { Badge, Icon, Stack, Text, Tooltip } from '@wordpress/ui';
 import { dragHandle, info } from '@wordpress/icons';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -85,14 +85,23 @@ export function InfoTip( { about, children } ) {
  * @param {string}      props.value      Its current setting.
  * @param {boolean}     [props.empty]    Value is the absence of a setting.
  * @param {JSX.Element} [props.tip]      What the setting means, in a tooltip.
+ * @param {string}      [props.badge]    A short tag set beside the label.
  * @param {JSX.Element} [props.children] Leading adornment.
  * @return {JSX.Element} The row's contents.
  */
-function FactContent( { label, value, empty = false, tip, children } ) {
+function FactContent( { label, value, empty = false, tip, badge, children } ) {
 	return (
 		<>
 			{ children }
 			<Text variant="body-sm">{ label }</Text>
+			{ badge && (
+				<Badge
+					intent="informational"
+					className="wf-inspector__fact-badge"
+				>
+					{ badge }
+				</Badge>
+			) }
 			{ tip && <InfoTip about={ label }>{ tip }</InfoTip> }
 			<Text
 				variant="body-sm"

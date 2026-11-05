@@ -57,16 +57,25 @@ import './WorkflowSummaryRows.css';
  * @return {JSX.Element} The rows.
  */
 export function WorkflowSummaryRows( { grouped = true } = {} ) {
-	const { workflow, loading, workflowEnforcement, metadataFields } =
-		useSelect( ( select ) => {
-			const s = select( STORE_NAME );
-			return {
-				workflow: s.getWorkflowStatus(),
-				loading: ! s.isWorkflowStatusResolved(),
-				workflowEnforcement: s.getWorkflowEnforcement(),
-				metadataFields: s.getMetadataFields(),
-			};
-		}, [] );
+	const {
+		workflow,
+		loading,
+		workflowEnforcement,
+		metadataFields,
+		transitioning,
+	} = useSelect( ( select ) => {
+		const s = select( STORE_NAME );
+		return {
+			workflow: s.getWorkflowStatus(),
+			loading: ! s.isWorkflowStatusResolved(),
+			workflowEnforcement: s.getWorkflowEnforcement(),
+			metadataFields: s.getMetadataFields(),
+			// A move or another workflow write in flight, started from the
+			// rail or the header button. Switching or removing the workflow
+			// under it would race it, so the row stands down too.
+			transitioning: s.isTransitioning(),
+		};
+	}, [] );
 
 	const { fetchWorkflowStatus, assignSequence, removeWorkflow } =
 		useDispatch( STORE_NAME );
@@ -193,7 +202,7 @@ export function WorkflowSummaryRows( { grouped = true } = {} ) {
 			return (
 				<WorkflowRow
 					orphaned
-					disabled={ busy }
+					disabled={ busy || transitioning }
 					onRemove={ handleRemoveWorkflow }
 				/>
 			);
@@ -211,7 +220,7 @@ export function WorkflowSummaryRows( { grouped = true } = {} ) {
 			<WorkflowRow
 				sequence={ workflow?.has_workflow ? workflow.sequence : null }
 				availableSequences={ availableSequences }
-				disabled={ busy }
+				disabled={ busy || transitioning }
 				onSelect={ handleWorkflowSelect }
 				// An enforced workflow offers no way out.
 				onRemove={

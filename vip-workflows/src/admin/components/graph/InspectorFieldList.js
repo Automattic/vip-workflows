@@ -261,6 +261,7 @@ function FieldRow( {
 		label: summary.label,
 		value: problem ? problem.short : summary.value,
 		empty: problem ? false : Boolean( summary.empty ),
+		badge: summary.badge,
 		tip: configurable || navigable ? undefined : summary.tip,
 		onSelect: selectHandler,
 		expanded: configurable ? isOpen : undefined,
@@ -306,7 +307,8 @@ function FieldRow( {
  * rather than a setting, and `tip` for the explanation a row with no popover has
  * nowhere else to put. A navigable row may also return `selectLabel`, the
  * accessible name of its select button, when "Select {label}" is not all it
- * needs to say.
+ * needs to say, and any row may return `badge`, a short tag set beside its
+ * label.
  *
  * @param {Object}    props                Component props.
  * @param {Array}     props.items          The list, in the author's order.

@@ -220,6 +220,30 @@ describe( 'StageInspector transition read-out', () => {
 		).toHaveTextContent( 'Done' );
 	} );
 
+	/**
+	 * The first exit is the one the post editor's header button offers. The
+	 * row is a button named by its label alone, so a badge drawn inside it is
+	 * silent unless the label says it too.
+	 */
+	it( 'marks the first way out as primary, in its name as well as its badge', () => {
+		renderInspector(
+			stage( {
+				transitions: [
+					{ to: 'done', label: 'Approve' },
+					{ to: 'review', label: 'Send back' },
+				],
+			} )
+		);
+
+		const first = screen.getByRole( 'button', {
+			name: 'Select Approve (primary): Done',
+		} );
+		expect( first ).toHaveTextContent( 'Primary' );
+		expect(
+			screen.getByRole( 'button', { name: /^Select Send back: / } )
+		).not.toHaveTextContent( 'Primary' );
+	} );
+
 	it( 'names an unlabelled transition the way the runtime will', () => {
 		// Not "Unlabelled transition": leaving the label blank does not leave
 		// the transition nameless, it makes `StatusManager::transition_label()`
@@ -319,8 +343,10 @@ describe( 'StageInspector transition read-out', () => {
 		const names = screen
 			.getAllByRole( 'button', { name: /^Select / } )
 			.map( ( button ) => button.getAttribute( 'aria-label' ) );
+		// The first transition is still the stage's primary exit: the end of
+		// the workflow is not a move the header button offers.
 		expect( names ).toEqual( [
-			'Select Approve: Done',
+			'Select Approve (primary): Done',
 			'Select End of workflow',
 		] );
 	} );
@@ -550,8 +576,12 @@ describe( 'StageInspector deduplicated exit list', () => {
 		// Entry checkpoint row folds in its Yes or No.
 		renderInspector( stage(), jest.fn(), { onSelectEdge: jest.fn() } );
 
+		// The only exit is also the primary one, which its name says beside
+		// the label, where the badge sits.
 		expect(
-			screen.getByRole( 'button', { name: 'Select Approve: Done' } )
+			screen.getByRole( 'button', {
+				name: 'Select Approve (primary): Done',
+			} )
 		).toBeInTheDocument();
 	} );
 

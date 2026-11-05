@@ -37,14 +37,19 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 
 // Same stand-ins as the other WorkflowPanel tests: @wordpress/core-data,
 // /editor, /notices and /a11y each pull dependencies jsdom or Jest cannot load,
-// and the panel needs nothing from them but the store names.
+// and the panel needs nothing from them but the store names — except that a
+// move into the publish region opens the pre-publish step, which renders the
+// editor's pre-publish slot, so /editor is the stand-in package that has one.
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
-jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/editor', () => require( './helpers/editor-package' ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
 // eslint-disable-next-line import/first
 import { createReduxStore, register } from '@wordpress/data';
+// eslint-disable-next-line import/first
+import { SlotFillProvider } from '@wordpress/components';
 
 register(
 	createReduxStore( 'core', {
@@ -60,6 +65,7 @@ register(
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			removeNotice: () => ( { type: 'NOOP' } ),
 		},
 	} )
 );
@@ -96,7 +102,12 @@ register(
 			getEditedPostAttribute: ( state, attribute ) =>
 				'meta' === attribute ? editedMeta : 'draft',
 			getCurrentPostAttribute: () => 'draft',
+			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => postIsDirty,
+			didPostSaveRequestFail: () => false,
+			isEditedPostSaveable: () => true,
+			isSavingPost: () => false,
+			isPostSavingLocked: () => false,
 		},
 		actions: { savePost },
 	} )
@@ -106,6 +117,8 @@ register(
 import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
@@ -271,7 +284,12 @@ async function renderWithRefusal( error ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<SlotFillProvider>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</SlotFillProvider>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -314,7 +332,12 @@ async function renderAndTransition(
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<SlotFillProvider>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</SlotFillProvider>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -349,7 +372,12 @@ async function renderStatus( status ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<SlotFillProvider>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</SlotFillProvider>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -427,6 +455,64 @@ describe( 'WorkflowPanel required-field refusal', () => {
 
 		expect(
 			screen.queryByRole( 'dialog', { name: 'Transition blocked' } )
+		).not.toBeInTheDocument();
+		expect(
+			screen.getByText(
+				'You do not have permission to perform this transition.'
+			)
+		).toBeInTheDocument();
+	} );
+
+	/**
+	 * The panel reports its own failed writes and a refused move through one
+	 * notice, so the notice has to be about the last thing tried. A claim
+	 * failure left on screen must not stand in front of the reason a move was
+	 * refused — which would make the refusal look like a button doing nothing.
+	 */
+	it( 'shows a refused move in place of an earlier failure of the panel’s own', async () => {
+		apiFetch.mockImplementation( ( { path, method } ) => {
+			if ( path === STATUS_PATH && method !== 'POST' ) {
+				return Promise.resolve( {
+					...STATUS_RESPONSE,
+					can_claim: true,
+				} );
+			}
+			if ( path.endsWith( '/claim' ) ) {
+				return Promise.reject( {
+					message: 'Someone else claimed this post.',
+				} );
+			}
+			if ( 'POST' === method ) {
+				return Promise.reject( {
+					code: 'forbidden_transition',
+					message: 'Not yours to move.',
+				} );
+			}
+			return Promise.resolve( [] );
+		} );
+
+		render(
+			<SlotFillProvider>
+				<TransitionFlow />
+				<WorkflowPanel />
+			</SlotFillProvider>
+		);
+
+		const claim = await screen.findByRole( 'button', { name: 'Claim' } );
+		await act( async () => {
+			claim.click();
+		} );
+		expect(
+			screen.getByText( 'Someone else claimed this post.' )
+		).toBeInTheDocument();
+
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Send to Review' } ).click();
+		} );
+
+		expect( screen.getByText( 'Not yours to move.' ) ).toBeInTheDocument();
+		expect(
+			screen.queryByText( 'Someone else claimed this post.' )
 		).not.toBeInTheDocument();
 	} );
 
@@ -675,7 +761,12 @@ describe( 'WorkflowPanel save before a required-tool move', () => {
 			return Promise.resolve( {} );
 		} );
 
-		render( <WorkflowPanel /> );
+		render(
+			<SlotFillProvider>
+				<TransitionFlow />
+				<WorkflowPanel />
+			</SlotFillProvider>
+		);
 
 		await waitFor( () =>
 			expect(
