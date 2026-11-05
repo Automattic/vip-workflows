@@ -73,6 +73,13 @@ class Schema {
 	public const REGION_REVIEW_OPTION = 'vip_workflows_sequences_need_region_review';
 
 	/**
+	 * Where the pending-assignee backfill has got to, as the last post ID done.
+	 *
+	 * Deleted when the backfill finishes.
+	 */
+	public const ASSIGNEE_BACKFILL_CURSOR_OPTION = 'vip_workflows_assignee_index_backfill_cursor';
+
+	/**
 	 * Install or upgrade database tables.
 	 */
 	public function install(): void {
@@ -565,27 +572,38 @@ class Schema {
 	/**
 	 * Build the pending-assignee index for every post that has an assignment.
 	 *
-	 * Idempotent: AssignmentManager::sync_pending_assignee_index() rebuilds a
-	 * post's rows from its slots, so a re-run, or a post written since, ends
-	 * the same. Paged by post ID so the migration's memory is bounded on a
-	 * site with many assigned posts.
+	 * Runs on the first request after the upgrade, so it does a page at a
+	 * time: one read of 500 posts' assignment rows, one delete and one
+	 * multi-row insert, rather than several queries per post. It saves the
+	 * last post ID done after each page, so a request that runs out of time
+	 * resumes there on the next request instead of starting over. The schema
+	 * version is bumped only after the last page.
 	 *
-	 * @throws \RuntimeException When the assigned posts cannot be read.
+	 * Idempotent: a page rebuilds its posts' rows from their slots, so a
+	 * re-run, or a post written since, ends the same. Malformed slots are
+	 * logged and left out, as AssignmentManager::pending_user_ids_from_slots()
+	 * describes.
+	 *
+	 * @throws \RuntimeException When the assignment rows cannot be read or the index cannot be written.
 	 */
 	private static function backfill_pending_assignee_index(): void {
 		global $wpdb;
 
-		$manager = new \VIPWorkflows\Workflow\AssignmentManager();
-		$last_id = 0;
+		$index_key = \VIPWorkflows\Workflow\AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY;
+		$like      = $wpdb->esc_like( \VIPWorkflows\Workflow\AssignmentManager::STORAGE_PREFIX ) . '%';
+		$last_id   = (int) get_option( self::ASSIGNEE_BACKFILL_CURSOR_OPTION, 0 );
 
 		do {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off backfill over postmeta, paged by post ID; runs once per schema version
-			$post_ids = $wpdb->get_col(
-				$wpdb->prepare(
-					'SELECT DISTINCT post_id FROM %i WHERE meta_key LIKE %s AND post_id > %d ORDER BY post_id ASC LIMIT 500',
-					$wpdb->postmeta,
-					$wpdb->esc_like( '_vip_workflows_assignment_' ) . '%',
-					$last_id
+			$post_ids = array_map(
+				'intval',
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off backfill over postmeta, paged by post ID; runs once per schema version
+				$wpdb->get_col(
+					$wpdb->prepare(
+						'SELECT DISTINCT post_id FROM %i WHERE meta_key LIKE %s AND post_id > %d ORDER BY post_id ASC LIMIT 500',
+						$wpdb->postmeta,
+						$like,
+						$last_id
+					)
 				)
 			);
 
@@ -593,12 +611,51 @@ class Schema {
 				throw new \RuntimeException( esc_html( 'Could not read assigned posts to index: ' . $wpdb->last_error ) );
 			}
 
-			foreach ( $post_ids as $post_id ) {
-				$manager->sync_pending_assignee_index( (int) $post_id );
-				$last_id = (int) $post_id;
+			if ( $post_ids ) {
+				// Integers only, so the list is safe to inline.
+				$in = implode( ', ', $post_ids );
+
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one-off backfill; $in holds only integers.
+				$rows = $wpdb->get_results( $wpdb->prepare( "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$in} ) AND meta_key LIKE %s", $like ) );
+				if ( null === $rows || '' !== $wpdb->last_error ) {
+					throw new \RuntimeException( esc_html( 'Could not read assignments to index: ' . $wpdb->last_error ) );
+				}
+
+				$slots = array();
+				foreach ( $rows as $row ) {
+					$slots[ (int) $row->post_id ][ (string) $row->meta_key ] = $row->meta_value;
+				}
+
+				$values = array();
+				foreach ( $post_ids as $post_id ) {
+					$user_ids = \VIPWorkflows\Workflow\AssignmentManager::pending_user_ids_from_slots( $post_id, $slots[ $post_id ] ?? array() );
+					foreach ( $user_ids as $user_id ) {
+						$values[] = $wpdb->prepare( '( %d, %s, %s )', $post_id, $index_key, (string) $user_id );
+					}
+				}
+
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one-off backfill; $in holds only integers.
+				$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->postmeta} WHERE meta_key = %s AND post_id IN ( {$in} )", $index_key ) );
+				if ( $values && '' === $wpdb->last_error ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- one-off backfill; every row in $values was prepared above.
+					$wpdb->query( "INSERT INTO {$wpdb->postmeta} ( post_id, meta_key, meta_value ) VALUES " . implode( ', ', $values ) );
+				}
+				if ( '' !== $wpdb->last_error ) {
+					throw new \RuntimeException( esc_html( 'Could not write the pending-assignee index: ' . $wpdb->last_error ) );
+				}
+
+				foreach ( $post_ids as $post_id ) {
+					wp_cache_delete( $post_id, 'post_meta' );
+				}
+
+				$last_id = (int) end( $post_ids );
+				update_option( self::ASSIGNEE_BACKFILL_CURSOR_OPTION, $last_id, false );
 			}
+
 			$page_size = count( $post_ids );
 		} while ( 500 === $page_size );
+
+		delete_option( self::ASSIGNEE_BACKFILL_CURSOR_OPTION );
 	}
 
 	/**
