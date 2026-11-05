@@ -538,7 +538,10 @@ export function WorkflowPanel( { children } ) {
 				} else {
 					setActionError(
 						err.message ||
-							__( 'Transition failed', 'vip-workflows' )
+							__(
+								'Could not move the post to that stage. Try again.',
+								'vip-workflows'
+							)
 					);
 				}
 			} );
@@ -704,7 +707,10 @@ export function WorkflowPanel( { children } ) {
 			.catch( ( err ) => {
 				setActionError(
 					err.message ||
-						__( 'Failed to move the post back', 'vip-workflows' )
+						__(
+							'Could not move the post back. Try again.',
+							'vip-workflows'
+						)
 				);
 				setTransitioning( false );
 			} );
@@ -723,7 +729,11 @@ export function WorkflowPanel( { children } ) {
 			} )
 			.catch( ( err ) => {
 				setActionError(
-					err.message || __( 'Failed to claim post', 'vip-workflows' )
+					err.message ||
+						__(
+							'Could not claim the post. Try again.',
+							'vip-workflows'
+						)
 				);
 				setTransitioning( false );
 			} );
@@ -743,7 +753,10 @@ export function WorkflowPanel( { children } ) {
 			.catch( ( err ) => {
 				setActionError(
 					err.message ||
-						__( 'Failed to release post', 'vip-workflows' )
+						__(
+							'Could not release the post. Try again.',
+							'vip-workflows'
+						)
 				);
 				setTransitioning( false );
 			} );
@@ -1190,7 +1203,7 @@ export function WorkflowPanel( { children } ) {
 				<ToolFailuresModal
 					title={ __( 'Warnings detected', 'vip-workflows' ) }
 					message={ __(
-						'The following warnings were detected:',
+						'Review the warnings before you continue.',
 						'vip-workflows'
 					) }
 					softWarnings={ warningsModal.warnings }

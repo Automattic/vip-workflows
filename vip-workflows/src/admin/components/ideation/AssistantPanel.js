@@ -499,7 +499,7 @@ export default function AssistantPanel( {
 				className="vip-workflows-ideation-panel__mentor-placeholder"
 			>
 				{ __(
-					'Click "Refresh guidance" to get editorial feedback.',
+					'Click “Refresh guidance” for editorial feedback.',
 					'vip-workflows'
 				) }
 			</Text>

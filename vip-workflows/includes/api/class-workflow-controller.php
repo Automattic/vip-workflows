@@ -899,7 +899,7 @@ class WorkflowController extends WP_REST_Controller {
 		if ( false === $result ) {
 			return new WP_Error(
 				'rest_sequence_assign_failed',
-				__( 'Failed to assign sequence.', 'vip-workflows' ),
+				__( 'Could not assign the sequence. Try again.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}

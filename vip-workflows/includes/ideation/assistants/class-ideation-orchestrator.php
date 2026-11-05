@@ -558,7 +558,7 @@ class IdeationOrchestrator {
 		$all_cards = $this->get_all_cards( $project_id );
 		$last      = end( $all_cards );
 
-		return $last ? $last : new \WP_Error( 'store_failed', __( 'Failed to store generated image.', 'vip-workflows' ) );
+		return $last ? $last : new \WP_Error( 'store_failed', __( 'Could not save the generated image. Try again.', 'vip-workflows' ) );
 	}
 
 	// ─── Card Management ─────────────────────────────────────────

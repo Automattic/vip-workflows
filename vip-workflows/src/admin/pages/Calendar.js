@@ -549,8 +549,8 @@ function RescheduleModal( { event, newDate, type, onConfirm, onCancel } ) {
 		<Modal
 			title={
 				type === 'publish'
-					? __( 'Publish Post?', 'vip-workflows' )
-					: __( 'Schedule Post?', 'vip-workflows' )
+					? __( 'Publish post?', 'vip-workflows' )
+					: __( 'Schedule post?', 'vip-workflows' )
 			}
 			onRequestClose={ onCancel }
 			className="vip-workflows-calendar-reschedule-modal"
@@ -558,8 +558,24 @@ function RescheduleModal( { event, newDate, type, onConfirm, onCancel } ) {
 		>
 			<Text variant="body-md" render={ <p /> }>
 				{ type === 'publish'
-					? `"${ event.title }" will be published and publicly available as of ${ formattedDate }.`
-					: `"${ event.title }" will be unpublished and scheduled for ${ formattedDate }. It won't be visible until then.` }
+					? sprintf(
+							/* translators: 1: post title, 2: publish date and time. */
+							__(
+								'“%1$s” will be published and visible from %2$s.',
+								'vip-workflows'
+							),
+							event.title,
+							formattedDate
+					  )
+					: sprintf(
+							/* translators: 1: post title, 2: scheduled date and time. */
+							__(
+								'“%1$s” will be unpublished and scheduled for %2$s. It won’t be visible until then.',
+								'vip-workflows'
+							),
+							event.title,
+							formattedDate
+					  ) }
 			</Text>
 			<ModalActions>
 				<Button

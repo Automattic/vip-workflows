@@ -110,7 +110,7 @@ class EmailChannel extends NotificationChannel {
 
 		$success = wp_mail( $admin_email, $subject, $body, $headers );
 
-		return $success ? true : new WP_Error( 'send_failed', __( 'Failed to send test email.', 'vip-workflows' ) );
+		return $success ? true : new WP_Error( 'send_failed', __( 'Could not send the test email. Check the site’s mail setup.', 'vip-workflows' ) );
 	}
 
 	/**
