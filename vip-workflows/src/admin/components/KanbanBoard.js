@@ -109,7 +109,7 @@ export function KanbanBoard() {
 	// pre-move stage) land on drag 2.
 	const dragTokenRef = useRef( 0 );
 
-	const { createSuccessNotice, createErrorNotice } =
+	const { createSuccessNotice, createErrorNotice, createWarningNotice } =
 		useDispatch( noticesStore );
 	const [ confirm, confirmDialog ] = useConfirm();
 
@@ -367,6 +367,19 @@ export function KanbanBoard() {
 
 			createSuccessNotice( __( 'Card moved.', 'vip-workflows' ), {
 				type: 'snackbar',
+			} );
+
+			// The move happened. A role assignee whose members cannot all
+			// open the post is accepted, and the response says so; tell the
+			// assigner, who can still pick someone else. One snackbar per
+			// assignment slot, so a repeat replaces rather than stacks, and
+			// it stays until dismissed rather than timing out unread.
+			( response.warnings || [] ).forEach( ( warning ) => {
+				createWarningNotice( warning.message, {
+					id: `vip-workflows-assignee-access-${ warning.meta_key }`,
+					type: 'snackbar',
+					explicitDismiss: true,
+				} );
 			} );
 
 			// Refresh to get accurate data.
