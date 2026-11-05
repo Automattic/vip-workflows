@@ -32,34 +32,27 @@ describe( 'side-effect module and entry', () => {
 		const api = window.vipWorkflowsSideEffect;
 
 		expect( api ).toBeDefined();
-		expect( api.DECISION_SILENT ).toBe( shared.DECISION_SILENT );
-		expect( api.DECISION_WARN ).toBe( shared.DECISION_WARN );
-		expect( api.DECISION_VETO ).toBe( shared.DECISION_VETO );
+		// The entry publishes every export of the shared module, so a new export
+		// that the entry forgets fails here rather than in the classic script.
+		// `getEntryStageLabels` is React-only: the classic rows get that map
+		// from PHP in their `data-entry-stages` attribute.
+		const reactOnly = [ 'getEntryStageLabels' ];
+		expect( Object.keys( shared ) ).toEqual(
+			expect.arrayContaining( reactOnly )
+		);
+		const exported = Object.keys( shared )
+			.filter(
+				( name ) =>
+					name !== 'default' &&
+					name !== '__esModule' &&
+					! reactOnly.includes( name )
+			)
+			.sort();
 
-		// Every function the classic inline script calls is the shared one.
-		[
-			'statusToRegion',
-			'evaluateStatusChange',
-			'getRegionLabel',
-			'getStatusChangeConfirmTitle',
-			'getStatusChangeConfirmLabel',
-			'getAgentInterruptWarning',
-			'getTransitionWarningsTitle',
-			'getTransitionWarningsMessage',
-			'getTransitionPublishConfirmTitle',
-			'getTransitionPublishConfirmLabel',
-			'getTransitionPublishWarning',
-			'getStatusChangeWarning',
-			'getPublishVetoMessage',
-			'getOrphanedWorkflowMessage',
-			'getOrphanedWorkflowRemoveConfirmation',
-			'getRemoveFromWorkflowLabel',
-			'getRemoveFromWorkflowConfirmation',
-			'getSwitchWorkflowConfirmTitle',
-			'getSwitchWorkflowConfirmLabel',
-			'getSwitchWorkflowConfirmation',
-		].forEach( ( name ) => {
-			expect( typeof shared[ name ] ).toBe( 'function' );
+		expect( Object.keys( api ).sort() ).toEqual( exported );
+
+		// Each published value is the shared one, not a second copy.
+		exported.forEach( ( name ) => {
 			expect( api[ name ] ).toBe( shared[ name ] );
 		} );
 	} );
