@@ -731,34 +731,20 @@ export default function SequenceGraphEditor( {
 					return;
 				}
 
-				// On load, a stored post type that no longer exists is real
-				// news — the sequence is attached to something that was
-				// unregistered since — so it is filtered out and named.
+				// A stored post type the options list does not offer stays
+				// attached. It may be unregistered for now (its plugin is
+				// switched off) or registered without an editing screen, so it
+				// is no longer offered for new workflows; either way, dropping
+				// it here would remove it from the sequence on the next save,
+				// whatever that save was about. The server keeps such a type
+				// on write for the same reason. The inspector lists it as not
+				// available, so removing it is a deliberate uncheck.
 				const savedPostTypes = response.config?.post_types || [];
-				const availableSlugs = postTypes.map( ( pt ) => pt.value );
-				const valid = savedPostTypes.filter( ( slug ) =>
-					availableSlugs.includes( slug )
-				);
-				const stale = savedPostTypes.filter(
-					( slug ) => ! availableSlugs.includes( slug )
-				);
-				if ( stale.length > 0 ) {
-					setError(
-						sprintf(
-							/* translators: %s: comma-separated post type slugs */
-							__(
-								'These post types no longer exist: %s. Select valid ones and save.',
-								'vip-workflows'
-							),
-							stale.join( ', ' )
-						)
-					);
-				}
-				setSelectedPostTypes( valid );
+				setSelectedPostTypes( savedPostTypes );
 				setSavedSnapshot(
 					serializeSequence( isPhase, {
 						...fields,
-						selectedPostTypes: valid,
+						selectedPostTypes: savedPostTypes,
 					} )
 				);
 				setLoading( false );
@@ -1797,6 +1783,26 @@ export default function SequenceGraphEditor( {
 
 	// Sequence-level settings, handed to the inspector whole. Phase sequences
 	// use only the first three; the rest drive SequenceSettingsInspector.
+	// The options list plus any stored post type it does not offer, so every
+	// attached type has a row and can be unchecked on purpose.
+	const offeredSlugs = postTypes.map( ( pt ) => pt.value );
+	const inspectorPostTypes = [
+		...postTypes,
+		...selectedPostTypes
+			.filter( ( slug ) => ! offeredSlugs.includes( slug ) )
+			.map( ( slug ) => ( {
+				value: slug,
+				label: sprintf(
+					/* translators: %s: post type slug. */
+					__(
+						'%s (not available for new workflows)',
+						'vip-workflows'
+					),
+					slug
+				),
+			} ) ),
+	];
+
 	const sequenceSettings = {
 		name,
 		onNameChange: setName,
@@ -1804,7 +1810,7 @@ export default function SequenceGraphEditor( {
 		onDescriptionChange: setDescription,
 		isActive,
 		onActiveChange: setIsActive,
-		postTypes,
+		postTypes: inspectorPostTypes,
 		selectedPostTypes,
 		onTogglePostType: togglePostType,
 		settings,
