@@ -213,7 +213,8 @@ function inspectorReserve( el ) {
  * always asked for from one — the refused-save notice holds the button — so
  * the strip starts below the lowest of them.
  *
- * Exported for its tests, which stand in the rects a browser would measure.
+ * Exported only for unit tests (`graph-canvas-reveal.test.js`), which stand in
+ * the rects a browser would measure. Nothing else should import it.
  *
  * @param {HTMLElement} el The canvas pane.
  * @return {Object} `{ x, y, width, height }` relative to the pane.
