@@ -2062,7 +2062,7 @@ export function validateSequence( {
 	if ( ! stages || stages.length === 0 ) {
 		addError(
 			__(
-				'This sequence has no stages, so there is nothing for a post to be in. Right-click the canvas to add one.',
+				'This sequence has no stages, so there is nothing for a post to be in. Choose Add stage in the Sequence panel to add one.',
 				'vip-workflows'
 			)
 		);
@@ -2288,7 +2288,7 @@ export function validateSequence( {
 				stage.key,
 				isAgentStage( stage )
 					? __(
-							'The agent has no outcome routed anywhere and the stage is not marked final — content cannot leave it. Drag from the stage’s outcome handles to route it.',
+							'The agent has no outcome routed anywhere and the stage is not marked final — content cannot leave it. Pick a destination with an outcome’s Route button in the Stage panel, or drag from the stage’s outcome handles.',
 							'vip-workflows'
 					  )
 					: __(
@@ -2333,7 +2333,7 @@ export function validateSequence( {
 						sprintf(
 							/* translators: 1: agent outcome label, 2: target stage key */
 							__(
-								'The agent’s “%1$s” route has no transition to travel on (%2$s). Re-drag the handle onto that stage.',
+								'The agent’s “%1$s” route has no transition to travel on (%2$s). In the Stage panel, set it to Not routed with its Route button, then route it to that stage again.',
 								'vip-workflows'
 							),
 							agentOutcomeLabel( outcome ),
@@ -2470,15 +2470,16 @@ export function validateSequence( {
 	// as final") named the rule and left the author to work out which stage it
 	// was about and how one gets marked — the two things they actually need. So
 	// the stages content would pile up in are named, since those are the
-	// candidates, and the gesture that ends the flow is spelled out.
+	// candidates, and the way to end the flow is spelled out — the Stage panel's
+	// Add exit first, since that works from the keyboard, then the drag.
 	if ( ! isPhase && ! stages.some( ( s ) => s.is_terminal ) ) {
 		addError(
 			deadEnds.length > 0
 				? sprintf(
 						/* translators: %s: comma-separated stage names. */
 						_n(
-							'Nothing ends this sequence: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there.',
-							'Nothing ends this sequence: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the End node.',
+							'Nothing ends this sequence: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Open its Stage panel, choose Add exit, and pick End of workflow. Or drag from it to the End node.',
+							'Nothing ends this sequence: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Open the Stage panel of whichever should finish the flow, choose Add exit, and pick End of workflow. Or drag from it to the End node.',
 							deadEnds.length,
 							'vip-workflows'
 						),
@@ -2493,7 +2494,7 @@ export function validateSequence( {
 							.join( ', ' )
 				  )
 				: __(
-						'Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to the End node.',
+						'Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Open the Stage panel of the stage that should finish the flow, choose Add exit, and pick End of workflow. Or drag from it to the End node.',
 						'vip-workflows'
 				  )
 		);

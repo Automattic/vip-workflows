@@ -1167,8 +1167,11 @@ describe( 'validateSequence', () => {
 			stages: noTerminal,
 		} );
 		const message = messages( errors ).join( ' ' );
-		// The stage content would pile up in, by name, and the drag that fixes it.
+		// The stage content would pile up in, by name, and the panel controls
+		// that fix it — reachable without a pointer — before the drag.
 		expect( message ).toContain( '“Done”' );
+		expect( message ).toContain( 'Add exit' );
+		expect( message ).toContain( 'End of workflow' );
 		expect( message ).toContain( 'End node' );
 	} );
 
@@ -1215,7 +1218,21 @@ describe( 'validateSequence', () => {
 			stages: loop,
 		} );
 		expect( valid ).toBe( false );
-		expect( messages( errors ).join( ' ' ) ).toContain( 'End node' );
+		const message = messages( errors ).join( ' ' );
+		expect( message ).toContain( 'Add exit' );
+		expect( message ).toContain( 'End of workflow' );
+		expect( message ).toContain( 'End node' );
+	} );
+
+	it( 'points an empty sequence at the Sequence panel’s Add stage, not a gesture', () => {
+		const { valid, errors } = validateSequence( {
+			name: 'Flow',
+			stages: [],
+		} );
+		expect( valid ).toBe( false );
+		const message = messages( errors ).join( ' ' );
+		expect( message ).toContain( 'Add stage in the Sequence panel' );
+		expect( message ).not.toContain( 'Right-click' );
 	} );
 
 	it( 'warns about a non-terminal dead-end stage', () => {
@@ -2016,6 +2033,26 @@ describe( 'validateSequence for AI stages', () => {
 			stages: agentStages( { error: 'draft' } ),
 		} );
 		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
+			'no transition to travel on'
+		);
+	} );
+
+	it( 'fixes a route with no transition the way its warning says: clear it, then route it again', () => {
+		// Routing an outcome to where it already points is refused, so the
+		// warning cannot advise re-routing in place.
+		const broken = agentStages( { error: 'draft' } );
+		expect( routeOutcome( broken, 'review', 'error', 'draft' ) ).toBe(
+			broken
+		);
+		const fixed = routeOutcome(
+			clearOutcome( broken, 'review', 'error' ),
+			'review',
+			'error',
+			'draft'
+		);
+		expect( findTransition( fixed, 'review', 'draft' ) ).not.toBeNull();
+		const result = validateSequence( { name: 'Flow', stages: fixed } );
+		expect( ( result.warnings.review || [] ).join( ' ' ) ).not.toContain(
 			'no transition to travel on'
 		);
 	} );
