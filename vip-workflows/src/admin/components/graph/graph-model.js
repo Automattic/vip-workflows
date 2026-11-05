@@ -2045,9 +2045,22 @@ export function validateSequence( {
 	// with the halves swapped, every count-the-errors test still passes, and the
 	// editor crashes on Save rendering an object as a React child. One order for
 	// both is what keeps that from ever being a plausible slip.
+	//
+	// A stage is addressed by its key, so a key two stages share, or no key at
+	// all, is no address: whatever opened would be the first stage under that
+	// key, and every edit there would land on both. Such a fault keeps its node
+	// badge but carries no target, so the notice offers no way to a panel that
+	// cannot fix it. `duplicateKeys` is read at call time, after it is gathered
+	// below; no blocker is reported before then.
 	const addBlocker = ( message, target ) => {
-		addError( message, target );
-		addWarning( targetStageKey( target ), message );
+		const stageKey = targetStageKey( target );
+		const isStageTarget =
+			target?.type === 'node' || target?.type === 'edge';
+		const addressable =
+			! isStageTarget ||
+			( '' !== stageKey && ! duplicateKeys.includes( stageKey ) );
+		addError( message, addressable ? target : null );
+		addWarning( stageKey, message );
 	};
 
 	if ( ! ( name || '' ).trim() ) {

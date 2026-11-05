@@ -436,6 +436,10 @@ const FAULTED = [
 	},
 ];
 
+// The stages the stored sequence answers with; FAULTED unless a test says
+// otherwise.
+let mockStatuses = FAULTED;
+
 const sequence = () => ( {
 	id: 7,
 	name: 'Editorial Review',
@@ -443,7 +447,7 @@ const sequence = () => ( {
 	status: 'active',
 	stages_missing_region: [],
 	config: {
-		statuses: FAULTED,
+		statuses: mockStatuses,
 		post_types: [ 'post' ],
 		settings: {},
 		metadata_fields: [],
@@ -458,6 +462,7 @@ const OPTIONS = {
 
 beforeEach( () => {
 	mockReveals = [];
+	mockStatuses = FAULTED;
 	apiFetch.mockImplementation( ( { path } ) => {
 		if ( path === '/vip-workflows/v1/sequences/options' ) {
 			return Promise.resolve( OPTIONS );
@@ -539,5 +544,31 @@ describe( 'the way a refused Save shows its fault', () => {
 		// rather than as an unchanged prop.
 		expect( mockReveals ).toHaveLength( 2 );
 		expect( mockReveals[ 1 ] ).not.toBe( mockReveals[ 0 ] );
+	} );
+
+	// A stored sequence can carry two stages under one key — only from before
+	// the server refused that. The key is the editor's only address for a
+	// stage, so a way to either of them would open the first whichever was
+	// meant, and every edit there would land on both. The notice names the
+	// fault and offers no way to it.
+	it( 'offers no way to a fault on a stage that shares its key', async () => {
+		mockStatuses = [
+			{
+				...FAULTED[ 0 ],
+				label: 'Other draft',
+				region_entry: false,
+				transitions: [ { to: 'legal', label: 'Plain' } ],
+			},
+			...FAULTED,
+		];
+		await renderEditor();
+		await pressSave();
+
+		expect( screen.getAllByText( /share the key/ ).length ).toBeGreaterThan(
+			0
+		);
+		expect(
+			screen.queryByRole( 'button', { name: /^Show / } )
+		).not.toBeInTheDocument();
 	} );
 } );
