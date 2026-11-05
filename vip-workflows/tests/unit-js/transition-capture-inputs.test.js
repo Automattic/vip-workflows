@@ -54,9 +54,7 @@ describe( 'Transition assignments', () => {
 	it( 'says the transition assigns nothing when it has no assignment', () => {
 		renderInspector( { to: 'review' } );
 
-		expect(
-			screen.getByText( /This transition assigns nothing/ )
-		).toBeInTheDocument();
+		expect( screen.getByText( /No assignment yet/ ) ).toBeInTheDocument();
 	} );
 
 	it( 'mints a new assignment its key, so nobody is asked to type one', async () => {

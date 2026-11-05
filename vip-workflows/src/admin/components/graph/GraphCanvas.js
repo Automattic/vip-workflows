@@ -357,6 +357,7 @@ function Flow( {
 	onClearSelection,
 	onDeleteNode,
 	onDeleteEdge,
+	onAddStage,
 	// The hand-offs a phase sequence owes, from `/sequences/options`. Read
 	// through the same `isRequiredHandOff` the delete handler is guarded with,
 	// so the context menu cannot offer a deletion that handler refuses.
@@ -1530,25 +1531,31 @@ function Flow( {
 
 	// `{ x, y }` in viewport-relative px, plus what the menu was opened on: a
 	// region band (`region`), a stage card (`stageKey`), a transition (`edge`),
-	// or none of the three, which is the canvas itself.
+	// or none of the three, which is the canvas itself. `site` is where a stage
+	// added from the menu lands — the drop site of the right-click, taken now
+	// because panning or zooming closes the menu before it could go stale.
 	const [ menu, setMenu ] = useState( null );
 	const closeMenu = useCallback( () => setMenu( null ), [] );
 
-	const openMenuAt = useCallback( ( event, target ) => {
-		event.preventDefault();
-		const rect = viewportRef.current?.getBoundingClientRect();
-		if ( ! rect ) {
-			return;
-		}
-		setMenu( {
-			x: event.clientX - rect.left,
-			y: event.clientY - rect.top,
-			region: null,
-			stageKey: null,
-			edge: null,
-			...target,
-		} );
-	}, [] );
+	const openMenuAt = useCallback(
+		( event, target ) => {
+			event.preventDefault();
+			const rect = viewportRef.current?.getBoundingClientRect();
+			if ( ! rect ) {
+				return;
+			}
+			setMenu( {
+				x: event.clientX - rect.left,
+				y: event.clientY - rect.top,
+				site: dropSite( event.clientX, event.clientY ),
+				region: null,
+				stageKey: null,
+				edge: null,
+				...target,
+			} );
+		},
+		[ dropSite ]
+	);
 
 	// The pane, and a region band's label. Both open the canvas's own menu; the
 	// band names the region it was opened on, so the menu can offer to remove
@@ -1722,15 +1729,29 @@ function Flow( {
 		const remaining = REGION_ORDER.filter(
 			( r ) => ! regions.includes( r )
 		);
-		const items = [
-			{
-				id: 'add-region',
+		const items = [];
+
+		// The same stage the drop-to-create gesture makes, minus the source:
+		// in the band that was right-clicked, where it was right-clicked.
+		if ( onAddStage ) {
+			items.push( {
+				id: 'add-stage',
 				icon: plus,
-				label: __( 'Add post status…', 'vip-workflows' ),
-				disabled: remaining.length === 0,
-				onSelect: () => onAddRegion?.(),
-			},
-		];
+				label: __( 'Add stage', 'vip-workflows' ),
+				onSelect: () => {
+					const key = onAddStage( menu.site.region );
+					placeDroppedStage( key, menu.site );
+				},
+			} );
+		}
+
+		items.push( {
+			id: 'add-region',
+			icon: plus,
+			label: __( 'Add post status…', 'vip-workflows' ),
+			disabled: remaining.length === 0,
+			onSelect: () => onAddRegion?.(),
+		} );
 
 		if ( menu.region && regionMeta[ menu.region ]?.removable ) {
 			items.push( {
@@ -1752,6 +1773,8 @@ function Flow( {
 		isPhase,
 		regionMeta,
 		regions,
+		onAddStage,
+		placeDroppedStage,
 		onAddRegion,
 		onRemoveRegion,
 		onSetStageStatus,

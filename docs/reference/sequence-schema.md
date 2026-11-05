@@ -38,7 +38,8 @@ The `statuses` / `post_types` / `settings` / `metadata_fields` payload is **iden
 | `status` | — | The core **status region** this stage lives in (see below). Defaults to `draft`; a value outside the four regions is rejected. |
 | `region_entry` | — | Boolean; marks this stage as its region's entry checkpoint (see below). |
 | `color` | — | Hex color for the stage. |
-| `is_terminal` / `is_initial` / `is_dead_end` / `is_in_progress` | — | Booleans that flag the stage for the UI and queries. |
+| `is_initial` | — | Boolean; marks the stage new posts start in. Exactly one stage carries it (see below). |
+| `is_terminal` / `is_dead_end` / `is_in_progress` | — | Booleans that flag the stage for the UI and queries. |
 | `show_in_queue` | — | Boolean; marks the stage as a reviewable stage in the claim queue. |
 | `transitions` | — | The moves out of this stage. See below. |
 | `agent` | — | Makes this an AI-owned stage. See below. |
@@ -58,6 +59,16 @@ Every **region you use** needs exactly **one** stage with `region_entry: true` �
 - `region_entry` does **not** constrain transition targets — any transition may point at any defined stage.
 
 In the canonical example the `draft` region's entry is the `draft` stage and the `publish` region's entry is the `publish` stage.
+
+### The start stage (`is_initial`)
+
+New posts start in the one stage marked `is_initial: true`. Stage order does not decide it, so reordering `statuses` never moves the start stage. Rules the gate enforces:
+
+- **At most one** stage may carry `is_initial` — marking two is rejected.
+- If **none** does, the first stage (config order) is marked. That is the stage a config without the flag has always started posts in.
+- The value must be a boolean; anything else is rejected.
+
+The Sequence editor writes the flag on every save. Configs stored before the flag existed gained it, on their first stage, in the 2.26.0 schema migration.
 
 ## Transitions (`transitions[]`)
 

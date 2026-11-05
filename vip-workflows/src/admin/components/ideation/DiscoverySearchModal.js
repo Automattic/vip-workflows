@@ -258,7 +258,7 @@ export default function DiscoverySearchModal( {
 								className="vip-workflows-ideation-discovery-modal__no-results"
 							>
 								{ __(
-									'No results found. Try different search terms or filters.',
+									'No results. Try different terms or filters.',
 									'vip-workflows'
 								) }
 							</Text>

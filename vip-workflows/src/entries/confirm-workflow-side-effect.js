@@ -450,7 +450,7 @@ function describeStatusChange( {
 	// filled together or empty together; either one being empty is the signal.
 	if ( ! currentRegion || ! stageRegion ) {
 		return __(
-			'VIP Workflows cannot resolve this post’s workflow stage, so changing its status leaves the post where it is in the workflow.',
+			'This post’s workflow stage can’t be resolved, so the post won’t move.',
 			'vip-workflows'
 		);
 	}
@@ -474,7 +474,7 @@ function describeStatusChange( {
 			? sprintf(
 					/* translators: %s: name of the workflow stage the post will be moved to, e.g. "Ready to publish". */
 					__(
-						'Scheduling this post leaves it at its current workflow stage. When it goes live, the workflow re-seats it at “%s”.',
+						'Scheduling this post leaves it at its current workflow stage. It moves to “%s” when it goes live.',
 						'vip-workflows'
 					),
 					goLiveStage
@@ -503,7 +503,7 @@ function describeStatusChange( {
 			? sprintf(
 					/* translators: 1: current editorial region, e.g. "Published". 2: target editorial region, e.g. "Draft". */
 					__(
-						'Changing the status from %1$s to %2$s leaves this post at its current workflow stage, which is already a %2$s stage.',
+						'Changing the status from %1$s to %2$s keeps this post at its current %2$s stage.',
 						'vip-workflows'
 					),
 					from,
@@ -512,7 +512,7 @@ function describeStatusChange( {
 			: sprintf(
 					/* translators: 1: current editorial region, e.g. "Draft". 2: target editorial region, e.g. "Published". */
 					__(
-						'Changing the status from %1$s to %2$s leaves this post at its current workflow stage: its workflow has no %2$s stage to move it to.',
+						'Changing the status from %1$s to %2$s keeps this post at its stage. Its workflow has no %2$s stage.',
 						'vip-workflows'
 					),
 					from,
@@ -523,7 +523,7 @@ function describeStatusChange( {
 	return sprintf(
 		/* translators: 1: current editorial region, e.g. "Draft". 2: target editorial region, e.g. "Published". 3: name of the workflow stage the post will be moved to. */
 		__(
-			'Changing the status from %1$s to %2$s moves this post out of its current workflow stage and re-seats it at “%3$s”.',
+			'Changing the status from %1$s to %2$s moves this post to “%3$s”.',
 			'vip-workflows'
 		),
 		from,
@@ -544,7 +544,7 @@ export function getPublishVetoMessage( { title, workflowName } ) {
 	return sprintf(
 		/* translators: 1: post title. 2: workflow (sequence) name. */
 		__(
-			'“%1$s” is in the “%2$s” workflow. To publish it directly, remove it from the workflow (this is logged), or move it through the workflow to a published stage.',
+			'“%1$s” is in the “%2$s” workflow. Move it to a published stage, or remove it from the workflow.',
 			'vip-workflows'
 		),
 		title,
@@ -573,7 +573,7 @@ export function getOrphanedWorkflowMessage( { title } ) {
 	return sprintf(
 		/* translators: %s: post title. */
 		__(
-			'“%s” belongs to a workflow that no longer exists, so its status cannot be changed. Remove it from the workflow (this is logged) to edit it as an ordinary post.',
+			'“%s” is in a deleted workflow. Remove it from the workflow to change its status.',
 			'vip-workflows'
 		),
 		title
@@ -591,7 +591,7 @@ export function getOrphanedWorkflowMessage( { title } ) {
  */
 export function getOrphanedWorkflowRemoveConfirmation() {
 	return __(
-		'Remove this post from its deleted workflow? The removal is recorded in the workflow log, with the stage it was removed from. It cannot be undone.',
+		'Remove this post from its deleted workflow? This can’t be undone.',
 		'vip-workflows'
 	);
 }
@@ -608,8 +608,8 @@ export function getRemoveFromWorkflowLabel() {
 /**
  * Copy for the confirm that precedes removing a post from its workflow.
  *
- * States both consequences the user is agreeing to: the removal is recorded,
- * and it is not reversible — `StatusManager::assign_sequence()` seats the post
+ * States the consequence the user is agreeing to: the post loses its place,
+ * and that is not reversible — `StatusManager::assign_sequence()` seats the post
  * at the checkpoint of whatever region its status puts it in
  * (`Sequence::get_region_entry_stage()`), which is not necessarily the first
  * stage of that region and is never the stage it was removed from.
@@ -622,7 +622,7 @@ export function getRemoveFromWorkflowConfirmation( { workflowName } ) {
 	return sprintf(
 		/* translators: %s: workflow (sequence) name. */
 		__(
-			'Remove this post from the “%s” workflow? The removal is recorded in the workflow log, with the stage it was removed from. It cannot be undone: re-assigning the workflow later seats the post at its region’s entry stage, not at the stage it was removed from.',
+			'Remove this post from the “%s” workflow? It loses its place, and this can’t be undone.',
 			'vip-workflows'
 		),
 		workflowName
@@ -671,7 +671,7 @@ export function getSwitchWorkflowConfirmation( {
 	return sprintf(
 		/* translators: 1: workflow (sequence) name the post is leaving. 2: workflow (sequence) name it would move to. */
 		__(
-			'Move this post from the “%1$s” workflow to “%2$s”? It gives up its place in “%1$s”: the change is recorded in the workflow log, and the post starts at the “%2$s” entry stage for its current status, not at the stage it is on now.',
+			'Move this post from “%1$s” to “%2$s”? It loses its place in “%1$s”.',
 			'vip-workflows'
 		),
 		fromWorkflowName,

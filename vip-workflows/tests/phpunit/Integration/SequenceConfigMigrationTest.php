@@ -842,6 +842,44 @@ class SequenceConfigMigrationTest extends TestCase
 	}
 
 	/**
+	 * The 2.26.0 replay flags the stage new posts start in on a row stored
+	 * without one: the first stage, where the old order-based rule put them, so
+	 * nothing changes on upgrade. After it, the read path answers from the flag
+	 * alone, and a later reorder of the array no longer moves the start.
+	 */
+	public function test_start_stage_migration_flags_the_first_stage_of_a_flagless_row(): void
+	{
+		$id = $this->insert_unnormalized(
+			'legacy-no-start-flag',
+			array(
+				'post_types' => array( 'post' ),
+				'statuses'   => array(
+					array( 'key' => 'draft', 'label' => 'Draft', 'status' => 'draft', 'region_entry' => true, 'transitions' => array( array( 'to' => 'review' ) ) ),
+					array( 'key' => 'review', 'label' => 'Review', 'status' => 'draft' ),
+				),
+			)
+		);
+
+		$method     = new \ReflectionMethod( Schema::class, 'get_migrations' );
+		$migrations = $method->invoke( new Schema() );
+		$entry      = current( array_filter( $migrations, fn( $m ) => '2.26.0' === $m['version'] ) );
+
+		$this->assertIsArray( $entry, 'The start-stage replay is registered as 2.26.0.' );
+		$this->assertTrue( version_compare( Schema::VERSION, '2.26.0', '>=' ), 'Installs at 2.25.0 reach the new entry.' );
+
+		( $entry['run'] )();
+
+		$stored = $this->stored_config( $id );
+		$this->assertTrue( $stored['statuses'][0]['is_initial'] );
+		$this->assertArrayNotHasKey( 'is_initial', $stored['statuses'][1] );
+		$this->assertSame( 'draft', ( new SequenceRepository() )->find( $id )->get_initial_status() );
+
+		// A second run is a no-op.
+		( $entry['run'] )();
+		$this->assertSame( $stored, $this->stored_config( $id ) );
+	}
+
+	/**
 	 * The seeded AI Copy Desk fixture is the live reproduction's source of truth,
 	 * so it must itself satisfy the gate without normalization — regions and
 	 * checkpoints declared, and the copy-edit agent's real registered ability id.

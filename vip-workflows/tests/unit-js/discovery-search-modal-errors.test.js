@@ -83,9 +83,7 @@ describe( 'DiscoverySearchModal errors', () => {
 
 		await waitFor( () => expect( errorNotice() ).not.toBeNull() );
 		expect( errorNotice() ).toHaveTextContent( REFUSAL );
-		expect(
-			screen.queryByText( /No results found/ )
-		).not.toBeInTheDocument();
+		expect( screen.queryByText( /No results\./ ) ).not.toBeInTheDocument();
 	} );
 
 	it( 'says a search found nothing when the route answered an empty list', async () => {
@@ -93,9 +91,7 @@ describe( 'DiscoverySearchModal errors', () => {
 
 		fireEvent.click( screen.getByRole( 'button', { name: 'Search' } ) );
 
-		expect(
-			await screen.findByText( /No results found/ )
-		).toBeInTheDocument();
+		expect( await screen.findByText( /No results\./ ) ).toBeInTheDocument();
 	} );
 
 	it( 'drops the message once a later search succeeds', async () => {
@@ -111,9 +107,7 @@ describe( 'DiscoverySearchModal errors', () => {
 		await waitFor( () => expect( errorNotice() ).not.toBeNull() );
 
 		fireEvent.click( screen.getByRole( 'button', { name: 'Search' } ) );
-		expect(
-			await screen.findByText( /No results found/ )
-		).toBeInTheDocument();
+		expect( await screen.findByText( /No results\./ ) ).toBeInTheDocument();
 		expect( errorNotice() ).toBeNull();
 	} );
 } );

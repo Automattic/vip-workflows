@@ -21,7 +21,7 @@ class Schema {
 	/**
 	 * Database version.
 	 */
-	public const VERSION = '2.25.0';
+	public const VERSION = '2.26.0';
 
 	/**
 	 * Option name for storing DB version.
@@ -522,6 +522,27 @@ class Schema {
 			// produces byte-identical JSON and writes nothing.
 			array(
 				'version' => '2.25.0',
+				'run'     => function (): void {
+					self::replay_stored_stage_configs( true );
+				},
+			),
+			// Flag the stage new posts start in.
+			//
+			// The start stage used to be read from array order: the stage marked
+			// `is_initial`, or else the first stage. The Sequence editor's stages
+			// list saves its order as that array, so dragging a later stage to the
+			// top quietly changed where new posts start. The write gate now
+			// guarantees exactly one flagged stage, and the read path no longer
+			// consults order at all — so every stored row has to carry the flag.
+			//
+			// The replay stamps it where the old rule would have put new posts:
+			// on a row with no flag, the first stage. Nothing about where posts
+			// start changes on upgrade; only a later reorder stops changing it.
+			// A row that already flags exactly one stage is a byte-identical
+			// no-op, and a row that flags two is rejected and recorded for the
+			// admin notice like any other row the gate refuses.
+			array(
+				'version' => '2.26.0',
 				'run'     => function (): void {
 					self::replay_stored_stage_configs( true );
 				},

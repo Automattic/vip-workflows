@@ -16,8 +16,6 @@ import {
 import { Fieldset, Stack } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
 
-import './TransitionAssignmentConfig.css';
-
 /**
  * The assignee types a transition can be authored with.
  *
@@ -105,12 +103,10 @@ export function AssignmentInputConfig( {
 	const assigneeType = input?.assignee_type || 'user';
 
 	return (
-		<Stack
-			direction="column"
-			gap="md"
-			align="stretch"
-			className="vip-workflows-assignment-config"
-		>
+		// No panel of its own: it renders inside the assignment row's popover,
+		// which is already the surface, so its controls sit in it the way every
+		// other inspector popover's do.
+		<Stack direction="column" gap="md" align="stretch">
 			<SelectControl
 				__next40pxDefaultSize
 				__nextHasNoMarginBottom

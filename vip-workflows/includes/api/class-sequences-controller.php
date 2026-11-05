@@ -1670,7 +1670,7 @@ class SequencesController extends WP_REST_Controller {
 						'invalid_status_agent_routing_target',
 						sprintf(
 							/* translators: 1: stage key, 2: outcome name, 3: target stage key */
-							__( 'Stage "%1$s" routes the agent outcome "%2$s" to "%3$s", which is not a configured transition of that stage.', 'vip-workflows' ),
+							__( 'Stage “%1$s” routes agent outcome “%2$s” to “%3$s” with no transition to travel on.', 'vip-workflows' ),
 							$stage_key,
 							$outcome,
 							$target

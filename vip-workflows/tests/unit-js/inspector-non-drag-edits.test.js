@@ -360,13 +360,18 @@ describe( 'The canvas’s creation verbs, in the sequence panel', () => {
 		sequenceSettings: {
 			...SEQUENCE_SETTINGS,
 			onAddStage: () => {},
-			onAddPostStatus: () => {},
-			canAddPostStatus: true,
+			stages: STAGES,
+			onStagesChange: () => {},
+			onRemoveStage: () => {},
+			regions: [ 'draft', 'pending', 'publish' ],
+			addableRegions: [ 'private' ],
+			onAddRegion: () => {},
+			onRemoveRegion: () => {},
 			...settings,
 		},
 	} );
 
-	it( 'adds a stage — the verb the canvas never had an affordance for', () => {
+	it( 'adds a stage from the section header', () => {
 		const onAddStage = jest.fn();
 		renderInspector( nothingSelected( { onAddStage } ) );
 
@@ -375,38 +380,23 @@ describe( 'The canvas’s creation verbs, in the sequence panel', () => {
 		expect( onAddStage ).toHaveBeenCalled();
 	} );
 
-	it( 'adds a post status — the verb that lived only in a right-click', () => {
-		const onAddPostStatus = jest.fn();
-		renderInspector( nothingSelected( { onAddPostStatus } ) );
+	it( 'adds a post status from the section header dropdown', async () => {
+		const onAddRegion = jest.fn();
+		renderInspector( nothingSelected( { onAddRegion } ) );
 
-		fireEvent.click(
-			screen.getByRole( 'button', { name: 'Add post status…' } )
-		);
+		await openMenu( 'Add post status' );
+		fireEvent.click( screen.getByRole( 'menuitem', { name: /Private/ } ) );
 
-		expect( onAddPostStatus ).toHaveBeenCalled();
+		expect( onAddRegion ).toHaveBeenCalledWith( 'private' );
 	} );
 
 	it( 'keeps the menu item’s own gate: every status is already drawn', () => {
-		const onAddPostStatus = jest.fn();
-		renderInspector(
-			nothingSelected( { canAddPostStatus: false, onAddPostStatus } )
-		);
+		renderInspector( nothingSelected( { addableRegions: [] } ) );
 
-		// `aria-disabled`, not the native attribute: unavailable and still
-		// reachable, so tabbing the panel finds the control and hears that it
-		// is spoken for rather than skipping past a button that isn't there.
-		// The canvas menu's item is the opposite — its roving focus is built on
-		// native `disabled` — and the two differ because a menu holds its own
-		// tab stop while a panel hands out one per control.
-		const button = screen.getByRole( 'button', {
-			name: 'Add post status…',
-		} );
-		expect( button ).toHaveAttribute( 'aria-disabled', 'true' );
-
-		button.focus();
-		expect( button ).toHaveFocus();
-
-		fireEvent.click( button );
-		expect( onAddPostStatus ).not.toHaveBeenCalled();
+		// No add control at all — with nothing left to add, the button is not
+		// rendered rather than rendered disabled.
+		expect(
+			screen.queryByRole( 'button', { name: 'Add post status' } )
+		).toBeNull();
 	} );
 } );

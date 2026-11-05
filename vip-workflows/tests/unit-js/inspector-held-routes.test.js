@@ -62,9 +62,11 @@ describe( 'Inspector held publication routes', () => {
 		const panel = renderInspector();
 		expect( panel.getByText( 'On pass · Disabled' ) ).toBeInTheDocument();
 		expect(
-			panel.getByText( /This transition is disabled\./ )
+			panel.getByText(
+				/publishes, which is prevented by Sequence settings/
+			)
 		).toHaveTextContent(
-			'turning on “Let AI stages publish” in the sequence settings makes it live again'
+			'publishes, which is prevented by Sequence settings, please reroute.'
 		);
 
 		// Imported truthy strings must not waive the runtime's strict opt-in.
@@ -73,7 +75,9 @@ describe( 'Inspector held publication routes', () => {
 		panel.setPublish( true );
 		expect( panel.getByText( 'On pass' ) ).toBeInTheDocument();
 		expect(
-			panel.queryByText( /This transition is disabled\./ )
+			panel.queryByText(
+				/publishes, which is prevented by Sequence settings/
+			)
 		).not.toBeInTheDocument();
 	} );
 
@@ -85,9 +89,13 @@ describe( 'Inspector held publication routes', () => {
 		expect(
 			panel.getByText( 'On pass, On fail · Disabled' )
 		).toBeInTheDocument();
-		const warning = panel.getByText( /This transition is disabled\./ );
+		const warning = panel.getByText(
+			/publishes, which is prevented by Sequence settings/
+		);
 		expect( warning ).toHaveTextContent( 'would publish failed runs too' );
-		expect( warning ).not.toHaveTextContent( 'makes it live again' );
+		expect( warning ).toHaveTextContent(
+			'please reroute. Allowing it would publish failed runs too.'
+		);
 	} );
 
 	it( 'updates the selected stage’s route status with the same setting', () => {

@@ -51,21 +51,22 @@
  * yields on the same terms the arrowhead does (below): while the badge under
  * it is actually up, and not a moment longer.
  *
- * **Arrowheads yield only to a painted outcome badge — never to the grip, and
- * never at rest.** The socket rule is geometric and cannot see whether a grip
- * is actually painted — grips are transparent until their stage is hovered —
- * so extending it verbatim to arrowheads cost more than it bought: a back edge
- * arriving dead centre on a bottom border ("send back to draft", the commonest
- * shape there is) lost its arrowhead *permanently*, leaving nothing at rest to
- * say where the edge lands. An arrival mark is the only thing that
- * distinguishes the two ends of a line; a departure mark is not, because the
- * handle underneath it already reads as the port. So sockets yield to the grip
- * and arrowheads keep clear of that rule entirely.
+ * **Arrowheads yield only to a painted handle — never at rest.** The socket
+ * rule is geometric and cannot see whether a grip is actually painted — grips
+ * are transparent until their stage is hovered — so extending it verbatim to
+ * arrowheads cost more than it bought: a back edge arriving dead centre on a
+ * bottom border ("send back to draft", the commonest shape there is) lost its
+ * arrowhead *permanently*, leaving nothing at rest to say where the edge
+ * lands. An arrival mark is the only thing that distinguishes the two ends of
+ * a line; a departure mark is not, because the handle underneath it already
+ * reads as the port. So sockets yield to the grip geometrically, and
+ * arrowheads only while the handle under them is painted.
  *
- * An AI stage's outcome badges are the one case with a real collision: each
- * carries a glyph (`StageNode`), and an arrowhead arriving under one stamped
- * itself over the very mark the badge exists to show. The badges paint at the
- * same moments the grip does — their stage hovered, or a connection dragged
+ * Both kinds of handle collide with a head while they are painted: an outcome
+ * badge carries a glyph (`StageNode`), and the grip carries the drag icon an
+ * author reaches for to start a connection — an arrowhead arriving under
+ * either stamped itself over the very mark the handle exists to show. Handles
+ * paint at the same moments — their stage hovered, or a connection dragged
  * from them — so the arrowhead yields for exactly that long and no longer:
  * while the badge is up the head fades out (`is-yielding`; the stylesheet
  * transitions it against the badge's own reveal), and the moment the badge
@@ -73,9 +74,8 @@
  * what the socket rule could not know, so the gate here is the same pair of
  * signals the stylesheet paints the badge by: the hovered stage (tracked by
  * `GraphCanvas`, which owns node events) and the handle a connection is in
- * flight from (the store). The anonymous grip never qualifies —
- * `coveredOutcomeBadge` counts only handles named for an agent outcome — which
- * is what keeps the back-edge case above true. Target handles were never in
+ * flight from (the store). At rest neither signal is set, which is what keeps
+ * the back-edge case above true. Target handles were never in
  * scope either way — a stage's is the invisible sheet over the whole card
  * (`StageNode`), which marks nothing and would otherwise swallow every
  * arrowhead on the canvas.
@@ -225,11 +225,8 @@ function selectConnectingHandle( state ) {
  * Works on the measured source-handle rects of one node — the mark's own end
  * node, the same scoping the socket rule uses — inflated by the head's reach
  * so a chevron grazing a badge's edge counts as covering it. Only a handle
- * whose id names an agent outcome qualifies: the anonymous drag grip must
- * never eat an arrival mark, because it is transparent at rest and a back edge
- * arriving dead centre on it would lose its arrowhead with nothing left to
- * show where the edge lands (the regression the outcome-only rule guards
- * against — see the header).
+ * whose id names an agent outcome qualifies; the anonymous drag grip has its
+ * own test (`coversGrip`), so a point on both still finds the badge.
  *
  * Exported for its tests: the component can only exercise it against a live
  * React Flow store.
@@ -249,6 +246,31 @@ export function coveredOutcomeBadge( point, handles ) {
 				point.y >= rect.y - ARROW_REACH &&
 				point.y <= rect.y + rect.height + ARROW_REACH
 		)?.id || null
+	);
+}
+
+/**
+ * Whether a point falls on a node's anonymous drag grip.
+ *
+ * The grip's half of the arrowhead rule, beside the badges' half: the same
+ * inflated bounds, but only the handle with no id. Geometry alone never hides
+ * a head here — the grip is transparent at rest — so the component asks this
+ * only alongside the signals that say the grip is painted.
+ *
+ * Exported for its tests, like `coveredOutcomeBadge`.
+ *
+ * @param {{ x: number, y: number }} point   The mark's tip, in flow coordinates.
+ * @param {?Array}                   handles One node's source-handle rects.
+ * @return {boolean} Whether the tip lands on the grip.
+ */
+export function coversGrip( point, handles ) {
+	return ( handles || [] ).some(
+		( rect ) =>
+			! rect.id &&
+			point.x >= rect.x - ARROW_REACH &&
+			point.x <= rect.x + rect.width + ARROW_REACH &&
+			point.y >= rect.y - ARROW_REACH &&
+			point.y <= rect.y + rect.height + ARROW_REACH
 	);
 }
 
@@ -297,6 +319,13 @@ function EdgeOverlayComponent( { hoveredNodeId = null } ) {
 		);
 	};
 
+	// The grip's half of the same rule: painted while its stage is hovered, or
+	// while a connection is in flight from it — its handle id is empty, so the
+	// in-flight signature is the node id and a bare separator.
+	const gripIsUp = ( nodeId, point ) =>
+		coversGrip( point, handles[ nodeId ] ) &&
+		( nodeId === hoveredNodeId || `${ nodeId }|` === connectingHandle );
+
 	return (
 		<ViewportPortal>
 			<svg
@@ -311,9 +340,12 @@ function EdgeOverlayComponent( { hoveredNodeId = null } ) {
 					const arrives = outward( plan.targetPos );
 					const tip = arrowTip( plan );
 					// The head yields while — and only while — the outcome
-					// badge underneath it is painted: its stage hovered, or a
-					// connection in flight from that badge. See the header.
-					const yields = badgeIsUp( state?.target, tip );
+					// badge or grip underneath it is painted: its stage
+					// hovered, or a connection in flight from that handle.
+					// See the header.
+					const yields =
+						badgeIsUp( state?.target, tip ) ||
+						gripIsUp( state?.target, tip );
 					// An outcome edge departs by its own mark rather than by a
 					// plain socket, and that mark yields on the same terms —
 					// the badge it would sit under is the same statement, at a

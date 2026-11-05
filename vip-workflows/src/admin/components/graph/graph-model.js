@@ -48,8 +48,9 @@ export const STAGE_WIDTH = 200;
 export const STAGE_HEIGHT = 80;
 
 // Synthetic flow endpoints. These are rendered on the canvas but are NOT stored
-// stages: the Start node's edge points at the entry stage (which the runtime
-// reads as `statuses[0]`), and a stage's edge to the End node marks it terminal
+// stages: the Start node's edge points at the entry stage (the one stage the
+// save marks `is_initial`, which is where the server puts new posts), and a
+// stage's edge to the End node marks it terminal
 // (`is_terminal`). Their ids are namespaced so they can't collide with a stage
 // key (`sanitize_key` would never produce these).
 export const TERMINAL_NODE_TYPE = 'terminal';
@@ -438,10 +439,7 @@ export function buildGraph( stages, options = {} ) {
 	} );
 
 	// Synthetic Start / End endpoints (workflow only). Start connects to the
-	// flow entry — the draft region's entry checkpoint ("where content
-	// enters"; `setEntryStage` keeps it at `statuses[0]`, but legacy data may
-	// not, so fall back to `statuses[0]` when no draft stage is marked). Each
-	// terminal stage connects to End.
+	// flow entry — see `entryStageKey`. Each terminal stage connects to End.
 	if ( ! isPhase && stages.length > 0 ) {
 		const entryKey = entryStageKey( stages );
 
@@ -764,10 +762,15 @@ export function setStageStatus( stages, key, status ) {
 }
 
 /**
- * The stage the synthetic Start edge points at — the draft region's entry
- * checkpoint ("where content enters"; `setEntryStage` keeps it at
- * `statuses[0]`, but legacy data may not, so fall back to `statuses[0]` when no
- * draft stage is marked).
+ * The stage the synthetic Start edge points at: the stage marked `is_initial`,
+ * which is where the server puts new posts. The save writes that flag (see
+ * `markInitialStage`), so on a stored sequence the answer never depends on
+ * stage order — reordering the stages list cannot move Start.
+ *
+ * Only a stage list no save has touched yet can carry no flag: a sequence
+ * started in this editor, or one whose start stage was just removed. There the
+ * draft region's entry checkpoint stands in ("where content enters"), then
+ * `statuses[0]`, and the next save writes the flag on whichever that is.
  *
  * Shared by the projection that draws that edge and the gestures that move it,
  * so "where does Start point" has one answer: a gesture that cannot change this
@@ -780,6 +783,10 @@ export function entryStageKey( stages ) {
 	if ( stages.length === 0 ) {
 		return null;
 	}
+	const flagged = stages.find( ( s ) => Boolean( s.is_initial ) );
+	if ( flagged ) {
+		return flagged.key;
+	}
 	const draftEntry = stages.find(
 		( s ) => Boolean( s.region_entry ) && stageRegion( s ) === 'draft'
 	);
@@ -787,15 +794,68 @@ export function entryStageKey( stages ) {
 }
 
 /**
+ * Flag one stage `is_initial` and clear the flag from every other.
+ *
+ * @param {Array}  stages Existing stages.
+ * @param {string} key    The stage new posts start in.
+ * @return {Array} New stages array. Stages that need no change keep their identity.
+ */
+function flagInitialStage( stages, key ) {
+	return stages.map( ( stage ) => {
+		if ( stage.key === key ) {
+			return stage.is_initial === true
+				? stage
+				: { ...stage, is_initial: true };
+		}
+		if ( ! ( 'is_initial' in stage ) ) {
+			return stage;
+		}
+		const next = { ...stage };
+		delete next.is_initial;
+		return next;
+	} );
+}
+
+/**
+ * Mark exactly one stage `is_initial`: the one Start points at now.
+ *
+ * The server puts new posts in the flagged stage, and refuses a sequence that
+ * flags more than one. Writing the flag on every save is what keeps stage
+ * order out of it: a sequence written without one has its first stage flagged
+ * by the server, and a reorder in the stages list changes which stage that is.
+ *
+ * @param {Array} stages Existing stages.
+ * @return {Array} Stages with the flag on the entry stage and on no other.
+ */
+export function markInitialStage( stages ) {
+	return flagInitialStage( stages, entryStageKey( stages ) );
+}
+
+/**
+ * Put the stages in a new order without moving Start.
+ *
+ * The stages list hands back the whole array in its new order. Start stays on
+ * the stage it pointed at before the move, flagged so that no later reading of
+ * the array can put it anywhere else.
+ *
+ * @param {Array} stages    Stages before the move.
+ * @param {Array} reordered The same stages, in their new order.
+ * @return {Array} The reordered stages, with Start's stage flagged.
+ */
+export function reorderStages( stages, reordered ) {
+	return flagInitialStage( reordered, entryStageKey( stages ) );
+}
+
+/**
  * Make a stage the flow entry. The synthetic Start edge and the draft
  * region's `region_entry` are the same concept — "where content enters" — so
  * pointing Start at a draft-region stage claims that region's entry
- * checkpoint: the stage moves to the front of the array (`statuses[0]`) and
- * becomes the draft region's sole entry.
+ * checkpoint and the `is_initial` flag (no other stage keeps either), and the
+ * stage moves to the front of the array.
  *
  * Dropping Start on a stage outside the draft region only reorders — the
- * target region's checkpoint is left alone, and `validateSequence` warns that
- * the flow entry sits outside the draft region.
+ * flag and the target region's checkpoint are left alone, and
+ * `validateSequence` warns when the flow entry sits outside the draft region.
  *
  * @param {Array}  stages Existing stages.
  * @param {string} key    Stage to promote to entry.
@@ -813,7 +873,7 @@ export function setEntryStage( stages, key ) {
 	if ( stageRegion( target ) !== 'draft' ) {
 		return reordered;
 	}
-	return setRegionEntry( reordered, key );
+	return setRegionEntry( flagInitialStage( reordered, key ), key );
 }
 
 // ---------------------------------------------------------------------------
@@ -946,6 +1006,10 @@ export function updateTransition( stages, from, to, changes ) {
 
 /**
  * Remove a transition.
+ *
+ * Matches by target alone, which is exact only because a stage holds at most
+ * one transition per target (`addTransition` and `rewireTransition` refuse a
+ * second, and the editor collapses duplicates on load).
  *
  * @param {Array}  stages Existing stages.
  * @param {string} from   Source stage key.
@@ -1177,7 +1241,7 @@ export function outcomesRoutedTo( stage, targetKey ) {
  *
  * Only when a pass verdict alone leads there. With fail or error routed there
  * too, the setting would publish failed and errored runs — the cheap way around
- * the boundary. Mirrors `StageAgentRunner::publish_setting_fixes_route()`.
+ * the boundary.
  *
  * @param {Object} stage     The AI stage.
  * @param {string} targetKey The held destination.
@@ -1517,7 +1581,7 @@ export function addStageFromNode( stages, sourceKey, options = {} ) {
  * Apply a new connection drawn on the canvas.
  *
  * A drag off an outcome handle routes that outcome; otherwise Start → stage
- * re-assigns the flow entry (`statuses[0]`), stage → End marks the source stage
+ * re-assigns the flow entry (`is_initial`), stage → End marks the source stage
  * terminal, and stage → stage adds a transition.
  *
  * @param {Array}   stages         Existing stages.
@@ -2062,7 +2126,7 @@ export function validateSequence( {
 	if ( ! stages || stages.length === 0 ) {
 		addError(
 			__(
-				'This sequence has no stages, so there is nothing for a post to be in. Right-click the canvas to add one.',
+				'This sequence has no stages. Right-click the canvas to add one.',
 				'vip-workflows'
 			)
 		);
@@ -2098,7 +2162,7 @@ export function validateSequence( {
 			sprintf(
 				/* translators: %s: the stage key two stages share. */
 				__(
-					'Two stages share the key “%s”, so saving would collapse them into one and drop the second stage’s transitions. Open one of them and give it a key of its own.',
+					'Two stages share the key “%s”. Give one of them a key of its own.',
 					'vip-workflows'
 				),
 				key
@@ -2189,7 +2253,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: ability id of the agent the stage references. */
 					__(
-						'Agent “%s” is not available on this site; posts entering this stage will error — following the on-error route if one is set, stopping here otherwise.',
+						'Agent “%s” is not available on this site. Posts here will error.',
 						'vip-workflows'
 					),
 					abilityId
@@ -2204,7 +2268,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: agent name, e.g. "Copy Edit". */
 					__(
-						'Agent “%s” needs setup; until it is configured, posts entering this stage will error — following the on-error route if one is set, stopping here otherwise.',
+						'Agent “%s” needs setup. Until then, posts here will error.',
 						'vip-workflows'
 					),
 					entry.label
@@ -2235,7 +2299,7 @@ export function validateSequence( {
 			// so the fault carries no target and the notice offers no way to it.
 			addBlocker(
 				__(
-					'A stage on the canvas has neither a name nor a key. Open it and fill in both — the name is what writers see, the key is what the stage is stored under.',
+					'A stage has no name or key. Open it and fill in both.',
 					'vip-workflows'
 				),
 				null
@@ -2245,7 +2309,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: the stage's key, e.g. "in_review". */
 					__(
-						'The stage keyed “%s” has no name. Open it and fill in Label — it is what writers see on the board and on the buttons that move a post.',
+						'The stage keyed “%s” has no name. Open it and fill in Label.',
 						'vip-workflows'
 					),
 					stage.key
@@ -2257,7 +2321,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: the stage's name, e.g. "In Review". */
 					__(
-						'Stage “%s” has no key, so there is nothing to store it under. Open it and fill in Key.',
+						'Stage “%s” has no key. Open it and fill in Key.',
 						'vip-workflows'
 					),
 					stage.label
@@ -2291,7 +2355,7 @@ export function validateSequence( {
 				stage.key,
 				isAgentStage( stage )
 					? __(
-							'The agent has no outcome routed anywhere and the stage is not marked final — content cannot leave it. Drag from the stage’s outcome handles to route it.',
+							'The agent has no outcome routed anywhere. Drag from an outcome handle to route one.',
 							'vip-workflows'
 					  )
 					: __(
@@ -2336,7 +2400,7 @@ export function validateSequence( {
 						sprintf(
 							/* translators: 1: agent outcome label, 2: target stage key */
 							__(
-								'The agent’s “%1$s” route has no transition to travel on (%2$s). Re-drag the handle onto that stage.',
+								'“%1$s” route has no transition to travel on (%2$s). Re-drag its handle.',
 								'vip-workflows'
 							),
 							agentOutcomeLabel( outcome ),
@@ -2353,25 +2417,14 @@ export function validateSequence( {
 			for ( const outcome of held ) {
 				addWarning(
 					stage.key,
-					publishSettingFixesRoute( stage, routing[ outcome ] )
-						? sprintf(
-								/* translators: 1: agent outcome label, 2: target stage key */
-								__(
-									'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Turn on “Let AI stages publish” in the sequence settings, or route it to a stage before publishing.',
-									'vip-workflows'
-								),
-								agentOutcomeLabel( outcome ),
-								routing[ outcome ]
-						  )
-						: sprintf(
-								/* translators: 1: agent outcome label, 2: target stage key */
-								__(
-									'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Route it to a stage before publishing.',
-									'vip-workflows'
-								),
-								agentOutcomeLabel( outcome ),
-								routing[ outcome ]
-						  )
+					sprintf(
+						/* translators: %s: agent outcome key (pass, fail or error). */
+						__(
+							'Sequence settings do not allow AI stages to publish, please route the %s outcome to another stage.',
+							'vip-workflows'
+						),
+						outcome
+					)
 				);
 			}
 		}
@@ -2439,7 +2492,7 @@ export function validateSequence( {
 						sprintf(
 							/* translators: %s: transition button label */
 							__(
-								'The “%s” transition assigns work but names no assignment key, so there is nowhere to record the assignment. Remove its assignment and add it again.',
+								'The “%s” transition assigns work but names no assignment key. Re-add its assignment.',
 								'vip-workflows'
 							),
 							transitionName
@@ -2454,7 +2507,7 @@ export function validateSequence( {
 						sprintf(
 							/* translators: %s: transition button label */
 							__(
-								'The “%s” transition assigns to the same slot as another transition — the second assignment would overwrite the first. Remove its assignment and add it again.',
+								'The “%s” transition assigns to the same slot as another transition. Re-add its assignment.',
 								'vip-workflows'
 							),
 							transitionName
@@ -2480,8 +2533,8 @@ export function validateSequence( {
 				? sprintf(
 						/* translators: %s: comma-separated stage names. */
 						_n(
-							'Nothing ends this sequence: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there.',
-							'Nothing ends this sequence: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the End node.',
+							'Nothing ends this sequence: %s has no way out. Drag from it to the End node.',
+							'Nothing ends this sequence: %s have no way out. Drag from one to the End node.',
 							deadEnds.length,
 							'vip-workflows'
 						),
@@ -2496,7 +2549,7 @@ export function validateSequence( {
 							.join( ', ' )
 				  )
 				: __(
-						'Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to the End node.',
+						'Nothing ends this sequence. Drag from the stage that should finish it to the End node.',
 						'vip-workflows'
 				  )
 		);
@@ -2528,7 +2581,7 @@ export function validateSequence( {
 					sprintf(
 						/* translators: %s: status region name (e.g. Draft, Published) */
 						__(
-							'The “%s” status group has no entry checkpoint. Open its Post status panel and choose a stage under Entry checkpoint to set where posts entering that status land.',
+							'The “%s” status group has no entry checkpoint. Choose one in its Post status panel.',
 							'vip-workflows'
 						),
 						regionLabel( region )
@@ -2582,7 +2635,7 @@ export function validateSequence( {
 			}
 		};
 
-		reach( stages[ 0 ].key );
+		reach( entryStageKey( stages ) );
 		stages.forEach( ( stage ) => {
 			if ( stage.region_entry ) {
 				reach( stage.key );
@@ -2619,20 +2672,23 @@ export function validateSequence( {
 				addWarning(
 					stage.key,
 					__(
-						'No transition leads here and this is not its status group’s entry checkpoint, so no post can ever reach this stage.',
+						'No transition leads here, so no post can ever reach this stage. Draw one into it.',
 						'vip-workflows'
 					)
 				);
 			} );
 
-		// The flow entry (statuses[0], the Start edge) should live in the
-		// draft region — new content is created as a draft, so an entry
-		// outside it never receives new posts.
-		if ( stageRegion( stages[ 0 ] ) !== 'draft' ) {
+		// The flow entry (the Start edge) should live in the draft region —
+		// new content is created as a draft, so an entry outside it never
+		// receives new posts.
+		const entryStage = stages.find(
+			( s ) => s.key === entryStageKey( stages )
+		);
+		if ( stageRegion( entryStage ) !== 'draft' ) {
 			addWarning(
-				stages[ 0 ].key,
+				entryStage.key,
 				__(
-					'The flow entry is outside the “draft” status region — new content starts as a draft and will land at the draft region’s entry stage instead.',
+					'New posts start as drafts, so they skip this stage. Move it into the “Draft” status group.',
 					'vip-workflows'
 				)
 			);
