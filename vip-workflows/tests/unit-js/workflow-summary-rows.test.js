@@ -359,7 +359,7 @@ describe( 'WorkflowSummaryRows', () => {
 		).toBeInTheDocument();
 		// The consequence is named: the post gives up where it had got to.
 		expect(
-			screen.getByText( /gives up its place in “Weekend Magazine”/ )
+			screen.getByText( /loses its place in “Weekend Magazine”/ )
 		).toBeInTheDocument();
 		expect( assignPosts() ).toHaveLength( 0 );
 	} );

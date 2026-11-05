@@ -384,7 +384,7 @@ export function AssistantCard( {
 				 */
 				<Text variant="body-md">
 					{ __(
-						'This agent has required settings that are not yet configured.',
+						'Some required settings are not configured.',
 						'vip-workflows'
 					) }
 				</Text>

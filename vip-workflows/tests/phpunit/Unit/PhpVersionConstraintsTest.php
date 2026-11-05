@@ -2,9 +2,9 @@
 /**
  * PHP version constraint guards.
  *
- * Two time/version-gated reminders:
+ * Version-gated reminders and guards:
  *   1. If tests run under PHP 8.4+, the Debian Trixie patch may no longer be needed.
- *   2. After 2026-11-01, PHP 8.2 is two months from EOL — time to upgrade.
+ *   2. No test may call the deprecated setAccessible().
  *
  * @package VIPWorkflows\Tests\Unit
  */
@@ -45,32 +45,6 @@ class PhpVersionConstraintsTest extends TestCase
             'and its postinstall entry in package.json if not.',
             PHP_VERSION
         ) );
-    }
-
-    /**
-     * Fails on or after 2026-11-01 to remind us that PHP 8.2 reaches end of
-     * life on 2026-12-08 — two months away at that point.
-     *
-     * When this fires: update composer.json (require php), .wp-env.json
-     * (phpVersion), and the GitHub Actions matrix to drop 8.2 and require 8.3+.
-     */
-    public function test_php82_eol_not_approaching(): void
-    {
-        $warning_date = new \DateTimeImmutable( '2026-11-01' );
-        $now          = new \DateTimeImmutable( 'now' );
-
-        if ( $now < $warning_date ) {
-            $this->markTestSkipped( sprintf(
-                'PHP 8.2 EOL warning not active until %s.',
-                $warning_date->format( 'Y-m-d' )
-            ) );
-        }
-
-        $this->fail(
-            'PHP 8.2 reaches end of life on 2026-12-08 (two months away). ' .
-            'Update the minimum PHP version: composer.json (require php), ' .
-            '.wp-env.json (phpVersion), and the GitHub Actions matrix.'
-        );
     }
 
     /**

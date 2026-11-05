@@ -41,9 +41,8 @@ do_action('vip_workflows_status_transition', $post_id, $new, $old, $sequence, $c
 do_action('vip_workflows_entered_{stage}', $post_id, $old_stage, $sequence, $context);
 do_action('vip_workflows_exited_{stage}', $post_id, $new_stage, $sequence, $context);
 
-// Tool events
-do_action('vip_workflows_ability_executed', $ability_id, $post_id, $result);
-do_action('vip_workflows_ability_failed', $ability_id, $post_id, $error);
+// Every EventBus event, including tool runs ('ability.executed' / 'ability.failed')
+do_action('vip_workflows_event_emitted', $event_type, $event_data, $event_id);
 
 // Registration
 do_action('vip_workflows_register_abilities');
@@ -68,7 +67,7 @@ POST        /vip-workflows/v1/sequences/{id}/repair-regions  # normalize a store
 
 # Workflow
 GET         /vip-workflows/v1/workflow/post/{id}/status
-POST        /vip-workflows/v1/workflow/post/{id}/transition
+POST        /vip-workflows/v1/workflow/post/{id}/transition    # 400 assignee_cannot_read for a user who can't read the post; success may add warnings[] {type, meta_key, role, message} for a role assignee
 GET         /vip-workflows/v1/workflow/post/{id}/history
 
 # Abilities (Tools)
@@ -160,6 +159,15 @@ GET         /vip-workflows/v1/audit-log/users
   `assignee_type`, `label`, `filter`)
 - Frontend sends `inputData` — the assignee under the assignment's `meta_key`,
   plus optional `{meta_key}_notes` — during the transition
+- `StatusManager::transition()` accepts only the keys the edge's assignment
+  declares (`meta_key`, `{meta_key}_notes`, and each one's `__name` label);
+  any other `input_data` key fails the transition with a 400
+  (`unknown_transition_input`) naming the key, and nothing is written
+- A self-edge (a stage to itself) writes its assignment slot only if the slot
+  still holds what the transition read when it started. A concurrent write to
+  the slot fails the later transition with a 409 (`assignment_conflict`), and
+  nothing is written. A stage-changing edge is serialized by the stage
+  compare-and-swap instead, since each slot key belongs to one edge
 - Backend stores in TWO places:
   1. `_vip_workflows_transition_data` meta (per-status history)
   2. `wp_vip_workflows_events` table (audit log with notes column)
@@ -273,7 +281,7 @@ Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 **Media Providers** (image/video sources for ideation):
 - Implement `MediaProviderInterface` (get_id, get_name, is_configured, is_generative, search_media)
 - Register via `vip_workflows_media_providers` filter
-- Return standardized result arrays with `url`, `title`, `media_type`, `thumbnail`, `provider`, etc.
+- Return standardized result arrays with `url`, `title`, `media_type`, `thumbnail`, `provider`, etc. Addresses (`url`, `source_url`, `thumbnail`) must be absolute `http://` or `https://`; anything else is dropped when the card is stored
 - Non-generative providers run automatically; generative run on-demand
 - Built-in provider keys come from `VIPWorkflows\AI\Credentials` (core Settings → Connectors, or a `VIP_WORKFLOWS_*_KEY` constant). Third-party providers read their own key from a `wp-config.php` constant.
 - Optionally implement `MediaProviderRequirements::get_unmet_requirement()` (built with `RequirementFactory`) so an unconfigured provider can explain why, instead of Media Scout reporting a bare "unavailable"

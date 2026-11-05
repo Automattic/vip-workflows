@@ -252,10 +252,8 @@ describe( 'getStatusChangeWarning', () => {
 				agentPending: false,
 			} );
 
-			expect( message ).toContain(
-				'leaves this post at its current workflow stage'
-			);
-			expect( message ).not.toContain( 're-seats' );
+			expect( message ).toContain( 'keeps this post at its stage' );
+			expect( message ).not.toContain( 'moves' );
 		} );
 
 		// boundary_region() forces `publish` for a live post whatever its stage
@@ -271,8 +269,8 @@ describe( 'getStatusChangeWarning', () => {
 				agentPending: false,
 			} );
 
-			expect( message ).toContain( 'already a Draft stage' );
-			expect( message ).not.toContain( 're-seats' );
+			expect( message ).toContain( 'at its current Draft stage' );
+			expect( message ).not.toContain( 'moves' );
 			expect( message ).not.toContain( 'Writing' );
 		} );
 	} );
@@ -311,7 +309,7 @@ describe( 'getStatusChangeWarning', () => {
 
 			expect( message ).toContain( 'it stays there when it goes live' );
 			expect( message ).not.toContain( 'Published' );
-			expect( message ).not.toContain( 're-seats' );
+			expect( message ).not.toContain( 'moves' );
 		} );
 	} );
 
@@ -339,11 +337,11 @@ describe( 'getStatusChangeWarning', () => {
 				} );
 
 				expect( message ).toContain(
-					'cannot resolve this post’s workflow stage'
+					'workflow stage can’t be resolved'
 				);
 				expect( message ).not.toContain( 'undefined' );
 				expect( message ).not.toContain( 'null' );
-				expect( message ).not.toContain( 're-seats' );
+				expect( message ).not.toContain( 'moves' );
 				// It never reaches getRegionLabel(), so there is no region to
 				// complain about either.
 				expect( spy ).not.toHaveBeenCalled();

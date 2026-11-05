@@ -227,8 +227,10 @@ class TransitionOrderTest extends TestCase
                     'label'  => 'Send to Review',
                     'inputs' => array(
                         array(
-                            'type'  => 'text',
-                            'label' => 'Anything to flag?',
+                            'type'          => 'assignment',
+                            'meta_key'      => 'reviewer',
+                            'assignee_type' => 'user',
+                            'label'         => 'Assign a reviewer',
                         ),
                     ),
                 ),
@@ -238,6 +240,7 @@ class TransitionOrderTest extends TestCase
         $received = ( new StatusManager() )->get_available_transitions( $this->post_id )[0];
 
         $this->assertSame( 'Send to Review', $received['label'] );
-        $this->assertSame( 'text', $received['inputs'][0]['type'] ?? null );
+        $this->assertSame( 'assignment', $received['inputs'][0]['type'] ?? null );
+        $this->assertSame( 'reviewer', $received['inputs'][0]['meta_key'] ?? null );
     }
 }

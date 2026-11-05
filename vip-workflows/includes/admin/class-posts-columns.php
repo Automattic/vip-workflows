@@ -446,9 +446,9 @@ class PostsColumns {
 					// direction-aware: a user un-publishing was never trying to
 					// publish, and telling them they can't would be a non-sequitur.
 					/* translators: %1$s: number of affected posts, %2$s: number of selected posts, %3$s: comma-separated post titles. */
-					'bulkVetoPublish'    => __( '%1$s of the %2$s selected posts are in workflows and can’t be published directly: %3$s. Deselect them, or remove them from their workflows first.', 'vip-workflows' ),
+					'bulkVetoPublish'    => __( '%1$s of %2$s selected posts can’t be published while in workflows: %3$s. Deselect them to continue.', 'vip-workflows' ),
 					/* translators: %1$s: number of affected posts, %2$s: number of selected posts, %3$s: comma-separated post titles. */
-					'bulkVetoUnpublish'  => __( '%1$s of the %2$s selected posts are published and in workflows, so their published status can’t be changed directly: %3$s. Deselect them, or remove them from their workflows first.', 'vip-workflows' ),
+					'bulkVetoUnpublish'  => __( '%1$s of %2$s selected posts can’t be unpublished while in workflows: %3$s. Deselect them to continue.', 'vip-workflows' ),
 					// DECISION: Bulk Edit stays region-level and names no stage,
 					// unlike the single-post surfaces. One apply spans N posts
 					// across up to N sequences, each with its own stage names
@@ -461,12 +461,12 @@ class PostsColumns {
 					// new stage, which is false for any post already seated in
 					// the target region or whose workflow models no stage there.
 					/* translators: %1$s: number of affected posts, %2$s: number of selected posts, %3$s: comma-separated post titles. */
-					'bulkWarn'           => __( '%1$s of the %2$s selected posts are in workflows: %3$s. Changing their status moves each one to its workflow’s entry stage for the new status, or leaves it where it is if its workflow has no stage there, and stops any AI agent working on them. Continue?', 'vip-workflows' ),
-					'guardUnavailable'   => __( 'VIP Workflows could not check what this status change would do to the workflow, so the change was not applied. Reload the page and try again.', 'vip-workflows' ),
+					'bulkWarn'           => __( 'Changing the status may move %1$s of %2$s selected posts to new stages and stop their agents: %3$s. Continue?', 'vip-workflows' ),
+					'guardUnavailable'   => __( 'Could not check the workflow, so nothing changed. Reload the page and try again.', 'vip-workflows' ),
 					// A stage with no region is a broken sequence, not a
 					// transient failure — reloading re-renders the same broken
 					// config, so the copy names the real cause instead.
-					'stageMisconfigured' => __( 'This post’s workflow stage is misconfigured, so VIP Workflows cannot tell what a status change would do to it. The change was not applied — ask an administrator to fix the workflow’s configuration.', 'vip-workflows' ),
+					'stageMisconfigured' => __( 'This post’s workflow stage is misconfigured, so nothing changed. Ask an administrator to fix it.', 'vip-workflows' ),
 					'quickEditWorking'   => __( 'Working…', 'vip-workflows' ),
 					'quickEditNoMoves'   => __( 'No moves available from this stage.', 'vip-workflows' ),
 					'quickEditLoadError' => __( 'Could not load the moves for this post. Reload the page to try again.', 'vip-workflows' ),

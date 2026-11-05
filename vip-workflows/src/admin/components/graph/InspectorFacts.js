@@ -150,6 +150,25 @@ function FactBody( { onSelect, selectLabel, render, expanded, ...content } ) {
 }
 
 /**
+ * The room a grip takes, held by a row that has none.
+ *
+ * @return {JSX.Element} An empty box the grip's width.
+ */
+function GripSpacer() {
+	return <span className="wf-inspector__grip-spacer" aria-hidden="true" />;
+}
+
+/**
+ * The room a row's remove button takes, held by a row that has none, so the
+ * values of every row in a list end on one edge.
+ *
+ * @return {JSX.Element} An empty box the button's width.
+ */
+export function RemoveSpacer() {
+	return <span className="wf-inspector__remove-spacer" aria-hidden="true" />;
+}
+
+/**
  * One line of a read-out.
  *
  * The shape every summary in an inspector uses, so a stage's placement facts,
@@ -159,12 +178,21 @@ function FactBody( { onSelect, selectLabel, render, expanded, ...content } ) {
  * `trailing` sits after the body, outside whatever button the body became — a
  * per-row remove has to be a sibling of that button, not a control inside one.
  *
- * @param {Object}      props             Component props.
- * @param {string}      [props.className] Extra classes for the row.
- * @param {JSX.Element} [props.trailing]  Control rendered at the row's end.
+ * `reserveGrip` holds the space a `SortableFact`'s grip takes, so a row that
+ * cannot be dragged still lines up with the rows that can.
+ *
+ * @param {Object}      props               Component props.
+ * @param {string}      [props.className]   Extra classes for the row.
+ * @param {JSX.Element} [props.trailing]    Control rendered at the row's end.
+ * @param {boolean}     [props.reserveGrip] Leave room for a grip it does not have.
  * @return {JSX.Element} The row.
  */
-export function Fact( { className, trailing, ...content } ) {
+export function Fact( {
+	className,
+	trailing,
+	reserveGrip = false,
+	...content
+} ) {
 	return (
 		<Stack
 			render={ <li /> }
@@ -174,6 +202,7 @@ export function Fact( { className, trailing, ...content } ) {
 				.filter( Boolean )
 				.join( ' ' ) }
 		>
+			{ reserveGrip && <GripSpacer /> }
 			<FactBody { ...content } />
 			{ trailing }
 		</Stack>

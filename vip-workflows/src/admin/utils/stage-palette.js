@@ -171,3 +171,37 @@ export function snapToPalette( color, index ) {
 	} );
 	return nearest;
 }
+
+/**
+ * How strongly a slot shows through when it fills a surface: the alpha of the
+ * palette's highlight role, as two hex digits (`1A` is 10%).
+ *
+ * A slot used as-is is the palette's stroke role — a swatch, a dot, a node's
+ * border. Painted behind text it is far too loud, so a fill takes the same slot
+ * at this strength instead. Keeping the strength here, next to the slots, means
+ * every highlight is a slot at one shared strength rather than each surface
+ * mixing its own tint from whatever color it was handed.
+ */
+const HIGHLIGHT_ALPHA = '1A';
+
+/**
+ * The palette's highlight for a stage or status color — the fill a surface
+ * tints with when it is colored by category.
+ *
+ * The color is moved onto its palette slot first (`snapToPalette`), because the
+ * colors that reach a reader are not all ones the current editor wrote: stages
+ * saved before the picker was a palette still hold whatever hex the old
+ * freeform picker allowed, and only the sequence editor migrates them on the
+ * way in. Tinting straight from the stored hex would show every one of those
+ * off-palette hues.
+ *
+ * There is no stage position to round-robin on here, so a value with no hue
+ * (a grey, or not a color at all) takes slot 1 — the same default color the
+ * server gives a stage that carries none.
+ *
+ * @param {string} color A stage or status color, as stored.
+ * @return {string} Eight-digit hex: a `STAGE_PALETTE` slot at highlight strength.
+ */
+export function paletteHighlight( color ) {
+	return `${ snapToPalette( color, 0 ) }${ HIGHLIGHT_ALPHA }`;
+}

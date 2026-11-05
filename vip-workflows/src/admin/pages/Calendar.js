@@ -69,6 +69,7 @@ import 'react-big-calendar/lib/addons/dragAndDrop/styles.css';
 
 import AdminPage from '../components/AdminPage';
 import StatusBadge from '../components/StatusBadge';
+import { paletteHighlight } from '../utils/stage-palette';
 import { AuthorCell } from '../../common/DataViewCells';
 import { ModalActions } from '../../common/ModalActions';
 import { ModalBody } from '../../common/ModalBody';
@@ -548,8 +549,8 @@ function RescheduleModal( { event, newDate, type, onConfirm, onCancel } ) {
 		<Modal
 			title={
 				type === 'publish'
-					? __( 'Publish Post?', 'vip-workflows' )
-					: __( 'Schedule Post?', 'vip-workflows' )
+					? __( 'Publish post?', 'vip-workflows' )
+					: __( 'Schedule post?', 'vip-workflows' )
 			}
 			onRequestClose={ onCancel }
 			className="vip-workflows-calendar-reschedule-modal"
@@ -557,8 +558,24 @@ function RescheduleModal( { event, newDate, type, onConfirm, onCancel } ) {
 		>
 			<Text variant="body-md" render={ <p /> }>
 				{ type === 'publish'
-					? `"${ event.title }" will be published and publicly available as of ${ formattedDate }.`
-					: `"${ event.title }" will be unpublished and scheduled for ${ formattedDate }. It won't be visible until then.` }
+					? sprintf(
+							/* translators: 1: post title, 2: publish date and time. */
+							__(
+								'“%1$s” will be published and visible from %2$s.',
+								'vip-workflows'
+							),
+							event.title,
+							formattedDate
+					  )
+					: sprintf(
+							/* translators: 1: post title, 2: scheduled date and time. */
+							__(
+								'“%1$s” will be unpublished and scheduled for %2$s. It won’t be visible until then.',
+								'vip-workflows'
+							),
+							event.title,
+							formattedDate
+					  ) }
 			</Text>
 			<ModalActions>
 				<Button
@@ -956,9 +973,12 @@ export default function Calendar() {
 					// escapes the .vip-workflows-calendar-body wrapper the rest
 					// of the .rbc-* overrides are scoped under.
 					className: 'vip-workflows-calendar-event',
+					// The tint is the palette's highlight for the event's
+					// status color, not the stored hex itself, so a stage
+					// saved with an off-palette color still lands on a slot.
 					style: {
-						'--vip-workflows-calendar-event-color':
-							event.status_color,
+						'--vip-workflows-calendar-event-highlight':
+							paletteHighlight( event.status_color ),
 					},
 				} ) }
 				dayPropGetter={ ( date ) => {

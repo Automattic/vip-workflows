@@ -46,6 +46,7 @@ import {
 import { Stack, Text } from '@wordpress/ui';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
+import { store as noticesStore } from '@wordpress/notices';
 import apiFetch from '@wordpress/api-fetch';
 import { __, sprintf } from '@wordpress/i18n';
 import { STORE_NAME } from '../store';
@@ -142,6 +143,7 @@ export function WorkflowPanel() {
 	const [ actionError, setActionError ] = useState( null ); // every action failure — shown as a Notice, not a browser dialog
 
 	const { savePost } = useDispatch( editorStore );
+	const { createWarningNotice } = useDispatch( noticesStore );
 	const { fetchWorkflowStatus, receiveWorkflowStatus } =
 		useDispatch( STORE_NAME );
 	const registry = useRegistry();
@@ -362,6 +364,17 @@ export function WorkflowPanel() {
 				setTransitioningTo( null );
 				setWarningsModal( null );
 
+				// The move happened. A role assignee whose members cannot all
+				// open the post is accepted, and the response says so; tell
+				// the assigner, who can still pick someone else. One notice
+				// per assignment slot, so a repeat replaces rather than stacks.
+				( response.warnings || [] ).forEach( ( warning ) => {
+					createWarningNotice( warning.message, {
+						id: `vip-workflows-assignee-access-${ warning.meta_key }`,
+						isDismissible: true,
+					} );
+				} );
+
 				refreshPost();
 			} )
 			.catch( ( err ) => {
@@ -397,7 +410,10 @@ export function WorkflowPanel() {
 				} else {
 					setActionError(
 						err.message ||
-							__( 'Transition failed', 'vip-workflows' )
+							__(
+								'Could not move the post to that stage. Try again.',
+								'vip-workflows'
+							)
 					);
 				}
 			} );
@@ -513,13 +529,8 @@ export function WorkflowPanel() {
 		}
 
 		/*
-		 * The assignment this transition asks for, if any.
-		 *
-		 * An assignment is the only input the sidebar collects. Anything else a
-		 * stored transition carries — a retired note (`textarea`, or the older
-		 * `text`), or a kind this build does not know — is passed over rather
-		 * than allowed to block the move; the sequence editor lists it for the
-		 * author to remove.
+		 * The assignment this transition asks for, if any. An assignment is the
+		 * only input a transition captures; the write gate refuses any other.
 		 */
 		const input = ( transition.inputs || [] ).find(
 			( candidate ) => 'assignment' === candidate?.type
@@ -563,7 +574,10 @@ export function WorkflowPanel() {
 			.catch( ( err ) => {
 				setActionError(
 					err.message ||
-						__( 'Failed to move the post back', 'vip-workflows' )
+						__(
+							'Could not move the post back. Try again.',
+							'vip-workflows'
+						)
 				);
 				setTransitioning( false );
 			} );
@@ -582,7 +596,11 @@ export function WorkflowPanel() {
 			} )
 			.catch( ( err ) => {
 				setActionError(
-					err.message || __( 'Failed to claim post', 'vip-workflows' )
+					err.message ||
+						__(
+							'Could not claim the post. Try again.',
+							'vip-workflows'
+						)
 				);
 				setTransitioning( false );
 			} );
@@ -602,7 +620,10 @@ export function WorkflowPanel() {
 			.catch( ( err ) => {
 				setActionError(
 					err.message ||
-						__( 'Failed to release post', 'vip-workflows' )
+						__(
+							'Could not release the post. Try again.',
+							'vip-workflows'
+						)
 				);
 				setTransitioning( false );
 			} );
@@ -817,7 +838,7 @@ export function WorkflowPanel() {
 					] }
 				>
 					{ __(
-						'The AI agent updated this post. Reload to see its changes — this discards your unsaved edits.',
+						'The agent updated this post. Reloading discards unsaved edits.',
 						'vip-workflows'
 					) }
 				</DismissibleNotice>
@@ -929,7 +950,7 @@ export function WorkflowPanel() {
 				<ToolFailuresModal
 					title={ __( 'Warnings detected', 'vip-workflows' ) }
 					message={ __(
-						'The following warnings were detected:',
+						'Review the warnings before you continue.',
 						'vip-workflows'
 					) }
 					softWarnings={ warningsModal.warnings }
