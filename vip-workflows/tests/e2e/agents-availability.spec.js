@@ -153,7 +153,7 @@ test.describe( 'VIP Workflows — agent availability requirements', () => {
 			// that varies per site can collapse to a single tab.
 			await expect(
 				page.getByText(
-					'No agent plugins installed. Agents arrive as separate plugins.'
+					'No agent plugins installed. Agents ship as plugins.'
 				)
 			).toBeVisible();
 		}
@@ -232,9 +232,7 @@ test.describe( 'VIP Workflows — agent availability requirements', () => {
 			requirements.getByText( firstRequirement.reason, { exact: false } )
 		).toBeVisible();
 		await expect(
-			card.getByText(
-				'This agent has required settings that are not yet configured.'
-			)
+			card.getByText( 'Some required settings are not configured.' )
 		).toHaveCount( 0 );
 
 		/*

@@ -129,4 +129,22 @@ describe( 'ImageCard thumbnail fallback', () => {
 		expect( container.querySelector( 'img' ) ).toBeNull();
 		expect( container.querySelector( PLACEHOLDER ) ).toBeInTheDocument();
 	} );
+
+	it( 'says so in the detail modal when there is no image at all', () => {
+		// The modal used to render an <img> with an empty src and wait for the
+		// browser to report the failure. There is nothing to load, so it shows
+		// the same fallback at once.
+		const { container } = render(
+			<ImageCard card={ { ...imageCard, image: '', url: '' } } />
+		);
+
+		fireEvent.click(
+			container.querySelector( '.vip-workflows-ideation-card' )
+		);
+
+		const modal = screen.getByRole( 'dialog' );
+
+		expect( modal.querySelector( 'img' ) ).toBeNull();
+		expect( modal ).toHaveTextContent( 'Preview unavailable.' );
+	} );
 } );

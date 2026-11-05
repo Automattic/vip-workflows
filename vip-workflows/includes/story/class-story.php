@@ -225,17 +225,21 @@ class Story implements ModuleInterface {
 	/**
 	 * Get all objects linked to this story, optionally filtered by type.
 	 *
+	 * A failed read is an error, not an empty list: a caller must be able to
+	 * tell a story with no linked objects from a table it could not read.
+	 *
 	 * @param string|null $type Filter by object_type (ideation, post). Null for all.
-	 * @return array Array of [ 'object_id' => int, 'object_type' => string, 'added_at' => string ].
+	 * @return array|WP_Error Array of [ 'object_id' => int, 'object_type' => string, 'added_at' => string ],
+	 *                        or WP_Error when the join table cannot be read.
 	 */
-	public function get_objects( ?string $type = null ): array {
+	public function get_objects( ?string $type = null ): array|WP_Error {
 		global $wpdb;
 
 		$table = $wpdb->prefix . 'vip_story_objects';
 
-		if ( $type ) {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; live read, not cached
-			$results = $wpdb->get_results(
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; live read, not cached
+		$results = $type
+			? $wpdb->get_results(
 				$wpdb->prepare(
 					'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d AND object_type = %s ORDER BY added_at ASC',
 					$table,
@@ -243,20 +247,24 @@ class Story implements ModuleInterface {
 					$type
 				),
 				ARRAY_A
+			)
+			: $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d ORDER BY added_at ASC',
+					$table,
+					$this->post->ID
+				),
+				ARRAY_A
 			);
-			return $results ? $results : array();
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( null === $results || '' !== $wpdb->last_error ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Could not read the objects of story %d: %s', $this->post->ID, $wpdb->last_error ) );
+			return new WP_Error( 'story_objects_read_failed', __( 'Could not load the story\'s linked objects.', 'vip-workflows' ), array( 'status' => 500 ) );
 		}
 
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; live read, not cached
-		$results = $wpdb->get_results(
-			$wpdb->prepare(
-				'SELECT object_id, object_type, added_at FROM %i WHERE story_id = %d ORDER BY added_at ASC',
-				$table,
-				$this->post->ID
-			),
-			ARRAY_A
-		);
-		return $results ? $results : array();
+		return $results;
 	}
 
 	/**
@@ -305,15 +313,33 @@ class Story implements ModuleInterface {
 
 	/**
 	 * Serialize for API responses.
+	 *
+	 * `objects` names only the linked objects the current user can read. A
+	 * story outlives the hands it passes through — the writer of a
+	 * commissioned post need not be able to read the project it came from, and
+	 * the ideator need not be able to read the draft written from it — so the
+	 * link alone does not put an object's title in front of a reader. Both
+	 * object post types map `read_post` through core's post capabilities.
+	 *
+	 * @return array|WP_Error Serialized story, or WP_Error when its linked
+	 *                        objects cannot be read.
 	 */
-	public function to_array(): array {
+	public function to_array(): array|WP_Error {
 		$objects = $this->get_objects();
+		if ( $objects instanceof WP_Error ) {
+			return $objects;
+		}
 
 		$object_summary = array();
 		foreach ( $objects as $obj ) {
-			$post             = get_post( (int) $obj['object_id'] );
+			$object_id = (int) $obj['object_id'];
+			if ( ! current_user_can( 'read_post', $object_id ) ) {
+				continue;
+			}
+
+			$post             = get_post( $object_id );
 			$object_summary[] = array(
-				'id'    => (int) $obj['object_id'],
+				'id'    => $object_id,
 				'type'  => $obj['object_type'],
 				'title' => $post ? $post->post_title : '',
 			);

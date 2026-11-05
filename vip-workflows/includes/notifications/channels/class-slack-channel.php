@@ -155,7 +155,7 @@ class SlackChannel extends NotificationChannel {
 
 		$success = $this->send( $notification );
 
-		return $success ? true : new WP_Error( 'send_failed', __( 'Failed to send test message.', 'vip-workflows' ) );
+		return $success ? true : new WP_Error( 'send_failed', __( 'Could not send the test message. Check the webhook URL.', 'vip-workflows' ) );
 	}
 
 	/**

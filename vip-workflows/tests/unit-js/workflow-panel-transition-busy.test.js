@@ -27,6 +27,7 @@ jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
  * selectors, so a named test store stands in for all of it.
  */
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 
 /*
  * `@wordpress/notices` pulls an ESM-only `uuid` build Jest cannot parse, and
@@ -53,6 +54,7 @@ register(
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			removeNotice: () => ( { type: 'NOOP' } ),
 		},
 	} )
 );
@@ -63,7 +65,9 @@ register(
 		selectors: {
 			getEditedPostAttribute: () => 'draft',
 			getCurrentPostAttribute: () => 'draft',
+			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => false,
+			isSavingPost: () => false,
 		},
 		actions: { savePost: () => ( { type: 'NOOP' } ) },
 	} )
@@ -77,6 +81,8 @@ register(
 import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
@@ -151,7 +157,12 @@ describe( 'WorkflowPanel transition busy state', () => {
 			return Promise.resolve( {} );
 		} );
 
-		render( <WorkflowPanel /> );
+		render(
+			<>
+				<TransitionFlow />
+				<WorkflowPanel />
+			</>
+		);
 
 		await waitFor( () =>
 			expect( button( 'Send to Fact Check' ) ).toBeInTheDocument()

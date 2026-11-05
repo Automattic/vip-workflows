@@ -37,10 +37,7 @@ export default function Notifications() {
 	// second way to add a channel. It trails the subtitle as a link instead.
 	const subtitle = (
 		<>
-			{ __(
-				'Configure notification channels and event-to-channel routing.',
-				'vip-workflows'
-			) }{ ' ' }
+			{ __( 'Channels and the events routed to them.', 'vip-workflows' ) }{ ' ' }
 			<Button variant="link" onClick={ () => setShowHowTo( true ) }>
 				{ __( 'How to add custom channels.', 'vip-workflows' ) }
 			</Button>

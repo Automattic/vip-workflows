@@ -162,7 +162,7 @@ function register_create_sequence(): void {
 								),
 								'is_initial'     => array(
 									'type'        => 'boolean',
-									'description' => __( 'Whether this is the initial status.', 'vip-workflows' ),
+									'description' => __( 'Marks the stage new posts start in. At most one stage; when none is marked, the first stage is. Stage order does not decide it, so keep the flag on its stage when reordering.', 'vip-workflows' ),
 								),
 								'is_dead_end'    => array(
 									'type'        => 'boolean',
@@ -216,10 +216,7 @@ function register_create_sequence(): void {
 												'type' => 'boolean',
 												'description' => __( 'Whether to surface this transition in the queue.', 'vip-workflows' ),
 											),
-											'inputs' => array(
-												'type' => 'array',
-												'description' => __( 'Inputs collected during this transition. Only "assignment" inputs are collected, at most one per transition.', 'vip-workflows' ),
-											),
+											'inputs' => \VIPWorkflows\API\SequencesController::get_transition_inputs_schema(),
 										),
 									),
 								),

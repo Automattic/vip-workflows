@@ -12,6 +12,7 @@ namespace VIPWorkflows\API;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 use VIPWorkflows\Ideation\Research\IdeationAnalyzer;
 use VIPWorkflows\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\Integrations\SafeUrl;
 use VIPWorkflows\Integrations\UrlMetaExtractor;
 use WP_Error;
 use WP_REST_Controller;
@@ -51,10 +52,14 @@ class IdeationSourcesController extends WP_REST_Controller {
 				'callback'            => array( $this, 'add_source' ),
 				'permission_callback' => array( $this, 'edit_permissions_check' ),
 				'args'                => array(
+					// No `esc_url_raw()` here: it rewrites the addresses it accepts,
+					// and the source's identity is derived from its address. The
+					// handler reduces the value with SafeUrl, as a research card's
+					// address is reduced, so one address gives one identity on both
+					// paths.
 					'url'   => array(
-						'type'              => 'string',
-						'required'          => true,
-						'sanitize_callback' => 'esc_url_raw',
+						'type'     => 'string',
+						'required' => true,
 					),
 					'title' => array(
 						'type'              => 'string',
@@ -177,12 +182,30 @@ class IdeationSourcesController extends WP_REST_Controller {
 		global $wpdb;
 
 		$project_id = (int) $request->get_param( 'id' );
-		$url        = (string) $request->get_param( 'url' );
+		$param_url  = (string) $request->get_param( 'url' );
 
-		if ( '' === trim( $url ) ) {
+		if ( '' === trim( $param_url ) ) {
 			return new WP_Error(
 				'rest_invalid_param',
 				__( 'URL is required.', 'vip-workflows' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		/*
+		 * The address is checked before anything is derived from it. One that is
+		 * not an absolute `http` or `https` address with a host (`https://`,
+		 * `ftp://example.com`, `javascript:...`) is refused here, so it neither
+		 * matches a stored source nor reaches the fetch below. The checked form is
+		 * the one used from here on: it is what the identity is derived from, what
+		 * is fetched, and what is stored.
+		 */
+		$url = SafeUrl::http_or_null( $param_url );
+
+		if ( null === $url ) {
+			return new WP_Error(
+				'rest_invalid_param',
+				__( 'Enter a web address that starts with http:// or https:// and names a site.', 'vip-workflows' ),
 				array( 'status' => 400 )
 			);
 		}
