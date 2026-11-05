@@ -17,6 +17,10 @@ module.exports = {
 	...baseConfig,
 	// VIP standard layout puts e2e specs under tests/e2e/ (not the wp-scripts default ./specs).
 	testDir: path.join( __dirname, 'tests', 'e2e' ),
+	// Wraps the wp-scripts global setup with a preflight that fails the run
+	// with the reseed command when the tests env is missing the plugin's
+	// seeded state, instead of letting every spec fail on its own.
+	globalSetup: require.resolve( './tests/e2e/global-setup.js' ),
 	// CI starts wp-env before Playwright, so Playwright must not manage the server.
 	// Locally, boot or reuse wp-env from the monorepo root (wp-env lives there,
 	// not in this plugin directory).

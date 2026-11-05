@@ -61,6 +61,39 @@ Use `npm --prefix vip-workflows run test:e2e:headed` for a visible browser. Fail
 
 Tests should arrange fixtures over REST, exercise behavior through the UI, assert both UI and persisted state where useful, and delete records they create. Prefer stable class or `data-*` hooks over translated text and DOM structure.
 
+### Seeded fixtures
+
+Specs create their own posts and throwaway sequences, but they assume the tests environment already has:
+
+- VIP Workflows active, with its database schema installed. The REST routes under `vip-workflows/v1` exist only then.
+- The default data that plugin activation seeds: the workflow roles and the **Editorial Review** sequence (slug `editorial-review`, post type `post`).
+- The `admin` / `password` user that wp-env creates.
+- Built assets in `vip-workflows/build/`. The UI specs need them for the editor sidebar and admin screens.
+
+The development environment gets extra setup from `tools/wp-env-after-start.sh`: a theme, permalinks, and imported demo content. The tests environment does not run that script, and the specs do not depend on any of it. The tests environment gets its plugin state from `tools/wp-env-seed-tests.sh` instead. That script runs automatically after `npm run wp-env:start:tests`. It is additive and idempotent: it activates the plugin, runs the activation path (schema install and seeder), and checks the result. It never resets or recreates data.
+
+### When every spec fails
+
+**Symptom:** many specs fail at once, or a whole file fails, including the REST-contract specs that never open the UI (for example `metadata-feature.spec.js`, "editorial metadata (REST contract)"). If a spec that only calls the REST API fails, the spec is almost never the problem. The tests environment is empty or incomplete.
+
+The e2e global setup (`tests/e2e/global-setup.js`) checks for this before any spec runs. It stops the run with `VIP Workflows e2e preflight failed for <url>` and names what is missing:
+
+- `build/editor.asset.php does not exist`: run `npm run build` from the repository root.
+- `the vip-workflows/v1 REST routes are not registered` or `the seeded "editorial-review" sequence could not be read`: reseed the tests environment.
+
+To reseed a running tests environment, from the repository root:
+
+```bash
+npm run seed:tests
+```
+
+The script ends with `Success: Tests environment seeded`. If it reports that a table is missing although `vip_workflows_db_version` is current, the database was partly removed. The schema install skips tables when that option is current, so inspect the database before you do anything else. Do not clean or destroy the environment to fix it without agreement.
+
+Other causes of the same symptom:
+
+- **The suite points at the development environment.** The suite targets the tests environment on `:8889` only. It relies on that environment's `DISABLE_WP_CRON` and blocked egress, and `runDueCron()` in `tests/e2e/helpers/workflow.js` always runs WP-CLI against `.wp-env.tests.json`. Do not set `WP_BASE_URL=http://localhost:8888`. The global setup logs in again on every run and rewrites `artifacts/storage-states/admin.json` for the configured URL, so a stale storage state is not the cause.
+- **Port `:8889` serves another checkout.** wp-env names each environment after the directory of its config file. A tests environment started from another worktree can hold the port, and then it serves that worktree's code and build. Run `docker ps` and check that the container name matches your checkout before you trust a result.
+
 ## GitHub Actions
 
 Public GitHub-hosted runners execute:
