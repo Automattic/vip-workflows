@@ -80,9 +80,9 @@ class AgentRunner implements ModuleInterface {
 			return;
 		}
 
-		$agent            = $agents[ $agent_id ];
+		$agent              = $agents[ $agent_id ];
 		$assignment_manager = new AssignmentManager();
-		$meta_key         = $config['meta_key'] ?? $agent_id;
+		$meta_key           = $config['meta_key'] ?? $agent_id;
 
 		try {
 			// Execute agent handler.

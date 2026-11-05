@@ -163,16 +163,20 @@ class AssignmentManager {
 	 * @return array Array of assignments keyed by meta_key.
 	 */
 	public function get_all( int $post_id ): array {
-		global $wpdb;
-
 		$prefix  = '_vip_workflows_assignment_';
-		$results = $wpdb->get_results(
-			$wpdb->prepare(
-				"SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s",
-				$post_id,
-				$wpdb->esc_like( $prefix ) . '%'
-			)
-		);
+		$results = array();
+		// get_post_meta() answers false, not an array, for a post ID of 0.
+		foreach ( (array) get_post_meta( $post_id ) as $meta_key => $values ) {
+			if ( ! str_starts_with( (string) $meta_key, $prefix ) ) {
+				continue;
+			}
+			foreach ( (array) $values as $meta_value ) {
+				$row             = new \stdClass();
+				$row->meta_key   = $meta_key;
+				$row->meta_value = $meta_value;
+				$results[]       = $row;
+			}
+		}
 
 		$assignments = array();
 		foreach ( $results as $row ) {
@@ -795,8 +799,7 @@ class AssignmentManager {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Conditional delete; the post meta cache is cleared below.
 			$rows = $wpdb->delete( $wpdb->postmeta, $where );
 		} else {
-			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- Conditional update; the post meta cache is cleared below.
-			$rows = $wpdb->update( $wpdb->postmeta, array( 'meta_value' => maybe_serialize( wp_unslash( $assignment ) ) ), $where ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- The value written.
+			$rows = $wpdb->update( $wpdb->postmeta, array( 'meta_value' => maybe_serialize( wp_unslash( $assignment ) ) ), $where ); // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Conditional update of the value written; the post meta cache is cleared below.
 		}
 
 		wp_cache_delete( $post_id, 'post_meta' );

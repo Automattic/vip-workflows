@@ -72,7 +72,20 @@ class CurrentAssignmentTest extends TestCase {
 				return true;
 			}
 		);
-		Functions\when( 'get_post_meta' )->alias( fn( $post_id, $key ) => $this->meta[ $key ] ?? '' );
+		Functions\when( 'get_post_meta' )->alias(
+			function ( $post_id, $key = '' ) {
+				if ( '' !== $key ) {
+					return $this->meta[ $key ] ?? '';
+				}
+
+				// The keyless form returns every row as key => list of values.
+				$all = array();
+				foreach ( $this->meta as $meta_key => $value ) {
+					$all[ $meta_key ] = array( $value );
+				}
+				return $this->reverse_rows ? array_reverse( $all, true ) : $all;
+			}
+		);
 		Functions\when( 'delete_post_meta' )->alias(
 			function ( $post_id, $key ) {
 				unset( $this->meta[ $key ] );
@@ -243,6 +256,58 @@ class CurrentAssignmentTest extends TestCase {
 
 		$this->assertSame( 'copy-reviewer', $description['display_name'] );
 		$this->assertSame( $ui_agents[0]['label'], $description['display_name'] );
+	}
+
+	/**
+	 * Only the assignment prefix is read: other meta on the post is not an assignment.
+	 */
+	public function test_get_all_ignores_meta_keys_outside_the_assignment_prefix(): void {
+		$assignment = array(
+			'status' => 'pending',
+			'value'  => 7,
+		);
+
+		Functions\when( 'get_post_meta' )->justReturn(
+			array(
+				'_vip_workflows_assignment_reviewer' => array( $assignment ),
+				'_vip_workflows_unrelated'           => array( array( 'status' => 'pending' ) ),
+				'_edit_lock'                         => array( array( 'status' => 'pending' ) ),
+			)
+		);
+
+		$this->assertSame( array( 'reviewer' => $assignment ), $this->manager->get_all( 42 ) );
+	}
+
+	/**
+	 * Core's get_post_meta() answers false for a post ID of 0; that is no assignments, not a warning.
+	 */
+	public function test_get_all_reads_no_assignments_when_get_post_meta_answers_false(): void {
+		Functions\when( 'get_post_meta' )->justReturn( false );
+
+		$this->assertSame( array(), $this->manager->get_all( 0 ) );
+	}
+
+	/**
+	 * A meta key can hold several rows; each is read, and the last one wins the slot.
+	 */
+	public function test_get_all_reads_every_value_stored_under_one_key(): void {
+		$older = array(
+			'status' => 'pending',
+			'value'  => 7,
+		);
+		$newer = array(
+			'status' => 'pending',
+			'value'  => 11,
+		);
+
+		Functions\when( 'get_post_meta' )->justReturn(
+			array(
+				'_vip_workflows_assignment_reviewer' => array( $older, 'not-an-assignment', $newer ),
+				'_vip_workflows_unrelated'           => array( array( 'status' => 'pending' ) ),
+			)
+		);
+
+		$this->assertSame( array( 'reviewer' => $newer ), $this->manager->get_all( 42 ) );
 	}
 
 	/**

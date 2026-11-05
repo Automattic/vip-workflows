@@ -251,7 +251,7 @@ class SequencesController extends WP_REST_Controller {
 							'type'        => 'object',
 							'required'    => true,
 						),
-						'name' => array(
+						'name'          => array(
 							'description' => 'Name for the imported sequence.',
 							'type'        => 'string',
 							'required'    => false,
@@ -399,7 +399,7 @@ class SequencesController extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function get_item( $request ) {
-		$id        = (int) $request->get_param( 'id' );
+		$id       = (int) $request->get_param( 'id' );
 		$sequence = $this->repository->find( $id );
 
 		if ( ! $sequence ) {
@@ -420,7 +420,7 @@ class SequencesController extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function get_item_by_slug( $request ) {
-		$slug      = $request->get_param( 'slug' );
+		$slug     = $request->get_param( 'slug' );
 		$sequence = $this->repository->find_by_slug( $slug );
 
 		if ( ! $sequence ) {
@@ -500,7 +500,7 @@ class SequencesController extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function delete_item( $request ) {
-		$id        = (int) $request->get_param( 'id' );
+		$id       = (int) $request->get_param( 'id' );
 		$sequence = $this->repository->find( $id );
 
 		if ( ! $sequence ) {
@@ -524,7 +524,7 @@ class SequencesController extends WP_REST_Controller {
 		return new WP_REST_Response(
 			array(
 				'deleted' => true,
-				'id' => $id,
+				'id'      => $id,
 			)
 		);
 	}
@@ -623,65 +623,65 @@ class SequencesController extends WP_REST_Controller {
 	 */
 	private function get_create_args(): array {
 		return array(
-			'type'         => array(
+			'type'            => array(
 				'description' => 'Sequence type.',
 				'type'        => 'string',
 				'enum'        => array( Sequence::TYPE_WORKFLOW, Sequence::TYPE_PHASE ),
 				'default'     => Sequence::TYPE_WORKFLOW,
 			),
-			'name'         => array(
+			'name'            => array(
 				'description' => 'Sequence name.',
 				'type'        => 'string',
 				'required'    => true,
 			),
-			'description'  => array(
+			'description'     => array(
 				'description' => 'Sequence description.',
 				'type'        => 'string',
 				'default'     => '',
 			),
-			'status'       => array(
+			'status'          => array(
 				'description' => 'Initial lifecycle state. Defaults to active; pass "draft" to create unpublished.',
 				'type'        => 'string',
 				'enum'        => array( 'active', 'draft' ),
 				'default'     => 'active',
 			),
-			'statuses'     => array(
+			'statuses'        => array(
 				'description' => 'Array of status configurations.',
 				'type'        => 'array',
 				'required'    => true,
 				'items'       => array(
 					'type'       => 'object',
 					'properties' => array(
-						'key'                => array(
-							'type' => 'string',
+						'key'            => array(
+							'type'     => 'string',
 							'required' => true,
 						),
-						'label'              => array(
-							'type' => 'string',
+						'label'          => array(
+							'type'     => 'string',
 							'required' => true,
 						),
-						'color'              => array( 'type' => 'string' ),
-						'is_terminal'        => array( 'type' => 'boolean' ),
-						'is_initial'         => array( 'type' => 'boolean' ),
-						'is_dead_end'        => array( 'type' => 'boolean' ),
-						'is_in_progress'     => array( 'type' => 'boolean' ),
-						'creates_post'       => array( 'type' => 'boolean' ),
-						'status'             => array(
+						'color'          => array( 'type' => 'string' ),
+						'is_terminal'    => array( 'type' => 'boolean' ),
+						'is_initial'     => array( 'type' => 'boolean' ),
+						'is_dead_end'    => array( 'type' => 'boolean' ),
+						'is_in_progress' => array( 'type' => 'boolean' ),
+						'creates_post'   => array( 'type' => 'boolean' ),
+						'status'         => array(
 							'description' => 'Core status region this stage lives in. Defaults to draft.',
 							'type'        => 'string',
 							'enum'        => Sequence::EDITORIAL_STATUSES,
 						),
-						'region_entry'       => array(
+						'region_entry'   => array(
 							'description' => 'Marks this stage as the entry checkpoint of its status region — where a post lands when something outside the workflow puts it in that status (a core-driven status change, or an assignment that names no stage). It does not constrain where a transition may point (at most one per region; defaults to the first stage in the region).',
 							'type'        => 'boolean',
 						),
-						'transitions'        => array(
+						'transitions'    => array(
 							'type'  => 'array',
 							'items' => array(
 								'type'       => 'object',
 								'properties' => array(
 									'to'             => array(
-										'type' => 'string',
+										'type'     => 'string',
 										'required' => true,
 									),
 									'label'          => array( 'type' => 'string' ),
@@ -693,14 +693,14 @@ class SequencesController extends WP_REST_Controller {
 								),
 							),
 						),
-						'agent'              => array(
+						'agent'          => array(
 							'type'        => 'object',
 							'description' => 'Optional AI-stage config: an agent runs on entry and routes the exit transition.',
 						),
 					),
 				),
 			),
-			'post_types'   => array(
+			'post_types'      => array(
 				'description' => 'Post types this sequence applies to (workflow only).',
 				'type'        => 'array',
 				'default'     => array(),
@@ -718,15 +718,15 @@ class SequencesController extends WP_REST_Controller {
 					'type'       => 'object',
 					'properties' => array(
 						'key'        => array(
-							'type' => 'string',
+							'type'     => 'string',
 							'required' => true,
 						),
 						'label'      => array(
-							'type' => 'string',
+							'type'     => 'string',
 							'required' => true,
 						),
 						'type'       => array(
-							'type' => 'string',
+							'type'     => 'string',
 							'required' => true,
 						),
 						'required'   => array( 'type' => 'boolean' ),
@@ -765,7 +765,7 @@ class SequencesController extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function create_item( $request ) {
-		$type              = $request->get_param( 'type' ) ?? Sequence::TYPE_WORKFLOW;
+		$type = $request->get_param( 'type' ) ?? Sequence::TYPE_WORKFLOW;
 
 		if ( Sequence::TYPE_PHASE === $type && ! Plugin::experiment_enabled( 'ideation' ) ) {
 			return new WP_Error(
@@ -775,13 +775,13 @@ class SequencesController extends WP_REST_Controller {
 			);
 		}
 
-		$name              = sanitize_text_field( $request->get_param( 'name' ) );
-		$description       = sanitize_textarea_field( $request->get_param( 'description' ) ?? '' );
-		$status            = $request->get_param( 'status' );
-		$statuses          = $request->get_param( 'statuses' );
-		$post_types        = $request->get_param( 'post_types' ) ?? array();
-		$settings          = $request->get_param( 'settings' ) ?? array();
-		$metadata_fields   = $request->get_param( 'metadata_fields' ) ?? array();
+		$name            = sanitize_text_field( $request->get_param( 'name' ) );
+		$description     = sanitize_textarea_field( $request->get_param( 'description' ) ?? '' );
+		$status          = $request->get_param( 'status' );
+		$statuses        = $request->get_param( 'statuses' );
+		$post_types      = $request->get_param( 'post_types' ) ?? array();
+		$settings        = $request->get_param( 'settings' ) ?? array();
+		$metadata_fields = $request->get_param( 'metadata_fields' ) ?? array();
 
 		$validated_metadata = $this->validate_metadata_fields( $metadata_fields );
 		if ( is_wp_error( $validated_metadata ) ) {
@@ -864,13 +864,13 @@ class SequencesController extends WP_REST_Controller {
 			);
 		}
 
-		$name              = sanitize_text_field( $request->get_param( 'name' ) ?? '' );
-		$description       = sanitize_textarea_field( $request->get_param( 'description' ) ?? '' );
-		$status            = $request->get_param( 'status' );
-		$statuses          = $request->get_param( 'statuses' ) ?? array();
-		$post_types        = $request->get_param( 'post_types' ) ?? array();
-		$settings          = $request->get_param( 'settings' ) ?? array();
-		$metadata_fields   = $request->get_param( 'metadata_fields' ) ?? array();
+		$name            = sanitize_text_field( $request->get_param( 'name' ) ?? '' );
+		$description     = sanitize_textarea_field( $request->get_param( 'description' ) ?? '' );
+		$status          = $request->get_param( 'status' );
+		$statuses        = $request->get_param( 'statuses' ) ?? array();
+		$post_types      = $request->get_param( 'post_types' ) ?? array();
+		$settings        = $request->get_param( 'settings' ) ?? array();
+		$metadata_fields = $request->get_param( 'metadata_fields' ) ?? array();
 
 		$validated_metadata = $this->validate_metadata_fields( $metadata_fields );
 		if ( is_wp_error( $validated_metadata ) ) {
@@ -955,7 +955,7 @@ class SequencesController extends WP_REST_Controller {
 				continue;
 			}
 
-			$color = $status['color'] ?? StagePalette::DEFAULT_COLOR;
+			$color           = $status['color'] ?? StagePalette::DEFAULT_COLOR;
 			$sanitized_color = sanitize_hex_color( $color );
 			if ( empty( $sanitized_color ) ) {
 				$sanitized_color = StagePalette::DEFAULT_COLOR;
@@ -1011,7 +1011,7 @@ class SequencesController extends WP_REST_Controller {
 						'label' => sanitize_text_field( $transition['label'] ?? '' ),
 					);
 
-					$raw_tools = $transition['required_tools'] ?? array();
+					$raw_tools                              = $transition['required_tools'] ?? array();
 					$processed_transition['required_tools'] = is_array( $raw_tools )
 						? array_map( array( $this, 'sanitize_ability_id' ), $raw_tools )
 						: array();
@@ -1202,7 +1202,7 @@ class SequencesController extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function export_sequence( $request ) {
-		$id        = $request->get_param( 'id' );
+		$id       = $request->get_param( 'id' );
 		$sequence = $this->repository->find( $id );
 
 		if ( ! $sequence ) {
@@ -1230,7 +1230,7 @@ class SequencesController extends WP_REST_Controller {
 	 * @return WP_REST_Response|WP_Error
 	 */
 	public function get_stats( $request ) {
-		$id        = $request->get_param( 'id' );
+		$id       = $request->get_param( 'id' );
 		$sequence = $this->repository->find( $id );
 
 		if ( ! $sequence ) {
@@ -1307,7 +1307,7 @@ class SequencesController extends WP_REST_Controller {
 	 */
 	public function import_sequence( $request ) {
 		$sequence_json = $request->get_param( 'sequence_json' );
-		$custom_name    = $request->get_param( 'name' );
+		$custom_name   = $request->get_param( 'name' );
 
 		// Validate required fields.
 		if ( empty( $sequence_json['type'] ) || ! in_array( $sequence_json['type'], array( 'workflow', 'phase' ), true ) ) {
@@ -1489,7 +1489,7 @@ class SequencesController extends WP_REST_Controller {
 		$counter   = 1;
 
 		$table = $wpdb->prefix . 'vip_sequences';
-		while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE slug = %s", $slug ) ) > 0 ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		while ( $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE slug = %s", $slug ) ) > 0 ) { // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_sequences; live read, not cached
 			$slug = $base_slug . '-' . $counter;
 			++$counter;
 		}

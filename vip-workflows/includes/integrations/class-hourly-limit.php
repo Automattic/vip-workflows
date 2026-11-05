@@ -57,13 +57,13 @@ final class HourlyLimit {
 	 * Count one use of an action for a subject, or refuse it at the ceiling.
 	 *
 	 * @param string   $action  Action key, such as `image_generation`.
-	 * @param int      $default Ceiling per subject and per hour. 0 or less is no ceiling.
+	 * @param int      $default_limit Ceiling per subject and per hour. 0 or less is no ceiling.
 	 * @param string   $reached Sentence for the error when the ceiling is reached.
 	 * @param int|null $subject Subject to count against; null for the current user.
 	 * @return true|\WP_Error True when the use is allowed, WP_Error with status 429 at the ceiling.
 	 */
-	public static function spend( string $action, int $default, string $reached, ?int $subject = null ) {
-		return self::spend_all( array( array( $action, $default, $reached, $subject ) ) );
+	public static function spend( string $action, int $default_limit, string $reached, ?int $subject = null ) {
+		return self::spend_all( array( array( $action, $default_limit, $reached, $subject ) ) );
 	}
 
 	/**
@@ -105,13 +105,13 @@ final class HourlyLimit {
 	 * Reserve one use of an action for a subject.
 	 *
 	 * @param string   $action  Action key.
-	 * @param int      $default Default ceiling.
+	 * @param int      $default_limit Default ceiling.
 	 * @param string   $reached Sentence for the error when the ceiling is reached.
 	 * @param int|null $subject Subject, or null for the current user.
 	 * @return array{key: string, hour: int}|null|\WP_Error The reservation, null when
 	 *         nothing is counted, or WP_Error when the use is refused.
 	 */
-	private static function reserve( string $action, int $default, string $reached, ?int $subject ) {
+	private static function reserve( string $action, int $default_limit, string $reached, ?int $subject ) {
 		$subject = $subject ?? get_current_user_id();
 		if ( $subject <= 0 ) {
 			return null;
@@ -127,7 +127,7 @@ final class HourlyLimit {
 		 * @param int $limit   Uses per hour. 0 or less switches the ceiling off.
 		 * @param int $subject User ID, or the project ID for a per-project action.
 		 */
-		$limit = (int) apply_filters( "vip_workflows_{$action}_hourly_limit", $default, $subject );
+		$limit = (int) apply_filters( "vip_workflows_{$action}_hourly_limit", $default_limit, $subject );
 		if ( $limit <= 0 ) {
 			return null;
 		}
@@ -220,7 +220,7 @@ final class HourlyLimit {
 
 		// Creates the counter for the hour unless another request already has.
 		// It outlives the hour by a minute; the next hour has a key of its own.
-		wp_cache_add( $key, 0, self::CACHE_GROUP, $remaining + MINUTE_IN_SECONDS );
+		wp_cache_add( $key, 0, self::CACHE_GROUP, $remaining + MINUTE_IN_SECONDS ); // phpcs:ignore WordPressVIPMinimum.Performance.LowExpiryCacheTime.CacheTimeUndetermined -- the counter must expire just after its hour ends, so near the end of an hour the expiry is under 300 seconds by design; a longer expiry would only keep a dead key.
 
 		$count = wp_cache_incr( $key, 1, self::CACHE_GROUP );
 		if ( false === $count ) {

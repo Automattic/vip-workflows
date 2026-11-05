@@ -150,8 +150,8 @@ class SlackChannel extends NotificationChannel {
 			__( 'VIP Workflows → %s is working!', 'vip-workflows' ),
 			$this->get_name()
 		);
-		$notification->icon     = '✅';
-		$notification->color    = '#00a32a';
+		$notification->icon  = '✅';
+		$notification->color = '#00a32a';
 
 		$success = $this->send( $notification );
 
@@ -235,7 +235,7 @@ class SlackChannel extends NotificationChannel {
 		$updated = false;
 		foreach ( $destinations as &$dest ) {
 			if ( $dest['id'] === $this->destination_id ) {
-				$dest = array_merge(
+				$dest    = array_merge(
 					$dest,
 					array(
 						'name'        => $settings['name'] ?? $dest['name'],

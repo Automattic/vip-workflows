@@ -22,7 +22,7 @@ use WP_Error;
  */
 class Story implements ModuleInterface {
 
-	public const POST_TYPE = 'vip_story';
+	public const POST_TYPE     = 'vip_story';
 	public const META_STORY_ID = '_vip_story_id';
 
 	public const STATUS_IDEATION   = 'ideation';
@@ -76,7 +76,7 @@ class Story implements ModuleInterface {
 		register_post_type(
 			self::POST_TYPE,
 			array(
-				'labels' => array(
+				'labels'              => array(
 					'name'          => __( 'Stories', 'vip-workflows' ),
 					'singular_name' => __( 'Story', 'vip-workflows' ),
 				),
@@ -207,6 +207,7 @@ class Story implements ModuleInterface {
 
 		$table = $wpdb->prefix . 'vip_story_objects';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; write, nothing to cache
 		$wpdb->replace(
 			$table,
 			array(
@@ -236,6 +237,7 @@ class Story implements ModuleInterface {
 
 		$table = $wpdb->prefix . 'vip_story_objects';
 
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_story_objects; live read, not cached
 		$results = $type
 			? $wpdb->get_results(
 				$wpdb->prepare(
@@ -254,6 +256,7 @@ class Story implements ModuleInterface {
 				),
 				ARRAY_A
 			);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		if ( null === $results || '' !== $wpdb->last_error ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log

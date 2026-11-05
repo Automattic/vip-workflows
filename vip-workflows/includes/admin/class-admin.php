@@ -82,16 +82,16 @@ class Admin implements ModuleInterface {
 			return;
 		}
 
-		$parts        = explode( ':', $selection, 2 );
+		$parts       = explode( ':', $selection, 2 );
 		$sequence_id = (int) $parts[0];
-		$status_key   = isset( $parts[1] ) ? sanitize_key( $parts[1] ) : '';
+		$status_key  = isset( $parts[1] ) ? sanitize_key( $parts[1] ) : '';
 
 		if ( ! $sequence_id ) {
 			return;
 		}
 
 		$repository = new SequenceRepository();
-		$sequence  = $repository->find( $sequence_id );
+		$sequence   = $repository->find( $sequence_id );
 
 		if ( ! $sequence ) {
 			return;
@@ -107,7 +107,7 @@ class Admin implements ModuleInterface {
 			if ( ! is_array( $existing ) ) {
 				$existing = array();
 			}
-			$args = \VIPWorkflows\Workflow\StageQuery::in_any_workflow( $sequence, array( 'meta_query' => $existing ) );
+			$args = \VIPWorkflows\Workflow\StageQuery::in_any_workflow( $sequence, array( 'meta_query' => $existing ) ); // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query -- a post's workflow sequence and stage are stored in post meta (_vip_workflows_sequence_id, _vip_workflows_current_stage_key), so filtering by stage has to use meta_query, here scoped to the sequence by StageQuery::in_any_workflow().
 			$query->set( 'meta_query', $args['meta_query'] );
 		}
 	}
@@ -128,7 +128,7 @@ class Admin implements ModuleInterface {
 		// and inherit the `post` post-type default, so they would render as an
 		// empty optgroup here.
 		$repository = new SequenceRepository();
-		$sequences = array_filter(
+		$sequences  = array_filter(
 			$repository->get_workflow_sequences( array( 'status' => 'active' ) ),
 			fn( $bp ) => in_array( $screen->post_type, $bp->get_post_types(), true )
 		);
@@ -392,7 +392,7 @@ class Admin implements ModuleInterface {
 			'vip-workflows-calendar'      => 12,
 			'vip-workflows-ideation'      => 13,
 			// System.
-			'vip-workflows-sequences'    => 30,
+			'vip-workflows-sequences'     => 30,
 			'vip-workflows-notifications' => 31,
 			'vip-workflows-agents'        => 32,
 			'vip-workflows-tools'         => 33,
@@ -778,7 +778,7 @@ class Admin implements ModuleInterface {
 		foreach ( $map as $type => $relative_path ) {
 			$path = VIP_WORKFLOWS_PLUGIN_DIR . $relative_path;
 			if ( file_exists( $path ) ) {
-				$skills[ $type ] = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
+				$skills[ $type ] = file_get_contents( $path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents, WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown -- local file bundled in plugin directory
 			}
 		}
 

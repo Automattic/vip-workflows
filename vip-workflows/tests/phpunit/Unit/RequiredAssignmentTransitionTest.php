@@ -22,605 +22,628 @@ use VIPWorkflows\Workflow\StatusManager;
 /**
  * Exercises the real transition pipeline with in-memory WordPress storage.
  */
-class RequiredAssignmentTransitionTest extends TestCase {
+class RequiredAssignmentTransitionTest extends TestCase
+{
 
-	private const ASSIGNMENT_KEY       = '_vip_workflows_assignment_reviewer';
-	private const OTHER_ASSIGNMENT_KEY = '_vip_workflows_assignment_copy_editor';
+    private const ASSIGNMENT_KEY       = '_vip_workflows_assignment_reviewer';
+    private const OTHER_ASSIGNMENT_KEY = '_vip_workflows_assignment_copy_editor';
 
-	/**
-	 * Current post state.
-	 *
-	 * @var \WP_Post
-	 */
-	private \WP_Post $post;
+    /**
+     * Current post state.
+     *
+     * @var \WP_Post
+     */
+    private \WP_Post $post;
 
-	/**
-	 * Post meta backing the WordPress stubs.
-	 *
-	 * @var array
-	 */
-	private array $meta = array();
+    /**
+     * Post meta backing the WordPress stubs.
+     *
+     * @var array
+     */
+    private array $meta = array();
 
-	/**
-	 * Status and meta writes, including attempted writes.
-	 *
-	 * @var array
-	 */
-	private array $writes = array();
+    /**
+     * Status and meta writes, including attempted writes.
+     *
+     * @var array
+     */
+    private array $writes = array();
 
-	/**
-	 * Emitted action names.
-	 *
-	 * @var array
-	 */
-	private array $actions = array();
+    /**
+     * Emitted action names.
+     *
+     * @var array
+     */
+    private array $actions = array();
 
-	/**
-	 * Audit rows captured instead of writing to a database.
-	 *
-	 * @var array
-	 */
-	private array $audit_rows = array();
+    /**
+     * Audit rows captured instead of writing to a database.
+     *
+     * @var array
+     */
+    private array $audit_rows = array();
 
-	/**
-	 * Database global to restore after this fixture.
-	 *
-	 * @var mixed
-	 */
-	private $previous_wpdb;
+    /**
+     * Database global to restore after this fixture.
+     *
+     * @var mixed
+     */
+    private $previous_wpdb;
 
-	/**
-	 * Set up a publish-capable editor and mutable post storage.
-	 */
-	protected function setUp(): void {
-		parent::setUp();
-		Actor::flush();
+    /**
+     * Set up a publish-capable editor and mutable post storage.
+     */
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Actor::flush();
 
-		$this->post = $this->create_mock_post(
-			array(
-				'ID'          => 42,
-				'post_status' => 'draft',
-			)
-		);
-		$this->meta = array(
-			StatusManager::SEQUENCE_META_KEY => '1',
-			StatusManager::STAGE_META_KEY    => 'draft',
-			self::ASSIGNMENT_KEY             => array(
-				'value'  => 7,
-				'type'   => 'user',
-				'status' => 'pending',
-			),
-			self::OTHER_ASSIGNMENT_KEY       => array(
-				'value'  => 9,
-				'type'   => 'user',
-				'status' => 'pending',
-			),
-		);
+        $this->post = $this->create_mock_post(
+            array(
+            'ID'          => 42,
+            'post_status' => 'draft',
+            )
+        );
+        $this->meta = array(
+        StatusManager::SEQUENCE_META_KEY => '1',
+        StatusManager::STAGE_META_KEY    => 'draft',
+        self::ASSIGNMENT_KEY             => array(
+        'value'  => 7,
+        'type'   => 'user',
+        'status' => 'pending',
+        ),
+        self::OTHER_ASSIGNMENT_KEY       => array(
+        'value'  => 9,
+        'type'   => 'user',
+        'status' => 'pending',
+        ),
+        );
 
-		Functions\when( 'get_post' )->alias( fn() => $this->post );
-		Functions\when( 'get_post_status' )->alias( fn() => $this->post->post_status );
-		Functions\when( 'get_post_meta' )->alias(
-			fn( $post_id, $key = '' ) => $this->meta[ $key ] ?? ''
-		);
-		Functions\when( 'update_post_meta' )->alias(
-			function ( $post_id, $key, $value ) {
-				$this->writes[]     = array( 'update_meta', $key, $value );
-				$this->meta[ $key ] = $value;
-				return true;
-			}
-		);
-		Functions\when( 'delete_post_meta' )->alias(
-			function ( $post_id, $key ) {
-				$this->writes[] = array( 'delete_meta', $key );
-				unset( $this->meta[ $key ] );
-				return true;
-			}
-		);
-		Functions\when( 'wp_update_post' )->alias(
-			function ( $data ) {
-				$this->writes[]          = array( 'update_post', $data );
-				$this->post->post_status = $data['post_status'];
-				return $this->post->ID;
-			}
-		);
-		Functions\when( 'do_action' )->alias(
-			function ( $hook ) {
-				$this->actions[] = $hook;
-			}
-		);
-		Functions\when( 'current_user_can' )->justReturn( true );
-		Functions\when( 'user_can' )->justReturn( true );
-		Functions\when( 'get_post_status_object' )->alias( fn( $status ) => (object) array( 'name' => $status ) );
-		Functions\when( 'get_current_user_id' )->justReturn( 5 );
-		Functions\when( 'get_userdata' )->alias(
-			fn( $user_id ) => (object) array(
-				'ID'           => $user_id,
-				'roles'        => array( 'editor' ),
-				'display_name' => 'Reviewer ' . $user_id,
-			)
-		);
-		Functions\when( 'get_avatar_url' )->justReturn( 'https://example.com/avatar.png' );
-		Functions\when( 'get_option' )->justReturn( array() );
-		Functions\when( 'get_post_type_object' )->justReturn(
-			(object) array(
-				'cap' => (object) array(
-					'publish_posts'        => 'publish_posts',
-					'edit_published_posts' => 'edit_published_posts',
-				),
-			)
-		);
+        Functions\when('get_post')->alias(fn() => $this->post);
+        Functions\when('get_post_status')->alias(fn() => $this->post->post_status);
+        Functions\when('get_post_meta')->alias(
+            fn( $post_id, $key = '' ) => $this->meta[ $key ] ?? ''
+        );
+        Functions\when('update_post_meta')->alias(
+            function ( $post_id, $key, $value ) {
+                $this->writes[]     = array( 'update_meta', $key, $value );
+                $this->meta[ $key ] = $value;
+                return true;
+            }
+        );
+        Functions\when('delete_post_meta')->alias(
+            function ( $post_id, $key ) {
+                $this->writes[] = array( 'delete_meta', $key );
+                unset($this->meta[ $key ]);
+                return true;
+            }
+        );
+        Functions\when('wp_update_post')->alias(
+            function ( $data ) {
+                $this->writes[]          = array( 'update_post', $data );
+                $this->post->post_status = $data['post_status'];
+                return $this->post->ID;
+            }
+        );
+        Functions\when('do_action')->alias(
+            function ( $hook ) {
+                $this->actions[] = $hook;
+            }
+        );
+        Functions\when('current_user_can')->justReturn(true);
+        Functions\when('user_can')->justReturn(true);
+        Functions\when('get_post_status_object')->alias(fn( $status ) => (object) array( 'name' => $status ));
+        Functions\when('get_current_user_id')->justReturn(5);
+        Functions\when('get_userdata')->alias(
+            fn( $user_id ) => (object) array(
+                    'ID'           => $user_id,
+                    'roles'        => array( 'editor' ),
+                    'display_name' => 'Reviewer ' . $user_id,
+                )
+        );
+        Functions\when('get_avatar_url')->justReturn('https://example.com/avatar.png');
+        Functions\when('get_option')->justReturn(array());
+        Functions\when('get_post_type_object')->justReturn(
+            (object) array(
+            'cap' => (object) array(
+            'publish_posts'        => 'publish_posts',
+            'edit_published_posts' => 'edit_published_posts',
+            ),
+            )
+        );
 
-		global $wpdb;
-		$this->previous_wpdb = $wpdb;
-		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Capture audit writes in the unit fixture; restored in tearDown().
-		$wpdb            = Mockery::mock( 'wpdb' );
-		$wpdb->prefix    = 'wp_';
-		// No assignment slots, so a stage exit has none to complete.
-		$wpdb->postmeta = 'wp_postmeta';
-		$wpdb->shouldReceive( 'esc_like' )->andReturnArg( 0 )->byDefault();
-		// AssignmentManager::get_all(), read when a transition leaves a stage. A
-		// changed query matches nothing and fails instead of returning no rows.
-		$wpdb->shouldReceive( 'prepare' )
-			->with( 'SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = %d AND meta_key LIKE %s', Mockery::type( 'int' ), '_vip_workflows_assignment_%' )
-			->andReturn( 'assignment-read' )
-			->byDefault();
-		$wpdb->shouldReceive( 'get_results' )->with( 'assignment-read' )->andReturn( array() )->byDefault();
-		$wpdb->insert_id = 1;
-		$wpdb->shouldReceive( 'insert' )->andReturnUsing(
-			function ( $table, $data ) {
-				$this->audit_rows[] = $data;
-				return true;
-			}
-		);
-	}
+        global $wpdb;
+        $this->previous_wpdb = $wpdb;
+     // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Capture audit writes in the unit fixture; restored in tearDown().
+        $wpdb            = Mockery::mock('wpdb');
+        $wpdb->prefix    = 'wp_';
+        // No assignment slots, so a stage exit has none to complete.
+        $wpdb->postmeta = 'wp_postmeta';
+        $wpdb->shouldReceive('esc_like')->andReturnArg(0)->byDefault();
+        // AssignmentManager::get_all(), read when a transition leaves a stage. A
+        // changed query matches nothing and fails instead of returning no rows.
+        $wpdb->shouldReceive('prepare')
+            ->with('SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = %d AND meta_key LIKE %s', Mockery::type('int'), '_vip_workflows_assignment_%')
+            ->andReturn('assignment-read')
+            ->byDefault();
+        $wpdb->shouldReceive('get_results')->with('assignment-read')->andReturn(array())->byDefault();
+        $wpdb->insert_id = 1;
+        $wpdb->shouldReceive('insert')->andReturnUsing(
+            function ( $table, $data ) {
+                $this->audit_rows[] = $data;
+                return true;
+            }
+        );
+    }
 
-	/**
-	 * Restore process-wide state before removing the WordPress function stubs.
-	 */
-	protected function tearDown(): void {
-		global $wpdb;
-		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restore the fixture's saved database global.
-		$wpdb = $this->previous_wpdb;
-		Actor::flush();
-		parent::tearDown();
-	}
+    /**
+     * Restore process-wide state before removing the WordPress function stubs.
+     */
+    protected function tearDown(): void
+    {
+        global $wpdb;
+     // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Restore the fixture's saved database global.
+        $wpdb = $this->previous_wpdb;
+        Actor::flush();
+        parent::tearDown();
+    }
 
-	/**
-	 * Build a real sequence and the status manager that will transition it.
-	 *
-	 * @param array $inputs Authored transition inputs.
-	 * @param array $tools Required transition tools.
-	 * @param bool  $reverse_edge Whether to author a reverse edge with the same inputs.
-	 * @param bool  $self_edge    Whether the inputs belong to a draft -> draft edge instead of draft -> ready.
-	 * @return StatusManager Status manager using the fixture sequence.
-	 */
-	private function manager( array $inputs, array $tools = array(), bool $reverse_edge = false, bool $self_edge = false ): StatusManager {
-		$sequence   = Sequence::from_row(
-			(object) array(
-				'id'          => 1,
-				'uuid'        => 'required-assignment-test',
-				'type'        => Sequence::TYPE_WORKFLOW,
-				'name'        => 'Assignment requirements',
-				'slug'        => 'assignment-requirements',
-				'description' => '',
-				'version'     => 1,
-				'status'      => 'active',
-				'created_by'  => 5,
-				'created_at'  => '2026-01-01 00:00:00',
-				'updated_at'  => '2026-01-01 00:00:00',
-				'config'      => wp_json_encode(
-					array(
-						'statuses' => array(
-							array(
-								'key'          => 'draft',
-								'label'        => 'Draft',
-								'status'       => 'draft',
-								'region_entry' => true,
-								'transitions'  => $self_edge ? array(
-									array(
-										'to'     => 'draft',
-										'inputs' => $inputs,
-									),
-									array( 'to' => 'ready' ),
-								) : array(
-									array(
-										'to'             => 'ready',
-										'inputs'         => $inputs,
-										'required_tools' => $tools,
-									),
-								),
-							),
-							array(
-								'key'          => 'ready',
-								'label'        => 'Ready',
-								'status'       => 'publish',
-								'region_entry' => true,
-								'transitions'  => $reverse_edge ? array(
-									array(
-										'to'     => 'draft',
-										'inputs' => $inputs,
-									),
-								) : array(),
-							),
-						),
-					)
-				),
-			)
-		);
-		$repository = Mockery::mock( SequenceRepository::class );
-		$repository->shouldReceive( 'find' )->with( 1 )->andReturn( $sequence );
+    /**
+     * Build a real sequence and the status manager that will transition it.
+     *
+     * @param  array $inputs       Authored transition inputs.
+     * @param  array $tools        Required transition tools.
+     * @param  bool  $reverse_edge Whether to author a reverse edge with the same inputs.
+     * @param  bool  $self_edge    Whether the inputs belong to a draft -> draft edge instead of draft -> ready.
+     * @return StatusManager Status manager using the fixture sequence.
+     */
+    private function manager( array $inputs, array $tools = array(), bool $reverse_edge = false, bool $self_edge = false ): StatusManager
+    {
+        $sequence   = Sequence::from_row(
+            (object) array(
+            'id'          => 1,
+            'uuid'        => 'required-assignment-test',
+            'type'        => Sequence::TYPE_WORKFLOW,
+            'name'        => 'Assignment requirements',
+            'slug'        => 'assignment-requirements',
+            'description' => '',
+            'version'     => 1,
+            'status'      => 'active',
+            'created_by'  => 5,
+            'created_at'  => '2026-01-01 00:00:00',
+            'updated_at'  => '2026-01-01 00:00:00',
+            'config'      => wp_json_encode(
+                array(
+                'statuses' => array(
+                array(
+                                'key'          => 'draft',
+                                'label'        => 'Draft',
+                                'status'       => 'draft',
+                                'region_entry' => true,
+                                'transitions'  => $self_edge ? array(
+                                    array(
+                                        'to'     => 'draft',
+                                        'inputs' => $inputs,
+                                    ),
+                                    array( 'to' => 'ready' ),
+                ) : array(
+                array(
+                                        'to'             => 'ready',
+                                        'inputs'         => $inputs,
+                                        'required_tools' => $tools,
+                ),
+                ),
+                ),
+                array(
+                'key'          => 'ready',
+                'label'        => 'Ready',
+                'status'       => 'publish',
+                'region_entry' => true,
+                'transitions'  => $reverse_edge ? array(
+                                    array(
+                                        'to'     => 'draft',
+                                        'inputs' => $inputs,
+                ),
+                ) : array(),
+                ),
+                ),
+                    )
+            ),
+            )
+        );
+        $repository = Mockery::mock(SequenceRepository::class);
+        $repository->shouldReceive('find')->with(1)->andReturn($sequence);
 
-		return new StatusManager( $repository, Mockery::mock( PostTypeManager::class ) );
-	}
+        return new StatusManager($repository, Mockery::mock(PostTypeManager::class));
+    }
 
-	/**
-	 * The input attached to the fixture's publish transition.
-	 *
-	 * @param bool $required Whether an assignee is required.
-	 * @return array Assignment input config.
-	 */
-	private function assignment_input( bool $required ): array {
-		return array(
-			'type'          => 'assignment',
-			// phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Authored transition configuration, not a database query.
-			'meta_key'      => 'reviewer',
-			'assignee_type' => 'user',
-			'label'         => 'Reviewer',
-			'required'      => $required,
-		);
-	}
+    /**
+     * The input attached to the fixture's publish transition.
+     *
+     * @param  bool $required Whether an assignee is required.
+     * @return array Assignment input config.
+     */
+    private function assignment_input( bool $required ): array
+    {
+        return array(
+        'type'          => 'assignment',
+      // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Authored transition configuration, not a database query.
+        'meta_key'      => 'reviewer',
+        'assignee_type' => 'user',
+        'label'         => 'Reviewer',
+        'required'      => $required,
+        );
+    }
 
-	/**
-	 * No value that the assignment writer treats as empty can clear a required slot.
-	 *
-	 * @return array Named transition input payloads.
-	 */
-	public static function missing_assignment_data(): array {
-		return array(
-			'absent key'   => array( array() ),
-			'null'         => array( array( 'reviewer' => null ) ),
-			'empty string' => array( array( 'reviewer' => '' ) ),
-			'false'        => array( array( 'reviewer' => false ) ),
-			'zero'         => array( array( 'reviewer' => 0 ) ),
-			'zero string'  => array( array( 'reviewer' => '0' ) ),
-			'empty array'  => array( array( 'reviewer' => array() ) ),
-		);
-	}
+    /**
+     * No value that the assignment writer treats as empty can clear a required slot.
+     *
+     * @return array Named transition input payloads.
+     */
+    public static function missing_assignment_data(): array
+    {
+        return array(
+        'absent key'   => array( array() ),
+        'null'         => array( array( 'reviewer' => null ) ),
+        'empty string' => array( array( 'reviewer' => '' ) ),
+        'false'        => array( array( 'reviewer' => false ) ),
+        'zero'         => array( array( 'reviewer' => 0 ) ),
+        'zero string'  => array( array( 'reviewer' => '0' ) ),
+        'empty array'  => array( array( 'reviewer' => array() ) ),
+        );
+    }
 
-	/**
-	 * A rejected publish transition must not publish, move stage, or alter assignments.
-	 *
-	 * @dataProvider missing_assignment_data
-	 * @param array $input_data Submitted transition input.
-	 */
-	public function test_required_assignment_is_rejected_before_any_post_write( array $input_data ): void {
-		$manager = $this->manager( array( $this->assignment_input( true ) ) );
-		$before  = $this->meta;
+    /**
+     * A rejected publish transition must not publish, move stage, or alter assignments.
+     *
+     * @dataProvider missing_assignment_data
+     * @param        array $input_data Submitted transition input.
+     */
+    public function test_required_assignment_is_rejected_before_any_post_write( array $input_data ): void
+    {
+        $manager = $this->manager(array( $this->assignment_input(true) ));
+        $before  = $this->meta;
 
-		$result = $manager->transition( 42, 'ready', array( 'input_data' => $input_data ) );
+        $result = $manager->transition(42, 'ready', array( 'input_data' => $input_data ));
 
-		$this->assertInstanceOf( \WP_Error::class, $result );
-		$this->assertSame( 'required_assignment_missing', $result->get_error_code() );
-		$this->assertSame( 422, $result->get_error_data()['status'] );
-		$this->assertSame( 'reviewer', $result->get_error_data()['meta_key'] );
-		$this->assertStringContainsString( 'Reviewer', $result->get_error_message() );
-		$this->assertSame( 'draft', $this->post->post_status );
-		$this->assertSame( $before, $this->meta );
-		$this->assertSame( array(), $this->writes );
-		$this->assertSame( array(), $this->actions );
-		$this->assertNotContains( 'status_transition', array_column( $this->audit_rows, 'event_type' ) );
-	}
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('required_assignment_missing', $result->get_error_code());
+        $this->assertSame(422, $result->get_error_data()['status']);
+        $this->assertSame('reviewer', $result->get_error_data()['meta_key']);
+        $this->assertStringContainsString('Reviewer', $result->get_error_message());
+        $this->assertSame('draft', $this->post->post_status);
+        $this->assertSame($before, $this->meta);
+        $this->assertSame(array(), $this->writes);
+        $this->assertSame(array(), $this->actions);
+        $this->assertNotContains('status_transition', array_column($this->audit_rows, 'event_type'));
+    }
 
-	/**
-	 * Invalid input must not trigger a transition tool before it is rejected.
-	 */
-	public function test_required_assignment_is_checked_before_running_tools(): void {
-		$manager = $this->manager( array( $this->assignment_input( true ) ), array( 'test/quality-check' ) );
-		// Let the real executor initialize if validation is ever moved too late,
-		// so the regression fails on tool execution rather than missing bootstrap.
-		$plugin = ( new \ReflectionClass( Plugin::class ) )->newInstanceWithoutConstructor();
-		( new \ReflectionProperty( Plugin::class, 'event_bus' ) )
-			->setValue( $plugin, Mockery::mock( EventBus::class ) );
-		( new \ReflectionProperty( Plugin::class, 'instance' ) )->setValue( null, $plugin );
-		Functions\expect( 'wp_get_ability' )->never();
+    /**
+     * Invalid input must not trigger a transition tool before it is rejected.
+     */
+    public function test_required_assignment_is_checked_before_running_tools(): void
+    {
+        $manager = $this->manager(array( $this->assignment_input(true) ), array( 'test/quality-check' ));
+        // Let the real executor initialize if validation is ever moved too late,
+        // so the regression fails on tool execution rather than missing bootstrap.
+        $plugin = ( new \ReflectionClass(Plugin::class) )->newInstanceWithoutConstructor();
+        ( new \ReflectionProperty(Plugin::class, 'event_bus') )
+        ->setValue($plugin, Mockery::mock(EventBus::class));
+        ( new \ReflectionProperty(Plugin::class, 'instance') )->setValue(null, $plugin);
+        Functions\expect('wp_get_ability')->never();
 
-		$result = $manager->transition( 42, 'ready', array( 'input_data' => array( 'reviewer' => '' ) ) );
+        $result = $manager->transition(42, 'ready', array( 'input_data' => array( 'reviewer' => '' ) ));
 
-		$this->assertInstanceOf( \WP_Error::class, $result );
-		$this->assertSame( 'required_assignment_missing', $result->get_error_code() );
-		$this->assertSame( array(), $this->writes );
-	}
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('required_assignment_missing', $result->get_error_code());
+        $this->assertSame(array(), $this->writes);
+    }
 
-	/**
-	 * An agent's normal exit still has to satisfy the authored assignment requirement.
-	 */
-	public function test_agent_exit_without_required_input_is_rejected(): void {
-		$manager = $this->manager( array( $this->assignment_input( true ) ) );
-		$before  = $this->meta;
-		Functions\when( 'user_can' )->justReturn( true );
+    /**
+     * An agent's normal exit still has to satisfy the authored assignment requirement.
+     */
+    public function test_agent_exit_without_required_input_is_rejected(): void
+    {
+        $manager = $this->manager(array( $this->assignment_input(true) ));
+        $before  = $this->meta;
+        Functions\when('user_can')->justReturn(true);
 
-		$result = $manager->transition(
-			42,
-			'ready',
-			array(
-				'agent_actor'      => 'test/reviewer',
-				'agent_actor_user' => 5,
-			)
-		);
+        $result = $manager->transition(
+            42,
+            'ready',
+            array(
+            'agent_actor'      => 'test/reviewer',
+            'agent_actor_user' => 5,
+            )
+        );
 
-		$this->assertInstanceOf( \WP_Error::class, $result );
-		$this->assertSame( 'required_assignment_missing', $result->get_error_code() );
-		$this->assertSame( 422, $result->get_error_data()['status'] );
-		$this->assertSame( 'draft', $this->post->post_status );
-		$this->assertSame( $before, $this->meta );
-		$this->assertSame( array(), $this->writes );
-		$this->assertSame( array(), $this->actions );
-	}
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('required_assignment_missing', $result->get_error_code());
+        $this->assertSame(422, $result->get_error_data()['status']);
+        $this->assertSame('draft', $this->post->post_status);
+        $this->assertSame($before, $this->meta);
+        $this->assertSame(array(), $this->writes);
+        $this->assertSame(array(), $this->actions);
+    }
 
-	/**
-	 * Supplying the required assignee still commits both the publish and assignment.
-	 */
-	public function test_supplied_required_assignment_allows_the_transition(): void {
-		$manager = $this->manager( array( $this->assignment_input( true ) ) );
+    /**
+     * Supplying the required assignee still commits both the publish and assignment.
+     */
+    public function test_supplied_required_assignment_allows_the_transition(): void
+    {
+        $manager = $this->manager(array( $this->assignment_input(true) ));
 
-		$result = $manager->transition( 42, 'ready', array( 'input_data' => array( 'reviewer' => '11' ) ) );
+        $result = $manager->transition(42, 'ready', array( 'input_data' => array( 'reviewer' => '11' ) ));
 
-		$this->assertTrue( $result );
-		$this->assertSame( 'publish', $this->post->post_status );
-		$this->assertSame( 'ready', $this->meta[ StatusManager::STAGE_META_KEY ] );
-		$this->assertSame( '11', $this->meta[ self::ASSIGNMENT_KEY ]['value'] );
-		$this->assertSame( 'pending', $this->meta[ self::ASSIGNMENT_KEY ]['status'] );
-		$this->assertContains( 'vip_workflows_assignment_created', $this->actions );
-		$this->assertContains( 'status_transition', array_column( $this->audit_rows, 'event_type' ) );
-	}
+        $this->assertTrue($result);
+        $this->assertSame('publish', $this->post->post_status);
+        $this->assertSame('ready', $this->meta[ StatusManager::STAGE_META_KEY ]);
+        $this->assertSame('11', $this->meta[ self::ASSIGNMENT_KEY ]['value']);
+        $this->assertSame('pending', $this->meta[ self::ASSIGNMENT_KEY ]['status']);
+        $this->assertContains('vip_workflows_assignment_created', $this->actions);
+        $this->assertContains('status_transition', array_column($this->audit_rows, 'event_type'));
+    }
 
-	/**
-	 * A concurrent transition moves the post on after this one writes the
-	 * stage but before it writes its assignment. The re-read after the write
-	 * sees the other stage and completes the new assignment.
-	 */
-	public function test_assignment_is_completed_when_the_stage_moves_on_during_the_write(): void {
-		$manager = $this->manager( array( $this->assignment_input( true ) ) );
-		Functions\when( 'update_post_meta' )->alias(
-			function ( $post_id, $key, $value ) {
-				$this->writes[]     = array( 'update_meta', $key, $value );
-				$this->meta[ $key ] = $value;
-				if ( self::ASSIGNMENT_KEY === $key && 'pending' === ( $value['status'] ?? null ) ) {
-					// Another request's stage write lands here.
-					$this->meta[ StatusManager::STAGE_META_KEY ] = 'draft';
-				}
-				return true;
-			}
-		);
+    /**
+     * A concurrent transition moves the post on after this one writes the
+     * stage but before it writes its assignment. The re-read after the write
+     * sees the other stage and completes the new assignment.
+     */
+    public function test_assignment_is_completed_when_the_stage_moves_on_during_the_write(): void
+    {
+        $manager = $this->manager(array( $this->assignment_input(true) ));
+        Functions\when('update_post_meta')->alias(
+            function ( $post_id, $key, $value ) {
+                $this->writes[]     = array( 'update_meta', $key, $value );
+                $this->meta[ $key ] = $value;
+                if (self::ASSIGNMENT_KEY === $key && 'pending' === ( $value['status'] ?? null ) ) {
+                    // Another request's stage write lands here.
+                    $this->meta[ StatusManager::STAGE_META_KEY ] = 'draft';
+                }
+                return true;
+            }
+        );
 
-		$this->assertTrue( $manager->transition( 42, 'ready', array( 'input_data' => array( 'reviewer' => '11' ) ) ) );
-		$this->assertSame( '11', $this->meta[ self::ASSIGNMENT_KEY ]['value'] );
-		$this->assertSame( 'completed', $this->meta[ self::ASSIGNMENT_KEY ]['status'] );
-		$this->assertContains( 'vip_workflows_assignment_completed', $this->actions );
-		$this->assertSame( 'pending', $this->meta[ self::OTHER_ASSIGNMENT_KEY ]['status'], 'Only the slot this transition wrote is completed.' );
-	}
+        $this->assertTrue($manager->transition(42, 'ready', array( 'input_data' => array( 'reviewer' => '11' ) )));
+        $this->assertSame('11', $this->meta[ self::ASSIGNMENT_KEY ]['value']);
+        $this->assertSame('completed', $this->meta[ self::ASSIGNMENT_KEY ]['status']);
+        $this->assertContains('vip_workflows_assignment_completed', $this->actions);
+        $this->assertSame('pending', $this->meta[ self::OTHER_ASSIGNMENT_KEY ]['status'], 'Only the slot this transition wrote is completed.');
+    }
 
-	/**
-	 * Point the fixture's conditional slot writes at its meta store.
-	 *
-	 * @param callable|null $before_write Runs just before the write, to land a concurrent request's write.
-	 */
-	private function serve_conditional_slot_writes( ?callable $before_write = null ): void {
-		global $wpdb;
-		Functions\when( 'maybe_serialize' )->alias( fn( $value ) => is_array( $value ) ? serialize( $value ) : $value ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Mirrors core's maybe_serialize().
-		Functions\when( 'wp_unslash' )->returnArg();
-		$wpdb->shouldReceive( 'update' )->andReturnUsing(
-			function ( $table, $data, $where ) use ( $before_write ) {
-				if ( $before_write ) {
-					$before_write();
-				}
-				$this->writes[] = array( 'conditional_update', $where['meta_key'] );
-				$this->assertSame( 'wp_postmeta', $table );
-				if ( serialize( $this->meta[ $where['meta_key'] ] ?? null ) !== $where['meta_value'] ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Compare as the database would.
-					return 0;
-				}
-				$this->meta[ $where['meta_key'] ] = unserialize( $data['meta_value'] ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- Test double of a serialized column.
-				return 1;
-			}
-		);
-	}
+    /**
+     * Point the fixture's conditional slot writes at its meta store.
+     *
+     * @param callable|null $before_write Runs just before the write, to land a concurrent request's write.
+     */
+    private function serve_conditional_slot_writes( ?callable $before_write = null ): void
+    {
+        global $wpdb;
+        Functions\when('maybe_serialize')->alias(fn( $value ) => is_array($value) ? serialize($value) : $value); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Mirrors core's maybe_serialize().
+        Functions\when('wp_unslash')->returnArg();
+        $wpdb->shouldReceive('update')->andReturnUsing(
+            function ( $table, $data, $where ) use ( $before_write ) {
+                if ($before_write ) {
+                    $before_write();
+                }
+                $this->writes[] = array( 'conditional_update', $where['meta_key'] );
+                $this->assertSame('wp_postmeta', $table);
+                if (serialize($this->meta[ $where['meta_key'] ] ?? null) !== $where['meta_value'] ) { // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_serialize -- Compare as the database would.
+                    return 0;
+                }
+                $this->meta[ $where['meta_key'] ] = unserialize($data['meta_value']); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize -- Test double of a serialized column.
+                return 1;
+            }
+        );
+    }
 
-	/**
-	 * A self-edge whose slot nobody else touched writes its assignment.
-	 */
-	public function test_self_edge_assignment_is_written_when_the_slot_is_unchanged(): void {
-		$manager = $this->manager( array( $this->assignment_input( true ) ), array(), false, true );
-		$this->serve_conditional_slot_writes();
+    /**
+     * A self-edge whose slot nobody else touched writes its assignment.
+     */
+    public function test_self_edge_assignment_is_written_when_the_slot_is_unchanged(): void
+    {
+        $manager = $this->manager(array( $this->assignment_input(true) ), array(), false, true);
+        $this->serve_conditional_slot_writes();
 
-		$this->assertTrue( $manager->transition( 42, 'draft', array( 'input_data' => array( 'reviewer' => '11' ) ) ) );
-		$this->assertSame( '11', $this->meta[ self::ASSIGNMENT_KEY ]['value'] );
-		$this->assertSame( 'pending', $this->meta[ self::ASSIGNMENT_KEY ]['status'] );
-		$this->assertContains( 'vip_workflows_assignment_created', $this->actions );
-		$this->assertContains( 'status_transition', array_column( $this->audit_rows, 'event_type' ) );
-	}
+        $this->assertTrue($manager->transition(42, 'draft', array( 'input_data' => array( 'reviewer' => '11' ) )));
+        $this->assertSame('11', $this->meta[ self::ASSIGNMENT_KEY ]['value']);
+        $this->assertSame('pending', $this->meta[ self::ASSIGNMENT_KEY ]['status']);
+        $this->assertContains('vip_workflows_assignment_created', $this->actions);
+        $this->assertContains('status_transition', array_column($this->audit_rows, 'event_type'));
+    }
 
-	/**
-	 * Two self-edges race on one slot. The other request's write lands after
-	 * this one read the slot, so this one is refused with a 409 and writes
-	 * nothing: the other assignee stays, and no transition is logged.
-	 */
-	public function test_concurrent_self_edge_on_the_same_slot_is_a_conflict(): void {
-		$manager = $this->manager( array( $this->assignment_input( true ) ), array(), false, true );
-		$theirs  = array(
-			'value'  => 13,
-			'type'   => 'user',
-			'status' => 'pending',
-		);
-		$this->serve_conditional_slot_writes(
-			function () use ( $theirs ) {
-				$this->meta[ self::ASSIGNMENT_KEY ] = $theirs;
-			}
-		);
+    /**
+     * Two self-edges race on one slot. The other request's write lands after
+     * this one read the slot, so this one is refused with a 409 and writes
+     * nothing: the other assignee stays, and no transition is logged.
+     */
+    public function test_concurrent_self_edge_on_the_same_slot_is_a_conflict(): void
+    {
+        $manager = $this->manager(array( $this->assignment_input(true) ), array(), false, true);
+        $theirs  = array(
+        'value'  => 13,
+        'type'   => 'user',
+        'status' => 'pending',
+        );
+        $this->serve_conditional_slot_writes(
+            function () use ( $theirs ) {
+                $this->meta[ self::ASSIGNMENT_KEY ] = $theirs;
+            }
+        );
 
-		$result = $manager->transition( 42, 'draft', array( 'input_data' => array( 'reviewer' => '11' ) ) );
+        $result = $manager->transition(42, 'draft', array( 'input_data' => array( 'reviewer' => '11' ) ));
 
-		$this->assertInstanceOf( \WP_Error::class, $result );
-		$this->assertSame( 'assignment_conflict', $result->get_error_code() );
-		$this->assertSame( 409, $result->get_error_data()['status'] );
-		$this->assertSame( 'reviewer', $result->get_error_data()['meta_key'] );
-		$this->assertStringContainsString( 'Reviewer', $result->get_error_message() );
-		$this->assertSame( $theirs, $this->meta[ self::ASSIGNMENT_KEY ], 'The other request\'s assignee stays.' );
-		$this->assertSame( array( array( 'conditional_update', self::ASSIGNMENT_KEY ) ), $this->writes, 'Nothing but the refused write was attempted.' );
-		$this->assertNotContains( 'vip_workflows_assignment_created', $this->actions );
-		$this->assertNotContains( 'status_transition', array_column( $this->audit_rows, 'event_type' ) );
-	}
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('assignment_conflict', $result->get_error_code());
+        $this->assertSame(409, $result->get_error_data()['status']);
+        $this->assertSame('reviewer', $result->get_error_data()['meta_key']);
+        $this->assertStringContainsString('Reviewer', $result->get_error_message());
+        $this->assertSame($theirs, $this->meta[ self::ASSIGNMENT_KEY ], 'The other request\'s assignee stays.');
+        $this->assertSame(array( array( 'conditional_update', self::ASSIGNMENT_KEY ) ), $this->writes, 'Nothing but the refused write was attempted.');
+        $this->assertNotContains('vip_workflows_assignment_created', $this->actions);
+        $this->assertNotContains('status_transition', array_column($this->audit_rows, 'event_type'));
+    }
 
-	/**
-	 * A self-edge filling an empty slot races another doing the same. Both
-	 * pass add_post_meta()'s unique check; the one whose row is not the
-	 * first deletes it and is refused.
-	 */
-	public function test_concurrent_first_assignment_of_a_slot_is_a_conflict(): void {
-		global $wpdb;
-		$manager = $this->manager( array( $this->assignment_input( true ) ), array(), false, true );
-		unset( $this->meta[ self::ASSIGNMENT_KEY ] );
-		$deleted = array();
-		Functions\when( 'add_post_meta' )->justReturn( 101 );
-		Functions\when( 'delete_metadata_by_mid' )->alias(
-			function ( $type, $meta_id ) use ( &$deleted ) {
-				$deleted[] = array( $type, $meta_id );
-				return true;
-			}
-		);
-		$wpdb->shouldReceive( 'prepare' )
-			->with( 'SELECT MIN(meta_id) FROM wp_postmeta WHERE post_id = %d AND meta_key = %s', 42, self::ASSIGNMENT_KEY )
-			->andReturn( 'first-row' );
-		// The other request's row, inserted first.
-		$wpdb->shouldReceive( 'get_var' )->with( 'first-row' )->andReturn( '100' );
+    /**
+     * A self-edge filling an empty slot races another doing the same. Both
+     * pass add_post_meta()'s unique check; the one whose row is not the
+     * first deletes it and is refused.
+     */
+    public function test_concurrent_first_assignment_of_a_slot_is_a_conflict(): void
+    {
+        global $wpdb;
+        $manager = $this->manager(array( $this->assignment_input(true) ), array(), false, true);
+        unset($this->meta[ self::ASSIGNMENT_KEY ]);
+        $deleted = array();
+        Functions\when('add_post_meta')->justReturn(101);
+        Functions\when('delete_metadata_by_mid')->alias(
+            function ( $type, $meta_id ) use ( &$deleted ) {
+                $deleted[] = array( $type, $meta_id );
+                return true;
+            }
+        );
+        $wpdb->shouldReceive('prepare')
+            ->with('SELECT MIN(meta_id) FROM wp_postmeta WHERE post_id = %d AND meta_key = %s', 42, self::ASSIGNMENT_KEY)
+            ->andReturn('first-row');
+        // The other request's row, inserted first.
+        $wpdb->shouldReceive('get_var')->with('first-row')->andReturn('100');
 
-		$result = $manager->transition( 42, 'draft', array( 'input_data' => array( 'reviewer' => '11' ) ) );
+        $result = $manager->transition(42, 'draft', array( 'input_data' => array( 'reviewer' => '11' ) ));
 
-		$this->assertInstanceOf( \WP_Error::class, $result );
-		$this->assertSame( 'assignment_conflict', $result->get_error_code() );
-		$this->assertSame( array( array( 'post', 101 ) ), $deleted, 'The losing row is removed.' );
-		$this->assertNotContains( 'vip_workflows_assignment_created', $this->actions );
-		$this->assertNotContains( 'status_transition', array_column( $this->audit_rows, 'event_type' ) );
-	}
+        $this->assertInstanceOf(\WP_Error::class, $result);
+        $this->assertSame('assignment_conflict', $result->get_error_code());
+        $this->assertSame(array( array( 'post', 101 ) ), $deleted, 'The losing row is removed.');
+        $this->assertNotContains('vip_workflows_assignment_created', $this->actions);
+        $this->assertNotContains('status_transition', array_column($this->audit_rows, 'event_type'));
+    }
 
-	/**
-	 * Omitting an optional assignment means no assignment change was requested.
-	 */
-	public function test_optional_assignment_is_preserved_when_omitted(): void {
-		$manager = $this->manager( array( $this->assignment_input( false ) ) );
-		$before  = $this->meta[ self::ASSIGNMENT_KEY ];
+    /**
+     * Omitting an optional assignment means no assignment change was requested.
+     */
+    public function test_optional_assignment_is_preserved_when_omitted(): void
+    {
+        $manager = $this->manager(array( $this->assignment_input(false) ));
+        $before  = $this->meta[ self::ASSIGNMENT_KEY ];
 
-		$this->assertTrue( $manager->transition( 42, 'ready' ) );
-		$this->assertSame( $before, $this->meta[ self::ASSIGNMENT_KEY ] );
-		$this->assertNotContains( 'vip_workflows_assignment_removed', $this->actions );
-		$this->assertNotContains( 'vip_workflows_assignment_created', $this->actions );
-	}
+        $this->assertTrue($manager->transition(42, 'ready'));
+        $this->assertSame($before, $this->meta[ self::ASSIGNMENT_KEY ]);
+        $this->assertNotContains('vip_workflows_assignment_removed', $this->actions);
+        $this->assertNotContains('vip_workflows_assignment_created', $this->actions);
+    }
 
-	/**
-	 * Both explicit representations of an empty optional assignment clear its slot.
-	 *
-	 * @return array Explicit empty input values.
-	 */
-	public static function optional_clear_values(): array {
-		return array(
-			'empty string' => array( '' ),
-			'null'         => array( null ),
-		);
-	}
+    /**
+     * Both explicit representations of an empty optional assignment clear its slot.
+     *
+     * @return array Explicit empty input values.
+     */
+    public static function optional_clear_values(): array
+    {
+        return array(
+        'empty string' => array( '' ),
+        'null'         => array( null ),
+        );
+    }
 
-	/**
-	 * Clearing one optional slot must preserve the post's other assignments.
-	 *
-	 * @dataProvider optional_clear_values
-	 * @param mixed $value Explicit empty assignment value.
-	 */
-	public function test_optional_assignment_can_be_explicitly_cleared( $value ): void {
-		$manager = $this->manager( array( $this->assignment_input( false ) ) );
-		$other   = $this->meta[ self::OTHER_ASSIGNMENT_KEY ];
+    /**
+     * Clearing one optional slot must preserve the post's other assignments.
+     *
+     * @dataProvider optional_clear_values
+     * @param        mixed $value Explicit empty assignment value.
+     */
+    public function test_optional_assignment_can_be_explicitly_cleared( $value ): void
+    {
+        $manager = $this->manager(array( $this->assignment_input(false) ));
+        $other   = $this->meta[ self::OTHER_ASSIGNMENT_KEY ];
 
-		$this->assertTrue( $manager->transition( 42, 'ready', array( 'input_data' => array( 'reviewer' => $value ) ) ) );
-		$this->assertArrayNotHasKey( self::ASSIGNMENT_KEY, $this->meta );
-		$this->assertSame( $other, $this->meta[ self::OTHER_ASSIGNMENT_KEY ] );
-		$this->assertSame( 1, count( array_keys( $this->actions, 'vip_workflows_assignment_removed', true ) ) );
-		$this->assertNotContains( 'vip_workflows_assignment_created', $this->actions );
-	}
+        $this->assertTrue($manager->transition(42, 'ready', array( 'input_data' => array( 'reviewer' => $value ) )));
+        $this->assertArrayNotHasKey(self::ASSIGNMENT_KEY, $this->meta);
+        $this->assertSame($other, $this->meta[ self::OTHER_ASSIGNMENT_KEY ]);
+        $this->assertSame(1, count(array_keys($this->actions, 'vip_workflows_assignment_removed', true)));
+        $this->assertNotContains('vip_workflows_assignment_created', $this->actions);
+    }
 
-	/**
-	 * A transition without assignment inputs must not demand or clear an assignee.
-	 */
-	public function test_transition_without_assignment_inputs_is_unaffected(): void {
-		$manager = $this->manager( array() );
-		$before  = $this->meta[ self::ASSIGNMENT_KEY ];
+    /**
+     * A transition without assignment inputs must not demand or clear an assignee.
+     */
+    public function test_transition_without_assignment_inputs_is_unaffected(): void
+    {
+        $manager = $this->manager(array());
+        $before  = $this->meta[ self::ASSIGNMENT_KEY ];
 
-		$this->assertTrue( $manager->transition( 42, 'ready' ) );
-		$this->assertSame( $before, $this->meta[ self::ASSIGNMENT_KEY ] );
-		$this->assertSame( 'ready', $this->meta[ StatusManager::STAGE_META_KEY ] );
-	}
+        $this->assertTrue($manager->transition(42, 'ready'));
+        $this->assertSame($before, $this->meta[ self::ASSIGNMENT_KEY ]);
+        $this->assertSame('ready', $this->meta[ StatusManager::STAGE_META_KEY ]);
+    }
 
-	/**
-	 * Emergency go-back does not inherit inputs even when an authored reverse edge exists.
-	 */
-	public function test_revert_does_not_require_inputs_from_an_authored_reverse_edge(): void {
-		$manager                                     = $this->manager( array( $this->assignment_input( true ) ), array(), true );
-		$this->meta[ StatusManager::STAGE_META_KEY ] = 'ready';
-		$this->post->post_status                     = 'publish';
-		$before                                      = $this->meta[ self::ASSIGNMENT_KEY ];
-		$this->serve_assignment_slots_from_meta();
+    /**
+     * Emergency go-back does not inherit inputs even when an authored reverse edge exists.
+     */
+    public function test_revert_does_not_require_inputs_from_an_authored_reverse_edge(): void
+    {
+        $manager                                     = $this->manager(array( $this->assignment_input(true) ), array(), true);
+        $this->meta[ StatusManager::STAGE_META_KEY ] = 'ready';
+        $this->post->post_status                     = 'publish';
+        $before                                      = $this->meta[ self::ASSIGNMENT_KEY ];
+        $this->serve_assignment_slots_from_meta();
 
-		$this->assertTrue( $manager->transition( 42, 'draft', array( 'agent_revert' => true ) ) );
-		$this->assertSame( $before, $this->meta[ self::ASSIGNMENT_KEY ] );
-		$this->assertSame( 'draft', $this->post->post_status );
-		$this->assertSame( 'draft', $this->meta[ StatusManager::STAGE_META_KEY ] );
-	}
+        $this->assertTrue($manager->transition(42, 'draft', array( 'agent_revert' => true )));
+        $this->assertSame($before, $this->meta[ self::ASSIGNMENT_KEY ]);
+        $this->assertSame('draft', $this->post->post_status);
+        $this->assertSame('draft', $this->meta[ StatusManager::STAGE_META_KEY ]);
+    }
 
-	/**
-	 * A failed-agent revert sends the post back after its agent run fails, so
-	 * it completes none of the pending user assignments.
-	 */
-	public function test_revert_keeps_pending_assignments(): void {
-		$manager                                     = $this->manager( array() );
-		$this->meta[ StatusManager::STAGE_META_KEY ] = 'ready';
-		$this->post->post_status                     = 'publish';
-		$this->serve_assignment_slots_from_meta();
+    /**
+     * A failed-agent revert sends the post back after its agent run fails, so
+     * it completes none of the pending user assignments.
+     */
+    public function test_revert_keeps_pending_assignments(): void
+    {
+        $manager                                     = $this->manager(array());
+        $this->meta[ StatusManager::STAGE_META_KEY ] = 'ready';
+        $this->post->post_status                     = 'publish';
+        $this->serve_assignment_slots_from_meta();
 
-		$this->assertTrue( $manager->transition( 42, 'draft', array( 'agent_revert' => true ) ) );
-		$this->assertSame( 'pending', $this->meta[ self::ASSIGNMENT_KEY ]['status'] );
-		$this->assertSame( 'pending', $this->meta[ self::OTHER_ASSIGNMENT_KEY ]['status'] );
-		$this->assertNotContains( 'vip_workflows_assignment_completed', $this->actions );
-	}
+        $this->assertTrue($manager->transition(42, 'draft', array( 'agent_revert' => true )));
+        $this->assertSame('pending', $this->meta[ self::ASSIGNMENT_KEY ]['status']);
+        $this->assertSame('pending', $this->meta[ self::OTHER_ASSIGNMENT_KEY ]['status']);
+        $this->assertNotContains('vip_workflows_assignment_completed', $this->actions);
+    }
 
-	/**
-	 * Any other stage exit completes the pending user assignments.
-	 */
-	public function test_leaving_the_stage_completes_pending_assignments(): void {
-		$manager = $this->manager( array() );
-		$this->serve_assignment_slots_from_meta();
+    /**
+     * Any other stage exit completes the pending user assignments.
+     */
+    public function test_leaving_the_stage_completes_pending_assignments(): void
+    {
+        $manager = $this->manager(array());
+        $this->serve_assignment_slots_from_meta();
 
-		$this->assertTrue( $manager->transition( 42, 'ready' ) );
-		$this->assertSame( 'completed', $this->meta[ self::ASSIGNMENT_KEY ]['status'] );
-		$this->assertSame( 'completed', $this->meta[ self::OTHER_ASSIGNMENT_KEY ]['status'] );
-		$this->assertSame( 2, count( array_keys( $this->actions, 'vip_workflows_assignment_completed', true ) ) );
-	}
+        $this->assertTrue($manager->transition(42, 'ready'));
+        $this->assertSame('completed', $this->meta[ self::ASSIGNMENT_KEY ]['status']);
+        $this->assertSame('completed', $this->meta[ self::OTHER_ASSIGNMENT_KEY ]['status']);
+        $this->assertSame(2, count(array_keys($this->actions, 'vip_workflows_assignment_completed', true)));
+    }
 
-	/**
-	 * Answer AssignmentManager::get_all() with the fixture's assignment slots.
-	 */
-	private function serve_assignment_slots_from_meta(): void {
-		global $wpdb;
-		// Rows carry the stored array as-is, so no unserialize is needed.
-		Functions\when( 'maybe_unserialize' )->returnArg();
-		$wpdb->shouldReceive( 'get_results' )->with( 'assignment-read' )->andReturnUsing(
-			function () {
-				$rows = array();
-				foreach ( $this->meta as $key => $value ) {
-					if ( 0 === strpos( (string) $key, '_vip_workflows_assignment_' ) ) {
-						$rows[] = (object) array(
-							'meta_key'   => $key, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- Stubbed result row.
-							'meta_value' => $value, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Stubbed result row.
-						);
-					}
-				}
-				return $rows;
-			}
-		);
-	}
+    /**
+     * Answer AssignmentManager::get_all() with the fixture's assignment slots.
+     */
+    private function serve_assignment_slots_from_meta(): void
+    {
+        // Rows carry the stored array as-is, so no unserialize is needed.
+        Functions\when('maybe_unserialize')->returnArg();
+        // The keyless form returns every row as key => list of values, which is
+        // how AssignmentManager::get_all() reads the slots.
+        Functions\when('get_post_meta')->alias(
+            function ( $post_id, $key = '' ) {
+                if ('' !== $key ) {
+                    return $this->meta[ $key ] ?? '';
+                }
+
+                $all = array();
+                foreach ( $this->meta as $meta_key => $value ) {
+                    $all[ $meta_key ] = array( $value );
+                }
+                return $all;
+            }
+        );
+    }
 }

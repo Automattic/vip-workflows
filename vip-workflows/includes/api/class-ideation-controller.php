@@ -355,7 +355,7 @@ class IdeationController extends WP_REST_Controller {
 					 * `WP_REST_Request::has_valid_params()` skips any argument that
 					 * has none — so `maximum` alone would be silently inert.
 					 */
-					'word_count' => array(
+					'word_count'           => array(
 						'type'              => 'integer',
 						'default'           => 500,
 						'maximum'           => 2000,
@@ -425,7 +425,7 @@ class IdeationController extends WP_REST_Controller {
 						'default'           => 10,
 						'sanitize_callback' => 'absint',
 					),
-					'author' => array(
+					'author'   => array(
 						'type'    => 'string',
 						'default' => 'me',
 						'enum'    => array( 'me', 'all' ),
@@ -757,9 +757,10 @@ class IdeationController extends WP_REST_Controller {
 				if ( ! $attachment_id ) {
 					continue;
 				}
-				$image_url  = wp_get_attachment_url( $attachment_id );
-				$source_id  = $card['source_id'] ?? $card['card_id'] ?? '';
+				$image_url = wp_get_attachment_url( $attachment_id );
+				$source_id = $card['source_id'] ?? $card['card_id'] ?? '';
 				if ( $source_id ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 					$wpdb->update(
 						$wpdb->prefix . 'vip_ideation_sources',
 						array( 'attachment_id' => $attachment_id ),
@@ -812,7 +813,7 @@ class IdeationController extends WP_REST_Controller {
 				$title = $card['title'] ?? $card['label'] ?? '';
 				$url   = $card['url'] ?? '';
 
-				$ai = ! empty( $card['ai_analysis'] )
+				$ai      = ! empty( $card['ai_analysis'] )
 					? ( is_array( $card['ai_analysis'] ) ? $card['ai_analysis'] : json_decode( $card['ai_analysis'], true ) )
 					: array();
 				$summary = $ai['summary']
@@ -932,18 +933,18 @@ class IdeationController extends WP_REST_Controller {
 			'vip_draft_ai_context',
 			wp_json_encode(
 				array(
-					'provider'       => 'openai',
-					'model'          => $model_name,
-					'temperature'    => 0.7,
-					'max_tokens'     => self::DRAFT_MAX_TOKENS,
-					'word_count'     => $word_count,
-					'system_prompt'  => $system_prompt,
-					'user_prompt'    => $user_prompt,
-					'project_id'     => $project_id,
-					'project_title'  => $project_name,
-					'source'         => 'ideation',
-					'generated_by'   => get_current_user_id(),
-					'generated_at'   => current_time( 'mysql', true ),
+					'provider'      => 'openai',
+					'model'         => $model_name,
+					'temperature'   => 0.7,
+					'max_tokens'    => self::DRAFT_MAX_TOKENS,
+					'word_count'    => $word_count,
+					'system_prompt' => $system_prompt,
+					'user_prompt'   => $user_prompt,
+					'project_id'    => $project_id,
+					'project_title' => $project_name,
+					'source'        => 'ideation',
+					'generated_by'  => get_current_user_id(),
+					'generated_at'  => current_time( 'mysql', true ),
 				)
 			)
 		);
@@ -1041,7 +1042,7 @@ class IdeationController extends WP_REST_Controller {
 			return new WP_REST_Response(
 				array(
 					'allowed' => false,
-					'code' => 'not_found',
+					'code'    => 'not_found',
 					'message' => __( 'Project not found.', 'vip-workflows' ),
 				),
 				200
@@ -1052,11 +1053,11 @@ class IdeationController extends WP_REST_Controller {
 		if ( is_wp_error( $gate ) ) {
 			return new WP_REST_Response(
 				array(
-					'allowed'        => false,
-					'code'           => $gate->get_error_code(),
-					'message'        => $gate->get_error_message(),
-					'hard_failures'  => $gate->get_error_data()['hard_failures'] ?? array(),
-					'soft_warnings'  => $gate->get_error_data()['soft_warnings'] ?? array(),
+					'allowed'       => false,
+					'code'          => $gate->get_error_code(),
+					'message'       => $gate->get_error_message(),
+					'hard_failures' => $gate->get_error_data()['hard_failures'] ?? array(),
+					'soft_warnings' => $gate->get_error_data()['soft_warnings'] ?? array(),
 				),
 				200
 			);
@@ -1099,6 +1100,7 @@ class IdeationController extends WP_REST_Controller {
 			$seed_analysis = get_post_meta( $project->ID, '_vip_ideation_seed_analysis', true );
 			$seed_analysis = json_decode( $seed_analysis ? $seed_analysis : '{}', true );
 
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; live read, not cached
 			$source_count = (int) $wpdb->get_var(
 				$wpdb->prepare(
 					'SELECT COUNT(*) FROM %i WHERE project_id = %d',
@@ -1171,6 +1173,7 @@ class IdeationController extends WP_REST_Controller {
 		global $wpdb;
 		$analyses_table = $wpdb->prefix . 'vip_ideation_analyses';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- plugin table vip_ideation_analyses; write, nothing to cache
 		$wpdb->insert(
 			$analyses_table,
 			array(
@@ -1200,6 +1203,7 @@ class IdeationController extends WP_REST_Controller {
 		global $wpdb;
 		$analyses_table = $wpdb->prefix . 'vip_ideation_analyses';
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_analyses; live read, not cached
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
 				"SELECT result FROM %i WHERE project_id = %d AND tool_type = 'summarize' ORDER BY created_at DESC LIMIT 1",
@@ -1212,7 +1216,7 @@ class IdeationController extends WP_REST_Controller {
 		if ( ! $row ) {
 			return new WP_REST_Response(
 				array(
-					'summary' => null,
+					'summary'    => null,
 					'key_points' => array(),
 				)
 			);
@@ -1242,7 +1246,7 @@ class IdeationController extends WP_REST_Controller {
 		global $wpdb;
 
 		$table  = $wpdb->prefix . 'vip_ideation_sources';
-		$source = $wpdb->get_row(
+		$source = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; live read, not cached
 			$wpdb->prepare(
 				'SELECT * FROM %i WHERE project_id = %d AND source_id = %s',
 				$table,
@@ -1286,6 +1290,7 @@ class IdeationController extends WP_REST_Controller {
 		$ai_analysis['summary']     = $result['summary'];
 		$ai_analysis['analyzed_at'] = $result['analyzed_at'];
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$wpdb->update(
 			$table,
 			array(
@@ -1470,6 +1475,7 @@ class IdeationController extends WP_REST_Controller {
 		$ai_data['analyzed_at']     = current_time( 'mysql' );
 		$ai_data['analysis_method'] = $method;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- plugin table vip_ideation_sources; write, no cached copy to invalidate
 		$wpdb->update(
 			$table,
 			array(
@@ -1570,7 +1576,7 @@ class IdeationController extends WP_REST_Controller {
 	 */
 	private function check_phase_transition( string $to_phase, int $project_id, bool $acknowledge_warnings = false ) {
 		$repository = new SequenceRepository();
-		$sequence  = $repository->get_active_phase_sequence();
+		$sequence   = $repository->get_active_phase_sequence();
 
 		if ( ! $sequence ) {
 			return new WP_Error(

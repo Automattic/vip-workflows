@@ -22,7 +22,7 @@ if ( ! defined( 'HOUR_IN_SECONDS' ) ) {
 }
 
 /**
- * `HourlyLimit::spend( $action, $default, $reached )` counts one use of an
+ * `HourlyLimit::spend( $action, $default_limit, $reached )` counts one use of an
  * action for the current user, or for a subject the caller names, against a
  * ceiling per clock hour. The ceiling is the action's default, or what the
  * filter `vip_workflows_{action}_hourly_limit` makes of it; 0 switches it off.

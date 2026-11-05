@@ -49,18 +49,18 @@ function execute_get_posts_by_status( ?array $input = null ) {
 			continue;
 		}
 
-		$author       = get_userdata( (int) $post->post_author );
+		$author      = get_userdata( (int) $post->post_author );
 		$sequence_id = get_post_meta( $post->ID, '_vip_workflows_sequence_id', true );
 
 		$posts[] = array(
-			'post_id'      => $post->ID,
-			'title'        => $post->post_title,
-			'post_type'    => $post->post_type,
-			'status'       => $post->post_status,
-			'author'       => $author ? $author->display_name : __( 'Unknown', 'vip-workflows' ),
-			'modified'     => $post->post_modified,
-			'sequence_id'  => $sequence_id ? (int) $sequence_id : null,
-			'edit_url'     => get_edit_post_link( $post->ID, 'raw' ) ? get_edit_post_link( $post->ID, 'raw' ) : '',
+			'post_id'     => $post->ID,
+			'title'       => $post->post_title,
+			'post_type'   => $post->post_type,
+			'status'      => $post->post_status,
+			'author'      => $author ? $author->display_name : __( 'Unknown', 'vip-workflows' ),
+			'modified'    => $post->post_modified,
+			'sequence_id' => $sequence_id ? (int) $sequence_id : null,
+			'edit_url'    => get_edit_post_link( $post->ID, 'raw' ) ? get_edit_post_link( $post->ID, 'raw' ) : '',
 		);
 	}
 
