@@ -353,10 +353,13 @@ class PublishBoundaryGuardTest extends TestCase
     }
 
     /**
-     * The veto queues the classic-path notice, naming the post, the workflow,
-     * and both ways through.
+     * The veto queues the classic-path notice, naming the post and the workflow,
+     * saying the post can't be published directly, and naming the workflow as
+     * the way through. It does not suggest leaving the workflow: this is what a
+     * habitual Publish click produces, and removal is a deliberate act in the
+     * sidebar.
      */
-    public function test_veto_queues_an_admin_notice_with_the_escape_copy(): void
+    public function test_veto_queues_an_admin_notice_naming_the_workflow_route(): void
     {
         $this->stub_workflow_post( 'review', 'draft' );
 
@@ -365,10 +368,28 @@ class PublishBoundaryGuardTest extends TestCase
         $this->assertCount( 1, $this->transients );
 
         $message = (string) reset( $this->transients );
-        $this->assertStringContainsString( '“Test Post”', $message );
-        $this->assertStringContainsString( '“Test Workflow”', $message );
-        $this->assertStringContainsString( 'remove it from the workflow', $message );
-        $this->assertStringContainsString( 'Move it to a published stage', $message );
+        $this->assertSame(
+            '“Test Post” is in the “Test Workflow” workflow, so it can’t be published directly. Move it through the workflow to a published stage.',
+            $message
+        );
+        $this->assertStringNotContainsStringIgnoringCase( 'remove', $message );
+    }
+
+    /**
+     * The veto is symmetric, so its sentence follows the direction: an
+     * unpublish is not told to move the post to a published stage.
+     */
+    public function test_unpublish_veto_says_the_status_cannot_be_changed_directly(): void
+    {
+        $this->stub_workflow_post( 'promote', 'publish' );
+
+        $this->filter_data( 'draft' );
+
+        $message = (string) reset( $this->transients );
+        $this->assertSame(
+            '“Test Post” is in the “Test Workflow” workflow, so its status can’t be changed directly. Move it through the workflow instead.',
+            $message
+        );
     }
 
     /**

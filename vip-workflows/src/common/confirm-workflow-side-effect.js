@@ -567,18 +567,40 @@ function describeStatusChange( {
 }
 
 /**
- * Copy for the publish veto: why the change was refused, and the two ways through.
+ * Copy for the publish veto: the change can't be made directly, and the way through.
+ *
+ * The same sentence the server's `PublishBoundaryGuard::veto_message()` sends,
+ * so a refusal reads the same whichever layer says it. The way through is the
+ * workflow; leaving it is not suggested here, because this is what a habitual
+ * Publish click produces and removal is a deliberate act in the sidebar.
+ *
+ * The veto refuses a crossing in either direction, so the sentence follows the
+ * target: publishing names a published stage, and anything else (unpublishing,
+ * making private) says the status can't be changed directly.
  *
  * @param {Object} options              Message input.
  * @param {string} options.title        Post title.
  * @param {string} options.workflowName Sequence (workflow) name.
+ * @param {string} options.targetStatus Core post status the refused change would write.
  * @return {string} Translated message.
  */
-export function getPublishVetoMessage( { title, workflowName } ) {
+export function getPublishVetoMessage( { title, workflowName, targetStatus } ) {
+	if ( statusToRegion( targetStatus ) === 'publish' ) {
+		return sprintf(
+			/* translators: 1: post title. 2: workflow (sequence) name. */
+			__(
+				'“%1$s” is in the “%2$s” workflow, so it can’t be published directly. Move it through the workflow to a published stage.',
+				'vip-workflows'
+			),
+			title,
+			workflowName
+		);
+	}
+
 	return sprintf(
 		/* translators: 1: post title. 2: workflow (sequence) name. */
 		__(
-			'“%1$s” is in the “%2$s” workflow. Move it to a published stage, or remove it from the workflow.',
+			'“%1$s” is in the “%2$s” workflow, so its status can’t be changed directly. Move it through the workflow instead.',
 			'vip-workflows'
 		),
 		title,

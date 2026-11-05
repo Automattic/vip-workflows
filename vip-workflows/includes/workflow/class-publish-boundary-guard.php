@@ -334,7 +334,7 @@ class PublishBoundaryGuard {
 		}
 
 		return array(
-			'message'        => $this->veto_message( $post_id, (string) $post->post_title ),
+			'message'        => $this->veto_message( $post_id, (string) $post->post_title, $target_status ),
 			'current_status' => $current_status,
 			'target_status'  => $target_status,
 			'post_name'      => (string) $post->post_name,
@@ -377,34 +377,54 @@ class PublishBoundaryGuard {
 	}
 
 	/**
-	 * Build the veto message: what is blocking the change, and both ways through.
+	 * Build the veto message: the change can't be made directly, and the way through.
 	 *
-	 * @param  int    $post_id    Post ID.
-	 * @param  string $post_title Post title.
+	 * The way through is the workflow. Removing the post from its workflow is
+	 * not offered: the refusal is the most common thing a person sees here (it
+	 * is what a habitual Publish click produces), and a refusal that suggests
+	 * leaving the workflow teaches people to leave it. Removal stays a
+	 * deliberate act in the sidebar.
+	 *
+	 * The veto refuses a crossing in either direction, so the sentence follows
+	 * the target: publishing names a published stage, and anything else
+	 * (unpublishing, making private) says the status can't be changed directly.
+	 *
+	 * @param  int    $post_id       Post ID.
+	 * @param  string $post_title    Post title.
+	 * @param  string $target_status Core status the refused change would write.
 	 * @return string
 	 */
-	private function veto_message( int $post_id, string $post_title ): string {
+	private function veto_message( int $post_id, string $post_title, string $target_status ): string {
 		$sequence = $this->status_manager->get_sequence_for_post( $post_id );
 
 		if ( ! $sequence ) {
 			// crosses_publish_boundary() reported a crossing, so the post carries
 			// sequence meta; a sequence that will not resolve from it is a
-			// data-integrity bug. The veto stands (fail closed) and the escape
-			// hatch — which is exactly the cure for a dangling reference — is still
-			// offered, but the workflow cannot be named.
+			// data-integrity bug. The veto stands (fail closed). There is no
+			// workflow to move the post through, so removal is the only way out
+			// and is named — the same answer a post in a deleted workflow gets.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( sprintf( '[VIP Workflows] Post %d is workflow-managed but its sequence could not be resolved while building the publish-veto message.', $post_id ) );
 
 			return sprintf(
 				/* translators: %s: post title. */
-				__( '“%s” is in a workflow. Move it to a published stage, or remove it from the workflow.', 'vip-workflows' ),
+				__( '“%s” is in a workflow that can’t be found. Remove it from the workflow to change its status.', 'vip-workflows' ),
 				$post_title
+			);
+		}
+
+		if ( 'publish' === $this->status_manager->status_to_region( $target_status ) ) {
+			return sprintf(
+				/* translators: 1: post title, 2: workflow (sequence) name. */
+				__( '“%1$s” is in the “%2$s” workflow, so it can’t be published directly. Move it through the workflow to a published stage.', 'vip-workflows' ),
+				$post_title,
+				$sequence->name
 			);
 		}
 
 		return sprintf(
 			/* translators: 1: post title, 2: workflow (sequence) name. */
-			__( '“%1$s” is in the “%2$s” workflow. Move it to a published stage, or remove it from the workflow.', 'vip-workflows' ),
+			__( '“%1$s” is in the “%2$s” workflow, so its status can’t be changed directly. Move it through the workflow instead.', 'vip-workflows' ),
 			$post_title,
 			$sequence->name
 		);

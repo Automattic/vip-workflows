@@ -202,7 +202,11 @@ export function WorkflowSaveGuard() {
 				// through, and no name to call it by.
 				const message = workflow.orphaned
 					? getOrphanedWorkflowMessage( { title } )
-					: getPublishVetoMessage( { title, workflowName } );
+					: getPublishVetoMessage( {
+							title,
+							workflowName,
+							targetStatus: edits.status,
+					  } );
 
 				restoreEditorStatus();
 
