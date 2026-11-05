@@ -133,8 +133,13 @@ add_action('vip_workflows_entered_review', function($post_id, $old_status, $sequ
     // Send notification to editors
 }, 10, 3);
 
-// Listen for tool execution
-add_action('vip_workflows_ability_executed', function($ability_id, $post_id, $result) {
+// Listen for tool execution. Tool runs go through the EventBus, so filter
+// the generic event action on the event type.
+add_action('vip_workflows_event_emitted', function($event_type, $event_data, $event_id) {
+    if ('ability.executed' !== $event_type && 'ability.failed' !== $event_type) {
+        return;
+    }
+    // $event_data: ability_id, post_id, success, duration_ms, output
     // Log to analytics
 }, 10, 3);
 ```

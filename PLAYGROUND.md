@@ -18,4 +18,16 @@ Trunk moves daily, so this environment is deliberately not reproducible between 
 
 Open the printed URL. Playground logs you in as `admin` and lands on the Workflows dashboard.
 
+## Pull request previews
+
+Pull requests get a hosted preview built in CI from `.playground/blueprint.json`; see "Pull request previews" in `AGENTS.md`. To boot the same preview locally:
+
+```bash
+tools/playground/serve-preview.sh
+```
+
+The script builds `dist/preview/` with the same `tools/playground/build-preview.sh` that CI uses, serves the zips on `127.0.0.1:8765` (pass another port as the first argument), and stops the server when Playground exits. It fails if the port is already taken, so it never installs another checkout's build.
+
+## Limitations
+
 This smoke test uses SQLite and does not replace the wp-env integration or Playwright environments. The top-level `workflow-*` extensions are not mounted by the blueprint; add a `--mount` argument and activation step for each extension you want to exercise.
