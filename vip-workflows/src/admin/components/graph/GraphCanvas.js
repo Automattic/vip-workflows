@@ -158,6 +158,18 @@ const MAX_ZOOM = 2;
 const REVEAL_MS = 200;
 const REDUCED_MOTION = '( prefers-reduced-motion: reduce )';
 
+// How the view travels when the author presses "Fit view" or "Reset layout" in
+// the Controls panel, so the two buttons move the canvas the same way. Linear,
+// because d3's default zooms out mid-flight on a long pan. The author asked for
+// the move, but not to watch the canvas slide there, so under reduced motion
+// both buttons jump instead. Read when used, like the reveal's, rather than
+// once at load, so a preference changed mid-session is honored.
+const CONTROL_MS = 200;
+const controlTransition = () => ( {
+	duration: window.matchMedia( REDUCED_MOTION ).matches ? 0 : CONTROL_MS,
+	interpolate: 'linear',
+} );
+
 /**
  * Width the floating inspector takes out of the canvas, in pixels.
  *
@@ -203,11 +215,14 @@ function inspectorReserve( el ) {
  * always asked for from one — the refused-save notice holds the button — so
  * the strip starts below the lowest of them.
  *
+ * Exported only for unit tests (`graph-canvas-reveal.test.js`), which stand in
+ * the rects a browser would measure. Nothing else should import it.
+ *
  * @param {HTMLElement} el The canvas pane.
  * @return {Object} `{ y, width, height }` relative to the pane; the strip
  *                  always starts at its left edge.
  */
-function visibleCanvas( el ) {
+export function visibleCanvas( el ) {
 	const editor = el.closest( '.wf-sequence-editor' );
 	const paneTop = el.getBoundingClientRect().top;
 	// Measured against the pane, so jsdom's all-zero rects answer 0.
@@ -1170,7 +1185,8 @@ function Flow( {
 			return;
 		}
 		pendingRecenter.current = false;
-		centerOn( layout.nodes, { duration: 200 } );
+		// Centering keeps the zoom the author is at.
+		centerOn( layout.nodes, controlTransition() );
 	}, [ layout, centerOn ] );
 
 	// --- Showing a fault ----------------------------------------------------
@@ -1839,8 +1855,14 @@ function Flow( {
 				// out from under a stationary pointer, so CSS `:hover` drops
 				// (the outcome badges fade) with no mouse event fired — and a
 				// stale id here would keep an arrowhead yielding to a badge
-				// that is no longer painted.
-				onMoveStart={ () => setHoveredNodeId( null ) }
+				// that is no longer painted. An edge slides away the same way,
+				// and a stale edge id would leave its pill up (and clickable)
+				// over whatever is now under it, with the line and its end
+				// marks still in the hover tone.
+				onMoveStart={ () => {
+					setHoveredNodeId( null );
+					setHoveredEdgeId( null );
+				} }
 				onNodeClick={ ( _e, node ) => {
 					if ( node.type === NODE_TYPE ) {
 						onSelectNode( node.id );
@@ -1890,7 +1912,10 @@ function Flow( {
 					onSelectRegion={ onSelectRegion }
 					onContextMenu={ openMenu }
 				/>
-				<Controls showInteractive={ false }>
+				<Controls
+					showInteractive={ false }
+					fitViewOptions={ controlTransition() }
+				>
 					<ControlButton
 						onClick={ handleResetLayout }
 						title={ __( 'Reset layout', 'vip-workflows' ) }

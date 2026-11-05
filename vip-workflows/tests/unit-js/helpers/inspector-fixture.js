@@ -43,6 +43,28 @@ export const SEQUENCE_SETTINGS = {
 };
 
 /**
+ * The panel's props with the first stage selected, as a click on it leaves
+ * them. For suites that mount `Inspector` themselves.
+ */
+export const INSPECTOR_PROPS = {
+	selection: { type: 'node', key: 'draft' },
+	isPhase: false,
+	stages: STAGES,
+	selectedStage: STAGES[ 0 ],
+	selectedTransition: null,
+	availableAgents: [],
+	availableRoles: [],
+	availableTools: [],
+	availableChannels: [],
+	onUpdateStage: () => {},
+	onDeleteStage: () => {},
+	onUpdateTransition: () => {},
+	onDeleteTransition: () => {},
+	isValidConnection: () => true,
+	sequenceSettings: SEQUENCE_SETTINGS,
+};
+
+/**
  * Render the panel with the first stage selected.
  *
  * @param {Object} overrides Props to replace.
@@ -50,24 +72,7 @@ export const SEQUENCE_SETTINGS = {
  *                  some props changed.
  */
 export function renderInspector( overrides = {} ) {
-	const props = {
-		selection: { type: 'node', key: 'draft' },
-		isPhase: false,
-		stages: STAGES,
-		selectedStage: STAGES[ 0 ],
-		selectedTransition: null,
-		availableAgents: [],
-		availableRoles: [],
-		availableTools: [],
-		availableChannels: [],
-		onUpdateStage: () => {},
-		onDeleteStage: () => {},
-		onUpdateTransition: () => {},
-		onDeleteTransition: () => {},
-		isValidConnection: () => true,
-		sequenceSettings: SEQUENCE_SETTINGS,
-		...overrides,
-	};
+	const props = { ...INSPECTOR_PROPS, ...overrides };
 	const view = render( <Inspector { ...props } /> );
 	return {
 		...view,
