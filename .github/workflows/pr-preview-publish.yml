@@ -75,7 +75,9 @@ jobs:
 
           # A newer queued run in this group cancels a queued cleanup run, so
           # a closed pull request's assets are deleted here as well.
-          if ! assets="$(gh release view ci-artifacts --json assets --jq ".assets[].name | select(startswith(\"pr-${GROUP_PR_NUMBER}-\"))" 2>error.log)"; then
+          # Only the zips publish uploads: pr-<N>-<commit SHA>-<name>.zip. Other
+          # pr-<N>-* assets, such as screenshots embedded in reviews, stay.
+          if ! assets="$(gh release view ci-artifacts --json assets --jq ".assets[].name | select(test(\"^pr-${GROUP_PR_NUMBER}-[0-9a-f]{40}-[A-Za-z0-9_-]+\\\\.zip$\"))" 2>error.log)"; then
             if grep -q 'release not found' error.log; then
               exit 0
             fi
