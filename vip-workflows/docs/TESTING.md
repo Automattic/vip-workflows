@@ -16,6 +16,8 @@ Run every package's configured linters and unit tests:
 npm run check:all
 ```
 
+Its design-system section needs loupe, which `npm run setup` does not install. Claude Code offers it from the repo's `.claude/settings.json`; see [`tools/code-quality/README.md`](../../tools/code-quality/README.md#in-claude-code).
+
 Targeted commands for the core plugin:
 
 ```bash
@@ -69,7 +71,7 @@ Public GitHub-hosted runners execute:
 | --- | --- |
 | `phpcs.yml` | PHP coding standards for core and Parse.ly integration |
 | `js-unit.yml` | Package discovery tests, JavaScript/CSS lint, and Jest |
-| `phpunit.yml` | Unit suite on PHP 8.2, 8.3, 8.4, and 8.5 |
+| `phpunit.yml` | Unit suite on PHP 8.3, 8.4, and 8.5 |
 | `phpunit-integration.yml` | Real-WordPress integration suites in wp-env |
 | `e2e.yml` | Production builds and Playwright browser tests |
 
