@@ -1,8 +1,14 @@
 /**
  * Workflow Panel Component
  *
- * The whole of a post's workflow state in one place: which sequence it belongs
- * to, where it sits, how far along that is, who holds it, and every way out.
+ * The post's movement through its workflow: where it sits, how far along that
+ * is, who holds it, and every way onward.
+ *
+ * Which sequence the post is in, and the metadata that sequence declares, are
+ * not here. They are properties of the post, so they are rows in the document
+ * sidebar's Summary panel (WorkflowSummaryRows) alongside Status and Author —
+ * and so is taking the post out of its workflow, which lives in the Workflow
+ * row's popover beside the choice of workflow.
  *
  * It used to be two components — this one in the plugin sidebar and a
  * `WorkflowStatusPanel` in the document sidebar — which independently requested
@@ -23,7 +29,7 @@
  *
  * The state itself is not the panel's. It lives in the `vip-workflows/editor`
  * store, which performs the one read of the status endpoint and answers every
- * consumer from it — this panel, the Metadata section below it, and the save
+ * consumer from it — this panel, the Summary panel's rows, and the save
  * guard's veto notice, which removes a post from its workflow while standing
  * outside the sidebar entirely. A private copy here is what let that notice
  * delete a workflow the panel went on drawing until the page was reloaded.
@@ -31,13 +37,7 @@
  * @package
  */
 
-import {
-	useState,
-	useEffect,
-	lazy,
-	Fragment,
-	Suspense,
-} from '@wordpress/element';
+import { useState, useEffect, lazy, Suspense } from '@wordpress/element';
 import {
 	Button,
 	Modal,
@@ -51,18 +51,8 @@ import apiFetch from '@wordpress/api-fetch';
 import { __, sprintf } from '@wordpress/i18n';
 import { STORE_NAME } from '../store';
 import { AuthorCell } from '../../common/DataViewCells';
-import { useConfirm } from '../../common/use-confirm';
-import {
-	getOrphanedWorkflowRemoveConfirmation,
-	getRemoveFromWorkflowConfirmation,
-	getRemoveFromWorkflowLabel,
-	getSwitchWorkflowConfirmLabel,
-	getSwitchWorkflowConfirmTitle,
-	getSwitchWorkflowConfirmation,
-} from '../../entries/confirm-workflow-side-effect';
 import { useRequiredMetadataGate } from '../required-metadata';
 import { TransitionRail } from './TransitionRail';
-import { WorkflowRow } from './WorkflowRow';
 import { IdeationPanel } from './IdeationPanel';
 
 // Loaded on demand. The history dialog is the editor's only DataViews consumer,
@@ -72,35 +62,11 @@ import { IdeationPanel } from './IdeationPanel';
 const WorkflowHistoryModal = lazy( () => import( './WorkflowHistoryModal' ) );
 
 /**
- * The post's workflow state, and everything that acts on it.
- *
- * @param {Object}      root0          Component props.
- * @param {JSX.Element} root0.children Seated between the transition rail and
- *                                     the panel's foot — the editorial metadata
- *                                     section (see src/editor/index.js). A slot
- *                                     rather than a sibling section because the
- *                                     foot is inside this panel: the two
- *                                     workflow-level buttons must come after
- *                                     the fields the writer fills in, and
- *                                     lifting the foot out would mean lifting
- *                                     its `transitioning`/`historyOpen` state
- *                                     and the lazily-loaded history dialog with
- *                                     it, purely for a reorder.
- *
- *                                     Every return below renders the slot,
- *                                     including the ones that draw no workflow.
- *                                     Nesting made this panel the only thing
- *                                     that decides whether the section reaches
- *                                     the screen, so a branch that drops the
- *                                     slot silently swallows the post's
- *                                     editorial fields — and whether there are
- *                                     any is the section's own question, which
- *                                     it answers by rendering nothing.
+ * The post's place in its workflow, and everything that moves it.
  */
-export function WorkflowPanel( { children } ) {
+export function WorkflowPanel() {
 	const {
 		postId,
-		workflowEnforcement,
 		postStatus,
 		workflow,
 		loading,
@@ -111,7 +77,6 @@ export function WorkflowPanel( { children } ) {
 		const editor = select( editorStore );
 		return {
 			postId: s.getPostId(),
-			workflowEnforcement: s.getWorkflowEnforcement(),
 			// Live core visibility — decoupled from the workflow stage, so
 			// the panel can show whether a post-publish-stage post is
 			// actually live.
@@ -153,14 +118,11 @@ export function WorkflowPanel( { children } ) {
 
 	const {
 		fetchWorkflowStatus,
-		assignSequence,
-		removeWorkflow,
 		requestTransition,
 		revertAgentStage,
 		setWorkflowWriting,
 		setTransitionError,
 	} = useDispatch( STORE_NAME );
-	const [ confirm, confirmDialog ] = useConfirm();
 
 	// One notice reports two kinds of failure: the panel's own writes
 	// (`actionError`) and a refused move (`transitionError`, the flow's). Each
@@ -180,98 +142,12 @@ export function WorkflowPanel( { children } ) {
 		}
 	}, [ transitioningTo ] );
 
-	const isWorkflowRequired = workflowEnforcement === 'require';
-
 	// The panel is what puts the post's workflow state on screen, so it is what
 	// asks for it. The read itself belongs to the store: one request, answering
 	// every consumer, rather than one per section or one per mount.
 	useEffect( () => {
 		fetchWorkflowStatus();
 	}, [ fetchWorkflowStatus ] );
-
-	// Put this post in a workflow — or move it to a different one.
-	//
-	// The post is always seated at the entry stage of the region its status is
-	// already in, so starting a workflow never moves the post. A sequence with
-	// no stage in that region is refused by the server, and the reason arrives
-	// as an error message below — the author changes the status or picks another
-	// sequence, rather than being offered a stage that would publish (or
-	// unschedule) the post as the price of entry.
-	//
-	// Moving an enrolled post is the same call and the same seating rule, which
-	// is exactly why it asks first: the post gives up wherever it had reached in
-	// the sequence it is leaving, and choosing the old one back does not return
-	// it. Starting from nothing gives nothing up, so that case asks nothing.
-	const handleWorkflowSelect = async ( sequenceId ) => {
-		if ( workflow?.has_workflow ) {
-			// The id came from the list this row was rendered with, so the
-			// destination is in it.
-			const destination = ( workflow.available_sequences || [] ).find(
-				( candidate ) => candidate.id === sequenceId
-			);
-
-			const proceed = await confirm(
-				getSwitchWorkflowConfirmation( {
-					fromWorkflowName: workflow.sequence?.name,
-					toWorkflowName: destination?.name,
-				} ),
-				{
-					title: getSwitchWorkflowConfirmTitle(),
-					confirmLabel: getSwitchWorkflowConfirmLabel(),
-				}
-			);
-
-			if ( ! proceed ) {
-				return;
-			}
-		}
-
-		clearErrors();
-
-		try {
-			await assignSequence( sequenceId );
-		} catch ( err ) {
-			setActionError(
-				err.message ||
-					__( 'Could not assign the workflow.', 'vip-workflows' )
-			);
-		}
-	};
-
-	// Remove workflow from this post.
-	//
-	// Same label, same copy and same dialog as the save guard's escape hatch —
-	// and now the same call: both dispatch the store's removal, so neither can
-	// be left rendering a workflow the other deleted.
-	const handleRemoveWorkflow = async ( workflowName ) => {
-		const confirmed = await confirm(
-			// No name means the sequence row is gone, not that the lookup
-			// failed: an orphaned post has nothing left to name.
-			workflowName
-				? getRemoveFromWorkflowConfirmation( { workflowName } )
-				: getOrphanedWorkflowRemoveConfirmation(),
-			{
-				title: getRemoveFromWorkflowLabel(),
-				confirmLabel: getRemoveFromWorkflowLabel(),
-				isDestructive: true,
-			}
-		);
-
-		if ( ! confirmed ) {
-			return;
-		}
-
-		clearErrors();
-
-		try {
-			await removeWorkflow();
-		} catch ( err ) {
-			setActionError(
-				err.message ||
-					__( 'Could not remove the workflow.', 'vip-workflows' )
-			);
-		}
-	};
 
 	// Every move goes through the transition flow, which owns the confirms,
 	// the assignee popover and the refusal dialogs (see TransitionFlow).
@@ -291,7 +167,10 @@ export function WorkflowPanel( { children } ) {
 		} catch ( err ) {
 			setActionError(
 				err.message ||
-					__( 'Failed to move the post back', 'vip-workflows' )
+					__(
+						'Could not move the post back. Try again.',
+						'vip-workflows'
+					)
 			);
 		}
 	};
@@ -309,7 +188,11 @@ export function WorkflowPanel( { children } ) {
 			} )
 			.catch( ( err ) => {
 				setActionError(
-					err.message || __( 'Failed to claim post', 'vip-workflows' )
+					err.message ||
+						__(
+							'Could not claim the post. Try again.',
+							'vip-workflows'
+						)
 				);
 				setWorkflowWriting( false );
 			} );
@@ -329,19 +212,19 @@ export function WorkflowPanel( { children } ) {
 			.catch( ( err ) => {
 				setActionError(
 					err.message ||
-						__( 'Failed to release post', 'vip-workflows' )
+						__(
+							'Could not release the post. Try again.',
+							'vip-workflows'
+						)
 				);
 				setWorkflowWriting( false );
 			} );
 	};
 
-	// The metadata slot, keyed, because it lands at a different child index in
-	// every branch below and React matches unkeyed siblings by position. Without
-	// the key the section is torn down and rebuilt the moment the status read
-	// resolves and the panel swaps branches — every user field re-running its
-	// lookup, any open popover closing — which is the blink the loading branch
-	// renders it to avoid. One key, one instance, whichever branch draws it.
-	const metadataSlot = <Fragment key="metadata">{ children }</Fragment>;
+	// Keyed, because it lands at a different child index in every branch below
+	// and React matches unkeyed siblings by position. Without the key the panel
+	// is torn down and rebuilt — re-running its ideation read — the moment the
+	// status read resolves and the panel swaps branches.
 	const ideationSlot = <IdeationPanel key="ideation" postId={ postId } />;
 
 	if ( loading ) {
@@ -356,127 +239,50 @@ export function WorkflowPanel( { children } ) {
 					<Spinner />
 					{ __( 'Loading workflow…', 'vip-workflows' ) }
 				</Stack>
-				{ /* The metadata fields are hydrated by the server bootstrap,
-				     not by the read this spinner waits on, so they are already
-				     known and stay on screen rather than blinking out until the
-				     status lands. */ }
 				{ ideationSlot }
-				{ metadataSlot }
 			</Stack>
 		);
 	}
 
 	// The post's sequence row was deleted out from under it. There is no
-	// workflow to render — but the post is not free either: the save layer reads
-	// its surviving sequence meta and refuses every status change until the
-	// identity is cleared. Offering the sequence selector here (what the
-	// `! has_workflow` branch below does) both hid that and invited the user to
-	// bury it under a second workflow. Removal is the only way out, so it is the
-	// only thing offered.
+	// workflow to move through — and the post is not free either: the save
+	// layer reads its surviving sequence meta and refuses every status change
+	// until the identity is cleared. The way out is the Workflow row in the
+	// Summary panel, which says the sequence is gone and offers removal; this
+	// panel only says why there is nothing to move.
 	if ( workflow?.orphaned ) {
 		return (
 			<Stack className="vip-workflows-panel" direction="column" gap="lg">
-				<Stack
-					className="vip-workflows-panel__empty"
-					direction="column"
-					align="center"
-					gap="md"
-				>
-					<Text variant="body-md">
-						{ __(
-							'This post belongs to a workflow that no longer exists, so its status cannot be changed.',
-							'vip-workflows'
-						) }
-					</Text>
-					<Button
-						variant="primary"
-						isDestructive
-						onClick={ () => handleRemoveWorkflow() }
-						disabled={ transitioning }
-						isBusy={ transitioning }
-					>
-						{ getRemoveFromWorkflowLabel() }
-					</Button>
-				</Stack>
-				{ /* Removal is the only action this branch offers, but it is
-				     still a network call that can fail — and with nothing
-				     shown here, a failed removal looked identical to the
-				     button doing nothing at all. */ }
-				{ actionError && (
-					<DismissibleNotice
-						status="error"
-						isDismissible
-						onRemove={ () => setActionError( null ) }
-						className="vip-workflows-panel__action-error"
-					>
-						{ actionError }
-					</DismissibleNotice>
-				) }
-				{ /* The fields are the post's, not the deleted sequence's: they
-				     are stored on the post and stay editable while its broken
-				     workflow identity is cleared. */ }
+				<Text variant="body-md" className="vip-workflows-panel__empty">
+					{ __(
+						'This post’s workflow was deleted, so its status is locked.',
+						'vip-workflows'
+					) }
+				</Text>
 				{ ideationSlot }
-				{ metadataSlot }
-				{ confirmDialog }
 			</Stack>
 		);
 	}
 
-	// No workflow assigned - show selector if sequences available.
+	// No workflow assigned. Choosing one is the Workflow row's job, in the
+	// Summary panel — a post's workflow is one property with one control.
 	if ( ! workflow?.has_workflow ) {
-		const availableSequences = workflow?.available_sequences || [];
+		const hasSequences = ( workflow?.available_sequences || [] ).length > 0;
 
-		if ( availableSequences.length === 0 ) {
-			return (
-				<Stack
-					className="vip-workflows-panel"
-					direction="column"
-					gap="lg"
-				>
-					<Text
-						variant="body-md"
-						className="vip-workflows-panel__empty"
-					>
-						{ __(
-							'No workflow available for this post type.',
-							'vip-workflows'
-						) }
-					</Text>
-					{ ideationSlot }
-					{ metadataSlot }
-				</Stack>
-			);
-		}
-
-		// The same row the assigned panel opens with, empty. A post's workflow
-		// is one property with one control, whether or not it has been set —
-		// so choosing from the list IS starting the workflow, and there is no
-		// separate button to press afterwards. No confirm can open on this
-		// branch (there is no place to give up), which is why the dialog node
-		// is not rendered here.
 		return (
-			<Stack className="vip-workflows-panel" direction="column" gap="md">
-				<WorkflowRow
-					sequence={ null }
-					availableSequences={ availableSequences }
-					disabled={ transitioning }
-					onSelect={ handleWorkflowSelect }
-				/>
-				{ /* The server can refuse an assignment — a sequence that
-				     models no stage in the post's status region — and that
-				     refusal is the answer the author needs. */ }
-				{ actionError && (
-					<DismissibleNotice
-						status="error"
-						isDismissible
-						onRemove={ () => setActionError( null ) }
-						className="vip-workflows-panel__action-error"
-					>
-						{ actionError }
-					</DismissibleNotice>
-				) }
+			<Stack className="vip-workflows-panel" direction="column" gap="lg">
+				<Text variant="body-md" className="vip-workflows-panel__empty">
+					{ hasSequences
+						? __(
+								'Not in a workflow. Choose one in the Workflow row.',
+								'vip-workflows'
+						  )
+						: __(
+								'No workflow available for this post type.',
+								'vip-workflows'
+						  ) }
+				</Text>
 				{ ideationSlot }
-				{ metadataSlot }
 			</Stack>
 		);
 	}
@@ -486,34 +292,17 @@ export function WorkflowPanel( { children } ) {
 	// one would shadow it with the server's stale metadata locks.
 	const {
 		current,
-		sequence,
 		all_statuses: allStatuses,
 		assigned_to: assignedTo,
 		can_claim: canClaim,
 		agent_pending: agentPending,
 		agent_job: agentJob,
-		available_sequences: availableSequences,
 	} = workflow;
 
 	const agentFailed = agentJob?.status === 'failed';
 
 	return (
 		<Stack className="vip-workflows-panel" direction="column" gap="lg">
-			{ /* Which sequence this post belongs to, as the document sidebar
-			     writes any other property of a post: the label beside a
-			     value you can press. It used to be the sequence's name alone,
-			     as an unlabelled heading — which named the panel but offered
-			     no way to change what it named, so the only workflow-level
-			     act available was leaving one. The same row now serves both
-			     states, so starting a workflow and moving to another are the
-			     same gesture rather than two unrelated shapes. */ }
-			<WorkflowRow
-				sequence={ sequence }
-				availableSequences={ availableSequences }
-				disabled={ transitioning }
-				onSelect={ handleWorkflowSelect }
-			/>
-
 			{ /* Assignment info */ }
 			{ assignedTo && (
 				<Stack
@@ -623,7 +412,7 @@ export function WorkflowPanel( { children } ) {
 			{ /* Where this post came from, if it came from ideation. */ }
 			{ ideationSlot }
 
-			{ /* Every action failure (assign / remove / transition / go-back /
+			{ /* Every action failure (transition / go-back /
 			     claim / release). A dismissible Notice rather than a browser
 			     alert, per the no-browser-dialogs convention. A transition's
 			     refusal is the flow's, kept in the store; a move started from
@@ -667,22 +456,9 @@ export function WorkflowPanel( { children } ) {
 				postStatus={ postStatus }
 			/>
 
-			{ /* Editorial metadata, seated directly under the rail. The fields
-			     belong to the workflow — a sequence declares them — but they
-			     are the writer's to fill in, so they continue the run of things
-			     the post is made of rather than being interrupted by the two
-			     buttons below, which act on the workflow itself. */ }
-			{ metadataSlot }
-
-			{ /* The panel's foot: what you can do to the workflow itself,
-			     rather than to the post's place in it. Ruled off from the
-			     transition buttons above because leaving the workflow is not
-			     another way to move through it — and "Exit" used to be a small
-			     underlined link tucked beside the sequence name, which is a
-			     quiet home for the one irreversible action here.
-
-			     Removal keeps its "require" gating: an enforced workflow offers
-			     no way out. */ }
+			{ /* The panel's foot: the post's record in the workflow. Ruled off
+			     from the transition buttons above because reading the trail is
+			     not another way to move through it. */ }
 			<Stack
 				className="vip-workflows-panel__footer-actions"
 				direction="column"
@@ -694,16 +470,6 @@ export function WorkflowPanel( { children } ) {
 				>
 					{ __( 'Show history', 'vip-workflows' ) }
 				</Button>
-				{ ! isWorkflowRequired && (
-					<Button
-						variant="secondary"
-						isDestructive
-						onClick={ () => handleRemoveWorkflow( sequence?.name ) }
-						disabled={ transitioning }
-					>
-						{ getRemoveFromWorkflowLabel() }
-					</Button>
-				) }
 			</Stack>
 
 			{ /* The history dialog and the DataViews inside it are fetched on
@@ -728,8 +494,6 @@ export function WorkflowPanel( { children } ) {
 					/>
 				</Suspense>
 			) }
-
-			{ confirmDialog }
 		</Stack>
 	);
 }

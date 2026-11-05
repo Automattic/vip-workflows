@@ -43,7 +43,7 @@ import {
 	getLiveEditsWarning,
 	getStatusChangeConfirmLabel,
 	getStatusChangeConfirmTitle,
-} from '../../entries/confirm-workflow-side-effect';
+} from '../../common/confirm-workflow-side-effect';
 import { refreshPostEntity } from '../refresh-post-entity';
 import {
 	REQUIRED_METADATA_LOCK,
@@ -192,8 +192,12 @@ export function TransitionFlow() {
 	useEffect( () => () => clearTimeout( reloadTimerRef.current ), [] );
 
 	const { savePost } = useDispatch( editorStore );
-	const { createErrorNotice, createInfoNotice, removeNotice } =
-		useDispatch( noticesStore );
+	const {
+		createErrorNotice,
+		createInfoNotice,
+		createWarningNotice,
+		removeNotice,
+	} = useDispatch( noticesStore );
 	const {
 		fetchWorkflowStatus,
 		receiveWorkflowStatus,
@@ -659,6 +663,19 @@ export function TransitionFlow() {
 				setTransitioningTo( null );
 				setWarningsModal( null );
 
+				// The move happened. A role assignee whose members cannot all
+				// open the post is accepted, and the response says so; tell
+				// the assigner, who can still pick someone else. One notice
+				// per assignment slot, so a repeat replaces rather than stacks.
+				// An editor notice whichever surface started the move: the
+				// warning is about the move, not a refusal of it.
+				( response.warnings || [] ).forEach( ( warning ) => {
+					createWarningNotice( warning.message, {
+						id: `vip-workflows-assignee-access-${ warning.meta_key }`,
+						isDismissible: true,
+					} );
+				} );
+
 				// The write changed the post server-side, so the editor chrome
 				// (Save button, Summary status) has to re-read the record.
 				refreshPostEntity( registry, postType, postId );
@@ -689,16 +706,21 @@ export function TransitionFlow() {
 					} );
 
 					if ( REQUIRED_METADATA_LOCK === err.code ) {
-						// The lock this refusal enforces may be newer than the
-						// editor's last status read — a sequence that gained a
-						// required field since the editor loaded. Re-read so the
-						// surfaces draw the move as held.
+						// A dirty post was saved before this request, so the
+						// field really is empty on the server. A sequence that
+						// gained it since the editor loaded would otherwise leave
+						// the move offered and refused on every click. Re-read so
+						// the surfaces pick up the server's lock and hold the move
+						// until the field is filled.
 						fetchWorkflowStatus();
 					}
 				} else {
 					reportError(
 						err.message ||
-							__( 'Transition failed', 'vip-workflows' )
+							__(
+								'Could not move the post to that stage. Try again.',
+								'vip-workflows'
+							)
 					);
 				}
 			} );
@@ -827,13 +849,8 @@ export function TransitionFlow() {
 		}
 
 		/*
-		 * The assignment this transition asks for, if any.
-		 *
-		 * An assignment is the only input the editor collects. Anything else a
-		 * stored transition carries — a retired note (`textarea`, or the older
-		 * `text`), or a kind this build does not know — is passed over rather
-		 * than allowed to block the move; the sequence editor lists it for the
-		 * author to remove.
+		 * The assignment this transition asks for, if any. An assignment is the
+		 * only input a transition captures; the write gate refuses any other.
 		 */
 		const input = ( transition.inputs || [] ).find(
 			( candidate ) => 'assignment' === candidate?.type
@@ -909,7 +926,7 @@ export function TransitionFlow() {
 				<ToolFailuresModal
 					title={ __( 'Warnings detected', 'vip-workflows' ) }
 					message={ __(
-						'The following warnings were detected:',
+						'Review the warnings before you continue.',
 						'vip-workflows'
 					) }
 					softWarnings={ warningsModal.warnings }

@@ -183,7 +183,7 @@ class AssistantsController extends WP_REST_Controller {
 		if ( ! $saved ) {
 			return new WP_Error(
 				'save_failed',
-				__( 'Failed to save agent settings.', 'vip-workflows' ),
+				__( 'Could not save agent settings. Try again.', 'vip-workflows' ),
 				array( 'status' => 500 )
 			);
 		}

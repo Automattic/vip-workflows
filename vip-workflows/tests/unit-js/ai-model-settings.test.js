@@ -154,7 +154,7 @@ describe( 'a provider derived from the only connected credential', () => {
 		expect( providerSelect() ).toHaveValue( 'anthropic' );
 		expect( dirty ).toBe( true );
 		expect(
-			within( panel ).getByText( /No provider has been chosen/ )
+			within( panel ).getByText( /Using the only connected provider/ )
 		).toBeInTheDocument();
 	} );
 
@@ -252,7 +252,7 @@ describe( 'a stored provider', () => {
 		expect( providerSelect() ).toHaveValue( 'anthropic' );
 		expect( dirty ).toBe( false );
 		expect(
-			within( panel ).queryByText( /No provider has been chosen/ )
+			within( panel ).queryByText( /Using the only connected provider/ )
 		).not.toBeInTheDocument();
 	} );
 
@@ -291,7 +291,7 @@ describe( 'two connected providers and no selection', () => {
 
 		expect( providerSelect() ).toHaveValue( '' );
 		expect(
-			within( panel ).getByText( /More than one provider is connected/ )
+			within( panel ).getByText( /No provider chosen/ )
 		).toBeInTheDocument();
 	} );
 
@@ -335,7 +335,7 @@ describe( 'a stored provider that is no longer connected', () => {
 			within( panel ).getByText( /no longer connected/ )
 		).toBeInTheDocument();
 		expect(
-			within( panel ).queryByText( /No provider has been chosen/ )
+			within( panel ).queryByText( /Using the only connected provider/ )
 		).not.toBeInTheDocument();
 	} );
 
@@ -385,7 +385,7 @@ describe( 'no connected provider', () => {
 		);
 
 		expect(
-			within( panel ).getByText( /No AI provider is connected/ )
+			within( panel ).getByText( /No AI provider connected/ )
 		).toBeInTheDocument();
 		expect(
 			within( panel ).queryByLabelText( 'Provider' )

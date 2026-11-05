@@ -98,6 +98,13 @@ const DEFAULT_STATE = {
 	// The last refused move, worded for the author, until they dismiss it or
 	// start another. Shown by the sidebar panel.
 	transitionError: null,
+
+	// How many copies of the Summary rows are mounted inside core's Summary
+	// panel right now, and whether any ever has been this session. The
+	// workflow sidebar reads both to decide whether it has to carry the rows
+	// itself (see components/SummaryRowsFallback.js).
+	summaryRowsMounted: 0,
+	summaryRowsSeen: false,
 };
 
 const actions = {
@@ -202,6 +209,20 @@ const actions = {
 	 */
 	setTransitionError( message ) {
 		return { type: 'SET_TRANSITION_ERROR', message };
+	},
+
+	/**
+	 * Record that the Summary rows mounted inside core's Summary panel.
+	 */
+	mountSummaryRows() {
+		return { type: 'MOUNT_SUMMARY_ROWS' };
+	},
+
+	/**
+	 * Record that the Summary rows left core's Summary panel.
+	 */
+	unmountSummaryRows() {
+		return { type: 'UNMOUNT_SUMMARY_ROWS' };
 	},
 
 	/**
@@ -318,10 +339,10 @@ const actions = {
 	/**
 	 * Take this post out of its workflow.
 	 *
-	 * Both surfaces that offer removal — the sidebar panel's footer and the
-	 * publish veto's escape hatch — come through here, so neither can leave the
-	 * other's view of the post behind. Unlike assignment, the route answers with
-	 * a bare `true`: the post's new state (no workflow, and the sequences it
+	 * Removal is offered by the Workflow row in the Summary panel
+	 * (WorkflowSummaryRows), and it comes through here so no reader of the
+	 * store is left drawing the workflow it deleted. Unlike assignment, the
+	 * route answers with a bare `true`: the post's new state (no workflow, and the sequences it
 	 * could now be started in) has to be read.
 	 */
 	removeWorkflow:
@@ -418,6 +439,19 @@ function reducer( state = DEFAULT_STATE, action ) {
 			};
 		}
 
+		case 'MOUNT_SUMMARY_ROWS':
+			return {
+				...state,
+				summaryRowsMounted: state.summaryRowsMounted + 1,
+				summaryRowsSeen: true,
+			};
+
+		case 'UNMOUNT_SUMMARY_ROWS':
+			return {
+				...state,
+				summaryRowsMounted: Math.max( 0, state.summaryRowsMounted - 1 ),
+			};
+
 		default:
 			return state;
 	}
@@ -444,6 +478,8 @@ const selectors = {
 	isTransitioning: ( state ) =>
 		null !== state.transitioningTo || state.workflowWriting,
 	getTransitionError: ( state ) => state.transitionError,
+	areSummaryRowsMounted: ( state ) => state.summaryRowsMounted > 0,
+	haveSummaryRowsMounted: ( state ) => state.summaryRowsSeen,
 };
 
 const store = createReduxStore( STORE_NAME, {

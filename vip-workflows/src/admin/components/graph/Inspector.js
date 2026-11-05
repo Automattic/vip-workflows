@@ -320,6 +320,9 @@ function renderPanel( {
 				onAddExit={ onStage( ( target ) =>
 					onConnectTransition( selectedStage.key, target, null )
 				) }
+				onDeleteExit={ onStage( ( target ) =>
+					onDeleteTransition( selectedStage.key, target, null )
+				) }
 				// An outcome that already leads somewhere is *moved*, the way
 				// dragging its edge's endpoint moves it — the transition's
 				// settings go with it, as the To select on that edge does.
@@ -376,11 +379,11 @@ function renderPanel( {
 				>
 					{ isStart
 						? __(
-								'Content enters the flow at this stage. Drag the Start connection to another stage to change the entry point.',
+								'Drag the Start connection to another stage to change it.',
 								'vip-workflows'
 						  )
 						: __(
-								'This is a final stage — content exits the flow here. Delete this connection to make the stage non-final.',
+								'Delete this connection to make the stage non-final.',
 								'vip-workflows'
 						  ) }
 				</Text>

@@ -91,6 +91,42 @@ class AbilityExecutorErrorHandlingTest extends TestCase
     }
 
     /**
+     * The WP_Error code travels with the failure, so a log can name the cause
+     * without repeating the free-form message.
+     */
+    public function test_wp_error_code_is_kept_on_the_failure(): void
+    {
+        list( $executor ) = $this->executor_returning(
+            new \WP_Error( 'provider_timeout', 'Upstream said no.' )
+        );
+
+        $result = $executor->execute( 'vip-workflows/some-check' );
+
+        $this->assertSame( 'provider_timeout', $result->error_code );
+    }
+
+    /**
+     * A thrown exception records its class as the code.
+     */
+    public function test_exception_class_is_kept_as_the_error_code(): void
+    {
+        $ability = Mockery::mock( 'WP_Ability' );
+        $ability->shouldReceive( 'execute' )->andThrow( new \RuntimeException( 'secret detail' ) );
+        Functions\when( 'wp_get_ability' )->justReturn( $ability );
+
+        $repository = Mockery::mock( AbilityResultRepository::class );
+        $repository->shouldReceive( 'save' )->andReturnUsing( fn( $r ) => $r );
+        $event_bus = Mockery::mock( EventBus::class );
+        $event_bus->shouldIgnoreMissing();
+
+        $result = ( new AbilityExecutor( $repository, $event_bus ) )->execute( 'vip-workflows/some-check' );
+
+        $this->assertFalse( $result->success );
+        $this->assertSame( 'secret detail', $result->error );
+        $this->assertSame( 'RuntimeException', $result->error_code );
+    }
+
+    /**
      * A genuine success must still be a success — the fix must not turn every
      * array-returning ability into a failure.
      */

@@ -36,7 +36,7 @@ import {
 	getTransitionPublishConfirmLabel,
 	getTransitionPublishConfirmTitle,
 	getTransitionPublishWarning,
-} from '../../entries/confirm-workflow-side-effect';
+} from '../../common/confirm-workflow-side-effect';
 import { ModalActions } from '../../common/ModalActions';
 
 /**

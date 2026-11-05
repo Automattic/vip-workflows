@@ -110,7 +110,7 @@ function register_agent_meta( $registry ): void {
 		'workflow-agent-copy-edit',
 		array(
 			'label'        => __( 'Copy edit', 'workflow-agent-copy-edit' ),
-			'description'  => __( 'Copy-edits a post body for grammar, spelling, and style, saving changes as a revision.', 'workflow-agent-copy-edit' ),
+			'description'  => __( 'Copy-edits the post, saving changes as a revision.', 'workflow-agent-copy-edit' ),
 			'icon'         => 'pencil',
 			'ability_ids'  => array( 'workflow-agent-copy-edit/copy-edit' ),
 			'capabilities' => array( 'stage' ),
