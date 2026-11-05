@@ -376,7 +376,8 @@ export function getLiveEditsWarning() {
  *
  * A transition into a publish-region stage crosses the publish boundary, so
  * `StatusManager::transition()` writes `publish` before the stage move — the
- * post goes publicly live as a side effect of what reads as a workflow step.
+ * post goes live as a side effect of what reads as a workflow step. (Live is
+ * not necessarily public: a private or password-protected post publishes too.)
  * Core's own Publish button asks before doing that; a transition that does the
  * same thing owes the same question.
  *

@@ -2,8 +2,8 @@
  * The confirm that stands between a transition and publishing the post.
  *
  * A transition into a publish-region stage crosses the publish boundary, so the
- * server writes `publish` before the stage move — the post goes publicly live
- * from a sidebar button that reads as a workflow step. Core's own Publish
+ * server writes `publish` before the stage move — the post goes live from a
+ * sidebar button that reads as a workflow step. Core's own Publish
  * button asks first; these tests pin that the panel does too, that declining
  * really declines, and that the question is only asked when publishing is
  * actually the news: a within-region move, or a post that is already live,

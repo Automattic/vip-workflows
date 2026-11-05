@@ -806,12 +806,12 @@ export function TransitionFlow() {
 
 		// A transition into a publish-region stage takes the post live: the
 		// edge crosses the publish boundary, so the server writes `publish`
-		// before the stage move. Going publicly visible deserves an explicit
-		// yes — core's own Publish button asks for one — so it is asked here,
-		// once, before any input modal. Already-live posts are exempt on both
-		// sides of the check: a move between two publish-region stages writes
-		// no status, and a live post seated at a draft-region stage (the
-		// boundary anomaly) is already public, so there is no news to confirm.
+		// before the stage move. Publishing deserves an explicit yes — core's
+		// own Publish button asks for one — so it is asked here, once, before
+		// any input modal. Already-live posts are exempt on both sides of the
+		// check: a move between two publish-region stages writes no status,
+		// and a live post seated at a draft-region stage (the boundary
+		// anomaly) is already published, so there is no news to confirm.
 		// A scheduled post is NOT exempt — its stage stayed put, so the
 		// crossing still happens and publishes it now, ahead of its schedule.
 		const publishes =

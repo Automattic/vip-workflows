@@ -4,9 +4,8 @@
  * The real package pulls @wordpress/blocks, whose ESM-only dependencies Jest
  * cannot parse, so test files mock it. Most need only the store's name. The
  * pre-publish step (PrePublishConfirm) also renders the `PluginPrePublishPanel`
- * slot and core's visibility label, so this gives it a working slot — built
- * the way core builds it, from `createSlotFill` under core's name — and a
- * fixed label.
+ * slot, so this gives it a working slot — built the way core builds it, from
+ * `createSlotFill` under core's name.
  *
  * Use it from a hoisted mock, which may only `require`:
  *
