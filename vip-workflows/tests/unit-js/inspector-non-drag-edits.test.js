@@ -353,6 +353,56 @@ describe( 'Re-pointing a transition without dragging its endpoint', () => {
 	} );
 } );
 
+describe( 'Un-marking a final stage from its panel', () => {
+	it( 'removes End of workflow through the canvas’s own mutation', () => {
+		// The same call the canvas's "Not a final stage" makes: deleting the
+		// edge to End is what clears `is_terminal`. The stage stays selected.
+		const onDeleteTransition = jest.fn();
+		const onSelectNode = jest.fn();
+		renderInspector( {
+			selection: { type: 'node', key: 'done' },
+			selectedStage: STAGES[ 2 ],
+			onDeleteTransition,
+			onSelectNode,
+		} );
+
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'Remove end of workflow' } )
+		);
+
+		expect( onDeleteTransition ).toHaveBeenCalledWith(
+			'done',
+			'__wf_end__',
+			null
+		);
+		expect( onSelectNode ).toHaveBeenCalledWith( 'done' );
+	} );
+
+	it( 'points the End connection’s panel at that row', () => {
+		renderInspector( {
+			selection: { type: 'edge', from: 'done', to: '__wf_end__' },
+			selectedStage: null,
+		} );
+
+		expect(
+			screen.getByText( /remove End of workflow from the stage’s exits/ )
+		).toBeInTheDocument();
+	} );
+
+	it( 'points the Start connection’s panel at the Draft entry checkpoint', () => {
+		renderInspector( {
+			selection: { type: 'edge', from: '__wf_start__', to: 'draft' },
+			selectedStage: null,
+		} );
+
+		expect(
+			screen.getByText(
+				/set the entry checkpoint in the “Draft” post status options/
+			)
+		).toBeInTheDocument();
+	} );
+} );
+
 describe( 'The canvas’s creation verbs, in the sequence panel', () => {
 	const nothingSelected = ( settings = {} ) => ( {
 		selection: null,

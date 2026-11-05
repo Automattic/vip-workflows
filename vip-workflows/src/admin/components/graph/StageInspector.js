@@ -69,8 +69,15 @@
  * @package
  */
 
-import { useState, useEffect, useMemo } from '@wordpress/element';
 import {
+	useState,
+	useEffect,
+	useMemo,
+	useRef,
+	useContext,
+} from '@wordpress/element';
+import {
+	Button,
 	TextControl,
 	SelectControl,
 	ComboboxControl,
@@ -79,7 +86,7 @@ import {
 	MenuItem,
 	MenuItemsChoice,
 } from '@wordpress/components';
-import { chevronDown } from '@wordpress/icons';
+import { chevronDown, trash } from '@wordpress/icons';
 import { Stack, Text } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
 import { paletteOptions } from '../../utils/stage-palette';
@@ -102,7 +109,7 @@ import { Fact, SortableFact } from './InspectorFacts';
 // field's — one menu, one option per thing that can be added — and an exit is
 // added to a list exactly as a capture input is.
 import { InspectorFieldListAdd } from './InspectorFieldList';
-import InspectorShell from './InspectorShell';
+import InspectorShell, { InspectorPanelContext } from './InspectorShell';
 import InspectorSection from './InspectorSection';
 import InspectorDangerZone from './InspectorDangerZone';
 import {
@@ -323,6 +330,8 @@ export default function StageInspector( {
 	onSelectRegion,
 	onSetStatus,
 	onAddExit,
+	// Un-marks a final stage: the End of workflow row's remove.
+	onClearTerminal,
 	onRouteOutcome,
 	onClearOutcome,
 	exitOptions = [],
@@ -664,10 +673,39 @@ export default function StageInspector( {
 		.filter( Boolean )
 		.join( ' ' );
 
+	// A final stage leaves the flow, and that is an exit like any other: it is
+	// listed with the rest and removed the same way, which is what un-marks the
+	// stage. An AI stage leaves only by its outcomes and cannot be made final
+	// (`isValidConnection`), so it gets no row — the same rule the canvas menu
+	// gates "Not a final stage" on.
+	const isFinal = ! isAgent && Boolean( stage.is_terminal );
+
+	// Removing the End row unmounts the button that was pressed, which would
+	// drop focus to the document. Once the stage reports itself no longer
+	// final, focus moves to the exits' Add control — where End is now offered
+	// again — or to the panel heading when nothing can be added.
+	const exitsRef = useRef( null );
+	const refocusAfterClear = useRef( false );
+	const panel = useContext( InspectorPanelContext );
+	useEffect( () => {
+		if ( isFinal || ! refocusAfterClear.current ) {
+			return;
+		}
+		refocusAfterClear.current = false;
+		const target =
+			exitsRef.current?.querySelector( 'button' ) ||
+			panel?.headingRef?.current;
+		target?.focus();
+	}, [ isFinal, panel ] );
+	const clearTerminal = () => {
+		refocusAfterClear.current = true;
+		onClearTerminal();
+	};
+
 	// Whether the stage has any exit at all to report. An AI stage always does:
 	// its three outcomes are listed whether or not they lead anywhere, because
 	// an unrouted outcome is a thing to fix rather than a thing to omit.
-	const hasExits = isAgent || transitions.length > 0;
+	const hasExits = isAgent || isFinal || transitions.length > 0;
 
 	return (
 		<InspectorShell
@@ -797,7 +835,7 @@ export default function StageInspector( {
 						/>
 					</Stack>
 
-					<div className="wf-stage-inspector__exits">
+					<div className="wf-stage-inspector__exits" ref={ exitsRef }>
 						{ /* An exit that needs a destination named needs a
 						     picker to name it in, and this is where the exits
 						     already are. No heading over it: the rows say what
@@ -1073,6 +1111,44 @@ export default function StageInspector( {
 											}
 										) }
 									</SortableContext>
+									{ /* Last, as End is last in Add exit: the
+									     flow's exit is where every other
+									     destination ends up. */ }
+									{ isFinal && (
+										<Fact
+											className="wf-stage-inspector__route"
+											label={ __(
+												'End of workflow',
+												'vip-workflows'
+											) }
+											value={ __(
+												'Final stage',
+												'vip-workflows'
+											) }
+											trailing={
+												onClearTerminal ? (
+													<Button
+														icon={ trash }
+														label={ __(
+															'Remove end of workflow',
+															'vip-workflows'
+														) }
+														showTooltip
+														onClick={
+															clearTerminal
+														}
+														isDestructive
+														size="small"
+													/>
+												) : undefined
+											}
+										>
+											<span
+												className="wf-stage-inspector__route-dot"
+												aria-hidden="true"
+											/>
+										</Fact>
+									) }
 								</Stack>
 							</DndContext>
 						) : (

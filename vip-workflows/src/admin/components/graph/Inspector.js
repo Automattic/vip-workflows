@@ -56,7 +56,7 @@ import {
 	START_ID,
 	END_ID,
 } from './graph-model';
-import { DEFAULT_REGION } from './regions';
+import { DEFAULT_REGION, regionLabel } from './regions';
 
 import './Inspector.css';
 
@@ -320,6 +320,11 @@ function renderPanel( {
 				onAddExit={ onStage( ( target ) =>
 					onConnectTransition( selectedStage.key, target, null )
 				) }
+				// The End row's remove is the canvas's "Not a final stage":
+				// deleting the edge to End is what clears the flag.
+				onClearTerminal={ onStage( () =>
+					onDeleteTransition( selectedStage.key, END_ID, null )
+				) }
 				// An outcome that already leads somewhere is *moved*, the way
 				// dragging its edge's endpoint moves it — the transition's
 				// settings go with it, as the To select on that edge does.
@@ -375,12 +380,16 @@ function renderPanel( {
 					className="wf-inspector__help"
 				>
 					{ isStart
-						? __(
-								'Content enters the flow at this stage. Drag the Start connection to another stage to change the entry point.',
-								'vip-workflows'
+						? sprintf(
+								/* translators: %s: post status label (e.g. Draft) */
+								__(
+									'Content enters the flow at this stage. To change it, set the entry checkpoint in the “%s” post status options, or drag the Start connection to another stage.',
+									'vip-workflows'
+								),
+								regionLabel( DEFAULT_REGION )
 						  )
 						: __(
-								'This is a final stage — content exits the flow here. Delete this connection to make the stage non-final.',
+								'This is a final stage — content exits the flow here. To make it non-final, remove End of workflow from the stage’s exits, or delete this connection.',
 								'vip-workflows'
 						  ) }
 				</Text>

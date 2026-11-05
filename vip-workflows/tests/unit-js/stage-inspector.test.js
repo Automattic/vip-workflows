@@ -46,6 +46,8 @@ import {
 	act,
 } from './helpers/render-wp-component';
 
+import { useState } from '@wordpress/element';
+
 import { isTransitionDisabled } from '../../src/admin/components/graph/graph-model';
 import StageInspector from '../../src/admin/components/graph/StageInspector';
 
@@ -1150,5 +1152,135 @@ describe( 'StageInspector panel structure', () => {
 				screen.queryByText( /following the on-error route/ )
 			).not.toBeInTheDocument();
 		} );
+	} );
+} );
+
+describe( 'StageInspector End of workflow exit', () => {
+	// Making a stage final is an exit added from the panel, so un-making it is
+	// an exit removed from the panel: the stage's exits list carries an End of
+	// workflow row with a remove control, and removing it clears the flag.
+	const removeEnd = () =>
+		screen.queryByRole( 'button', { name: 'Remove end of workflow' } );
+
+	/**
+	 * Render a stage whose final flag lives in state, the way the editor holds
+	 * it, so removing the row re-renders the panel without it.
+	 *
+	 * @param {Object} initial Initial stage.
+	 * @return {jest.Mock} The clear handler.
+	 */
+	function renderStateful( initial ) {
+		const onClear = jest.fn();
+		function Harness() {
+			const [ current, setCurrent ] = useState( initial );
+			return (
+				<StageInspector
+					stage={ current }
+					availableAgents={ AGENTS }
+					resolveStageLabel={ ( key ) =>
+						key === 'done' ? 'Done' : key
+					}
+					stageExists={ ( key ) => key === 'done' }
+					isTransitionDisabled={ () => false }
+					// End is offered again once the stage is not final.
+					exitOptions={
+						current.is_terminal
+							? []
+							: [
+									{
+										label: 'End of workflow',
+										value: '__wf_end__',
+									},
+							  ]
+					}
+					onAddExit={ () => {} }
+					onClearTerminal={ () => {
+						onClear();
+						setCurrent( ( s ) => ( { ...s, is_terminal: false } ) );
+					} }
+					onChange={ () => {} }
+					onDelete={ () => {} }
+					canDelete={ true }
+					isKeyInUse={ () => false }
+				/>
+			);
+		}
+		render( <Harness /> );
+		return onClear;
+	}
+
+	it( 'lists End of workflow among the exits of a final stage', () => {
+		renderInspector( stage( { is_terminal: true } ), jest.fn(), {
+			onClearTerminal: jest.fn(),
+		} );
+
+		expect( screen.getByText( 'End of workflow' ) ).toBeInTheDocument();
+		expect( screen.getByText( 'Final stage' ) ).toBeInTheDocument();
+		expect( removeEnd() ).toBeInTheDocument();
+	} );
+
+	it( 'counts the flow’s exit as a way out, not an empty list', () => {
+		renderInspector(
+			stage( { is_terminal: true, transitions: [] } ),
+			jest.fn(),
+			{ onClearTerminal: jest.fn() }
+		);
+
+		expect( screen.getByText( 'End of workflow' ) ).toBeInTheDocument();
+		expect(
+			screen.queryByText( /Nothing leaves this stage yet/ )
+		).toBeNull();
+	} );
+
+	it( 'shows no End row on a stage that is not final', () => {
+		renderInspector( stage(), jest.fn(), {
+			onClearTerminal: jest.fn(),
+		} );
+
+		expect( screen.queryByText( 'End of workflow' ) ).toBeNull();
+		expect( removeEnd() ).toBeNull();
+	} );
+
+	it( 'clears the final flag when the row is removed', () => {
+		const onClear = renderStateful( stage( { is_terminal: true } ) );
+
+		fireEvent.click( removeEnd() );
+
+		expect( onClear ).toHaveBeenCalledTimes( 1 );
+		expect( screen.queryByText( 'End of workflow' ) ).toBeNull();
+		expect( removeEnd() ).toBeNull();
+	} );
+
+	it( 'keeps keyboard focus in the panel after the row is removed', () => {
+		renderStateful( stage( { is_terminal: true } ) );
+
+		const button = removeEnd();
+		button.focus();
+		fireEvent.click( button );
+
+		// The pressed button is gone; focus lands on Add exit, where End is
+		// on offer again, rather than falling to the document.
+		expect(
+			screen.getByRole( 'button', { name: 'Add exit' } )
+		).toHaveFocus();
+		expect( document.body ).not.toHaveFocus();
+	} );
+
+	it( 'gives an AI stage no End row, whatever its stored flag says', () => {
+		// An AI stage leaves only by its outcomes and cannot be final.
+		renderInspector(
+			stage( {
+				is_terminal: true,
+				agent: {
+					ability_id: AGENTS[ 0 ].id,
+					routing: { pass: 'done' },
+				},
+			} ),
+			jest.fn(),
+			{ onClearTerminal: jest.fn() }
+		);
+
+		expect( screen.queryByText( 'End of workflow' ) ).toBeNull();
+		expect( removeEnd() ).toBeNull();
 	} );
 } );
