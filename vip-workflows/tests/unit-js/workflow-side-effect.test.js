@@ -396,17 +396,19 @@ describe( 'getTransitionWarningsMessage', () => {
 
 describe( 'getTransitionPublishWarning', () => {
 	// A transition into a publish-region stage writes `publish` before the
-	// stage move, so the post goes publicly live as a side effect of what
-	// reads as a workflow step. The confirm names the destination stage and
-	// says plainly that the post becomes public.
-	it( 'names the destination stage and says the post goes public', () => {
+	// stage move, so the post goes live as a side effect of what reads as a
+	// workflow step. The confirm names the destination stage and says, once,
+	// that the move publishes. It does not say "publicly": who can see the
+	// post is its visibility setting, and a private post is not public.
+	it( 'names the destination stage and says, once, that the move publishes', () => {
 		const message = getTransitionPublishWarning( {
 			stageLabel: 'On the site',
 			scheduled: false,
 		} );
 
-		expect( message ).toContain( 'On the site' );
-		expect( message ).toContain( 'publicly visible' );
+		expect( message ).toBe(
+			'Moving this post to “On the site” publishes it right away.'
+		);
 	} );
 
 	// A scheduled post's stage stayed put when it was scheduled, so moving it
@@ -419,9 +421,9 @@ describe( 'getTransitionPublishWarning', () => {
 			scheduled: true,
 		} );
 
-		expect( message ).toContain( 'On the site' );
-		expect( message ).toContain( 'scheduled' );
-		expect( message ).toContain( 'now' );
+		expect( message ).toBe(
+			'This post is scheduled. Moving it to “On the site” publishes it now, not at its scheduled time.'
+		);
 	} );
 } );
 

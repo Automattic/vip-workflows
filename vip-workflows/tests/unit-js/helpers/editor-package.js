@@ -36,13 +36,4 @@ export function PluginPrePublishPanel( { children } ) {
 
 PluginPrePublishPanel.Slot = Slot;
 
-/**
- * Core's visibility label, fixed.
- *
- * @return {string} The label.
- */
-export function PostVisibilityLabel() {
-	return 'Public';
-}
-
 export const store = 'core/editor';

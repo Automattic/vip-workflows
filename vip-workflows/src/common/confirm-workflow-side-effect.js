@@ -380,6 +380,11 @@ export function getLiveEditsWarning() {
  * Core's own Publish button asks before doing that; a transition that does the
  * same thing owes the same question.
  *
+ * One statement, in the verb the title and button use. It used to add "it
+ * becomes publicly visible", which said the same thing twice and was wrong
+ * for a private or password-protected post. Who can see a published post is
+ * the post's visibility setting, which this does not restate.
+ *
  * The scheduled variant exists because a scheduled post's stage stays where it
  * was (scheduling is an overlay), so moving it into a publish-region stage
  * still crosses the boundary — and publishes it now, overriding the schedule.
@@ -396,7 +401,7 @@ export function getTransitionPublishWarning( { stageLabel, scheduled } ) {
 		return sprintf(
 			/* translators: %s: destination workflow stage label, e.g. "Published". */
 			__(
-				'This post is scheduled. Moving it to “%s” publishes it now, instead of at its scheduled time.',
+				'This post is scheduled. Moving it to “%s” publishes it now, not at its scheduled time.',
 				'vip-workflows'
 			),
 			stageLabel
@@ -406,7 +411,7 @@ export function getTransitionPublishWarning( { stageLabel, scheduled } ) {
 	return sprintf(
 		/* translators: %s: destination workflow stage label, e.g. "Published". */
 		__(
-			'Moving this post to “%s” publishes it: it becomes publicly visible right away.',
+			'Moving this post to “%s” publishes it right away.',
 			'vip-workflows'
 		),
 		stageLabel
