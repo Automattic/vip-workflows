@@ -59,6 +59,18 @@ class SeoCheckParagraphCountTest extends TestCase
             'classic content split on blank lines' => array( "First paragraph.\n\nSecond paragraph.\r\n\r\nThird.", 3 ),
             'classic headings are not paragraphs' => array( "<h2>Heading</h2>\n\nOnly paragraph.\n\n<ul><li>Item</li></ul>", 1 ),
             'single line breaks stay one paragraph' => array( "Line one.\nLine two.", 1 ),
+            'mixed classic and block content'    => array( "Classic one.\n\nClassic two.\n\n<p>Block one.</p>", 3 ),
+            'Gutenberg list only'                => array( "<!-- wp:list -->\n<ul><li>One</li></ul>\n<!-- /wp:list -->", 0 ),
+            'Gutenberg heading only'             => array( "<!-- wp:heading -->\n<h2>Heading</h2>\n<!-- /wp:heading -->", 0 ),
+            'paragraph only inside a comment'    => array( '<!-- <p>Not shown.</p> -->', 0 ),
+            'quoted > in an empty paragraph'     => array( '<p data-note=">">&nbsp;</p>', 0 ),
+            'quoted > in a paragraph with text'  => array( '<p data-note=">">Text</p>', 1 ),
+            'single-quoted > attribute'          => array( "<p data-note='>'>Text</p>", 1 ),
+            'paragraph inside a group'           => array( '<!-- wp:group --><div class="wp-block-group"><!-- wp:paragraph --><p>Inside.</p><!-- /wp:paragraph --></div><!-- /wp:group -->', 1 ),
+            'paragraphs inside columns'          => array( '<div class="wp-block-columns"><div class="wp-block-column"><p>Left.</p></div><div class="wp-block-column"><p>Right.</p></div></div>', 2 ),
+            'uppercase tags'                     => array( '<P>One.</P><P CLASS="x">Two.</P>', 2 ),
+            'text either side of a paragraph'    => array( 'Before.<p>Middle.</p>After.', 3 ),
+            'image on its own line'              => array( "<img src=\"a.jpg\" alt=\"\">\n\nOnly paragraph.", 1 ),
         );
     }
 
@@ -68,6 +80,22 @@ class SeoCheckParagraphCountTest extends TestCase
     public function test_counts_paragraphs_a_reader_sees( string $content, int $expected ): void
     {
         $this->assertSame( $expected, count_paragraphs( $content ) );
+    }
+
+    /**
+     * The patterns stay linear: a long post with many paragraphs, a quoted
+     * attribute and block delimiters on each is counted quickly and right.
+     */
+    public function test_large_content_is_counted_quickly(): void
+    {
+        $content = str_repeat( "<!-- wp:paragraph -->\n<p class=\"note\" data-x=\"a>b\">" . str_repeat( 'word ', 30 ) . "</p>\n<!-- /wp:paragraph -->\n\n", 1000 );
+        $this->assertGreaterThan( 200000, strlen( $content ) );
+
+        $started = microtime( true );
+        $count   = count_paragraphs( $content );
+
+        $this->assertSame( 1000, $count );
+        $this->assertLessThan( 1.0, microtime( true ) - $started );
     }
 
     public function test_too_few_paragraphs_emits_an_issue_keyed_to_the_setting(): void

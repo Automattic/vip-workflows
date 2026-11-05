@@ -12,37 +12,74 @@ namespace VIPWorkflows\Abilities\Tools;
 /**
  * Count the paragraphs a reader sees.
  *
- * Block editor content stores each paragraph as a `<p>` element, so those are
- * counted. Classic editor content is stored without them: WordPress adds the
- * `<p>` tags on display with wpautop(), which splits on blank lines and leaves
- * block-level elements unwrapped, so content with no `<p>` at all is split the
- * same way. Paragraphs with no visible text (an empty block, a lone `&nbsp;`)
- * are not counted.
+ * HTML comments are removed first: they show nothing, and Gutenberg's block
+ * delimiters are comments, so a `<p>` inside one is not a paragraph and a
+ * block's delimiter does not hide the block-level element that follows it.
+ *
+ * Then two kinds of paragraph are counted, and added together, because a post
+ * can hold both:
+ *
+ * - `<p>` elements, which is how block content stores a paragraph. The tag
+ *   pattern reads quoted attribute values, so a `>` inside one does not end
+ *   the tag early.
+ * - Text outside those elements, counted the way wpautop() would wrap classic
+ *   content: split on blank lines, leaving out chunks that open with a
+ *   block-level element (a heading, a list, a table, a wrapper `<div>`),
+ *   which wpautop() does not wrap.
+ *
+ * Either kind counts only if it has visible text, so an empty block, a lone
+ * `&nbsp;`, an image on its own line or a leftover closing tag is not a
+ * paragraph.
  *
  * @param string $content Post content.
  * @return int Paragraph count.
  */
 function count_paragraphs( string $content ): int {
-	if ( preg_match_all( '/<p\b[^>]*>(.*?)<\/p>/is', $content, $matches ) ) {
-		$blocks = $matches[1];
-	} else {
-		// A chunk that opens with a block-level element (a heading, a list, a
-		// table) is not wrapped in `<p>` by wpautop(), so it is not a paragraph.
-		$blocks = array_filter(
-			preg_split( '/\R\s*\R/', $content ),
-			static fn( $chunk ) => ! preg_match( '/^\s*<(?:h[1-6]|ul|ol|dl|table|figure|pre|hr|div)\b/i', $chunk )
-		);
+	$content   = preg_replace( '/<!--.*?-->/s', '', $content );
+	$count     = 0;
+	$remainder = null === $content ? null : preg_replace_callback(
+		'/<p\b(?:[^>"\']++|"[^"]*+"|\'[^\']*+\')*+>(.*?)<\/p\s*>/is',
+		static function ( array $paragraph ) use ( &$count ): string {
+			if ( has_visible_text( $paragraph[1] ) ) {
+				++$count;
+			}
+
+			// A paragraph break, so text on either side stays two chunks.
+			return "\n\n";
+		},
+		$content
+	);
+
+	if ( null === $remainder ) {
+		// The pattern hit a PCRE limit, so the count would be a guess.
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( '[VIP Workflows] SEO check could not count paragraphs: ' . preg_last_error_msg() );
+		return 0;
 	}
 
-	$count = 0;
-	foreach ( $blocks as $block ) {
-		$text = html_entity_decode( wp_strip_all_tags( $block ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-		if ( '' !== trim( $text, " \t\n\r\0\x0B\u{00A0}" ) ) {
+	foreach ( preg_split( '/\R\s*\R/', $remainder ) as $chunk ) {
+		if ( preg_match( '/^\s*<(?:h[1-6]|ul|ol|dl|table|figure|pre|hr|div)\b/i', $chunk ) ) {
+			continue;
+		}
+
+		if ( has_visible_text( $chunk ) ) {
 			++$count;
 		}
 	}
 
 	return $count;
+}
+
+/**
+ * Whether markup shows any text once its tags and entities are gone.
+ *
+ * @param string $markup HTML fragment.
+ * @return bool
+ */
+function has_visible_text( string $markup ): bool {
+	$text = html_entity_decode( wp_strip_all_tags( $markup ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+
+	return '' !== trim( $text, " \t\n\r\0\x0B\u{00A0}" );
 }
 
 /**
