@@ -22,7 +22,7 @@ import {
 	getTransitionPublishWarning,
 	getTransitionWarningsMessage,
 	statusToRegion,
-} from '../../src/entries/confirm-workflow-side-effect';
+} from '../../src/common/confirm-workflow-side-effect';
 
 /**
  * A sequence whose draft checkpoint is NOT its first draft stage.

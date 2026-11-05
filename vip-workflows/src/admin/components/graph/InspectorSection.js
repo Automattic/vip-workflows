@@ -32,8 +32,7 @@ import {
 	useRef,
 	useState,
 } from '@wordpress/element';
-import { Collapsible, Stack, Text } from '@wordpress/ui';
-import { Icon } from '@wordpress/components';
+import { Collapsible, Icon, Stack, Text } from '@wordpress/ui';
 import { chevronRight } from '@wordpress/icons';
 
 // Where focus goes when the heading's actions take themselves away.

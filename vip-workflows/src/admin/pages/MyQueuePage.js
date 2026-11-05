@@ -33,7 +33,7 @@ import { useConfirm } from '../../common/use-confirm';
 import {
 	getTransitionWarningsMessage,
 	getTransitionWarningsTitle,
-} from '../../entries/confirm-workflow-side-effect';
+} from '../../common/confirm-workflow-side-effect';
 
 import './MyQueuePage.css';
 
