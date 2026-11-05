@@ -57,17 +57,17 @@ function execute_get_my_assignments( ?array $input = null ) {
 		}
 
 		$sequence_id = get_post_meta( $post->ID, '_vip_workflows_sequence_id', true );
-		$stage_key    = get_post_meta( $post->ID, '_vip_workflows_current_stage_key', true );
+		$stage_key   = get_post_meta( $post->ID, '_vip_workflows_current_stage_key', true );
 
 		$posts[] = array(
-			'post_id'       => $post->ID,
-			'title'         => $post->post_title,
-			'post_type'     => $post->post_type,
-			'status'        => $post->post_status,
-			'stage'         => $stage_key ? $stage_key : null,
-			'sequence_id'   => $sequence_id ? (int) $sequence_id : null,
-			'modified'      => $post->post_modified,
-			'edit_url'      => get_edit_post_link( $post->ID, 'raw' ) ? get_edit_post_link( $post->ID, 'raw' ) : '',
+			'post_id'     => $post->ID,
+			'title'       => $post->post_title,
+			'post_type'   => $post->post_type,
+			'status'      => $post->post_status,
+			'stage'       => $stage_key ? $stage_key : null,
+			'sequence_id' => $sequence_id ? (int) $sequence_id : null,
+			'modified'    => $post->post_modified,
+			'edit_url'    => get_edit_post_link( $post->ID, 'raw' ) ? get_edit_post_link( $post->ID, 'raw' ) : '',
 		);
 	}
 

@@ -41,9 +41,8 @@ do_action('vip_workflows_status_transition', $post_id, $new, $old, $sequence, $c
 do_action('vip_workflows_entered_{stage}', $post_id, $old_stage, $sequence, $context);
 do_action('vip_workflows_exited_{stage}', $post_id, $new_stage, $sequence, $context);
 
-// Tool events
-do_action('vip_workflows_ability_executed', $ability_id, $post_id, $result);
-do_action('vip_workflows_ability_failed', $ability_id, $post_id, $error);
+// Every EventBus event, including tool runs ('ability.executed' / 'ability.failed')
+do_action('vip_workflows_event_emitted', $event_type, $event_data, $event_id);
 
 // Registration
 do_action('vip_workflows_register_abilities');
@@ -68,7 +67,7 @@ POST        /vip-workflows/v1/sequences/{id}/repair-regions  # normalize a store
 
 # Workflow
 GET         /vip-workflows/v1/workflow/post/{id}/status
-POST        /vip-workflows/v1/workflow/post/{id}/transition
+POST        /vip-workflows/v1/workflow/post/{id}/transition    # 400 assignee_cannot_read for a user who can't read the post; success may add warnings[] {type, meta_key, role, message} for a role assignee
 GET         /vip-workflows/v1/workflow/post/{id}/history
 
 # Abilities (Tools)
@@ -160,6 +159,15 @@ GET         /vip-workflows/v1/audit-log/users
   `assignee_type`, `label`, `filter`)
 - Frontend sends `inputData` — the assignee under the assignment's `meta_key`,
   plus optional `{meta_key}_notes` — during the transition
+- `StatusManager::transition()` accepts only the keys the edge's assignment
+  declares (`meta_key`, `{meta_key}_notes`, and each one's `__name` label);
+  any other `input_data` key fails the transition with a 400
+  (`unknown_transition_input`) naming the key, and nothing is written
+- A self-edge (a stage to itself) writes its assignment slot only if the slot
+  still holds what the transition read when it started. A concurrent write to
+  the slot fails the later transition with a 409 (`assignment_conflict`), and
+  nothing is written. A stage-changing edge is serialized by the stage
+  compare-and-swap instead, since each slot key belongs to one edge
 - Backend stores in TWO places:
   1. `_vip_workflows_transition_data` meta (per-status history)
   2. `wp_vip_workflows_events` table (audit log with notes column)
@@ -189,15 +197,22 @@ GET         /vip-workflows/v1/audit-log/users
 ### React/JavaScript Patterns
 
 **Editor Sidebar State**:
-- Everything lives in one "Workflow" `PluginSidebar`; there are no
-  `PluginDocumentSettingPanel`s
-- `WorkflowPanel.js` is the main controller component — one
-  `/workflow/post/{id}/status` request feeds the sequence name, the progress
-  list, assignment/claim, the stage agent's state and the transitions
+- The panels live in one "Workflow" `PluginSidebar`; there are no
+  `PluginDocumentSettingPanel`s. The Summary panel rows (below) and the
+  header split button (`WorkflowHeaderAction`) sit outside it
+- Which workflow the post is in, and its metadata fields, are rows in the
+  document sidebar's Summary panel (`WorkflowSummaryRows.js`); the Workflow
+  sidebar carries a fallback copy only where that panel cannot show them
+- `WorkflowPanel.js` draws the post's movement — one
+  `/workflow/post/{id}/status` request, held in the editor store, feeds the
+  progress list, assignment/claim, the stage agent's state and the transitions
 - Server returns transitions with `_locked` boolean for unavailable ones, plus
   `_locked_reason` and (for the required-metadata gate) `_locked_code` — see
   **Held Transitions** above for the one lock the editor may release itself
-- Modals handle input collection before calling transition API
+- `TransitionFlow.js` (mounted once from `index.js`) owns every transition:
+  the sidebar rail and the header split button dispatch `requestTransition`,
+  and the flow runs the confirms, input capture and refusal dialogs, saving a
+  dirty post before the request
 - `WorkflowSaveGuard.js` is mounted unconditionally from `index.js`, outside
   every card: core's `PanelBody` renders `isOpened && children`, so putting it
   in a panel tore down its `editor.preSavePost` filter whenever the panel closed
@@ -273,7 +288,7 @@ Shared REST endpoints live in `includes/api/class-utility-controller.php`:
 **Media Providers** (image/video sources for ideation):
 - Implement `MediaProviderInterface` (get_id, get_name, is_configured, is_generative, search_media)
 - Register via `vip_workflows_media_providers` filter
-- Return standardized result arrays with `url`, `title`, `media_type`, `thumbnail`, `provider`, etc.
+- Return standardized result arrays with `url`, `title`, `media_type`, `thumbnail`, `provider`, etc. Addresses (`url`, `source_url`, `thumbnail`) must be absolute `http://` or `https://`; anything else is dropped when the card is stored
 - Non-generative providers run automatically; generative run on-demand
 - Built-in provider keys come from `VIPWorkflows\AI\Credentials` (core Settings → Connectors, or a `VIP_WORKFLOWS_*_KEY` constant). Third-party providers read their own key from a `wp-config.php` constant.
 - Optionally implement `MediaProviderRequirements::get_unmet_requirement()` (built with `RequirementFactory`) so an unconfigured provider can explain why, instead of Media Scout reporting a bare "unavailable"

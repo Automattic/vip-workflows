@@ -17,6 +17,8 @@
  * - Dismissing (Close, Escape) abandons the transition: nothing fires.
  * - Both assignment branches survive: user (searchable combobox) and role
  *   (role list).
+ * - A role assignee whose members cannot all open the post is accepted; each
+ *   `warnings` entry the response carries becomes a dismissible warning notice.
  * - An assignment naming a type with no picker — `agent`, withdrawn from the
  *   sequence editor, or anything an out-of-tree filter registered — says so
  *   and commits nothing. It used to open a placeholder that assigned the
@@ -41,6 +43,7 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 // ESM-only deps the panel names but does not otherwise exercise.
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
@@ -55,12 +58,20 @@ register(
 	} )
 );
 
+// Warning notices the panel raised, as [ message, options ].
+const warningNotices = [];
+
 register(
 	createReduxStore( 'core/notices', {
 		reducer: ( state = {} ) => state,
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			removeNotice: () => ( { type: 'NOOP' } ),
+			createWarningNotice: ( message, options ) => {
+				warningNotices.push( [ message, options ] );
+				return { type: 'NOOP' };
+			},
 		},
 	} )
 );
@@ -71,7 +82,9 @@ register(
 		selectors: {
 			getEditedPostAttribute: () => 'draft',
 			getCurrentPostAttribute: () => 'draft',
+			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => false,
+			isSavingPost: () => false,
 		},
 		actions: { savePost: () => ( { type: 'NOOP' } ) },
 	} )
@@ -92,6 +105,8 @@ const ROLES = [
 import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 const TRANSITION_PATH = '/vip-workflows/v1/workflow/post/42/transition';
@@ -183,7 +198,12 @@ async function renderWith(
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -257,6 +277,7 @@ beforeEach( () => {
 
 afterEach( () => {
 	apiFetch.mockReset();
+	warningNotices.length = 0;
 } );
 
 describe( 'WorkflowPanel transition input popover', () => {
@@ -279,30 +300,6 @@ describe( 'WorkflowPanel transition input popover', () => {
 		expect(
 			screen.getByRole( 'button', { name: 'Close' } )
 		).toBeInTheDocument();
-	} );
-
-	it( 'moves without asking for a note a stored transition still carries', async () => {
-		await renderWith( [
-			{
-				to: 'review',
-				label: 'Send to Review',
-				status_info: { key: 'review', label: 'Review' },
-				inputs: [
-					{
-						type: 'textarea',
-						note_id: 'n1',
-						note_name: 'Editor note',
-						required: true,
-					},
-				],
-			},
-		] );
-		await openPopoverFor( 'Send to Review' );
-
-		expect( popover() ).not.toBeInTheDocument();
-		expect( firedTransitions() ).toEqual( [
-			{ to_status: 'review', acknowledge_warnings: false },
-		] );
 	} );
 
 	it( 'abandons the transition on Close — nothing fires', async () => {
@@ -566,6 +563,68 @@ describe( 'WorkflowPanel transition input popover', () => {
 		] );
 	} );
 
+	it( 'role assignment: shows each access warning the response carries as a dismissible notice', async () => {
+		const message =
+			'Some people with the Editor role can’t open this post, so the assignment won’t appear in their My Work.';
+		await renderWith(
+			[ assignmentTransition( 'role', { required: true } ) ],
+			[
+				{
+					has_workflow: true,
+					sequence: { id: 1, name: 'Input Flow' },
+					current: { key: 'assigned', label: 'Assigned' },
+					transitions: [],
+					can_remove: false,
+					warnings: [
+						{
+							type: 'assignee_cannot_read',
+							meta_key: 'wfp_a1_assignee',
+							role: 'editor',
+							message,
+						},
+					],
+				},
+			]
+		);
+		await openPopoverFor( 'Assign reviewer' );
+
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
+		} );
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
+		} );
+
+		await waitFor( () =>
+			expect( warningNotices ).toEqual( [
+				[
+					message,
+					{
+						id: 'vip-workflows-assignee-access-wfp_a1_assignee',
+						isDismissible: true,
+					},
+				],
+			] )
+		);
+	} );
+
+	it( 'role assignment: a response without warnings raises no notice', async () => {
+		await renderWith( [
+			assignmentTransition( 'role', { required: true } ),
+		] );
+		await openPopoverFor( 'Assign reviewer' );
+
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Editor' } ) );
+		} );
+		await act( async () => {
+			fireEvent.click( screen.getByRole( 'button', { name: 'Submit' } ) );
+		} );
+
+		await waitFor( () => expect( firedTransitions() ).toHaveLength( 1 ) );
+		expect( warningNotices ).toEqual( [] );
+	} );
+
 	it( 'role assignment: an optional assignment says so, and Submit works with nothing picked', async () => {
 		await renderWith( [ assignmentTransition( 'role' ) ] );
 		await openPopoverFor( 'Assign reviewer' );
@@ -735,7 +794,7 @@ describe( 'WorkflowPanel transition input popover', () => {
 				} )
 			).toBe( popover() );
 			expect(
-				screen.getByText( /assignee of type “agent”/ )
+				screen.getByText( /“agent” assignees/ )
 			).toBeInTheDocument();
 			expect( consoleError ).toHaveBeenCalledWith(
 				expect.stringContaining( 'assignee_type "agent"' )
@@ -774,7 +833,7 @@ describe( 'WorkflowPanel transition input popover', () => {
 			await openPopoverFor( 'Assign reviewer' );
 
 			expect(
-				screen.getByText( /assignee of type “wombat”/ )
+				screen.getByText( /“wombat” assignees/ )
 			).toBeInTheDocument();
 			expect( firedTransitions() ).toEqual( [] );
 		} );

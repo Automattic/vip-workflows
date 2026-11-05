@@ -14,13 +14,12 @@
  * export.
  *
  * The classic list-table surfaces (Quick Edit, Bulk Edit) cannot import — they
- * are an inline script printed by `class-posts-columns.php`. So this file is
- * also a webpack entry (`side-effect` → `build/side-effect.js`) and publishes
- * itself on `window.vipWorkflowsSideEffect` (see the bottom of this file) for
- * them to consume. Same module, same answers, same words: there is no second
- * copy of the decision table anywhere. Being a build entry is why it sits in
- * src/entries/ and not in src/common/ with the other shared modules; the React
- * surfaces import it from here.
+ * are an inline script printed by `class-posts-columns.php`. They reach this
+ * module through `src/entries/side-effect.js`, a separate webpack entry
+ * (`side-effect` → `build/side-effect.js`) that publishes it on
+ * `window.vipWorkflowsSideEffect`. Same module, same answers, same words: there
+ * is no second copy of the decision table anywhere. Importing this file has no
+ * side effects, so the admin and editor bundles that import it publish nothing.
  *
  * The decision here is UX, not enforcement. The publish veto is enforced
  * server-side at the save layer (`wp_insert_post_data` /
@@ -338,6 +337,41 @@ export function getTransitionPublishConfirmLabel() {
 }
 
 /**
+ * Title for the confirm that precedes moving a live post with unsaved edits.
+ *
+ * @return {string} Translated title.
+ */
+export function getLiveEditsConfirmTitle() {
+	return __( 'Publish your changes?', 'vip-workflows' );
+}
+
+/**
+ * Label for the button that saves a live post's edits and moves it on.
+ *
+ * @return {string} Translated label.
+ */
+export function getLiveEditsConfirmLabel() {
+	return __( 'Publish changes', 'vip-workflows' );
+}
+
+/**
+ * Copy for the confirm that precedes moving a live post with unsaved edits.
+ *
+ * Every move saves the post first, so the next stage works on what is on
+ * screen. On a live post that save is an Update: the edits go public, and
+ * stay public if the move is then refused — which a workflow step such as
+ * "Send to legal" does not otherwise say.
+ *
+ * @return {string} Translated message.
+ */
+export function getLiveEditsWarning() {
+	return __(
+		'This post is live. Moving it publishes your unsaved changes.',
+		'vip-workflows'
+	);
+}
+
+/**
  * Copy for the confirm that precedes a transition that publishes the post.
  *
  * A transition into a publish-region stage crosses the publish boundary, so
@@ -450,7 +484,7 @@ function describeStatusChange( {
 	// filled together or empty together; either one being empty is the signal.
 	if ( ! currentRegion || ! stageRegion ) {
 		return __(
-			'VIP Workflows cannot resolve this post’s workflow stage, so changing its status leaves the post where it is in the workflow.',
+			'This post’s workflow stage can’t be resolved, so the post won’t move.',
 			'vip-workflows'
 		);
 	}
@@ -474,7 +508,7 @@ function describeStatusChange( {
 			? sprintf(
 					/* translators: %s: name of the workflow stage the post will be moved to, e.g. "Ready to publish". */
 					__(
-						'Scheduling this post leaves it at its current workflow stage. When it goes live, the workflow re-seats it at “%s”.',
+						'Scheduling this post leaves it at its current workflow stage. It moves to “%s” when it goes live.',
 						'vip-workflows'
 					),
 					goLiveStage
@@ -503,7 +537,7 @@ function describeStatusChange( {
 			? sprintf(
 					/* translators: 1: current editorial region, e.g. "Published". 2: target editorial region, e.g. "Draft". */
 					__(
-						'Changing the status from %1$s to %2$s leaves this post at its current workflow stage, which is already a %2$s stage.',
+						'Changing the status from %1$s to %2$s keeps this post at its current %2$s stage.',
 						'vip-workflows'
 					),
 					from,
@@ -512,7 +546,7 @@ function describeStatusChange( {
 			: sprintf(
 					/* translators: 1: current editorial region, e.g. "Draft". 2: target editorial region, e.g. "Published". */
 					__(
-						'Changing the status from %1$s to %2$s leaves this post at its current workflow stage: its workflow has no %2$s stage to move it to.',
+						'Changing the status from %1$s to %2$s keeps this post at its stage. Its workflow has no %2$s stage.',
 						'vip-workflows'
 					),
 					from,
@@ -523,7 +557,7 @@ function describeStatusChange( {
 	return sprintf(
 		/* translators: 1: current editorial region, e.g. "Draft". 2: target editorial region, e.g. "Published". 3: name of the workflow stage the post will be moved to. */
 		__(
-			'Changing the status from %1$s to %2$s moves this post out of its current workflow stage and re-seats it at “%3$s”.',
+			'Changing the status from %1$s to %2$s moves this post to “%3$s”.',
 			'vip-workflows'
 		),
 		from,
@@ -544,7 +578,7 @@ export function getPublishVetoMessage( { title, workflowName } ) {
 	return sprintf(
 		/* translators: 1: post title. 2: workflow (sequence) name. */
 		__(
-			'“%1$s” is in the “%2$s” workflow. To publish it directly, remove it from the workflow (this is logged), or move it through the workflow to a published stage.',
+			'“%1$s” is in the “%2$s” workflow. Move it to a published stage, or remove it from the workflow.',
 			'vip-workflows'
 		),
 		title,
@@ -573,7 +607,7 @@ export function getOrphanedWorkflowMessage( { title } ) {
 	return sprintf(
 		/* translators: %s: post title. */
 		__(
-			'“%s” belongs to a workflow that no longer exists, so its status cannot be changed. Remove it from the workflow (this is logged) to edit it as an ordinary post.',
+			'“%s” is in a deleted workflow. Remove it from the workflow to change its status.',
 			'vip-workflows'
 		),
 		title
@@ -591,7 +625,7 @@ export function getOrphanedWorkflowMessage( { title } ) {
  */
 export function getOrphanedWorkflowRemoveConfirmation() {
 	return __(
-		'Remove this post from its deleted workflow? The removal is recorded in the workflow log, with the stage it was removed from. It cannot be undone.',
+		'Remove this post from its deleted workflow? This can’t be undone.',
 		'vip-workflows'
 	);
 }
@@ -608,8 +642,8 @@ export function getRemoveFromWorkflowLabel() {
 /**
  * Copy for the confirm that precedes removing a post from its workflow.
  *
- * States both consequences the user is agreeing to: the removal is recorded,
- * and it is not reversible — `StatusManager::assign_sequence()` seats the post
+ * States the consequence the user is agreeing to: the post loses its place,
+ * and that is not reversible — `StatusManager::assign_sequence()` seats the post
  * at the checkpoint of whatever region its status puts it in
  * (`Sequence::get_region_entry_stage()`), which is not necessarily the first
  * stage of that region and is never the stage it was removed from.
@@ -622,7 +656,7 @@ export function getRemoveFromWorkflowConfirmation( { workflowName } ) {
 	return sprintf(
 		/* translators: %s: workflow (sequence) name. */
 		__(
-			'Remove this post from the “%s” workflow? The removal is recorded in the workflow log, with the stage it was removed from. It cannot be undone: re-assigning the workflow later seats the post at its region’s entry stage, not at the stage it was removed from.',
+			'Remove this post from the “%s” workflow? It loses its place, and this can’t be undone.',
 			'vip-workflows'
 		),
 		workflowName
@@ -671,45 +705,13 @@ export function getSwitchWorkflowConfirmation( {
 	return sprintf(
 		/* translators: 1: workflow (sequence) name the post is leaving. 2: workflow (sequence) name it would move to. */
 		__(
-			'Move this post from the “%1$s” workflow to “%2$s”? It gives up its place in “%1$s”: the change is recorded in the workflow log, and the post starts at the “%2$s” entry stage for its current status, not at the stage it is on now.',
+			'Move this post from “%1$s” to “%2$s”? It loses its place in “%1$s”.',
 			'vip-workflows'
 		),
 		fromWorkflowName,
 		toWorkflowName
 	);
 }
-
-// Publish the module for the classic list-table surfaces. `class-posts-columns.php`
-// enqueues this file's bundle (`build/side-effect.js`) and its inline Quick Edit /
-// Bulk Edit script reads `window.vipWorkflowsSideEffect`; an inline script cannot
-// import, and a second implementation of the region math or the copy is exactly
-// how the surfaces drift apart. The React surfaces import the named exports and
-// simply ignore this.
-window.vipWorkflowsSideEffect = {
-	DECISION_SILENT,
-	DECISION_WARN,
-	DECISION_VETO,
-	statusToRegion,
-	evaluateStatusChange,
-	getRegionLabel,
-	getStatusChangeConfirmTitle,
-	getStatusChangeConfirmLabel,
-	getAgentInterruptWarning,
-	getTransitionWarningsTitle,
-	getTransitionWarningsMessage,
-	getTransitionPublishConfirmTitle,
-	getTransitionPublishConfirmLabel,
-	getTransitionPublishWarning,
-	getStatusChangeWarning,
-	getPublishVetoMessage,
-	getOrphanedWorkflowMessage,
-	getOrphanedWorkflowRemoveConfirmation,
-	getRemoveFromWorkflowLabel,
-	getRemoveFromWorkflowConfirmation,
-	getSwitchWorkflowConfirmTitle,
-	getSwitchWorkflowConfirmLabel,
-	getSwitchWorkflowConfirmation,
-};
 
 /**
  * Why an AI stage cannot start while someone else has the post open.
@@ -722,7 +724,7 @@ window.vipWorkflowsSideEffect = {
  */
 export function getCoEditingRefusal() {
 	return __(
-		'Someone else has this post open. AI stages run only when one person is editing, so their changes and the agent’s don’t overwrite each other. Try again once they’ve closed it.',
+		'More than one person is editing this post. Try the AI stage again, once they have closed it.',
 		'vip-workflows'
 	);
 }

@@ -11,15 +11,22 @@
  *   node tools/code-quality/quality.mjs lint  [--changed | --all | <file>...]
  *   node tools/code-quality/quality.mjs test  [--changed | --all | <file>...]
  *   node tools/code-quality/quality.mjs check [--changed | --all | <file>...]
+ *   node tools/code-quality/quality.mjs baseline   (re-record loupe's baseline + counts)
  *
  * Exit codes:
  *   0  clean, or nothing to do, or a tool/dependency was missing (skipped).
  *      JS/CSS lint findings are advisory and do NOT affect the exit code.
- *   1  blocking failure: PHP lint violations or failing unit tests.
+ *   1  blocking failure: PHP lint violations, new blocking loupe findings, or
+ *      failing unit tests.
  *   2  the run could not be performed (git unavailable/errored, bad usage) —
  *      a "couldn't determine the diff" signal, never reported as success.
  *
  * Routing:
+ *   UI    → loupe (design-system conformance; see loupe.config.json). Findings
+ *           recorded in .loupe/baseline.json are accepted, up to the count of
+ *           each in .loupe/baseline-counts.json; a new blocking finding, or one
+ *           more occurrence of a baselined one, BLOCKS. Skipped when loupe isn't
+ *           installed.
  *   PHP   → phpcs (vip-workflows/vendor/bin). Each plugin uses its own
  *           .phpcs.xml.dist if present, else the shared extension ruleset.
  *           BLOCKING.
@@ -34,10 +41,10 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { RULES, runCssHygiene, listSuppressions } from './css-hygiene.mjs';
+import { COUNTS_FILE, REFRESH, compareCounts, countsFile, countsProblem, formatOver } from './loupe-counts.mjs';
 import { CORE, plugins } from './plugins.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -57,7 +64,8 @@ const CSS_EXT = new Set(['.css', '.scss', '.sass']);
 const out = (m) => process.stdout.write(`${m}\n`);
 const note = (m) => process.stderr.write(`${m}\n`);
 const banner = (m) => note(`\n──────── ${m} ────────`);
-const spawnFailure = (r) => r.error?.message || (r.signal ? `signal ${r.signal}` : 'unknown');
+const spawnFailure = (r) =>
+	r.error?.message || (r.signal ? `signal ${r.signal}` : r.status === null ? 'unknown' : `exit ${r.status}`);
 
 // ── plugin discovery ─────────────────────────────────────────────────────────
 // Shared with the integration runner, so the two never disagree about what a
@@ -106,7 +114,9 @@ function gitChangedFiles() {
 		'git',
 		// quotepath=false + -z → raw, NUL-terminated, unquoted paths (handles
 		// non-ASCII / special filenames that the default output would mangle).
-		['-c', 'core.quotepath=false', 'status', '--porcelain', '--no-renames', '-z'],
+		// --untracked-files=all lists the files inside a new directory; without it
+		// git reports the directory alone and no linter is handed its files.
+		['-c', 'core.quotepath=false', 'status', '--porcelain', '--no-renames', '--untracked-files=all', '-z'],
 		{ cwd: ROOT, encoding: 'utf8' }
 	);
 	if (r.error || r.signal || r.status === null) {
@@ -203,14 +213,14 @@ function runWpScriptsLint(plugin, cmd, files, label) {
 }
 
 /**
- * @param mode        'all' — whole-plugin scan; 'list' — only the files in `files`.
- * @param ruleFilter  optional array of hygiene rule ids to display (e.g. ['R4']).
+ * @param mode       'all' — whole-plugin scan; 'list' — only the files in `files`.
+ * @param loupeMode  the same, for loupe alone (see `loupeMode` at the entrypoint).
  *
- * Three sections in fixed order — the CSS-hygiene/WPDS worklist FIRST (it's the
- * primary review surface), then blocking PHP, then advisory JS/CSS — each under
- * a banner so an agent can navigate straight to its domain.
+ * Three sections in fixed order — the loupe design-system worklist FIRST (it's
+ * the primary review surface), then blocking PHP, then advisory JS/CSS — each
+ * under a banner so an agent can navigate straight to its domain.
  */
-function lint(mode, files, ruleFilter) {
+function lint(mode, files, loupeMode = mode) {
 	let ok = true;
 	let advisories = 0;
 
@@ -234,9 +244,9 @@ function lint(mode, files, ruleFilter) {
 		}
 	}
 
-	// 1) CSS-hygiene / WPDS — the worklist.
-	banner('CSS-HYGIENE / WPDS');
-	ok = cssHygiene(mode, files, ruleFilter) && ok;
+	// 1) Design-system conformance (loupe) — the worklist.
+	banner('DESIGN SYSTEM (loupe)');
+	ok = runLoupeCheck(loupeMode, files) && ok;
 
 	// 2) PHP (phpcs) — blocking.
 	banner('PHP (phpcs)');
@@ -264,59 +274,186 @@ function lint(mode, files, ruleFilter) {
 		if (!Object.keys(js).length && !Object.keys(css).length) out('✓ js/css: nothing to check.');
 	}
 
-	if (!ok) return false; // blocking PHP or hygiene failures already reported above
+	if (!ok) return false; // blocking PHP or loupe failures already reported above
 	if (advisories) out(`⚠ lint: blocking checks clean; ${advisories} JS/CSS advisory group(s) above (not blocking).`);
 	else out('✓ lint: clean.');
 	return true;
 }
 
-// ── css-hygiene / WPDS-usage (see css-hygiene.mjs) ─────────────────────────────
-// ruleFilter (optional) narrows what is DISPLAYED; the blocking verdict is always
-// computed on the full set so `--rule R4` can never mask a lurking R0/R1.
-function cssHygiene(mode, files, ruleFilter) {
-	let res;
-	try {
-		res = runCssHygiene({ root: ROOT, plugins: PLUGINS, mode, files });
-	} catch (e) {
-		// A missing postcss (setup not run) must not masquerade as "clean".
-		note(`⚠ css-hygiene: could not run (${e.message}); skipped.`);
+// ── design-system conformance (loupe) ──────────────────────────────────────────
+// loupe is not an npm dependency: it ships as a Claude Code plugin and a CLI.
+// Resolution order: $LOUPE_BIN, then a manual checkout at .loupe-engine/, then
+// `loupe` on PATH. A missing loupe is a setup gap, skipped like a missing phpcs.
+//
+// loupe is a harness tool for now: it runs in Claude Code sessions and local
+// runs, never in CI. `lint`, `check` and `--json` skip it when CI is set.
+const IN_CI = Boolean(process.env.CI);
+const LOUPE_IN_CI = '– loupe: not run in CI; it gates Claude Code sessions and local runs.';
+
+function loupeBin() {
+	if (process.env.LOUPE_BIN) return process.env.LOUPE_BIN;
+	const checkout = join(ROOT, '.loupe-engine', 'bin', 'loupe');
+	return existsSync(checkout) ? checkout : 'loupe';
+}
+
+const LOUPE_MISSING = '⚠ loupe: not installed — install the loupe plugin or set LOUPE_BIN; skipped.';
+
+// loupe.config.json reads a committed copy of @wordpress/theme's token
+// stylesheet, so token rules work in a checkout with no node_modules (an agent
+// worktree). Where the package is installed, a copy that has drifted from it
+// would judge against the wrong token set: say so, with the fix.
+const TOKENS_VENDORED = '.loupe/tokens/wpds-design-tokens.css';
+const TOKENS_INSTALLED = 'vip-workflows/node_modules/@wordpress/theme/prebuilt/css/design-tokens.css';
+
+function warnTokenDrift() {
+	const installed = join(ROOT, TOKENS_INSTALLED);
+	if (!existsSync(installed)) return;
+	const vendored = join(ROOT, TOKENS_VENDORED);
+	if (existsSync(vendored) && readFileSync(vendored, 'utf8') === readFileSync(installed, 'utf8')) return;
+	note(`⚠ loupe: ${TOKENS_VENDORED} is out of date with @wordpress/theme. Refresh it:`);
+	note(`    cp ${TOKENS_INSTALLED} ${TOKENS_VENDORED}`);
+}
+
+// loupe's config, and everything under .loupe/ (baseline, token stylesheet,
+// project extensions). A change to any of them can move findings in any file,
+// so it is checked repo-wide, and flagged as a gate-rules change below.
+const LOUPE_CONFIG = /^(loupe\.config\.(json|js|mjs)|\.louperc\.json|\.loupe\/.+)$/;
+
+// stderr goes straight through: loupe explains a run it kept going on there
+// (an unreadable baseline, a skipped registry), and a captured copy was dropped.
+function runLoupe(args, opts = {}) {
+	return spawnSync(loupeBin(), args, {
+		cwd: ROOT,
+		encoding: 'utf8',
+		maxBuffer: 1 << 27,
+		stdio: ['ignore', 'pipe', 'inherit'],
+		...opts,
+	});
+}
+
+// Exit codes are loupe's contract: 0 clean, 1 blocking findings, 2 could not run.
+const loupeFailed = (r) => Boolean(r.error || r.signal || r.status === null || r.status > 1);
+
+// The `loupe check` scope: everything, or the plugin-owned JS/CSS in the list.
+// Null when the list holds none, since an empty `--files` means the whole repo.
+function loupeScope(mode, files) {
+	if (mode === 'all' || files.some((f) => LOUPE_CONFIG.test(f))) return ['--all'];
+	const ui = files.filter((f) => owner(f) && (JS_EXT.has(extname(f).toLowerCase()) || CSS_EXT.has(extname(f).toLowerCase())));
+	return ui.length ? ['--files', ui.join(',')] : null;
+}
+
+function runLoupeCheck(mode, files) {
+	if (IN_CI) {
+		out(LOUPE_IN_CI);
 		return true;
 	}
-	const { blocking, findings } = res;
-	if (!findings.length) {
-		out('✓ css-hygiene: clean.');
-		return !blocking;
+	warnTokenDrift();
+	const scope = loupeScope(mode, files);
+	if (!scope) {
+		out('✓ loupe: nothing to check.');
+		return true;
 	}
-	const filter = ruleFilter?.length ? new Set(ruleFilter) : null;
-	const shown = filter ? findings.filter((f) => filter.has(f.rule)) : findings;
+	// --no-color: FORCE_COLOR would otherwise paint a report that is captured and
+	// relayed (phpcs gets --no-colors for the same reason).
+	const r = runLoupe(['check', ...scope, '--no-color']);
+	if (r.error?.code === 'ENOENT') {
+		note(LOUPE_MISSING);
+		return true;
+	}
+	if (loupeFailed(r)) {
+		note(`✗ loupe: could not run (${spawnFailure(r)}).`);
+		return false;
+	}
+	note((r.stdout || '').trimEnd() || (r.status === 0 ? '✓ loupe: clean.' : '✗ loupe: blocked, but printed no report.'));
+	const counted = loupeCounts(scope);
+	if (counted.failed) return false;
+	if (counted.over.length) note(formatOver(counted.over));
+	if (counted.under.length) {
+		out(`· loupe: ${counted.under.length} baselined key(s) now hold fewer findings than recorded; \`${REFRESH}\` shrinks the baseline.`);
+	}
+	return r.status === 0 && !counted.over.length;
+}
 
-	// Group by rule, blocking rules first, then by rank within the module's order.
-	const byRule = new Map();
-	for (const f of shown) {
-		if (!byRule.has(f.rule)) byRule.set(f.rule, []);
-		byRule.get(f.rule).push(f);
+// ── baseline occurrence counts ─────────────────────────────────────────────────
+// loupe's baseline is a set of keys, so it accepts any number of findings that
+// share one. .loupe/baseline-counts.json records how many each key held; this
+// re-runs loupe with no baseline, counts the findings per key, and reports a
+// blocking key that now holds more. See loupe-counts.mjs.
+const LOUPE_BASELINE = '.loupe/baseline.json';
+
+function readJson(rel) {
+	try {
+		return JSON.parse(readFileSync(join(ROOT, rel), 'utf8'));
+	} catch (e) {
+		return e.code === 'ENOENT' ? undefined : null;
 	}
-	const order = [...byRule.keys()].sort((a, b) => {
-		const ba = RULES[a]?.block ? 0 : 1;
-		const bb = RULES[b]?.block ? 0 : 1;
-		return ba - bb || a.localeCompare(b);
-	});
-	for (const rule of order) {
-		const group = byRule.get(rule);
-		const mark = RULES[rule]?.block ? '✗' : '⚠';
-		note(`\n${mark} ${rule} [${RULES[rule]?.block ? 'blocking' : 'advisory'}] × ${group.length} — ${RULES[rule]?.title}`);
-		for (const f of group) note(`    ${f.file}:${f.line}  ${f.message}`);
+}
+
+// `{ failed, over, under }`. `under` only on a whole-repo run: on a scoped one a
+// key with no findings is mostly just out of scope.
+function loupeCounts(scope) {
+	const none = { failed: false, over: [], under: [] };
+	const baseline = readJson(LOUPE_BASELINE);
+	// No baseline: loupe reports every finding as new, and there is nothing to count.
+	if (baseline === undefined) return none;
+	if (!baseline || !Array.isArray(baseline.entries)) {
+		note(`✗ loupe: ${LOUPE_BASELINE} is unreadable.`);
+		return { ...none, failed: true };
 	}
-	const blk = findings.filter((f) => RULES[f.rule]?.block).length;
-	const adv = findings.length - blk;
-	if (filter) {
-		const hiddenBlk = findings.filter((f) => RULES[f.rule]?.block && !filter.has(f.rule)).length;
-		note(`\n· css-hygiene: showing ${shown.length}/${findings.length} (filter ${[...filter].join(',')}); ${blk} blocking, ${adv} advisory total.` +
-			(hiddenBlk ? ` ⚠ ${hiddenBlk} blocking finding(s) hidden by the filter.` : ''));
-	} else {
-		note(`\n· css-hygiene: ${blk} blocking, ${adv} advisory. Justify a needed exception inline: \`wpds-allow <ruleId> -- <reason>\`.`);
+	const sidecar = readJson(COUNTS_FILE);
+	const problem = countsProblem(baseline, sidecar);
+	if (problem) {
+		note(`✗ loupe: ${problem}. Re-record both with \`${REFRESH}\`.`);
+		return { ...none, failed: true };
 	}
-	return !blocking;
+	const r = runLoupe(['check', ...scope, '--format', 'json', '--no-baseline']);
+	let report = null;
+	try {
+		if (!loupeFailed(r)) report = JSON.parse(r.stdout);
+	} catch {
+		// A truncated or garbled report is a run that didn't complete.
+	}
+	if (!report || !Array.isArray(report.findings)) {
+		note(`✗ loupe (counts): could not run (${spawnFailure(r)}).`);
+		return { ...none, failed: true };
+	}
+	const { over, under } = compareCounts(report.findings, sidecar.counts);
+	return { failed: false, over, under: scope[0] === '--all' ? under : [] };
+}
+
+// `baseline` — re-record loupe's baseline and its occurrence counts together.
+// Like `loupe baseline`, it accepts whatever is in the tree: never run it to get
+// a new finding past the gate.
+function recordBaseline() {
+	const b = runLoupe(['baseline', '--no-color'], { stdio: ['ignore', 'inherit', 'inherit'] });
+	if (b.error?.code === 'ENOENT') {
+		note('✗ loupe: not installed — install the loupe plugin or set LOUPE_BIN.');
+		return 2;
+	}
+	if (loupeFailed(b) || b.status !== 0) {
+		note(`✗ loupe baseline: could not run (${spawnFailure(b)}).`);
+		return 2;
+	}
+	const r = runLoupe(['check', '--all', '--format', 'json', '--no-baseline']);
+	let report = null;
+	try {
+		if (!loupeFailed(r)) report = JSON.parse(r.stdout);
+	} catch {
+		// Reported below.
+	}
+	if (!report || !Array.isArray(report.findings)) {
+		note(`✗ loupe (counts): could not run (${spawnFailure(r)}).`);
+		return 2;
+	}
+	const sidecar = countsFile(report.findings);
+	const problem = countsProblem(readJson(LOUPE_BASELINE) ?? { entries: [] }, sidecar);
+	if (problem) {
+		note(`✗ loupe: ${problem}; not written.`);
+		return 2;
+	}
+	writeFileSync(join(ROOT, COUNTS_FILE), `${JSON.stringify(sidecar, null, '\t')}\n`);
+	out(`✓ loupe: counted ${sidecar.findings} finding(s) under ${Object.keys(sidecar.counts).length} key(s) → ${COUNTS_FILE}`);
+	return 0;
 }
 
 // ── test (fast unit suites only) ───────────────────────────────────────────────
@@ -400,9 +537,9 @@ function test(mode, files) {
 // ── fix (format-only autofixers) ───────────────────────────────────────────────
 // Runs the mechanical fixers — phpcbf, eslint --fix, stylelint --fix — over the
 // scope. It MUTATES files, so it's a separate verb from the read-only gate and
-// never fails on findings (only on a fixer that couldn't run). The CSS-hygiene
-// rules are intentionally NOT auto-fixed: R2 (token choice), R3–R8 (JSX/layout
-// refactors) and R6 are judgement calls, not formatting.
+// never fails on findings (only on a fixer that couldn't run). Design-system
+// findings are not touched here: `loupe fix --changed` applies the ones the
+// engine can settle without judgement, and the rest are refactors for a person.
 function runPhpcbf(standard, targets, label) {
 	if (!targets.length) return;
 	if (!existsSync(PHPCBF)) {
@@ -471,13 +608,14 @@ function fix(mode, files) {
 		for (const [p, fs] of Object.entries(js)) runWpScriptsFix(p, 'lint-js', fs, 'lint-js');
 		for (const [p, fs] of Object.entries(css)) runWpScriptsFix(p, 'lint-style', fs, 'lint-style');
 	}
-	out('✓ fix: ran the available formatters. Re-run `lint` to see what remains (hygiene rules are not auto-fixed).');
+	out('✓ fix: ran the available formatters. Re-run `lint` to see what remains (design-system findings are not auto-fixed; see `loupe fix --changed`).');
 	return true;
 }
 
 // ── JSON report (agent-friendly, structured, no ANSI/prose) ────────────────────
 // phpcs findings via its own --report=json, one run per plugin (standards differ),
-// flattened. JS/CSS advisory lint is not included (a separate, noisy backlog).
+// flattened, alongside loupe's own --format json. JS/CSS advisory lint is not
+// included (a separate, noisy backlog).
 function phpcsJson(mode, files) {
 	if (!existsSync(PHPCS)) return [];
 	const acc = [];
@@ -523,40 +661,61 @@ function phpcsJson(mode, files) {
 	return acc;
 }
 
-function buildJson(mode, files, ruleFilter) {
-	let hygiene = [];
-	try {
-		const res = runCssHygiene({ root: ROOT, plugins: PLUGINS, mode, files });
-		hygiene = res.findings.map((f) => ({
-			source: 'css-hygiene',
-			rule: f.rule,
-			blocking: Boolean(RULES[f.rule]?.block),
-			guidance: RULES[f.rule]?.title,
-			file: f.file,
-			line: f.line,
-			detail: f.message,
-		}));
-		if (ruleFilter?.length) {
-			const s = new Set(ruleFilter);
-			hygiene = hygiene.filter((h) => s.has(h.rule));
-		}
-	} catch (e) {
-		note(`⚠ css-hygiene (json): could not run (${e.message}).`);
+// The report is null when loupe is missing or couldn't run, so a consumer can't
+// read a missing report as clean. `failed` (found, but it couldn't run) fails the
+// run as it does in `lint`; a missing loupe is a skip.
+function loupeJson(mode, files) {
+	if (IN_CI) {
+		note(LOUPE_IN_CI);
+		return { report: null, failed: false };
 	}
-	return { hygiene, php: phpcsJson(mode, files) };
+	warnTokenDrift();
+	const scope = loupeScope(mode, files);
+	if (!scope) return { report: { blocking: false, findings: [] }, failed: false };
+	const r = runLoupe(['check', ...scope, '--format', 'json']);
+	if (r.error?.code === 'ENOENT') {
+		note(LOUPE_MISSING);
+		return { report: null, failed: false };
+	}
+	let report = null;
+	try {
+		if (!loupeFailed(r)) report = JSON.parse(r.stdout);
+	} catch {
+		// A truncated or garbled report is a run that didn't complete.
+	}
+	if (!report) {
+		note(`✗ loupe (json): could not run (${spawnFailure(r)}).`);
+		return { report, failed: true };
+	}
+	// Occurrences over a baselined key's count are new blocking findings that
+	// loupe hid: add every finding of each such key, and say which they are.
+	const counted = loupeCounts(scope);
+	if (counted.failed) return { report: null, failed: true };
+	report.findings = [...(report.findings ?? []), ...counted.over.flatMap((o) => o.findings)];
+	report.blocking = report.blocking === true || counted.over.length > 0;
+	report.baselineCounts = {
+		over: counted.over.map(({ key, accepted, found }) => ({ key, accepted, found })),
+		under: counted.under.map(({ key, accepted, found }) => ({ key, accepted, found })),
+	};
+	return { report, failed: false };
 }
 
 // ── entrypoint ─────────────────────────────────────────────────────────────────
 const [cmd, ...rest] = process.argv.slice(2);
 
-// `suppressions` — print the grep-able registry of every honored `wpds-allow`
-// (file:line · rule · reason). The audit trail for sanctioned departures.
+// `suppressions` — the registry of every honored `wpds-allow`, from loupe. The
+// audit trail for sanctioned departures. Extra args pass through (`--stale`).
 if (cmd === 'suppressions') {
-	const list = listSuppressions({ root: ROOT, plugins: PLUGINS });
-	if (!list.length) out('· no wpds-allow suppressions in the tree.');
-	for (const d of list) out(`${d.file}:${d.line}  ${d.rules.join(',')}  — ${d.reason}`);
-	process.exit(0);
+	const r = runLoupe(['suppressions', ...rest], { stdio: 'inherit' });
+	if (r.error?.code === 'ENOENT') {
+		note('✗ loupe: not installed — install the loupe plugin or set LOUPE_BIN.');
+		process.exit(2);
+	}
+	if (r.error || r.signal) note(`✗ loupe: could not run (${spawnFailure(r)}).`);
+	process.exit(r.status ?? 2);
 }
+
+if (cmd === 'baseline') process.exit(recordBaseline());
 
 const flags = rest.filter((a) => a.startsWith('--'));
 const explicit = rest.filter((a) => !a.startsWith('--'));
@@ -573,48 +732,49 @@ const mode = scope === 'all' ? 'all' : 'list';
 let files = [];
 if (scope === 'changed') files = gitChangedFiles();
 else if (scope === 'list') files = explicit.map(toRel);
+// loupe's analysis is repo-wide, so a change can create a finding in a file it
+// didn't touch (a class moved onto a design-system component turns that class's
+// CSS into an override). --changed therefore reports loupe repo-wide, as --all
+// does; the baseline keeps that to what is new. A named file list stays scoped.
+const loupeMode = scope === 'changed' && files.length ? 'all' : mode;
 
 // Loudly surface any change to the gate's own rules — weakening a linter to pass
 // is legitimate sometimes, but it must never be silent. Not blocking; just seen.
 const RULE_FILES = /^(tools\/code-quality\/|.*\.phpcs\.xml\.dist$|.*\.eslintrc|.*\.stylelintrc)/;
-const touchedRules = files.filter((f) => RULE_FILES.test(f.split('\\').join('/')));
+const touchedRules = files.filter((f) => [RULE_FILES, LOUPE_CONFIG].some((re) => re.test(f.split('\\').join('/'))));
 if (touchedRules.length) {
 	note('⚠ gate rules modified — human review required:');
 	for (const f of touchedRules) note(`    ${f}`);
 }
 
-// --rule=R4 / --rules=R4,R6 → narrow the hygiene DISPLAY to those rule ids.
-const ruleFlag = flags.find((f) => f.startsWith('--rule=') || f.startsWith('--rules='));
-const ruleFilter = ruleFlag
-	? ruleFlag.split('=')[1].split(',').map((s) => s.trim().toUpperCase()).filter(Boolean)
-	: null;
-
-// --json → emit a structured findings payload (hygiene + phpcs) and nothing else
+let ok = true;
+// --json → emit a structured findings payload (loupe + phpcs) and nothing else
 // on stdout. For agents consuming findings programmatically.
 if (flags.includes('--json')) {
-	const payload = buildJson(mode, files, ruleFilter);
+	const loupe = loupeJson(loupeMode, files);
+	const payload = { loupe: loupe.report, php: phpcsJson(mode, files) };
 	out(JSON.stringify(payload, null, 2));
-	const blocking = payload.hygiene.some((h) => h.blocking) || payload.php.some((p) => p.type === 'error');
-	process.exit(blocking ? 1 : 0);
+	ok = !loupe.failed && payload.loupe?.blocking !== true && !payload.php.some((p) => p.type === 'error');
+} else {
+	switch (cmd) {
+		case 'lint':
+			ok = lint(mode, files, loupeMode);
+			break;
+		case 'test':
+			ok = test(mode, files);
+			break;
+		case 'check':
+			ok = lint(mode, files, loupeMode);
+			ok = test(mode, files) && ok;
+			break;
+		case 'fix':
+			ok = fix(mode, files);
+			break;
+		default:
+			note('usage: quality.mjs <lint|test|check|fix|suppressions|baseline> [--changed|--all|<file>...] [--json]');
+			process.exit(2);
+	}
 }
-
-let ok = true;
-switch (cmd) {
-	case 'lint':
-		ok = lint(mode, files, ruleFilter);
-		break;
-	case 'test':
-		ok = test(mode, files);
-		break;
-	case 'check':
-		ok = lint(mode, files, ruleFilter);
-		ok = test(mode, files) && ok;
-		break;
-	case 'fix':
-		ok = fix(mode, files);
-		break;
-	default:
-		note('usage: quality.mjs <lint|test|check|fix|suppressions> [--changed|--all|<file>...] [--rule=R4] [--json]');
-		process.exit(2);
-}
-process.exit(ok ? 0 : 1);
+// exitCode, not exit(): exit() drops output a pipe hasn't drained yet, which cut
+// the --json payload (~60KB before its first finding) off mid-string.
+process.exitCode = ok ? 0 : 1;

@@ -133,6 +133,10 @@ if ( $vipwf_is_integration ) {
         define( 'ARRAY_A', 'ARRAY_A' );
     }
 
+    if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+        define( 'MINUTE_IN_SECONDS', 60 );
+    }
+
     /*
      * OpenAI is unconditionally keyed for the whole unit suite.
      *

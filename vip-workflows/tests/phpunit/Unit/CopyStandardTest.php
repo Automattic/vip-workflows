@@ -13,6 +13,9 @@
  * - `Please`, which the plugin does not say.
  * - `...` where `…` belongs, the one typography rule that drifted by language.
  * - `You do not have permission`, where core says `Sorry, you are not allowed`.
+ * - A paragraph. The length limits (about 50 and about 100 characters) are
+ *   still review questions, but nothing a person reads runs past a ceiling
+ *   well above both.
  *
  * @package VIPWorkflows\Tests\Unit
  */
@@ -34,6 +37,43 @@ class CopyStandardTest extends PHPUnitTestCase
     private const EXTENSIONS = array( 'php', 'js', 'jsx' );
 
     private const SKIPPED_DIRS = array( 'node_modules', 'vendor', 'build', 'dist' );
+
+    /**
+     * Past this, a string a person reads is a paragraph. Well above the ~100
+     * limit for errors and confirmations, so it fails on drift, not on judgement.
+     */
+    private const LENGTH_CEILING = 120;
+
+    /**
+     * Strings over the ceiling that no person reads in passing, by the start of
+     * the string. Ability registrations under an `abilities/` directory are
+     * skipped wholesale: their descriptions and schemas are written for a model.
+     */
+    private const LENGTH_EXEMPT = array(
+        // Developer reference inside the how-to modals, opened on purpose.
+        'Agents can provide research, story discovery',
+        'Notification channels deliver workflow events',
+        'Override get_settings_schema() to define fields',
+        // `_doing_it_wrong()` notices, written for the plugin developer.
+        'The permission_callback for ability',
+        // REST schema descriptions, read by API clients.
+        'Serialized availability.',
+        'Inputs collected when this transition is taken.',
+        'Assignment slot key (lowercase letters, numbers, dashes and underscores).',
+        'What the assignment names:',
+        // AI-stage publish-boundary notice, worded in review and kept verbatim.
+        'This stage is run by an agent, and Sequence settings don’t allow AI stages',
+    );
+
+    /**
+     * Strings that keep `please` by design, by the start of the string. The
+     * AI-stage publish-boundary notices were worded in review and are kept
+     * verbatim.
+     */
+    private const PLEASE_EXEMPT = array(
+        'Sequence settings do not allow AI stages to publish, please route the',
+        '%s publishes, which is prevented by Sequence settings, please reroute.',
+    );
 
     /**
      * Translatable string literals, as one blob per file.
@@ -135,7 +175,18 @@ class CopyStandardTest extends PHPUnitTestCase
 
     public function test_no_please(): void
     {
-        $offenders = $this->offenders( '/\bplease\b/i' );
+        $offenders = array();
+
+        foreach ( $this->offenders( '/\bplease\b/i' ) as $relative => $strings ) {
+            foreach ( $strings as $string ) {
+                foreach ( self::PLEASE_EXEMPT as $prefix ) {
+                    if ( str_starts_with( $string, $prefix ) ) {
+                        continue 2;
+                    }
+                }
+                $offenders[ $relative ][] = $string;
+            }
+        }
 
         $this->assertSame(
             array(),
@@ -154,6 +205,37 @@ class CopyStandardTest extends PHPUnitTestCase
             $offenders,
             "Use `…`, not three periods. The two used to split by language: PHP wrote "
                 . "`Processing...` while JS wrote `Processing…`.\n"
+                . print_r( $offenders, true )
+        );
+    }
+
+    public function test_no_paragraphs(): void
+    {
+        $offenders = array();
+
+        foreach ( $this->translatable_strings() as $relative => $strings ) {
+            if ( str_contains( $relative, '/abilities/' ) ) {
+                continue;
+            }
+            foreach ( $strings as $string ) {
+                if ( mb_strlen( stripslashes( $string ) ) <= self::LENGTH_CEILING ) {
+                    continue;
+                }
+                foreach ( self::LENGTH_EXEMPT as $prefix ) {
+                    if ( str_starts_with( $string, $prefix ) ) {
+                        continue 2;
+                    }
+                }
+                $offenders[ $relative ][] = $string;
+            }
+        }
+
+        $this->assertSame(
+            array(),
+            $offenders,
+            "Past about 100 characters, copy is documenting the feature or narrating the "
+                . "mechanism. Say what is wrong and the way out — see Length in "
+                . "docs/guides/copy-standard.md.\n"
                 . print_r( $offenders, true )
         );
     }
