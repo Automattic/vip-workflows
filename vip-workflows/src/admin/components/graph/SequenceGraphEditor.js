@@ -69,7 +69,7 @@ import {
 	START_ID,
 	END_ID,
 } from './graph-model';
-import { REGION_ORDER, stageRegion } from './regions';
+import { REGION_ORDER, regionLeftEmpty, stageRegion } from './regions';
 import { paletteColorAt, snapToPalette } from '../../utils/stage-palette';
 
 import '../../../common/outcome-tones.css';
@@ -450,12 +450,14 @@ export default function SequenceGraphEditor( {
 		isNew ? serializeSequence( isPhase, blank ) : null
 	);
 
-	// Status-region groups the author added from the canvas that hold no stage
-	// yet. A region with stages in it needs no bookkeeping — it's visible
-	// because a stage says so — but an empty one has nothing to derive it from,
-	// so it's remembered here until something is dragged in. Editing state, not
-	// sequence data: it isn't saved, and reopening the sequence shows the
-	// regions its stages actually use.
+	// Status-region groups drawn with no stage in them: the ones the author
+	// added from the canvas, and the ones a move emptied (see
+	// `keepEmptiedRegion`). A region with stages in it needs no bookkeeping —
+	// it's visible because a stage says so — but an empty one has nothing to
+	// derive it from, so it's remembered here until it is removed or the
+	// sequence is saved. Editing state, not sequence data: it isn't saved, and
+	// saving or reopening the sequence shows the regions its stages actually
+	// use.
 	const [ addedRegions, setAddedRegions ] = useState( [] );
 	const [ addingRegion, setAddingRegion ] = useState( false );
 
@@ -1138,6 +1140,27 @@ export default function SequenceGraphEditor( {
 		setSelection( null );
 	}, [] );
 
+	// The stages as last rendered, for the move handlers below to ask which
+	// region a move empties without being rebuilt on every stage edit — the
+	// canvas keys its drop targets on them.
+	const stagesRef = useRef( stages );
+	stagesRef.current = stages;
+
+	// A move that takes the last stage out of a status group keeps the group
+	// drawn, as if the author had added it: otherwise it would vanish from the
+	// canvas, the Post status picker, and the stage context menu, and moving
+	// the stage back would first mean adding the status again by hand. Like a
+	// hand-added group, it stays until it is removed or the sequence is saved,
+	// and it blocks nothing — an empty group has no checkpoint to check.
+	const keepEmptiedRegion = useCallback( ( key, region ) => {
+		const emptied = regionLeftEmpty( stagesRef.current, key, region );
+		if ( emptied ) {
+			setAddedRegions( ( current ) =>
+				current.includes( emptied ) ? current : [ ...current, emptied ]
+			);
+		}
+	}, [] );
+
 	// Where a dragged stage ended up: the group it belongs to, and whether it
 	// landed in that group's checkpoint slot.
 	//
@@ -1147,14 +1170,18 @@ export default function SequenceGraphEditor( {
 	// being let go anywhere else. That second half is the whole point — it's how
 	// a checkpoint is freed — so it has to happen even though it leaves the
 	// sequence unsaveable until one is set again.
-	const handlePlaceStage = useCallback( ( key, region, isCheckpoint ) => {
-		setStages( ( current ) => {
-			const moved = setStageStatus( current, key, region );
-			return isCheckpoint
-				? setRegionEntry( moved, key )
-				: clearRegionEntry( moved, key );
-		} );
-	}, [] );
+	const handlePlaceStage = useCallback(
+		( key, region, isCheckpoint ) => {
+			keepEmptiedRegion( key, region );
+			setStages( ( current ) => {
+				const moved = setStageStatus( current, key, region );
+				return isCheckpoint
+					? setRegionEntry( moved, key )
+					: clearRegionEntry( moved, key );
+			} );
+		},
+		[ keepEmptiedRegion ]
+	);
 
 	// The inspector's way into the same thing the slot does — for setting a
 	// checkpoint without a pointer, and for clearing one (`key` null).
@@ -1182,17 +1209,21 @@ export default function SequenceGraphEditor( {
 	// `addStage`'s terms: nothing holds that slot, so seating the stage there
 	// moves no one — and without a slot to drop into, this control would
 	// otherwise leave the region unsaveable with no way to say otherwise here.
-	const handleSetStageStatus = useCallback( ( key, region ) => {
-		setStages( ( current ) => {
-			const moved = setStageStatus( current, key, region );
-			const empty = ! current.some(
-				( s ) => s.key !== key && stageRegion( s ) === region
-			);
-			return empty && moved !== current
-				? setRegionEntry( moved, key )
-				: moved;
-		} );
-	}, [] );
+	const handleSetStageStatus = useCallback(
+		( key, region ) => {
+			keepEmptiedRegion( key, region );
+			setStages( ( current ) => {
+				const moved = setStageStatus( current, key, region );
+				const empty = ! current.some(
+					( s ) => s.key !== key && stageRegion( s ) === region
+				);
+				return empty && moved !== current
+					? setRegionEntry( moved, key )
+					: moved;
+			} );
+		},
+		[ keepEmptiedRegion ]
+	);
 
 	// --- Stage mutations ---------------------------------------------------
 
@@ -1648,6 +1679,9 @@ export default function SequenceGraphEditor( {
 			// unsaved work is measured against, so a field that held onto an
 			// in-flight edit reads as the unsaved work it is.
 			setSavedSnapshot( serializeSequence( isPhase, fields ) );
+			// What was saved is what reopening it would draw: the regions its
+			// stages use, without the empty groups kept for this editing pass.
+			setAddedRegions( [] );
 			setSaveStatus( 'success' );
 			setTimeout( () => setSaveStatus( null ), 2000 );
 		} catch ( err ) {

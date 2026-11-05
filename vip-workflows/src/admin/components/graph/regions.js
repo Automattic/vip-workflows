@@ -177,11 +177,43 @@ export function regionEntryStage( stages, region ) {
 }
 
 /**
+ * The region a stage leaves empty by moving to another one, if it does.
+ *
+ * Moving the last stage out of a status group would otherwise make the group
+ * vanish with it — from the canvas, from every Post status picker, and from the
+ * stage context menu — so moving the stage back would first mean adding the
+ * status again by hand. The editor keeps the region this names drawn, the same
+ * way it keeps an empty group the author added.
+ *
+ * @param {Array}  stages Stage objects, before the move.
+ * @param {string} key    Stage being moved.
+ * @param {string} region Region it is moving to.
+ * @return {string|null} The region left with no stage, or null when the move
+ *                       empties none (another stage remains, the stage is
+ *                       already there, or no such stage exists).
+ */
+export function regionLeftEmpty( stages, key, region ) {
+	const stage = ( stages || [] ).find( ( s ) => s.key === key );
+	if ( ! stage ) {
+		return null;
+	}
+	const from = stageRegion( stage );
+	if ( from === region ) {
+		return null;
+	}
+	const others = stages.some(
+		( s ) => s.key !== key && stageRegion( s ) === from
+	);
+	return others ? null : from;
+}
+
+/**
  * Which regions the canvas should draw a section for.
  *
  * A region shows when something puts it there: a stage lives in it, or the
  * author added it explicitly from the canvas menu (an empty section waiting for
- * a stage to be dragged in). Draft is always shown — it's where new content
+ * a stage to be dragged in), or its last stage was moved out since the last
+ * save (see `regionLeftEmpty`). Draft is always shown — it's where new content
  * starts, so a sequence without it has nowhere to begin.
  *
  * A region carried by a stage but missing from `REGION_ORDER` is still
