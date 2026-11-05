@@ -18,67 +18,9 @@
  */
 
 import { render, screen, fireEvent } from './helpers/render-wp-component';
+import { body, renderInspector, toggle } from './helpers/inspector-fixture';
 
-import Inspector from '../../src/admin/components/graph/Inspector';
 import InspectorShell from '../../src/admin/components/graph/InspectorShell';
-
-const STAGES = [
-	{
-		key: 'draft',
-		label: 'Draft',
-		status: 'draft',
-		region_entry: true,
-		transitions: [ { to: 'review', label: 'Submit' } ],
-	},
-	{ key: 'review', label: 'Review', status: 'pending', transitions: [] },
-];
-
-const SEQUENCE_SETTINGS = {
-	name: 'Editorial Review',
-	onNameChange: () => {},
-	description: '',
-	onDescriptionChange: () => {},
-	isActive: true,
-	onActiveChange: () => {},
-	postTypes: [ { label: 'Posts', value: 'post' } ],
-	selectedPostTypes: [ 'post' ],
-	onTogglePostType: () => {},
-	metadataFields: [],
-	onMetadataChange: () => {},
-	isNew: false,
-	onDelete: () => {},
-	deleting: false,
-};
-
-function renderInspector( overrides = {} ) {
-	const props = {
-		selection: { type: 'node', key: 'draft' },
-		isPhase: false,
-		stages: STAGES,
-		selectedStage: STAGES[ 0 ],
-		selectedTransition: null,
-		availableAgents: [],
-		availableRoles: [],
-		availableTools: [],
-		availableChannels: [],
-		onUpdateStage: () => {},
-		onDeleteStage: () => {},
-		onUpdateTransition: () => {},
-		onDeleteTransition: () => {},
-		sequenceSettings: SEQUENCE_SETTINGS,
-		...overrides,
-	};
-	const view = render( <Inspector { ...props } /> );
-	return {
-		...view,
-		reselect: ( next ) =>
-			view.rerender( <Inspector { ...props } { ...next } /> ),
-	};
-}
-
-const toggle = () =>
-	screen.getByRole( 'button', { name: /Collapse panel|Expand panel/ } );
-const body = () => document.querySelector( '.wf-inspector__body' );
 
 describe( 'Inspector collapse', () => {
 	it( 'starts open, with the options visible', () => {
@@ -123,12 +65,12 @@ describe( 'Inspector collapse', () => {
 	} );
 
 	it( 'stays collapsed when the selection changes panel', () => {
-		const { reselect } = renderInspector();
+		const { update } = renderInspector();
 		fireEvent.click( toggle() );
 
 		// Node → nothing selected: a different panel component entirely, so the
 		// shell unmounts. The flag lives above it and has to survive.
-		reselect( { selection: null, selectedStage: null } );
+		update( { selection: null, selectedStage: null } );
 
 		expect( toggle() ).toHaveAttribute( 'aria-expanded', 'false' );
 		expect(

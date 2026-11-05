@@ -43,8 +43,10 @@ import { STORE_NAME } from '../store';
 import './TransitionInputPopover.css';
 
 /**
- * The shared popover shell: side-anchored, focus-trapped, headed by the
- * action's name and a Close button.
+ * The popover frame for TransitionAssignmentPopover, its only caller:
+ * side-anchored, focus-trapped, headed by the action's name and a Close
+ * button. Kept apart from the step body so the frame's placement, focus and
+ * dialog wiring read separately from the body it frames.
  *
  * `focusOnMount` gives the popover the dialog behaviors the modals had:
  * focus moves into it on open, tabbing is constrained inside it, Escape and

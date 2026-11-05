@@ -37,6 +37,8 @@ import { fireEvent as domFireEvent } from '@testing-library/dom';
 
 import apiFetch from '@wordpress/api-fetch';
 
+import { FAULTED_STAGES } from './helpers/faulted-sequence';
+
 jest.mock( '@wordpress/api-fetch' );
 
 // React Flow + dagre, and irrelevant to saving. The stub keeps one canvas
@@ -1306,39 +1308,9 @@ describe( 'A save the editor refuses', () => {
  * button can be read as belonging to the reason beside it.
  */
 describe( 'A refused Save that knows where its fault is', () => {
-	// The one transition captures an assignment and names no key, which the
-	// server refuses as `invalid_assignment_key`. The fault belongs to the
-	// transition, so the error targets the edge rather than the stage.
-	const FAULTED = [
-		{
-			key: 'draft',
-			label: 'Draft',
-			color: '#C36EFF',
-			status: 'draft',
-			region_entry: true,
-			is_terminal: false,
-			transitions: [
-				{
-					to: 'legal',
-					label: 'Send to legal',
-					inputs: [ { type: 'assignment', meta_key: '' } ],
-				},
-			],
-		},
-		{
-			key: 'legal',
-			label: 'Legal',
-			color: '#C36EFF',
-			status: 'draft',
-			region_entry: false,
-			is_terminal: true,
-			transitions: [],
-		},
-	];
-
 	const serveFaulted = () => {
 		served = sequence( {
-			config: { ...sequence().config, statuses: FAULTED },
+			config: { ...sequence().config, statuses: FAULTED_STAGES },
 		} );
 	};
 

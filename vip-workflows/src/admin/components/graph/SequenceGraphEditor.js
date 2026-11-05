@@ -922,6 +922,11 @@ export default function SequenceGraphEditor( {
 			} );
 	}, [ validation.errors, isPhase, selectedPostTypes ] );
 
+	// Where the one reason the save is refused points, when there is exactly
+	// one and it has somewhere on the canvas to point; otherwise null.
+	const loneTarget =
+		saveBlockers.length === 1 ? saveBlockers[ 0 ].target : null;
+
 	// The refusal stands down once the last reason for it is gone, so it cannot
 	// reappear on its own the next time a field is half-edited.
 	useEffect( () => {
@@ -930,13 +935,15 @@ export default function SequenceGraphEditor( {
 		}
 	}, [ saveBlockers.length ] );
 
-	// The blocking faults that belong to one way out of a stage, keyed by the
-	// transition they belong to — `from->to`, without the outcome.
+	// The first blocking fault of each way out of a stage, keyed by the
+	// transition it belongs to — `from->to`, without the outcome.
 	//
 	// The stage panel's exit list reads this: a node badge says a stage needs
 	// attention, and without this the author has to open every transition it
 	// holds to find out which one the message meant. A stage holds one
-	// transition per destination, so `from->to` names the record; the outcome
+	// transition per destination, so `from->to` names the record — a stored
+	// stage that holds two shares one address between them, and its faults
+	// point at the stage rather than at an edge (see `validateSequence`); the outcome
 	// only says which of the edges drawn for it the canvas selects, and every
 	// row standing on that record carries the fault alike.
 	const exitProblems = useMemo( () => {
@@ -945,9 +952,10 @@ export default function SequenceGraphEditor( {
 			if ( target?.type !== 'edge' ) {
 				return;
 			}
+			// One row, one line. A transition can hold more than one fault at
+			// once, and the first is the one to fix first.
 			const id = edgeId( target.from, target.to );
-			byEdge[ id ] = byEdge[ id ] || [];
-			byEdge[ id ].push( message );
+			byEdge[ id ] = byEdge[ id ] || message;
 		} );
 		return byEdge;
 	}, [ validation.errors ] );
@@ -1121,8 +1129,10 @@ export default function SequenceGraphEditor( {
 	);
 	// The statuses the server allows that aren't drawn yet — what "Add post
 	// status…" offers, and whether it is offered at all.
-	const addableRegions = REGION_ORDER.filter(
-		( region ) => ! regions.includes( region )
+	// Memoized so the canvas menu's own memo, which depends on it, holds.
+	const addableRegions = useMemo(
+		() => REGION_ORDER.filter( ( region ) => ! regions.includes( region ) ),
+		[ regions ]
 	);
 
 	const handleAddRegion = useCallback( ( region ) => {
@@ -1861,20 +1871,16 @@ export default function SequenceGraphEditor( {
 								// neither of which has anything on the canvas
 								// to open.
 								actions={
-									! error &&
-									saveBlockers.length === 1 &&
-									saveBlockers[ 0 ].target
+									! error && loneTarget
 										? [
 												{
 													label: blockedTargetLabel(
-														saveBlockers[ 0 ]
-															.target,
+														loneTarget,
 														isPhase
 													),
 													onClick: () =>
 														showTarget(
-															saveBlockers[ 0 ]
-																.target
+															loneTarget
 														),
 													variant: 'primary',
 												},
@@ -1982,6 +1988,7 @@ export default function SequenceGraphEditor( {
 						onPlaceStage={ handlePlaceStage }
 						onSetStageStatus={ handleSetStageStatus }
 						onAddRegion={ () => setAddingRegion( true ) }
+						addableRegions={ addableRegions }
 						onRemoveRegion={ handleRemoveRegion }
 						// A fault the notice offered to show has to end up
 						// somewhere the author can see it, not just selected.
@@ -2018,6 +2025,10 @@ export default function SequenceGraphEditor( {
 						onDeleteTransition={ handleDeleteTransition }
 						onConnectTransition={ handleConnect }
 						onReconnectTransition={ handleReconnect }
+						// The canvas's connection rule, so the transition
+						// panel's From/To options are judged by the same
+						// verdict a dragged endpoint is.
+						isValidConnection={ isValidConnection }
 						onSelectNode={ selectNode }
 						onAddHandOff={ handleAddHandOff }
 						requiredTransitions={ requiredPhaseTransitions }
