@@ -80,6 +80,7 @@ jest.mock( '@dnd-kit/core', () => ( {
 import { MyQueuePage } from '../../src/admin/pages/MyQueuePage';
 import { MyWorkPage } from '../../src/admin/pages/MyWorkPage';
 import { KanbanCard } from '../../src/admin/components/KanbanCard';
+import { adminGlobals } from './helpers/admin-globals';
 /* eslint-enable import/first */
 
 const DEFAULTS = getSettings();
@@ -192,7 +193,7 @@ function times( ui ) {
 }
 
 beforeEach( () => {
-	window.vipWorkflowsAdmin = { currentUser: { id: 42 } };
+	window.vipWorkflowsAdmin = adminGlobals();
 	setSettings( TOKYO );
 } );
 

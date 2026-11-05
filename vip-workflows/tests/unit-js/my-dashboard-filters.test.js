@@ -66,6 +66,7 @@ import { DataViews } from '@wordpress/dataviews/wp';
 import { MyWorkPage } from '../../src/admin/pages/MyWorkPage';
 import { MyQueuePage } from '../../src/admin/pages/MyQueuePage';
 import { MyIdeationPage } from '../../src/admin/pages/MyIdeationPage';
+import { adminGlobals } from './helpers/admin-globals';
 /* eslint-enable import/first */
 
 const WORKFLOW_ROW = {
@@ -119,7 +120,7 @@ const NON_WORKFLOW_ROW = {
 };
 
 beforeEach( () => {
-	window.vipWorkflowsAdmin = { currentUser: { id: 42 } };
+	window.vipWorkflowsAdmin = adminGlobals();
 } );
 
 afterEach( () => {
@@ -451,9 +452,57 @@ describe( 'My Work SLA removal and the author field', () => {
 	} );
 } );
 
+/**
+ * Every string in a React element tree, in order.
+ *
+ * The `<DataViews>` mock never renders its children, so text the page
+ * composes inside them is read from the element tree instead.
+ *
+ * @param {*} node Element (or array/string/etc.) to read.
+ * @return {string} The tree's text, space-joined.
+ */
+function textOf( node ) {
+	if ( node === null || node === undefined || typeof node === 'boolean' ) {
+		return '';
+	}
+	if ( typeof node === 'string' || typeof node === 'number' ) {
+		return String( node );
+	}
+	if ( Array.isArray( node ) ) {
+		return node.map( textOf ).join( ' ' );
+	}
+	return textOf( node.props?.children );
+}
+
+describe( 'My Work window note', () => {
+	// The server only returns posts modified inside its window, so the page
+	// says so, with the number the server localized rather than its own copy.
+	it( 'says how far back the list looks, below the table', async () => {
+		window.vipWorkflowsAdmin = adminGlobals( {
+			myWork: { windowDays: 45 },
+		} );
+		await fieldsOf( MyWorkPage, [ WORKFLOW_ROW ] );
+
+		expect( textOf( mockCaptured.props.children ) ).toContain(
+			'Showing posts updated in the last 45 days.'
+		);
+	} );
+
+	it( 'says it in the empty state too, so an empty list is not read as no work at all', async () => {
+		apiFetch.mockImplementation( () => Promise.resolve( [] ) );
+		render( <MyWorkPage /> );
+
+		expect(
+			await screen.findByText(
+				/Showing posts updated in the last 60 days\. New work assigned to you will appear here\./
+			)
+		).toBeInTheDocument();
+	} );
+} );
+
 describe( 'My Work view persistence', () => {
 	it( 'persists a changed view to localStorage, namespaced per user', async () => {
-		window.vipWorkflowsAdmin = { currentUser: { id: 42 } };
+		window.vipWorkflowsAdmin = adminGlobals();
 		await fieldsOf( MyWorkPage, [ WORKFLOW_ROW ] );
 
 		act( () => {
@@ -470,7 +519,7 @@ describe( 'My Work view persistence', () => {
 	} );
 
 	it( 'loads a previously persisted view on mount', async () => {
-		window.vipWorkflowsAdmin = { currentUser: { id: 42 } };
+		window.vipWorkflowsAdmin = adminGlobals();
 		window.localStorage.setItem(
 			'vip_workflows_my_work_view_42',
 			JSON.stringify( { sort: { field: 'title', direction: 'asc' } } )
