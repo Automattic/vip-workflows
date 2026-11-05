@@ -11,6 +11,7 @@
  *   node tools/code-quality/quality.mjs lint  [--changed | --all | <file>...]
  *   node tools/code-quality/quality.mjs test  [--changed | --all | <file>...]
  *   node tools/code-quality/quality.mjs check [--changed | --all | <file>...]
+ *   node tools/code-quality/quality.mjs baseline   (re-record loupe's baseline + counts)
  *
  * Exit codes:
  *   0  clean, or nothing to do, or a tool/dependency was missing (skipped).
@@ -22,8 +23,10 @@
  *
  * Routing:
  *   UI    → loupe (design-system conformance; see loupe.config.json). Findings
- *           recorded in .loupe/baseline.json are accepted; a new blocking finding
- *           BLOCKS. Skipped when loupe isn't installed.
+ *           recorded in .loupe/baseline.json are accepted, up to the count of
+ *           each in .loupe/baseline-counts.json; a new blocking finding, or one
+ *           more occurrence of a baselined one, BLOCKS. Skipped when loupe isn't
+ *           installed.
  *   PHP   → phpcs (vip-workflows/vendor/bin). Each plugin uses its own
  *           .phpcs.xml.dist if present, else the shared extension ruleset.
  *           BLOCKING.
@@ -38,9 +41,10 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { COUNTS_FILE, REFRESH, compareCounts, countsFile, countsProblem, formatOver } from './loupe-counts.mjs';
 import { CORE, plugins } from './plugins.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -361,7 +365,95 @@ function runLoupeCheck(mode, files) {
 		return false;
 	}
 	note((r.stdout || '').trimEnd() || (r.status === 0 ? '✓ loupe: clean.' : '✗ loupe: blocked, but printed no report.'));
-	return r.status === 0;
+	const counted = loupeCounts(scope);
+	if (counted.failed) return false;
+	if (counted.over.length) note(formatOver(counted.over));
+	if (counted.under.length) {
+		out(`· loupe: ${counted.under.length} baselined key(s) now hold fewer findings than recorded; \`${REFRESH}\` shrinks the baseline.`);
+	}
+	return r.status === 0 && !counted.over.length;
+}
+
+// ── baseline occurrence counts ─────────────────────────────────────────────────
+// loupe's baseline is a set of keys, so it accepts any number of findings that
+// share one. .loupe/baseline-counts.json records how many each key held; this
+// re-runs loupe with no baseline, counts the findings per key, and reports a
+// blocking key that now holds more. See loupe-counts.mjs.
+const LOUPE_BASELINE = '.loupe/baseline.json';
+
+function readJson(rel) {
+	try {
+		return JSON.parse(readFileSync(join(ROOT, rel), 'utf8'));
+	} catch (e) {
+		return e.code === 'ENOENT' ? undefined : null;
+	}
+}
+
+// `{ failed, over, under }`. `under` only on a whole-repo run: on a scoped one a
+// key with no findings is mostly just out of scope.
+function loupeCounts(scope) {
+	const none = { failed: false, over: [], under: [] };
+	const baseline = readJson(LOUPE_BASELINE);
+	// No baseline: loupe reports every finding as new, and there is nothing to count.
+	if (baseline === undefined) return none;
+	if (!baseline || !Array.isArray(baseline.entries)) {
+		note(`✗ loupe: ${LOUPE_BASELINE} is unreadable.`);
+		return { ...none, failed: true };
+	}
+	const sidecar = readJson(COUNTS_FILE);
+	const problem = countsProblem(baseline, sidecar);
+	if (problem) {
+		note(`✗ loupe: ${problem}. Re-record both with \`${REFRESH}\`.`);
+		return { ...none, failed: true };
+	}
+	const r = runLoupe(['check', ...scope, '--format', 'json', '--no-baseline']);
+	let report = null;
+	try {
+		if (!loupeFailed(r)) report = JSON.parse(r.stdout);
+	} catch {
+		// A truncated or garbled report is a run that didn't complete.
+	}
+	if (!report || !Array.isArray(report.findings)) {
+		note(`✗ loupe (counts): could not run (${spawnFailure(r)}).`);
+		return { ...none, failed: true };
+	}
+	const { over, under } = compareCounts(report.findings, sidecar.counts);
+	return { failed: false, over, under: scope[0] === '--all' ? under : [] };
+}
+
+// `baseline` — re-record loupe's baseline and its occurrence counts together.
+// Like `loupe baseline`, it accepts whatever is in the tree: never run it to get
+// a new finding past the gate.
+function recordBaseline() {
+	const b = runLoupe(['baseline', '--no-color'], { stdio: ['ignore', 'inherit', 'inherit'] });
+	if (b.error?.code === 'ENOENT') {
+		note('✗ loupe: not installed — install the loupe plugin or set LOUPE_BIN.');
+		return 2;
+	}
+	if (loupeFailed(b) || b.status !== 0) {
+		note(`✗ loupe baseline: could not run (${spawnFailure(b)}).`);
+		return 2;
+	}
+	const r = runLoupe(['check', '--all', '--format', 'json', '--no-baseline']);
+	let report = null;
+	try {
+		if (!loupeFailed(r)) report = JSON.parse(r.stdout);
+	} catch {
+		// Reported below.
+	}
+	if (!report || !Array.isArray(report.findings)) {
+		note(`✗ loupe (counts): could not run (${spawnFailure(r)}).`);
+		return 2;
+	}
+	const sidecar = countsFile(report.findings);
+	const problem = countsProblem(readJson(LOUPE_BASELINE) ?? { entries: [] }, sidecar);
+	if (problem) {
+		note(`✗ loupe: ${problem}; not written.`);
+		return 2;
+	}
+	writeFileSync(join(ROOT, COUNTS_FILE), `${JSON.stringify(sidecar, null, '\t')}\n`);
+	out(`✓ loupe: counted ${sidecar.findings} finding(s) under ${Object.keys(sidecar.counts).length} key(s) → ${COUNTS_FILE}`);
+	return 0;
 }
 
 // ── test (fast unit suites only) ───────────────────────────────────────────────
@@ -591,8 +683,21 @@ function loupeJson(mode, files) {
 	} catch {
 		// A truncated or garbled report is a run that didn't complete.
 	}
-	if (!report) note(`✗ loupe (json): could not run (${spawnFailure(r)}).`);
-	return { report, failed: !report };
+	if (!report) {
+		note(`✗ loupe (json): could not run (${spawnFailure(r)}).`);
+		return { report, failed: true };
+	}
+	// Occurrences over a baselined key's count are new blocking findings that
+	// loupe hid: add every finding of each such key, and say which they are.
+	const counted = loupeCounts(scope);
+	if (counted.failed) return { report: null, failed: true };
+	report.findings = [...(report.findings ?? []), ...counted.over.flatMap((o) => o.findings)];
+	report.blocking = report.blocking === true || counted.over.length > 0;
+	report.baselineCounts = {
+		over: counted.over.map(({ key, accepted, found }) => ({ key, accepted, found })),
+		under: counted.under.map(({ key, accepted, found }) => ({ key, accepted, found })),
+	};
+	return { report, failed: false };
 }
 
 // ── entrypoint ─────────────────────────────────────────────────────────────────
@@ -609,6 +714,8 @@ if (cmd === 'suppressions') {
 	if (r.error || r.signal) note(`✗ loupe: could not run (${spawnFailure(r)}).`);
 	process.exit(r.status ?? 2);
 }
+
+if (cmd === 'baseline') process.exit(recordBaseline());
 
 const flags = rest.filter((a) => a.startsWith('--'));
 const explicit = rest.filter((a) => !a.startsWith('--'));
@@ -664,7 +771,7 @@ if (flags.includes('--json')) {
 			ok = fix(mode, files);
 			break;
 		default:
-			note('usage: quality.mjs <lint|test|check|fix|suppressions> [--changed|--all|<file>...] [--json]');
+			note('usage: quality.mjs <lint|test|check|fix|suppressions|baseline> [--changed|--all|<file>...] [--json]');
 			process.exit(2);
 	}
 }

@@ -6,7 +6,7 @@ reads the repo and runs the project's own linters/tests — it does **not** own
 git hooks or CI config.
 
 ```
-node tools/code-quality/quality.mjs <lint|test|check|fix|suppressions> [--changed | --all | <file>…] [--json]
+node tools/code-quality/quality.mjs <lint|test|check|fix|suppressions|baseline> [--changed | --all | <file>…] [--json]
 ```
 
 | Command | Does |
@@ -16,6 +16,7 @@ node tools/code-quality/quality.mjs <lint|test|check|fix|suppressions> [--change
 | `check` | `lint` then `test` |
 | `fix` | run the format autofixers (phpcbf + eslint/stylelint `--fix`) over the scope — **mutates files** |
 | `suppressions` | `loupe suppressions` — every honored `wpds-allow` in the tree (audit registry); extra args pass through, e.g. `--stale` |
+| `baseline` | `loupe baseline`, then re-record the occurrence counts beside it (see [The baseline](#the-baseline)) |
 
 ### Scope
 
@@ -41,7 +42,10 @@ advisory **JS / CSS lint**. phpcs output is de-noised (no ANSI colors, no
 `DEPRECATED: Scanning CSS/JS` per-sniff spam, PHP files only).
 
 **`--json`** emits a structured payload instead of text: `{ loupe, php }`.
-`loupe` is loupe's own `--format json` report. It is
+`loupe` is loupe's own `--format json` report, plus a `baselineCounts` object:
+`over` lists each baselined key that now holds more findings than the baseline
+accepts (`{ key, accepted, found }`; every finding of such a key is added to
+`findings` and sets `blocking`), and `under` lists keys that hold fewer. It is
 `{ blocking: false, findings: [] }` when the scope holds no file loupe checks,
 and `null` when loupe is missing (skipped) or couldn't run (exit 1, as in
 `lint`). `php` is a list of phpcs findings `{ source, rule, type, fixable, file,
@@ -53,7 +57,7 @@ findings itself. JS/CSS advisory lint is not included.
 | Code | Meaning |
 |---|---|
 | `0` | clean, nothing to do, or a tool was missing (skipped — including loupe) |
-| `1` | blocking failure — PHP lint, failing unit test, a blocking loupe finding not in the baseline, or a loupe that was found but couldn't run |
+| `1` | blocking failure — PHP lint, failing unit test, a blocking loupe finding not in the baseline (or more of one than the baseline counted), a baseline whose counts don't match it, or a loupe that was found but couldn't run |
 | `2` | couldn't run (git unavailable, bad usage) — never reported as success |
 
 JS/CSS lint findings are **advisory** and never change the exit code (there's a
@@ -69,6 +73,7 @@ npm run test:all        # test --all
 npm run check           # check --changed       npm run check:all   (check --all)
 npm run fix             # fix --changed         npm run fix:all     (fix --all)
 npm run suppressions    # the wpds-allow registry (needs loupe)
+npm run loupe:baseline  # re-record the loupe baseline and its counts (needs loupe)
 ```
 
 `fix` defaults to `--changed` (not `--all` like the read-only verbs): it
@@ -164,23 +169,48 @@ guidance.
 
 `.loupe/baseline.json` records the findings that existed when loupe was adopted.
 They are accepted; a blocking finding whose key isn't there fails the gate. A
-key is rule + file + normalized code, with no line number and no count. So
-reformatting a file doesn't resurrect its findings, but a new finding with the
-same rule and code as a baselined one in the same file is accepted too, and
-moving a file, or fixing part of a finding that lists several properties
-(dropping `gap` from `display,flex-direction,gap`), changes the key, so the
-finding reports as new.
+key is rule + file + normalized code, with no line number. So reformatting a
+file doesn't resurrect its findings, but moving a file, or fixing part of a
+finding that lists several properties (dropping `gap` from
+`display,flex-direction,gap`), changes the key, so the finding reports as new.
 
-`loupe baseline` re-records every current finding, so it accepts whatever is in
-the tree. Re-run it to shrink the file after fixing baselined findings, or after
-one of those key changes, and check that the `.loupe/baseline.json` diff only
-removes or renames entries. Never re-baseline to get a new finding past the gate
-— fix it or suppress it.
+loupe's baseline is a set of keys with no count, so on its own it accepts any
+number of findings that share one: a second `<Stack> ← background` override in
+`KanbanBoard.css` would pass. `.loupe/baseline-counts.json` closes that. It
+records how many findings each key held (601 findings under 431 keys).
+`lint`, `check` and `--json` run loupe a second time with `--no-baseline`,
+count the findings per key, and fail on any blocking key that now holds more
+than its count. The report lists every finding of that key, since nothing tells
+the new occurrence from the old ones. A whole-repo run also says when keys hold
+fewer findings than recorded, so the baseline can shrink.
 
-The baseline was recorded with loupe 0.8.0 (`e890529`). A newer engine can
-report findings the baseline never saw, and the plugin updates itself, so after
-a loupe update that surfaces findings nobody wrote, re-baseline in its own
-change and say which engine version recorded it.
+The counts are a separate file because loupe owns `baseline.json`: `loupe
+baseline` rewrites it and would drop a field it doesn't know. The gate fails
+when the two files disagree (a key in one and not the other, or counts that
+don't add up to the baseline's `findings`), so re-record them together:
+
+```
+npm run loupe:baseline
+```
+
+It runs `loupe baseline`, then writes the counts. Bare `loupe baseline` and the
+plugin's `/loupe-baseline` write only `baseline.json`; follow either with
+`npm run loupe:baseline`. Like `loupe baseline`, it
+accepts whatever is in the tree. Re-run it to shrink both files after fixing
+baselined findings, or after one of those key changes, and check that the diff
+only removes or renames entries and only lowers counts. Never re-baseline to get
+a new finding past the gate — fix it or suppress it.
+
+The counts are enforced by `quality.mjs` only. The loupe plugin's Claude Code
+hooks read `baseline.json` directly, so in a session an extra occurrence of a
+baselined key doesn't stop the turn; the next `npm run lint` or `check` reports
+it.
+
+The baseline and its counts were recorded with loupe 0.8.0 (`e890529`), from
+`main`. A newer engine can report findings the baseline never saw, and the
+plugin updates itself, so after a loupe update that surfaces findings nobody
+wrote, re-baseline with `npm run loupe:baseline` in its own change and say
+which engine version recorded it.
 
 ### Suppressing a needed exception
 
@@ -226,4 +256,5 @@ over the whole repo.
 | File | Role |
 |---|---|
 | `quality.mjs` | orchestrator — scope resolution, loupe, PHP/JS lint, unit tests, exit codes |
+| `loupe-counts.mjs` | the loupe baseline's occurrence counts — key, compare, validate (tested by `loupe-counts.test.mjs`) |
 | `phpcs-extensions.xml` | shared PHPCS baseline for the `workflow-*` extension plugins |
