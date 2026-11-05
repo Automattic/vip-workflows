@@ -17,8 +17,9 @@
  * @package
  */
 
-import { render, screen } from './helpers/render-wp-component';
+import { render, screen, within } from './helpers/render-wp-component';
 
+import { renderInspector as renderEditorInspector } from './helpers/inspector-fixture';
 import StageInspector from '../../src/admin/components/graph/StageInspector';
 import {
 	buildGraph,
@@ -167,6 +168,97 @@ describe( 'a blocking error names what is at fault', () => {
 		expect( found.target.outcome ).toBeNull();
 	} );
 
+	// A stage stored before the one-transition-per-target rule can hold two
+	// transitions to the same stage. Both share one edge address, and selecting
+	// it opens the first — so a fault in the second would open the clean one.
+	// The fault points at the stage instead, whose panel lists both rows.
+	describe( 'when the stage holds two transitions to the same stage', () => {
+		const twoToLegal = () => {
+			const stages = withAssignment( {
+				type: 'assignment',
+				meta_key: 'legal-reviewer',
+			} );
+			stages[ 0 ].transitions = [
+				{ to: 'legal', label: 'Clean one' },
+				{
+					to: 'legal',
+					label: 'Faulty one',
+					inputs: [ { type: 'assignment', meta_key: '' } ],
+				},
+			];
+			return stages;
+		};
+
+		it( 'points the fault at the stage, naming the transition', () => {
+			const found = blockers( twoToLegal() ).find( ( e ) =>
+				e.message.includes( 'names no assignment key' )
+			);
+
+			expect( found ).toBeDefined();
+			expect( found.message ).toContain( 'Faulty one' );
+			expect( found.target ).toEqual( { type: 'node', key: 'draft' } );
+		} );
+
+		it( 'points a duplicate-slot fault at the stage too', () => {
+			const stages = twoToLegal();
+			stages[ 0 ].transitions[ 0 ].inputs = [
+				{ type: 'assignment', meta_key: 'legal-reviewer' },
+			];
+			stages[ 0 ].transitions[ 1 ].inputs = [
+				{ type: 'assignment', meta_key: 'legal-reviewer' },
+			];
+
+			const found = blockers( stages ).find( ( e ) =>
+				e.message.includes( 'same slot as another' )
+			);
+
+			expect( found ).toBeDefined();
+			expect( found.message ).toContain( 'Faulty one' );
+			expect( found.target ).toEqual( { type: 'node', key: 'draft' } );
+		} );
+
+		// An unlabelled transition is named by the button it will carry, and
+		// still points at the stage when its edge address is shared.
+		it( 'names an unlabelled duplicate by its derived label', () => {
+			const stages = twoToLegal();
+			delete stages[ 0 ].transitions[ 1 ].label;
+
+			const found = blockers( stages ).find( ( e ) =>
+				e.message.includes( 'names no assignment key' )
+			);
+
+			expect( found ).toBeDefined();
+			expect( found.message ).toContain( 'Move to Legal' );
+			expect( found.target ).toEqual( { type: 'node', key: 'draft' } );
+		} );
+
+		// Another stage's single transition keeps its edge: only the shared
+		// address is ambiguous.
+		it( 'leaves a fault on an unshared transition pointing at its edge', () => {
+			const stages = twoToLegal();
+			stages[ 1 ].is_terminal = false;
+			stages[ 1 ].transitions = [
+				{
+					to: 'draft',
+					label: 'Back to draft',
+					inputs: [ { type: 'assignment', meta_key: '' } ],
+				},
+			];
+
+			const found = blockers( stages ).find( ( e ) =>
+				e.message.includes( 'Back to draft' )
+			);
+
+			expect( found ).toBeDefined();
+			expect( found.target ).toEqual( {
+				type: 'edge',
+				from: 'legal',
+				to: 'draft',
+				outcome: null,
+			} );
+		} );
+	} );
+
 	// Two halves of the same report: the notice can open the transition, and
 	// the node still carries the message so the canvas says which stage to look
 	// at. Losing the second half would leave a fault visible only after Save.
@@ -222,7 +314,7 @@ describe( 'the stage panel flags the exit at fault', () => {
 		...overrides,
 	} );
 
-	const renderInspector = ( stage, exitProblems ) =>
+	const renderInspector = ( stage, exitProblems, overrides = {} ) =>
 		render(
 			<StageInspector
 				stage={ stage }
@@ -240,6 +332,7 @@ describe( 'the stage panel flags the exit at fault', () => {
 				canDelete
 				isKeyInUse={ () => false }
 				exitProblems={ exitProblems }
+				{ ...overrides }
 			/>
 		);
 
@@ -252,9 +345,8 @@ describe( 'the stage panel flags the exit at fault', () => {
 
 	it( 'flags the row of the transition the error names', () => {
 		renderInspector( reviewStage(), {
-			[ edgeId( 'review', 'done' ) ]: [
+			[ edgeId( 'review', 'done' ) ]:
 				'The “Approve” transition assigns work but names no assignment key.',
-			],
 		} );
 
 		// The flag takes the value column, so a closed panel still shows which
@@ -282,9 +374,8 @@ describe( 'the stage panel flags the exit at fault', () => {
 				agent: { ability_id: 'a/b', routing: { pass: 'done' } },
 			} ),
 			{
-				[ edgeId( 'review', 'done' ) ]: [
+				[ edgeId( 'review', 'done' ) ]:
 					'The “Approve” transition assigns to the same slot as another transition.',
-				],
 			}
 		);
 
@@ -307,9 +398,8 @@ describe( 'the stage panel flags the exit at fault', () => {
 				},
 			} ),
 			{
-				[ edgeId( 'review', 'done' ) ]: [
+				[ edgeId( 'review', 'done' ) ]:
 					'The “Approve” transition assigns work but names no assignment key.',
-				],
 			}
 		);
 
@@ -322,26 +412,19 @@ describe( 'the stage panel flags the exit at fault', () => {
 	// the value column outright took the "(missing)" with it, leaving the row
 	// saying something is wrong and no longer saying what.
 	it( 'keeps reporting a missing destination on a row that is also at fault', () => {
-		render(
-			<StageInspector
-				stage={ reviewStage( {
-					transitions: [ { to: 'ghost', label: 'Approve' } ],
-				} ) }
-				availableAgents={ [] }
-				resolveStageLabel={ ( key ) => key }
-				stageExists={ () => false }
-				isTransitionDisabled={ () => false }
-				onChange={ () => {} }
-				onDelete={ () => {} }
-				onSelectEdge={ () => {} }
-				canDelete
-				isKeyInUse={ () => false }
-				exitProblems={ {
-					[ edgeId( 'review', 'ghost' ) ]: [
-						'The “Approve” transition assigns work but names no assignment key.',
-					],
-				} }
-			/>
+		renderInspector(
+			reviewStage( {
+				transitions: [ { to: 'ghost', label: 'Approve' } ],
+			} ),
+			{
+				[ edgeId( 'review', 'ghost' ) ]:
+					'The “Approve” transition assigns work but names no assignment key.',
+			},
+			{
+				resolveStageLabel: ( key ) => key,
+				stageExists: () => false,
+				isTransitionDisabled: () => false,
+			}
 		);
 
 		const row = screen.getByRole( 'button', {
@@ -362,9 +445,8 @@ describe( 'the stage panel flags the exit at fault', () => {
 				agent: { ability_id: 'a/b', routing: { pass: 'done' } },
 			} ),
 			{
-				[ edgeId( 'review', 'spike' ) ]: [
+				[ edgeId( 'review', 'spike' ) ]:
 					'The “Spike” transition assigns work but names no assignment key.',
-				],
 			}
 		);
 
@@ -373,5 +455,100 @@ describe( 'the stage panel flags the exit at fault', () => {
 		} );
 		expect( row ).toHaveTextContent( 'Needs attention' );
 		expect( row ).not.toHaveTextContent( '(disabled)' );
+	} );
+} );
+
+// The blocked-save notice's "Show transition" selects the edge an error names,
+// which opens the transition panel. A fault that spans transitions — two of
+// them assigning one slot — has no row in that panel to explain it, so the
+// panel has to say it outright or the author lands on a panel that looks clean.
+describe( 'the transition panel names the fault it was sent to fix', () => {
+	const stages = [
+		{
+			key: 'draft',
+			label: 'Draft',
+			status: 'draft',
+			region_entry: true,
+			is_terminal: false,
+			transitions: [
+				{
+					to: 'legal',
+					label: 'Send to legal',
+					inputs: [
+						{ type: 'assignment', meta_key: 'legal_reviewer' },
+					],
+				},
+			],
+		},
+		{
+			key: 'legal',
+			label: 'Legal',
+			status: 'draft',
+			region_entry: false,
+			is_terminal: false,
+			transitions: [
+				{
+					to: 'done',
+					label: 'Approve',
+					inputs: [
+						{ type: 'assignment', meta_key: 'legal_reviewer' },
+					],
+				},
+			],
+		},
+		{
+			key: 'done',
+			label: 'Done',
+			status: 'publish',
+			region_entry: true,
+			is_terminal: true,
+			transitions: [],
+		},
+	];
+
+	// Keyed the way the editor keys them: by the record, `from->to`, holding
+	// the first message aimed at it.
+	const exitProblems = () => {
+		const byEdge = {};
+		blockers( stages ).forEach( ( { message, target } ) => {
+			if ( target?.type !== 'edge' ) {
+				return;
+			}
+			const id = edgeId( target.from, target.to );
+			byEdge[ id ] = byEdge[ id ] || message;
+		} );
+		return byEdge;
+	};
+
+	// Scoped to the render's container: `<Notice>` also speaks its text into a
+	// document-level live region that outlives the render.
+	const renderPanel = ( from, to ) => {
+		const stage = stages.find( ( s ) => s.key === from );
+		const { container } = renderEditorInspector( {
+			selection: { type: 'edge', from, to, outcome: null },
+			stages,
+			selectedStage: stage,
+			selectedTransition: stage.transitions.find( ( t ) => t.to === to ),
+			exitProblems: exitProblems(),
+		} );
+		return within( container );
+	};
+
+	it( 'shows the save blocker on the transition it names', () => {
+		const panel = renderPanel( 'legal', 'done' );
+
+		expect(
+			panel.getByText(
+				/The “Approve” transition assigns to the same slot as another transition/
+			)
+		).toBeInTheDocument();
+	} );
+
+	it( 'says nothing on a transition the blocker does not name', () => {
+		const panel = renderPanel( 'draft', 'legal' );
+
+		expect(
+			panel.queryByText( /assigns to the same slot/ )
+		).not.toBeInTheDocument();
 	} );
 } );

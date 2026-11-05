@@ -158,7 +158,8 @@ class AbilityExecutor {
 				 * array — for example, one containing a REST status — but that data
 				 * describes the error; it does not make the result successful.
 				 */
-				$result = AbilityResult::failure( $ability_name, $raw_result->get_error_message() );
+				$result             = AbilityResult::failure( $ability_name, $raw_result->get_error_message() );
+				$result->error_code = (string) $raw_result->get_error_code();
 			} elseif ( $raw_result instanceof AbilityResult ) {
 				$result = $raw_result;
 			} elseif ( is_array( $raw_result ) ) {
@@ -167,7 +168,8 @@ class AbilityExecutor {
 				$result = AbilityResult::success( $ability_name, array( 'data' => $raw_result ) );
 			}
 		} catch ( \Exception $e ) {
-			$result = AbilityResult::failure( $ability_name, $e->getMessage() );
+			$result             = AbilityResult::failure( $ability_name, $e->getMessage() );
+			$result->error_code = get_class( $e );
 		} finally {
 			self::$current_context = $previous_context;
 		}

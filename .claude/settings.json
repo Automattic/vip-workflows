@@ -1,0 +1,17 @@
+{
+	"$schema": "https://json.schemastore.org/claude-code-settings.json",
+	"extraKnownMarketplaces": {
+		"loupe": {
+			"source": {
+				"source": "github",
+				"repo": "dabowman/loupe"
+			}
+		}
+	},
+	"enabledPlugins": {
+		"loupe@loupe": true
+	},
+	"env": {
+		"LOUPE": "on"
+	}
+}

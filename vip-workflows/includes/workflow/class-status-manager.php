@@ -554,9 +554,8 @@ class StatusManager {
 					'required_tools' => $transition['required_tools'] ?? array(),
 				);
 
-				// What the transition captures, as stored. The editor collects its
-				// assignment before the move and passes over anything else — a
-				// retired note a stored sequence may still carry.
+				// What the transition captures, as stored: at most one
+				// assignment, which the editor collects before the move.
 				if ( ! empty( $transition['inputs'] ) ) {
 					$mapped['inputs'] = $transition['inputs'];
 				}
@@ -680,10 +679,8 @@ class StatusManager {
 
 				if ( ! in_array( $to_status, $routing, true ) ) {
 					$message = __( 'This stage belongs to an AI agent; only the destinations its outcomes route to can be taken.', 'vip-workflows' );
-				} elseif ( StageAgentRunner::publish_setting_fixes_route( $routing, $to_status ) ) {
-					$message = __( 'This stage belongs to an AI agent, and its route to this destination publishes. This sequence doesn’t allow AI stages to publish, so the route stays closed while the agent owns this stage. Edit the sequence to route that outcome to a stage before publishing, or turn on "Let AI stages publish".', 'vip-workflows' );
 				} else {
-					$message = __( 'This stage belongs to an AI agent, and its route to this destination publishes. This sequence doesn’t allow AI stages to publish, so the route stays closed while the agent owns this stage. Edit the sequence to route that outcome to a stage before publishing.', 'vip-workflows' );
+					$message = __( 'This stage is run by an agent, and Sequence settings don’t allow AI stages to publish. Move the post to another stage first.', 'vip-workflows' );
 				}
 
 				return new \WP_Error( 'unrouted_agent_exit', $message, array( 'status' => 403 ) );
@@ -730,7 +727,7 @@ class StatusManager {
 				'stage_region_missing',
 				sprintf(
 					/* translators: %s: the underlying reason, naming the stage. */
-					__( 'This workflow cannot be used until its stages have status regions: %s Open the sequence and assign the missing ones.', 'vip-workflows' ),
+					__( 'Some stages have no status: %s Assign them in the sequence editor.', 'vip-workflows' ),
 					$e->getMessage()
 				),
 				array( 'status' => 409 )
@@ -740,6 +737,39 @@ class StatusManager {
 		// A failed-agent revert may have no matching authored edge and does not
 		// collect assignment inputs.
 		$transition_config = $sequence->get_transition( $current_stage, $to_status );
+
+		// Accept only the input keys this edge declares. Every accepted key is
+		// stored in transition meta and logged as a labelled note, so a client
+		// cannot attach arbitrary free text to the post's history by naming keys
+		// the transition never asked for. An undeclared key fails the request
+		// rather than being dropped, so the client knows it was not saved.
+		$assignment_manager = new AssignmentManager();
+		if ( ! empty( $options['input_data'] ) ) {
+			$input_keys_check = $assignment_manager->check_transition_input_keys( $transition_config, $options['input_data'] );
+			if ( is_wp_error( $input_keys_check ) ) {
+				return $input_keys_check;
+			}
+		}
+
+		// A self-edge writes no stage, so the stage compare-and-swap below does
+		// not stop two of them racing on the same slot: both would validate
+		// against the slot as it is now, and the later write would replace the
+		// earlier one while both report success. Read the slots this edge will
+		// write now, from the same meta read as $current_stage, and write each
+		// only if it still holds this value.
+		//
+		// A stage-changing edge needs no such check. Its slot key is unique to
+		// the edge (SequencesController::validate_assignment_keys()), so a
+		// concurrent writer of the slot is a concurrent taker of the edge, and
+		// the stage compare-and-swap already refuses the loser before it writes
+		// its assignment. A snapshot here would also be wrong for it: other
+		// transitions may take the post out of this stage and back before the
+		// swap, legitimately rewriting the slot on the way.
+		$is_self_edge  = $current_stage === $to_status;
+		$slot_snapshot = null;
+		if ( $is_self_edge && is_array( $transition_config ) ) {
+			$slot_snapshot = $assignment_manager->get_transition_slots( $post_id, $transition_config, $options['input_data'] ?? array() );
+		}
 
 		/*
 		 * An agent run executes at uid 0 under cron, so it names the identity it
@@ -807,7 +837,6 @@ class StatusManager {
 		// Reject incomplete assignments before tools run or any post state changes.
 		// A failed-agent revert does not collect inputs, even if an authored edge
 		// happens to connect the same stages.
-		$assignment_manager = new AssignmentManager();
 		if ( ! $is_revert && is_array( $transition_config ) ) {
 			$assignment_validation = $assignment_manager->validate_transition_input( $transition_config, $options['input_data'] ?? array() );
 			if ( is_wp_error( $assignment_validation ) ) {
@@ -819,9 +848,22 @@ class StatusManager {
 
 		// Reject invalid targets before tools run or post/stage changes commit.
 		if ( is_array( $transition_config ) ) {
-			$assignee_validation = ( new AssignmentManager() )->validate_transition_assignees( $transition_config, $options['input_data'] ?? array() );
+			$assignee_validation = $assignment_manager->validate_transition_assignees( $transition_config, $options['input_data'] ?? array() );
 			if ( is_wp_error( $assignee_validation ) ) {
 				return $assignee_validation;
+			}
+
+			// An assignee who cannot read the post would never see it in My Work.
+			// The assignment lives on the post after the move, so access is
+			// judged against the status this transition will commit.
+			$assignee_access = $assignment_manager->validate_assignee_access(
+				$post_id,
+				$transition_config,
+				$options['input_data'] ?? array(),
+				$this->status_after_transition( $post, $from_region, $to_region )
+			);
+			if ( is_wp_error( $assignee_access ) ) {
+				return $assignee_access;
 			}
 		}
 
@@ -1031,10 +1073,60 @@ class StatusManager {
 			}
 		}
 
+		// The post has left its stage, so the user and role assignments made for
+		// that stage are done. Runs before this edge captures its own assignment,
+		// which belongs to the stage being entered. A self-edge stays put. A
+		// failed-agent revert is not the work moving on: it undoes a move whose
+		// agent run failed, so the assignments it finds stay pending.
+		if ( $current_stage !== $to_status && ! $is_revert ) {
+			$assignment_manager->complete_on_stage_exit( $post_id );
+		}
+
 		// Process submitted assignment input for an authored edge. A failed-agent
-		// revert supplies no inputs, so existing assignments remain untouched.
+		// revert supplies no inputs, so it captures no new assignment.
 		if ( is_array( $transition_config ) ) {
-			$assignment_manager->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array() );
+			$assigned_slots = $assignment_manager->process_transition_input( $post_id, $transition_config, $options['input_data'] ?? array(), $slot_snapshot );
+
+			// Only a self-edge writes conditionally, and it has written nothing
+			// before this point: no status, no stage, no completed slots. So the
+			// refusal is the whole outcome, the same as a lost stage swap.
+			if ( is_wp_error( $assigned_slots ) ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log(
+					sprintf(
+						'[VIP Workflows] Post %d: transition "%s" -> "%s" was abandoned; assignment slot "%s" was not written (%s).',
+						$post_id,
+						$current_stage,
+						$to_status,
+						(string) ( $assigned_slots->get_error_data()['meta_key'] ?? '' ),
+						$assigned_slots->get_error_code()
+					)
+				);
+				return $assigned_slots;
+			}
+
+			// The stage compare-and-swap above does not cover this assignment
+			// write. A concurrent transition can move the post on in between: it
+			// writes the stage, then completes the pending assignments it finds,
+			// and this one may not have existed yet. Re-reading the stage AFTER
+			// the assignment write closes that gap. Either the other transition
+			// saw this assignment and completed it, or this read sees its stage.
+			if ( $assigned_slots ) {
+				$stage_now = $this->read_stage_uncached( $post_id );
+				if ( $stage_now !== $to_status ) {
+					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					error_log(
+						sprintf(
+							'[VIP Workflows] Post %d: moved to "%s" while transition "%s" -> "%s" was writing its assignment; completing it.',
+							$post_id,
+							$stage_now,
+							$current_stage,
+							$to_status
+						)
+					);
+					$assignment_manager->complete_slots_for_left_stage( $post_id, $assigned_slots );
+				}
+			}
 		}
 
 		// Store transition input data if provided.
@@ -1061,6 +1153,51 @@ class StatusManager {
 		$this->dispatch_stage_change( $post_id, $to_status, $current_stage, $sequence, $context );
 
 		return true;
+	}
+
+	/**
+	 * Read a post's workflow stage from the database, not the meta cache.
+	 *
+	 * Another request may have written the stage since this one primed its
+	 * cache, and the caller needs to see that write.
+	 *
+	 * @param  int $post_id Post ID.
+	 * @return string The stored stage key, or '' when none is stored.
+	 */
+	private function read_stage_uncached( int $post_id ): string {
+		wp_cache_delete( $post_id, 'post_meta' );
+
+		return (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
+	}
+
+	/**
+	 * The core status a transition will leave the post in.
+	 *
+	 * A same-region move writes no status, so the post keeps the one it holds
+	 * (pending, future or whatever core set). A region crossing writes the
+	 * target region through commit_post_status(), where core turns `publish`
+	 * into `future` for a post dated at least a minute ahead, as
+	 * wp_insert_post() does. A post with no GMT date is date-floating:
+	 * wp_update_post() dates it now, so it publishes.
+	 *
+	 * @param  \WP_Post $post        Post being transitioned.
+	 * @param  string   $from_region Source stage's region.
+	 * @param  string   $to_region   Target stage's region.
+	 * @return string Core post status.
+	 */
+	private function status_after_transition( \WP_Post $post, string $from_region, string $to_region ): string {
+		if ( $from_region === $to_region ) {
+			return (string) get_post_status( $post->ID );
+		}
+
+		if ( 'publish' === $to_region ) {
+			$post_date_gmt = (string) $post->post_date_gmt;
+			if ( '0000-00-00 00:00:00' !== $post_date_gmt && strtotime( $post_date_gmt ) - time() >= MINUTE_IN_SECONDS ) {
+				return 'future';
+			}
+		}
+
+		return $to_region;
 	}
 
 	/**
@@ -1166,7 +1303,7 @@ class StatusManager {
 				'transition_conflict',
 				sprintf(
 					/* translators: 1: stage the transition started from, 2: stage the post is in now. */
-					__( 'This post moved to another stage while your change was being applied: it started at "%1$s" and is now at "%2$s". Reload and try again.', 'vip-workflows' ),
+					__( 'This post moved from “%1$s” to “%2$s” in the meantime. Reload and try again.', 'vip-workflows' ),
 					$expected_stage,
 					$actual_stage
 				),
@@ -1405,6 +1542,11 @@ class StatusManager {
 		$previous_status = (string) get_post_status( $post->ID );
 
 		update_post_meta( $post->ID, self::STAGE_META_KEY, $entry_stage );
+
+		// A reseat leaves the current stage, which finishes its assignments.
+		if ( $entry_stage !== $current_stage ) {
+			( new AssignmentManager() )->complete_on_stage_exit( $post->ID );
+		}
 
 		$context = array(
 			'cause'            => 'core',
@@ -1657,6 +1799,9 @@ class StatusManager {
 		// claimer's queue with no stage to work. The controller-side removal this
 		// method replaces cleared it; keep doing so.
 		delete_post_meta( $post_id, '_vip_workflows_assigned_to' );
+
+		// Leaving the workflow leaves the stage, which finishes its assignments.
+		( new AssignmentManager() )->complete_on_stage_exit( $post_id );
 
 		$this->log_workflow_event(
 			$post_id,
@@ -2183,7 +2328,7 @@ class StatusManager {
 				'unmodeled_post_status',
 				sprintf(
 					/* translators: 1: sequence name. 2: post status label, e.g. "Pending Review". */
-					__( 'The "%1$s" sequence has no stage with the %2$s status, so it cannot be started on this post. Change the post’s status, or choose a sequence that covers it.', 'vip-workflows' ),
+					__( 'The “%1$s” sequence has no %2$s stage. Change the post’s status, or choose another sequence.', 'vip-workflows' ),
 					$sequence->name,
 					$region_label
 				),
@@ -2194,8 +2339,9 @@ class StatusManager {
 		// The committed status before the assignment writes anything, and the
 		// previous workflow identity (a re-assignment may replace an existing
 		// workflow; the previous stage, if any, is the stage being exited).
-		$previous_status = (string) get_post_status( $post_id );
-		$previous_stage  = (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
+		$previous_status   = (string) get_post_status( $post_id );
+		$previous_stage    = (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
+		$previous_sequence = (int) get_post_meta( $post_id, self::SEQUENCE_META_KEY, true );
 
 		// The seat is inside the post's own region by construction — the entry
 		// stage is selected from that region's stages — so no post_status write
@@ -2203,6 +2349,14 @@ class StatusManager {
 		// the publish region stays `future`.
 		update_post_meta( $post_id, self::SEQUENCE_META_KEY, $sequence_id );
 		update_post_meta( $post_id, self::STAGE_META_KEY, $stage_key );
+
+		// Replacing a workflow leaves the previous stage, which finishes its
+		// assignments. Re-seating the same sequence at the stage the post is
+		// already in leaves nothing, so its assignments stay pending.
+		$left_stage = $previous_sequence !== $sequence_id || $previous_stage !== $stage_key;
+		if ( '' !== $previous_stage && $left_stage ) {
+			( new AssignmentManager() )->complete_on_stage_exit( $post_id );
+		}
 
 		// Log the assignment.
 		$this->log_workflow_event(

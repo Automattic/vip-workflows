@@ -90,6 +90,17 @@ export default function ImageCard( {
 	const isVideoCard = isVideo( card );
 
 	/*
+	 * The same two addresses, for the elements that load them. A link gets an
+	 * address only when isSafeUrl() permits it, and so does an image or a
+	 * video: one rule for every place that uses the address. An address that
+	 * it does not permit is shown the way an image that will not load is shown.
+	 */
+	const imageSrc = isSafeUrl( imageUrl ) ? imageUrl : '';
+	const videoSrc = isSafeUrl( sourceUrl || imageUrl )
+		? sourceUrl || imageUrl
+		: '';
+
+	/*
 	 * A thumbnail that fails to load is shown as the card's own placeholder — the
 	 * same face a card with no image gets. Not CardThumb: its fallback is a small
 	 * inline span sized by the caller, and both images here are sized by element
@@ -97,7 +108,7 @@ export default function ImageCard( {
 	 * The card already owns a full-face placeholder design; reusing it keeps a
 	 * broken load looking deliberate rather than like a second kind of error.
 	 */
-	const thumbUnavailable = ! imageUrl || failedThumb === imageUrl;
+	const thumbUnavailable = ! imageSrc || failedThumb === imageSrc;
 
 	const ai = parseAiAnalysis( card.ai_analysis );
 	const hasSummary = !! ( analysisText || ai.summary );
@@ -106,8 +117,9 @@ export default function ImageCard( {
 	// <video> for videos, otherwise the image. Built here to avoid a nested
 	// ternary in the JSX.
 	const embedUrl = isVideoCard ? getEmbedUrl( sourceUrl ) : null;
+	const previewSrc = isVideoCard ? videoSrc : imageSrc;
 	let mediaPreview;
-	if ( mediaError ) {
+	if ( mediaError || ( ! embedUrl && ! previewSrc ) ) {
 		mediaPreview = (
 			<Stack
 				align="center"
@@ -132,7 +144,7 @@ export default function ImageCard( {
 	} else if ( isVideoCard ) {
 		mediaPreview = (
 			<video
-				src={ sourceUrl || imageUrl }
+				src={ videoSrc }
 				controls
 				className="vip-workflows-ideation-media-modal__player"
 				onError={ () => setMediaError( true ) }
@@ -141,7 +153,7 @@ export default function ImageCard( {
 	} else {
 		mediaPreview = (
 			<img
-				src={ imageUrl }
+				src={ imageSrc }
 				alt={ card.title || '' }
 				className="vip-workflows-ideation-media-modal__image"
 				onError={ () => setMediaError( true ) }
@@ -176,10 +188,10 @@ export default function ImageCard( {
 			<div className="vip-workflows-ideation-card--image__video-thumb">
 				{ ! thumbUnavailable ? (
 					<img
-						src={ imageUrl }
+						src={ imageSrc }
 						alt={ card.title || '' }
 						loading="lazy"
-						onError={ () => setFailedThumb( imageUrl ) }
+						onError={ () => setFailedThumb( imageSrc ) }
 					/>
 				) : (
 					<Stack
@@ -218,10 +230,10 @@ export default function ImageCard( {
 	} else if ( ! thumbUnavailable ) {
 		media = (
 			<img
-				src={ imageUrl }
+				src={ imageSrc }
 				alt={ card.title || '' }
 				loading="lazy"
-				onError={ () => setFailedThumb( imageUrl ) }
+				onError={ () => setFailedThumb( imageSrc ) }
 			/>
 		);
 	}

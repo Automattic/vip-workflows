@@ -43,6 +43,7 @@ import {
 	serveSequenceEditor,
 	settle,
 } from './helpers/sequence-editor';
+import { FAULTED_STAGES } from './helpers/faulted-sequence';
 
 jest.mock( '@wordpress/api-fetch' );
 
@@ -1151,7 +1152,7 @@ describe( 'A save the editor refuses', () => {
 		expect( writes ).toHaveLength( 0 );
 		expect( refusal() ).toContain( '2 things need fixing' );
 		expect( refusal() ).toContain( 'fill in Name in the Sequence panel' );
-		expect( refusal() ).toContain( 'attached to no post type' );
+		expect( refusal() ).toContain( 'No post type selected' );
 	} );
 
 	it( 'drops each reason as it is fixed, and goes away with the last', async () => {
@@ -1210,39 +1211,9 @@ describe( 'A save the editor refuses', () => {
  * button can be read as belonging to the reason beside it.
  */
 describe( 'A refused Save that knows where its fault is', () => {
-	// The one transition captures an assignment and names no key, which the
-	// server refuses as `invalid_assignment_key`. The fault belongs to the
-	// transition, so the error targets the edge rather than the stage.
-	const FAULTED = [
-		{
-			key: 'draft',
-			label: 'Draft',
-			color: '#C36EFF',
-			status: 'draft',
-			region_entry: true,
-			is_terminal: false,
-			transitions: [
-				{
-					to: 'legal',
-					label: 'Send to legal',
-					inputs: [ { type: 'assignment', meta_key: '' } ],
-				},
-			],
-		},
-		{
-			key: 'legal',
-			label: 'Legal',
-			color: '#C36EFF',
-			status: 'draft',
-			region_entry: false,
-			is_terminal: true,
-			transitions: [],
-		},
-	];
-
 	const serveFaulted = () => {
 		served = sequence( {
-			config: { ...sequence().config, statuses: FAULTED },
+			config: { ...sequence().config, statuses: FAULTED_STAGES },
 		} );
 	};
 
