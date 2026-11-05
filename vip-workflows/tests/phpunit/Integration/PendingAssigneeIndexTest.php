@@ -174,14 +174,91 @@ class PendingAssigneeIndexTest extends TestCase {
 	}
 
 	/**
-	 * The rebuild runs under a per-post lock, and gives it back.
+	 * The race the check-after-write exists for: a rebuild reads the slots,
+	 * then another request assigns a second user and finishes its own rebuild
+	 * before the first one deletes and rewrites the rows. Without the check the
+	 * first rebuild writes back its snapshot and the second user's row is lost.
+	 *
+	 * Forced with core's pre-delete filter, which runs after the first
+	 * rebuild's read and before its delete.
 	 */
-	public function test_the_rebuild_releases_its_lock(): void {
-		global $wpdb;
+	public function test_a_rebuild_overtaken_by_another_requests_assignment_settles(): void {
+		$interleave = function ( $check, $object_id, $meta_key ) use ( &$interleave ) {
+			if ( $this->post_id === (int) $object_id && AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY === $meta_key ) {
+				remove_filter( 'delete_post_metadata', $interleave );
+				// The other request: its own slot write and rebuild, start to finish.
+				$this->assignments->assign( $this->post_id, 'legal', $this->user_b, 'user' );
+			}
+			return $check;
+		};
+		add_filter( 'delete_post_metadata', $interleave, 10, 3 );
 
 		$this->assignments->assign( $this->post_id, 'reviewer', $this->user_a, 'user' );
 
-		$this->assertSame( '1', $wpdb->get_var( $wpdb->prepare( 'SELECT IS_FREE_LOCK(%s)', 'vip_workflows_assignee_index_' . $this->post_id ) ) );
+		$this->assertSame( array( $this->user_a, $this->user_b ), $this->indexed() );
+	}
+
+	/**
+	 * The backfill reads a page, then writes it. A live assignment between the
+	 * two would be overwritten by the page's stale snapshot, so the page is
+	 * read back and settled after it is written.
+	 *
+	 * Forced at the backfill's DELETE, after its read.
+	 */
+	public function test_a_backfill_page_overtaken_by_a_live_assignment_settles(): void {
+		$this->write_raw_slot(
+			'reviewer',
+			array(
+				'value'  => $this->user_a,
+				'type'   => 'user',
+				'status' => AssignmentManager::STATUS_PENDING,
+			)
+		);
+
+		$interleave = function ( $query ) use ( &$interleave ) {
+			if ( 0 === stripos( ltrim( $query ), 'DELETE FROM' ) && false !== strpos( $query, AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY ) ) {
+				remove_filter( 'query', $interleave );
+				$this->assignments->assign( $this->post_id, 'legal', $this->user_b, 'user' );
+			}
+			return $query;
+		};
+		add_filter( 'query', $interleave );
+
+		( new \ReflectionMethod( Schema::class, 'backfill_pending_assignee_index' ) )->invoke( null );
+
+		$this->assertSame( array( $this->user_a, $this->user_b ), $this->indexed() );
+	}
+
+	/**
+	 * Two upgrade requests can backfill the same page at once, and both insert
+	 * its rows. Reading the page back after the write removes the doubles.
+	 *
+	 * Forced at the backfill's INSERT, where the other request's rows land
+	 * first.
+	 */
+	public function test_two_backfills_of_one_page_leave_each_user_once(): void {
+		$this->write_raw_slot(
+			'reviewer',
+			array(
+				'value'  => $this->user_a,
+				'type'   => 'user',
+				'status' => AssignmentManager::STATUS_PENDING,
+			)
+		);
+
+		$interleave = function ( $query ) use ( &$interleave ) {
+			if ( 0 === stripos( ltrim( $query ), 'INSERT INTO' ) && false !== strpos( $query, AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY ) ) {
+				remove_filter( 'query', $interleave );
+				// The other request's insert of the same page.
+				add_post_meta( $this->post_id, AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY, (string) $this->user_a );
+			}
+			return $query;
+		};
+		add_filter( 'query', $interleave );
+
+		( new \ReflectionMethod( Schema::class, 'backfill_pending_assignee_index' ) )->invoke( null );
+
+		$this->assertSame( array( $this->user_a ), $this->indexed() );
 	}
 
 	/**

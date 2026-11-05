@@ -55,6 +55,12 @@ class AssignmentManager {
 	 */
 	public const STORAGE_PREFIX = '_vip_workflows_assignment_';
 
+	/**
+	 * How many times a rebuild of the pending-assignee index rewrites a post
+	 * whose rows a concurrent request keeps changing, before it logs.
+	 */
+	public const INDEX_SETTLE_ATTEMPTS = 5;
+
 	// =========================================================================
 	// Assignment CRUD
 	// =========================================================================
@@ -1281,52 +1287,81 @@ class AssignmentManager {
 	 * Rebuild a post's pending-assignee index from its assignment slots.
 	 *
 	 * Rebuilt whole rather than patched per write, so every write path leaves
-	 * the same rows, and running it twice changes nothing. Only pending user
-	 * assignments are indexed: those are the ones that put a post in a
-	 * person's My Work.
+	 * the same rows. Only pending user assignments are indexed: those are the
+	 * ones that put a post in a person's My Work.
 	 *
-	 * The read, delete and insert run under a per-post database lock. Two
-	 * requests writing different slots on one post could otherwise interleave:
-	 * the first reads its slots, the second rebuilds with both, and the first
-	 * then deletes the second's row and writes back only its own snapshot.
+	 * Two requests can rebuild one post at once, and a rebuild that read the
+	 * slots before another request's write can then overwrite the newer rows
+	 * with its own snapshot, or leave a row twice. So each rebuild checks its
+	 * work: after writing, it reads the slots and the rows again and, if they
+	 * no longer agree, rebuilds. Whichever rebuild writes last also checks
+	 * last, after every slot write before it, so the index ends matching the
+	 * slots. That needs no lock. A named database lock would not serve here
+	 * anyway: on VIP, HyperDB sends a SELECT, GET_LOCK included, to a read
+	 * replica, while the writes go to the primary. After this request's first
+	 * write to postmeta, HyperDB reads postmeta from the primary, so the check
+	 * reads what was actually stored.
 	 *
 	 * @param int $post_id Post ID.
 	 */
 	public function sync_pending_assignee_index( int $post_id ): void {
-		global $wpdb;
-
-		$lock = 'vip_workflows_assignee_index_' . $post_id;
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- a named database lock, not a data read.
-		$locked = 1 === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 10)', $lock ) );
-		if ( ! $locked ) {
-			// Rebuilding anyway is the lesser harm: skipping would leave the
-			// index stale with certainty, where a concurrent rebuild only might.
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflows] Could not lock the pending-assignee index of post %d; rebuilding it without the lock.', $post_id ) );
-		}
-
-		try {
-			// A write in this request, or another request's, must be read back
-			// as stored, not as cached.
-			wp_cache_delete( $post_id, 'post_meta' );
-
-			$slots = array();
-			foreach ( (array) get_post_meta( $post_id ) as $meta_key => $values ) {
-				if ( str_starts_with( (string) $meta_key, self::STORAGE_PREFIX ) ) {
-					$slots[ (string) $meta_key ] = end( $values );
-				}
-			}
+		for ( $attempt = 1; $attempt <= self::INDEX_SETTLE_ATTEMPTS; ++$attempt ) {
+			$user_ids = $this->read_pending_user_ids( $post_id, true );
 
 			delete_post_meta( $post_id, self::PENDING_ASSIGNEE_INDEX_KEY );
-			foreach ( self::pending_user_ids_from_slots( $post_id, $slots ) as $user_id ) {
+			foreach ( $user_ids as $user_id ) {
 				add_post_meta( $post_id, self::PENDING_ASSIGNEE_INDEX_KEY, (string) $user_id );
 			}
-		} finally {
-			if ( $locked ) {
-				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- releases the lock taken above.
-				$wpdb->query( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', $lock ) );
+
+			if ( $this->pending_assignee_index_matches( $post_id ) ) {
+				return;
 			}
 		}
+
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( sprintf( '[VIP Workflows] The pending-assignee index of post %d still disagreed with its assignment slots after %d rebuilds; another request is writing it.', $post_id, self::INDEX_SETTLE_ATTEMPTS ) );
+	}
+
+	/**
+	 * Whether a post's pending-assignee rows are exactly what its slots name
+	 * now: each pending user once, nobody else.
+	 *
+	 * @param int $post_id Post ID.
+	 * @return bool
+	 */
+	public function pending_assignee_index_matches( int $post_id ): bool {
+		$expected = $this->read_pending_user_ids( $post_id, false );
+		sort( $expected );
+
+		wp_cache_delete( $post_id, 'post_meta' );
+		$rows = array_map( 'intval', get_post_meta( $post_id, self::PENDING_ASSIGNEE_INDEX_KEY, false ) );
+		sort( $rows );
+
+		return $expected === $rows;
+	}
+
+	/**
+	 * The pending user assignees a post's slots name, read past the cache.
+	 *
+	 * @param int  $post_id Post ID.
+	 * @param bool $report  Whether to log malformed slots. The check after a
+	 *                      write reads the same slots again and does not
+	 *                      repeat what the rebuild already logged.
+	 * @return int[]
+	 */
+	private function read_pending_user_ids( int $post_id, bool $report ): array {
+		// A write in this request, or another request's, must be read back as
+		// stored, not as cached.
+		wp_cache_delete( $post_id, 'post_meta' );
+
+		$slots = array();
+		foreach ( (array) get_post_meta( $post_id ) as $meta_key => $values ) {
+			if ( str_starts_with( (string) $meta_key, self::STORAGE_PREFIX ) ) {
+				$slots[ (string) $meta_key ] = end( $values );
+			}
+		}
+
+		return self::pending_user_ids_from_slots( $post_id, $slots, $report );
 	}
 
 	/**
@@ -1341,17 +1376,20 @@ class AssignmentManager {
 	 *
 	 * @param  int                  $post_id Post ID, for the log.
 	 * @param  array<string, mixed> $slots   Raw stored values keyed by full meta key.
+	 * @param  bool                 $report  Whether to log malformed slots.
 	 * @return int[] User IDs, each once.
 	 */
-	public static function pending_user_ids_from_slots( int $post_id, array $slots ): array {
+	public static function pending_user_ids_from_slots( int $post_id, array $slots, bool $report = true ): array {
 		$user_ids = array();
 
 		foreach ( $slots as $meta_key => $raw ) {
 			$assignment = maybe_unserialize( $raw );
 
 			if ( ! is_array( $assignment ) || ! isset( $assignment['type'], $assignment['status'] ) || ! array_key_exists( 'value', $assignment ) ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflows] Assignment slot %s on post %d is malformed, so it is not in the pending-assignee index.', $meta_key, $post_id ) );
+				if ( $report ) {
+					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					error_log( sprintf( '[VIP Workflows] Assignment slot %s on post %d is malformed, so it is not in the pending-assignee index.', $meta_key, $post_id ) );
+				}
 				continue;
 			}
 
@@ -1361,8 +1399,10 @@ class AssignmentManager {
 
 			$user_id = filter_var( $assignment['value'], FILTER_VALIDATE_INT, array( 'options' => array( 'min_range' => 1 ) ) );
 			if ( false === $user_id ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflows] Pending user assignment %s on post %d names no valid user ID, so it is not in the pending-assignee index.', $meta_key, $post_id ) );
+				if ( $report ) {
+					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					error_log( sprintf( '[VIP Workflows] Pending user assignment %s on post %d names no valid user ID, so it is not in the pending-assignee index.', $meta_key, $post_id ) );
+				}
 				continue;
 			}
 

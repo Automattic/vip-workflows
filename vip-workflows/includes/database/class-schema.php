@@ -580,7 +580,9 @@ class Schema {
 	 * version is bumped only after the last page.
 	 *
 	 * Idempotent: a page rebuilds its posts' rows from their slots, so a
-	 * re-run, or a post written since, ends the same. Malformed slots are
+	 * re-run ends the same. Each page is read back after it is written, so a
+	 * live assignment or a second upgrade request racing it is settled too
+	 * (see settle_pending_assignee_page()). Malformed slots are
 	 * logged and left out, as AssignmentManager::pending_user_ids_from_slots()
 	 * describes.
 	 *
@@ -648,14 +650,69 @@ class Schema {
 					wp_cache_delete( $post_id, 'post_meta' );
 				}
 
+				self::settle_pending_assignee_page( $post_ids, $in, $like, $index_key );
+
+				// Only forward: a concurrent upgrade request that is behind must
+				// not move the cursor back over pages already done.
 				$last_id = (int) end( $post_ids );
-				update_option( self::ASSIGNEE_BACKFILL_CURSOR_OPTION, $last_id, false );
+				if ( $last_id > (int) get_option( self::ASSIGNEE_BACKFILL_CURSOR_OPTION, 0 ) ) {
+					update_option( self::ASSIGNEE_BACKFILL_CURSOR_OPTION, $last_id, false );
+				}
 			}
 
 			$page_size = count( $post_ids );
 		} while ( 500 === $page_size );
 
 		delete_option( self::ASSIGNEE_BACKFILL_CURSOR_OPTION );
+	}
+
+	/**
+	 * Check a backfilled page against its slots as stored now, and rebuild
+	 * any post that disagrees.
+	 *
+	 * The page was read before it was written, so a live assignment made in
+	 * between, or another upgrade request backfilling the same page, can leave
+	 * a post with a stale or doubled row. Reading the page again after the
+	 * write sees those, and AssignmentManager::sync_pending_assignee_index(),
+	 * which checks its own work, settles each post that disagrees.
+	 *
+	 * @param int[]  $post_ids  The page's post IDs.
+	 * @param string $in        Those IDs as an inlined integer list.
+	 * @param string $like      LIKE pattern for assignment slot keys.
+	 * @param string $index_key The index meta key.
+	 * @throws \RuntimeException When the page cannot be read back.
+	 */
+	private static function settle_pending_assignee_page( array $post_ids, string $in, string $like, string $index_key ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one-off backfill; $in holds only integers.
+		$slot_rows = $wpdb->get_results( $wpdb->prepare( "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$in} ) AND meta_key LIKE %s", $like ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one-off backfill; $in holds only integers.
+		$index_rows = $wpdb->get_results( $wpdb->prepare( "SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s AND post_id IN ( {$in} )", $index_key ) );
+		if ( null === $slot_rows || null === $index_rows || '' !== $wpdb->last_error ) {
+			throw new \RuntimeException( esc_html( 'Could not read back the pending-assignee index: ' . $wpdb->last_error ) );
+		}
+
+		$slots = array();
+		foreach ( $slot_rows as $row ) {
+			$slots[ (int) $row->post_id ][ (string) $row->meta_key ] = $row->meta_value;
+		}
+		$indexed = array();
+		foreach ( $index_rows as $row ) {
+			$indexed[ (int) $row->post_id ][] = (int) $row->meta_value;
+		}
+
+		$manager = new \VIPWorkflows\Workflow\AssignmentManager();
+		foreach ( $post_ids as $post_id ) {
+			$expected = \VIPWorkflows\Workflow\AssignmentManager::pending_user_ids_from_slots( $post_id, $slots[ $post_id ] ?? array(), false );
+			$actual   = $indexed[ $post_id ] ?? array();
+			sort( $expected );
+			sort( $actual );
+
+			if ( $expected !== $actual ) {
+				$manager->sync_pending_assignee_index( $post_id );
+			}
+		}
 	}
 
 	/**
