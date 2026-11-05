@@ -13,16 +13,24 @@
 /* Centring is owned by the <Stack align="center" justify="center" gap="md">
    that carries this class; only the box-model floor stays here. */
 .vip-workflows-ideation-loading {
-	padding: 48px; /* wpds-allow R2 -- intentional large section padding beyond token scale */
+	/* wpds-allow tokens/hardcoded-value -- deliberate 48px loading inset, above the padding scale's 32px ceiling (padding-3xl) */
+	padding: 48px;
 	min-height: 400px;
 }
 
 /* Deliberately a block-flow column, not a <Stack>: the sections below the seed
    input (.vip-workflows-ideation-discovery, .vip-workflows-ideation-recent) each
    carry their own `margin-top: 48px`, and flex items neither collapse those
-   margins nor let a child's margin collapse through them. */
+   margins nor let a child's margin collapse through them.
+
+   Width, centring and horizontal padding are owned by the constrained
+   <AdminPage> this column renders inside, so the landing shares the project's
+   canonical content width with every other constrained screen. Only the
+   vertical inset of the hero stays here, as padding on the column itself:
+   the column has no background or border, and its first and last children
+   (a Notice, the SeedInput and RecentProjects Stacks) carry no block margin
+   that the old outer margin collapsed with, so the offset renders the same. */
 .vip-workflows-ideation-landing {
-	max-width: var(--wpds-dimension-surface-width-xl);
-	margin: 80px auto 40px; /* wpds-allow R3 -- `auto` centres the page column under its max-width; the top/bottom offset has no parent Stack */
-	padding: 0 var(--wpds-dimension-padding-2xl);
+	/* wpds-allow tokens/hardcoded-value -- hero offset of 80px/40px; the padding scale stops at 32px (padding-3xl), so no token fits */
+	padding-block: 80px 40px;
 }
