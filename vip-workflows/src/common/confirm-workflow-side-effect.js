@@ -51,8 +51,10 @@ export const DECISION_SILENT = 'silent';
 export const DECISION_WARN = 'warn';
 
 /**
- * The change crosses the publish boundary for a non-bypass user — refuse, and
- * offer the audited escape (remove the post from its workflow).
+ * The change crosses the publish boundary for a non-bypass user — refuse it,
+ * and say the way through is the workflow (getPublishVetoMessage()). Leaving
+ * the workflow is not offered here; only a post whose workflow was deleted is
+ * pointed at removal (getOrphanedWorkflowMessage()).
  *
  * @type {string}
  */
