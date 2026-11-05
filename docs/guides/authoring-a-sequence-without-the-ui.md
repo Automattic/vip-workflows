@@ -85,7 +85,7 @@ curl -s -u "$USER:$APP_PASSWORD" -H 'Content-Type: application/json' \
   -d '{"options":{"config":{"statuses":[ ... ]}}}'
 ```
 
-The response wraps the ability's result: read `output.valid`, `output.errors[]` (fix everything it lists), and `output.normalization[]` (defaulted regions, auto-assigned entry checkpoints, normalized keys). Re-run until `output.valid` is true. If the run itself was refused — a malformed request rather than a bad config — the response carries `success: false` and an `error` message instead, with no `output`.
+The response wraps the ability's result: read `output.valid`, `output.errors[]` (fix everything it lists), `output.normalization[]` (defaulted regions, auto-assigned entry checkpoints, normalized keys), and `output.notes[]` (advisories, including any retired note inputs removed before validating, as import removes them; create and update refuse those, so write `output.normalized_config` or drop them yourself). Re-run until `output.valid` is true. If the run itself was refused — a malformed request rather than a bad config — the response carries `success: false` and an `error` message instead, with no `output`.
 
 > The core `wp-abilities/v1` run route does not expose these abilities (they are not registered with `show_in_rest`), so use the plugin route above, MCP, or `wp eval-file`.
 
