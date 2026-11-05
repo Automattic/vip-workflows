@@ -71,6 +71,7 @@
 
 import { useState, useEffect, useMemo } from '@wordpress/element';
 import {
+	BaseControl,
 	TextControl,
 	SelectControl,
 	ComboboxControl,
@@ -97,7 +98,7 @@ import {
 	verticalListSortingStrategy,
 	sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
-import { Fact, SortableFact } from './InspectorFacts';
+import { Fact, InfoTip, SortableFact } from './InspectorFacts';
 // The same add control the field lists use. It is a list's add control, not a
 // field's — one menu, one option per thing that can be added — and an exit is
 // added to a list exactly as a capture input is.
@@ -710,37 +711,61 @@ export default function StageInspector( {
 						help={ statusHelp }
 						onChange={ ( next ) => onSetStatus?.( next ) }
 					/>
-					<ComboboxControl
-						__next40pxDefaultSize
-						__nextHasNoMarginBottom
-						label={ __( 'Agent', 'vip-workflows' ) }
-						help={ __(
-							'Runs when a post enters this stage.',
-							'vip-workflows'
-						) }
-						value={ abilityId }
-						options={ agentOptions }
-						placeholder={ __( 'Search agents…', 'vip-workflows' ) }
-						// No "none" entry in the list — the empty state is the
-						// empty field, and the reset button is how you get back
-						// to it. `onChange` hands back null on reset, which is
-						// the same instruction as picking nothing.
-						//
-						// Which is why the list must NOT open on focus:
-						// ComboboxControl unmounts its reset button while
-						// expanded, so with the default a keyboard user tabbing
-						// into the field would find the only way to clear an
-						// agent gone. Click, typing and ArrowDown all still open
-						// it.
-						expandOnFocus={ false }
-						//
-						// Routed through its own field rather than merged into
-						// `agent`: clearing it drops the whole agent, and the
-						// editor's mutation is what knows that.
-						onChange={ ( value ) =>
-							onChange( { agent_ability_id: value || '' } )
-						}
-					/>
+					{ /* The label row carries the explanation the short help
+					     line cannot: that the agent is what makes this an AI
+					     stage, and where its outcomes lead. The combobox keeps
+					     its own label, hidden, so its name stays "Agent"; the
+					     visible copy is hidden from assistive tech so the name
+					     is not read twice. Top-aligned: the label keeps its own
+					     bottom margin, which is the gap to the field below. */ }
+					<div>
+						<Stack direction="row" align="flex-start" gap="xs">
+							<BaseControl.VisualLabel aria-hidden="true">
+								{ __( 'Agent', 'vip-workflows' ) }
+							</BaseControl.VisualLabel>
+							<InfoTip about={ __( 'Agent', 'vip-workflows' ) }>
+								{ __(
+									'Choosing an agent makes this an AI stage. The agent runs when a post enters, then moves the post on by outcome: pass, fail, or error. Set where each outcome leads on its row in the exits below, or drag from the stage’s colored handles on the canvas.',
+									'vip-workflows'
+								) }
+							</InfoTip>
+						</Stack>
+						<ComboboxControl
+							__next40pxDefaultSize
+							__nextHasNoMarginBottom
+							label={ __( 'Agent', 'vip-workflows' ) }
+							hideLabelFromVision
+							help={ __(
+								'Runs when a post enters this stage.',
+								'vip-workflows'
+							) }
+							value={ abilityId }
+							options={ agentOptions }
+							placeholder={ __(
+								'Search agents…',
+								'vip-workflows'
+							) }
+							// No "none" entry in the list — the empty state is the
+							// empty field, and the reset button is how you get back
+							// to it. `onChange` hands back null on reset, which is
+							// the same instruction as picking nothing.
+							//
+							// Which is why the list must NOT open on focus:
+							// ComboboxControl unmounts its reset button while
+							// expanded, so with the default a keyboard user tabbing
+							// into the field would find the only way to clear an
+							// agent gone. Click, typing and ArrowDown all still open
+							// it.
+							expandOnFocus={ false }
+							//
+							// Routed through its own field rather than merged into
+							// `agent`: clearing it drops the whole agent, and the
+							// editor's mutation is what knows that.
+							onChange={ ( value ) =>
+								onChange( { agent_ability_id: value || '' } )
+							}
+						/>
+					</div>
 					{ /* Travels with the picker: it explains the agent that was
 					     just chosen, so it has to sit against it. */ }
 					<StageAgentWarning
