@@ -299,10 +299,11 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 								// The canvas's one tab stop per transition —
 								// React Flow's edge group is kept out of the
 								// tab order (`EDGE_GROUP_A11Y`, `graph-model`).
-								// Its name is not the visible text: that is the
-								// writer's button label, shared by every line
-								// into the same stage. `buildGraph` names the
-								// action and both ends instead.
+								// Its name starts with the visible text, so
+								// voice control matches, and goes on to name the
+								// source stage: the text is the writer's button
+								// label, shared by every line into the same
+								// stage (`transitionPillName`).
 								aria-label={ data.pillName }
 							>
 								{ /* An array preserves Button's icon-and-text

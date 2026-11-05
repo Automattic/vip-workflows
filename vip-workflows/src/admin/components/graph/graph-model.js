@@ -206,34 +206,38 @@ export function agentOutcomeNames( outcomes ) {
 }
 
 /**
- * The accessible name of a transition's pill on the canvas: what activating it
- * does, and which two stages the line joins.
+ * The accessible name of a transition's pill on the canvas.
  *
- * Stage names come in as display labels — `stageLabel` already falls back to
+ * It starts with the pill's visible text, exactly — the label `buildGraph`
+ * derived, the string the pill renders — so a voice-control user who says what
+ * they see reaches it (WCAG 2.5.3, Label in Name). The source stage follows,
+ * because that text is the writer's button label and every transition into the
+ * same stage shares it. An agent outcome edge names its outcome as well, so the
+ * lines of a pass/fail pair, which share both ends, are told apart.
+ *
+ * The source comes in as a display label — `stageLabel` already falls back to
  * the key for a stage with none, which `validateSequence` reports separately.
- * An agent outcome edge names its outcome as well, so the lines of a pass/fail
- * pair routed to one destination are told apart.
  *
+ * @param {string}  pillLabel The pill's visible text.
  * @param {string}  fromLabel Source stage label.
- * @param {string}  toLabel   Target stage label.
  * @param {?string} [outcome] Agent outcome the edge carries, if any.
  * @return {string} Translated accessible name.
  */
-export function transitionPillName( fromLabel, toLabel, outcome = null ) {
+export function transitionPillName( pillLabel, fromLabel, outcome = null ) {
 	if ( isAgentOutcome( outcome ) ) {
 		return sprintf(
-			/* translators: 1: source stage name, 2: destination stage name, 3: agent outcome, e.g. "On pass". */
-			__( 'Select transition: %1$s → %2$s (%3$s)', 'vip-workflows' ),
+			/* translators: 1: transition button label, e.g. "Move to Done", 2: source stage name, 3: agent outcome, e.g. "On pass". Keep %1$s first: it is the visible text. */
+			__( '%1$s, from %2$s (%3$s)', 'vip-workflows' ),
+			pillLabel,
 			fromLabel,
-			toLabel,
 			agentOutcomeLabel( outcome )
 		);
 	}
 	return sprintf(
-		/* translators: 1: source stage name, 2: destination stage name. */
-		__( 'Select transition: %1$s → %2$s', 'vip-workflows' ),
-		fromLabel,
-		toLabel
+		/* translators: 1: transition button label, e.g. "Move to Done", 2: source stage name. Keep %1$s first: it is the visible text. */
+		__( '%1$s, from %2$s', 'vip-workflows' ),
+		pillLabel,
+		fromLabel
 	);
 }
 
@@ -433,6 +437,21 @@ export function buildGraph( stages, options = {} ) {
 					allowAgentPublish
 				);
 			const variants = claimed.length > 0 ? claimed : [ null ];
+			// The label on the transition's pill. Derived here rather than read
+			// off the transition, because most transitions have no stored
+			// label — `addTransition` deliberately stores none, so a renamed
+			// stage renames its buttons — and a pill bound to the raw field
+			// would be blank on nearly every edge. `transitionLabel` is the same
+			// rule `StatusManager::transition_label()` applies server-side, from
+			// the single shared copy in `src/common/transition-label.js`, so the
+			// pill says what the writer's button will say.
+			//
+			// Re-derived on every build, never stored: this is the live value,
+			// not a snapshot of one.
+			const label = transitionLabel(
+				transition,
+				stageLabel( stages, transition.to )
+			);
 			variants.forEach( ( outcome, index ) => {
 				const id = edgeId( stage.key, transition.to, outcome );
 				edges.push( {
@@ -453,36 +472,17 @@ export function buildGraph( stages, options = {} ) {
 						outcome,
 						disabled,
 						// The exception, and the one the canvas draws: the
-						// label on the transition's pill. Derived here rather
-						// than read off the transition, because most
-						// transitions have no stored label — `addTransition`
-						// deliberately stores none, so a renamed stage renames
-						// its buttons — and a pill bound to the raw field would
-						// be blank on nearly every edge. `transitionLabel` is
-						// the same rule `StatusManager::transition_label()`
-						// applies server-side, from the single shared copy in
-						// `src/common/transition-label.js`, so the pill says
-						// what the writer's button will say.
-						//
-						// Re-derived on every build, never stored: this is the
-						// live value, not a snapshot of one.
-						label: transitionLabel(
-							transition,
-							stageLabel( stages, transition.to )
-						),
-						// The pill's accessible name, which is not its visible
-						// text. "Move to Done" is what the writer's button says,
-						// and every transition into Done says it — so a
-						// keyboard or screen-reader author tabbing the canvas
-						// heard the same name once per incoming line, and a verb
-						// the pill does not perform: activating it selects the
-						// transition. The name says that, and says both ends,
-						// by label. An outcome edge adds its outcome, because
-						// the lines of a shared pass/fail pair have the same
-						// two ends and would otherwise share a name too.
+						// label on the transition's pill (see `label` above).
+						label,
+						// The pill's accessible name. It starts with that same
+						// string, so voice control matches what is on screen,
+						// then names the source: "Move to Done" is what every
+						// transition into Done says. An outcome edge adds its
+						// outcome, because the lines of a shared pass/fail pair
+						// have the same source and would otherwise share a name.
 						pillName: transitionPillName(
+							label,
 							stageLabel( stages, stage.key ),
-							stageLabel( stages, transition.to ),
 							outcome
 						),
 						// Every outcome standing on this one transition record,

@@ -1,13 +1,15 @@
 /**
  * What a keyboard or screen-reader author meets tabbing the sequence canvas:
- * one stop per transition — its pill — named for what activating it does and
- * which two stages the line joins.
+ * one stop per transition — its pill — named by its visible text and the stage
+ * the line leaves.
  *
  * The pill's visible text is the writer's button label, "Move to Done", which
- * every transition into Done shares. Used as the accessible name it announced
- * the same thing once per incoming line, and promised a move the pill does not
- * make: activating it selects the transition. React Flow's own edge group came
- * first in the tab order besides, named from raw stage keys.
+ * every transition into Done shares. Used alone as the accessible name it
+ * announced the same thing once per incoming line. React Flow's own edge group
+ * came first in the tab order besides, named from raw stage keys.
+ *
+ * The name still starts with that text, exactly, so a voice-control user who
+ * says what they see reaches the pill (WCAG 2.5.3, Label in Name).
  *
  * The names are built in `buildGraph`, from stage labels, so they are asserted
  * on its output; `transition-edge.test.js` covers the pill wearing them.
@@ -65,13 +67,36 @@ const transitionEdges = ( edges ) =>
 	edges.filter( ( e ) => ! e.data.synthetic );
 
 describe( 'transition pill names', () => {
-	it( 'names the action and both ends, by stage label', () => {
+	it( 'starts with the visible label, then names the source stage', () => {
 		const { edges } = buildGraph( stages() );
 		const edge = edges.find( ( e ) => e.id === 'draft->review' );
 
-		expect( edge.data.pillName ).toBe(
-			'Select transition: Draft → Review'
+		expect( edge.data.label ).toBe( 'Move to Review' );
+		expect( edge.data.pillName ).toBe( 'Move to Review, from Draft' );
+	} );
+
+	it( 'starts every name with exactly the text its pill shows', () => {
+		// Label in Name: voice control matches on what is on screen.
+		const { edges } = buildGraph( stages() );
+
+		transitionEdges( edges ).forEach( ( edge ) => {
+			expect( edge.data.pillName.startsWith( edge.data.label ) ).toBe(
+				true
+			);
+		} );
+	} );
+
+	it( 'starts with an authored label when the transition has one', () => {
+		const authored = stages().map( ( s ) =>
+			s.key === 'draft'
+				? { ...s, transitions: [ { to: 'review', label: 'Submit' } ] }
+				: s
 		);
+		const { edges } = buildGraph( authored );
+
+		expect(
+			edges.find( ( e ) => e.id === 'draft->review' ).data.pillName
+		).toBe( 'Submit, from Draft' );
 	} );
 
 	it( 'tells apart transitions into the same stage', () => {
@@ -95,13 +120,13 @@ describe( 'transition pill names', () => {
 
 		expect(
 			edges.find( ( e ) => e.id === 'review:pass->done' ).data.pillName
-		).toBe( 'Select transition: Review → Done (On pass)' );
+		).toBe( 'Move to Done, from Review (On pass)' );
 		expect(
 			edges.find( ( e ) => e.id === 'review:fail->done' ).data.pillName
-		).toBe( 'Select transition: Review → Done (On fail)' );
+		).toBe( 'Move to Done, from Review (On fail)' );
 		expect(
 			edges.find( ( e ) => e.id === 'review:error->draft' ).data.pillName
-		).toBe( 'Select transition: Review → Draft (On error)' );
+		).toBe( 'Move to Draft, from Review (On error)' );
 	} );
 
 	it( 'gives every pill on the canvas a name of its own', () => {
@@ -113,23 +138,23 @@ describe( 'transition pill names', () => {
 
 	it( 'names an unlabelled stage by its key rather than leaving a blank', () => {
 		// `validateSequence` reports the missing name; the pill still has to
-		// say which stage the line reaches.
+		// say which stage the line leaves.
 		const unlabelled = stages().map( ( s ) =>
 			s.key === 'review' ? { ...s, label: '' } : s
 		);
 		const { edges } = buildGraph( unlabelled );
 
 		expect(
-			edges.find( ( e ) => e.id === 'draft->review' ).data.pillName
-		).toBe( 'Select transition: Draft → review' );
+			edges.find( ( e ) => e.id === 'review:pass->done' ).data.pillName
+		).toBe( 'Move to Done, from review (On pass)' );
 	} );
 
 	it( 'leaves an outcome off a plain transition', () => {
-		expect( transitionPillName( 'Draft', 'Review' ) ).toBe(
-			'Select transition: Draft → Review'
+		expect( transitionPillName( 'Move to Review', 'Draft' ) ).toBe(
+			'Move to Review, from Draft'
 		);
-		expect( transitionPillName( 'Draft', 'Review', null ) ).toBe(
-			'Select transition: Draft → Review'
+		expect( transitionPillName( 'Move to Review', 'Draft', null ) ).toBe(
+			'Move to Review, from Draft'
 		);
 	} );
 } );
