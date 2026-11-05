@@ -1,0 +1,55 @@
+name: PR Preview - Cleanup
+
+# Deletes a closed pull request's preview zips from the ci-artifacts
+# prerelease. Publish only prunes a PR's older commits when that PR publishes
+# again, and a release holds at most 1000 assets.
+#
+# pull_request_target runs this file from the default branch and never checks
+# out pull request code.
+
+on:
+  pull_request_target:
+    types: [closed]
+
+# Shares one group per pull request with "PR Preview - Publish": cleanup waits
+# for a publish run that is already in progress, then deletes what it uploaded.
+# A publish run that starts after the close sees it and uploads nothing.
+concurrency:
+  group: pr-preview-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete preview assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # Only the zips publish uploads: pr-<N>-<commit SHA>-<name>.zip. Other
+          # pr-<N>-* assets, such as screenshots embedded in reviews, stay.
+          if ! assets="$(gh release view ci-artifacts --json assets --jq ".assets[].name | select(test(\"^pr-${PR_NUMBER}-[0-9a-f]{40}-[A-Za-z0-9_-]+\\\\.zip$\"))" 2>error.log)"; then
+            if grep -q 'release not found' error.log; then
+              echo "No ci-artifacts release; nothing to clean up."
+              exit 0
+            fi
+            cat error.log >&2
+            exit 1
+          fi
+
+          if [ -z "$assets" ]; then
+            echo "No preview assets for #${PR_NUMBER}."
+            exit 0
+          fi
+
+          while IFS= read -r name; do
+            echo "Deleting ${name}"
+            gh release delete-asset ci-artifacts "$name" --yes
+          done <<< "$assets"
