@@ -14,13 +14,12 @@
  * export.
  *
  * The classic list-table surfaces (Quick Edit, Bulk Edit) cannot import — they
- * are an inline script printed by `class-posts-columns.php`. So this file is
- * also a webpack entry (`side-effect` → `build/side-effect.js`) and publishes
- * itself on `window.vipWorkflowsSideEffect` (see the bottom of this file) for
- * them to consume. Same module, same answers, same words: there is no second
- * copy of the decision table anywhere. Being a build entry is why it sits in
- * src/entries/ and not in src/common/ with the other shared modules; the React
- * surfaces import it from here.
+ * are an inline script printed by `class-posts-columns.php`. They reach this
+ * module through `src/entries/side-effect.js`, a separate webpack entry
+ * (`side-effect` → `build/side-effect.js`) that publishes it on
+ * `window.vipWorkflowsSideEffect`. Same module, same answers, same words: there
+ * is no second copy of the decision table anywhere. Importing this file has no
+ * side effects, so the admin and editor bundles that import it publish nothing.
  *
  * The decision here is UX, not enforcement. The publish veto is enforced
  * server-side at the save layer (`wp_insert_post_data` /
@@ -678,35 +677,3 @@ export function getSwitchWorkflowConfirmation( {
 		toWorkflowName
 	);
 }
-
-// Publish the module for the classic list-table surfaces. `class-posts-columns.php`
-// enqueues this file's bundle (`build/side-effect.js`) and its inline Quick Edit /
-// Bulk Edit script reads `window.vipWorkflowsSideEffect`; an inline script cannot
-// import, and a second implementation of the region math or the copy is exactly
-// how the surfaces drift apart. The React surfaces import the named exports and
-// simply ignore this.
-window.vipWorkflowsSideEffect = {
-	DECISION_SILENT,
-	DECISION_WARN,
-	DECISION_VETO,
-	statusToRegion,
-	evaluateStatusChange,
-	getRegionLabel,
-	getStatusChangeConfirmTitle,
-	getStatusChangeConfirmLabel,
-	getAgentInterruptWarning,
-	getTransitionWarningsTitle,
-	getTransitionWarningsMessage,
-	getTransitionPublishConfirmTitle,
-	getTransitionPublishConfirmLabel,
-	getTransitionPublishWarning,
-	getStatusChangeWarning,
-	getPublishVetoMessage,
-	getOrphanedWorkflowMessage,
-	getOrphanedWorkflowRemoveConfirmation,
-	getRemoveFromWorkflowLabel,
-	getRemoveFromWorkflowConfirmation,
-	getSwitchWorkflowConfirmTitle,
-	getSwitchWorkflowConfirmLabel,
-	getSwitchWorkflowConfirmation,
-};

@@ -10,36 +10,64 @@ For corresponding REST endpoints see [quick-reference.md](quick-reference.md); f
 
 **Location**: `src/editor/`
 
-Everything the plugin adds to the block editor lives in one `PluginSidebar`
-named "Workflow" — the plugin used to also mount two
-`PluginDocumentSettingPanel`s in the document settings sidebar, which duplicated
-the sidebar's own readouts and split one feature across two places.
+The plugin adds to the block editor in two places, split by what the control
+acts on. Properties of the post — which workflow it is in, the editorial
+metadata fields its sequence declares, and taking it out of its workflow — are
+rows in the document sidebar's Summary panel, alongside Status, Slug and
+Author. What acts on the post's movement through the workflow — the transition
+rail and its history — lives in one `PluginSidebar` named "Workflow".
 
 **Structure** (`index.js`):
 - `WorkflowSaveGuard` — mounted unconditionally, **outside the sidebar**, and
   renders no chrome. Its `editor.preSavePost` filter has to survive the sidebar
-  being closed, which is why it is not inside it.
-- One `Stack` (`.vip-workflows-sidebar`) holding `WorkflowPanel`. No card and no
-  heading of its own: `PluginSidebar` already names the sidebar "Workflow", and
-  the panel opens with the document-sidebar row that names the sequence. The
-  runs within the panel rule themselves apart.
-- `MetadataPanel` is a **child of** `WorkflowPanel`, not a sibling section. The
-  panel's foot — Show history, and the way out of the workflow — lives inside
-  the panel and acts on the workflow itself, so it has to come after the fields
-  the writer fills in; lifting the foot out instead would mean lifting the
-  panel's `transitioning`/`historyOpen` state and its lazily-loaded history
-  dialog with it, purely for a reorder. So the panel reads: sequence row →
-  assignment and claim → transition rail → metadata → foot. Every one of the
-  panel's returns renders the metadata slot, including the ones that draw no
-  workflow at all — nesting made the panel the only thing deciding whether the
-  section reaches the screen.
+  being closed, which is why it is not inside it. When it lets through a
+  status change it warned about (one that re-seats the post), it re-reads the
+  workflow status into the editor store once that save finishes successfully,
+  so the sidebar shows the new stage without a reload. Autosaves and failed
+  saves are ignored.
+- `WorkflowSummaryRows`, mounted through `PluginPostStatusInfo`. Its fills land
+  after core's Summary rows and above Move to trash; there is no positioning
+  between core rows. The fill's `PanelRow` wrapper is reduced to a plain block
+  in `style.css` so the rows keep their own full-width layout. The rows read:
+  Workflow row → metadata rows. The Workflow row's popover holds the sequence
+  list and, below it, Remove from workflow (withheld when the workflow is
+  enforced). A post whose sequence was deleted is drawn as the same row in its
+  invalid state, whose popover offers only removal. The slot is a render-prop
+  slot, so the rows take nothing from React context around the fill; they read
+  through `wp.data` and `useEntityProp`. The whole run is behind
+  `! isEditorPanelRemoved( 'post-status' )`, and some experimental DataForm
+  Summary builds (`window.__experimentalDataFormInspector`, posts and pages)
+  render no `PluginPostStatusInfo` slot at all. The fill is
+  `SummaryRowsFill`, which counts itself in the editor store
+  (`areSummaryRowsMounted()`, `haveSummaryRowsMounted()`) while it is mounted.
+  Preferences → Panels offers no switch for the Summary panel, and
+  `toggleEditorPanelEnabled( 'post-status' )` does not hide it.
+- One `Stack` (`.vip-workflows-sidebar`) holding `SummaryRowsFallback` and
+  `WorkflowPanel`. No card: `PluginSidebar` already names the sidebar
+  "Workflow". The panel reads: assignment and claim → transition rail → foot
+  (Show history).
+- `SummaryRowsFallback` draws the same `WorkflowSummaryRows`, under a "Details"
+  section heading, only where the Summary panel cannot show them: while the
+  `post-status` panel is removed, or while the experimental DataForm Summary is
+  active and the fill has not mounted once this session. It never draws while
+  the fill is mounted. "Not mounted right now" alone is not the test: the
+  document sidebar and the Workflow sidebar share one area, so the Summary
+  panel is never mounted while the Workflow sidebar is open.
 - `CommandPalette` and `WorkflowRequiredModal` — no chrome of their own.
 
 **Main Components**:
-- `WorkflowPanel.js` — the whole of a post's workflow state: the sequence the
-  post belongs to, assignment and claim, stage-agent states, the transition
-  rail, the metadata slot, and the footer actions (Show history, Remove from
-  workflow)
+- `WorkflowSummaryRows.js` — the Summary panel's workflow rows: the Workflow
+  row (assign, switch and remove, each through the editor store) and
+  `MetadataPanel`
+- `SummaryRowsFallback.js` — `SummaryRowsFill` (the fill's content, counted in
+  the store while mounted) and `SummaryRowsFallback` (the Workflow sidebar's
+  copy where the Summary panel cannot show the rows)
+- `WorkflowPanel.js` — the post's movement through its workflow: assignment and
+  claim, stage-agent states, the transition rail, and Show history. A post with
+  unsaved edits is always saved before any transition is sent, because the
+  server judges every move (required tools, required fields, an AI stage's
+  agent) against the saved post. If the save does not persist, the transition
+  is not sent and the panel shows the save-failure notice
 - `TransitionRail.js` — the current stage and every way out of it, drawn as
   one figure. A transition's required tools are not listed: they run when it
   fires, and a refusal opens `ToolFailuresModal`
@@ -66,8 +94,9 @@ the sidebar's own readouts and split one feature across two places.
 2. React components mount in the editor sidebar slot
 3. Components use `@wordpress/api-fetch` for REST API calls
 4. State managed with React hooks (useState, useEffect)
-5. One `GET /workflow/post/{id}/status` request feeds the whole panel; it polls
-   only while a stage agent is running
+5. One `GET /workflow/post/{id}/status` request, held in the editor store,
+   feeds the Summary rows and the panel; it polls only while a stage agent is
+   running
 
 **Key Features**:
 - Color-coded stages, with the rail drawing the current one and the routes out
