@@ -1257,7 +1257,8 @@
 
    Opaque, because it sits on the line it names. Capped in width and truncating,
    because a stage name is arbitrarily long and a pill the width of the canvas
-   would be a worse answer than an elided one; the full string is in the title.
+   would be a worse answer than an elided one; selecting the transition opens
+   it in the inspector, which names both stages in full.
 
    The WPDS Button supplies the keyboard behavior, small size and focus ring;
    this canvas-specific surface supplies the pill's geometry and appearance. */

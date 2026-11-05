@@ -75,6 +75,9 @@ const SHARED_LABEL = 'On pass, On fail share one transition';
 /** What `buildGraph` derived for this transition, as it arrives in `data`. */
 const PILL_LABEL = 'Move to Done';
 
+/** The pill's accessible name `buildGraph` derived alongside it. */
+const PILL_NAME = 'Select transition: Review → Done (On pass)';
+
 /**
  * Render one outcome edge of a pair routed to the same destination.
  *
@@ -95,6 +98,7 @@ function renderEdge( data = {} ) {
 					parallelIndex: 0,
 					parallelCount: 2,
 					label: PILL_LABEL,
+					pillName: PILL_NAME,
 					...data,
 				} }
 			/>
@@ -123,7 +127,7 @@ function EdgeGroup( { onClick = () => {} } ) {
 				<TransitionEdge
 					id="review->done"
 					selected={ false }
-					data={ { label: PILL_LABEL, hovered } }
+					data={ { label: PILL_LABEL, pillName: PILL_NAME, hovered } }
 				/>
 			</g>
 		</svg>
@@ -187,12 +191,24 @@ describe( 'TransitionEdge shared-transition mark', () => {
 } );
 
 describe( 'TransitionEdge pill', () => {
-	it( 'carries the label the transition was derived to have', () => {
+	it( 'shows the label the transition was derived to have', () => {
+		renderEdge();
+
+		expect( screen.getByRole( 'button' ) ).toHaveTextContent( PILL_LABEL );
+	} );
+
+	it( 'is named for what activating it does, not for the visible label', () => {
 		renderEdge();
 
 		expect(
-			screen.getByRole( 'button', { name: new RegExp( PILL_LABEL ) } )
+			screen.getByRole( 'button', { name: PILL_NAME } )
 		).toBeInTheDocument();
+	} );
+
+	it( 'carries no title repeating its visible text', () => {
+		renderEdge();
+
+		expect( screen.getByRole( 'button' ) ).not.toHaveAttribute( 'title' );
 	} );
 
 	it( 'selects through the edge it belongs to', () => {
