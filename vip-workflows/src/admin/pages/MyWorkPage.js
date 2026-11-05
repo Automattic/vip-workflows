@@ -483,13 +483,6 @@ export function MyWorkPage() {
 				</Stack>
 			) : (
 				<div className="vip-workflows-my-work-panel vip-workflows-card-surface">
-					<Text
-						variant="body-sm"
-						render={ <p /> }
-						className="vip-workflows-description vip-workflows-my-work__window"
-					>
-						{ getWindowNote() }
-					</Text>
 					<DataViews
 						data={ data }
 						fields={ fields }
@@ -555,6 +548,15 @@ export function MyWorkPage() {
 							</Stack>
 							<DataViews.FiltersToggled />
 							<DataViews.Layout />
+							<Stack justify="center">
+								<Text
+									variant="body-md"
+									render={ <p /> }
+									className="vip-workflows-description"
+								>
+									{ getWindowNote() }
+								</Text>
+							</Stack>
 							<DataViews.Pagination />
 						</Stack>
 					</DataViews>
