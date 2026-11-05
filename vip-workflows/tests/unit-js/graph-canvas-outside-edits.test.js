@@ -183,6 +183,7 @@ function Editor( { initialStages = STAGES } ) {
 					stages={ stages }
 					isPhase={ false }
 					warnings={ {} }
+					blockers={ {} }
 					regions={ regions }
 					selectedNodeKey={ selectedKey }
 					selectedEdgeId={ null }

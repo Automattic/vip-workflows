@@ -1924,6 +1924,7 @@ export default function SequenceGraphEditor( {
 						isPhase={ isPhase }
 						allowAgentPublish={ allowAgentPublish }
 						warnings={ validation.warnings }
+						blockers={ validation.blockers }
 						regions={ regions }
 						selectedNodeKey={
 							selection?.type === 'node' ? selection.key : null

@@ -344,6 +344,7 @@ function Flow( {
 	isPhase,
 	allowAgentPublish = false,
 	warnings,
+	blockers,
 	regions: regionsProp = [],
 	selectedNodeKey,
 	selectedEdgeId,
@@ -555,7 +556,8 @@ function Flow( {
 	// target while something is in flight.
 	const [ draggingNode, setDraggingNode ] = useState( false );
 
-	// Decoration: in-flight drag positions, selection, and per-stage warnings.
+	// Decoration: in-flight drag positions, selection, and per-stage warnings
+	// and blockers.
 	// Cheap (plain maps), so it can re-run on every selection or edit without
 	// paying for another layout.
 	const { nodes, edges } = useMemo( () => {
@@ -587,6 +589,7 @@ function Flow( {
 			const data = {
 				...node.data,
 				warnings: warnings[ node.id ] || [],
+				blockers: blockers[ node.id ] || [],
 			};
 			return { ...node, selected: node.id === selectedNodeKey, data };
 		} );
@@ -625,6 +628,7 @@ function Flow( {
 		layout,
 		dragPositions,
 		warnings,
+		blockers,
 		selectedNodeKey,
 		selectedEdgeId,
 		dropSlotRegion,

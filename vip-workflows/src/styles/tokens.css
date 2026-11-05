@@ -10,6 +10,16 @@
  *
  * Keep this set small. Before adding a value, check the WPDS token
  * reference for an equivalent tone first.
+ *
+ * Amber: caution, not warning. WPDS ships two amber families, `caution`
+ * and `warning`, and both carry a full set of surface tokens — including
+ * a strong stroke (`--wpds-color-stroke-surface-caution-strong` and
+ * `--wpds-color-stroke-surface-warning-strong`). Non-blocking hints use
+ * `caution`: the project already uses it for flagged stages,
+ * invalid field help and soft tool failures, and mixing in `warning` would
+ * put two slightly different ambers on one canvas. `warning`'s stroke
+ * exists but adds nothing `caution` lacks. Red (`error`) is reserved for
+ * what blocks an action — on the sequence canvas, what blocks Save.
  */
 :root {
 	/* AI accent (purple) — used for AI-driven actions, summaries, and

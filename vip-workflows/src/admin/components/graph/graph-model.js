@@ -232,6 +232,7 @@ export function parseEdgeId( id ) {
  * @param {string}   [options.selectedNodeKey]   Currently selected stage key.
  * @param {string}   [options.selectedEdgeId]    Currently selected edge id.
  * @param {Object}   [options.warnings]          `{ stageKey: string[] }` from `validateSequence`.
+ * @param {Object}   [options.blockers]          `{ stageKey: string[] }` from `validateSequence`.
  * @param {boolean}  [options.isPhase]           Phase sequence (no terminal flag or status region).
  * @param {string[]} [options.regions]           Status regions to draw a group for
  *                                               (see `visibleRegions`). Empty (the
@@ -244,6 +245,7 @@ export function buildGraph( stages, options = {} ) {
 		selectedNodeKey = null,
 		selectedEdgeId = null,
 		warnings = {},
+		blockers = {},
 		isPhase = false,
 		regions = [],
 		allowAgentPublish = false,
@@ -337,6 +339,9 @@ export function buildGraph( stages, options = {} ) {
 						)
 				).length,
 				warnings: stageWarnings,
+				// The subset of `warnings` that blocks Save, which is what
+				// paints the node red rather than amber.
+				blockers: blockers[ stage.key ] || [],
 			},
 		};
 	} );
@@ -1893,8 +1898,8 @@ export function disconnectEdge( stages, from, to, outcome = null ) {
 
 // ---------------------------------------------------------------------------
 // Validation — mirrors the old SequenceEditor.handleSave rules and feeds both
-// the Save guard (sequence-level errors) and the node warning variant
-// (per-stage warnings).
+// the Save guard (sequence-level errors) and the node fault variants
+// (per-stage blockers and warnings).
 // ---------------------------------------------------------------------------
 
 /**
@@ -1991,13 +1996,17 @@ export function isRequiredHandOff( requiredTransitions, from, to ) {
  *                                               `allow_agent_publish`, used to
  *                                               warn on agent routes the
  *                                               runtime will hold.
- * @return {{ valid: boolean, errors: Array<Object>, warnings: Object }} Result.
+ * @return {{ valid: boolean, errors: Array<Object>, warnings: Object, blockers: Object }} Result.
  *         `errors` block Save, each `{ message, target }` — `target` naming the
  *         node, edge or region whose panel fixes it, or null for a fault that
  *         belongs to the sequence rather than to anything on the canvas.
  *         `warnings` is `{ stageKey: string[] }` for nodes. A rule the server
  *         would refuse the save for appears in both, so the author is stopped
- *         *and* shown which stage to open. `valid` is `errors.length === 0`,
+ *         *and* shown which stage to open. `blockers` is the same
+ *         `{ stageKey: string[] }` shape holding only those Save-blocking
+ *         messages, so the canvas can tell a stage that stops the save from
+ *         one that only carries a hint without reading the message text.
+ *         `valid` is `errors.length === 0`,
  *         kept as part of this function's contract for callers that only need
  *         the yes/no — the editor is not one of them, since it gathers `errors`
  *         into the reasons it shows the author.
@@ -2012,6 +2021,7 @@ export function validateSequence( {
 } ) {
 	const errors = [];
 	const warnings = {};
+	const blockers = {};
 
 	// What an error is about, in the vocabulary the editor's selection already
 	// speaks (`{ type: 'node' | 'edge' | 'region', … }`), so reporting a fault
@@ -2045,9 +2055,16 @@ export function validateSequence( {
 	// with the halves swapped, every count-the-errors test still passes, and the
 	// editor crashes on Save rendering an object as a React child. One order for
 	// both is what keeps that from ever being a plausible slip.
+	//
+	// The stage's copy also lands in `blockers`, which is what lets the node
+	// tell "this stops the save" (red) from "this is a hint" (amber): both
+	// kinds share `warnings`, so its length alone cannot say which it holds.
 	const addBlocker = ( message, target ) => {
+		const key = targetStageKey( target );
 		addError( message, target );
-		addWarning( targetStageKey( target ), message );
+		addWarning( key, message );
+		blockers[ key ] = blockers[ key ] || [];
+		blockers[ key ].push( message );
 	};
 
 	if ( ! ( name || '' ).trim() ) {
@@ -2066,7 +2083,7 @@ export function validateSequence( {
 				'vip-workflows'
 			)
 		);
-		return { valid: errors.length === 0, errors, warnings };
+		return { valid: errors.length === 0, errors, warnings, blockers };
 	}
 
 	const keys = new Set( stages.map( ( s ) => s.key ) );
@@ -2636,7 +2653,7 @@ export function validateSequence( {
 		}
 	}
 
-	return { valid: errors.length === 0, errors, warnings };
+	return { valid: errors.length === 0, errors, warnings, blockers };
 }
 
 /**

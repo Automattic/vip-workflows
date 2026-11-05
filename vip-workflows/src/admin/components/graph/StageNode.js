@@ -2,7 +2,8 @@
  * StageNode — a stage rendered as a node on the sequence canvas.
  *
  * Variants are driven entirely by node data (see `buildGraph`): default,
- * selected, publishes (tag), warning (red), and AI (purple).
+ * selected, publishes (tag), error (red — a fault that blocks Save), warning
+ * (amber — a hint the author can save past), and AI (purple).
  * The card itself carries the state — a tinted surface and border per variant,
  * with no color accent: the stage's palette color identifies it in badges and
  * the inspector, not on the canvas. An AI stage takes the purple used for
@@ -68,6 +69,7 @@ function StageNodeComponent( { id, data, selected } ) {
 		publishes,
 		transitionCount,
 		warnings = [],
+		blockers = [],
 		isRegionEntry,
 	} = data;
 
@@ -84,11 +86,16 @@ function StageNodeComponent( { id, data, selected } ) {
 	// meaning; the badges move.
 	const portOrder = usePortOrder( id );
 
+	// Red means "blocks Save". `blockers` is the Save-blocking subset of
+	// `warnings` (see `validateSequence`), so a stage with any of them is an
+	// error; one whose messages are all hints stays the amber warning.
 	const hasWarning = warnings.length > 0;
+	const hasBlocker = blockers.length > 0;
 	const className = [
 		'wf-stage-node',
 		selected && 'is-selected',
-		hasWarning && 'is-warning',
+		hasBlocker && 'is-error',
+		hasWarning && ! hasBlocker && 'is-warning',
 		isRegionEntry && 'is-checkpoint',
 		isAgent && 'is-agent',
 		connecting && 'is-connecting',
@@ -142,7 +149,11 @@ function StageNodeComponent( { id, data, selected } ) {
 							<Icon
 								icon={ caution }
 								size={ 16 }
-								className="wf-stage-node__flag wf-stage-node__flag--warning"
+								className={
+									hasBlocker
+										? 'wf-stage-node__flag wf-stage-node__flag--error'
+										: 'wf-stage-node__flag wf-stage-node__flag--warning'
+								}
 							/>
 						</Stack>
 					) }
