@@ -54,7 +54,12 @@ export function MyDashboardPage() {
 			}
 		};
 
-		fetchCount( 'my-work', '/vip-workflows/v1/workflow/my-work' );
+		// The tab only needs the number; the list itself loads with the tab.
+		fetchCount(
+			'my-work',
+			'/vip-workflows/v1/workflow/my-work?count_only=1',
+			true
+		);
 		if ( ideationEnabled ) {
 			fetchCount(
 				'my-ideation',

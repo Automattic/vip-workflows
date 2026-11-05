@@ -2008,6 +2008,31 @@ class WorkflowControllerTest extends TestCase
     }
 
     /**
+     * The dashboard tab only needs the number. count_only sends no rows and
+     * builds none, and counts exactly the rows the full list would serve:
+     * a post the reader cannot read is in neither.
+     */
+    public function test_get_my_work_count_only_counts_the_rows_the_list_would_serve(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ), array( 1, 2, 3 ) );
+        \WP_Query::$next_posts = array_map(
+            fn( $id ) => $this->create_mock_post( array( 'ID' => $id, 'post_author' => 7, 'post_modified' => '2026-01-02 00:00:00' ) ),
+            array( 1, 2, 3 )
+        );
+        Functions\when( 'current_user_can' )->alias( fn( $cap, $post_id = 0 ) => 2 !== $post_id );
+
+        $full = $this->controller->get_my_work( $this->create_mock_request() );
+
+        Functions\expect( 'get_the_post_thumbnail_url' )->never();
+        $count = $this->controller->get_my_work( $this->create_mock_request( array( 'count_only' => true ) ) );
+
+        $this->assertSame( array(), $count->get_data() );
+        $this->assertSame( (string) count( $full->get_data() ), $count->get_headers()['X-WP-Total'] );
+        $this->assertSame( $full->get_headers()['X-WP-Total'], $count->get_headers()['X-WP-Total'] );
+        $this->assertNotContains( 2, array_column( $full->get_data(), 'post_id' ) );
+    }
+
+    /**
      * WP_Query treats an empty post__in as unrestricted; zero involvement must not.
      */
     public function test_get_my_work_with_no_involvement_returns_no_posts(): void

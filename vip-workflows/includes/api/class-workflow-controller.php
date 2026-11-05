@@ -308,6 +308,13 @@ class WorkflowController extends WP_REST_Controller {
 					// author, claimer, assignee — decides relevance, not
 					// authorization, and the assignment picker offers Subscribers.
 					'permission_callback' => array( $this, 'get_my_work_permissions_check' ),
+					'args'                => array(
+						'count_only' => array(
+							'description' => 'Return no rows, only the X-WP-Total header. For a count such as a tab label, which otherwise downloads the whole list to measure it.',
+							'type'        => 'boolean',
+							'default'     => false,
+						),
+					),
 				),
 			)
 		);
@@ -1542,6 +1549,9 @@ class WorkflowController extends WP_REST_Controller {
 			return new WP_REST_Response( array() );
 		}
 
+		$count_only = (bool) $request->get_param( 'count_only' );
+		$count      = 0;
+
 		$since             = gmdate( 'Y-m-d H:i:s', time() - self::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS );
 		$recent            = array(
 			array(
@@ -1597,6 +1607,11 @@ class WorkflowController extends WP_REST_Controller {
 					// Contributor can read their own published post but not edit
 					// it. The non-workflow pass below applies the same check.
 					if ( ! current_user_can( 'read_post', $post->ID ) ) {
+						continue;
+					}
+
+					++$count;
+					if ( $count_only ) {
 						continue;
 					}
 
@@ -1663,6 +1678,11 @@ class WorkflowController extends WP_REST_Controller {
 				continue;
 			}
 
+			++$count;
+			if ( $count_only ) {
+				continue;
+			}
+
 			// A post outside any workflow can still be claimed — the claim meta
 			// isn't itself workflow-scoped — so this fallback bucket carries an
 			// assignee too, for the same reason it carries an author.
@@ -1691,6 +1711,12 @@ class WorkflowController extends WP_REST_Controller {
 			);
 		}
 
+		if ( $count_only ) {
+			$response = new WP_REST_Response( array() );
+			$response->header( 'X-WP-Total', (string) $count );
+			return $response;
+		}
+
 		// One assignment read for the whole list, not one per row: an author
 		// with thousands of posts would otherwise cost thousands of queries.
 		$current_assignments = $assignment_manager->get_current_for_posts( array_column( $items, 'post_id' ) );
@@ -1706,7 +1732,9 @@ class WorkflowController extends WP_REST_Controller {
 			);
 		}
 
-		return new WP_REST_Response( $items );
+		$response = new WP_REST_Response( $items );
+		$response->header( 'X-WP-Total', (string) $count );
+		return $response;
 	}
 
 	/**
