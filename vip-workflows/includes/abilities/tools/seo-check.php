@@ -10,6 +10,42 @@ declare( strict_types=1 );
 namespace VIPWorkflows\Abilities\Tools;
 
 /**
+ * Count the paragraphs a reader sees.
+ *
+ * Block editor content stores each paragraph as a `<p>` element, so those are
+ * counted. Classic editor content is stored without them: WordPress adds the
+ * `<p>` tags on display with wpautop(), which splits on blank lines and leaves
+ * block-level elements unwrapped, so content with no `<p>` at all is split the
+ * same way. Paragraphs with no visible text (an empty block, a lone `&nbsp;`)
+ * are not counted.
+ *
+ * @param string $content Post content.
+ * @return int Paragraph count.
+ */
+function count_paragraphs( string $content ): int {
+	if ( preg_match_all( '/<p\b[^>]*>(.*?)<\/p>/is', $content, $matches ) ) {
+		$blocks = $matches[1];
+	} else {
+		// A chunk that opens with a block-level element (a heading, a list, a
+		// table) is not wrapped in `<p>` by wpautop(), so it is not a paragraph.
+		$blocks = array_filter(
+			preg_split( '/\R\s*\R/', $content ),
+			static fn( $chunk ) => ! preg_match( '/^\s*<(?:h[1-6]|ul|ol|dl|table|figure|pre|hr|div)\b/i', $chunk )
+		);
+	}
+
+	$count = 0;
+	foreach ( $blocks as $block ) {
+		$text = html_entity_decode( wp_strip_all_tags( $block ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		if ( '' !== trim( $text, " \t\n\r\0\x0B\u{00A0}" ) ) {
+			++$count;
+		}
+	}
+
+	return $count;
+}
+
+/**
  * Execute the SEO check.
  *
  * @param  array|null $input Input parameters.
@@ -76,6 +112,30 @@ function execute_seo_check( ?array $input = null ) {
 		$suggestions[] = array(
 			'type'    => 'add_content',
 			'message' => __( 'Add detail, examples, or related information.', 'vip-workflows' ),
+		);
+	}
+
+	// Check 1b: Paragraph count.
+	$paragraph_count             = count_paragraphs( $content );
+	$analysis['paragraph_count'] = $paragraph_count;
+
+	$min_paragraphs = $settings['min_paragraphs'] ?? 3;
+	if ( $paragraph_count < $min_paragraphs ) {
+		$score        -= 10;
+		$issues[]      = array(
+			'type'      => 'paragraph_count',
+			'check_key' => 'min_paragraphs',
+			'message'   => sprintf(
+			/* translators: 1: Current paragraph count, 2: Minimum paragraph count */
+				_n( 'Content has %1$d paragraph. Aim for at least %2$d.', 'Content has %1$d paragraphs. Aim for at least %2$d.', $paragraph_count, 'vip-workflows' ),
+				$paragraph_count,
+				$min_paragraphs
+			),
+			'severity'  => 'warning',
+		);
+		$suggestions[] = array(
+			'type'    => 'split_paragraphs',
+			'message' => __( 'Break long passages into shorter paragraphs.', 'vip-workflows' ),
 		);
 	}
 
