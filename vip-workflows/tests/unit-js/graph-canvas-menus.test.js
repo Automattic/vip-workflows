@@ -35,7 +35,10 @@ import {
 	STAGE_HEIGHT,
 	STAGE_WIDTH,
 } from '../../src/admin/components/graph/graph-model';
-import { visibleRegions } from '../../src/admin/components/graph/regions';
+import {
+	REGION_ORDER,
+	visibleRegions,
+} from '../../src/admin/components/graph/regions';
 
 if ( ! global.structuredClone ) {
 	global.structuredClone = ( value ) => JSON.parse( JSON.stringify( value ) );
@@ -182,12 +185,20 @@ async function renderCanvas( {
 		onAddRegion: jest.fn(),
 		onRemoveRegion: jest.fn(),
 	};
+	// The regions drawn, and the statuses not drawn yet that "Add post
+	// status…" offers — the editor works the second out from the first and
+	// hands the canvas both.
+	const regions = isPhase ? [] : visibleRegions( stages, [] );
+	const addableRegions = REGION_ORDER.filter(
+		( region ) => ! regions.includes( region )
+	);
 	const { container } = render(
 		<GraphCanvas
 			stages={ stages }
 			isPhase={ isPhase }
 			warnings={ {} }
-			regions={ isPhase ? [] : visibleRegions( stages, [] ) }
+			regions={ regions }
+			addableRegions={ addableRegions }
 			selectedNodeKey={ null }
 			selectedEdgeId={ null }
 			selectedRegion={ null }

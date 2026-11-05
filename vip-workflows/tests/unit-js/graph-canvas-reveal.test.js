@@ -174,7 +174,7 @@ const bounds = ( id ) => mockFlow.getNodesBounds( [ id ] );
 // The viewport every reveal starts from (`setViewport` is never applied), and
 // the whole pane as visible: jsdom sets none of the inspector's measurements.
 const HOME = { x: 0, y: 0, zoom: 1 };
-const VISIBLE = { x: 0, y: 0, ...PANE };
+const VISIBLE = { y: 0, ...PANE };
 
 // Where a target's middle lands when it is centred vertically in the pane.
 const PANE_MIDDLE = REVEAL_MARGIN + ( PANE.height - REVEAL_MARGIN * 2 ) / 2;
@@ -437,7 +437,6 @@ describe( 'the part of the canvas left visible', () => {
 			const { pane } = editor();
 
 			expect( visibleCanvas( pane ) ).toEqual( {
-				x: 0,
 				y: 0,
 				width: 1000 - 360 - 16 * 2,
 				height: 800,
@@ -452,7 +451,6 @@ describe( 'the part of the canvas left visible', () => {
 			notice( root, 150, 190 );
 
 			expect( visibleCanvas( pane ) ).toEqual( {
-				x: 0,
 				y: 90,
 				width: 1000 - 360 - 16 * 2,
 				height: 710,
@@ -471,7 +469,6 @@ describe( 'the part of the canvas left visible', () => {
 			at( element( 'wf-inspector', root ), 600, 900 );
 
 			expect( visibleCanvas( pane ) ).toEqual( {
-				x: 0,
 				y: 0,
 				width: 1000,
 				height: 500,
@@ -484,7 +481,6 @@ describe( 'the part of the canvas left visible', () => {
 			at( element( 'wf-inspector', root ), 600, 900 );
 
 			expect( visibleCanvas( pane ) ).toEqual( {
-				x: 0,
 				y: 60,
 				width: 1000,
 				height: 440,
