@@ -68,7 +68,7 @@ includes/
 │   └── class-sequence-repository.php # Sequence CRUD
 │
 ├── database/
-│   ├── class-schema.php               # Table creation/updates (v2.24.0)
+│   ├── class-schema.php               # Table creation/updates (v2.26.0)
 │   └── class-seeder.php              # Default data seeding
 │
 ├── discovery/
@@ -119,6 +119,7 @@ includes/
 │   ├── class-llm-json-parser.php      # Parse LLM responses as JSON
 │   ├── class-llm-text-generator.php   # Generate plain-text content via LLM
 │   ├── class-markdown.php             # Markdown helpers shared across integrations
+│   ├── class-safe-url.php             # Allows only http/https in a provider-supplied URL before it is stored
 │   ├── class-ssrf-guard.php           # Guards outbound URL fetches against SSRF
 │   ├── class-uploads-path-guard.php   # Validates upload paths stay inside the uploads directory
 │   └── class-you-tube-transcript.php  # YouTube transcript extraction

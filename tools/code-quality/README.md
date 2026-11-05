@@ -6,16 +6,17 @@ reads the repo and runs the project's own linters/tests — it does **not** own
 git hooks or CI config.
 
 ```
-node tools/code-quality/quality.mjs <lint|test|check|fix|suppressions> [--changed | --all | <file>…] [--rule=R4] [--json]
+node tools/code-quality/quality.mjs <lint|test|check|fix|suppressions|baseline> [--changed | --all | <file>…] [--json]
 ```
 
 | Command | Does |
 |---|---|
-| `lint` | PHP (phpcs) + JS/CSS (wp-scripts) + CSS-hygiene rules (below) |
+| `lint` | design-system conformance (loupe, below) + PHP (phpcs) + JS/CSS (wp-scripts) |
 | `test` | fast **unit** suites only — no wp-env / integration / e2e |
 | `check` | `lint` then `test` |
 | `fix` | run the format autofixers (phpcbf + eslint/stylelint `--fix`) over the scope — **mutates files** |
-| `suppressions` | print every honored `wpds-allow` in the tree (audit registry) |
+| `suppressions` | `loupe suppressions` — every honored `wpds-allow` in the tree (audit registry); extra args pass through, e.g. `--stale` |
+| `baseline` | `loupe baseline`, then re-record the occurrence counts beside it (see [The baseline](#the-baseline)) |
 
 ### Scope
 
@@ -28,40 +29,35 @@ node tools/code-quality/quality.mjs <lint|test|check|fix|suppressions> [--change
 `--all` beats `--changed` regardless of order, so `npm run check -- --all`
 works even though the `check` script bakes in `--changed`.
 
+loupe always analyzes the whole repo. Under `--changed` it reports on the whole
+repo too, as `--all` does: a change can create a finding in a file it didn't touch,
+and the baseline keeps the report to what is new. A `<file>…` list reports on
+those files only.
+
 ### Output, and driving it from an agent
 
 `lint`/`check` print three banner-separated sections in fixed order — the
-**CSS-HYGIENE / WPDS** worklist first, then blocking **PHP (phpcs)**, then
+**DESIGN SYSTEM (loupe)** worklist first, then blocking **PHP (phpcs)**, then
 advisory **JS / CSS lint**. phpcs output is de-noised (no ANSI colors, no
 `DEPRECATED: Scanning CSS/JS` per-sniff spam, PHP files only).
 
-Hygiene findings are grouped by rule; the fix **guidance is stated once in the
-group header**, and each finding line carries only what varies:
-
-```
-⚠ R6 [advisory] × 490 — overrides a WPDS/library component — restyle via its props/tokens, not CSS
-    …/AssistantCard.css:37   <Text> ← line-height
-    …/AssistantsTab.css:31   <Stack> ← color
-```
-
-Two flags exist for working through a large backlog:
-
-- **`--rule=R4`** (or `--rule=R4,R6`) — narrow the displayed hygiene findings to
-  those rule ids, to fix one rule family at a time. Display-only: the blocking
-  verdict is still computed on the full set, and a hidden blocking finding is
-  called out so `--rule` can't mask an R0/R1.
-- **`--json`** — emit a structured payload instead of text: `{ hygiene: [...],
-  php: [...] }`, each finding `{ source, rule, file, line, detail, … }` (hygiene
-  adds `blocking` + `guidance`; phpcs adds `type` + `fixable`). No ANSI, no
-  ordering, no prose — the interface for an agent that groups/sorts findings
-  itself (e.g. per-component). JS/CSS advisory lint is not included.
+**`--json`** emits a structured payload instead of text: `{ loupe, php }`.
+`loupe` is loupe's own `--format json` report, plus a `baselineCounts` object:
+`over` lists each baselined key that now holds more findings than the baseline
+accepts (`{ key, accepted, found }`; every finding of such a key is added to
+`findings` and sets `blocking`), and `under` lists keys that hold fewer. It is
+`{ blocking: false, findings: [] }` when the scope holds no file loupe checks,
+and `null` when loupe is missing (skipped) or couldn't run (exit 1, as in
+`lint`). `php` is a list of phpcs findings `{ source, rule, type, fixable, file,
+line, detail }`. No ANSI, no prose — the interface for an agent that groups/sorts
+findings itself. JS/CSS advisory lint is not included.
 
 ### Exit codes
 
 | Code | Meaning |
 |---|---|
-| `0` | clean, nothing to do, or a tool was missing (skipped) |
-| `1` | blocking failure — PHP lint, failing unit test, or a blocking hygiene rule |
+| `0` | clean, nothing to do, or a tool was missing (skipped — including loupe) |
+| `1` | blocking failure — PHP lint, failing unit test, a blocking loupe finding not in the baseline (or more of one than the baseline counted), a baseline whose counts don't match it, or a loupe that was found but couldn't run |
 | `2` | couldn't run (git unavailable, bad usage) — never reported as success |
 
 JS/CSS lint findings are **advisory** and never change the exit code (there's a
@@ -76,7 +72,8 @@ npm run test:unit       # test --all            npm run test:unit:changed
 npm run test:all        # test --all
 npm run check           # check --changed       npm run check:all   (check --all)
 npm run fix             # fix --changed         npm run fix:all     (fix --all)
-npm run suppressions    # the wpds-allow registry
+npm run suppressions    # the wpds-allow registry (needs loupe)
+npm run loupe:baseline  # re-record the loupe baseline and its counts (needs loupe)
 ```
 
 `fix` defaults to `--changed` (not `--all` like the read-only verbs): it
@@ -86,102 +83,191 @@ rewrites files, so the safe default is your working changes — reach for
 ### What `fix` does and doesn't touch
 
 Runs only the **mechanical** formatters — `phpcbf`, `eslint --fix`,
-`stylelint --fix` — so it's safe and non-destructive. It never touches the
-CSS-hygiene rules: R2 needs the *right* token chosen, R3–R8 are JSX/layout
-refactors, and R6 is a judgement call. Auto-"fixing" those by guessing is
-exactly the silent wrong change the gate exists to catch — they stay a review
-worklist. Run `fix`, then `lint` to see what genuinely needs a human.
+`stylelint --fix` — so it's safe and non-destructive. It never touches
+design-system findings: run `loupe fix --changed` for the substitutions the
+engine can settle without judgement (a misspelled token, an on-role token for a
+hardcoded value). Bare `loupe fix` rewrites the whole repo, baselined findings
+included. The rest are refactors that need a person.
 
 ---
 
-## CSS-hygiene / WPDS-usage rules
+## Design-system conformance (loupe)
 
-`css-hygiene.mjs` correlates the two sides no single linter sees at once — the
-JSX that binds a class to a component, and the CSS that styles that class — to
-catch design-system-usage problems that dead-code and style linters miss. It
-runs inside `lint`; it only analyzes, never edits.
+[loupe](https://github.com/dabowman/loupe) checks UI code against the WordPress
+Design System: overrides of WPDS components, layout and type in CSS, hardcoded
+values where a `--wpds-*` token exists, raw elements with a WPDS analog,
+superseded components, and rebuilt patterns. `loupe.config.json` at the repo
+root selects the `wpds` preset, names the project's class namespaces, points at
+the token stylesheet and baseline in [`.loupe/`](../../.loupe/README.md), and
+makes `css/dead-class` blocking, as css-hygiene's R1 was. The token stylesheet is
+a committed copy of `@wordpress/theme`'s, so token rules work in a checkout with
+no `node_modules`, such as an agent worktree. Where `@wordpress/theme` is
+installed, `lint` warns when the copy has drifted from it and prints the `cp`
+that refreshes it.
+loupe walks the filesystem rather than git, so its `sources.ignore` restates the
+preset's list (arrays replace on merge) and adds the gitignored `_tmp/` scratch
+directory.
 
-| Rule | Flags | Severity |
-|---|---|---|
-| **R0** | blanket / whole-file suppression attempts | **blocking** |
-| **R1** | dead project CSS class (`vip-workflows-*` / `wf-*`, referenced in no JS/JSX/PHP) | **blocking** |
-| **R2** | hardcoded value where a `--wpds-*` token exists (color/spacing/radius, incl. `0`) | advisory |
-| **R3** | any `margin` — spacing belongs to the parent Stack/`gap`, not margins | advisory |
-| **R4** | layout declared in CSS (`gap`, `display:flex/grid`, flex props) — use a `<Stack>`/`<HStack>` + its `gap` prop | advisory |
-| **R5** | raw type styling (`font-*`, `line-height`, `letter-spacing`) — use `<Text>` or a `--wpds` type token | advisory |
-| **R6** | CSS overriding a WPDS component (a class bound to one) or reaching into library internals (`.components-*`, `.react-flow*`, …) | advisory |
-| **R7** | raw element with a WPDS analog: `<p>`/`<h1–6>` → `<Text>`/`<Heading>`; a **styled** `<div>`/`<span>` → `<Stack>`/`<Text>` | advisory |
-| **R8** | `<Text>`/`<Heading>` typed via CSS — use its `style`/size prop, not a stylesheet | advisory |
+Two things css-hygiene reported (as advisory R6) loupe doesn't: CSS reaching into
+React Flow (`.react-flow*`) or react-big-calendar (`.rbc-*`) internals, and CSS
+reaching through a component's class into an element it renders (`.x svg`).
+Listing those prefixes in `namespaces.external` would bring the first back as a
+blocking `system/override`.
 
-Findings are grouped by rule (blocking first) and ranked by signal within a
-rule. Advisory rules report but never fail the gate — they're the review
-worklist; only R0 and R1 block.
+### In Claude Code
 
-### Why R1 is safe to block
+The committed `.claude/settings.json` offers the loupe plugin (marketplace
+`dabowman/loupe`) when you trust the repo, enables it, and turns its hooks on
+with `"env": { "LOUPE": "on" }`. Accept the install prompt and start a new
+session. Then:
 
-A false "dead class" would block a commit, so R1 is deliberately narrow:
+- after each `Edit`/`Write`, the `PostToolUse` hook checks the file just written;
+  the `Stop` hook checks everything changed in the turn.
+- a finding in the baseline never reports. A new one does.
+- the plugin's skills (`loupe-authoring`, `loupe-patterns`, `loupe-remediation`)
+  and `/loupe-audit`, `/loupe-fix`, `/loupe-baseline`, `/loupe-report` are
+  available, and `loupe` is on `PATH`.
 
-- **Only project-authored namespaces** (`PROJECT_PREFIXES` in `css-hygiene.mjs`).
-  Bare/utility names and library classes are never judged dead.
-- **Proven-unreferenced** across every JS/JSX/PHP file. Because a class name is
-  hyphenated and an identifier can't contain a hyphen, the reference scan reads
-  raw tokens (no fragile string parsing) — it over-collects, so a live class is
-  never mistaken for dead.
-- **Dynamic classes are honored:** `` `vip-workflows-foo-${x}` `` keeps every
-  `.vip-workflows-foo-*` rule alive via its stem.
+Whether a new blocking finding stops the turn is the plugin's **Block turns on
+findings** option, which is per user (`/plugin` → loupe → configure). Off, the
+hook only shows you a one-line summary and the agent never sees the findings.
+On, the report goes back to the agent to fix, up to three attempts per file
+before the gate stands down for the session. On is the setting that keeps
+agent-written UI on the system.
 
-Library-owned classes (`.components-*`, `.react-flow*`, `.rbc-*`, …) are never
-R1 — styling them is an R6 override instead, which is the purer signal.
+`LOUPE_OFF=1 claude` silences the hooks for one session. `loupe status` shows
+what the hook will do here and why.
 
----
+### Running it outside Claude Code
 
-## Suppressing a needed exception
+loupe is not an npm dependency. `quality.mjs` finds it, in order:
+
+1. `$LOUPE_BIN`
+2. a checkout at `.loupe-engine/` (gitignored)
+3. `loupe` on `PATH` (the loupe Claude Code plugin puts it there)
+
+If none is found, the section is skipped with a warning, like a missing phpcs.
+loupe is not part of CI: when `CI` is set, `lint`, `check` and `--json` skip the
+design-system section, so the gate runs in Claude Code sessions and local runs
+only. To run it outside Claude Code,
+use the engine the baseline was recorded with (see [The baseline](#the-baseline)),
+not loupe's latest:
+
+```
+git clone https://github.com/dabowman/loupe .loupe-engine
+git -C .loupe-engine checkout e890529a5b2bb85bc835ab1b445236a897d65fd3
+```
+
+or symlink a pinned checkout's `bin/loupe` onto your `PATH`.
+
+`loupe status` prints the effective config and each rule's severity; its
+BLOCKS/advisory column is about the Claude Code hook and follows your **Block
+turns on findings** option, while `lint` fails on every `error` rule. `loupe explain <rule>` prints a rule's
+guidance.
+
+#### Rules that fail `lint`
+
+With loupe 0.8.0, the `wpds` preset and `loupe.config.json`, these rules are
+`error` and fail `lint` and `check` when a finding isn't in the baseline:
+
+| Rule | What it flags |
+|---|---|
+| `suppression/malformed` | A blanket or malformed suppression. Write `wpds-allow <ruleId> -- <reason>`. |
+| `stylesheet/unparsed` | A stylesheet that couldn't be parsed, so nothing in it was checked. |
+| `css/dead-class` | A CSS class used in no markup or reference file. This config raises it to `error`. |
+| `system/locked-component` | A private WordPress component (Badge, Tabs, Menu in 0.8.0). |
+| `system/override` | CSS that overrides a design-system component instead of using its props or tokens. |
+| `system/inline-style` | An inline style on a design-system component. |
+| `layout/in-css` | Flex layout written in CSS instead of `<Stack>` and `gap`. |
+| `layout/margin-on-child` | Margin on a child instead of the parent primitive's `gap`. |
+| `typography/in-css` | A text component typed in CSS instead of its style or size prop. |
+
+Every other rule is advisory. After bumping the engine, check this list against
+the rules `loupe status` marks "would block if enabled".
+
+### The baseline
+
+`.loupe/baseline.json` records the findings that existed when loupe was adopted.
+They are accepted; a blocking finding whose key isn't there fails the gate. A
+key is rule + file + normalized code, with no line number. So reformatting a
+file doesn't resurrect its findings, but moving a file, or fixing part of a
+finding that lists several properties (dropping `gap` from
+`display,flex-direction,gap`), changes the key, so the finding reports as new.
+
+loupe's baseline is a set of keys with no count, so on its own it accepts any
+number of findings that share one: a second `<Stack> ← background` override in
+`KanbanBoard.css` would pass. `.loupe/baseline-counts.json` closes that. It
+records how many findings each key held (601 findings under 431 keys).
+`lint`, `check` and `--json` run loupe a second time with `--no-baseline`,
+count the findings per key, and fail on any blocking key that now holds more
+than its count. The report lists every finding of that key, since nothing tells
+the new occurrence from the old ones. A whole-repo run also says when keys hold
+fewer findings than recorded, so the baseline can shrink.
+
+The counts are a separate file because loupe owns `baseline.json`: `loupe
+baseline` rewrites it and would drop a field it doesn't know. The gate fails
+when the two files disagree (a key in one and not the other, or counts that
+don't add up to the baseline's `findings`), so re-record them together:
+
+```
+npm run loupe:baseline
+```
+
+It runs `loupe baseline`, then writes the counts. Bare `loupe baseline` and the
+plugin's `/loupe-baseline` write only `baseline.json`; follow either with
+`npm run loupe:baseline`. Like `loupe baseline`, it
+accepts whatever is in the tree. Re-run it to shrink both files after fixing
+baselined findings, or after one of those key changes, and check that the diff
+only removes or renames entries and only lowers counts. Never re-baseline to get
+a new finding past the gate — fix it or suppress it.
+
+The counts are enforced by `quality.mjs` only. The loupe plugin's Claude Code
+hooks read `baseline.json` directly, so in a session an extra occurrence of a
+baselined key doesn't stop the turn; the next `npm run lint` or `check` reports
+it.
+
+The baseline and its counts were recorded with loupe 0.8.0 (`e890529`), from
+`main`. A newer engine can report findings the baseline never saw, and the
+plugin updates itself, so after a loupe update that surfaces findings nobody
+wrote, re-baseline with `npm run loupe:baseline` in its own change and say
+which engine version recorded it.
+
+### Suppressing a needed exception
 
 Sometimes a departure from the system is genuinely correct. Mute it **inline,
 per-occurrence, with a reason** — never by disabling a file or editing a rule.
 
 ```
-wpds-allow <ruleId>[,<ruleId>…] -- <reason>
+wpds-allow <ruleId>[, <ruleId>…] -- <reason>
 ```
 
-Placed on the offending line, or the line directly above it.
+On its own line, directly above the line the finding anchors to. loupe reads a
+directive only when it starts its line. One trailing a declaration, as in
+`padding: 0; /* wpds-allow … */` (the form css-hygiene accepted, and much of the
+tree still carries), mutes nothing and is never reported; its finding sits in
+the baseline instead. Rule ids are loupe's, e.g. `system/override`,
+`layout/in-css`, `tokens/hardcoded-value`. The legacy ids still resolve: R0
+`suppression/malformed`, R1 `css/dead-class`, R2 `tokens/hardcoded-value`, R3
+`layout/margin-on-child`, R4 `layout/in-css`, R5 `typography/untokenized`, R6
+`system/override`, R7 `system/raw-element`, R8 `typography/in-css`.
 
 ```css
 .vip-workflows-toast {
-	/* wpds-allow R3 -- must bleed into the parent's padding; no gap equivalent */
+	/* wpds-allow layout/negative-margin -- must bleed into the parent's padding */
 	margin-top: -4px;
 }
 ```
 
-```jsx
-{/* wpds-allow R7 -- third-party widget mounts its script into this raw div */}
-<div className="embed-host" />
-```
+A directive without a rule id or a reason, or a blanket form, is itself a
+`suppression/malformed` finding. Audit the list with `npm run suppressions`;
+`npm run suppressions -- --stale` lists directives that muted nothing, and exits
+1 when there are any.
 
-Rules:
-
-- **Rule id(s) and a reason are both required.** Multiple ids are
-  comma-separated (`wpds-allow R2,R3 -- …`).
-- A directive only mutes the exact rule(s) it names, on its own line / the line
-  below it.
-- **Anything looser is a finding, not a mute.** A `wpds-allow` with no rule id,
-  a missing reason, `wpds-allow-file`, or `wpds-disable` becomes an **R0**
-  (blocking) — you cannot widen the net or silence a whole file.
-- **Rewriting the gate's rules isn't silent.** Any change under
-  `tools/code-quality/`, a `.phpcs.xml.dist`, or an eslint/stylelint config
-  prints `⚠ gate rules modified — human review required`.
-
-### Auditing exceptions
-
-Every honored suppression is greppable:
-
-```
-npm run suppressions
-# → file:line  <ruleIds>  — <reason>   (one line per sanctioned exception)
-```
-
-Keep this list short and each entry justified; it's the record of every place
-the codebase intentionally steps outside the design system.
+**Rewriting the gate's rules isn't silent.** Any change under
+`tools/code-quality/`, to `loupe.config.json` or anything under `.loupe/`, a
+`.phpcs.xml.dist`, or an eslint/stylelint config prints `⚠ gate rules modified —
+human review required`. A change to loupe's config or `.loupe/` also runs loupe
+over the whole repo.
 
 ---
 
@@ -189,6 +275,6 @@ the codebase intentionally steps outside the design system.
 
 | File | Role |
 |---|---|
-| `quality.mjs` | orchestrator — scope resolution, PHP/JS lint, unit tests, hygiene, exit codes |
-| `css-hygiene.mjs` | the R0–R8 analyzer (PostCSS + lightweight JSX scanning) |
+| `quality.mjs` | orchestrator — scope resolution, loupe, PHP/JS lint, unit tests, exit codes |
+| `loupe-counts.mjs` | the loupe baseline's occurrence counts — key, compare, validate (tested by `loupe-counts.test.mjs`) |
 | `phpcs-extensions.xml` | shared PHPCS baseline for the `workflow-*` extension plugins |

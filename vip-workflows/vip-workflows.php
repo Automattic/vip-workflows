@@ -11,7 +11,7 @@
  * Text Domain: vip-workflows
  * Domain Path: /languages
  * Requires at least: 7.0
- * Requires PHP: 8.2
+ * Requires PHP: 8.3
  *
  * @package VIPWorkflows
  */
@@ -40,7 +40,7 @@ define( 'VIP_WORKFLOWS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VIP_WORKFLOWS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 // Minimum requirements.
-define( 'VIP_WORKFLOWS_MIN_PHP_VERSION', '8.2' );
+define( 'VIP_WORKFLOWS_MIN_PHP_VERSION', '8.3' );
 define( 'VIP_WORKFLOWS_MIN_WP_VERSION', '7.0' );
 
 /**
@@ -169,6 +169,26 @@ add_action( 'plugins_loaded', __NAMESPACE__ . '\\init' );
 
 /**
  * Run schema upgrades automatically when the code version bumps.
+ *
+ * Hooked on `init`, not `admin_init`, so the first request after a deploy
+ * upgrades the schema whatever it is: REST, cron, WP-CLI or front end. The
+ * write gates refuse stored shapes that a migration removes, so a REST client
+ * reaching a sequence before an admin visit would otherwise hit an error.
+ *
+ * Priority 1 runs after core registers its post types and statuses (priority 0)
+ * and before the default-priority callbacks that may read sequences. Nothing
+ * here needs admin context: create_tables() loads wp-admin/includes/upgrade.php
+ * itself, and the review notice for what the upgrade changed stays on admin
+ * screens (Admin::render_region_review_notice()).
+ *
+ * When the schema is current, the cost is one read of an autoloaded option.
+ *
+ * There is no lock. Two requests that both see an old version can both run the
+ * upgrade. Migrations must be idempotent (see Schema::run_migrations()), and the
+ * stored-config replay writes only a row that still holds what it read, so a
+ * second run of it finds nothing to do. A migration that moves data between
+ * tables can still see the other run's half-finished work; the 2.23.0 move
+ * stops with both tables intact when that happens.
  */
 function maybe_upgrade_schema(): void {
 	$current = get_option( 'vip_workflows_db_version', '0.0.0' );
@@ -186,7 +206,7 @@ function maybe_upgrade_schema(): void {
 	}
 }
 
-add_action( 'admin_init', __NAMESPACE__ . '\\maybe_upgrade_schema' );
+add_action( 'init', __NAMESPACE__ . '\\maybe_upgrade_schema', 1 );
 
 /**
  * Activation hook.

@@ -910,7 +910,8 @@
    is not solved by lowering this: a socket whose point lands on one of its own
    node's source handles is simply not drawn (`EdgeOverlay`), because the handle
    is the port there — and an arrowhead landing on an AI stage's outcome badge
-   yields for as long as the badge is painted (the `is-yielding` rule below).
+   or a stage's drag grip yields for as long as that handle is painted (the
+   `is-yielding` rule below).
 
    Both layers above the cards are the same box: a 1x1 sheet pinned to the flow
    origin with `overflow: visible`, so a `ViewportPortal` child draws in flow
@@ -946,11 +947,11 @@
 	transition: opacity 0.1s ease;
 }
 
-/* A head over an AI stage's outcome badge would stamp itself across the
-   badge's glyph, so it yields — but only while the badge is actually painted
-   (its stage hovered, or a connection in flight from it; `EdgeOverlay` sets
-   the class), and it returns the moment the badge fades. At rest every
-   arrival keeps its mark. */
+/* A head over an AI stage's outcome badge or a stage's drag grip would stamp
+   itself across the handle's glyph, so it yields — but only while the handle
+   is actually painted (its stage hovered, or a connection in flight from it;
+   `EdgeOverlay` sets the class), and it returns the moment the handle fades.
+   At rest every arrival keeps its mark. */
 .wf-edge-overlay__arrow.is-yielding {
 	opacity: 0; /* wpds-allow R2 -- fully transparent, not a color */
 }

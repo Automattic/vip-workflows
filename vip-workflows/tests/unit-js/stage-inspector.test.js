@@ -46,7 +46,11 @@ import {
 	act,
 } from './helpers/render-wp-component';
 
-import { isTransitionDisabled } from '../../src/admin/components/graph/graph-model';
+import {
+	END_ID,
+	edgeId,
+	isTransitionDisabled,
+} from '../../src/admin/components/graph/graph-model';
 import StageInspector from '../../src/admin/components/graph/StageInspector';
 
 const AGENTS = [
@@ -278,9 +282,47 @@ describe( 'StageInspector transition read-out', () => {
 		// has to name what is empty itself — and it carries both ways of
 		// filling it, which are most needed on exactly this stage. The drag is
 		// named second now: it is the one an author might not be able to make.
-		expect(
-			screen.getByText( /Nothing leaves this stage yet/ )
-		).toHaveTextContent( 'Add an exit above, or drag from one of the' );
+		expect( screen.getByText( /No exits yet/ ) ).toHaveTextContent(
+			'Add one or drag from a handle'
+		);
+	} );
+
+	// A final stage's way out is the end of the workflow. Calling it exit-less
+	// sends an author looking for a connection that is already there.
+	it( 'lists the end of the workflow as a final stage’s exit', () => {
+		const onSelectEdge = jest.fn();
+		const onDeleteExit = jest.fn();
+		renderInspector(
+			stage( { transitions: [], is_terminal: true } ),
+			jest.fn(),
+			{ onSelectEdge, onDeleteExit }
+		);
+
+		expect( screen.queryByText( /No exits yet/ ) ).toBeNull();
+
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'Select End of workflow' } )
+		);
+		expect( onSelectEdge ).toHaveBeenCalledWith(
+			edgeId( 'review', END_ID )
+		);
+
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'Remove exit' } )
+		);
+		expect( onDeleteExit ).toHaveBeenCalledWith( END_ID );
+	} );
+
+	it( 'lists the end after the transitions a final stage also has', () => {
+		renderInspector( stage( { is_terminal: true } ) );
+
+		const names = screen
+			.getAllByRole( 'button', { name: /^Select / } )
+			.map( ( button ) => button.getAttribute( 'aria-label' ) );
+		expect( names ).toEqual( [
+			'Select Approve: Done',
+			'Select End of workflow',
+		] );
 	} );
 
 	it( 'marks a transition the stage’s agent has taken over', () => {
@@ -386,10 +428,16 @@ describe( 'StageInspector deduplicated exit list', () => {
 	it( 'renders one row per exit: three routed outcomes plus the unclaimed transition', () => {
 		renderInspector( routedStage(), jest.fn(), props );
 
-		const exits = screen
+		const outcomes = screen
 			.getByText( 'Send to copyedit · on pass' )
 			.closest( 'ul' );
-		expect( within( exits ).getAllByRole( 'listitem' ) ).toHaveLength( 4 );
+		expect( within( outcomes ).getAllByRole( 'listitem' ) ).toHaveLength(
+			3
+		);
+		const transitionList = screen.getByText( 'Archive' ).closest( 'ul' );
+		expect(
+			within( transitionList ).getAllByRole( 'listitem' )
+		).toHaveLength( 1 );
 	} );
 
 	it( 'composes each routed outcome’s row from its transition’s name', () => {
@@ -1019,15 +1067,18 @@ describe( 'StageInspector panel structure', () => {
 			} )
 		);
 
-		const exits = screen.getByText( 'On fail' ).closest( 'ul' );
-		// Both kinds of exit in the same list: to a post travelling them, a
-		// button an author drew and a route an agent takes are the same thing.
+		// Agent outcomes and transition rows sit in adjacent lists inside the
+		// same exits section; together they are every way out of the stage.
+		const outcomes = screen.getByText( 'On fail' ).closest( 'ul' );
 		expect(
-			within( exits ).getByText( 'Approve · on pass' )
+			within( outcomes ).getByText( 'Approve · on pass' )
 		).toBeInTheDocument();
-		expect( within( exits ).getByText( 'Archive' ) ).toBeInTheDocument();
+		const transitionList = screen.getByText( 'Archive' ).closest( 'ul' );
+		expect( transitionList ).toBeInTheDocument();
 		// And apart from the facts about the stage itself, which keep their own.
-		expect( within( exits ).queryByText( 'Entry checkpoint' ) ).toBeNull();
+		expect(
+			within( outcomes ).queryByText( 'Entry checkpoint' )
+		).toBeNull();
 	} );
 
 	it( 'keeps label and color open in place', () => {
@@ -1113,7 +1164,7 @@ describe( 'StageInspector panel structure', () => {
 			).toBeInTheDocument();
 			expect(
 				screen.getByText(
-					/following the on-error route if one is set, stopping here otherwise/
+					/Until this is set up, posts here will error/
 				)
 			).toBeInTheDocument();
 		} );
@@ -1128,7 +1179,7 @@ describe( 'StageInspector panel structure', () => {
 			);
 
 			expect(
-				screen.getByText( /no longer available on this site/ )
+				screen.getByText( /is unavailable, so posts here will error/ )
 			).toBeInTheDocument();
 		} );
 
@@ -1160,7 +1211,7 @@ describe( 'StageInspector panel structure', () => {
 			);
 
 			expect(
-				screen.queryByText( /following the on-error route/ )
+				screen.queryByText( /posts here will error/ )
 			).not.toBeInTheDocument();
 		} );
 	} );

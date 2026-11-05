@@ -478,6 +478,42 @@ test.describe( 'VIP Workflows — sequence status regions', () => {
 		expect( byKey.draft.region_entry ).toBeFalsy();
 	} );
 
+	test( 'right-click adds a stage in the section clicked, where it was clicked', async ( {
+		admin,
+		page,
+		requestUtils,
+	} ) => {
+		const bp = await createCheckpointSequence( requestUtils );
+		sequenceId = bp.id;
+
+		await openEditor( admin, page, bp.name );
+		await fitView( page );
+
+		// Low on the left of the publish band: clear of its stages, its label
+		// and the floating inspector.
+		const target = await band( page, 'publish' ).boundingBox();
+		const click = {
+			x: target.x + 60,
+			y: target.y + target.height - 30,
+		};
+		await page.mouse.click( click.x, click.y, { button: 'right' } );
+		await page.getByRole( 'menuitem', { name: 'Add stage' } ).click();
+
+		await expect( page.locator( '.wf-stage-node' ) ).toHaveCount( 4 );
+		await expect( regionLabel( page, 'publish' ) ).toContainText(
+			'3 stages'
+		);
+
+		// Centered on the right-click, not in a slot the layout chose.
+		const added = await nodeNamed( page, 'Stage 4' ).boundingBox();
+		expect( Math.abs( added.x + added.width / 2 - click.x ) ).toBeLessThan(
+			2
+		);
+		expect( Math.abs( added.y + added.height / 2 - click.y ) ).toBeLessThan(
+			2
+		);
+	} );
+
 	test( 'an empty status section can be taken back off the canvas', async ( {
 		admin,
 		page,

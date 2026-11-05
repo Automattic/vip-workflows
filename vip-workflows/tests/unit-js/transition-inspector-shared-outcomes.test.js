@@ -54,7 +54,7 @@ describe( 'TransitionInspector shared outcomes', () => {
 
 		const notice = panel.getByText( /all lead to Published/i );
 		expect( notice ).toHaveTextContent( 'On pass, On fail' );
-		expect( notice ).toHaveTextContent( /applies to all of them/i );
+		expect( notice ).toHaveTextContent( /apply to all of them/i );
 	} );
 
 	it( 'names every outcome in the eyebrow, not just the one clicked', () => {

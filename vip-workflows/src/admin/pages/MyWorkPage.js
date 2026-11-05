@@ -295,11 +295,10 @@ export function MyWorkPage() {
 					item.author ? <AuthorCell actor={ item.author } /> : '—',
 			},
 			{
-				// The person currently claiming the post, not one of a sequence's
-				// named assignment slots (a legal reviewer, an editorial approver,
-				// …) — a post can have several of those pending at once, to
-				// different people, so no single one of them is "the" assignee.
-				// This is the one claim a post has at most one of at a time.
+				// Who the post is waiting on: its current pending assignment (a
+				// person, a role or an agent), or whoever claimed it when nothing
+				// is pending. The server resolves it the way the board's cards
+				// do, so a dash here means the post has neither.
 				id: 'assignee',
 				label: __( 'Assignee', 'vip-workflows' ),
 				elements: toElements(
@@ -328,7 +327,7 @@ export function MyWorkPage() {
 				// than inventing a second one.
 				id: 'featured_image',
 				type: 'media',
-				label: __( 'Featured Image', 'vip-workflows' ),
+				label: __( 'Featured image', 'vip-workflows' ),
 				enableSorting: false,
 				enableGlobalSearch: false,
 				filterBy: false,

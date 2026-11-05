@@ -220,7 +220,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 							},
 							{
 								label: __(
-									'Recommend — users can skip and continue without a workflow',
+									'Recommend — users can skip selecting a workflow',
 									'vip-workflows'
 								),
 								value: 'recommend',
@@ -257,7 +257,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				<RoleCheckboxGroup
 					label={ __( 'Workflow override', 'vip-workflows' ) }
 					description={ __(
-						'Change post status outside the workflow.',
+						'These roles can skip role limits and required fields, and change status outside the workflow.',
 						'vip-workflows'
 					) }
 					roles={ roles }
@@ -273,7 +273,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				<RoleCheckboxGroup
 					label={ __( 'Tool check bypass', 'vip-workflows' ) }
 					description={ __(
-						'Move posts even when required checks fail.',
+						'These roles can move posts even when required checks fail.',
 						'vip-workflows'
 					) }
 					roles={ roles }
@@ -293,7 +293,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				<RoleCheckboxGroup
 					label={ __( 'Own activity', 'vip-workflows' ) }
 					description={ __(
-						'Their own events only.',
+						'These roles can view their own events only.',
 						'vip-workflows'
 					) }
 					roles={ roles }
@@ -309,7 +309,7 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				<RoleCheckboxGroup
 					label={ __( 'All activity', 'vip-workflows' ) }
 					description={ __(
-						'Events from every user.',
+						'These roles can view events from every user.',
 						'vip-workflows'
 					) }
 					roles={ roles }
