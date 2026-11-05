@@ -1517,10 +1517,10 @@ class WorkflowController extends WP_REST_Controller {
 	 * — a scheduled post is not at a workflow stage called "Scheduled".
 	 *
 	 * `author` and `assignee` are two different people: `author` is `post_author`,
-	 * `assignee` is whoever currently claims the post via `_vip_workflows_assigned_to`
-	 * (null if unclaimed). Neither is the same as AssignmentManager's per-slot
-	 * assignments, which a sequence transition can define more than one of at a
-	 * time — this row exposes only the single claim, not every pending slot.
+	 * `assignee` is who the post is waiting on. That is the post's current
+	 * pending assignment (see AssignmentManager::get_current()), or, with none,
+	 * whoever claims it via `_vip_workflows_assigned_to`. It is null only when
+	 * the post has neither. The board's cards resolve `assigned_to` the same way.
 	 *
 	 * @param  WP_REST_Request $request Request.
 	 * @return WP_REST_Response|WP_Error
@@ -1536,8 +1536,9 @@ class WorkflowController extends WP_REST_Controller {
 			return $involved_post_ids;
 		}
 
-		$repository = new \VIPWorkflows\Sequences\SequenceRepository();
-		$items      = array();
+		$repository         = new \VIPWorkflows\Sequences\SequenceRepository();
+		$assignment_manager = new \VIPWorkflows\Workflow\AssignmentManager();
+		$items              = array();
 
 		// Get all sequences.
 		$sequences = $repository->get_all();
@@ -1579,8 +1580,6 @@ class WorkflowController extends WP_REST_Controller {
 						continue;
 					}
 
-					$claimed_by_id = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
-
 					$featured_image_url = get_the_post_thumbnail_url( $post->ID, 'medium' );
 
 					$items[] = array(
@@ -1593,14 +1592,8 @@ class WorkflowController extends WP_REST_Controller {
 						'post_status'         => $post->post_status,
 						'post_status_label'   => $this->get_core_status_label( $post ),
 						'author'              => Actor::from_user( $post->post_author ),
-						// The single person currently claiming this post — distinct
-						// from AssignmentManager's per-slot pending assignments,
-						// which a sequence transition can define more than one
-						// of at a time (e.g. a legal reviewer
-						// and an editorial approver, independently). That per-slot
-						// model isn't reducible to one assignee per post, so this
-						// column tracks the single claim instead.
-						'assignee'            => Actor::from_user( $claimed_by_id ),
+						// Filled in below, from one read for every row.
+						'assignee'            => null,
 						'featured_image_url'  => $featured_image_url ? $featured_image_url : null,
 						'created_date'        => $post->post_date,
 						'modified_date'       => $post->post_modified,
@@ -1652,7 +1645,6 @@ class WorkflowController extends WP_REST_Controller {
 			// A post outside any workflow can still be claimed — the claim meta
 			// isn't itself workflow-scoped — so this fallback bucket carries an
 			// assignee too, for the same reason it carries an author.
-			$claimed_by_id      = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
 			$featured_image_url = get_the_post_thumbnail_url( $post->ID, 'medium' );
 
 			$items[] = array(
@@ -1670,14 +1662,56 @@ class WorkflowController extends WP_REST_Controller {
 				'post_status'         => $post->post_status,
 				'post_status_label'   => $this->get_core_status_label( $post ),
 				'author'              => Actor::from_user( $post->post_author ),
-				'assignee'            => Actor::from_user( $claimed_by_id ),
+				// Filled in below, from one read for every row.
+				'assignee'            => null,
 				'featured_image_url'  => $featured_image_url ? $featured_image_url : null,
 				'created_date'        => $post->post_date,
 				'modified_date'       => $post->post_modified,
 			);
 		}
 
+		// One assignment read for the whole list, not one per row: an author
+		// with thousands of posts would otherwise cost thousands of queries.
+		$current_assignments = $assignment_manager->get_current_for_posts( array_column( $items, 'post_id' ) );
+		if ( $current_assignments instanceof WP_Error ) {
+			// A partial list would show the unread posts as unassigned.
+			return $current_assignments;
+		}
+		foreach ( $items as $index => $item ) {
+			$items[ $index ]['assignee'] = $this->get_my_work_assignee(
+				$assignment_manager,
+				$item['post_id'],
+				$current_assignments[ $item['post_id'] ]
+			);
+		}
+
 		return new WP_REST_Response( $items );
+	}
+
+	/**
+	 * Who a My Work row is waiting on.
+	 *
+	 * A pending assignment names that person, role or agent. With none, whoever
+	 * claimed the post stands in. This is the rule the board's cards use for
+	 * `assigned_to`, so a post shows the same assignee in both places.
+	 *
+	 * @param \VIPWorkflows\Workflow\AssignmentManager $assignment_manager Assignment describer.
+	 * @param int                                      $post_id            Post ID.
+	 * @param array|null                               $current            The post's current assignment, from AssignmentManager::get_current_for_posts().
+	 * @return array|null The assignee, or null when the post has neither.
+	 */
+	private function get_my_work_assignee( \VIPWorkflows\Workflow\AssignmentManager $assignment_manager, int $post_id, ?array $current ): ?array {
+		if ( $current ) {
+			$assignee = $assignment_manager->describe_assignee(
+				$current['assignment']['type'],
+				$current['assignment']['value']
+			);
+			if ( $assignee ) {
+				return $assignee;
+			}
+		}
+
+		return Actor::from_user( get_post_meta( $post_id, '_vip_workflows_assigned_to', true ) );
 	}
 
 	/**

@@ -158,7 +158,7 @@ class MyWorkVisibilityTest extends TestCase {
 		$this->assertSame( 'Review', $by_id[ $claimed ]['status_label'] );
 		$this->assertSame( $this->author_id, $by_id[ $claimed ]['assignee']['id'] );
 		$this->assertSame( $this->other_id, $by_id[ $assigned ]['author']['id'] );
-		$this->assertNull( $by_id[ $assigned ]['assignee'], 'An assignment slot is distinct from a claim.' );
+		$this->assertSame( $this->author_id, $by_id[ $assigned ]['assignee']['id'], 'A pending assignment is shown as the assignee.' );
 	}
 
 	/**
@@ -176,5 +176,49 @@ class MyWorkVisibilityTest extends TestCase {
 		$this->assertCount( 101, $rows );
 		$this->assertEqualsCanonicalizing( $expected, array_column( $rows, 'post_id' ) );
 		$this->assertSame( array( 'Review' ), array_values( array_unique( array_column( $rows, 'status_label' ) ) ) );
+	}
+
+	/**
+	 * Assignments are read once for the whole list, not once per row, and
+	 * each row still shows its own assignee.
+	 */
+	public function test_assignments_are_read_once_however_many_rows_there_are(): void {
+		$assignments = new AssignmentManager();
+		$assigned    = array();
+		for ( $i = 0; $i < 30; ++$i ) {
+			$post_id = $this->make_post( $this->author_id );
+			if ( 0 === $i % 3 ) {
+				$assignments->assign( $post_id, 'reviewer', $this->other_id, 'user' );
+				$assigned[] = $post_id;
+			}
+		}
+		$plain = (int) self::factory()->post->create( array( 'post_author' => $this->author_id ) );
+
+		$assignment_queries = array();
+		$count_queries      = function ( $sql ) use ( &$assignment_queries ) {
+			// esc_like() escapes the prefix's underscores, so drop the backslashes first.
+			if ( false !== strpos( $sql, 'meta_key LIKE' ) && false !== strpos( str_replace( '\\', '', $sql ), '_vip_workflows_assignment_' ) ) {
+				$assignment_queries[] = $sql;
+			}
+			return $sql;
+		};
+		add_filter( 'query', $count_queries );
+		$rows = $this->get_work();
+		remove_filter( 'query', $count_queries );
+
+		$this->assertCount( 31, $rows );
+		// One read finds the posts the user is involved in, one reads the
+		// assignments of the rows found.
+		$this->assertCount( 2, $assignment_queries, implode( "\n", $assignment_queries ) );
+
+		$by_id = array_column( $rows, null, 'post_id' );
+		foreach ( $by_id as $post_id => $row ) {
+			if ( in_array( $post_id, $assigned, true ) ) {
+				$this->assertSame( $this->other_id, $row['assignee']['id'], "Post {$post_id} should show its pending assignment." );
+			} else {
+				$this->assertNull( $row['assignee'], "Post {$post_id} has no assignment or claim." );
+			}
+		}
+		$this->assertNull( $by_id[ $plain ]['workflow_name'] );
 	}
 }

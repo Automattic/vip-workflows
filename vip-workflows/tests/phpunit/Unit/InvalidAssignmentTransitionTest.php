@@ -161,6 +161,16 @@ class InvalidAssignmentTransitionTest extends TestCase {
 		// phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- Capture audit writes in the unit fixture; restored in tearDown().
 		$wpdb            = Mockery::mock( 'wpdb' );
 		$wpdb->prefix    = 'wp_';
+		// No assignment slots, so a stage exit has none to complete.
+		$wpdb->postmeta = 'wp_postmeta';
+		$wpdb->shouldReceive( 'esc_like' )->andReturnArg( 0 )->byDefault();
+		// AssignmentManager::get_all(), read when a transition leaves a stage. A
+		// changed query matches nothing and fails instead of returning no rows.
+		$wpdb->shouldReceive( 'prepare' )
+			->with( 'SELECT meta_key, meta_value FROM wp_postmeta WHERE post_id = %d AND meta_key LIKE %s', Mockery::type( 'int' ), '_vip_workflows_assignment_%' )
+			->andReturn( 'assignment-read' )
+			->byDefault();
+		$wpdb->shouldReceive( 'get_results' )->with( 'assignment-read' )->andReturn( array() )->byDefault();
 		$wpdb->insert_id = 1;
 		$wpdb->shouldReceive( 'insert' )->andReturnUsing(
 			function ( $table, $data ) {

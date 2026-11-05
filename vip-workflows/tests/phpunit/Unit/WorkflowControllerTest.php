@@ -58,6 +58,13 @@ class WorkflowControllerTest extends TestCase
     private $wpdb;
 
     /**
+     * Batched My Work assignment reads seen by the wpdb double.
+     *
+     * @var int
+     */
+    private int $my_work_assignment_reads = 0;
+
+    /**
      * Set up test fixtures.
      */
     protected function setUp(): void
@@ -1591,7 +1598,18 @@ class WorkflowControllerTest extends TestCase
         $this->wpdb->postmeta = 'wp_postmeta';
         Functions\when( 'maybe_unserialize' )->alias( fn( $value ) => unserialize( $value ) );
         $this->wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $text ) => $text );
-        $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing( fn( $query ) => $query );
+        // The batched assignment read keeps its post IDs, so the mock below can
+        // answer it for those posts alone.
+        $this->my_work_assignment_reads = 0;
+        $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing(
+            function ( $query, ...$args ) {
+                if ( false === strpos( $query, 'post_id IN' ) ) {
+                    return $query;
+                }
+                $ids = array_slice( $args[0], 0, -1 );
+                return preg_replace( '/post_id IN \( [^)]* \)/', 'post_id IN ( ' . implode( ', ', array_map( 'intval', $ids ) ) . ' )', $query );
+            }
+        );
 
         // Resolve the involvement lookup independently from sequence reads.
         $this->wpdb->shouldReceive( 'get_results' )->byDefault()->andReturnUsing(
@@ -1608,6 +1626,22 @@ class WorkflowControllerTest extends TestCase
                 }
                 if ( false !== strpos( $query, 'SELECT post_id, meta_value' ) ) {
                     return $assignments;
+                }
+                // AssignmentManager::get_current_for_posts() for every row.
+                if ( preg_match( '/SELECT post_id, meta_key, meta_value .* post_id IN \( ([\d, ]*) \)/s', $query, $m ) ) {
+                    ++$this->my_work_assignment_reads;
+                    $ids  = array_map( 'intval', explode( ', ', $m[1] ) );
+                    $rows = array();
+                    foreach ( $assignments as $row ) {
+                        if ( in_array( (int) $row->post_id, $ids, true ) ) {
+                            $rows[] = (object) array(
+                                'post_id'    => $row->post_id,
+                                'meta_key'   => '_vip_workflows_assignment_reviewer',
+                                'meta_value' => $row->meta_value,
+                            );
+                        }
+                    }
+                    return $rows;
                 }
                 return $sequence_rows;
             }
@@ -1785,6 +1819,31 @@ class WorkflowControllerTest extends TestCase
     }
 
     /**
+     * A failed current-assignment read fails My Work rather than showing the
+     * unread rows as unassigned.
+     */
+    public function test_get_my_work_reports_current_assignment_read_failure(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ) );
+        \WP_Query::$next_posts = array(
+            $this->create_mock_post( array( 'ID' => 1, 'post_author' => 7, 'post_modified' => '2026-01-02 00:00:00' ) ),
+        );
+        $this->wpdb->shouldReceive( 'get_results' )
+            ->once()
+            ->withArgs( fn( $query ) => false !== strpos( $query, 'SELECT post_id, meta_key, meta_value' ) )
+            ->andReturnUsing( function () {
+                $this->wpdb->last_error = 'database unavailable';
+                return null;
+            } );
+
+        $result = $this->controller->get_my_work( $this->create_mock_request() );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'assignment_read_failed', $result->get_error_code() );
+        $this->assertSame( 500, $result->get_error_data()['status'] );
+    }
+
+    /**
      * Query failure must not masquerade as the final, empty page.
      */
     public function test_my_work_pagination_reports_database_failure(): void
@@ -1819,6 +1878,11 @@ class WorkflowControllerTest extends TestCase
         $this->assertSame( 2001, $workflow_rows[2000]['post_id'] );
         $this->assertCount( 2001, $plain_rows );
         $this->assertSame( 2001, $plain_rows[2000]['post_id'] );
+        $this->assertSame(
+            (int) ceil( 2001 / \VIPWorkflows\Workflow\AssignmentManager::CURRENT_FOR_POSTS_CHUNK ),
+            $this->my_work_assignment_reads,
+            'Assignments are read once per chunk of rows, not once per row.'
+        );
     }
 
     /**
@@ -1847,6 +1911,7 @@ class WorkflowControllerTest extends TestCase
 
     /**
      * Claims and pending user slots qualify; completed, role and other-user slots do not.
+     * A row's assignee is its pending assignment, or its claim when nothing is pending.
      */
     public function test_get_my_work_preserves_claim_and_pending_user_involvement(): void
     {
@@ -1873,7 +1938,7 @@ class WorkflowControllerTest extends TestCase
 
         $this->assertSame( array( 1, 2, 3 ), array_column( $data, 'post_id' ) );
         $this->assertSame( 7, $data[0]['assignee']['id'] );
-        $this->assertNull( $data[1]['assignee'], 'A pending slot is not the single claim.' );
+        $this->assertSame( 7, $data[1]['assignee']['id'], 'A pending assignment is shown as the assignee.' );
     }
 
     /**
