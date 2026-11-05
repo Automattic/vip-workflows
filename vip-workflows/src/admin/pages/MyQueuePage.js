@@ -63,6 +63,8 @@ export function MyQueuePage() {
 	const [ items, setItems ] = useState( [] );
 	const [ loading, setLoading ] = useState( true );
 	const [ error, setError ] = useState( null );
+	// Assignee-access warnings from the last transition that landed.
+	const [ warnings, setWarnings ] = useState( [] );
 	const [ actionLoading, setActionLoading ] = useState( null );
 	const [ view, setView ] = useState( DEFAULT_VIEW );
 	const [ confirm, confirmDialog ] = useConfirm();
@@ -91,6 +93,7 @@ export function MyQueuePage() {
 		async ( postId, toStatus ) => {
 			setActionLoading( `${ postId }-${ toStatus }` );
 			setError( null );
+			setWarnings( [] );
 
 			const transition = ( acknowledgeWarnings ) =>
 				apiFetch( {
@@ -105,7 +108,7 @@ export function MyQueuePage() {
 				} );
 
 			try {
-				const response = await transition( false );
+				let response = await transition( false );
 
 				// `warnings_pending` is a 200 that means the transition did NOT
 				// happen — the server is waiting to be told to override a soft
@@ -125,8 +128,13 @@ export function MyQueuePage() {
 						return;
 					}
 
-					await transition( true );
+					response = await transition( true );
 				}
+
+				// The move happened. A role assignee whose members cannot
+				// all open the post is accepted, and the response says so;
+				// tell the assigner, who can still pick someone else.
+				setWarnings( response.warnings || [] );
 
 				fetchQueue();
 			} catch ( err ) {
@@ -334,6 +342,23 @@ export function MyQueuePage() {
 					{ error }
 				</Notice>
 			) }
+
+			{ warnings.map( ( warning ) => (
+				<Notice
+					key={ warning.meta_key }
+					status="warning"
+					isDismissible
+					onDismiss={ () =>
+						setWarnings( ( current ) =>
+							current.filter(
+								( item ) => item.meta_key !== warning.meta_key
+							)
+						)
+					}
+				>
+					{ warning.message }
+				</Notice>
+			) ) }
 
 			{ items.length === 0 ? (
 				<Card.Root>

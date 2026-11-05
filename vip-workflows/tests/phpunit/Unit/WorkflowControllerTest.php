@@ -1551,6 +1551,11 @@ class WorkflowControllerTest extends TestCase
     {
         Functions\when( 'get_current_user_id' )->justReturn( 7 );
 
+        // Every row passes the per-post read check here; these cases are about
+        // row shape and pagination. MyWorkPerObjectGateTest runs the check
+        // against real capabilities.
+        Functions\when( 'current_user_can' )->justReturn( true );
+
         // No claim on any post: involvement comes from authorship below.
         Functions\when( 'get_post_meta' )->justReturn( '' );
         Functions\when( 'get_edit_post_link' )->justReturn( 'http://example.test/edit' );

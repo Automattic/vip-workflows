@@ -328,7 +328,7 @@ export function MyWorkPage() {
 				// than inventing a second one.
 				id: 'featured_image',
 				type: 'media',
-				label: __( 'Featured Image', 'vip-workflows' ),
+				label: __( 'Featured image', 'vip-workflows' ),
 				enableSorting: false,
 				enableGlobalSearch: false,
 				filterBy: false,

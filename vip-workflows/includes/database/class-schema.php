@@ -21,7 +21,7 @@ class Schema {
 	/**
 	 * Database version.
 	 */
-	public const VERSION = '2.25.0';
+	public const VERSION = '2.26.0';
 
 	/**
 	 * Option name for storing DB version.
@@ -499,6 +499,33 @@ class Schema {
 					self::drop_retired_event_routing();
 				},
 			),
+			// Clear two retired transition fields off stored rows, in one replay.
+			//
+			// The restrict-to-assignee gate, `requires_assignment`: nothing has
+			// read it since the gate was removed, and the write gate now strips
+			// it. Stored rows still carry it, and GET and export re-emit it as a
+			// restriction nothing enforces.
+			//
+			// Free-text notes (`textarea`, or the older `text`): the editor
+			// stopped collecting them, and the write gate now refuses any input
+			// that is not an assignment, so a stored note is a row nothing reads
+			// and no save can carry.
+			//
+			// The gate strips `requires_assignment` itself. Notes are dropped
+			// ahead of the gate by drop_retired_transition_inputs(), which every
+			// replay runs, so earlier replays on a fresh upgrade do not reject a
+			// note-bearing row either. Only the known note types are dropped; an
+			// unknown input type is left for the gate, so its row is recorded for
+			// review rather than silently changed. Import runs the same cleanup.
+			//
+			// Idempotent: a replayed row carries neither field, so a second pass
+			// produces byte-identical JSON and writes nothing.
+			array(
+				'version' => '2.25.0',
+				'run'     => function (): void {
+					self::replay_stored_stage_configs( true );
+				},
+			),
 			// Flag the stage new posts start in.
 			//
 			// The start stage used to be read from array order: the stage marked
@@ -515,7 +542,7 @@ class Schema {
 			// no-op, and a row that flags two is rejected and recorded for the
 			// admin notice like any other row the gate refuses.
 			array(
-				'version' => '2.25.0',
+				'version' => '2.26.0',
 				'run'     => function (): void {
 					self::replay_stored_stage_configs( true );
 				},
@@ -821,6 +848,13 @@ class Schema {
 	 * Idempotent: the gate is a pure normalization, so a second replay of an
 	 * already-normalized config produces byte-identical JSON and the row is skipped.
 	 *
+	 * Each write is conditional on the row still holding the config this pass read
+	 * (see write_normalized_config()). The upgrade runs on `init`, so a REST save can
+	 * land between the read and the write; an unconditional write by id would put
+	 * the pre-save config back and lose that save. A row that changed is read again
+	 * and normalized from what it holds now, once. A row that changes again is
+	 * logged and recorded for review, and the loop moves on.
+	 *
 	 * @since 0.0.1
 	 *
 	 * @param bool $collapse_duplicate_transitions Whether a row the gate rejects gets
@@ -862,118 +896,207 @@ class Schema {
 		);
 
 		foreach ( (array) $rows as $row ) {
-			$config = json_decode( (string) $row->config, true );
+			$encoded = self::normalize_stored_row( $row, $collapse_duplicate_transitions );
 
-			if ( ! is_array( $config ) ) {
-				// Unparseable stored JSON is beyond the gate's reach. Recorded and
-				// moved past: throwing here would abort the migration and re-run it
-				// on every subsequent request, and skipping in silence would leave
-				// an operator with a sequence that is broken and never mentioned.
-				self::record_sequence_needing_review(
-					self::unrepairable_record( (int) $row->id, (string) $row->name, 'The stored configuration is not valid JSON.' )
-				);
-
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflows] Cannot normalize sequence %d ("%s"): its stored config is not valid JSON.', (int) $row->id, (string) $row->slug ) );
+			if ( null === $encoded || self::write_normalized_config( $row, $encoded ) ) {
 				continue;
 			}
 
-			$config = self::drop_core_status_transition_targets( $config, (int) $row->id, (string) $row->slug );
-
-			$assigned = self::assign_regions_from_legacy_flags( $config, (int) $row->id, (string) $row->slug );
-			$config   = $assigned['config'];
-
-			$repair = array( 'dropped' => array() );
-
-			try {
-				$normalized = Sequence::prepare_config_for_write( $config, (string) $row->type );
-			} catch ( \InvalidArgumentException $rejected ) {
-				// Malformed beyond normalization (duplicate stage keys, a dangling
-				// transition target, two checkpoints in one region). Only the author
-				// can resolve those in the Sequence editor.
-				//
-				// The row is left exactly as stored — which means it keeps no
-				// regions and stays fatal on read — so it is recorded for the admin
-				// notice rather than logged and forgotten. A repair that goes silent
-				// about the rows it could not repair is the silent behavior this
-				// whole migration exists to end.
-				if ( ! $collapse_duplicate_transitions ) {
-					self::record_sequence_needing_review(
-						self::unrepairable_record( (int) $row->id, (string) $row->name, $rejected->getMessage() )
-					);
-
-					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					error_log( sprintf( '[VIP Workflows] Cannot normalize sequence %d ("%s"); it needs manual repair in the Sequence editor: %s', (int) $row->id, (string) $row->slug, $rejected->getMessage() ) );
-					continue;
-				}
-
-				// One gate rule has an inferable repair, and it was added after these
-				// rows were written: a second transition to a target the stage already
-				// reaches collapses onto the first. That is not a guess — the target
-				// stays reachable either way — and it is reported below rather than
-				// applied quietly.
-				try {
-					$repair     = Sequence::collapse_duplicate_transitions( $config, (string) $row->type );
-					$normalized = Sequence::prepare_config_for_write( $repair['config'], (string) $row->type );
-				} catch ( \InvalidArgumentException $unrepairable ) {
-					self::record_sequence_needing_review(
-						self::unrepairable_record( (int) $row->id, (string) $row->name, $unrepairable->getMessage() )
-					);
-
-					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					error_log( sprintf( '[VIP Workflows] Cannot normalize sequence %d ("%s"); it needs manual repair in the Sequence editor: %s', (int) $row->id, (string) $row->slug, $unrepairable->getMessage() ) );
-					continue;
-				}
-
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflows] Sequence %d ("%s"): removed %d transition(s) that would have left a stage holding two to one target. Originally rejected as: %s', (int) $row->id, (string) $row->slug, count( $repair['dropped'] ), $rejected->getMessage() ) );
-			}
-
-			// A sequence whose regions were inferred rather than declared, or whose
-			// transitions had to be removed, needs a human to confirm the result.
-			// Recorded so the admin notice can name it — the migration silently
-			// reshaping a workflow would be the same broken promise this repair
-			// exists to end.
-			//
-			// Recorded before the write, and independent of whether the row actually
-			// changed, so a re-run after a partial failure still reports every
-			// affected sequence. This stays idempotent on its own terms: once a row
-			// carries regions and one transition per target, nothing is inferred or
-			// removed, so an already-migrated row contributes nothing and a dismissed
-			// notice does not come back.
-			if ( ! empty( $assigned['defaulted'] ) || ! empty( $repair['dropped'] ) ) {
-				self::record_sequence_needing_review(
-					array(
-						'id'              => (int) $row->id,
-						'name'            => (string) $row->name,
-						'stage_keys'      => $assigned['defaulted'],
-						'reaches_publish' => self::config_reaches_publish_region( $normalized ),
-						'dropped'         => $repair['dropped'],
-						'error'           => null,
-					)
-				);
-			}
-
-			$encoded = wp_json_encode( $normalized );
-
-			if ( false === $encoded || $encoded === $row->config ) {
-				continue;
-			}
-
+			// The row changed after it was read: a save landed in between. Read it
+			// again and normalize what it holds now, so the save is kept and the
+			// cleanup still applies to it.
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->update(
-				$wpdb->prefix . 'vip_sequences',
-				array(
-					'config'     => $encoded,
-					'updated_at' => current_time( 'mysql' ),
-				),
-				array( 'id' => (int) $row->id )
+			$current = $wpdb->get_row(
+				$wpdb->prepare(
+					"SELECT id, name, slug, type, config FROM {$wpdb->prefix}vip_sequences WHERE id = %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+					(int) $row->id
+				)
 			);
+
+			if ( null === $current ) {
+				// Deleted in between. There is nothing left to clean or to review.
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( '[VIP Workflows] Sequence %d ("%s") was deleted while the upgrade was normalizing it; nothing was written.', (int) $row->id, (string) $row->slug ) );
+				continue;
+			}
+
+			$encoded = self::normalize_stored_row( $current, $collapse_duplicate_transitions );
+
+			if ( null === $encoded || self::write_normalized_config( $current, $encoded ) ) {
+				continue;
+			}
+
+			// It changed again. Leave it as the latest save wrote it, and name it
+			// for review rather than retrying without end or overwriting a save.
+			self::record_sequence_needing_review(
+				self::unrepairable_record( (int) $current->id, (string) $current->name, 'It changed while the upgrade was updating it, so the upgrade left it as it was. Check it in the Sequence editor.' )
+			);
+
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Cannot normalize sequence %d ("%s"): it changed twice while the upgrade was writing it. It was left as last saved and recorded for review.', (int) $current->id, (string) $current->slug ) );
 		}
 
 		// Direct SQL bypassed the repository, so its cached reads would otherwise
 		// keep serving the pre-migration configs.
 		wp_cache_flush_group( SequenceRepository::CACHE_GROUP );
+	}
+
+	/**
+	 * Normalize one stored sequence row, and say what to write.
+	 *
+	 * Records and logs what the row needs reviewed as it goes, exactly as the
+	 * replay always has. Recording happens before any write, so a run that dies
+	 * between the two still names the sequence.
+	 *
+	 * @since 0.0.1
+	 *
+	 * @param  object $row                            Row with id, name, slug, type and config.
+	 * @param  bool   $collapse_duplicate_transitions See replay_stored_stage_configs().
+	 * @return string|null The normalized JSON to store, or null when nothing is
+	 *                     written: the row could not be normalized (and was
+	 *                     recorded), or it is already normalized.
+	 */
+	private static function normalize_stored_row( object $row, bool $collapse_duplicate_transitions ): ?string {
+		$config = json_decode( (string) $row->config, true );
+
+		if ( ! is_array( $config ) ) {
+			// Unparseable stored JSON is beyond the gate's reach. Recorded and
+			// moved past: throwing here would abort the migration and re-run it
+			// on every subsequent request, and skipping in silence would leave
+			// an operator with a sequence that is broken and never mentioned.
+			self::record_sequence_needing_review(
+				self::unrepairable_record( (int) $row->id, (string) $row->name, 'The stored configuration is not valid JSON.' )
+			);
+
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Cannot normalize sequence %d ("%s"): its stored config is not valid JSON.', (int) $row->id, (string) $row->slug ) );
+			return null;
+		}
+
+		$config = self::drop_core_status_transition_targets( $config, (int) $row->id, (string) $row->slug );
+		$config = self::drop_retired_transition_inputs( $config, (int) $row->id, (string) $row->slug );
+
+		$assigned = self::assign_regions_from_legacy_flags( $config, (int) $row->id, (string) $row->slug );
+		$config   = $assigned['config'];
+
+		$repair = array( 'dropped' => array() );
+
+		try {
+			$normalized = Sequence::prepare_config_for_write( $config, (string) $row->type );
+		} catch ( \InvalidArgumentException $rejected ) {
+			// Malformed beyond normalization (duplicate stage keys, a dangling
+			// transition target, two checkpoints in one region). Only the author
+			// can resolve those in the Sequence editor.
+			//
+			// The row is left exactly as stored — which means it keeps no
+			// regions and stays fatal on read — so it is recorded for the admin
+			// notice rather than logged and forgotten. A repair that goes silent
+			// about the rows it could not repair is the silent behavior this
+			// whole migration exists to end.
+			if ( ! $collapse_duplicate_transitions ) {
+				self::record_sequence_needing_review(
+					self::unrepairable_record( (int) $row->id, (string) $row->name, $rejected->getMessage() )
+				);
+
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( '[VIP Workflows] Cannot normalize sequence %d ("%s"); it needs manual repair in the Sequence editor: %s', (int) $row->id, (string) $row->slug, $rejected->getMessage() ) );
+				return null;
+			}
+
+			// One gate rule has an inferable repair, and it was added after these
+			// rows were written: a second transition to a target the stage already
+			// reaches collapses onto the first. That is not a guess — the target
+			// stays reachable either way — and it is reported below rather than
+			// applied quietly.
+			try {
+				$repair     = Sequence::collapse_duplicate_transitions( $config, (string) $row->type );
+				$normalized = Sequence::prepare_config_for_write( $repair['config'], (string) $row->type );
+			} catch ( \InvalidArgumentException $unrepairable ) {
+				self::record_sequence_needing_review(
+					self::unrepairable_record( (int) $row->id, (string) $row->name, $unrepairable->getMessage() )
+				);
+
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log( sprintf( '[VIP Workflows] Cannot normalize sequence %d ("%s"); it needs manual repair in the Sequence editor: %s', (int) $row->id, (string) $row->slug, $unrepairable->getMessage() ) );
+				return null;
+			}
+
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Sequence %d ("%s"): removed %d transition(s) that would have left a stage holding two to one target. Originally rejected as: %s', (int) $row->id, (string) $row->slug, count( $repair['dropped'] ), $rejected->getMessage() ) );
+		}
+
+		// A sequence whose regions were inferred rather than declared, or whose
+		// transitions had to be removed, needs a human to confirm the result.
+		// Recorded so the admin notice can name it — the migration silently
+		// reshaping a workflow would be the same broken promise this repair
+		// exists to end.
+		//
+		// Recorded before the write, and independent of whether the row actually
+		// changed, so a re-run after a partial failure still reports every
+		// affected sequence. This stays idempotent on its own terms: once a row
+		// carries regions and one transition per target, nothing is inferred or
+		// removed, so an already-migrated row contributes nothing and a dismissed
+		// notice does not come back.
+		if ( ! empty( $assigned['defaulted'] ) || ! empty( $repair['dropped'] ) ) {
+			self::record_sequence_needing_review(
+				array(
+					'id'              => (int) $row->id,
+					'name'            => (string) $row->name,
+					'stage_keys'      => $assigned['defaulted'],
+					'reaches_publish' => self::config_reaches_publish_region( $normalized ),
+					'dropped'         => $repair['dropped'],
+					'error'           => null,
+				)
+			);
+		}
+
+		$encoded = wp_json_encode( $normalized );
+
+		if ( false === $encoded || $encoded === $row->config ) {
+			return null;
+		}
+
+		return $encoded;
+	}
+
+	/**
+	 * Store a normalized config, only if the row still holds the config that was read.
+	 *
+	 * The comparison is on HEX(config) rather than `config = %s`. The column uses
+	 * the site collation, which is usually case-insensitive, so a plain comparison
+	 * treats a save that only changed a label's case as no change and overwrites
+	 * it. HEX() compares the stored bytes, and works on MySQL and on SQLite.
+	 *
+	 * Callers skip rows that need no change, so the new config always differs from
+	 * the one read. Zero affected rows therefore means the WHERE did not match: the
+	 * row changed or was deleted. It never means "nothing to change".
+	 *
+	 * @since 0.0.1
+	 *
+	 * @param  object $row     The row as read, with id and config.
+	 * @param  string $encoded The normalized config JSON to store.
+	 * @return bool True when the row was written; false when it changed after it was read.
+	 * @throws \RuntimeException When the update query fails.
+	 */
+	private static function write_normalized_config( object $row, string $encoded ): bool {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$affected = $wpdb->query(
+			$wpdb->prepare(
+				"UPDATE {$wpdb->prefix}vip_sequences SET config = %s, updated_at = %s WHERE id = %d AND HEX(config) = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				$encoded,
+				current_time( 'mysql' ),
+				(int) $row->id,
+				strtoupper( bin2hex( (string) $row->config ) )
+			)
+		);
+
+		if ( false === $affected ) {
+			throw new \RuntimeException( esc_html( sprintf( 'Could not update sequence %d: %s', (int) $row->id, (string) $wpdb->last_error ) ) );
+		}
+
+		return $affected > 0;
 	}
 
 	/**
@@ -1389,6 +1512,35 @@ class Schema {
 		unset( $stage );
 
 		return $config;
+	}
+
+	/**
+	 * Drop the capture inputs a transition no longer collects, and log each drop.
+	 *
+	 * The cleanup itself is Sequence::drop_retired_note_inputs(), shared with
+	 * import so an old stored row and an old exported file upgrade the same way.
+	 * It removes only the known retired note types (`textarea`, `text`). Every
+	 * replay runs this, so earlier replays on a fresh upgrade do not reject a
+	 * note-bearing row either.
+	 *
+	 * An input of any other non-assignment type, or one with no type, is left in
+	 * place: the gate then refuses the row, and the replay records it for the
+	 * sequences-needing-review notice like any other row it cannot normalize.
+	 *
+	 * @param  array  $config Stored sequence config.
+	 * @param  int    $id     Sequence ID, for logging.
+	 * @param  string $slug   Sequence slug, for logging.
+	 * @return array Config with every retired note input removed.
+	 */
+	private static function drop_retired_transition_inputs( array $config, int $id, string $slug ): array {
+		$result = Sequence::drop_retired_note_inputs( $config );
+
+		foreach ( $result['dropped'] as $drop ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Sequence %d ("%s"): dropped %d retired capture input(s) from the transition on stage "%s" to "%s"; a transition captures only an assignment.', $id, $slug, $drop['count'], $drop['from'], $drop['to'] ) );
+		}
+
+		return $result['config'];
 	}
 
 	/**

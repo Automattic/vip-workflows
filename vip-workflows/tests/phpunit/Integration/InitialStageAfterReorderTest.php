@@ -8,8 +8,8 @@
  * steps. The editor now writes `is_initial` on every save, and the server reads
  * only the flag.
  *
- * Driven through `wp_insert_post` with `?vip_workflows_sequence=ID`, the path
- * that seats a post created from the dashboard.
+ * Driven through `StatusManager::assign_sequence()`, the path the editor's
+ * REST route takes to seat a new post in a sequence.
  *
  * @package VIPWorkflows\Tests\Integration
  */
@@ -26,13 +26,6 @@ use VIPWorkflows\Workflow\StatusManager;
  */
 class InitialStageAfterReorderTest extends TestCase
 {
-	public function tear_down(): void
-	{
-		unset( $_GET['vip_workflows_sequence'] );
-
-		parent::tear_down();
-	}
-
 	/**
 	 * Stages in their authored order, with the start stage flagged.
 	 *
@@ -91,7 +84,13 @@ class InitialStageAfterReorderTest extends TestCase
 		$this->assertSame( 'review', $stored->get_statuses()[0]['key'], 'The reorder was stored.' );
 		$this->assertSame( 'writing', $stored->get_initial_status() );
 
-		$_GET['vip_workflows_sequence'] = (string) $sequence_id; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_title'  => 'Created after the reorder',
+				'post_status' => 'draft',
+				'post_type'   => 'post',
+			)
+		);
 
 		// PostTypeManager builds its post-type-to-sequence map on `init`, which
 		// has already fired by the time this test creates the sequence, so
@@ -103,17 +102,12 @@ class InitialStageAfterReorderTest extends TestCase
 		add_filter( 'vip_workflows_sequences_for_post', $make_eligible );
 
 		try {
-			$post_id = (int) wp_insert_post(
-				array(
-					'post_title'  => 'Created after the reorder',
-					'post_status' => 'draft',
-					'post_type'   => 'post',
-				)
-			);
+			$result = ( new StatusManager() )->assign_sequence( $post_id, $sequence_id );
 		} finally {
 			remove_filter( 'vip_workflows_sequences_for_post', $make_eligible );
 		}
 
+		$this->assertTrue( $result );
 		$this->assertSame( $sequence_id, (int) get_post_meta( $post_id, '_vip_workflows_sequence_id', true ) );
 		$this->assertSame( 'writing', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
 	}

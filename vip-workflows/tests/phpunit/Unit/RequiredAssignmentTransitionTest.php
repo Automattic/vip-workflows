@@ -129,6 +129,8 @@ class RequiredAssignmentTransitionTest extends TestCase {
 			}
 		);
 		Functions\when( 'current_user_can' )->justReturn( true );
+		Functions\when( 'user_can' )->justReturn( true );
+		Functions\when( 'get_post_status_object' )->alias( fn( $status ) => (object) array( 'name' => $status ) );
 		Functions\when( 'get_current_user_id' )->justReturn( 5 );
 		Functions\when( 'get_userdata' )->alias(
 			fn( $user_id ) => (object) array(

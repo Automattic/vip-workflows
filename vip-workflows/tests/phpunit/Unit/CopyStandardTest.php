@@ -58,6 +58,9 @@ class CopyStandardTest extends PHPUnitTestCase
         'The permission_callback for ability',
         // REST schema descriptions, read by API clients.
         'Serialized availability.',
+        'Inputs collected when this transition is taken.',
+        'Assignment slot key (lowercase letters, numbers, dashes and underscores).',
+        'What the assignment names:',
         // AI-stage publish-boundary notice, worded in review and kept verbatim.
         'This stage is run by an agent, and Sequence settings don’t allow AI stages',
     );

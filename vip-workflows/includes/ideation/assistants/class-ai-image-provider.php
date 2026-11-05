@@ -15,6 +15,7 @@ namespace VIPWorkflows\Ideation\Assistants;
 use VIPWorkflows\AI\Credentials;
 use VIPWorkflows\Abilities\Requirement;
 use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\Integrations\SafeUrl;
 use VIPWorkflows\Integrations\SsrfGuard;
 use WP_Error;
 
@@ -179,7 +180,13 @@ class AiImageProvider implements MediaProviderInterface, MediaProviderRequiremen
 				return $attachment_id;
 			}
 
-			$url = wp_get_attachment_url( $attachment_id );
+			/*
+			 * WordPress makes this address from the site's own settings, and on a
+			 * site that is set up that way it has no scheme or no host. A card's
+			 * address is stored only when it is absolute, so it is completed here,
+			 * where it is known to be the site's own.
+			 */
+			$url = SafeUrl::site_http_or_null( wp_get_attachment_url( $attachment_id ), site_url() );
 
 			return array(
 				array(
@@ -205,12 +212,15 @@ class AiImageProvider implements MediaProviderInterface, MediaProviderRequiremen
 	/**
 	 * Save to media library.
 	 *
+	 * Protected, like has_ai_client(), so a test can stand in for the write: it
+	 * loads WordPress's own image functions from a file.
+	 *
 	 * @param string $data data.
 	 * @param string $filename filename.
 	 * @param string $mime_type mime type.
 	 * @return int|\WP_Error
 	 */
-	private function save_to_media_library( string $data, string $filename, string $mime_type ): int|\WP_Error {
+	protected function save_to_media_library( string $data, string $filename, string $mime_type ): int|\WP_Error {
 		$upload = wp_upload_bits( $filename, null, $data );
 		if ( ! empty( $upload['error'] ) ) {
 			return new WP_Error( 'upload_failed', $upload['error'] );
