@@ -11,7 +11,7 @@
  * Text Domain: vip-workflows
  * Domain Path: /languages
  * Requires at least: 7.0
- * Requires PHP: 8.2
+ * Requires PHP: 8.3
  *
  * @package VIPWorkflows
  */
@@ -40,7 +40,7 @@ define( 'VIP_WORKFLOWS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'VIP_WORKFLOWS_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 
 // Minimum requirements.
-define( 'VIP_WORKFLOWS_MIN_PHP_VERSION', '8.2' );
+define( 'VIP_WORKFLOWS_MIN_PHP_VERSION', '8.3' );
 define( 'VIP_WORKFLOWS_MIN_WP_VERSION', '7.0' );
 
 /**

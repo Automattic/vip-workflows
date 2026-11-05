@@ -528,8 +528,7 @@ class Sequence {
 		$user_roles = $user->roles;
 
 		// Check if user has a role that can bypass workflow restrictions.
-		$bypass_roles     = \VIPWorkflows\Admin\Settings::get_bypass_workflow_roles();
-		$can_bypass       = ! empty( array_intersect( $user_roles, $bypass_roles ) );
+		$can_bypass       = \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( $user_id );
 		$can_bypass_tools = \VIPWorkflows\Admin\Settings::can_user_bypass_tool_checks( $user_id );
 
 		if ( $can_bypass ) {

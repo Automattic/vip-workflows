@@ -1738,6 +1738,55 @@ class SequenceTest extends TestCase
     }
 
     /**
+     * A user in a configured workflow override role is offered an edge whose
+     * `allowed_roles` excludes them. The override is judged for the user passed
+     * in, not the current user.
+     */
+    public function test_role_permitted_transitions_offer_restricted_edge_to_override_role(): void
+    {
+        Functions\expect( 'get_userdata' )->with( 5 )->andReturn( (object) array( 'roles' => array( 'contributor' ) ) );
+        Functions\expect( 'get_current_user_id' )->never();
+        Functions\when( 'get_option' )->justReturn(
+            array(
+                'bypass_workflow_roles'   => array( 'contributor' ),
+                'bypass_tool_check_roles' => array( 'contributor' ),
+            )
+        );
+
+        $sequence = $this->create_sequence(
+            array(
+                'statuses' => array(
+                    array(
+                        'key'          => 'gated',
+                        'label'        => 'Gated',
+                        'status'       => 'draft',
+                        'region_entry' => true,
+                        'transitions'  => array(
+                            array(
+                                'to'            => 'done',
+                                'allowed_roles' => array( 'editor' ),
+                            ),
+                        ),
+                    ),
+                    array(
+                        'key'         => 'done',
+                        'label'       => 'Done',
+                        'status'      => 'draft',
+                        'is_terminal' => true,
+                        'transitions' => array(),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertSame(
+            array( 'done' ),
+            array_column( $sequence->get_role_permitted_transitions( 'gated', 5, 123 ), 'to' ),
+            'The override role ignores the edge role restriction.'
+        );
+    }
+
+    /**
      * A post type whose cap object doesn't declare the required capability
      * (e.g. an external CPT with map_meta_cap=false and a partial capabilities
      * map) fails CLOSED — the edge is hidden — but loudly: the data-integrity

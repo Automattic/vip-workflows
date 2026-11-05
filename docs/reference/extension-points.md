@@ -233,6 +233,7 @@ Key points:
 - `category` must be `'research'` and `meta.type` must be `'research'` for the orchestrator to discover it
 - `meta.display_order` controls position in the agent panel (lower = earlier)
 - Cards are stored in `wp_vip_ideation_sources` with `ability_id` linking back to the agent
+- A card's `url`, `image` and `thumbnail` are stored only as absolute `http://` or `https://` addresses; any other value that is not empty is dropped and the card is kept without it
 - Use `group_id` on cards to visually group related items on the mood board
 - Settings UI is auto-generated from `meta.settings_schema` (JSON Schema)
 
@@ -303,7 +304,10 @@ See [Registering a Custom Tool in code-patterns.md](code-patterns.md#4-registeri
 // four-argument listeners keep working (the extra arg is additive).
 add_action('vip_workflows_status_transition', 'my_transition_handler', 10, 5);
 add_action('vip_workflows_entered_{stage}', 'my_stage_handler', 10, 4);
-add_action('vip_workflows_ability_executed', 'my_tool_handler', 10, 3);
+// Tool runs: every EventBus event fires vip_workflows_event_emitted. Check
+// $event_type for 'ability.executed' or 'ability.failed'; $event_data carries
+// ability_id, post_id, success, duration_ms and output.
+add_action('vip_workflows_event_emitted', 'my_event_handler', 10, 3);
 ```
 
 ### 7. REST API Extensions
