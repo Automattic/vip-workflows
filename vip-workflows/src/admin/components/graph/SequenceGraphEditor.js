@@ -69,7 +69,7 @@ import {
 	START_ID,
 	END_ID,
 } from './graph-model';
-import { REGION_ORDER, stageRegion } from './regions';
+import { REGION_ORDER, hasPublishStage, stageRegion } from './regions';
 import { paletteColorAt, snapToPalette } from '../../utils/stage-palette';
 
 import '../../../common/outcome-tones.css';
@@ -1787,6 +1787,9 @@ export default function SequenceGraphEditor( {
 		onSettingsChange: setSettings,
 		metadataFields,
 		onMetadataChange: setMetadataFields,
+		// Required fields are checked only on a move into publish, so whether
+		// "Required" can mean anything depends on the stages drawn right now.
+		hasPublishStage: hasPublishStage( stages ),
 		// The canvas's own two verbs, given a home that isn't a right-click.
 		// Nothing on the canvas says that right-clicking is how a post status
 		// gets added, and until now nothing anywhere said how a stage does.

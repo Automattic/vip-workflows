@@ -205,3 +205,22 @@ export function visibleRegions( stages, extra = [] ) {
 	);
 	return [ ...known, ...unknown ];
 }
+
+/**
+ * Whether any stage of the sequence sits in the publish region.
+ *
+ * The required-metadata gate fires only on a transition that crosses INTO
+ * publish (`Sequence::crosses_into_publish()` on the server), so a sequence
+ * with no publish-region stage has no move that gate ever checks. The sequence
+ * editor asks this to decide whether marking a field required can mean
+ * anything. A publish section drawn on the canvas with no stage in it does not
+ * count: nothing can transition into an empty section.
+ *
+ * @param {Array} stages Stage objects.
+ * @return {boolean} True when at least one stage is in the publish region.
+ */
+export function hasPublishStage( stages ) {
+	return ( stages || [] ).some(
+		( stage ) => stageRegion( stage ) === 'publish'
+	);
+}

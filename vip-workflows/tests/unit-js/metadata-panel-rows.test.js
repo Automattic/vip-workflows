@@ -213,7 +213,7 @@ describe( 'MetadataPanel rows', () => {
 		// fields carry the required signal in the accessible name — the
 		// visible asterisk sits on an unassociated label.
 		const headline = screen.getByRole( 'button', {
-			name: 'Change Headline: Save the whales (required)',
+			name: 'Change Headline: Save the whales (required to publish)',
 		} );
 		expect( headline ).toHaveAttribute( 'aria-expanded', 'false' );
 		expect( headline ).toHaveTextContent( 'Save the whales' );
@@ -241,7 +241,9 @@ describe( 'MetadataPanel rows', () => {
 		renderPanel( FIELDS );
 
 		expect(
-			screen.getByRole( 'button', { name: 'Set Headline (required)' } )
+			screen.getByRole( 'button', {
+				name: 'Set Headline (required to publish)',
+			} )
 		).toHaveTextContent( 'Add text' );
 		expect(
 			screen.getByRole( 'button', { name: 'Set Notes' } )
@@ -272,7 +274,9 @@ describe( 'MetadataPanel rows', () => {
 		} );
 
 		expect(
-			screen.getByRole( 'button', { name: 'Set Headline (required)' } )
+			screen.getByRole( 'button', {
+				name: 'Set Headline (required to publish)',
+			} )
 		).toHaveTextContent( 'Add text' );
 		expect(
 			screen.getByRole( 'button', { name: 'Set Notes' } )
@@ -289,7 +293,7 @@ describe( 'MetadataPanel rows', () => {
 		renderPanel( [ FIELDS[ 0 ] ] );
 
 		const trigger = screen.getByRole( 'button', {
-			name: 'Set Headline (required)',
+			name: 'Set Headline (required to publish)',
 		} );
 		fireEvent.click( trigger );
 		expect( trigger ).toHaveAttribute( 'aria-expanded', 'true' );
@@ -309,7 +313,7 @@ describe( 'MetadataPanel rows', () => {
 		);
 		expect(
 			screen.getByRole( 'button', {
-				name: 'Change Headline: Hello (required)',
+				name: 'Change Headline: Hello (required to publish)',
 			} )
 		).toHaveTextContent( 'Hello' );
 		expect( latestMeta.vw_headline ).toBe( 'Hello' );
@@ -323,7 +327,7 @@ describe( 'MetadataPanel rows', () => {
 
 		// …while the trigger's accessible name spells the signal out.
 		const trigger = screen.getByRole( 'button', {
-			name: 'Set Headline (required)',
+			name: 'Set Headline (required to publish)',
 		} );
 		fireEvent.click( trigger );
 
@@ -335,7 +339,9 @@ describe( 'MetadataPanel rows', () => {
 		).toBeInTheDocument();
 
 		// The popover header title carries it too.
-		expect( screen.getByText( 'Headline (required)' ) ).toBeInTheDocument();
+		expect(
+			screen.getByText( 'Headline (required to publish)' )
+		).toBeInTheDocument();
 	} );
 
 	it( 'textarea: opens a multiline textbox; Close commits the typed value', async () => {
@@ -514,7 +520,7 @@ describe( 'MetadataPanel rows', () => {
 		renderPanel( [ FIELDS[ 0 ] ], {}, [ HELD_PUBLISH_EDGE ] );
 
 		const trigger = screen.getByRole( 'button', {
-			name: 'Set Headline (required)',
+			name: 'Set Headline (required to publish)',
 		} );
 
 		expect( trigger ).toHaveAttribute( 'aria-invalid', 'true' );
@@ -535,7 +541,7 @@ describe( 'MetadataPanel rows', () => {
 		renderPanel( [ FIELDS[ 0 ] ], {} );
 
 		const trigger = screen.getByRole( 'button', {
-			name: 'Set Headline (required)',
+			name: 'Set Headline (required to publish)',
 		} );
 
 		expect( trigger ).not.toHaveAttribute( 'aria-invalid' );
@@ -567,7 +573,7 @@ describe( 'MetadataPanel rows', () => {
 		renderPanel( [ FIELDS[ 0 ] ], {}, [ HELD_PUBLISH_EDGE ] );
 
 		const trigger = screen.getByRole( 'button', {
-			name: 'Set Headline (required)',
+			name: 'Set Headline (required to publish)',
 		} );
 		fireEvent.click( trigger );
 
@@ -577,7 +583,7 @@ describe( 'MetadataPanel rows', () => {
 
 		expect(
 			screen.getByRole( 'button', {
-				name: 'Change Headline: Save the whales (required)',
+				name: 'Change Headline: Save the whales (required to publish)',
 			} )
 		).not.toHaveAttribute( 'aria-invalid' );
 		expect(
