@@ -1552,10 +1552,13 @@ class WorkflowController extends WP_REST_Controller {
 		$count_only = (bool) $request->get_param( 'count_only' );
 		$count      = 0;
 
-		$since             = gmdate( 'Y-m-d H:i:s', time() - self::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS );
+		// Local post_modified, not post_modified_gmt: WordPress leaves a draft's
+		// GMT dates empty until it is first saved, so a new draft would read as
+		// older than any window. post_modified is always set.
+		$since             = gmdate( 'Y-m-d H:i:s', (int) current_time( 'timestamp' ) - self::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS ); // phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested -- compared with post_modified, which is stored in site-local time.
 		$recent            = array(
 			array(
-				'column'    => 'post_modified_gmt',
+				'column'    => 'post_modified',
 				'after'     => $since,
 				'inclusive' => true,
 			),
@@ -1774,7 +1777,7 @@ class WorkflowController extends WP_REST_Controller {
 	 * is bounded by the My Work window here as well as in the post queries.
 	 *
 	 * @param int    $user_id Current user ID.
-	 * @param string $since   GMT datetime; authored posts last modified before it are left out.
+	 * @param string $since   Site-local datetime; authored posts last modified before it are left out.
 	 * @return int[]|WP_Error Involved post IDs, or a database read error.
 	 */
 	private function get_my_work_post_ids( int $user_id, string $since ) {
@@ -1783,7 +1786,7 @@ class WorkflowController extends WP_REST_Controller {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- request-specific involvement lookup before WP_Query pagination.
 		$owned_rows = $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT ID FROM %i WHERE post_author = %d AND post_modified_gmt >= %s
+				'SELECT ID FROM %i WHERE post_author = %d AND post_modified >= %s
 				UNION SELECT post_id AS ID FROM %i WHERE meta_key = %s AND meta_value = %s',
 				$wpdb->posts,
 				$user_id,

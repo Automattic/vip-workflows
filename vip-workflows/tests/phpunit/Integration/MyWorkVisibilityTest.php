@@ -191,7 +191,19 @@ class MyWorkVisibilityTest extends TestCase {
 			)
 		);
 
-		$this->assertSame( array( $recent ), array_column( $this->get_work(), 'post_id' ) );
+		// A draft inserted without dates, as a new post is, has empty GMT dates
+		// until it is first saved. It is still recent work.
+		$new_draft = (int) self::factory()->post->create(
+			array(
+				'post_author' => $this->author_id,
+				'post_status' => 'draft',
+			)
+		);
+		update_post_meta( $new_draft, StatusManager::SEQUENCE_META_KEY, $this->sequence_id );
+		update_post_meta( $new_draft, StatusManager::STAGE_META_KEY, 'review' );
+		$this->assertSame( '0000-00-00 00:00:00', get_post( $new_draft )->post_modified_gmt, 'Fixture: a never-saved draft has no GMT modified date.' );
+
+		$this->assertEqualsCanonicalizing( array( $recent, $new_draft ), array_column( $this->get_work(), 'post_id' ) );
 
 		wp_set_current_user( $this->other_id );
 		wp_update_post(
@@ -201,7 +213,7 @@ class MyWorkVisibilityTest extends TestCase {
 			)
 		);
 
-		$this->assertEqualsCanonicalizing( array( $recent, $assigned ), array_column( $this->get_work(), 'post_id' ) );
+		$this->assertEqualsCanonicalizing( array( $recent, $new_draft, $assigned ), array_column( $this->get_work(), 'post_id' ) );
 		$this->assertNotContains( $outside, array_column( $this->get_work(), 'post_id' ) );
 	}
 

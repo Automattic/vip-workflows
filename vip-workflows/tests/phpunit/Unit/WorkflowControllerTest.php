@@ -1990,20 +1990,21 @@ class WorkflowControllerTest extends TestCase
         );
         \WP_Query::$next_posts = array();
 
+        Functions\when( 'current_time' )->justReturn( time() );
         $before = gmdate( 'Y-m-d H:i:s', time() - WorkflowController::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS - 5 );
         $this->controller->get_my_work( $this->create_mock_request() );
         $after = gmdate( 'Y-m-d H:i:s', time() - WorkflowController::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS + 5 );
 
         $this->assertNotEmpty( \WP_Query::$constructed_args );
         foreach ( \WP_Query::$constructed_args as $args ) {
-            $this->assertSame( 'post_modified_gmt', $args['date_query'][0]['column'] );
+            $this->assertSame( 'post_modified', $args['date_query'][0]['column'] );
             $this->assertGreaterThanOrEqual( $before, $args['date_query'][0]['after'] );
             $this->assertLessThanOrEqual( $after, $args['date_query'][0]['after'] );
         }
 
         $authorship = array_values( array_filter( $prepared, fn( $call ) => false !== strpos( $call[0], 'post_author' ) ) );
         $this->assertCount( 1, $authorship );
-        $this->assertStringContainsString( 'post_modified_gmt >= %s', $authorship[0][0] );
+        $this->assertStringContainsString( 'post_modified >= %s', $authorship[0][0] );
         $this->assertSame( \WP_Query::$constructed_args[0]['date_query'][0]['after'], $authorship[0][1][2] );
     }
 
