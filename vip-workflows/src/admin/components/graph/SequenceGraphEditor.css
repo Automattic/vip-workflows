@@ -721,9 +721,10 @@
 	fill: currentColor;
 }
 
-/* Empty with nothing in flight: the sequence can't be saved like this, so the
-   slot says so in the error tone a Save-blocking stage uses. The border is the
-   error family's strong surface stroke; the label takes its icon-legible
+/* Empty in a region that holds stages: the sequence can't be saved like this,
+   so the slot says so in the error tone a Save-blocking stage uses. A region
+   with no stages is not checked, so its slot keeps the neutral outline. The
+   border is the error family's strong surface stroke; the label takes its icon-legible
    foreground (the same value), which still clears 4.5:1 on the slot's
    surface. */
 .wf-region.is-unset .wf-region__slot {

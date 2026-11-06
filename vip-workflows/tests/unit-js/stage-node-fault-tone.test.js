@@ -17,6 +17,7 @@
 
 import { render } from './helpers/render-wp-component';
 import StageNode from '../../src/admin/components/graph/StageNode';
+import RegionNode from '../../src/admin/components/graph/RegionNode';
 import { validateSequence } from '../../src/admin/components/graph/graph-model';
 
 jest.mock( '@xyflow/react', () => ( {
@@ -75,6 +76,11 @@ describe( 'StageNode fault tone', () => {
 		expect(
 			node.querySelector( '.wf-stage-node__flag--warning' )
 		).not.toBeInTheDocument();
+		// Said in words too, not by hue alone.
+		expect( node.querySelector( '[role="img"]' ) ).toHaveAttribute(
+			'aria-label',
+			`Blocks Save: ${ message }`
+		);
 	} );
 
 	it( 'stays an error when a blocker sits alongside a hint', () => {
@@ -85,6 +91,11 @@ describe( 'StageNode fault tone', () => {
 
 		expect( node ).toHaveClass( 'is-error' );
 		expect( node ).not.toHaveClass( 'is-warning' );
+		// Only the blocker is called one; the hint beside it is not.
+		expect( node.querySelector( '[role="img"]' ) ).toHaveAttribute(
+			'aria-label',
+			'A hint. Blocks Save: A blocker.'
+		);
 	} );
 
 	it( 'wears the warning class, not the error class, for hints only', () => {
@@ -98,6 +109,10 @@ describe( 'StageNode fault tone', () => {
 		expect(
 			node.querySelector( '.wf-stage-node__flag--warning' )
 		).toBeInTheDocument();
+		expect( node.querySelector( '[role="img"]' ) ).toHaveAttribute(
+			'aria-label',
+			'Nothing reaches this stage.'
+		);
 	} );
 
 	it( 'wears neither with no faults', () => {
@@ -105,6 +120,42 @@ describe( 'StageNode fault tone', () => {
 
 		expect( node ).not.toHaveClass( 'is-warning' );
 		expect( node ).not.toHaveClass( 'is-error' );
+	} );
+} );
+
+describe( 'RegionNode empty-slot tone', () => {
+	const renderRegion = ( data ) =>
+		render(
+			<RegionNode
+				data={ {
+					region: 'pending',
+					isSlotTarget: false,
+					isDragging: false,
+					slotX: 0,
+					slotY: 0,
+					...data,
+				} }
+			/>
+		).container.querySelector( '.wf-region' );
+
+	it( 'marks the slot unset when the group holds stages but no checkpoint', () => {
+		expect(
+			renderRegion( { hasEntry: false, stageCount: 2 } )
+		).toHaveClass( 'is-unset' );
+	} );
+
+	// `validateSequence` does not check a group with no stages, so Save is not
+	// blocked and the slot must not wear the Save-blocking red.
+	it( 'leaves an empty group neutral', () => {
+		expect(
+			renderRegion( { hasEntry: false, stageCount: 0 } )
+		).not.toHaveClass( 'is-unset' );
+	} );
+
+	it( 'leaves a group with a checkpoint neutral', () => {
+		expect(
+			renderRegion( { hasEntry: true, stageCount: 1 } )
+		).not.toHaveClass( 'is-unset' );
 	} );
 } );
 

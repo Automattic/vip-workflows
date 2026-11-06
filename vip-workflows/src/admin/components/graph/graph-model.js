@@ -232,7 +232,6 @@ export function parseEdgeId( id ) {
  * @param {string}   [options.selectedNodeKey]   Currently selected stage key.
  * @param {string}   [options.selectedEdgeId]    Currently selected edge id.
  * @param {Object}   [options.warnings]          `{ stageKey: string[] }` from `validateSequence`.
- * @param {Object}   [options.blockers]          `{ stageKey: string[] }` from `validateSequence`.
  * @param {boolean}  [options.isPhase]           Phase sequence (no terminal flag or status region).
  * @param {string[]} [options.regions]           Status regions to draw a group for
  *                                               (see `visibleRegions`). Empty (the
@@ -245,7 +244,6 @@ export function buildGraph( stages, options = {} ) {
 		selectedNodeKey = null,
 		selectedEdgeId = null,
 		warnings = {},
-		blockers = {},
 		isPhase = false,
 		regions = [],
 		allowAgentPublish = false,
@@ -339,9 +337,6 @@ export function buildGraph( stages, options = {} ) {
 						)
 				).length,
 				warnings: stageWarnings,
-				// The subset of `warnings` that blocks Save, which is what
-				// paints the node red rather than amber.
-				blockers: blockers[ stage.key ] || [],
 			},
 		};
 	} );

@@ -103,6 +103,22 @@ function StageNodeComponent( { id, data, selected } ) {
 		.filter( Boolean )
 		.join( ' ' );
 
+	// Both tones share the one `caution` glyph, so the hue alone would be all
+	// that tells a blocker from a hint. The flag's words say it as well, for a
+	// screen reader and for anyone who cannot separate red from amber. Only the
+	// blocking messages carry the prefix: a hint beside a blocker still saves.
+	const flagLines = warnings.map( ( message ) =>
+		blockers.includes( message )
+			? sprintf(
+					/* translators: %s: a fault that stops the sequence from saving. */
+					__( 'Blocks Save: %s', 'vip-workflows' ),
+					message
+			  )
+			: message
+	);
+	const flagTitle = flagLines.join( '\n' );
+	const flagLabel = flagLines.join( ' ' );
+
 	let meta = '';
 	if ( transitionCount > 0 ) {
 		meta = sprintf(
@@ -142,9 +158,9 @@ function StageNodeComponent( { id, data, selected } ) {
 						<Stack
 							render={ <span /> }
 							align="center"
-							title={ warnings.join( '\n' ) }
+							title={ flagTitle }
 							role="img"
-							aria-label={ warnings.join( ' ' ) }
+							aria-label={ flagLabel }
 						>
 							<Icon
 								icon={ caution }
