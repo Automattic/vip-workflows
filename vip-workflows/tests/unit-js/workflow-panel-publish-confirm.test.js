@@ -2,9 +2,9 @@
  * The confirm that stands between a transition and publishing the post.
  *
  * A transition into a publish-region stage crosses the publish boundary, so the
- * server writes `publish` before the stage move — the post goes publicly live
- * from a sidebar button that reads as a workflow step. Core's own Publish
- * button asks first; these tests pin that the panel does too, that declining
+ * server writes `publish` before the stage move — the post goes live from a
+ * sidebar button that reads as a workflow step. Core's own Publish button
+ * asks first; these tests pin that the panel does too, that declining
  * really declines, and that the question is only asked when publishing is
  * actually the news: a within-region move, or a post that is already live,
  * proceeds without it.
@@ -245,6 +245,25 @@ describe( 'WorkflowPanel publish confirm', () => {
 			screen.queryByText( 'Publish this post?' )
 		).not.toBeInTheDocument();
 		expect( transitionPosts() ).toHaveLength( 1 );
+	} );
+
+	it( 'tells the author a private post stops being private', async () => {
+		// Private is a region of its own: the move writes `publish` over
+		// `private`, so the post becomes readable by anyone. That is the one
+		// visibility change a publishing move makes, so the confirm says it.
+		mockSavedStatus = 'private';
+		await renderPanel( statusResponse( 'private' ) );
+
+		await act( async () => {
+			button( 'Send Live' ).click();
+		} );
+
+		expect(
+			screen.getByText(
+				'This post is private. Moving it to “On the site” publishes it right away, and it stops being private.'
+			)
+		).toBeInTheDocument();
+		expect( transitionPosts() ).toHaveLength( 0 );
 	} );
 
 	it( 'does not ask on a post that is already live', async () => {

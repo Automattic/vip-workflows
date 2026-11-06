@@ -517,7 +517,7 @@ describe( 'WorkflowHeaderAction', () => {
 			name: 'Publish this post?',
 		} );
 		expect( dialog ).toHaveTextContent( 'SEO check passed' );
-		expect( dialog ).toHaveTextContent( 'Visibility: Public' );
+		expect( dialog ).not.toHaveTextContent( 'Visibility' );
 		expect( transitionPosts() ).toHaveLength( 0 );
 
 		await act( async () => {

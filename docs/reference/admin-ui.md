@@ -60,11 +60,15 @@ sidebar is open.
   stays one click. Core's pre-publish panel cannot be the way through (its
   Publish saves with `publish`, which the publish-boundary guard refuses), so
   this dialog renders `PluginPrePublishPanel.Slot` itself: SEO, social and
-  checklist plugins' fills show here as they would before core's Publish. Of
-  core's own pre-publish content it repeats only the visibility label; the
-  schedule is covered by the warning (the move publishes now), and core's tag
-  and featured-image suggestions are left to the sidebar. Its Publish stands
-  down while saving is locked, as core's does.
+  checklist plugins' fills show here as they would before core's Publish. It
+  shows the title "Publish this post?", one warning sentence ("Moving this
+  post to “Published” publishes it right away."; for a scheduled post, that
+  the move publishes it now, not at its scheduled time; for a private post,
+  that it stops being private, since the move writes `publish` over
+  `private`), the plugins' checks, and Cancel / Publish. None of core's own
+  pre-publish content is repeated: tags, the featured image and a password
+  are post settings left to the sidebar. Its Publish stands down while saving
+  is locked, as core's does.
 - `WorkflowHeaderAction` — the split button in the editor header (a fill into
   the `PinnedItems/core` slot). The main half runs the stage's **primary
   transition** — the first in authored order, labelled with the author's own
