@@ -7,8 +7,8 @@
  * that belongs to a metadata FIELD rather than to the pattern — whether the
  * field is required, and how that reaches a screen reader. The visible asterisk
  * rides on `label`, which is not associated with the trigger, so the signal is
- * spelled out as "(required)" in the trigger's accessible name and in the
- * popover header.
+ * spelled out as "(required to publish)" in the trigger's accessible name and
+ * in the popover header.
  *
  * Required and BLOCKING is a second, louder state, and the two are not the same
  * thing: the asterisk says the field will be wanted eventually, the invalid
@@ -73,7 +73,10 @@ export function MetadataRow( {
 		accessibleName = required
 			? sprintf(
 					/* translators: %1$s: metadata field label, %2$s: its current value. */
-					__( 'Change %1$s: %2$s (required)', 'vip-workflows' ),
+					__(
+						'Change %1$s: %2$s (required to publish)',
+						'vip-workflows'
+					),
 					fieldLabel,
 					displayLabel
 			  )
@@ -87,7 +90,7 @@ export function MetadataRow( {
 		accessibleName = required
 			? sprintf(
 					/* translators: %s: metadata field label. */
-					__( 'Set %s (required)', 'vip-workflows' ),
+					__( 'Set %s (required to publish)', 'vip-workflows' ),
 					fieldLabel
 			  )
 			: sprintf(
@@ -100,7 +103,7 @@ export function MetadataRow( {
 	const headerTitle = required
 		? sprintf(
 				/* translators: %s: metadata field label. */
-				__( '%s (required)', 'vip-workflows' ),
+				__( '%s (required to publish)', 'vip-workflows' ),
 				fieldLabel
 		  )
 		: fieldLabel;

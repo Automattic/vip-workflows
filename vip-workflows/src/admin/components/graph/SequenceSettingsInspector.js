@@ -56,6 +56,7 @@ export default function SequenceSettingsInspector( {
 	onSettingsChange,
 	metadataFields,
 	onMetadataChange,
+	hasTransitionIntoPublish,
 	isNew,
 	onDelete,
 	deleting,
@@ -314,6 +315,7 @@ export default function SequenceSettingsInspector( {
 					<MetadataFieldsEditor
 						fields={ metadataFields }
 						onChange={ onMetadataChange }
+						hasTransitionIntoPublish={ hasTransitionIntoPublish }
 					/>
 				</InspectorSection>
 

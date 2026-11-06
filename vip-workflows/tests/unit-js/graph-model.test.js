@@ -36,6 +36,8 @@ import {
 	isTransitionDisabled,
 	outcomesRoutedTo,
 	heldPublishOutcomes,
+	crossesIntoPublish,
+	transitionsIntoPublish,
 	agentOutcomeNames,
 	validateSequence,
 	NODE_TYPE,
@@ -2722,5 +2724,103 @@ describe( 'validateSequence agent availability', () => {
 		} );
 
 		expect( agentWarnings( warnings ) ).toHaveLength( 0 );
+	} );
+} );
+
+describe( 'crossesIntoPublish', () => {
+	// Mirrors Sequence::crosses_into_publish(): into publish from anywhere
+	// else, and nothing more.
+	it.each( [
+		[ 'draft', 'publish', true ],
+		[ 'pending', 'publish', true ],
+		[ 'private', 'publish', true ],
+		[ 'publish', 'publish', false ],
+		[ 'publish', 'draft', false ],
+		[ 'draft', 'pending', false ],
+		[ 'pending', 'private', false ],
+	] )( '%s -> %s is %s', ( from, to, expected ) => {
+		expect( crossesIntoPublish( from, to ) ).toBe( expected );
+	} );
+} );
+
+describe( 'transitionsIntoPublish', () => {
+	it( 'lists every edge from outside publish into it', () => {
+		expect(
+			transitionsIntoPublish( [
+				{
+					key: 'draft',
+					status: 'draft',
+					transitions: [ { to: 'review' }, { to: 'live' } ],
+				},
+				{
+					key: 'review',
+					status: 'pending',
+					transitions: [ { to: 'live' }, { to: 'draft' } ],
+				},
+				{ key: 'live', status: 'publish', transitions: [] },
+			] )
+		).toEqual( [
+			{ from: 'draft', to: 'live' },
+			{ from: 'review', to: 'live' },
+		] );
+	} );
+
+	it( 'counts a stage with no status as draft, the editor default', () => {
+		expect(
+			transitionsIntoPublish( [
+				{ key: 'unset', transitions: [ { to: 'live' } ] },
+				{ key: 'live', status: 'publish', transitions: [] },
+			] )
+		).toEqual( [ { from: 'unset', to: 'live' } ] );
+	} );
+
+	it( 'is empty when publish stages are reached only from publish', () => {
+		// A publish stage exists, but nothing ever crosses into it: the server
+		// never checks required fields on this sequence.
+		expect(
+			transitionsIntoPublish( [
+				{
+					key: 'live',
+					status: 'publish',
+					transitions: [ { to: 'updated' }, { to: 'draft' } ],
+				},
+				{
+					key: 'updated',
+					status: 'publish',
+					transitions: [ { to: 'live' } ],
+				},
+				{ key: 'draft', status: 'draft', transitions: [] },
+			] )
+		).toEqual( [] );
+	} );
+
+	it( 'is empty when a publish stage has no way in', () => {
+		expect(
+			transitionsIntoPublish( [
+				{
+					key: 'draft',
+					status: 'draft',
+					transitions: [ { to: 'review' } ],
+				},
+				{ key: 'review', status: 'pending', transitions: [] },
+				{ key: 'live', status: 'publish', transitions: [] },
+			] )
+		).toEqual( [] );
+	} );
+
+	it( 'ignores a transition to a stage the sequence does not have', () => {
+		expect(
+			transitionsIntoPublish( [
+				{
+					key: 'draft',
+					status: 'draft',
+					transitions: [ { to: 'gone' } ],
+				},
+			] )
+		).toEqual( [] );
+	} );
+
+	it( 'is empty for no stages at all', () => {
+		expect( transitionsIntoPublish( [] ) ).toEqual( [] );
 	} );
 } );

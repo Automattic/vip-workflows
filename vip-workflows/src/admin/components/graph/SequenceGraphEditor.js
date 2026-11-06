@@ -67,6 +67,7 @@ import {
 	isRequiredHandOff,
 	markInitialStage,
 	stageLabel,
+	transitionsIntoPublish,
 	START_ID,
 	END_ID,
 } from './graph-model';
@@ -1818,6 +1819,9 @@ export default function SequenceGraphEditor( {
 		onSettingsChange: setSettings,
 		metadataFields,
 		onMetadataChange: setMetadataFields,
+		// Required fields are checked only on a transition into publish, so
+		// whether "Required" can mean anything depends on the edges drawn now.
+		hasTransitionIntoPublish: transitionsIntoPublish( stages ).length > 0,
 		// Wrapped: the list's add button passes its option value, not a region.
 		onAddStage: isPhase ? undefined : () => handleAddStage(),
 		stages,
