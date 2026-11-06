@@ -46,9 +46,14 @@ wp_tests eval 'VIPWorkflows\activate();'
 echo "→ Verifying the seeded fixtures"
 wp_tests eval '
 global $wpdb;
-$table = $wpdb->prefix . "vip_sequences";
-if ( $table !== $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $table ) ) ) {
-	WP_CLI::error( "Table {$table} is missing although vip_workflows_db_version is " . get_option( "vip_workflows_db_version", "(unset)" ) . ". The schema install skips tables when that option is current; inspect the database before rerunning." );
+$missing = array();
+foreach ( VIPWorkflows\Database\Schema::get_owned_tables() as $table ) {
+	if ( $table !== $wpdb->get_var( $wpdb->prepare( "SHOW TABLES LIKE %s", $wpdb->esc_like( $table ) ) ) ) {
+		$missing[] = $table;
+	}
+}
+if ( $missing ) {
+	WP_CLI::error( "Tables " . implode( ", ", $missing ) . " are missing although vip_workflows_db_version is " . get_option( "vip_workflows_db_version", "(unset)" ) . ". The schema install skips tables when that option is current; inspect the database before rerunning." );
 }
 if ( ! ( new VIPWorkflows\Sequences\SequenceRepository() )->find_by_slug( "editorial-review" ) ) {
 	WP_CLI::error( "The editorial-review sequence was not seeded." );

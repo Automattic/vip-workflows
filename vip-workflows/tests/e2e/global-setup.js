@@ -44,12 +44,11 @@ function fail( baseURL, problem, hint ) {
  * @return {Promise<void>}
  */
 async function globalSetup( config ) {
-	await wpScriptsGlobalSetup( config );
-
 	const { storageState, baseURL } = config.projects[ 0 ].use;
 
 	// The UI specs load the editor and admin bundles from build/. Without them
 	// the Workflow sidebar never renders and the specs time out on locators.
+	// Checked before logging in: it needs no network round trip.
 	if ( ! fs.existsSync( EDITOR_ASSET ) ) {
 		fail(
 			baseURL,
@@ -58,8 +57,12 @@ async function globalSetup( config ) {
 		);
 	}
 
+	await wpScriptsGlobalSetup( config );
+
+	// Same handling as the wp-scripts global setup: only a path is a file to read.
 	const requestUtils = await RequestUtils.setup( {
-		storageStatePath: storageState,
+		storageStatePath:
+			typeof storageState === 'string' ? storageState : undefined,
 		baseURL,
 	} );
 
@@ -69,11 +72,27 @@ async function globalSetup( config ) {
 		} );
 	} catch ( error ) {
 		const code = error?.code || error?.message || String( error );
-		const problem =
-			code === 'rest_no_route'
-				? 'the vip-workflows/v1 REST routes are not registered, so VIP Workflows is not active.'
-				: `the seeded "editorial-review" sequence could not be read (${ code }).`;
-		fail( baseURL, problem, RESEED_HINT );
+		if ( code === 'rest_no_route' ) {
+			fail(
+				baseURL,
+				'the vip-workflows/v1 REST routes are not registered, so VIP Workflows is not active.',
+				RESEED_HINT
+			);
+		}
+		if ( code === 'rest_sequence_not_found' ) {
+			fail(
+				baseURL,
+				'the seeded "editorial-review" sequence does not exist.',
+				RESEED_HINT
+			);
+		}
+		// Any other failure (auth, a PHP fatal, a non-JSON response) is not
+		// missing seed data, so reseeding would not fix it.
+		fail(
+			baseURL,
+			`the seeded "editorial-review" sequence could not be read (${ code }).`,
+			'Check that the site responds and that the admin user can read the vip-workflows/v1 REST API.'
+		);
 	} finally {
 		await requestUtils.request.dispose();
 	}

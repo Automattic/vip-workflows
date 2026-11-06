@@ -79,7 +79,8 @@ The development environment gets extra setup from `tools/wp-env-after-start.sh`:
 The e2e global setup (`tests/e2e/global-setup.js`) checks for this before any spec runs. It stops the run with `VIP Workflows e2e preflight failed for <url>` and names what is missing:
 
 - `build/editor.asset.php does not exist`: run `npm run build` from the repository root.
-- `the vip-workflows/v1 REST routes are not registered` or `the seeded "editorial-review" sequence could not be read`: reseed the tests environment.
+- `the vip-workflows/v1 REST routes are not registered` or `the seeded "editorial-review" sequence does not exist`: reseed the tests environment.
+- `the seeded "editorial-review" sequence could not be read (<code>)`: the request failed for another reason, such as authentication or a PHP fatal error. Reseeding does not fix it; check the site and the error code.
 
 To reseed a running tests environment, from the repository root:
 
