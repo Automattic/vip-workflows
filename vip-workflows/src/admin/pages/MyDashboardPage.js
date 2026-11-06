@@ -40,6 +40,10 @@ export function MyDashboardPage() {
 							...prev,
 							[ key ]: total,
 						} ) );
+						// Only the header is needed, but the body has to be read
+						// too: an unread response body leaves the request open,
+						// so the page never goes network-idle.
+						return res.text();
 					} )
 					.catch( () => {} );
 			} else {
