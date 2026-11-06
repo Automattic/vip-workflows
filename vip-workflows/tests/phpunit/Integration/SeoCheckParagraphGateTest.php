@@ -97,6 +97,7 @@ class SeoCheckParagraphGateTest extends TestCase {
 		$answer = $this->check_transition();
 
 		$this->assertIsArray( $answer, 'A Soft paragraph minimum must hold the move for acknowledgement, not block it.' );
+		$this->assertTrue( $answer['warnings_pending'], 'A Soft minimum must set warnings_pending, or the editor has nothing to acknowledge.' );
 		$this->assertContains( 'min_paragraphs', array_column( $answer['soft_warnings'], 'key' ) );
 	}
 }
