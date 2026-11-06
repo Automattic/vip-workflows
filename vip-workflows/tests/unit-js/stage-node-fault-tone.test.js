@@ -18,7 +18,11 @@
 import { render } from './helpers/render-wp-component';
 import StageNode from '../../src/admin/components/graph/StageNode';
 import RegionNode from '../../src/admin/components/graph/RegionNode';
-import { validateSequence } from '../../src/admin/components/graph/graph-model';
+import TerminalNode from '../../src/admin/components/graph/TerminalNode';
+import {
+	END_ID,
+	validateSequence,
+} from '../../src/admin/components/graph/graph-model';
 
 jest.mock( '@xyflow/react', () => ( {
 	Handle: ( { children, className } ) => (
@@ -209,5 +213,150 @@ describe( 'validateSequence blockers', () => {
 
 		expect( result.warnings.orphan?.length ).toBeGreaterThan( 0 );
 		expect( result.blockers.orphan ).toBeUndefined();
+	} );
+} );
+
+describe( 'validateSequence blockers outside a single stage', () => {
+	it( 'marks every competing entry checkpoint, with one error for the group', () => {
+		const result = validateSequence( {
+			name: 'Test',
+			stages: [
+				{
+					key: 'draft',
+					label: 'Draft',
+					status: 'draft',
+					region_entry: true,
+					transitions: [ { to: 'done' } ],
+				},
+				{
+					key: 'second',
+					label: 'Second',
+					status: 'draft',
+					region_entry: true,
+					transitions: [ { to: 'done' } ],
+				},
+				{
+					key: 'other',
+					label: 'Other',
+					status: 'draft',
+					transitions: [ { to: 'done' } ],
+				},
+				{
+					key: 'done',
+					label: 'Done',
+					status: 'publish',
+					region_entry: true,
+					is_terminal: true,
+					transitions: [],
+				},
+			],
+		} );
+
+		const fault = result.errors.filter( ( e ) =>
+			/more than one entry checkpoint/.test( e.message )
+		);
+		expect( fault ).toHaveLength( 1 );
+		expect( fault[ 0 ].target ).toEqual( {
+			type: 'region',
+			region: 'draft',
+		} );
+		// Both checkpoints turn red and say why; a non-checkpoint does not.
+		expect( result.blockers.draft ).toEqual( [ fault[ 0 ].message ] );
+		expect( result.blockers.second ).toEqual( [ fault[ 0 ].message ] );
+		expect( result.warnings.second ).toContain( fault[ 0 ].message );
+		expect( result.blockers.other ).toBeUndefined();
+		expect( result.blockers.done ).toBeUndefined();
+	} );
+
+	it( 'marks the End node when nothing ends the sequence', () => {
+		const result = validateSequence( {
+			name: 'Test',
+			stages: [
+				{
+					key: 'draft',
+					label: 'Draft',
+					status: 'draft',
+					region_entry: true,
+					transitions: [ { to: 'review' } ],
+				},
+				{
+					key: 'review',
+					label: 'Review',
+					status: 'draft',
+					transitions: [],
+				},
+			],
+		} );
+
+		const fault = result.errors.filter( ( e ) =>
+			/^Nothing ends this sequence/.test( e.message )
+		);
+		expect( fault ).toHaveLength( 1 );
+		// End is not selectable, so the notice has nothing to open.
+		expect( fault[ 0 ].target ).toBeNull();
+		expect( result.blockers[ END_ID ] ).toEqual( [ fault[ 0 ].message ] );
+		// It is not a stage's fault, so no stage turns red for it.
+		expect( result.blockers.review ).toBeUndefined();
+	} );
+
+	it( 'leaves End unmarked when a stage ends the sequence', () => {
+		const result = validateSequence( {
+			name: 'Test',
+			stages: [
+				{
+					key: 'draft',
+					label: 'Draft',
+					status: 'draft',
+					region_entry: true,
+					is_terminal: true,
+					transitions: [],
+				},
+			],
+		} );
+
+		expect( result.blockers[ END_ID ] ).toBeUndefined();
+	} );
+
+	it( 'does not mark End for a phase, which has no End', () => {
+		const result = validateSequence( {
+			name: 'Test',
+			isPhase: true,
+			stages: [ { key: 'a', label: 'A', transitions: [] } ],
+		} );
+
+		expect( result.blockers[ END_ID ] ).toBeUndefined();
+	} );
+} );
+
+describe( 'TerminalNode fault tone', () => {
+	const renderTerminal = ( data ) =>
+		render( <TerminalNode data={ data } /> ).container.querySelector(
+			'.wf-terminal-node'
+		);
+
+	it( 'turns End red, and says so in words, when it carries a blocker', () => {
+		const node = renderTerminal( {
+			kind: 'end',
+			blockers: [ 'Nothing ends this sequence.' ],
+		} );
+
+		expect( node ).toHaveClass( 'is-error' );
+		expect( node.querySelector( '[role="img"]' ) ).toHaveAttribute(
+			'aria-label',
+			'Blocks Save: Nothing ends this sequence.'
+		);
+	} );
+
+	it( 'leaves End neutral with no blockers', () => {
+		const node = renderTerminal( { kind: 'end', blockers: [] } );
+
+		expect( node ).not.toHaveClass( 'is-error' );
+		expect( node.querySelector( '[role="img"]' ) ).toBeNull();
+	} );
+
+	it( 'leaves Start neutral', () => {
+		expect( renderTerminal( { kind: 'start' } ) ).not.toHaveClass(
+			'is-error'
+		);
 	} );
 } );

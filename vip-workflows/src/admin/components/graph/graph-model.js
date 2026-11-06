@@ -2000,7 +2000,9 @@ export function isRequiredHandOff( requiredTransitions, from, to ) {
  *         *and* shown which stage to open. `blockers` is the same
  *         `{ stageKey: string[] }` shape holding only those Save-blocking
  *         messages, so the canvas can tell a stage that stops the save from
- *         one that only carries a hint without reading the message text.
+ *         one that only carries a hint without reading the message text. It
+ *         is keyed by canvas node id: a stage key, or `END_ID` when nothing
+ *         ends the sequence, so the End node can wear the red too.
  *         `valid` is `errors.length === 0`,
  *         kept as part of this function's contract for callers that only need
  *         the yes/no — the editor is not one of them, since it gathers `errors`
@@ -2058,6 +2060,17 @@ export function validateSequence( {
 		const key = targetStageKey( target );
 		addError( message, target );
 		addWarning( key, message );
+		blockers[ key ] = blockers[ key ] || [];
+		blockers[ key ].push( message );
+	};
+
+	// A Save blocker whose error targets something other than the node that
+	// should turn red: a status group's fault lives on the group's panel, but
+	// the stages causing it are what the canvas can paint; a fault of the whole
+	// flow has no panel at all, but the End node is where it is fixed. This
+	// marks that canvas node (a stage key, or `END_ID`) without adding a
+	// second error, so the Save notice still lists the fault once.
+	const markBlocked = ( key, message ) => {
 		blockers[ key ] = blockers[ key ] || [];
 		blockers[ key ].push( message );
 	};
@@ -2484,7 +2497,7 @@ export function validateSequence( {
 	// the stages content would pile up in are named, since those are the
 	// candidates, and the gesture that ends the flow is spelled out.
 	if ( ! isPhase && ! stages.some( ( s ) => s.is_terminal ) ) {
-		addError(
+		const message =
 			deadEnds.length > 0
 				? sprintf(
 						/* translators: %s: comma-separated stage names. */
@@ -2507,8 +2520,12 @@ export function validateSequence( {
 				: __(
 						'Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to the End node.',
 						'vip-workflows'
-				  )
-		);
+				  );
+		addError( message );
+		// The End node is where this is fixed — every remedy is a drag onto
+		// it — so it is what turns red. The error keeps its null target: End
+		// is not selectable, so there is no panel for the notice to open.
+		markBlocked( END_ID, message );
 	}
 
 	if ( ! isPhase ) {
@@ -2547,18 +2564,23 @@ export function validateSequence( {
 				return;
 			}
 			if ( entries.length > 1 ) {
-				addError(
-					sprintf(
-						/* translators: 1: status region name, 2: comma-separated stage labels */
-						__(
-							'The “%1$s” status group has more than one entry checkpoint: %2$s. Keep exactly one.',
-							'vip-workflows'
-						),
-						regionLabel( region ),
-						entries.map( ( s ) => s.label || s.key ).join( ', ' )
+				const message = sprintf(
+					/* translators: 1: status region name, 2: comma-separated stage labels */
+					__(
+						'The “%1$s” status group has more than one entry checkpoint: %2$s. Keep exactly one.',
+						'vip-workflows'
 					),
-					regionTarget( region )
+					regionLabel( region ),
+					entries.map( ( s ) => s.label || s.key ).join( ', ' )
 				);
+				addError( message, regionTarget( region ) );
+				// One error, opening the group's panel where the choice is
+				// made; but every competing checkpoint turns red, since any one
+				// of them is a stage the author might fix it from.
+				entries.forEach( ( s ) => {
+					addWarning( s.key, message );
+					markBlocked( s.key, message );
+				} );
 			}
 		} );
 

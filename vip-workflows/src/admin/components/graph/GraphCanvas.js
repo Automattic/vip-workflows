@@ -582,6 +582,15 @@ function Flow( {
 				};
 			}
 
+			// End carries the flow's own blocker ("nothing ends this
+			// sequence"), which `validateSequence` keys by its node id.
+			if ( node.id === END_ID ) {
+				return {
+					...node,
+					data: { ...node.data, blockers: blockers[ END_ID ] || [] },
+				};
+			}
+
 			if ( node.type !== NODE_TYPE ) {
 				return node;
 			}
