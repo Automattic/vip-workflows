@@ -82,7 +82,7 @@ import {
 } from '@xyflow/react';
 import { __ } from '@wordpress/i18n';
 import { useEdgePlan } from './EdgePlanProvider';
-import { arrowTip, outward } from './edge-geometry';
+import { arrowTip } from './edge-geometry';
 import { useSourceHandles } from './source-handles';
 import { REGION_NODE_TYPE, STAGE_HEIGHT, STAGE_WIDTH } from './graph-model';
 
@@ -94,6 +94,12 @@ import { REGION_NODE_TYPE, STAGE_HEIGHT, STAGE_WIDTH } from './graph-model';
  */
 const GRAB_RADIUS = 11;
 const RING_RADIUS = 4.5;
+
+/**
+ * The grab disc over an exit handle: the ring and a pixel of slack, so the
+ * handle's rim stays reachable around it (`grabRadius`).
+ */
+const COVERED_GRAB_RADIUS = RING_RADIUS + 1;
 
 /**
  * The border a curve leaves by, mirrored — where the free end of a drag is
@@ -108,49 +114,35 @@ const OPPOSITE = {
 };
 
 /**
- * Push a point clear of a handle rect, along the border's outward normal.
+ * How wide an anchor's grab disc is where it sits.
  *
  * The source anchor sits on `plan.source`, which for the commonest edge of all —
  * a plain stage leaving by its bottom border — is exactly where the card's drag
  * grip is. `EdgeOverlay` meets the same collision and resolves it by drawing
  * nothing: a socket there would be a blob on the grip, and the grip already
  * reads as the port. An anchor cannot do the same. It is not decoration but the
- * only control that moves this end of the transition, and its invisible grab
- * disc is wider than the grip it would cover — so yielding the spot would trade
- * a cosmetic overlap for the loss of both gestures: no source rewire, and no
- * new connection out of a stage while one of its transitions is selected.
+ * only control that moves this end of the transition — and at full width its
+ * invisible grab disc is as wide as the grip it covers, so leaving it there
+ * would trade a cosmetic overlap for the loss of the grip: no new connection
+ * out of a stage while one of its transitions is selected.
  *
- * So it steps aside instead, onto the line it belongs to, just past the far
- * edge of whatever covers it. Measured from the rect rather than nudged by a
- * constant because the grip's pill and an AI stage's outcome badges are
- * different sizes, and "just clear of it" is the rule either way.
+ * It used to step aside instead, onto the line just past the covering handle.
+ * That put the ring somewhere the edge does not end — a short way down the
+ * line, and on a short edge on top of the transition's own label pill — so
+ * the one mark saying "this end moves" no longer sat on the end. So the ring
+ * stays on the border, and only its grab disc gives way: over a handle it
+ * narrows to just past the painted ring, leaving the handle's rim around it
+ * as the grip's own target. The ring is what the reader aims at to move the
+ * end; the rest of the pill is what they aim at to start a new connection.
  *
  * Exported for its tests: the component can only be exercised against a live
  * React Flow store.
  *
- * @param {{ x: number, y: number }} point The anchor's planned spot.
- * @param {?Object}                  rect  The handle covering it, if any.
- * @param {string}                   side  The border the edge leaves by.
- * @return {{ x: number, y: number }} The spot to draw it at.
+ * @param {?Object} rect The handle covering the anchor's spot, if any.
+ * @return {number} The grab disc's radius, in px.
  */
-export function clearOf( point, rect, side ) {
-	if ( ! rect ) {
-		return point;
-	}
-	// The direction the curve leaves that border by — `edge-geometry`'s, the
-	// same one `arrowTip` above measures the head's clearance along.
-	const away = outward( side );
-	// How far past the rect's far edge the anchor has to travel before the grab
-	// disc stops overlapping it: the rect's remaining depth in the direction of
-	// travel, plus the disc's own radius. `away` is axis-aligned, so the dot
-	// product below picks the axis that matters and zeroes the other.
-	const far = {
-		x: away.x > 0 ? rect.x + rect.width : rect.x,
-		y: away.y > 0 ? rect.y + rect.height : rect.y,
-	};
-	const depth = away.x * ( far.x - point.x ) + away.y * ( far.y - point.y );
-	const step = Math.max( 0, depth ) + GRAB_RADIUS;
-	return { x: point.x + away.x * step, y: point.y + away.y * step };
+export function grabRadius( rect ) {
+	return rect ? COVERED_GRAB_RADIUS : GRAB_RADIUS;
 }
 
 /**
@@ -455,16 +447,13 @@ export default function EdgeAnchors( {
 		return null;
 	}
 
-	// The departure end steps clear of any exit handle it lands on — for a plain
-	// stage that is the drag grip, in exactly this spot. See `clearOf`.
-	const drawn = endsOf( plan );
-	const points = {
-		source: clearOf(
-			drawn.source,
-			handleUnder( edge.from, drawn.source ),
-			plan.sourcePos
-		),
-		target: drawn.target,
+	// Both ends sit on their marks. The departure end narrows its grab disc
+	// over any exit handle it lands on — for a plain stage that is the drag
+	// grip, in exactly this spot. See `grabRadius`.
+	const points = endsOf( plan );
+	const grabs = {
+		source: grabRadius( handleUnder( edge.from, points.source ) ),
+		target: GRAB_RADIUS,
 	};
 	const held = session ? session.end : null;
 	// The end the line is still pinned to while the other one travels.
@@ -506,7 +495,7 @@ export default function EdgeAnchors( {
 							'vip-workflows'
 					  ) }
 			</title>
-			<circle className="wf-edge-anchors__grab" r={ GRAB_RADIUS } />
+			<circle className="wf-edge-anchors__grab" r={ grabs[ end ] } />
 			<circle className="wf-edge-anchors__ring" r={ RING_RADIUS } />
 		</g>
 	);
