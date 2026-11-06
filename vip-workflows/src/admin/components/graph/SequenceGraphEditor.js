@@ -1128,7 +1128,8 @@ export default function SequenceGraphEditor( {
 	// --- Status regions ----------------------------------------------------
 
 	// Which groups the canvas draws: every region a stage lives in, plus the
-	// empty ones the author added, plus draft (where new content starts).
+	// empty ones the author added or a move emptied, plus draft (where new
+	// content starts).
 	// Phase sequences have no post statuses at all, so they get no groups.
 	const regions = useMemo(
 		() => ( isPhase ? [] : visibleRegions( stages, addedRegions ) ),
@@ -1188,10 +1189,17 @@ export default function SequenceGraphEditor( {
 		// Only a status the server allows is kept: one it would refuse is
 		// drawn only while a stage still carries it (see `visibleRegions`), so
 		// it stays out of the pickers once that stage moves somewhere valid.
+		//
+		// Always a new list, even when the group is already on it (emptied
+		// once, refilled, now emptied again): the save path tells "emptied
+		// while the write was in flight" apart by identity, so handing the
+		// same list back here would let a response drop a group this move
+		// just emptied.
 		if ( emptied && REGION_ORDER.includes( emptied ) ) {
-			setAddedRegions( ( current ) =>
-				current.includes( emptied ) ? current : [ ...current, emptied ]
-			);
+			setAddedRegions( ( current ) => [
+				...current.filter( ( r ) => r !== emptied ),
+				emptied,
+			] );
 		}
 	}, [] );
 

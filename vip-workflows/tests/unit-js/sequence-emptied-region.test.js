@@ -292,6 +292,43 @@ describe( 'moving the only stage out of a status group', () => {
 		expect( drawn() ).toEqual( [ 'draft', 'pending', 'publish' ] );
 	} );
 
+	it( 'keeps a group emptied again while the save was in flight', async () => {
+		await renderEditor();
+
+		// Emptied, then refilled: the group is already on the kept list when
+		// the save goes out.
+		click( 'menu: review to published' );
+		click( 'menu: review to pending review' );
+
+		let respond;
+		const defaultImpl = apiFetch.getMockImplementation();
+		apiFetch.mockImplementation( ( request ) =>
+			request.method === 'PUT'
+				? new Promise( ( resolve ) => {
+						respond = () =>
+							resolve( sequence( request.data.statuses ) );
+				  } )
+				: defaultImpl( request )
+		);
+
+		fireEvent.change( screen.getByRole( 'textbox', { name: /^Name/ } ), {
+			target: { value: 'Editorial, renamed' },
+		} );
+		fireEvent.click( saveButton() );
+		await waitFor( () => expect( respond ).toBeDefined() );
+
+		click( 'menu: review to published' );
+		expect( drawn() ).toContain( 'pending' );
+
+		await act( async () => {
+			respond();
+		} );
+		await waitFor( () =>
+			expect( saveButton() ).toHaveTextContent( 'Saved!' )
+		);
+		expect( drawn() ).toEqual( [ 'draft', 'pending', 'publish' ] );
+	} );
+
 	it( 'still removes the empty group when asked to', async () => {
 		await renderEditor();
 		click( 'menu: review to published' );

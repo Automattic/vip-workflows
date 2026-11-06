@@ -231,7 +231,8 @@ export function regionHasOtherStage( stages, key, region ) {
  * and no way to see or fix it.
  *
  * @param {Array}    stages  Stage objects.
- * @param {string[]} [extra] Regions added from the canvas that hold no stage yet.
+ * @param {string[]} [extra] Empty regions kept drawn: added from the canvas, or
+ *                           emptied by a move since the last save.
  * @return {string[]} Region slugs, in `REGION_ORDER`.
  */
 export function visibleRegions( stages, extra = [] ) {
