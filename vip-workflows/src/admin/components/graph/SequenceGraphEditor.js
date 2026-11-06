@@ -72,8 +72,9 @@ import {
 } from './graph-model';
 import {
 	REGION_ORDER,
+	keptRegions,
+	prunedRemovals,
 	regionHasOtherStage,
-	regionLeftEmpty,
 	stageRegion,
 } from './regions';
 import { paletteColorAt, snapToPalette } from '../../utils/stage-palette';
@@ -433,7 +434,9 @@ export default function SequenceGraphEditor( {
 	const [ description, setDescription ] = useState( blank.description );
 	const [ isActive, setIsActive ] = useState( blank.isActive );
 	const [ stages, setStages ] = useState( blank.stages );
-	const [ selection, setSelection ] = useState( null );
+	// What the author last picked. Read through `selection` below, which drops
+	// a group that is no longer drawn.
+	const [ pickedSelection, setSelection ] = useState( null );
 	const [ confirm, confirmDialog ] = useConfirm();
 
 	// The sequence as the server last confirmed it, serialized. Unsaved work is
@@ -459,15 +462,22 @@ export default function SequenceGraphEditor( {
 		isNew ? serializeSequence( isPhase, blank ) : null
 	);
 
-	// Status-region groups drawn with no stage in them: the ones the author
-	// added from the canvas, and the ones a move emptied (see
-	// `keepEmptiedRegion`). A region with stages in it needs no bookkeeping —
-	// it's visible because a stage says so — but an empty one has nothing to
-	// derive it from, so it's remembered here until it is removed or the
-	// sequence is saved. Editing state, not sequence data: it isn't saved, and
-	// saving or reopening the sequence shows the regions its stages actually
-	// use.
+	// The stages as the server last stored them: the load, each save, and a
+	// region repair. A status group they use stays drawn after the canvas's
+	// own stages leave it — a move, a delete, any edit that empties it — so
+	// it does not vanish from the canvas, the Post status picker and the stage
+	// context menu, and putting a stage back does not first mean adding the
+	// status again by hand. Saving makes what was stored the new reference,
+	// which is when an emptied group stops being drawn (see `keptRegions`).
+	const [ savedStages, setSavedStages ] = useState( blank.stages );
+	// Status-region groups the author added from the canvas. Kept for the rest
+	// of this editing session, saves included, until removed: an empty group
+	// is editing state, not sequence data, so it isn't saved, and reopening
+	// the sequence shows the regions its stages actually use.
 	const [ addedRegions, setAddedRegions ] = useState( [] );
+	// Empty groups the author took off the canvas that the saved stages would
+	// otherwise keep drawn. Pruned on save (see handleSave).
+	const [ removedRegions, setRemovedRegions ] = useState( [] );
 	const [ addingRegion, setAddingRegion ] = useState( false );
 
 	// Phase-only. The lifecycle hand-offs a phase sequence is allowed to draw,
@@ -731,6 +741,7 @@ export default function SequenceGraphEditor( {
 		apiFetch( { path: `/vip-workflows/v1/sequences/${ sequenceId }` } )
 			.then( ( response ) => {
 				const fields = seedFromSequence( response );
+				setSavedStages( fields.stages );
 
 				if ( isPhase ) {
 					setSavedSnapshot( serializeSequence( isPhase, fields ) );
@@ -810,6 +821,7 @@ export default function SequenceGraphEditor( {
 			.then( ( response ) => {
 				const repaired = response.config?.statuses || [];
 				setStages( repaired );
+				setSavedStages( repaired );
 				setMissingRegions( response.stages_missing_region || [] );
 				// The repair replays the stored config through the write gate,
 				// which collapses a stage's duplicate transitions on the way
@@ -1082,7 +1094,41 @@ export default function SequenceGraphEditor( {
 		leaveEditor();
 	}, [ isDirty, confirmDiscard, leaveEditor ] );
 
+	// --- Status regions ----------------------------------------------------
+
+	// Which groups the canvas draws: every region a stage lives in, plus the
+	// empty ones the saved stages use or the author added (minus those the
+	// author removed), plus draft (where new content starts).
+	// Phase sequences have no post statuses at all, so they get no groups.
+	const regions = useMemo(
+		() =>
+			isPhase
+				? []
+				: visibleRegions(
+						stages,
+						keptRegions( savedStages, addedRegions, removedRegions )
+				  ),
+		[ isPhase, stages, savedStages, addedRegions, removedRegions ]
+	);
+	// The statuses the server allows that aren't drawn yet — what "Add post
+	// status…" offers, and whether it is offered at all.
+	// Memoized so the canvas menu's own memo, which depends on it, holds.
+	const addableRegions = useMemo(
+		() => REGION_ORDER.filter( ( region ) => ! regions.includes( region ) ),
+		[ regions ]
+	);
+
 	// --- Selection helpers -------------------------------------------------
+
+	// A selected group that is no longer drawn — an emptied group a save
+	// cleared — reads as no selection, so the panel never offers to remove a
+	// group that is already gone. Derived in the same render rather than
+	// cleared by an effect a render later.
+	const selection =
+		pickedSelection?.type === 'region' &&
+		! regions.includes( pickedSelection.region )
+			? null
+			: pickedSelection;
 
 	const selectedStage =
 		selection?.type === 'node'
@@ -1125,39 +1171,16 @@ export default function SequenceGraphEditor( {
 		setReveal( { target } );
 	}, [] );
 
-	// --- Status regions ----------------------------------------------------
-
-	// Which groups the canvas draws: every region a stage lives in, plus the
-	// empty ones the author added or a move emptied, plus draft (where new
-	// content starts).
-	// Phase sequences have no post statuses at all, so they get no groups.
-	const regions = useMemo(
-		() => ( isPhase ? [] : visibleRegions( stages, addedRegions ) ),
-		[ isPhase, stages, addedRegions ]
-	);
-	// The statuses the server allows that aren't drawn yet — what "Add post
-	// status…" offers, and whether it is offered at all.
-	// Memoized so the canvas menu's own memo, which depends on it, holds.
-	const addableRegions = useMemo(
-		() => REGION_ORDER.filter( ( region ) => ! regions.includes( region ) ),
-		[ regions ]
-	);
-
-	// A selected group that is no longer drawn — a kept empty group dropped
-	// by a save — would leave its panel open on a group the canvas no longer
-	// shows, offering to remove what is already gone.
-	useEffect( () => {
-		if (
-			selection?.type === 'region' &&
-			! regions.includes( selection.region )
-		) {
-			setSelection( null );
-		}
-	}, [ selection, regions ] );
+	// --- Status region handlers --------------------------------------------
 
 	const handleAddRegion = useCallback( ( region ) => {
 		setAddedRegions( ( current ) =>
 			current.includes( region ) ? current : [ ...current, region ]
+		);
+		setRemovedRegions( ( current ) =>
+			current.includes( region )
+				? current.filter( ( r ) => r !== region )
+				: current
 		);
 		setSelection( { type: 'region', region } );
 	}, [] );
@@ -1169,38 +1192,10 @@ export default function SequenceGraphEditor( {
 		setAddedRegions( ( current ) =>
 			current.filter( ( r ) => r !== region )
 		);
+		setRemovedRegions( ( current ) =>
+			current.includes( region ) ? current : [ ...current, region ]
+		);
 		setSelection( null );
-	}, [] );
-
-	// The stages as last rendered, for the move handlers below to ask which
-	// region a move empties without being rebuilt on every stage edit — the
-	// canvas keys its drop targets on them.
-	const stagesRef = useRef( stages );
-	stagesRef.current = stages;
-
-	// A move that takes the last stage out of a status group keeps the group
-	// drawn, as if the author had added it: otherwise it would vanish from the
-	// canvas, the Post status picker, and the stage context menu, and moving
-	// the stage back would first mean adding the status again by hand. Like a
-	// hand-added group, it stays until it is removed or the sequence is saved,
-	// and it blocks nothing — an empty group has no checkpoint to check.
-	const keepEmptiedRegion = useCallback( ( key, region ) => {
-		const emptied = regionLeftEmpty( stagesRef.current, key, region );
-		// Only a status the server allows is kept: one it would refuse is
-		// drawn only while a stage still carries it (see `visibleRegions`), so
-		// it stays out of the pickers once that stage moves somewhere valid.
-		//
-		// Always a new list, even when the group is already on it (emptied
-		// once, refilled, now emptied again): the save path tells "emptied
-		// while the write was in flight" apart by identity, so handing the
-		// same list back here would let a response drop a group this move
-		// just emptied.
-		if ( emptied && REGION_ORDER.includes( emptied ) ) {
-			setAddedRegions( ( current ) => [
-				...current.filter( ( r ) => r !== emptied ),
-				emptied,
-			] );
-		}
 	}, [] );
 
 	// Where a dragged stage ended up: the group it belongs to, and whether it
@@ -1212,18 +1207,14 @@ export default function SequenceGraphEditor( {
 	// being let go anywhere else. That second half is the whole point — it's how
 	// a checkpoint is freed — so it has to happen even though it leaves the
 	// sequence unsaveable until one is set again.
-	const handlePlaceStage = useCallback(
-		( key, region, isCheckpoint ) => {
-			keepEmptiedRegion( key, region );
-			setStages( ( current ) => {
-				const moved = setStageStatus( current, key, region );
-				return isCheckpoint
-					? setRegionEntry( moved, key )
-					: clearRegionEntry( moved, key );
-			} );
-		},
-		[ keepEmptiedRegion ]
-	);
+	const handlePlaceStage = useCallback( ( key, region, isCheckpoint ) => {
+		setStages( ( current ) => {
+			const moved = setStageStatus( current, key, region );
+			return isCheckpoint
+				? setRegionEntry( moved, key )
+				: clearRegionEntry( moved, key );
+		} );
+	}, [] );
 
 	// The inspector's way into the same thing the slot does — for setting a
 	// checkpoint without a pointer, and for clearing one (`key` null).
@@ -1251,19 +1242,15 @@ export default function SequenceGraphEditor( {
 	// `addStage`'s terms: nothing holds that slot, so seating the stage there
 	// moves no one — and without a slot to drop into, this control would
 	// otherwise leave the region unsaveable with no way to say otherwise here.
-	const handleSetStageStatus = useCallback(
-		( key, region ) => {
-			keepEmptiedRegion( key, region );
-			setStages( ( current ) => {
-				const moved = setStageStatus( current, key, region );
-				const empty = ! regionHasOtherStage( current, key, region );
-				return empty && moved !== current
-					? setRegionEntry( moved, key )
-					: moved;
-			} );
-		},
-		[ keepEmptiedRegion ]
-	);
+	const handleSetStageStatus = useCallback( ( key, region ) => {
+		setStages( ( current ) => {
+			const moved = setStageStatus( current, key, region );
+			const empty = ! regionHasOtherStage( current, key, region );
+			return empty && moved !== current
+				? setRegionEntry( moved, key )
+				: moved;
+		} );
+	}, [] );
 
 	// --- Stage mutations ---------------------------------------------------
 
@@ -1729,14 +1716,18 @@ export default function SequenceGraphEditor( {
 			// unsaved work is measured against, so a field that held onto an
 			// in-flight edit reads as the unsaved work it is.
 			setSavedSnapshot( serializeSequence( isPhase, fields ) );
-			// What was saved is what reopening it would draw: the regions its
-			// stages use, without the empty groups kept for this editing pass.
-			// Unless the author has moved on since the write went out, on the
-			// same terms as `seedFromSequence`'s reseat: a group added or
-			// emptied while it was in flight belongs to unsaved work, and the
-			// response is not allowed to take it back.
-			setAddedRegions( ( live ) =>
-				live === addedRegions ? [] : live
+			// What was stored is the new reference for which emptied groups
+			// stay drawn — always the server's copy, like the baseline above,
+			// so a group the stored stages no longer use stops being drawn,
+			// and one emptied while the write was out is still drawn because
+			// the stored stages still use it.
+			setSavedStages( fields.stages );
+			// A removal only means something while the stored stages use the
+			// group. One made before the write went out, of a group the stored
+			// stages use again, was undone by refilling it, so it is dropped
+			// here rather than hiding the group the next time it empties.
+			setRemovedRegions( ( live ) =>
+				prunedRemovals( live, removedRegions, fields.stages )
 			);
 			setSaveStatus( 'success' );
 			setTimeout( () => setSaveStatus( null ), 2000 );

@@ -177,31 +177,60 @@ export function regionEntryStage( stages, region ) {
 }
 
 /**
- * The region a stage leaves empty by moving to another one, if it does.
+ * The regions the editor keeps drawn whether or not a stage is in them now.
  *
- * Moving the last stage out of a status group would otherwise make the group
- * vanish with it — from the canvas, from every Post status picker, and from the
- * stage context menu — so moving the stage back would first mean adding the
- * status again by hand. The editor keeps the region this names drawn, the same
- * way it keeps an empty group the author added.
+ * A group the stored stages use stays drawn after the editor's own stages
+ * leave it — by a move, a delete, or any other edit — until the next save,
+ * so emptying it does not make it vanish from the canvas, every Post status
+ * picker and the stage context menu, and putting a stage back does not first
+ * mean adding the status again by hand. Because it is derived from the stored
+ * stages rather than recorded by each edit, every way of emptying a group
+ * behaves the same, and a group refilled and emptied again is no different
+ * from one emptied once.
  *
- * @param {Array}  stages Stage objects, before the move.
- * @param {string} key    Stage being moved.
- * @param {string} region Region it is moving to.
- * @return {string|null} The region left with no stage, or null when the move
- *                       empties none (another stage remains, the stage is
- *                       already there, or no such stage exists).
+ * Only statuses the server allows are kept: one it would refuse is drawn only
+ * while a stage still carries it (see `visibleRegions`), so it drops out of
+ * the pickers once that stage moves somewhere valid.
+ *
+ * @param {Array}    savedStages Stage objects as last stored.
+ * @param {string[]} added       Regions the author added from the canvas.
+ * @param {string[]} removed     Empty regions the author took off the canvas.
+ * @return {string[]} Region slugs, unordered (see `visibleRegions`).
  */
-export function regionLeftEmpty( stages, key, region ) {
-	const stage = stages.find( ( s ) => s.key === key );
-	if ( ! stage ) {
-		return null;
-	}
-	const from = stageRegion( stage );
-	if ( from === region ) {
-		return null;
-	}
-	return regionHasOtherStage( stages, key, from ) ? null : from;
+export function keptRegions( savedStages, added = [], removed = [] ) {
+	const kept = new Set( added );
+	( savedStages || [] ).forEach( ( stage ) => {
+		const region = stageRegion( stage );
+		if ( REGION_ORDER.includes( region ) ) {
+			kept.add( region );
+		}
+	} );
+	removed.forEach( ( region ) => kept.delete( region ) );
+	return [ ...kept ];
+}
+
+/**
+ * The removals still worth holding once a save has stored `savedStages`.
+ *
+ * A removal hides a group the stored stages would otherwise keep drawn, so it
+ * is dropped when they no longer use the group. It is also dropped when it was
+ * already made before the write went out and the stored stages use the group
+ * again: that means the author refilled it before saving, which undid the
+ * removal, and holding on to it would hide the group the next time it empties.
+ * A removal made while the write was out is kept.
+ *
+ * @param {string[]} live        Removals as they stand when the save returns.
+ * @param {string[]} sent        Removals when the write went out.
+ * @param {Array}    savedStages Stage objects the save stored.
+ * @return {string[]} Removals to keep.
+ */
+export function prunedRemovals( live, sent, savedStages ) {
+	const used = new Set(
+		( savedStages || [] ).map( ( stage ) => stageRegion( stage ) )
+	);
+	return live.filter(
+		( region ) => used.has( region ) && ! sent.includes( region )
+	);
 }
 
 /**
@@ -221,8 +250,8 @@ export function regionHasOtherStage( stages, key, region ) {
  *
  * A region shows when something puts it there: a stage lives in it, or the
  * author added it explicitly from the canvas menu (an empty section waiting for
- * a stage to be dragged in), or its last stage was moved out since the last
- * save (see `regionLeftEmpty`). Draft is always shown — it's where new content
+ * a stage to be dragged in), or the stored stages use it and it was emptied
+ * since the last save (see `keptRegions`). Draft is always shown — it's where new content
  * starts, so a sequence without it has nowhere to begin.
  *
  * A region carried by a stage but missing from `REGION_ORDER` is still
@@ -231,8 +260,8 @@ export function regionHasOtherStage( stages, key, region ) {
  * and no way to see or fix it.
  *
  * @param {Array}    stages  Stage objects.
- * @param {string[]} [extra] Empty regions kept drawn: added from the canvas, or
- *                           emptied by a move since the last save.
+ * @param {string[]} [extra] Regions kept drawn with or without a stage (see
+ *                           `keptRegions`).
  * @return {string[]} Region slugs, in `REGION_ORDER`.
  */
 export function visibleRegions( stages, extra = [] ) {

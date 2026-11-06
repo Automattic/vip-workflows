@@ -1,17 +1,17 @@
 /**
- * Unit tests for a status group emptied by moving its last stage out.
+ * Unit tests for a status group emptied by moving or deleting its last stage.
  *
- * A group is drawn while a stage lives in it, so moving the only stage out of
+ * A group is drawn while a stage lives in it, so taking the only stage out of
  * one used to take the group with it — off the canvas, out of the Post status
  * picker, out of the stage context menu — and moving the stage back meant
- * adding the status again by hand first. The editor now keeps an emptied group
- * drawn, the way it keeps one the author added, until it is removed or the
- * sequence is saved.
+ * adding the status again by hand first. The editor now keeps drawn every
+ * group the stored stages use, until it is removed or the sequence is saved,
+ * and keeps a group the author added for the rest of the session.
  *
  * The canvas is stubbed: React Flow measures a viewport jsdom does not lay out.
  * The stub prints the groups it is asked to draw and exposes the canvas's own
- * gestures — a drop into a band, the context menu's status move, and removing a
- * group — as buttons.
+ * gestures — a drop into a band, the context menu's status move, deleting a
+ * stage, selecting, adding and removing a group — as buttons.
  *
  * @package
  */
@@ -27,7 +27,10 @@ import {
 
 import apiFetch from '@wordpress/api-fetch';
 
-import { regionLeftEmpty } from '../../src/admin/components/graph/regions';
+import {
+	keptRegions,
+	prunedRemovals,
+} from '../../src/admin/components/graph/regions';
 
 jest.mock( '@wordpress/api-fetch' );
 
@@ -40,6 +43,9 @@ jest.mock(
 			onPlaceStage,
 			onSetStageStatus,
 			onRemoveRegion,
+			onAddRegion,
+			onSelectRegion,
+			onDeleteNode,
 		} ) {
 			return (
 				<div data-testid="canvas">
@@ -72,6 +78,15 @@ jest.mock(
 					</button>
 					<button onClick={ () => onRemoveRegion( 'pending' ) }>
 						remove pending review
+					</button>
+					<button onClick={ () => onSelectRegion( 'pending' ) }>
+						select pending review
+					</button>
+					<button onClick={ () => onDeleteNode( 'review' ) }>
+						delete review
+					</button>
+					<button onClick={ () => onAddRegion() }>
+						add a status
 					</button>
 				</div>
 			);
@@ -164,34 +179,56 @@ const postStatusOptions = () =>
 		.map( ( option ) => option.value );
 
 async function renderEditor() {
-	render( <SequenceGraphEditor sequenceId={ 7 } onCancel={ jest.fn() } /> );
+	const view = render(
+		<SequenceGraphEditor sequenceId={ 7 } onCancel={ jest.fn() } />
+	);
 	await waitFor( () => expect( saveButton() ).toBeInTheDocument() );
 	await act( async () => {
 		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 	} );
+	return view;
 }
 
-describe( 'regionLeftEmpty', () => {
-	it( 'names the region a move takes the last stage out of', () => {
-		expect( regionLeftEmpty( STAGES, 'review', 'publish' ) ).toBe(
+describe( 'keptRegions', () => {
+	it( 'keeps every region the stored stages use', () => {
+		expect( keptRegions( STAGES ).sort() ).toEqual( [
+			'draft',
+			'pending',
+			'publish',
+		] );
+	} );
+
+	it( 'adds the regions the author added', () => {
+		expect( keptRegions( STAGES, [ 'private' ] ) ).toContain( 'private' );
+	} );
+
+	it( 'leaves out the regions the author removed', () => {
+		expect( keptRegions( STAGES, [], [ 'pending' ] ) ).not.toContain(
 			'pending'
 		);
 	} );
 
-	it( 'is null while another stage remains in the region', () => {
-		const stages = [
-			...STAGES,
-			{ key: 'legal', label: 'Legal', status: 'pending' },
-		];
-		expect( regionLeftEmpty( stages, 'review', 'publish' ) ).toBeNull();
+	it( 'keeps no status the server would refuse', () => {
+		const stages = [ { key: 'odd', label: 'Odd', status: 'future' } ];
+		expect( keptRegions( stages ) ).toEqual( [] );
+	} );
+} );
+
+describe( 'prunedRemovals', () => {
+	it( 'drops a removal the stored stages no longer need', () => {
+		expect( prunedRemovals( [ 'private' ], [], STAGES ) ).toEqual( [] );
 	} );
 
-	it( 'is null for a move into the region the stage is already in', () => {
-		expect( regionLeftEmpty( STAGES, 'review', 'pending' ) ).toBeNull();
+	it( 'keeps a removal made while the write was out', () => {
+		expect( prunedRemovals( [ 'pending' ], [], STAGES ) ).toEqual( [
+			'pending',
+		] );
 	} );
 
-	it( 'is null for a stage that does not exist', () => {
-		expect( regionLeftEmpty( STAGES, 'missing', 'publish' ) ).toBeNull();
+	it( 'drops a removal undone by refilling the group before the save', () => {
+		expect(
+			prunedRemovals( [ 'pending' ], [ 'pending' ], STAGES )
+		).toEqual( [] );
 	} );
 } );
 
@@ -337,5 +374,115 @@ describe( 'moving the only stage out of a status group', () => {
 		click( 'remove pending review' );
 
 		expect( drawn() ).toEqual( [ 'draft', 'publish' ] );
+	} );
+
+	it( 'closes the panel of a selected group a save stops drawing', async () => {
+		await renderEditor();
+		click( 'menu: review to published' );
+		click( 'select pending review' );
+		expect(
+			screen.getByRole( 'button', { name: 'Remove this status' } )
+		).toBeInTheDocument();
+
+		fireEvent.click( saveButton() );
+
+		await waitFor( () =>
+			expect( saveButton() ).toHaveTextContent( 'Saved!' )
+		);
+		expect( drawn() ).toEqual( [ 'draft', 'publish' ] );
+		expect(
+			screen.queryByRole( 'button', { name: 'Remove this status' } )
+		).toBeNull();
+	} );
+} );
+
+describe( 'deleting the only stage in a status group', () => {
+	it( 'keeps the group drawn until the sequence is saved', async () => {
+		await renderEditor();
+		click( 'delete review' );
+
+		expect( drawn() ).toEqual( [ 'draft', 'pending', 'publish' ] );
+
+		fireEvent.click( saveButton() );
+
+		await waitFor( () =>
+			expect( saveButton() ).toHaveTextContent( 'Saved!' )
+		);
+		expect( drawn() ).toEqual( [ 'draft', 'publish' ] );
+	} );
+
+	it( 'treats a group emptied and refilled the same as one never emptied', async () => {
+		const first = await renderEditor();
+		click( 'menu: review to published' );
+		click( 'menu: review to pending review' );
+		click( 'delete review' );
+		const refilled = drawn();
+
+		first.unmount();
+		await renderEditor();
+		click( 'delete review' );
+
+		expect( refilled ).toEqual( drawn() );
+		expect( refilled ).toEqual( [ 'draft', 'pending', 'publish' ] );
+	} );
+} );
+
+describe( 'a status group the author added', () => {
+	it( 'stays drawn, still empty, after a save', async () => {
+		await renderEditor();
+		// Save needs unsaved work; the name field is in the panel that adding
+		// a group replaces, so it is edited first.
+		fireEvent.change( screen.getByRole( 'textbox', { name: /^Name/ } ), {
+			target: { value: 'Editorial, renamed' },
+		} );
+		click( 'add a status' );
+		fireEvent.click( screen.getByRole( 'button', { name: 'Add status' } ) );
+		expect( drawn() ).toEqual( [
+			'draft',
+			'pending',
+			'private',
+			'publish',
+		] );
+
+		fireEvent.click( saveButton() );
+
+		await waitFor( () =>
+			expect( saveButton() ).toHaveTextContent( 'Saved!' )
+		);
+		expect( drawn() ).toEqual( [
+			'draft',
+			'pending',
+			'private',
+			'publish',
+		] );
+	} );
+
+	it( 'is kept by a save that clears a group emptied before it', async () => {
+		await renderEditor();
+		click( 'menu: review to published' );
+
+		let respond;
+		const defaultImpl = apiFetch.getMockImplementation();
+		apiFetch.mockImplementation( ( request ) =>
+			request.method === 'PUT'
+				? new Promise( ( resolve ) => {
+						respond = () =>
+							resolve( sequence( request.data.statuses ) );
+				  } )
+				: defaultImpl( request )
+		);
+		fireEvent.click( saveButton() );
+		await waitFor( () => expect( respond ).toBeDefined() );
+
+		click( 'add a status' );
+		fireEvent.click( screen.getByRole( 'button', { name: 'Add status' } ) );
+
+		await act( async () => {
+			respond();
+		} );
+		await waitFor( () =>
+			expect( saveButton() ).toHaveTextContent( 'Saved!' )
+		);
+		expect( drawn() ).toEqual( [ 'draft', 'private', 'publish' ] );
 	} );
 } );
