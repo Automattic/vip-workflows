@@ -159,6 +159,7 @@ class WorkflowController extends WP_REST_Controller {
 							'default'           => 1,
 							'minimum'           => 1,
 							'sanitize_callback' => 'absint',
+							'validate_callback' => 'rest_validate_request_arg',
 						),
 						'per_page' => array(
 							'description'       => 'Maximum number of records to return.',
@@ -167,6 +168,7 @@ class WorkflowController extends WP_REST_Controller {
 							'minimum'           => 1,
 							'maximum'           => 100,
 							'sanitize_callback' => 'absint',
+							'validate_callback' => 'rest_validate_request_arg',
 						),
 					),
 				),
