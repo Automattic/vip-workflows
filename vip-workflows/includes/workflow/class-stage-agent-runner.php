@@ -143,13 +143,16 @@ class StageAgentRunner implements ModuleInterface {
 	/**
 	 * The person who started the run whose exit transition is in progress.
 	 *
-	 * An agent's exit transition runs with nobody logged in, and its job marker is
-	 * cleared before it, so a next AI stage dispatched by that transition reads its
-	 * starter from here. Set around the exit transition only.
+	 * A next AI stage dispatched by an agent's exit transition takes its starter
+	 * from here, never from whoever happens to be logged in: the exit runs in a
+	 * cron context, where an ambient user (`wp cron event run --user=…`, or one an
+	 * earlier callback left set) authorized nothing. Set around the exit
+	 * transition only; null otherwise, so a starter of 0 (nobody) is still
+	 * carried as nobody.
 	 *
-	 * @var int
+	 * @var int|null
 	 */
-	private static int $exiting_run_started_by = 0;
+	private static ?int $exiting_run_started_by = null;
 
 	/**
 	 * Ability executor used to run stage agents. Injectable for testing.
@@ -249,10 +252,9 @@ class StageAgentRunner implements ModuleInterface {
 		// is behind it — cron, a scheduled publish, a reseat with no one logged in.
 		// The run acts as this person when they can still edit the post (see
 		// resolve_run_as_user()), and its telemetry is recorded as them.
-		$started_by = get_current_user_id();
-		if ( $started_by <= 0 ) {
-			$started_by = self::$exiting_run_started_by;
-		}
+		$started_by = null !== self::$exiting_run_started_by
+			? self::$exiting_run_started_by
+			: get_current_user_id();
 
 		$this->dispatch(
 			$post_id,
@@ -301,16 +303,27 @@ class StageAgentRunner implements ModuleInterface {
 			);
 		}
 
-		delete_post_meta( $post_id, self::CHAIN_META );
-
-		$this->dispatch(
+		// Replace exactly the failed marker validated above, or nothing. Two
+		// people pressing Run again at once, or Run again racing Go back, must
+		// not both win: the loser finds the marker changed and is refused.
+		$dispatched = $this->dispatch(
 			$post_id,
 			$stage_key,
 			(string) $status['agent']['ability_id'],
 			(string) ( $job['from_stage'] ?? '' ),
 			'rerun',
-			get_current_user_id()
+			get_current_user_id(),
+			$job
 		);
+		if ( ! $dispatched ) {
+			return new \WP_Error(
+				'agent_rerun_conflict',
+				__( 'This agent run changed while you were starting it. Reload the post to see where it is now.', 'vip-workflows' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		delete_post_meta( $post_id, self::CHAIN_META );
 
 		return true;
 	}
@@ -318,27 +331,39 @@ class StageAgentRunner implements ModuleInterface {
 	/**
 	 * Write a pending job marker and schedule the run that serves it.
 	 *
-	 * @param int    $post_id    Post ID.
-	 * @param string $stage_key  The AI stage the run belongs to.
-	 * @param string $ability_id The stage's agent ability.
-	 * @param string $from_stage The stage the post entered from, kept for go-back.
-	 * @param string $cause      What dispatched it: workflow, core or rerun.
-	 * @param int    $started_by The person who started the run, or 0.
+	 * @param int        $post_id    Post ID.
+	 * @param string     $stage_key  The AI stage the run belongs to.
+	 * @param string     $ability_id The stage's agent ability.
+	 * @param string     $from_stage The stage the post entered from, kept for go-back.
+	 * @param string     $cause      What dispatched it: workflow, core or rerun.
+	 * @param int        $started_by The person who started the run, or 0.
+	 * @param array|null $replacing  The marker this one may only replace: when
+	 *                               given, the write is conditional on the stored
+	 *                               marker still being exactly this one.
+	 * @return bool False only when `$replacing` no longer matched, and nothing
+	 *              was written or scheduled.
 	 */
-	private function dispatch( int $post_id, string $stage_key, string $ability_id, string $from_stage, string $cause, int $started_by ): void {
-		update_post_meta(
-			$post_id,
-			self::JOB_META,
-			array(
-				'stage_key'  => $stage_key,
-				'ability_id' => $ability_id,
-				'status'     => 'pending',
-				'queued_at'  => current_time( 'mysql' ),
-				'cause'      => $cause,
-				'from_stage' => $from_stage,
-				'started_by' => $started_by,
-			)
+	private function dispatch( int $post_id, string $stage_key, string $ability_id, string $from_stage, string $cause, int $started_by, ?array $replacing = null ): bool {
+		$marker = array(
+			'stage_key'  => $stage_key,
+			'ability_id' => $ability_id,
+			'status'     => 'pending',
+			'queued_at'  => current_time( 'mysql' ),
+			'cause'      => $cause,
+			'from_stage' => $from_stage,
+			'started_by' => $started_by,
 		);
+
+		if ( null === $replacing ) {
+			update_post_meta( $post_id, self::JOB_META, $marker );
+		} elseif ( ! update_post_meta( $post_id, self::JOB_META, $marker, $replacing ) ) {
+			// A conditional update: the database row changes only where it still
+			// holds `$replacing`, so of two concurrent callers one matches. Core
+			// adds the row instead when none exists at all; a run queued that way
+			// for a stage the post has left is dropped by run_stage_agent()'s
+			// own stage check.
+			return false;
+		}
 
 		$scheduled = wp_schedule_single_event( time(), self::RUN_HOOK, array( $post_id, $stage_key ), true );
 		if ( true !== $scheduled ) {
@@ -348,7 +373,7 @@ class StageAgentRunner implements ModuleInterface {
 			// the freshly written pending marker when it fires: success, not failure.
 			if ( $this->is_duplicate_event_error( $scheduled ) ) {
 				$this->log_duplicate_event( $post_id, $stage_key );
-				return;
+				return true;
 			}
 
 			// The run was never queued — a pending marker with no scheduled event
@@ -369,6 +394,8 @@ class StageAgentRunner implements ModuleInterface {
 				is_wp_error( $scheduled ) ? (string) $scheduled->get_error_code() : ''
 			);
 		}
+
+		return true;
 	}
 
 	/**
@@ -1178,7 +1205,7 @@ class StageAgentRunner implements ModuleInterface {
 		try {
 			$transitioned = $status_manager->transition( $post_id, $target, $options );
 		} finally {
-			self::$exiting_run_started_by = 0;
+			self::$exiting_run_started_by = null;
 		}
 
 		// transition() answers with a warnings array rather than a WP_Error when

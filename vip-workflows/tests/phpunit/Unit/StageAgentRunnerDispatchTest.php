@@ -123,6 +123,71 @@ class StageAgentRunnerDispatchTest extends TestCase
     }
 
     /**
+     * A hop dispatched while some other user is logged in (cron run with
+     * `--user`, or a user an earlier callback left set) still belongs to the
+     * chain's starter. The ambient user authorized nothing.
+     */
+    public function test_a_hop_ignores_an_ambient_user_and_keeps_the_chain_starter(): void
+    {
+        $captured = null;
+        Functions\when( 'get_current_user_id' )->justReturn( 1 ); // an administrator, ambient
+        Functions\when( 'get_post_meta' )->justReturn( '' );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+        Functions\when( 'update_post_meta' )->alias(
+            function ( $post_id, $key, $value ) use ( &$captured ) {
+                $captured = $value;
+                return true;
+            }
+        );
+        Functions\when( 'wp_schedule_single_event' )->justReturn( true );
+
+        ( new \ReflectionProperty( StageAgentRunner::class, 'exiting_run_started_by' ) )->setValue( null, 3 );
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
+            )
+        );
+
+        $this->runner->maybe_dispatch( 42, 'ai_desk', 'other_ai_desk', $sequence );
+
+        $this->assertSame( 3, $captured['started_by'], 'the chain starter, not the ambient administrator' );
+    }
+
+    /**
+     * A chain nobody started stays nobody's, even with an ambient user, so the
+     * next stage falls back to the author rather than borrowing that user.
+     */
+    public function test_a_hop_from_a_chain_nobody_started_does_not_borrow_an_ambient_user(): void
+    {
+        $captured = null;
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'get_post_meta' )->justReturn( '' );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+        Functions\when( 'update_post_meta' )->alias(
+            function ( $post_id, $key, $value ) use ( &$captured ) {
+                $captured = $value;
+                return true;
+            }
+        );
+        Functions\when( 'wp_schedule_single_event' )->justReturn( true );
+
+        ( new \ReflectionProperty( StageAgentRunner::class, 'exiting_run_started_by' ) )->setValue( null, 0 );
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
+            )
+        );
+
+        $this->runner->maybe_dispatch( 42, 'ai_desk', 'other_ai_desk', $sequence );
+
+        $this->assertSame( 0, $captured['started_by'] );
+    }
+
+    /**
      * When the run cannot be scheduled, the job is not left pending: it fails
      * in place so the editor surfaces the error and a Re-run action.
      */
@@ -344,6 +409,43 @@ class StageAgentRunnerDispatchTest extends TestCase
         $this->assertSame( 'draft', $captured['from_stage'], 'go-back still knows where the post came from' );
         $this->assertSame( 'rerun', $captured['cause'] );
         $this->assertSame( 5, $captured['started_by'], 'the run belongs to whoever pressed Run again' );
+    }
+
+    /**
+     * Two people pressing Run again at once, or Run again racing Go back: the
+     * marker is replaced only if it is still the failed one that was checked.
+     * The loser is refused and schedules nothing.
+     */
+    public function test_rerun_is_refused_when_the_failed_marker_changed_underneath_it(): void
+    {
+        $failed = array( 'stage_key' => 'ai_desk', 'status' => 'failed', 'error' => 'x', 'from_stage' => 'draft' );
+        Functions\when( 'get_post_meta' )->alias(
+            static function ( $post_id, $key ) use ( $failed ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
+                    return 'ai_desk';
+                }
+                return StageAgentRunner::JOB_META === $key ? $failed : '';
+            }
+        );
+        Functions\expect( 'update_post_meta' )
+            ->once()
+            ->with( 42, StageAgentRunner::JOB_META, Mockery::type( 'array' ), $failed )
+            ->andReturn( false );
+        Functions\expect( 'wp_schedule_single_event' )->never();
+        Functions\expect( 'delete_post_meta' )->never();
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
+            )
+        );
+
+        $result = $this->runner->rerun( 42, $sequence );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'agent_rerun_conflict', $result->get_error_code() );
+        $this->assertSame( 409, $result->get_error_data()['status'] );
     }
 
     /**
