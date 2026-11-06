@@ -1299,14 +1299,22 @@ class AssignmentManager {
 	 * slots. That needs no lock. A named database lock would not serve here
 	 * anyway: on VIP, HyperDB sends a SELECT, GET_LOCK included, to a read
 	 * replica, while the writes go to the primary. After this request's first
-	 * write to postmeta, HyperDB reads postmeta from the primary, so the check
-	 * reads what was actually stored.
+	 * write to postmeta, HyperDB reads postmeta from the primary, and both the
+	 * rebuild and the check read with direct queries rather than through the
+	 * shared object cache, so the check reads what was actually stored.
 	 *
-	 * @param int $post_id Post ID.
+	 * @param int  $post_id Post ID.
+	 * @param bool $report  Whether to log malformed slots, on the first read
+	 *                      only. The backfill passes false: it has already
+	 *                      logged them for the page.
 	 */
-	public function sync_pending_assignee_index( int $post_id ): void {
+	public function sync_pending_assignee_index( int $post_id, bool $report = true ): void {
 		for ( $attempt = 1; $attempt <= self::INDEX_SETTLE_ATTEMPTS; ++$attempt ) {
-			$user_ids = $this->read_pending_user_ids( $post_id, true );
+			$user_ids = $this->read_pending_user_ids( $post_id, $report && 1 === $attempt );
+			if ( null === $user_ids ) {
+				// Logged. Rewriting the rows from nothing would drop real ones.
+				return;
+			}
 
 			delete_post_meta( $post_id, self::PENDING_ASSIGNEE_INDEX_KEY );
 			foreach ( $user_ids as $user_id ) {
@@ -1330,35 +1338,56 @@ class AssignmentManager {
 	 * @return bool
 	 */
 	public function pending_assignee_index_matches( int $post_id ): bool {
-		$expected = $this->read_pending_user_ids( $post_id, false );
-		sort( $expected );
+		global $wpdb;
 
-		wp_cache_delete( $post_id, 'post_meta' );
-		$rows = array_map( 'intval', get_post_meta( $post_id, self::PENDING_ASSIGNEE_INDEX_KEY, false ) );
+		$expected = $this->read_pending_user_ids( $post_id, false );
+		if ( null === $expected ) {
+			return false;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read past the object cache on purpose; see read_pending_user_ids().
+		$rows = $wpdb->get_col( $wpdb->prepare( "SELECT meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key = %s", $post_id, self::PENDING_ASSIGNEE_INDEX_KEY ) );
+		if ( '' !== $wpdb->last_error ) {
+			return false;
+		}
+
+		$rows = array_map( 'intval', $rows );
+		sort( $expected );
 		sort( $rows );
 
 		return $expected === $rows;
 	}
 
 	/**
-	 * The pending user assignees a post's slots name, read past the cache.
+	 * The pending user assignees a post's slots name, read from the database.
+	 *
+	 * Read with a direct query rather than get_post_meta(): the object cache is
+	 * shared, and another request can refill a post's entry from a lagging
+	 * replica between this request clearing it and reading it, so the rebuild
+	 * and its check would agree on stale data. A direct query after this
+	 * request's own postmeta write is answered by the primary under HyperDB.
 	 *
 	 * @param int  $post_id Post ID.
 	 * @param bool $report  Whether to log malformed slots. The check after a
 	 *                      write reads the same slots again and does not
 	 *                      repeat what the rebuild already logged.
-	 * @return int[]
+	 * @return int[]|null User IDs, or null when the slots could not be read (logged).
 	 */
-	private function read_pending_user_ids( int $post_id, bool $report ): array {
-		// A write in this request, or another request's, must be read back as
-		// stored, not as cached.
-		wp_cache_delete( $post_id, 'post_meta' );
+	private function read_pending_user_ids( int $post_id, bool $report ): ?array {
+		global $wpdb;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- read past the object cache on purpose; see above.
+		$rows = $wpdb->get_results( $wpdb->prepare( "SELECT meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id = %d AND meta_key LIKE %s ORDER BY meta_id ASC", $post_id, $wpdb->esc_like( self::STORAGE_PREFIX ) . '%' ) );
+		if ( null === $rows || '' !== $wpdb->last_error ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Could not read the assignment slots of post %d to index them: %s', $post_id, $wpdb->last_error ) );
+			return null;
+		}
+
+		// The last row per key wins, as get_post_meta( ..., true ) would answer.
 		$slots = array();
-		foreach ( (array) get_post_meta( $post_id ) as $meta_key => $values ) {
-			if ( str_starts_with( (string) $meta_key, self::STORAGE_PREFIX ) ) {
-				$slots[ (string) $meta_key ] = end( $values );
-			}
+		foreach ( $rows as $row ) {
+			$slots[ (string) $row->meta_key ] = $row->meta_value;
 		}
 
 		return self::pending_user_ids_from_slots( $post_id, $slots, $report );
