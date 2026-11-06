@@ -8,10 +8,11 @@
  *   - a value written to the registered post meta round-trips through the
  *     metadata convenience endpoint.
  *
- * The editor-side flow drives the metadata rows of the Workflow sidebar, which
- * is where the fields live now: each field is a flat label + clickable-value
- * row (no "Editorial Metadata" heading) whose side-anchored popover holds the
- * field's input — the document-sidebar meta pattern. The sequence-editor flow
+ * The editor-side flow drives the metadata rows of the document sidebar's
+ * Summary panel, which is where the fields live now: each field is a flat
+ * label + clickable-value row (no "Editorial Metadata" heading) whose
+ * side-anchored popover holds the field's input — the document-sidebar meta
+ * pattern. The sequence-editor flow
  * guards against the bug where the save payload omitted metadata_fields
  * entirely.
  */
@@ -22,7 +23,7 @@ const {
 	assignSequence,
 	getWorkflowStatus,
 	deletePost,
-	openWorkflowSidebar,
+	openWorkflowSummaryRows,
 } = require( './helpers/workflow' );
 
 const FIELD = {
@@ -355,11 +356,11 @@ test.describe( 'VIP Workflows — editorial metadata (UI)', () => {
 		await assignSequence( requestUtils, postId, sequenceId, 'draft' );
 
 		await admin.editPost( postId );
-		const sidebar = await openWorkflowSidebar( page );
+		const rows = await openWorkflowSummaryRows( page );
 
-		// The field renders flat in the sidebar as a label + clickable-value
+		// The field renders in the Summary panel as a label + clickable-value
 		// row; the unset trigger's accessible name states the action.
-		await sidebar
+		await rows
 			.getByRole( 'button', { name: `Set ${ FIELD.label }` } )
 			.click();
 
@@ -377,7 +378,7 @@ test.describe( 'VIP Workflows — editorial metadata (UI)', () => {
 		await expect( dialog ).toBeHidden();
 
 		// The row's trigger now shows the value.
-		const filledTrigger = sidebar.getByRole( 'button', {
+		const filledTrigger = rows.getByRole( 'button', {
 			name: `Change ${ FIELD.label }: News`,
 		} );
 		await expect( filledTrigger ).toBeVisible();
@@ -387,7 +388,7 @@ test.describe( 'VIP Workflows — editorial metadata (UI)', () => {
 
 		// Reload and confirm the value survives a round-trip.
 		await admin.editPost( postId );
-		const reopened = await openWorkflowSidebar( page );
+		const reopened = await openWorkflowSummaryRows( page );
 		await expect(
 			reopened.getByRole( 'button', {
 				name: `Change ${ FIELD.label }: News`,
@@ -431,9 +432,9 @@ test.describe( 'VIP Workflows — editorial metadata (UI)', () => {
 		await assignSequence( requestUtils, postId, sequenceId, 'draft' );
 
 		await admin.editPost( postId );
-		const sidebar = await openWorkflowSidebar( page );
+		const rows = await openWorkflowSummaryRows( page );
 
-		await sidebar
+		await rows
 			.getByRole( 'button', { name: `Set ${ USER_FIELD.label }` } )
 			.click();
 
@@ -450,7 +451,7 @@ test.describe( 'VIP Workflows — editorial metadata (UI)', () => {
 
 		// The trigger resolves the saved id to the user's display name.
 		await expect(
-			sidebar.getByRole( 'button', {
+			rows.getByRole( 'button', {
 				name: `Change ${ USER_FIELD.label }: ${ user.name }`,
 			} )
 		).toBeVisible();
@@ -458,7 +459,7 @@ test.describe( 'VIP Workflows — editorial metadata (UI)', () => {
 		await editor.saveDraft();
 
 		await admin.editPost( postId );
-		const reopened = await openWorkflowSidebar( page );
+		const reopened = await openWorkflowSummaryRows( page );
 		await expect(
 			reopened.getByRole( 'button', {
 				name: `Change ${ USER_FIELD.label }: ${ user.name }`,

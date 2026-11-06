@@ -4,7 +4,8 @@
  * Shared by the two layers that draw on top of the cards and have to reckon
  * with what is underneath them. `EdgeOverlay` asks so it can leave a socket
  * undrawn where the handle already reads as the port; `EdgeAnchors` asks so a
- * grab ring does not plant an invisible disc over the control it covers. Both
+ * grab ring does not plant a full-width invisible disc over the control it
+ * covers. Both
  * questions are the same measurement, and it is React Flow's own — read from
  * the store rather than restated from the stylesheet, so the drag grip's pill
  * and an AI stage's three-pill cluster are whatever they actually render as,
@@ -58,9 +59,8 @@ export function selectSourceHandles( state ) {
 /**
  * The handle a point falls on, if any.
  *
- * The rect rather than a boolean, because a caller that has to get *out* of the
- * way needs to know how far — see `EdgeAnchors`, which pushes its source ring
- * past the covering handle's far edge.
+ * The rect rather than a boolean; `occupied` in `useSourceHandles` below is
+ * the boolean form.
  *
  * Exported for its tests: the hook can only be exercised against a live React
  * Flow store.

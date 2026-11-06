@@ -8,7 +8,7 @@
  * `InspectorPopoverHeader` (title beside a Close icon button); neither is
  * publicly exported from `@wordpress/editor`, so the shape is rebuilt here.
  *
- * Rebuilt once, because the Workflow sidebar draws it for two unrelated things:
+ * Rebuilt once, because the Summary panel's workflow rows draw it for two things:
  * the sequence the post belongs to (WorkflowRow) and every sequence-declared
  * metadata field (MetadataRow). What is generic — the two cells, the popover,
  * its header — lives here. The required-field asterisk and the wording that
@@ -136,6 +136,10 @@ export function SidebarRow( {
 			}
 			direction="row"
 			align="flex-start"
+			// Core's PostPanelRow is an HStack at its default `spacing={ 2 }`,
+			// calc(4px * 2) = 8px between label and control. `sm` is that 8px;
+			// without it the value column starts 8px left of core's rows.
+			gap="sm"
 		>
 			<Text className="vip-workflows-sidebar-row__label">{ label }</Text>
 			{ /* A column so the error can sit under the value it belongs to

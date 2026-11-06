@@ -54,7 +54,7 @@ export default function SeedInput( { onSubmit, isSubmitting } ) {
 			>
 				<Text
 					variant="heading-2xl"
-					render={ <h1 /> }
+					render={ <h2 /> }
 					className="vip-workflows-ideation-seed__title"
 				>
 					{ __( 'What’s the story?', 'vip-workflows' ) }
@@ -65,7 +65,7 @@ export default function SeedInput( { onSubmit, isSubmitting } ) {
 					className="vip-workflows-ideation-seed__subtitle"
 				>
 					{ __(
-						'Describe your idea in a sentence or two. Our agents will find related articles, external sources, and context to help you develop it.',
+						'Describe your idea in a sentence or two.',
 						'vip-workflows'
 					) }
 				</Text>

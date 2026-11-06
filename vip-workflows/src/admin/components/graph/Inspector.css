@@ -23,6 +23,7 @@
 	flex: 1 1 auto;
 	min-height: 0;
 	overflow: hidden;
+	/* wpds-allow R6 -- <Card> (@wordpress/ui) exposes only children and div passthrough, no shadow/elevation prop; this is the panel's resting elevation over the canvas described above */
 	box-shadow: var( --vip-workflows-elevation-md );
 	/* The wrapper turns pointer events off so the empty space it spans below a
 	   collapsed panel doesn't swallow canvas clicks; the card takes them back. */
@@ -80,7 +81,7 @@
    uppercase at this size readable, and the muted tone. */
 .wf-inspector__eyebrow {
 	display: block;
-	/* wpds-allow R6,R8 -- @wordpress/theme ships no letter-spacing token and <Text> exposes no tracking prop */
+	/* wpds-allow typography/untokenized, typography/in-css -- @wordpress/theme ships no letter-spacing token and <Text> exposes no tracking prop; the rest of the type role comes from <Text variant="heading-sm"> */
 	letter-spacing: 0.4px;
 	/* wpds-allow R6 -- <Text> exposes no color prop, so the eyebrow's muted tone is set here */
 	color: var( --wpds-color-foreground-content-neutral-weak );
@@ -176,8 +177,9 @@
 	min-width: 0; /* wpds-allow R2 -- zero needs no token */
 }
 
-/* A disclosure section's actions are wrapped so the wrapper can open the section
-   when one of them is pressed (`InspectorSection`). The wrapper is bookkeeping,
+/* A section's actions are wrapped so the wrapper can track focus inside them,
+   and in a disclosure open the section when one of them is pressed
+   (`InspectorSection`). The wrapper is bookkeeping,
    never a box: `contents` takes it out of the layout entirely, so the control
    inside stays a direct flex item of the heading row and the row measures
    exactly as it did before the wrapper existed. */
@@ -214,9 +216,10 @@
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
 	border: 0; /* wpds-allow R6 -- Collapsible.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
 	background: none; /* wpds-allow R6 -- the same UA button box; the section supplies the surface */
-	cursor: pointer;
+	cursor: var( --wpds-cursor-control );
 	text-align: start;
-	color: inherit; /* wpds-allow R6 -- same: `buttontext` would cut the title and chevron off from the row's own tone, and the trigger exposes no color prop */
+	/* wpds-allow R6 -- same: `buttontext` would cut the title and chevron off from the row's own tone, and the trigger exposes no color prop */
+	color: inherit;
 }
 
 /* The disclosure's affordance: the row responds, so the neutral title doesn't
@@ -233,7 +236,8 @@
 	outline: var( --wpds-border-width-focus ) solid
 		var( --wpds-color-stroke-interactive-brand );
 	outline-offset: 2px;
-	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds the focus ring to the trigger's own corners; Collapsible.Trigger exposes no radius prop */
+	/* wpds-allow R6 -- rounds the focus ring to the trigger's own corners; Collapsible.Trigger exposes no radius prop */
+	border-radius: var( --wpds-border-radius-sm );
 }
 
 /* Points right when shut, down when open. Base UI sets `aria-expanded` on the
@@ -299,10 +303,14 @@
 	display: inline-flex;
 	align-items: center;
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
-	border: 0; /* wpds-allow R6 -- Tooltip.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
-	background: none; /* wpds-allow R6 -- the same UA button box; the row supplies the surface */
+	/* wpds-allow R6 -- Tooltip.Trigger is a bare Base UI <button> with no unstyled/plain variant, so its UA box is taken away here */
+	border: 0;
+	/* wpds-allow R6 -- the same UA button box; the row supplies the surface */
+	background: none;
+	/* wpds-allow tokens/hardcoded-value -- `help` marks an explanation, not a control; @wordpress/theme ships only --wpds-cursor-control, which is the pointer for controls */
 	cursor: help;
-	color: var( --wpds-color-foreground-content-neutral-weak ); /* wpds-allow R6 -- Tooltip.Trigger exposes no tone prop, so the muted resting colour is set here */
+	/* wpds-allow R6 -- Tooltip.Trigger exposes no tone prop, so the muted resting colour is set here */
+	color: var( --wpds-color-foreground-content-neutral-weak );
 }
 
 .wf-inspector-infotip:hover,
@@ -322,7 +330,8 @@
 	outline: var( --wpds-border-width-focus ) solid
 		var( --wpds-color-stroke-interactive-brand );
 	outline-offset: 2px;
-	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds the focus ring to the trigger's own corners; Tooltip.Trigger exposes no radius prop */
+	/* wpds-allow R6 -- rounds the focus ring to the trigger's own corners; Tooltip.Trigger exposes no radius prop */
+	border-radius: var( --wpds-border-radius-sm );
 }
 
 /* Narrower than the tooltip's default: these are sentences, and a popup as wide
@@ -357,9 +366,9 @@
    a row that has been filled in. The field's own help text says which; only the
    tone is set here. One rule for both inspectors, so the flag reads the same
    wherever a key is typed. */
+/* wpds-allow R6 -- .components-base-control__help is BaseControl's library-internal help node; BaseControl exposes no validity/tone prop, so the caution colour has to land on the markup it renders */
 .wf-stage-inspector__key--collides .components-base-control__help,
 .wf-metadata-field__key--invalid .components-base-control__help {
-	/* wpds-allow R6 -- TextControl exposes no validity or tone prop, so the caution colour has to land on the help element it renders */
 	color: var( --wpds-color-foreground-content-caution );
 }
 
@@ -435,13 +444,15 @@
    In flow by default: in a list where every row is draggable, the grips form
    the list's leading edge and nothing is indented relative to anything else. */
 .wf-inspector__grip {
-	display: flex; /* wpds-allow R4 -- the grip stays a <button> so the KeyboardSensor has a tab stop, and this class exists to take that button's box away */
+	/* wpds-allow R4 -- the grip stays a <button> so the KeyboardSensor has a tab stop, and this class exists to take that button's box away */
+	display: flex;
 	align-items: center; /* wpds-allow R4 -- centres the glyph inside that <button> */
 	flex: 0 0 auto; /* wpds-allow R4 -- the grip keeps its width while the row's body takes the rest; <Stack> has no per-child grow prop */
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
 	border: none;
 	background: none;
 	color: var( --wpds-color-foreground-content-neutral-weak );
+	/* wpds-allow tokens/hardcoded-value -- `grab` marks a drag handle, not a click target; @wordpress/theme ships only --wpds-cursor-control, which is the pointer for controls */
 	cursor: grab;
 }
 
@@ -450,68 +461,57 @@
 	outline-offset: 1px;
 }
 
-/* A list that mixes draggable rows with fixed ones — the stage read-out, where
-   an agent's three outcomes are a fixed trio sitting among sortable transitions.
-   There the grip cannot take space: in flow it indented every sortable row by
-   its own width, so the transition rows sat deeper than the outcome rows in what
-   is one list, and the leading dots have to line up for the list to read flat.
-
-   So it is lifted out of the flow and laid over the row's leading dot, and
-   hidden until the row is hovered or the grip itself is focused — the order is
-   worth changing far less often than it is worth reading, and a column of grips
-   at full strength would read as the most important thing in the list. */
-.wf-inspector__facts--overlaid-grip .wf-inspector__fact.is-sortable {
-	position: relative; /* wpds-allow R4 -- anchors the overlaid grip <button>; <Stack> has no positioning prop */
+/* The room a grip or a remove button takes, held by a row that has neither
+   (`Fact`'s `reserveGrip`, `RemoveSpacer`), so every row in a list puts its
+   name and its value on the same edges whether or not it can be dragged or
+   removed. The widths are the grip's 16px glyph and a small icon button. */
+.wf-inspector__grip-spacer {
+	flex: 0 0 auto; /* wpds-allow R4 -- holds its width in the row; <Stack> has no per-child grow prop */
+	width: 16px;
 }
 
-.wf-inspector__facts--overlaid-grip .wf-inspector__grip {
-	position: absolute; /* wpds-allow R4 -- overlays the row's dot slot instead of indenting the row (see above) */
-	inset-inline-start: 0; /* wpds-allow R2 -- zero needs no token */
-	top: 50%; /* wpds-allow R4 -- centres the overlaid grip on the row's own line */
-	transform: translateY( -50% ); /* wpds-allow R4 -- the other half of that centring */
+.wf-inspector__remove-spacer {
+	flex: 0 0 auto; /* wpds-allow R4 -- holds its width in the row; <Stack> has no per-child grow prop */
+	width: 24px;
+}
+
+/* Grips and remove buttons are hidden at rest and revealed on hover or focus,
+   so the list reads as content at a glance and shows its controls only when an
+   author is acting on a row. The grip fades; the button appears without a
+   transition, because a destructive control that animates toward the pointer
+   would invite an accidental press.
+
+   `:focus-within` covers keyboard navigation: once a screen-reader or tab-key
+   user is inside the row, every control in it is reachable. */
+.wf-inspector-field-list .wf-inspector__grip {
+	/* wpds-allow R6 -- <Stack> has no opacity prop */
 	opacity: 0;
 	transition: opacity 120ms ease;
 }
 
-.wf-inspector__facts--overlaid-grip
-	.wf-inspector__fact:hover
-	.wf-inspector__grip,
-.wf-inspector__facts--overlaid-grip .wf-inspector__grip:focus-visible {
-	/* wpds-allow R6 -- reveals the grip <button>, hung off the hovered row; that row is a <Stack>, which exposes no opacity prop */
+.wf-inspector-field-list .wf-inspector__fact:hover .wf-inspector__grip,
+.wf-inspector-field-list .wf-inspector__fact:focus-within .wf-inspector__grip,
+.wf-inspector-field-list .wf-inspector__grip:focus-visible {
+	/* wpds-allow R6 -- reveals the grip */
 	opacity: 1;
 }
 
-/* While the grip is up it sits exactly where the row's dot is, and the drag
-   glyph over a colored dot reads as neither — so the dot stands aside for the
-   grip's moment. `:has()` mirrors the grip's own focus reveal, which no
-   ancestor combinator can express. */
-.wf-inspector__facts--overlaid-grip
-	.wf-inspector__fact.is-sortable:hover
-	.wf-stage-inspector__route-dot,
-.wf-inspector__facts--overlaid-grip
-	.wf-inspector__fact.is-sortable:has( .wf-inspector__grip:focus-visible )
-	.wf-stage-inspector__route-dot {
-	visibility: hidden;
+/* wpds-allow R6 -- .components-button is Button's library-internal render class; Button exposes isDestructive but no visibility/opacity prop, so the hover-reveal state has to target the class it renders */
+.wf-inspector-field-list .wf-inspector__fact > .components-button.is-destructive {
+	/* wpds-allow R6 -- <Button> exposes no opacity prop */
+	opacity: 0;
 }
 
-/* Never animate the reveal, and never hide the grip outright, for anyone who
-   has asked for less motion or navigates by keyboard alone.
+/* wpds-allow R6 -- same library-internal coupling as above: Button exposes no visibility/opacity prop to reveal the remove button on hover/focus */
+.wf-inspector-field-list .wf-inspector__fact:hover > .components-button.is-destructive,
+.wf-inspector-field-list .wf-inspector__fact:focus-within > .components-button.is-destructive {
+	/* wpds-allow R6 -- reveals the remove button */
+	opacity: 1;
+}
 
-   The dot goes with it. The grip is up for good here rather than for a hover's
-   moment, and the rule above stands the dot aside only while it is hovered or
-   focused — so without this the drag glyph sits on top of a coloured route dot
-   on every row, at rest, which is the "reads as neither" that rule exists to
-   prevent. The two are one decision and have to move together. */
 @media ( prefers-reduced-motion: reduce ) {
-	.wf-inspector__facts--overlaid-grip .wf-inspector__grip {
+	.wf-inspector-field-list .wf-inspector__grip {
 		transition: none;
-		opacity: 1;
-	}
-
-	.wf-inspector__facts--overlaid-grip
-		.wf-inspector__fact.is-sortable
-		.wf-stage-inspector__route-dot {
-		visibility: hidden;
 	}
 }
 
@@ -529,23 +529,28 @@
 	flex: 1; /* wpds-allow R4 -- the button has to fill what the grip leaves so the row still reads as one line; <Stack> has no per-child grow prop */
 	min-width: 0; /* wpds-allow R2 -- zero needs no token */
 	padding: 0; /* wpds-allow R2 -- zero needs no token */
-	border: none; /* wpds-allow R6 -- the <Stack> renders a <button>, and this class exists to take that button's UA box away; <Stack> exposes no border prop */
-	background: none; /* wpds-allow R6 -- same: the UA button surface, which the row supplies instead */
-	color: inherit; /* wpds-allow R6 -- <Stack> exposes no color prop, and `buttontext` would cut the row's own tone off from the text inside it */
+	/* wpds-allow R6 -- the <Stack> renders a <button>, and this class exists to take that button's UA box away; <Stack> exposes no border prop */
+	border: none;
+	/* wpds-allow R6 -- same: the UA button surface, which the row supplies instead */
+	background: none;
+	/* wpds-allow R6 -- <Stack> exposes no color prop, and `buttontext` would cut the row's own tone off from the text inside it */
+	color: inherit;
 	text-align: start;
-	cursor: pointer;
+	cursor: var( --wpds-cursor-control );
 }
 
 /* Says it is a target, without giving three or four rows the weight of buttons
    in a panel where nothing else in the list is one. */
 .wf-inspector__fact-open:hover {
-	text-decoration: underline; /* wpds-allow R6 -- <Stack> exposes no text-decoration prop */
+	/* wpds-allow R6 -- <Stack> exposes no text-decoration prop */
+	text-decoration: underline;
 }
 
 .wf-inspector__fact-open:focus-visible {
 	outline: 2px solid var( --wpds-color-stroke-surface-brand-strong );
 	outline-offset: 1px;
-	border-radius: var( --wpds-border-radius-sm ); /* wpds-allow R6 -- rounds the focus ring to match the grip's; <Stack> exposes no radius prop */
+	/* wpds-allow R6 -- rounds the focus ring to match the grip's; <Stack> exposes no radius prop */
+	border-radius: var( --wpds-border-radius-sm );
 }
 
 /* The second half of the stage read-out: not what the stage is, but every way

@@ -257,17 +257,11 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 	} )();
 
 	return (
-		<SettingsSection
-			title={ __( 'AI model', 'vip-workflows' ) }
-			description={ __(
-				'The provider and model the plugin uses for AI features such as media analysis, ideation and research.',
-				'vip-workflows'
-			) }
-		>
+		<SettingsSection title={ __( 'AI model', 'vip-workflows' ) }>
 			{ providers.length === 0 ? (
 				<Notice status="warning" isDismissible={ false }>
 					{ __(
-						'No AI provider is connected. Add an API key in Settings → Connectors to enable AI features.',
+						'No AI provider connected. See Settings → Connectors.',
 						'vip-workflows'
 					) }
 				</Notice>
@@ -276,7 +270,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 					{ unpinned && (
 						<Notice status="info" isDismissible={ false }>
 							{ __(
-								'No provider has been chosen, so the only connected one is being used. Save to make that explicit — otherwise connecting a second provider will leave this site with no selection.',
+								'Using the only connected provider. Save to keep it.',
 								'vip-workflows'
 							) }
 						</Notice>
@@ -284,7 +278,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 					{ provider === '' && (
 						<Notice status="warning" isDismissible={ false }>
 							{ __(
-								'More than one provider is connected and none is chosen. Choose the one AI features should generate through.',
+								'No provider chosen. Choose one below.',
 								'vip-workflows'
 							) }
 						</Notice>
@@ -294,7 +288,7 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 							{ sprintf(
 								/* translators: %s: AI provider display name, e.g. "OpenAI". */
 								__(
-									'%s is selected but no longer connected, so AI features cannot generate. Choose one of the connected providers.',
+									'%s is no longer connected. Choose a connected provider.',
 									'vip-workflows'
 								),
 								providerLabel( provider )

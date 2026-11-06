@@ -82,7 +82,10 @@ export function MetadataUserControl( {
 				}
 				setSearchError(
 					err.message ||
-						__( 'Unable to load users.', 'vip-workflows' )
+						__(
+							'Could not load users. Try searching again.',
+							'vip-workflows'
+						)
 				);
 			} finally {
 				if ( ! cancelled ) {
@@ -156,7 +159,7 @@ export function MetadataUserControl( {
 				setSelectedError(
 					err.message ||
 						__(
-							'Unable to load the selected user.',
+							'Could not load the selected user. Reload the page to try again.',
 							'vip-workflows'
 						)
 				);

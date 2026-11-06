@@ -69,6 +69,7 @@ export function ToolFailureNotice( {
  * @param {string}   props.toolLabel         Display label shown as the modal title.
  * @param {Function} props.onClose           Callback invoked to close the modal.
  * @param {Array}    props.requirementGroups Live availability groups, when the tool was refused.
+ * @param {boolean}  props.ranOnUnsavedEdits Whether the post had unsaved edits when the check ran. The check read the saved post, so the findings may not match the screen.
  * @return {JSX.Element} The rendered check results modal.
  */
 export function CheckResultsModal( {
@@ -76,6 +77,7 @@ export function CheckResultsModal( {
 	toolLabel,
 	onClose,
 	requirementGroups = [],
+	ranOnUnsavedEdits = false,
 } ) {
 	const { summary, output = {}, error } = result;
 	const { score, status, issues = [], suggestions = [] } = output;
@@ -129,6 +131,14 @@ export function CheckResultsModal( {
 				/>
 			) : (
 				<Stack direction="column" gap="md">
+					{ ranOnUnsavedEdits && (
+						<Notice status="warning" isDismissible={ false }>
+							{ __(
+								'These results are for the last saved version. Save the post, then run the check again to include your edits.',
+								'vip-workflows'
+							) }
+						</Notice>
+					) }
 					<Stack direction="row" align="center" gap="lg">
 						{ typeof score === 'number' && (
 							<div
