@@ -532,6 +532,60 @@ describe( 'WorkflowHeaderAction', () => {
 		expect( working ).toHaveAttribute( 'aria-disabled', 'true' );
 	} );
 
+	/**
+	 * Run again refused (another person ran it first): the header reports the
+	 * server's reason, and re-reads the post so it shows what the post is
+	 * doing now rather than a Run again that can no longer succeed.
+	 */
+	it( 'reports a refused Run again and re-reads the post', async () => {
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				can_rerun: true,
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		const runningNow = statusResponse( {
+			transitions: [],
+			agent_pending: true,
+			agent_job: { status: 'pending', error: '' },
+		} );
+		await renderHeader( failed );
+
+		let refused = false;
+		apiFetch.mockImplementation( ( { path } ) => {
+			if ( path.endsWith( '/agent-rerun' ) ) {
+				refused = true;
+				return Promise.reject( {
+					code: 'agent_rerun_conflict',
+					message:
+						'This agent run changed while you were starting it. Reload the post to see where it is now.',
+				} );
+			}
+			return Promise.resolve(
+				path === STATUS_PATH && refused ? runningNow : failed
+			);
+		} );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Run again' } )
+			).click();
+		} );
+
+		await waitFor( () =>
+			expect( createErrorNotice ).toHaveBeenCalledWith(
+				'This agent run changed while you were starting it. Reload the post to see where it is now.',
+				expect.anything()
+			)
+		);
+		expect(
+			await screen.findByRole( 'button', { name: 'Agent working' } )
+		).toBeInTheDocument();
+	} );
+
 	it( 'stays on screen, busy, while a stage agent runs', async () => {
 		await renderHeader(
 			statusResponse( {

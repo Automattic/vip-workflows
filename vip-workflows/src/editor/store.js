@@ -404,7 +404,8 @@ const actions = {
 	 * failed job says it can run again (`agent_job.can_rerun`). The run is
 	 * started by the person who asks, so it acts as them when they can edit
 	 * the post. It holds the current stage's key as the move in flight, so
-	 * both surfaces stand down together. Rejects with the server's error.
+	 * both surfaces stand down together. On a refusal it re-reads the post,
+	 * then rejects with the server's error.
 	 */
 	rerunAgentStage:
 		() =>
@@ -425,6 +426,13 @@ const actions = {
 				} );
 
 				dispatch.receiveWorkflowStatus( status );
+			} catch ( error ) {
+				// A refusal is news about the post: someone else ran it again
+				// or took it back, so the failed state on screen is stale.
+				// Re-read it, so the panel and header offer what the post
+				// allows now, then let the caller report the error.
+				await dispatch.fetchWorkflowStatus();
+				throw error;
 			} finally {
 				dispatch.setTransitioningTo( null );
 			}

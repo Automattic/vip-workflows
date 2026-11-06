@@ -147,6 +147,77 @@ describe( 'WorkflowPanel failed agent actions', () => {
 		expect(
 			calls.some( ( c ) => c.path.endsWith( '/agent-revert' ) )
 		).toBe( false );
+
+		// The run is pending now: the failure and its actions are gone.
+		await waitFor( () =>
+			expect(
+				screen.queryByText( 'The AI agent could not finish.' )
+			).toBeNull()
+		);
+		expect(
+			screen.queryByRole( 'button', { name: 'Run again' } )
+		).toBeNull();
+	} );
+
+	it( 'shows the refusal and re-reads the post when Run again is refused', async () => {
+		const failed = failedStatus( {
+			can_rerun: true,
+			revert_to: { key: 'drafting', label: 'Drafting' },
+		} );
+		let refused = false;
+		const calls = [];
+		apiFetch.mockImplementation( ( request ) => {
+			calls.push( request );
+			if ( request.path === RERUN_PATH ) {
+				refused = true;
+				return Promise.reject( {
+					code: 'agent_rerun_conflict',
+					message:
+						'This agent run changed while you were starting it. Reload the post to see where it is now.',
+				} );
+			}
+			if ( request.path === STATUS_PATH ) {
+				// Someone else's re-run is now pending.
+				return Promise.resolve(
+					refused
+						? {
+								...failed,
+								agent_pending: true,
+								agent_job: { status: 'pending', error: '' },
+						  }
+						: failed
+				);
+			}
+			if ( request.path.startsWith( '/vip-workflows/v1/abilities' ) ) {
+				return Promise.resolve( [] );
+			}
+			return Promise.resolve( {} );
+		} );
+
+		render( <WorkflowPanel /> );
+		await waitFor( () =>
+			expect(
+				screen.getByRole( 'button', { name: 'Run again' } )
+			).toBeInTheDocument()
+		);
+
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Run again' } ).click();
+		} );
+
+		expect(
+			await screen.findByText(
+				'This agent run changed while you were starting it. Reload the post to see where it is now.'
+			)
+		).toBeInTheDocument();
+		await waitFor( () =>
+			expect(
+				screen.queryByRole( 'button', { name: 'Run again' } )
+			).toBeNull()
+		);
+		expect(
+			calls.filter( ( c ) => c.path === STATUS_PATH ).length
+		).toBeGreaterThan( 1 );
 	} );
 
 	it( 'leads with Go back when the run cannot go again', async () => {
