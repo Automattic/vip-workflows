@@ -69,7 +69,12 @@ import {
 	START_ID,
 	END_ID,
 } from './graph-model';
-import { REGION_ORDER, regionLeftEmpty, stageRegion } from './regions';
+import {
+	REGION_ORDER,
+	regionHasOtherStage,
+	regionLeftEmpty,
+	stageRegion,
+} from './regions';
 import { paletteColorAt, snapToPalette } from '../../utils/stage-palette';
 
 import '../../../common/outcome-tones.css';
@@ -1123,6 +1128,18 @@ export default function SequenceGraphEditor( {
 		( region ) => ! regions.includes( region )
 	);
 
+	// A selected group that is no longer drawn — a kept empty group dropped
+	// by a save — would leave its panel open on a group the canvas no longer
+	// shows, offering to remove what is already gone.
+	useEffect( () => {
+		if (
+			selection?.type === 'region' &&
+			! regions.includes( selection.region )
+		) {
+			setSelection( null );
+		}
+	}, [ selection, regions ] );
+
 	const handleAddRegion = useCallback( ( region ) => {
 		setAddedRegions( ( current ) =>
 			current.includes( region ) ? current : [ ...current, region ]
@@ -1154,7 +1171,10 @@ export default function SequenceGraphEditor( {
 	// and it blocks nothing — an empty group has no checkpoint to check.
 	const keepEmptiedRegion = useCallback( ( key, region ) => {
 		const emptied = regionLeftEmpty( stagesRef.current, key, region );
-		if ( emptied ) {
+		// Only a status the server allows is kept: one it would refuse is
+		// drawn only while a stage still carries it (see `visibleRegions`), so
+		// it stays out of the pickers once that stage moves somewhere valid.
+		if ( emptied && REGION_ORDER.includes( emptied ) ) {
 			setAddedRegions( ( current ) =>
 				current.includes( emptied ) ? current : [ ...current, emptied ]
 			);
@@ -1214,9 +1234,7 @@ export default function SequenceGraphEditor( {
 			keepEmptiedRegion( key, region );
 			setStages( ( current ) => {
 				const moved = setStageStatus( current, key, region );
-				const empty = ! current.some(
-					( s ) => s.key !== key && stageRegion( s ) === region
-				);
+				const empty = ! regionHasOtherStage( current, key, region );
 				return empty && moved !== current
 					? setRegionEntry( moved, key )
 					: moved;
@@ -1681,7 +1699,13 @@ export default function SequenceGraphEditor( {
 			setSavedSnapshot( serializeSequence( isPhase, fields ) );
 			// What was saved is what reopening it would draw: the regions its
 			// stages use, without the empty groups kept for this editing pass.
-			setAddedRegions( [] );
+			// Unless the author has moved on since the write went out, on the
+			// same terms as `seedFromSequence`'s reseat: a group added or
+			// emptied while it was in flight belongs to unsaved work, and the
+			// response is not allowed to take it back.
+			setAddedRegions( ( live ) =>
+				live === addedRegions ? [] : live
+			);
 			setSaveStatus( 'success' );
 			setTimeout( () => setSaveStatus( null ), 2000 );
 		} catch ( err ) {

@@ -193,7 +193,7 @@ export function regionEntryStage( stages, region ) {
  *                       already there, or no such stage exists).
  */
 export function regionLeftEmpty( stages, key, region ) {
-	const stage = ( stages || [] ).find( ( s ) => s.key === key );
+	const stage = stages.find( ( s ) => s.key === key );
 	if ( ! stage ) {
 		return null;
 	}
@@ -201,10 +201,19 @@ export function regionLeftEmpty( stages, key, region ) {
 	if ( from === region ) {
 		return null;
 	}
-	const others = stages.some(
-		( s ) => s.key !== key && stageRegion( s ) === from
-	);
-	return others ? null : from;
+	return regionHasOtherStage( stages, key, from ) ? null : from;
+}
+
+/**
+ * Whether any stage other than `key` lives in a region.
+ *
+ * @param {Array}  stages Stage objects.
+ * @param {string} key    Stage to leave out.
+ * @param {string} region Region slug.
+ * @return {boolean} True when another stage is in the region.
+ */
+export function regionHasOtherStage( stages, key, region ) {
+	return stages.some( ( s ) => s.key !== key && stageRegion( s ) === region );
 }
 
 /**
