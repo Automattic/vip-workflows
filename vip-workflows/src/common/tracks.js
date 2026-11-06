@@ -10,11 +10,16 @@
  * The Tracks client is imported on the first event rather than with the bundle:
  * importing it loads stats.wp.com/w.js, which no screen should do when nothing
  * will be recorded.
+ *
+ * Events are queued with the client's `pushEventToTracksQueue()`, not its
+ * `recordTracksEvent()`: that one drops every event whose source is not on its
+ * own hard-coded list (`calypso`, `jetpack`, ...), which `vip` is not. The
+ * analytics consent check it would have made is made here instead.
  */
 
 const EVENT_PREFIX = 'vip_workflows_';
 
-let recorder = null;
+let client = null;
 
 /**
  * The base properties PHP localized for this screen.
@@ -30,10 +35,28 @@ export function getTracksBaseProperties() {
 }
 
 /**
+ * The Tracks client, imported once. A failed import is forgotten, so the next
+ * event tries again.
+ *
+ * @return {Promise<Object>} The client module.
+ */
+function loadClient() {
+	client ??= import(
+		/* webpackChunkName: "tracks" */ '@automattic/calypso-analytics'
+	).catch( ( error ) => {
+		client = null;
+		throw error;
+	} );
+
+	return client;
+}
+
+/**
  * Record a Tracks event.
  *
  * Properties must be flat and snake_case, and must never carry content a
- * customer typed: send a length or a count instead.
+ * customer typed: send a length or a count instead. Undefined values are
+ * dropped.
  *
  * @param {string} event      Event name, without the `vip_workflows_` prefix.
  * @param {Object} properties Event properties, merged over the base properties.
@@ -46,17 +69,22 @@ export function recordTracksEvent( event, properties = {} ) {
 		return Promise.resolve();
 	}
 
-	recorder ??= import(
-		/* webpackChunkName: "tracks" */ '@automattic/calypso-analytics'
-	).then( ( analytics ) => analytics.recordTracksEvent );
+	return loadClient()
+		.then( ( analytics ) => {
+			if ( ! analytics.getTrackingPrefs()?.buckets?.analytics ) {
+				return;
+			}
 
-	return recorder
-		.then( ( record ) =>
-			record( `${ EVENT_PREFIX }${ event }`, {
-				...base,
-				...properties,
-			} )
-		)
+			analytics.pushEventToTracksQueue( [
+				'recordEvent',
+				`${ EVENT_PREFIX }${ event }`,
+				Object.fromEntries(
+					Object.entries( { ...base, ...properties } ).filter(
+						( [ , value ] ) => value !== undefined
+					)
+				),
+			] );
+		} )
 		.catch( () => {
 			// Telemetry must never break the screen it is measuring.
 		} );

@@ -2,17 +2,23 @@
  * Unit tests for the browser Tracks helper.
  *
  * The helper must stay silent wherever PHP localized no base properties (off
- * VIP) and on local environments, and otherwise send the prefixed event with
- * the base properties under the event's own.
+ * VIP), on local environments and when analytics consent is off, and otherwise
+ * queue the prefixed event with the base properties under the event's own.
+ * The real client is exercised in tracks-client.test.js.
  */
 
-import { recordTracksEvent as recordWithCalypso } from '@automattic/calypso-analytics';
+const mockAnalytics = {
+	pushEventToTracksQueue: jest.fn(),
+	getTrackingPrefs: jest.fn(),
+};
+let mockImportFails = false;
 
-import { recordTracksEvent } from '../../src/common/tracks';
-
-jest.mock( '@automattic/calypso-analytics', () => ( {
-	recordTracksEvent: jest.fn(),
-} ) );
+jest.mock( '@automattic/calypso-analytics', () => {
+	if ( mockImportFails ) {
+		throw new Error( 'chunk failed to load' );
+	}
+	return mockAnalytics;
+} );
 
 const base = {
 	plugin_version: '1.0.0',
@@ -26,11 +32,19 @@ const base = {
 	_ut: 'vip:user_email',
 };
 
+let recordTracksEvent;
+
 describe( 'recordTracksEvent', () => {
 	beforeEach( () => {
+		jest.resetModules();
+		jest.clearAllMocks();
+		mockImportFails = false;
+		mockAnalytics.getTrackingPrefs.mockReturnValue( {
+			buckets: { analytics: true },
+		} );
 		delete window.vipWorkflowsAdmin;
 		delete window.vipWorkflowsEditor;
-		jest.clearAllMocks();
+		( { recordTracksEvent } = require( '../../src/common/tracks' ) );
 	} );
 
 	it( 'records nothing when no base properties were localized', async () => {
@@ -38,13 +52,13 @@ describe( 'recordTracksEvent', () => {
 
 		await recordTracksEvent( 'editor_history_opened' );
 
-		expect( recordWithCalypso ).not.toHaveBeenCalled();
+		expect( mockAnalytics.pushEventToTracksQueue ).not.toHaveBeenCalled();
 	} );
 
 	it( 'records nothing when the screen has no localized data at all', async () => {
 		await recordTracksEvent( 'editor_history_opened' );
 
-		expect( recordWithCalypso ).not.toHaveBeenCalled();
+		expect( mockAnalytics.pushEventToTracksQueue ).not.toHaveBeenCalled();
 	} );
 
 	it( 'records nothing on a local environment', async () => {
@@ -52,43 +66,76 @@ describe( 'recordTracksEvent', () => {
 
 		await recordTracksEvent( 'editor_history_opened' );
 
-		expect( recordWithCalypso ).not.toHaveBeenCalled();
+		expect( mockAnalytics.pushEventToTracksQueue ).not.toHaveBeenCalled();
 	} );
 
-	it( 'records the prefixed event with the editor base properties', async () => {
+	it( 'records nothing when analytics consent is off', async () => {
+		window.vipWorkflowsEditor = { tracks: base };
+		mockAnalytics.getTrackingPrefs.mockReturnValue( {
+			buckets: { analytics: false },
+		} );
+
+		await recordTracksEvent( 'editor_history_opened' );
+
+		expect( mockAnalytics.pushEventToTracksQueue ).not.toHaveBeenCalled();
+	} );
+
+	it( 'queues the prefixed event with the editor base properties', async () => {
 		window.vipWorkflowsEditor = { tracks: base };
 
 		await recordTracksEvent( 'editor_history_opened' );
 
-		expect( recordWithCalypso ).toHaveBeenCalledTimes( 1 );
-		expect( recordWithCalypso ).toHaveBeenCalledWith(
-			'vip_workflows_editor_history_opened',
-			base
+		expect( mockAnalytics.pushEventToTracksQueue ).toHaveBeenCalledTimes(
+			1
 		);
+		expect( mockAnalytics.pushEventToTracksQueue ).toHaveBeenCalledWith( [
+			'recordEvent',
+			'vip_workflows_editor_history_opened',
+			base,
+		] );
 	} );
 
-	it( 'records with the admin base properties, event properties last', async () => {
+	it( 'queues with the admin base properties, event properties last, undefined dropped', async () => {
 		window.vipWorkflowsAdmin = { tracks: base };
 
 		await recordTracksEvent( 'sequence_create_started', {
 			source: 'header',
 			plugin_version: 'overridden',
+			missing: undefined,
 		} );
 
-		expect( recordWithCalypso ).toHaveBeenCalledWith(
+		expect( mockAnalytics.pushEventToTracksQueue ).toHaveBeenCalledWith( [
+			'recordEvent',
 			'vip_workflows_sequence_create_started',
-			{ ...base, source: 'header', plugin_version: 'overridden' }
-		);
+			{ ...base, source: 'header', plugin_version: 'overridden' },
+		] );
 	} );
 
 	it( 'swallows a failure in the Tracks client', async () => {
 		window.vipWorkflowsAdmin = { tracks: base };
-		recordWithCalypso.mockImplementationOnce( () => {
+		mockAnalytics.pushEventToTracksQueue.mockImplementationOnce( () => {
 			throw new Error( 'boom' );
 		} );
 
 		await expect(
 			recordTracksEvent( 'editor_history_opened' )
 		).resolves.toBeUndefined();
+	} );
+
+	it( 'tries the import again after it fails once', async () => {
+		window.vipWorkflowsAdmin = { tracks: base };
+		mockImportFails = true;
+
+		await expect(
+			recordTracksEvent( 'editor_history_opened' )
+		).resolves.toBeUndefined();
+		expect( mockAnalytics.pushEventToTracksQueue ).not.toHaveBeenCalled();
+
+		mockImportFails = false;
+		await recordTracksEvent( 'editor_history_opened' );
+
+		expect( mockAnalytics.pushEventToTracksQueue ).toHaveBeenCalledTimes(
+			1
+		);
 	} );
 } );
