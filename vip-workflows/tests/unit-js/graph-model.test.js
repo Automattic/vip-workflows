@@ -1521,6 +1521,33 @@ describe( 'validateSequence', () => {
 		expect( message ).toContain( 'Add exit' );
 		expect( message ).toContain( 'End of workflow' );
 		expect( message ).toContain( 'End node' );
+		expect( message ).not.toContain( 'Agent field' );
+	} );
+
+	it( 'says an agent has to go when every stage in a loop is an AI stage', () => {
+		// Nothing dead-ends, so no stage is named — but no stage has an Add
+		// exit either, so the panel advice alone would lead nowhere.
+		const loop = [
+			{
+				key: 'draft',
+				label: 'Draft',
+				status: 'draft',
+				region_entry: true,
+				is_terminal: false,
+				agent: { ability_id: 'copy-edit', routing: { pass: 'review' } },
+				transitions: [ { to: 'review' } ],
+			},
+			{
+				key: 'review',
+				label: 'Review',
+				status: 'draft',
+				is_terminal: false,
+				agent: { ability_id: 'copy-edit', routing: { pass: 'draft' } },
+				transitions: [ { to: 'draft' } ],
+			},
+		];
+		const { errors } = validateSequence( { name: 'Flow', stages: loop } );
+		expect( messages( errors ).join( ' ' ) ).toContain( 'Agent field' );
 	} );
 
 	it( 'points an empty sequence at the Sequence panel’s Add stage, not a gesture', () => {
@@ -2382,6 +2409,18 @@ describe( 'validateSequence for AI stages', () => {
 		expect( ( result.warnings.review || [] ).join( ' ' ) ).not.toContain(
 			'no transition to travel on'
 		);
+	} );
+
+	it( 'does not call an agent unrouted when its only route travels no transition', () => {
+		// The route is there; the transition under it is what is missing, and
+		// the warning about that is the one that says how to fix it.
+		const result = validateSequence( {
+			name: 'Flow',
+			stages: agentStages( { error: 'draft' } ),
+		} );
+		const warning = ( result.warnings.review || [] ).join( ' ' );
+		expect( warning ).toContain( 'no transition to travel on' );
+		expect( warning ).not.toContain( 'no outcome routed anywhere' );
 	} );
 
 	it( 'stays quiet on a fully routed agent stage', () => {
