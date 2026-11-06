@@ -1,8 +1,8 @@
 name: PR Preview - Publish
 
 # Runs from the default branch with write access and never checks out pull
-# request code. Uploads the zip built by "PR Preview - Build" to the public
-# ci-artifacts prerelease, fills the artifact URL into the bundled blueprint,
+# request code. Uploads the zips built by "PR Preview - Build" to the public
+# ci-artifacts prerelease, fills the artifact URLs into the bundled blueprint,
 # and adds the Preview in WordPress Playground button to the PR description.
 #
 # workflow_run always reads this file from the default branch, so changes here
@@ -13,14 +13,86 @@ on:
     workflows: ['PR Preview - Build']
     types: [completed]
 
-# Declared at both the workflow and the calling job; the run fails at startup
-# without logs if either is missing.
-permissions:
-  contents: write
-  pull-requests: write
+# Shares one group per pull request with "PR Preview - Cleanup", so publishing
+# and cleanup never run at the same time for the same pull request. A run that
+# is not for a pull request in this repository has no number here, is skipped
+# below, and gets a group of its own.
+concurrency:
+  group: pr-preview-${{ github.event.workflow_run.pull_requests[0].number || format('run-{0}', github.run_id) }}
+  cancel-in-progress: false
 
 jobs:
+  check-open:
+    # Fork pull requests build with their own workflow and scripts; only
+    # branches in this repository get their zips hosted under it.
+    if: >-
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+      pull-requests: read
+    outputs:
+      open: ${{ steps.state.outputs.open }}
+    steps:
+      - name: Check that the pull request is still open
+        id: state
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          GROUP_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          SOURCE_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$GROUP_PR_NUMBER" ]; then
+            echo "::error::workflow_run.pull_requests is empty, so this run has no per-PR concurrency group." >&2
+            exit 1
+          fi
+
+          # The reusable publish workflow takes the PR number from the bundle
+          # name. It must be the PR whose concurrency group this run holds.
+          bundles="$(gh api "repos/${GH_REPO}/actions/runs/${SOURCE_RUN_ID}/artifacts" --jq '[.artifacts[].name | select(test("^wp-playground-preview-pr[0-9]+-"))] | join(" ")')"
+          if ! [[ "$bundles" =~ ^wp-playground-preview-pr([0-9]+)-[^\ ]+$ ]]; then
+            echo "::error::Expected exactly one preview bundle in run ${SOURCE_RUN_ID}, found '${bundles}'." >&2
+            exit 1
+          fi
+          if [ "${BASH_REMATCH[1]}" != "$GROUP_PR_NUMBER" ]; then
+            echo "::error::Bundle '${bundles}' does not belong to #${GROUP_PR_NUMBER}." >&2
+            exit 1
+          fi
+
+          state="$(gh pr view "$GROUP_PR_NUMBER" --json state --jq .state)"
+          if [ "$state" = "OPEN" ]; then
+            echo "open=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "#${GROUP_PR_NUMBER} is ${state}; skipping the upload."
+          echo "open=false" >> "$GITHUB_OUTPUT"
+
+          # A newer queued run in this group cancels a queued cleanup run, so
+          # a closed pull request's assets are deleted here as well.
+          # Only the zips publish uploads: pr-<N>-<commit SHA>-<name>.zip. Other
+          # pr-<N>-* assets, such as screenshots embedded in reviews, stay.
+          if ! assets="$(gh release view ci-artifacts --json assets --jq ".assets[].name | select(test(\"^pr-${GROUP_PR_NUMBER}-[0-9a-f]{40}-[A-Za-z0-9_-]+\\\\.zip$\"))" 2>error.log)"; then
+            if grep -q 'release not found' error.log; then
+              exit 0
+            fi
+            cat error.log >&2
+            exit 1
+          fi
+          while IFS= read -r name; do
+            [ -n "$name" ] || continue
+            echo "Deleting ${name}"
+            gh release delete-asset ci-artifacts "$name" --yes
+          done <<< "$assets"
+
   publish:
+    needs: check-open
+    if: needs.check-open.outputs.open == 'true'
     permissions:
       contents: write
       pull-requests: write

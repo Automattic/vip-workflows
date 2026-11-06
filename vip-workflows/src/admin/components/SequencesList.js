@@ -42,7 +42,7 @@ const BREADCRUMBS = [
 ];
 const TITLE = __( 'Sequences', 'vip-workflows' );
 const SUBTITLE = __(
-	'A sequence is the set of stages a post moves through, and the routes between them.',
+	'Each sequence is the stages a post moves through.',
 	'vip-workflows'
 );
 
@@ -430,7 +430,7 @@ export function SequencesList() {
 					>
 						<Text variant="body-md" render={ <p /> }>
 							{ __(
-								'A sequence is a JSON config: the stages, the routes between them, and the core status region each stage lives in. Create one with the FLAT shape, or import the WRAPPED envelope an export emits:',
+								'Create a sequence with the FLAT shape, or import the WRAPPED shape an export emits:',
 								'vip-workflows'
 							) }
 						</Text>
@@ -441,7 +441,7 @@ POST /wp-json/vip-workflows/v1/sequences/import
 { "sequence_json": { "type": "workflow", "name": "...", "config": { ... } } }` }</pre>
 						<Text variant="body-md" render={ <p /> }>
 							{ __(
-								'Import always creates a draft, so activate it afterwards. Install the skill for the field-by-field shape and the region rules.',
+								'Imports arrive as drafts, so activate them. The skill has the full shape.',
 								'vip-workflows'
 							) }
 						</Text>

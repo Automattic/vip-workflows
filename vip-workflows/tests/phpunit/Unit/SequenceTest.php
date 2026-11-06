@@ -184,13 +184,18 @@ class SequenceTest extends TestCase
     }
 
     /**
-     * Test get_initial_status returns first status for workflow.
+     * A stored config with no start flag is a data-integrity error, not a cue to
+     * read the first stage: the write gate and the 2.26.0 migration flag one on
+     * every config, and array order is what the Sequence editor rearranges.
      */
-    public function test_get_initial_status_workflow(): void
+    public function test_get_initial_status_throws_when_no_stage_is_flagged(): void
     {
         $sequence = $this->create_sequence();
 
-        $this->assertSame( 'draft', $sequence->get_initial_status() );
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'marks no stage where new posts start' );
+
+        $sequence->get_initial_status();
     }
 
     /**
@@ -611,6 +616,38 @@ class SequenceTest extends TestCase
     }
 
     /**
+     * The retired restrict-to-assignee gate is dropped by the gate itself, so
+     * no write path (import and validate-sequence included) can persist or
+     * echo back a restriction nothing enforces. Everything else on the
+     * transition survives, and a second pass is a no-op.
+     */
+    public function test_gate_drops_the_retired_requires_assignment_key(): void
+    {
+        $config = Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array(
+                    'key'         => 'draft',
+                    'label'       => 'Draft',
+                    'transitions' => array(
+                        array(
+                            'to'                  => 'review',
+                            'label'               => 'Send to review',
+                            'requires_assignment' => array( 'meta_key' => 'legal_reviewer', 'match' => 'current_user' ),
+                        ),
+                    ),
+                ),
+                array( 'key' => 'review', 'label' => 'Review', 'status' => 'pending' ),
+            ),
+        ) );
+
+        $this->assertSame(
+            array( 'to' => 'review', 'label' => 'Send to review' ),
+            $config['statuses'][0]['transitions'][0]
+        );
+        $this->assertSame( $config, Sequence::prepare_config_for_write( $config ), 'A second replay changes nothing.' );
+    }
+
+    /**
      * A missing `status` region defaults to 'draft' at write time (write-time
      * normalization, never a read-time fallback).
      */
@@ -713,6 +750,7 @@ class SequenceTest extends TestCase
                 'is_terminal'  => false,
                 'status'       => 'draft',
                 'region_entry' => true,
+                'is_initial'   => true,
                 'transitions'  => array( array( 'to' => 'publish' ) ),
             ),
             array(
@@ -728,6 +766,93 @@ class SequenceTest extends TestCase
         $config = Sequence::prepare_config_for_write( array( 'statuses' => $seeded ) );
 
         $this->assertSame( $seeded, $config['statuses'] );
+    }
+
+    /**
+     * A config written without a start flag gets one on its first stage — the
+     * stage a flagless config always started posts in — and only that one.
+     */
+    public function test_gate_flags_the_first_stage_when_none_is_marked(): void
+    {
+        $config = Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array( 'key' => 'draft', 'label' => 'Draft' ),
+                array( 'key' => 'review', 'label' => 'Review' ),
+            ),
+        ) );
+
+        $this->assertTrue( $config['statuses'][0]['is_initial'] );
+        $this->assertArrayNotHasKey( 'is_initial', $config['statuses'][1] );
+    }
+
+    /**
+     * Once a stage is flagged, its position does not matter: a reordered config
+     * keeps starting posts where the flag says. This is the stages-list reorder
+     * the Sequence editor saves.
+     */
+    public function test_gate_and_read_path_follow_the_flag_after_a_reorder(): void
+    {
+        $config = Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array( 'key' => 'review', 'label' => 'Review' ),
+                array( 'key' => 'draft', 'label' => 'Draft', 'is_initial' => true ),
+                array( 'key' => 'live', 'label' => 'Live', 'status' => 'publish' ),
+            ),
+        ) );
+
+        $this->assertArrayNotHasKey( 'is_initial', $config['statuses'][0] );
+        $this->assertTrue( $config['statuses'][1]['is_initial'] );
+
+        $sequence = $this->create_sequence( array( 'statuses' => $config['statuses'] ) );
+        $this->assertSame( 'draft', $sequence->get_initial_status() );
+    }
+
+    /**
+     * Two start stages is ambiguous, and is refused by name rather than resolved
+     * by order.
+     */
+    public function test_gate_rejects_more_than_one_start_stage(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'Only one stage can be where new posts start, but “draft” and “review” are both marked.' );
+
+        Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array( 'key' => 'draft', 'label' => 'Draft', 'is_initial' => true ),
+                array( 'key' => 'review', 'label' => 'Review', 'is_initial' => true ),
+            ),
+        ) );
+    }
+
+    /**
+     * The start marker is a boolean, never coerced: the string "false" is truthy.
+     */
+    public function test_gate_rejects_a_non_boolean_start_marker(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'Stage “draft” has an is_initial value that is not true or false.' );
+
+        Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array( 'key' => 'draft', 'label' => 'Draft', 'is_initial' => 'false' ),
+            ),
+        ) );
+    }
+
+    /**
+     * An explicit `false` is the same as no flag, and is not persisted.
+     */
+    public function test_gate_drops_a_false_start_marker(): void
+    {
+        $config = Sequence::prepare_config_for_write( array(
+            'statuses' => array(
+                array( 'key' => 'draft', 'label' => 'Draft' ),
+                array( 'key' => 'review', 'label' => 'Review', 'is_initial' => false ),
+            ),
+        ) );
+
+        $this->assertArrayNotHasKey( 'is_initial', $config['statuses'][1] );
+        $this->assertTrue( $config['statuses'][0]['is_initial'] );
     }
 
     /**
@@ -988,7 +1113,7 @@ class SequenceTest extends TestCase
         $config = array(
             'statuses' => array(
                 array(
-                    'key' => 'writing', 'label' => 'Writing', 'status' => 'draft', 'region_entry' => true,
+                    'key' => 'writing', 'label' => 'Writing', 'status' => 'draft', 'region_entry' => true, 'is_initial' => true,
                     'transitions' => array( array( 'to' => 'live' ) ),
                 ),
                 array( 'key' => 'live', 'label' => 'Live', 'status' => 'publish', 'region_entry' => true ),
@@ -1219,6 +1344,250 @@ class SequenceTest extends TestCase
         );
 
         $this->assertSame( $config, Sequence::prepare_config_for_write( $config, Sequence::TYPE_PHASE ) );
+    }
+
+    /**
+     * The gate holds a phase sequence to the lifecycle it owes, so a write that
+     * never passes the REST controller — a repository call, an import — cannot
+     * store an Ideation phase a post has no way out of.
+     */
+    public function test_gate_refuses_a_phase_sequence_whose_phases_never_hand_off(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessageMatches( '/ideation.+editorial/' );
+
+        Sequence::prepare_config_for_write(
+            array(
+                'phases' => array(
+                    array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array() ),
+                    array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+                ),
+            ),
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    /**
+     * A required phase missing outright is named as the missing phase.
+     */
+    public function test_gate_refuses_a_phase_sequence_missing_a_required_phase(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'editorial' );
+
+        Sequence::prepare_config_for_write(
+            array(
+                'phases' => array(
+                    array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array( array( 'to' => 'editorial' ) ) ),
+                ),
+            ),
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    /**
+     * A phase config with no `phases` list, or a phase without a key or a list
+     * of transitions, is malformed and refused rather than read around.
+     *
+     * @dataProvider malformed_phase_config_provider
+     *
+     * @param array $config Malformed phase config.
+     */
+    public function test_gate_refuses_a_malformed_phase_config( array $config ): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+
+        Sequence::prepare_config_for_write( $config, Sequence::TYPE_PHASE );
+    }
+
+    /**
+     * Malformed phase configs.
+     *
+     * @return array<string, array{0: array}>
+     */
+    public function malformed_phase_config_provider(): array
+    {
+        return array(
+            'no phases'           => array( array() ),
+            'phases not a list'   => array( array( 'phases' => 'ideation' ) ),
+            'phase without a key' => array( array( 'phases' => array( array( 'transitions' => array() ) ) ) ),
+            'no transitions list' => array( array( 'phases' => array( array( 'key' => 'ideation' ) ) ) ),
+            'empty phase key'     => array( array( 'phases' => array( array( 'key' => '', 'transitions' => array() ) ) ) ),
+        );
+    }
+
+    /**
+     * A phase transition the runtime would trip over is refused, even when a
+     * valid Ideation-to-Editorial hand-off follows it and the lifecycle check
+     * alone would pass. get_phase_transition() reads each entry as an object
+     * with a string `to`, so a scalar entry would be a PHP error at hand-off.
+     *
+     * @dataProvider malformed_phase_transition_provider
+     *
+     * @param mixed  $bad     The malformed transition entry.
+     * @param string $message Expected error message.
+     */
+    public function test_gate_refuses_a_malformed_phase_transition( $bad, string $message ): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( $message );
+
+        Sequence::prepare_config_for_write(
+            array(
+                'phases' => array(
+                    array(
+                        'key'         => 'ideation',
+                        'label'       => 'Ideation',
+                        'transitions' => array( $bad, array( 'to' => 'editorial' ) ),
+                    ),
+                    array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+                ),
+            ),
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    /**
+     * Malformed phase transition entries.
+     *
+     * @return array<string, array{0: mixed, 1: string}>
+     */
+    public function malformed_phase_transition_provider(): array
+    {
+        $message = 'Every transition on the “ideation” phase must name the phase it goes to.';
+
+        return array(
+            'scalar entry'      => array( 'editorial', $message ),
+            'null entry'        => array( null, $message ),
+            'no target'         => array( array( 'label' => 'Promote' ), $message ),
+            'non-string target' => array( array( 'to' => 7 ), $message ),
+            'empty target'      => array( array( 'to' => '' ), $message ),
+        );
+    }
+
+    /**
+     * Two transitions from one phase to the same target are refused: the
+     * runtime reads the first, so the second would be a copy nothing honors.
+     */
+    public function test_gate_refuses_a_duplicate_phase_transition_target(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'The “ideation” phase may hand off to “editorial” only once.' );
+
+        Sequence::prepare_config_for_write(
+            array(
+                'phases' => array(
+                    array(
+                        'key'         => 'ideation',
+                        'label'       => 'Ideation',
+                        'transitions' => array(
+                            array( 'to' => 'editorial', 'allowed_roles' => array( 'editor' ) ),
+                            array( 'to' => 'editorial' ),
+                        ),
+                    ),
+                    array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+                ),
+            ),
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    /**
+     * A phase declared twice is refused, even when one copy carries the
+     * hand-off: the lifecycle check and the runtime would read different copies.
+     */
+    public function test_gate_refuses_a_duplicate_phase_key(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'A phase sequence may declare the “ideation” phase only once.' );
+
+        Sequence::prepare_config_for_write(
+            array(
+                'phases' => array(
+                    array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array() ),
+                    array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array( array( 'to' => 'editorial' ) ) ),
+                    array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+                ),
+            ),
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    // =========================================================================
+    // drop_retired_note_inputs
+    // =========================================================================
+
+    /**
+     * The known note types go, in both shapes; the assignment and the rest of
+     * the transition stay, and each drop is reported.
+     */
+    public function test_drop_retired_note_inputs_removes_only_known_note_types(): void
+    {
+        $assignment = array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' );
+
+        $result = Sequence::drop_retired_note_inputs(
+            array(
+                'statuses' => array(
+                    array(
+                        'key'         => 'draft',
+                        'transitions' => array(
+                            array(
+                                'to'     => 'review',
+                                'label'  => 'Send',
+                                'inputs' => array(
+                                    array( 'type' => 'textarea', 'note_name' => 'Why' ),
+                                    $assignment,
+                                    array( 'type' => 'text', 'note_name' => 'Old' ),
+                                ),
+                            ),
+                            array( 'to' => 'legal', 'input' => array( 'type' => 'text', 'note_name' => 'Why' ) ),
+                        ),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertSame(
+            array( 'to' => 'review', 'label' => 'Send', 'inputs' => array( $assignment ) ),
+            $result['config']['statuses'][0]['transitions'][0]
+        );
+        $this->assertSame( array( 'to' => 'legal' ), $result['config']['statuses'][0]['transitions'][1] );
+        $this->assertSame(
+            array(
+                array( 'from' => 'draft', 'to' => 'review', 'count' => 2 ),
+                array( 'from' => 'draft', 'to' => 'legal', 'count' => 1 ),
+            ),
+            $result['dropped']
+        );
+    }
+
+    /**
+     * An unknown input type, or an input with no type, is not a known retired
+     * note: it is left in place for the gate to refuse, never stripped.
+     */
+    public function test_drop_retired_note_inputs_leaves_unknown_and_typeless_inputs(): void
+    {
+        $config = array(
+            'statuses' => array(
+                array(
+                    'key'         => 'draft',
+                    'transitions' => array(
+                        array( 'to' => 'review', 'inputs' => array( array( 'type' => 'checklist' ), array( 'label' => 'Typeless' ) ) ),
+                        array( 'to' => 'legal', 'input' => array( 'type' => 'checklist' ) ),
+                    ),
+                ),
+                array( 'key' => 'review' ),
+                array( 'key' => 'legal' ),
+            ),
+        );
+
+        $result = Sequence::drop_retired_note_inputs( $config );
+
+        $this->assertSame( $config, $result['config'] );
+        $this->assertSame( array(), $result['dropped'] );
+
+        $this->expectException( \InvalidArgumentException::class );
+        Sequence::prepare_config_for_write( $result['config'] );
     }
 
     /**

@@ -233,6 +233,7 @@ Key points:
 - `category` must be `'research'` and `meta.type` must be `'research'` for the orchestrator to discover it
 - `meta.display_order` controls position in the agent panel (lower = earlier)
 - Cards are stored in `wp_vip_ideation_sources` with `ability_id` linking back to the agent
+- A card's `url`, `image` and `thumbnail` are stored only as absolute `http://` or `https://` addresses; any other value that is not empty is dropped and the card is kept without it
 - Use `group_id` on cards to visually group related items on the mood board
 - Settings UI is auto-generated from `meta.settings_schema` (JSON Schema)
 
@@ -433,3 +434,52 @@ silently defeat the one that follows.
 
 **It fires on `recommend` only, not on `search`.** Prompts returned by the search modal
 do not carry anything a listener adds here.
+
+### 11. Hourly Ceilings
+
+Each action that spends an external service has a ceiling per account and per hour,
+and a request over it is refused with a 429 whose message says when to try again. A site
+changes a ceiling with the filter `vip_workflows_{action}_hourly_limit`, which receives
+the default and the subject (a user ID, or a project ID for a per-project action).
+Returning 0 switches that ceiling off.
+
+| Action | Default | Counts |
+|---|---|---|
+| `discovery_search` | 120 per account | A search the cache cannot answer, so one provider call |
+| `image_generation` | 30 per account | A request to generate an image |
+| `project_image_generation` | 20 per project | The same request, counted for the project |
+| `ai` | off (0) | An interactive stage-agent run; cron runs are never counted |
+
+```php
+// Allow a newsroom's photo desk more generated images, and nobody else.
+add_filter( 'vip_workflows_image_generation_hourly_limit', function ( int $limit, int $user_id ): int {
+    return user_can( $user_id, 'upload_files' ) ? 100 : $limit;
+}, 10, 2 );
+```
+
+Counts are kept per clock hour (UTC), so a request refused at 10:50 is told to try again
+in 10 minutes, and the count never carries into the next hour. A burst that straddles
+the hour can therefore reach up to twice the ceiling in sixty minutes.
+
+The count is reserved before the service is called, and it is atomic, so concurrent
+requests cannot both take the last use:
+
+- **With a persistent object cache** (`wp_using_ext_object_cache()`), the counter is a
+  key in the `vip_workflows_hourly_limit` cache group. `wp_cache_add()` creates it at 0
+  and `wp_cache_incr()` raises it in one step; a use that takes it over the ceiling is
+  given back with `wp_cache_decr()` and refused. An evicted counter starts again from 0,
+  so the cache must be one that keeps keys for the hour. If the counter is evicted
+  between the two calls, the request is refused with a 503 rather than left uncounted.
+- **Without one**, the counter is a row named
+  `vip_workflows_hourly_{hour}_{action}_{subject}` in the options table, not autoloaded.
+  A single `INSERT ... ON DUPLICATE KEY UPDATE` creates it or adds one while it is under
+  the ceiling. The first use in a new hour deletes the rows of earlier hours.
+
+An image request spends two ceilings, the account's and the project's. They are reserved
+together with `HourlyLimit::spend_all()`: the account's first, then the project's, and
+when the project refuses, the account's use is given back, so a refused request spends
+neither.
+`vip_workflows_hourly_limit_reached` fires with the action, the subject and the ceiling
+each time a request is refused, for a site that logs or alerts on it; the same refusal
+is recorded as the `hourly_limit_reached` telemetry event where the VIP Telemetry
+library is loaded.

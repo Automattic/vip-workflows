@@ -78,7 +78,7 @@ class ChecklistTool {
 				'execute_callback'    => array( self::class, 'execute' ),
 				'permission_callback' => array( self::class, 'can_execute' ),
 				'meta'                => array(
-					'summary'             => __( 'Requires every item on your pre-publish checklist to be ticked.', 'workflow-tool-checklist' ),
+					'summary'             => __( 'Requires every checklist item to be ticked.', 'workflow-tool-checklist' ),
 					'show_in_rest'        => true,
 					'show_in_commands'    => false,
 					'icon'                => 'list-view',
@@ -173,10 +173,10 @@ class ChecklistTool {
 				$all_required_met   = false;
 				$missing_required[] = $item['label'];
 				$issues[]           = array(
-					'check_key'   => $item['id'],
-					'type'        => 'checklist_item',
-					'severity'    => 'error',
-					'message'     => sprintf(
+					'check_key' => $item['id'],
+					'type'      => 'checklist_item',
+					'severity'  => 'error',
+					'message'   => sprintf(
 						/* translators: %s: checklist item label */
 						__( 'Required checklist item not checked: %s', 'workflow-tool-checklist' ),
 						$item['label']

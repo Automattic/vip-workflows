@@ -109,7 +109,8 @@
  */
 import { memo } from '@wordpress/element';
 import { BaseEdge, EdgeLabelRenderer, useStore } from '@xyflow/react';
-import { Button, Icon } from '@wordpress/components';
+import { Button } from '@wordpress/components';
+import { Icon } from '@wordpress/ui';
 import { link } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import { useEdgePlan } from './EdgePlanProvider';
@@ -270,6 +271,7 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 							</span>
 						) }
 						{ pill && (
+							// wpds-allow system/inline-style -- the pill counter-scales by 1 / the canvas zoom, which only exists at render time
 							<Button
 								type="button"
 								size="small"

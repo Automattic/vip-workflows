@@ -91,8 +91,8 @@ class IdeationImageAnalysisTest extends TestCase
         $this->captured_update = null;
 
         // Mock global $wpdb. A single mock satisfies the whole pin_card() chain:
-        // get_row (maybe_summarize_source), get_results (get_state assistant meta
-        // + cards), and update (save_source_analysis). prepare/esc_like pass
+        // get_row (maybe_summarize_source), get_results (get_state source
+        // cards), and update (save_source_analysis). prepare/esc_like pass
         // through. Per-test overrides refine get_row / update expectations.
         global $wpdb;
         $this->wpdb          = Mockery::mock( 'wpdb' );
@@ -102,7 +102,7 @@ class IdeationImageAnalysisTest extends TestCase
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing( fn( $query ) => $query );
         $this->wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $text ) => $text );
-        // get_state() reads assistant meta + cards; empty results keep it inert.
+        // get_state() reads the source cards; empty results keep it inert.
         $this->wpdb->shouldReceive( 'get_results' )->andReturn( array() );
 
         // get_state() also asks the abilities registry to name each stored
@@ -111,7 +111,9 @@ class IdeationImageAnalysisTest extends TestCase
         Functions\when( 'wp_get_abilities' )->justReturn( array() );
 
         // Orchestrator pin_card()/get_state() use post meta + get_post only.
-        Functions\when( 'get_post_meta' )->justReturn( '' );
+        // The keyless form (get_state() reading assistant meta) returns every row
+        // for the post: none here, which keeps it inert.
+        Functions\when( 'get_post_meta' )->alias( fn( $post_id, $key = '' ) => '' === $key ? array() : '' );
         Functions\when( 'update_post_meta' )->justReturn( true );
         Functions\when( 'wp_get_attachment_url' )->justReturn( '' );
         Functions\when( 'get_post' )->alias(

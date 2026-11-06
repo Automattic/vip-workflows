@@ -659,9 +659,7 @@ class SequenceWriteAbilitiesTest extends TestCase
                     'metadata_fields' => array(
                         array( 'key' => 'x', 'label' => 'X', 'type' => 'bogus' ),
                     ),
-                    'phases' => array(
-                        array( 'key' => 'ideation', 'label' => 'Ideation' ),
-                    ),
+                    'phases' => $this->lifecycle_phases(),
                 ),
             )
         );
@@ -670,6 +668,73 @@ class SequenceWriteAbilitiesTest extends TestCase
         $this->assertCount( 1, $result['errors'] );
         $this->assertStringContainsString( 'invalid type', $result['errors'][0] );
         $this->assertNull( $result['normalized_config'] );
+    }
+
+    public function test_validate_refuses_a_phase_sequence_the_writer_refuses(): void
+    {
+        // Both phases, nothing joining them: the write gate refuses this, so the
+        // dry run that predicts it must too, with the same message.
+        $phases = array(
+            array( 'key' => 'ideation', 'label' => 'Ideation', 'transitions' => array() ),
+            array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+        );
+
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'type'   => 'phase',
+                'config' => array( 'phases' => $phases ),
+            )
+        );
+
+        $this->assertFalse( $result['valid'] );
+        $this->assertCount( 1, $result['errors'] );
+        $this->assertMatchesRegularExpression( '/ideation.+editorial/', $result['errors'][0] );
+        $this->assertNull( $result['normalized_config'] );
+
+        try {
+            ( new SequenceRepository() )->create( 'Bricked', 'bricked-lifecycle', '', array( 'phases' => $phases ), 1, 'phase' );
+            $this->fail( 'The repository stored a phase sequence the validator refused.' );
+        } catch ( \InvalidArgumentException $e ) {
+            $this->assertSame( $result['errors'][0], $e->getMessage() );
+        }
+    }
+
+    public function test_validate_offers_the_phase_config_the_writer_would_store(): void
+    {
+        $phases                     = $this->lifecycle_phases();
+        $phases[0]['transitions'][] = array( 'to' => 'archive', 'label' => 'Shelve' );
+
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'type'   => 'phase',
+                'config' => array( 'phases' => $phases ),
+            )
+        );
+
+        $this->assertTrue( $result['valid'] );
+        $this->assertSame( array(), $result['errors'] );
+        // The hand-off outside the phase graph is dropped, as on a save.
+        $this->assertSame(
+            array( 'editorial' ),
+            array_column( $result['normalized_config']['phases'][0]['transitions'], 'to' )
+        );
+    }
+
+    /**
+     * Phases carrying the lifecycle a phase sequence owes.
+     *
+     * @return array
+     */
+    private function lifecycle_phases(): array
+    {
+        return array(
+            array(
+                'key'         => 'ideation',
+                'label'       => 'Ideation',
+                'transitions' => array( array( 'to' => 'editorial', 'label' => 'Create draft' ) ),
+            ),
+            array( 'key' => 'editorial', 'label' => 'Editorial', 'transitions' => array() ),
+        );
     }
 
     public function test_validate_names_a_rule_once_when_two_gates_apply_it(): void
@@ -777,6 +842,84 @@ class SequenceWriteAbilitiesTest extends TestCase
 
         $this->assertSame( array( 'writing' ), $result['stages_missing_region'] );
         $this->assertSame( array(), $result['regions_missing_entry'], 'A region-less stage belongs to the other invariant only.' );
+    }
+
+    /**
+     * An export from an older version may carry retired note inputs. Import
+     * removes them before validating, so the dry run predicting that import must
+     * remove them too, and say so, rather than call the file invalid.
+     */
+    public function test_validate_removes_retired_note_inputs_as_import_does(): void
+    {
+        $statuses = $this->valid_statuses();
+        $statuses[0]['transitions'][0]['inputs'] = array(
+            array( 'type' => 'textarea', 'note_name' => 'Why', 'required' => true ),
+            array( 'type' => 'text', 'note_name' => 'Ref' ),
+        );
+        $statuses[] = array(
+            'key'         => 'legacy',
+            'label'       => 'Legacy',
+            'status'      => 'draft',
+            'transitions' => array(
+                array( 'to' => 'live', 'input' => array( 'type' => 'text', 'note_name' => 'Old' ) ),
+            ),
+        );
+
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array( 'config' => array( 'statuses' => $statuses ) )
+        );
+
+        $this->assertTrue( $result['valid'], 'Retired notes are removed, not reported: ' . implode( ' | ', $result['errors'] ) );
+        $this->assertSame( array(), $result['errors'] );
+        $this->assertCount( 2, $result['notes'], 'One advisory per transition that lost a note.' );
+        $this->assertStringContainsString( '“writing” to “live” declares 2 retired note inputs', $result['notes'][0] );
+        $this->assertStringContainsString( '“legacy” to “live” declares 1 retired note input.', $result['notes'][1] );
+
+        foreach ( $result['normalized_config']['statuses'] as $stage ) {
+            foreach ( $stage['transitions'] ?? array() as $transition ) {
+                $this->assertSame( array(), $transition['inputs'] ?? array(), 'The config offered for writing carries no note.' );
+                $this->assertArrayNotHasKey( 'input', $transition );
+            }
+        }
+
+        // The output still matches the registered schema.
+        $validated = wp_get_ability( 'vip-workflows/validate-sequence' )
+            ->execute( array( 'config' => array( 'statuses' => $statuses ) ) );
+        $this->assertIsArray( $validated );
+        $this->assertTrue( $validated['valid'] );
+    }
+
+    /**
+     * Only the known retired note types are removed. Any other input that is not
+     * an assignment is still an error, exactly as import refuses it.
+     */
+    public function test_validate_still_refuses_an_unknown_input_type(): void
+    {
+        $statuses = $this->valid_statuses();
+        $statuses[0]['transitions'][0]['inputs'] = array(
+            array( 'type' => 'textarea', 'note_name' => 'Why' ),
+            array( 'type' => 'checkbox', 'label' => 'Checked' ),
+        );
+
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array( 'config' => array( 'statuses' => $statuses ) )
+        );
+
+        $this->assertFalse( $result['valid'] );
+        $this->assertCount( 1, $result['errors'] );
+        $this->assertStringContainsString( 'declares a "checkbox" input', $result['errors'][0] );
+        $this->assertNull( $result['normalized_config'] );
+        $this->assertCount( 1, $result['notes'], 'The note beside it is still reported as removed.' );
+
+        $typeless = $this->valid_statuses();
+        $typeless[0]['transitions'][0]['inputs'] = array( array( 'label' => 'No type' ) );
+
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array( 'config' => array( 'statuses' => $typeless ) )
+        );
+
+        $this->assertFalse( $result['valid'], 'An input with no type is not a note, so it is not removed.' );
+        $this->assertSame( array(), $result['notes'] );
     }
 
     public function test_validate_requires_exactly_one_source(): void

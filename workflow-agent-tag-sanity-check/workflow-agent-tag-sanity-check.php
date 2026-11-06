@@ -72,7 +72,7 @@ function register(): void {
 			'execute_callback'    => __NAMESPACE__ . '\execute',
 			'permission_callback' => __NAMESPACE__ . '\can_execute',
 			'meta'                => array(
-				'summary'             => __( 'Checks the post’s tags for typos, duplicates and off-topic terms.', 'workflow-agent-tag-sanity-check' ),
+				'summary'               => __( 'Checks the post’s tags for typos, duplicates and off-topic terms.', 'workflow-agent-tag-sanity-check' ),
 				'show_in_rest'          => true,
 				'show_in_commands'      => false,
 				'transition_eligible'   => false,
@@ -102,7 +102,7 @@ function register_agent_meta( $registry ): void {
 		'workflow-agent-tag-sanity-check',
 		array(
 			'label'        => __( 'Tag sanity check', 'workflow-agent-tag-sanity-check' ),
-			'description'  => __( "Checks that a post's tags make sense for its content. Does not modify tags.", 'workflow-agent-tag-sanity-check' ),
+			'description'  => __( 'Checks that tags fit the post, without changing them.', 'workflow-agent-tag-sanity-check' ),
 			'icon'         => 'tag',
 			'ability_ids'  => array( 'workflow-agent-tag-sanity-check/tag-sanity-check' ),
 			'capabilities' => array( 'stage' ),
