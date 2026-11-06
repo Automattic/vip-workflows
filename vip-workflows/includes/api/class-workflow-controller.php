@@ -30,12 +30,17 @@ use WP_Error;
 class WorkflowController extends WP_REST_Controller {
 
 	/**
-	 * How far back My Work looks, in days, by when a post was last modified.
+	 * How far back My Work looks for posts the user wrote, in days, by when a
+	 * post was last modified.
 	 *
 	 * My Work lists every post a user is involved with, across every stage of
-	 * every workflow and with no pagination, so the list grew for as long as
-	 * a person kept working. The window bounds it to recent work. The admin
-	 * page is told the number so it can say what the list leaves out.
+	 * every workflow and with no pagination, and authorship is the reason that
+	 * grows without bound: everything a person has ever written. So the window
+	 * applies to authorship only. A post assigned to the user, or claimed by
+	 * them, is listed however old it is: that is work they owe now, and moving
+	 * a post between stages in one status does not change its modified date,
+	 * so a window on those would hide work just handed to them. The admin page
+	 * is told the number so it can say what the list leaves out.
 	 */
 	public const MY_WORK_WINDOW_DAYS = 60;
 
@@ -310,7 +315,7 @@ class WorkflowController extends WP_REST_Controller {
 					'permission_callback' => array( $this, 'get_my_work_permissions_check' ),
 					'args'                => array(
 						'count_only' => array(
-							'description' => 'Return no rows, only the X-WP-Total header. For a count such as a tab label, which otherwise downloads the whole list to measure it.',
+							'description' => 'Return no rows, only the X-WP-Total header. For a count such as a tab label: the same queries and read checks run, but no rows, thumbnails or assignees are built or sent.',
 							'type'        => 'boolean',
 							'default'     => false,
 						),
@@ -1523,8 +1528,9 @@ class WorkflowController extends WP_REST_Controller {
 	 * Get all active work items for current user.
 	 *
 	 * Returns posts where the user is involved (author, claimed, or has a pending
-	 * assignment), that the user can read, and that were modified in the last
-	 * MY_WORK_WINDOW_DAYS days, at any stage of any sequence —
+	 * assignment) and that the user can read, at any stage of any sequence, with
+	 * posts they are involved in only as author limited to those modified in the
+	 * last MY_WORK_WINDOW_DAYS days —
 	 * including terminal stages such as Published, so a post does not vanish
 	 * from an author's own work list the moment it ships.
 	 *
@@ -1589,8 +1595,9 @@ class WorkflowController extends WP_REST_Controller {
 						array(
 							'posts_per_page' => 100,
 							// An empty post__in would select every post.
+							// Already windowed where it needs to be: authored posts
+							// arrive here only if recent (see get_my_work_post_ids()).
 							'post__in'       => $involved_post_ids ? $involved_post_ids : array( 0 ),
-							'date_query'     => $recent,
 							'orderby'        => 'date',
 							'order'          => 'DESC',
 						)

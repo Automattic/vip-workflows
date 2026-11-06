@@ -475,8 +475,9 @@ function textOf( node ) {
 }
 
 describe( 'My Work window note', () => {
-	// The server only returns posts modified inside its window, so the page
-	// says so, with the number the server localized rather than its own copy.
+	// The server windows only the posts the user wrote, so the page says what
+	// the list covers, with the number the server localized rather than its
+	// own copy.
 	it( 'says how far back the list looks, below the table', async () => {
 		window.vipWorkflowsAdmin = adminGlobals( {
 			myWork: { windowDays: 45 },
@@ -484,7 +485,7 @@ describe( 'My Work window note', () => {
 		await fieldsOf( MyWorkPage, [ WORKFLOW_ROW ] );
 
 		expect( textOf( mockCaptured.props.children ) ).toContain(
-			'Showing posts updated in the last 45 days.'
+			'Showing everything assigned to or claimed by you, and posts you wrote that were updated in the last 45 days.'
 		);
 	} );
 
@@ -494,7 +495,7 @@ describe( 'My Work window note', () => {
 
 		expect(
 			await screen.findByText(
-				/Showing posts updated in the last 60 days\. New work assigned to you will appear here\./
+				/Showing everything assigned to or claimed by you, and posts you wrote that were updated in the last 60 days\. New work assigned to you will appear here\./
 			)
 		).toBeInTheDocument();
 	} );

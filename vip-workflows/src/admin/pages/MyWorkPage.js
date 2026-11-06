@@ -159,13 +159,13 @@ function loadStoredView() {
 }
 
 /**
- * The sentence that says how far back My Work looks.
+ * The sentence that says what My Work covers.
  *
- * The server only returns posts modified inside its window
- * (`WorkflowController::MY_WORK_WINDOW_DAYS`), so an older post the user is
- * still involved with is not in the list. Saying so keeps a short list from
- * reading as "this is all of your work". The number comes from the server,
- * so the page and the query cannot disagree.
+ * The server lists everything assigned to or claimed by the user, however
+ * old, but only the posts they wrote that were modified inside its window
+ * (`WorkflowController::MY_WORK_WINDOW_DAYS`). Saying so keeps a short list
+ * from reading as "this is everything you have ever written". The number
+ * comes from the server, so the page and the query cannot disagree.
  *
  * @return {string} Translated sentence.
  */
@@ -175,8 +175,8 @@ function getWindowNote() {
 	return sprintf(
 		/* translators: %d: number of days My Work looks back. */
 		_n(
-			'Showing posts updated in the last %d day.',
-			'Showing posts updated in the last %d days.',
+			'Showing everything assigned to or claimed by you, and posts you wrote that were updated in the last %d day.',
+			'Showing everything assigned to or claimed by you, and posts you wrote that were updated in the last %d days.',
 			days,
 			'vip-workflows'
 		),

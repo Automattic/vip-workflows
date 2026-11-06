@@ -169,10 +169,14 @@ class MyWorkVisibilityTest extends TestCase {
 	}
 
 	/**
-	 * My Work only lists posts modified inside its window, whatever the reason
-	 * the user is involved, and a post comes back the moment it is edited.
+	 * The window bounds authorship only. A post the user wrote and nobody has
+	 * modified inside it is left out, in a workflow or not, and comes back the
+	 * moment it is edited. A post assigned to or claimed by the user is listed
+	 * however old it is: moving a post between stages in one status does not
+	 * change its modified date, so a window there would hide work just handed
+	 * to someone.
 	 */
-	public function test_leaves_out_posts_last_modified_before_the_window(): void {
+	public function test_windows_only_the_posts_the_user_wrote(): void {
 		$old_days = WorkflowController::MY_WORK_WINDOW_DAYS + 30;
 
 		$recent   = $this->make_post( $this->author_id );
@@ -203,18 +207,22 @@ class MyWorkVisibilityTest extends TestCase {
 		update_post_meta( $new_draft, StatusManager::STAGE_META_KEY, 'review' );
 		$this->assertSame( '0000-00-00 00:00:00', get_post( $new_draft )->post_modified_gmt, 'Fixture: a never-saved draft has no GMT modified date.' );
 
-		$this->assertEqualsCanonicalizing( array( $recent, $new_draft ), array_column( $this->get_work(), 'post_id' ) );
+		$this->assertEqualsCanonicalizing(
+			array( $recent, $new_draft, $claimed, $assigned ),
+			array_column( $this->get_work(), 'post_id' ),
+			'Old assigned and claimed posts are listed; old authored posts are not.'
+		);
 
-		wp_set_current_user( $this->other_id );
 		wp_update_post(
 			array(
-				'ID'         => $assigned,
+				'ID'         => $authored,
 				'post_title' => 'Edited today',
 			)
 		);
 
-		$this->assertEqualsCanonicalizing( array( $recent, $new_draft, $assigned ), array_column( $this->get_work(), 'post_id' ) );
-		$this->assertNotContains( $outside, array_column( $this->get_work(), 'post_id' ) );
+		$rows = array_column( $this->get_work(), 'post_id' );
+		$this->assertEqualsCanonicalizing( array( $recent, $new_draft, $claimed, $assigned, $authored ), $rows );
+		$this->assertNotContains( $outside, $rows );
 	}
 
 	/**

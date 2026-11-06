@@ -1974,11 +1974,13 @@ class WorkflowControllerTest extends TestCase
     }
 
     /**
-     * My Work is bounded to posts modified in the last MY_WORK_WINDOW_DAYS
-     * days: both post queries carry the window, and so does the authorship
-     * read, the one reason a user can have thousands of posts.
+     * The window bounds authorship only. The authorship read and the pass for
+     * authored posts outside any workflow carry it; the workflow pass does
+     * not, so a post assigned to or claimed by the user is listed however old
+     * it is. Moving a post between stages in one status leaves its modified
+     * date alone, so a window there would hide work just handed to someone.
      */
-    public function test_get_my_work_only_reads_posts_modified_inside_the_window(): void
+    public function test_get_my_work_windows_authorship_only(): void
     {
         $this->seed_my_work( array( $this->my_work_sequence_row() ), array( 1 ) );
         $prepared = array();
@@ -1995,17 +1997,24 @@ class WorkflowControllerTest extends TestCase
         $this->controller->get_my_work( $this->create_mock_request() );
         $after = gmdate( 'Y-m-d H:i:s', time() - WorkflowController::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS + 5 );
 
-        $this->assertNotEmpty( \WP_Query::$constructed_args );
-        foreach ( \WP_Query::$constructed_args as $args ) {
-            $this->assertSame( 'post_modified', $args['date_query'][0]['column'] );
-            $this->assertGreaterThanOrEqual( $before, $args['date_query'][0]['after'] );
-            $this->assertLessThanOrEqual( $after, $args['date_query'][0]['after'] );
+        $workflow_pass = array_values( array_filter( \WP_Query::$constructed_args, fn( $args ) => ! isset( $args['author'] ) ) );
+        $authored_pass = array_values( array_filter( \WP_Query::$constructed_args, fn( $args ) => isset( $args['author'] ) ) );
+
+        $this->assertNotEmpty( $workflow_pass );
+        foreach ( $workflow_pass as $args ) {
+            $this->assertArrayNotHasKey( 'date_query', $args, 'The workflow pass must not window assigned or claimed posts.' );
         }
+
+        $this->assertCount( 1, $authored_pass );
+        $window = $authored_pass[0]['date_query'][0];
+        $this->assertSame( 'post_modified', $window['column'] );
+        $this->assertGreaterThanOrEqual( $before, $window['after'] );
+        $this->assertLessThanOrEqual( $after, $window['after'] );
 
         $authorship = array_values( array_filter( $prepared, fn( $call ) => false !== strpos( $call[0], 'post_author' ) ) );
         $this->assertCount( 1, $authorship );
         $this->assertStringContainsString( 'post_modified >= %s', $authorship[0][0] );
-        $this->assertSame( \WP_Query::$constructed_args[0]['date_query'][0]['after'], $authorship[0][1][2] );
+        $this->assertSame( $window['after'], $authorship[0][1][2] );
     }
 
     /**
