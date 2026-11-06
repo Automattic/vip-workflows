@@ -13,7 +13,7 @@
  */
 
 /* Loading state. The spinner/label row is a `<Stack align="center" gap="sm">`
-   inside a sidebar section, and the section rules below own the inset — so
+   inside the workflow panel, whose PanelBody owns the inset — so
    this rule owns only the muted tone. (The admin bundle keeps its own copy of
    this class, with its own inset, in src/admin/style.css.) */
 .vip-workflows-loading {
@@ -21,27 +21,19 @@
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
-/* The workflow sidebar's inset. `PluginSidebar` hands its children an
-   edge-to-edge scroll region that draws nothing, so the section inside it
-   carries the standard 16px panel inset itself, the way core's document
-   sidebar composes its panels (`editor-post-panel__section`). Keyed to the
-   direct child rather than to a named section so a section that renders
-   nothing leaves no stray inset behind.
+/* The workflow panel's body. It is a `PluginDocumentSettingPanel`, so core's
+   `PanelBody` already gives it the standard 16px panel inset; nothing here adds
+   one of its own.
 
-   There is no adjacent-sibling rule here any more. The sidebar holds one
-   section — the workflow panel — and the run inside it (the panel's foot)
-   carries its own hairline, because it is the panel's child rather than the
-   sidebar's. */
-.vip-workflows-sidebar > * {
-	padding: var(--wpds-dimension-padding-lg);
-}
-
-/* The Summary rows, drawn here only where core's Summary panel cannot show
-   them (components/SummaryRowsFallback.js). Ruled off from the workflow panel
-   below the way core rules off its document sidebar sections. */
-.vip-workflows-sidebar > .vip-workflows-sidebar__details {
-	/* wpds-allow R6 -- rule between sidebar sections; @wordpress/ui ships no Divider and <Stack> exposes no border prop. */
+   The Summary rows, drawn here only where core's Summary panel cannot show
+   them (components/SummaryRowsFallback.js), are ruled off from the rail below
+   them the way core rules off its document sidebar sections. The rule sits
+   under the rows, so the run carries its own padding down to it; the gap on
+   the body's <Stack> spaces the rail from the rule. */
+.vip-workflows-document-panel__body > .vip-workflows-document-panel__details {
+	/* wpds-allow R6 -- rule between panel sections; @wordpress/ui ships no Divider and <Stack> exposes no border prop. */
 	border-bottom: 1px solid var(--wpds-color-stroke-surface-neutral-weak);
+	padding-bottom: var(--wpds-dimension-padding-lg);
 }
 
 .vip-workflows-panel__empty {

@@ -63,6 +63,9 @@ register(
 	createReduxStore( 'core/editor', {
 		reducer: ( state = {} ) => state,
 		selectors: {
+			// The Summary panel and the Workflow panel are both on screen.
+			isEditorPanelRemoved: () => false,
+			isEditorPanelEnabled: () => true,
 			getEditedPostAttribute: () => 'draft',
 			getCurrentPostAttribute: () => 'draft',
 			getCurrentPostId: () => 42,

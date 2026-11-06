@@ -1,11 +1,11 @@
 /**
- * The workflow sidebar's copy of the Summary rows.
+ * The Workflow panel's copy of the Summary rows.
  *
  * The Workflow row and the metadata rows live in core's Summary panel through
  * `PluginPostStatusInfo`, and that slot is not always rendered: a removed
  * `post-status` panel skips it, and some experimental DataForm Summary builds
  * draw none. Without the rows an author cannot assign or remove a workflow or
- * fill a required field, so the sidebar carries the same rows there — and only
+ * fill a required field, so the Workflow panel carries the same rows there — and only
  * there, and never while the fill is mounted.
  *
  * @package
@@ -86,14 +86,14 @@ const STATUS = {
 };
 
 /**
- * The sidebar's copy, found by its section label.
+ * The Workflow panel's copy, found by its section label.
  *
  * @return {HTMLElement|null} The section, or null.
  */
 const queryFallback = () => screen.queryByRole( 'region', { name: 'Details' } );
 
 /**
- * Render the sidebar's copy, and the Summary panel's fill when asked to.
+ * Render the Workflow panel's copy, and the Summary panel's fill when asked to.
  *
  * @param {Object}  props
  * @param {boolean} props.withFill Whether the Summary panel's fill is mounted.
@@ -105,7 +105,7 @@ function Editor( { withFill } ) {
 			<div data-testid="summary-panel">
 				{ withFill && <SummaryRowsFill /> }
 			</div>
-			<div data-testid="workflow-sidebar">
+			<div data-testid="workflow-panel">
 				<SummaryRowsFallback />
 			</div>
 		</>
@@ -132,8 +132,8 @@ describe( 'SummaryRowsFallback', () => {
 			render( <Editor withFill={ false } /> );
 		} );
 
-		// The document sidebar is merely closed: the Summary panel is one
-		// click away, so the workflow sidebar does not carry a second copy.
+		// The fill has not counted itself yet, but nothing says the slot
+		// cannot render, so the Workflow panel does not carry a second copy.
 		expect( queryFallback() ).not.toBeInTheDocument();
 	} );
 
@@ -170,11 +170,11 @@ describe( 'SummaryRowsFallback', () => {
 
 		const { rerender } = render( <Editor withFill={ false } /> );
 
-		// Not mounted: the sidebar carries the rows.
+		// Not mounted: the Workflow panel carries the rows.
 		expect( queryFallback() ).toBeInTheDocument();
 
 		// The Summary panel turns out to draw the slot: the fill mounts and
-		// the sidebar's copy goes in the same commit.
+		// the Workflow panel's copy goes in the same commit.
 		await act( async () => {
 			rerender( <Editor withFill /> );
 		} );
@@ -185,8 +185,8 @@ describe( 'SummaryRowsFallback', () => {
 			} )
 		).toHaveLength( 1 );
 
-		// And it stays gone once the document sidebar closes again: the slot
-		// is known to render, so the Summary panel is one click away.
+		// And it stays gone once the fill unmounts again (the document
+		// sidebar closed): the slot is known to render.
 		await act( async () => {
 			rerender( <Editor withFill={ false } /> );
 		} );

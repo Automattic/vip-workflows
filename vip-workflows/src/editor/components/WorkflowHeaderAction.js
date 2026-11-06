@@ -74,7 +74,7 @@ export function WorkflowHeaderAction() {
 		return {
 			workflow: s.getWorkflowStatus(),
 			transitioningTo: s.getTransitioningTo(),
-			// A move, or a workflow-level write the sidebar panel or the save
+			// A move, or a workflow-level write the workflow panel or the save
 			// guard started — assigning, switching, removing, claiming.
 			transitioning: s.isTransitioning(),
 			postStatus: edited,
@@ -105,7 +105,7 @@ export function WorkflowHeaderAction() {
 	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
 
 	// The header is on screen from the first paint, whether or not the
-	// Workflow sidebar is ever opened, so it asks for the post's workflow
+	// Workflow panel is ever opened, so it asks for the post's workflow
 	// state itself — and asks again when the post's persisted status changes.
 	// A status core wrote (its own Publish for a person who bypasses the
 	// workflow, a status picked in Summary) re-seats the post at another stage
