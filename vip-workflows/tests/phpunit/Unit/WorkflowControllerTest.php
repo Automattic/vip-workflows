@@ -1635,13 +1635,14 @@ class WorkflowControllerTest extends TestCase
         );
 
         // The pending-assignee index, as AssignmentManager::sync_pending_assignee_index()
-        // would have written it for these slots: pending user assignments only.
+        // would have written it for these slots: derived by the same function
+        // the index uses, so this stub cannot drift from it.
         $this->wpdb->shouldReceive( 'get_col' )->byDefault()->andReturnUsing(
             function ( $query ) use ( $assignments ) {
                 $ids = array();
                 foreach ( $assignments as $row ) {
-                    $assignment = unserialize( $row->meta_value );
-                    if ( 'pending' === $assignment['status'] && 'user' === $assignment['type'] && 7 === (int) $assignment['value'] ) {
+                    $slots = array( \VIPWorkflows\Workflow\AssignmentManager::STORAGE_PREFIX . 'reviewer' => $row->meta_value );
+                    if ( in_array( 7, \VIPWorkflows\Workflow\AssignmentManager::pending_user_ids_from_slots( (int) $row->post_id, $slots ), true ) ) {
                         $ids[] = (string) $row->post_id;
                     }
                 }

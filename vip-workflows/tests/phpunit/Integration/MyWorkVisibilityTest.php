@@ -226,6 +226,28 @@ class MyWorkVisibilityTest extends TestCase {
 	}
 
 	/**
+	 * count_only answers the same total as the full list, from the same
+	 * queries, with no rows.
+	 */
+	public function test_count_only_matches_the_full_list(): void {
+		$this->make_post( $this->author_id );
+		$assigned = $this->make_post( $this->other_id, 'review', WorkflowController::MY_WORK_WINDOW_DAYS + 30 );
+		( new AssignmentManager() )->assign( $assigned, 'reviewer', $this->author_id, 'user' );
+		$this->make_post( $this->other_id );
+
+		wp_set_current_user( $this->author_id );
+		$full    = rest_do_request( new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/my-work' ) );
+		$request = new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/my-work' );
+		$request->set_param( 'count_only', true );
+		$count = rest_do_request( $request );
+
+		$this->assertCount( 2, $full->get_data() );
+		$this->assertSame( array(), $count->get_data() );
+		$this->assertSame( '2', $count->get_headers()['X-WP-Total'] );
+		$this->assertSame( $full->get_headers()['X-WP-Total'], $count->get_headers()['X-WP-Total'] );
+	}
+
+	/**
 	 * Sticky injection must neither add unrelated rows nor turn a full first
 	 * page into 101 rows and prematurely stop pagination.
 	 */
