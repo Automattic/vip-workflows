@@ -144,6 +144,12 @@ const edgeTypes = { [ EDGE_TYPE ]: TransitionEdge };
 // warnings. (Node changes are not: see `handleNodesChange`.)
 const noop = () => {};
 
+// What a canvas given no `blockers` decorates with: no stage blocks Save. One
+// frozen object rather than an inline `{}` default, because `blockers` is a
+// dependency of the decoration memo and a fresh object would re-run it on
+// every render.
+const NO_BLOCKERS = Object.freeze( {} );
+
 // Zoom range for the canvas. The floor goes below React Flow's default 0.5 so a
 // long sequence can be read end to end.
 const MIN_ZOOM = 0.25;
@@ -344,7 +350,7 @@ function Flow( {
 	isPhase,
 	allowAgentPublish = false,
 	warnings,
-	blockers,
+	blockers = NO_BLOCKERS,
 	regions: regionsProp = [],
 	selectedNodeKey,
 	selectedEdgeId,

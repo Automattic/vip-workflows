@@ -116,7 +116,9 @@ const STAGES = [
 
 // The editor's half, reduced to the state GraphCanvas reads and the buttons
 // standing in for the panels.
-function Editor( { initialStages = STAGES } ) {
+// `omitBlockers` leaves the `blockers` prop off entirely, as a caller with no
+// Save blockers to paint may.
+function Editor( { initialStages = STAGES, omitBlockers = false } ) {
 	const [ stages, setStages ] = useState( initialStages );
 	const [ selectedKey, setSelectedKey ] = useState( null );
 	const regions = useMemo( () => visibleRegions( stages, [] ), [ stages ] );
@@ -183,7 +185,7 @@ function Editor( { initialStages = STAGES } ) {
 					stages={ stages }
 					isPhase={ false }
 					warnings={ {} }
-					blockers={ {} }
+					{ ...( omitBlockers ? {} : { blockers: {} } ) }
 					regions={ regions }
 					selectedNodeKey={ selectedKey }
 					selectedEdgeId={ null }
@@ -327,6 +329,16 @@ describe( 'GraphCanvas and structure changed from outside it', () => {
 			);
 		}
 	);
+
+	it( 'renders its stages when no blockers are passed', async () => {
+		const { container } = render( <Editor omitBlockers /> );
+		await settle();
+
+		expect( screen.queryByTestId( 'crash' ) ).toBeNull();
+		expect(
+			container.querySelectorAll( '.react-flow__node-stage' )
+		).toHaveLength( STAGES.length );
+	} );
 
 	it( 'survives a status change that empties a band', async () => {
 		render( <Editor /> );
