@@ -82,9 +82,10 @@ test.describe( 'VIP Workflows — Summary rows fallback', () => {
 		);
 
 		// Core no longer renders the slot, so the rows are gone from the
-		// Summary panel.
+		// Summary panel. Scoped to it: the Workflow panel sits in the same
+		// document sidebar and may already be drawing its fallback copy.
 		await expect(
-			page.locator( '.vip-workflows-summary-rows' )
+			page.locator( '.editor-post-summary .vip-workflows-summary-rows' )
 		).toHaveCount( 0 );
 
 		await openWorkflowDocumentPanel( page );

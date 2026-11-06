@@ -250,9 +250,9 @@ test.describe( 'VIP Workflows — stage agents', () => {
 			marker
 		);
 
-		// Open the Workflow panel and send the post to the AI stage. Its own
-		// sidebar, so inserting a block (which flips the document sidebar to the
-		// Block inspector) cannot hide it.
+		// Open the Workflow panel and send the post to the AI stage. Inserting
+		// the block flipped the document sidebar to the Block tab, which hides
+		// the panel; the helper selects the Post tab again before expanding it.
 		const panel = await openWorkflowPanel( page );
 
 		const transitionResponse = page.waitForResponse(

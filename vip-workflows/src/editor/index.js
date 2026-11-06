@@ -131,6 +131,9 @@ function WorkflowPlugin() {
 
 			     Where the Summary panel cannot show the Workflow and metadata
 			     rows, the same rows are drawn here instead, above the rail.
+			     In that configuration this panel is their only home: turned
+			     off, it takes the rows with it, and a move locked on a
+			     required field cannot be cleared until it is turned back on.
 			     The panel's body already carries core's standard inset, so
 			     what sits inside it adds none of its own. */ }
 			<PluginDocumentSettingPanel
