@@ -254,28 +254,100 @@ class StageAgentRunner implements ModuleInterface {
 			$started_by = self::$exiting_run_started_by;
 		}
 
+		$this->dispatch(
+			$post_id,
+			$new_status,
+			(string) $status['agent']['ability_id'],
+			$old_status,
+			(string) ( $context['cause'] ?? 'workflow' ),
+			$started_by
+		);
+	}
+
+	/**
+	 * Run a failed stage agent again, in place, as the person asking.
+	 *
+	 * The failed state's direct retry: the post stays at its AI stage and the
+	 * agent is dispatched afresh, started by the current user. Because a run
+	 * acts as the person who started it when they can edit the post (see
+	 * resolve_run_as_user()), a re-run fixes the failures a different identity
+	 * can fix, such as an author who cannot edit posts, without moving the post
+	 * out of the stage and back in.
+	 *
+	 * Only a run that failed at the post's current stage can be run again, and
+	 * only while that stage still has an agent. The loop-guard chain restarts,
+	 * as it does whenever a person moves a post into an AI stage.
+	 *
+	 * @param  int      $post_id  Post ID.
+	 * @param  Sequence $sequence Sequence for the post.
+	 * @return true|\WP_Error True once the run is dispatched (a dispatch that
+	 *                        cannot be scheduled fails in place, as on entry).
+	 */
+	public function rerun( int $post_id, Sequence $sequence ): true|\WP_Error {
+		$stage_key = (string) get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true );
+		$status    = $sequence->get_status( $stage_key );
+		$job       = get_post_meta( $post_id, self::JOB_META, true );
+
+		if (
+			empty( $status['agent']['ability_id'] )
+			|| ! is_array( $job )
+			|| 'failed' !== ( $job['status'] ?? '' )
+			|| ( $job['stage_key'] ?? '' ) !== $stage_key
+		) {
+			return new \WP_Error(
+				'no_agent_rerun',
+				__( 'This post has no failed AI agent to run again.', 'vip-workflows' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		delete_post_meta( $post_id, self::CHAIN_META );
+
+		$this->dispatch(
+			$post_id,
+			$stage_key,
+			(string) $status['agent']['ability_id'],
+			(string) ( $job['from_stage'] ?? '' ),
+			'rerun',
+			get_current_user_id()
+		);
+
+		return true;
+	}
+
+	/**
+	 * Write a pending job marker and schedule the run that serves it.
+	 *
+	 * @param int    $post_id    Post ID.
+	 * @param string $stage_key  The AI stage the run belongs to.
+	 * @param string $ability_id The stage's agent ability.
+	 * @param string $from_stage The stage the post entered from, kept for go-back.
+	 * @param string $cause      What dispatched it: workflow, core or rerun.
+	 * @param int    $started_by The person who started the run, or 0.
+	 */
+	private function dispatch( int $post_id, string $stage_key, string $ability_id, string $from_stage, string $cause, int $started_by ): void {
 		update_post_meta(
 			$post_id,
 			self::JOB_META,
 			array(
-				'stage_key'  => $new_status,
-				'ability_id' => $status['agent']['ability_id'],
+				'stage_key'  => $stage_key,
+				'ability_id' => $ability_id,
 				'status'     => 'pending',
 				'queued_at'  => current_time( 'mysql' ),
-				'cause'      => (string) ( $context['cause'] ?? 'workflow' ),
-				'from_stage' => $old_status,
+				'cause'      => $cause,
+				'from_stage' => $from_stage,
 				'started_by' => $started_by,
 			)
 		);
 
-		$scheduled = wp_schedule_single_event( time(), self::RUN_HOOK, array( $post_id, $new_status ), true );
+		$scheduled = wp_schedule_single_event( time(), self::RUN_HOOK, array( $post_id, $stage_key ), true );
 		if ( true !== $scheduled ) {
 			// An identical event (same hook + args = same post + stage) is already
 			// queued — e.g. a reseat round-trip (A→B→A) re-entered this stage while
 			// its original run event was still pending. That queued event will serve
 			// the freshly written pending marker when it fires: success, not failure.
 			if ( $this->is_duplicate_event_error( $scheduled ) ) {
-				$this->log_duplicate_event( $post_id, $new_status );
+				$this->log_duplicate_event( $post_id, $stage_key );
 				return;
 			}
 
@@ -289,10 +361,10 @@ class StageAgentRunner implements ModuleInterface {
 				: __( 'The agent run could not be scheduled.', 'vip-workflows' );
 			$this->fail_in_place(
 				$post_id,
-				$new_status,
-				$status['agent']['ability_id'],
+				$stage_key,
+				$ability_id,
 				$message,
-				$old_status,
+				$from_stage,
 				array( 'stop_reason' => 'dispatch_failed' ),
 				is_wp_error( $scheduled ) ? (string) $scheduled->get_error_code() : ''
 			);
@@ -476,7 +548,11 @@ class StageAgentRunner implements ModuleInterface {
 				$post_id,
 				$stage_key,
 				$ability_id,
-				__( 'Nobody who can edit this post started the agent, so it didn’t run. Move it back, then in again as someone who can.', 'vip-workflows' ),
+				// Why, not what to do: the failed state offers Run again, which
+				// acts as whoever presses it.
+				$started_by > 0
+					? __( 'The person who moved this post here can no longer edit it, and neither can its author.', 'vip-workflows' )
+					: __( 'This post moved here automatically, and its author can’t edit posts, so the agent had no one to run as.', 'vip-workflows' ),
 				$from_stage,
 				array(
 					'stop_reason' => 'no_actor',

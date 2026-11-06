@@ -232,4 +232,62 @@ class AgentRunsAsStarterIntegrationTest extends TestCase
 		$this->assertSame( 'failed', $job['status'] );
 		$this->assertSame( 'ai_desk', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ), 'It stops in place.' );
 	}
+
+	/**
+	 * The failure above is fixed in place: an editor presses Run again, the post
+	 * never leaves its stage, and the fresh run acts as the editor and routes on
+	 * its verdict.
+	 */
+	public function test_run_again_by_an_editor_fixes_a_run_nobody_could_act_for(): void
+	{
+		list( $post_id ) = $this->make_post( 'subscriber' );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ai_desk' );
+		update_post_meta(
+			$post_id,
+			StageAgentRunner::JOB_META,
+			array(
+				'stage_key'  => 'ai_desk',
+				'ability_id' => 'test/desk-agent',
+				'status'     => 'pending',
+				'queued_at'  => current_time( 'mysql' ),
+				'cause'      => 'core',
+				'from_stage' => 'drafting',
+				'started_by' => 0,
+			)
+		);
+		$this->run_as_cron( $this->recording_executor(), $post_id );
+		$this->assertSame( 'failed', get_post_meta( $post_id, StageAgentRunner::JOB_META, true )['status'] );
+
+		// The editor presses Run again, through the route the editor calls.
+		wp_set_current_user( $this->editor_id );
+		$request  = new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/agent-rerun" );
+		$response = rest_do_request( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertTrue( (bool) $response->get_data()['agent_pending'], 'The status payload shows the new run pending.' );
+		$this->assertSame( 'ai_desk', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ), 'The post never left its stage.' );
+		$job = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
+		$this->assertSame( $this->editor_id, $job['started_by'] );
+		$this->assertSame( 'drafting', $job['from_stage'] );
+
+		$executor = $this->recording_executor();
+		$this->run_as_cron( $executor, $post_id );
+
+		$this->assertSame( $this->editor_id, $executor->ran_as, 'The re-run acts as the editor who pressed it.' );
+		$this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ), 'And routes on its verdict.' );
+	}
+
+	/**
+	 * Run again is refused when there is no failed run to retry.
+	 */
+	public function test_run_again_is_refused_without_a_failed_run(): void
+	{
+		list( $post_id ) = $this->make_post( 'editor' );
+
+		$request  = new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/agent-rerun" );
+		$response = rest_do_request( $request );
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( 'no_agent_rerun', $response->get_data()['code'] );
+	}
 }

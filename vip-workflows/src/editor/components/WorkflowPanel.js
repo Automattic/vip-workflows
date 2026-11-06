@@ -198,6 +198,7 @@ export function WorkflowPanel() {
 		fetchWorkflowStatus,
 		requestTransition,
 		revertAgentStage,
+		rerunAgentStage,
 		setWorkflowWriting,
 		setTransitionError,
 	} = useDispatch( STORE_NAME );
@@ -234,10 +235,25 @@ export function WorkflowPanel() {
 	const handleTransitionClick = ( transition, anchor = null ) =>
 		requestTransition( transition, anchor, 'panel' );
 
-	// The failed AI stage's one action: return the post to the stage it came
-	// from. Retrying the agent is going forward again — entering the stage
-	// re-dispatches it — so there is no separate re-run. The store runs it, so
-	// the header's own Go back and this one are the same move.
+	// The failed AI stage's two actions. Run again retries the agent in place,
+	// started by — and so acting as — whoever presses it. Go back returns the
+	// post to the stage it came from. The store runs both, so the header's
+	// button and these are the same moves.
+	const handleAgentRerun = async () => {
+		clearErrors();
+		try {
+			await rerunAgentStage();
+		} catch ( err ) {
+			setActionError(
+				err.message ||
+					__(
+						'Could not run the agent again. Try again.',
+						'vip-workflows'
+					)
+			);
+		}
+	};
+
 	const handleAgentRevert = async () => {
 		clearErrors();
 		try {
@@ -511,20 +527,42 @@ export function WorkflowPanel() {
 							{ agentJob.error }
 						</Text>
 					) }
-					{ agentJob?.revert_to && (
-						<Button
-							variant="primary"
-							size="compact"
-							onClick={ handleAgentRevert }
-							isBusy={ transitioning }
-							disabled={ transitioning }
-						>
-							{ sprintf(
-								/* translators: %s: the stage the post is returned to. */
-								__( 'Go back to %s', 'vip-workflows' ),
-								agentJob.revert_to.label
+					{ ( agentJob?.can_rerun || agentJob?.revert_to ) && (
+						<Stack direction="row" gap="sm" wrap="wrap">
+							{ agentJob?.can_rerun && (
+								<Button
+									variant="primary"
+									size="compact"
+									onClick={ handleAgentRerun }
+									isBusy={ transitioningTo === current?.key }
+									disabled={ transitioning }
+								>
+									{ __( 'Run again', 'vip-workflows' ) }
+								</Button>
 							) }
-						</Button>
+							{ agentJob?.revert_to && (
+								<Button
+									variant={
+										agentJob?.can_rerun
+											? 'secondary'
+											: 'primary'
+									}
+									size="compact"
+									onClick={ handleAgentRevert }
+									isBusy={
+										transitioningTo ===
+										agentJob.revert_to.key
+									}
+									disabled={ transitioning }
+								>
+									{ sprintf(
+										/* translators: %s: the stage the post is returned to. */
+										__( 'Go back to %s', 'vip-workflows' ),
+										agentJob.revert_to.label
+									) }
+								</Button>
+							) }
+						</Stack>
 					) }
 				</div>
 			) }

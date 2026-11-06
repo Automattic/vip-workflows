@@ -475,6 +475,55 @@ describe( 'WorkflowHeaderAction', () => {
 		).toBeInTheDocument();
 	} );
 
+	/**
+	 * When the failed run can run again, that is the header's action: the post
+	 * stays at its stage and a fresh run starts, instead of a trip back.
+	 */
+	it( 'offers Run again when the failed stage agent can run again', async () => {
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				can_rerun: true,
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		await renderHeader( failed );
+
+		apiFetch.mockImplementation( ( { path } ) =>
+			Promise.resolve(
+				path.endsWith( '/agent-rerun' )
+					? statusResponse( {
+							transitions: [],
+							agent_pending: true,
+							agent_job: { status: 'pending', error: '' },
+					  } )
+					: failed
+			)
+		);
+
+		expect(
+			screen.queryByRole( 'button', { name: 'Go back to Draft' } )
+		).toBeNull();
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Run again' } )
+			).click();
+		} );
+
+		expect( apiFetch ).toHaveBeenCalledWith( {
+			path: '/vip-workflows/v1/workflow/post/42/agent-rerun',
+			method: 'POST',
+		} );
+		expect( apiFetch ).not.toHaveBeenCalledWith(
+			expect.objectContaining( {
+				path: expect.stringMatching( /agent-revert$/ ),
+			} )
+		);
+	} );
+
 	it( 'asks before a primary transition that publishes', async () => {
 		await renderHeader(
 			statusResponse( { transitions: [ TO_LIVE, TO_REVIEW ] } )

@@ -326,7 +326,44 @@ class StageAgentRunnerExecuteTest extends TestCase
         ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
 
         $this->assertSame( 'failed', $job['status'] );
-        $this->assertStringContainsString( 'Nobody who can edit this post started the agent', $job['error'] );
+        $this->assertStringContainsString( 'moved here automatically', $job['error'] );
+    }
+
+    /**
+     * When a person started the run but can no longer edit the post, and the
+     * author cannot either, the failure says so rather than calling the move
+     * automatic.
+     */
+    public function test_no_actor_names_a_starter_who_lost_the_right(): void
+    {
+        Functions\when( 'get_post_meta' )->alias(
+            function ( $post_id, $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
+                    return 'ai_desk';
+                }
+                if ( StageAgentRunner::JOB_META === $key ) {
+                    return array( 'stage_key' => 'ai_desk', 'status' => 'pending', 'queued_at' => 't', 'started_by' => 3 );
+                }
+                return '';
+            }
+        );
+        Functions\when( 'user_can' )->justReturn( false );
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ) );
+        $status_manager->shouldReceive( 'transition' )->never();
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->never();
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $this->assertSame( 'failed', $job['status'] );
+        $this->assertStringContainsString( 'can no longer edit it', $job['error'] );
     }
 
     /**
