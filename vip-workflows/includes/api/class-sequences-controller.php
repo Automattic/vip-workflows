@@ -328,9 +328,15 @@ class SequencesController extends WP_REST_Controller {
 	 * naming them to exclude them is a list that is wrong by the next one. Core
 	 * already marks its own: everything it registers is `_builtin`. So the
 	 * eligible set is the two content types WordPress ships, plus every post
-	 * type someone else registered that is exposed to REST — the editor sidebar,
-	 * the metadata fields and the transition endpoints all reach a post through
-	 * REST, so a post type that is not there cannot run a workflow.
+	 * type someone else registered that is exposed to REST and has an editing
+	 * screen. REST because the editor sidebar, the metadata fields and the
+	 * transition endpoints all reach a post through it, so a post type that is
+	 * not there cannot run a workflow. An editing screen because REST alone does
+	 * not mean a person writes it: plugins expose their own storage over REST
+	 * too, this one's ideation projects among them, and a workflow on a post
+	 * type nobody can open in the editor has nowhere to run. `show_ui` rather
+	 * than `public`, because a private content type an editorial team writes
+	 * in wp-admin is still content.
 	 *
 	 * Media is not an exception that has to be written down: `attachment` is
 	 * `_builtin`, so it never enters. Nor is this a gate — the write path
@@ -354,6 +360,7 @@ class SequencesController extends WP_REST_Controller {
 			array(
 				'_builtin'     => false,
 				'show_in_rest' => true,
+				'show_ui'      => true,
 			),
 			'objects'
 		);

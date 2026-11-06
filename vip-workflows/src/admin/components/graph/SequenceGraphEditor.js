@@ -706,16 +706,18 @@ export default function SequenceGraphEditor( {
 		if ( isNew ) {
 			return;
 		}
-		// Both editors wait for the options read. A workflow needs the post
-		// types to flag stale selections; a phase needs the hand-off graph
-		// before its canvas can judge a connection, or the author drags an edge
-		// the editor refuses for a rule it has not been told yet.
+		// Both editors wait for the options read. A workflow waits so the
+		// author is not shown its post types against a list the server has not
+		// described yet; a phase needs the hand-off graph before its canvas can
+		// judge a connection, or the author drags an edge the editor refuses
+		// for a rule it has not been told yet.
 		//
-		// And `postTypes` is one of this effect's own dependencies, so starting
-		// before the answer lands runs it a SECOND time when the answer arrives:
-		// a second read of the same sequence whose re-seat carries no `sent` and
-		// is therefore unconditional, throwing away anything typed between the
-		// two responses and re-taking the baseline from the server's copy — the
+		// The wait is the gate below, not an early start: `optionsLoaded` is
+		// one of this effect's dependencies, so starting before the answer
+		// lands would run it a SECOND time when the answer arrives — a second
+		// read of the same sequence whose re-seat carries no `sent` and is
+		// therefore unconditional, throwing away anything typed between the two
+		// responses and re-taking the baseline from the server's copy, the
 		// silent discard the `sent` mechanism exists to prevent.
 		if ( ! optionsLoaded ) {
 			return;
@@ -731,34 +733,20 @@ export default function SequenceGraphEditor( {
 					return;
 				}
 
-				// On load, a stored post type that no longer exists is real
-				// news — the sequence is attached to something that was
-				// unregistered since — so it is filtered out and named.
+				// A stored post type the options list does not offer stays
+				// attached. It may be unregistered for now (its plugin is
+				// switched off) or registered without an editing screen, so it
+				// is no longer offered for new workflows; either way, dropping
+				// it here would remove it from the sequence on the next save,
+				// whatever that save was about. The server keeps such a type
+				// on write for the same reason. The inspector lists it as not
+				// available, so removing it is a deliberate uncheck.
 				const savedPostTypes = response.config?.post_types || [];
-				const availableSlugs = postTypes.map( ( pt ) => pt.value );
-				const valid = savedPostTypes.filter( ( slug ) =>
-					availableSlugs.includes( slug )
-				);
-				const stale = savedPostTypes.filter(
-					( slug ) => ! availableSlugs.includes( slug )
-				);
-				if ( stale.length > 0 ) {
-					setError(
-						sprintf(
-							/* translators: %s: comma-separated post type slugs */
-							__(
-								'These post types no longer exist: %s. Select valid ones and save.',
-								'vip-workflows'
-							),
-							stale.join( ', ' )
-						)
-					);
-				}
-				setSelectedPostTypes( valid );
+				setSelectedPostTypes( savedPostTypes );
 				setSavedSnapshot(
 					serializeSequence( isPhase, {
 						...fields,
-						selectedPostTypes: valid,
+						selectedPostTypes: savedPostTypes,
 					} )
 				);
 				setLoading( false );
@@ -777,14 +765,7 @@ export default function SequenceGraphEditor( {
 				setReadFailed( true );
 				setLoading( false );
 			} );
-	}, [
-		sequenceId,
-		isNew,
-		isPhase,
-		optionsLoaded,
-		postTypes,
-		seedFromSequence,
-	] );
+	}, [ sequenceId, isNew, isPhase, optionsLoaded, seedFromSequence ] );
 
 	// --- Region repair -----------------------------------------------------
 
@@ -1797,6 +1778,32 @@ export default function SequenceGraphEditor( {
 
 	// Sequence-level settings, handed to the inspector whole. Phase sequences
 	// use only the first three; the rest drive SequenceSettingsInspector.
+	// The options list plus any stored post type it does not offer, so every
+	// attached type has a row and can be unchecked on purpose. Only once the
+	// list has arrived: before then nothing is "not offered", and an empty
+	// list is what makes the inspector show its spinner. A new sequence is on
+	// screen at once with `post` selected, so without this it would briefly
+	// show the default type as not available.
+	const offeredSlugs = postTypes.map( ( pt ) => pt.value );
+	const inspectorPostTypes = ! optionsLoaded
+		? postTypes
+		: [
+				...postTypes,
+				...selectedPostTypes
+					.filter( ( slug ) => ! offeredSlugs.includes( slug ) )
+					.map( ( slug ) => ( {
+						value: slug,
+						label: sprintf(
+							/* translators: %s: post type slug. */
+							__(
+								'%s (not available for new workflows)',
+								'vip-workflows'
+							),
+							slug
+						),
+					} ) ),
+		  ];
+
 	const sequenceSettings = {
 		name,
 		onNameChange: setName,
@@ -1804,7 +1811,7 @@ export default function SequenceGraphEditor( {
 		onDescriptionChange: setDescription,
 		isActive,
 		onActiveChange: setIsActive,
-		postTypes,
+		postTypes: inspectorPostTypes,
 		selectedPostTypes,
 		onTogglePostType: togglePostType,
 		settings,

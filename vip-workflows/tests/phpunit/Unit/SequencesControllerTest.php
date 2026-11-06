@@ -3067,6 +3067,7 @@ class SequencesControllerTest extends TestCase
             $object->name         = $slug;
             $object->_builtin     = $flags['_builtin'];
             $object->show_in_rest = $flags['show_in_rest'];
+            $object->show_ui      = $flags['show_ui'] ?? true;
             $object->label        = $flags['label'];
             $objects[ $slug ]     = $object;
         }
@@ -3136,6 +3137,43 @@ class SequencesControllerTest extends TestCase
         $offered  = array_column( $response->get_data()['post_types'], 'value' );
 
         $this->assertNotContains( 'ledger', $offered );
+    }
+
+    /**
+     * REST exposure alone is not authorship. A plugin's own storage can be in
+     * REST with no editing screen — this plugin's ideation projects are — and a
+     * workflow on a post type nobody opens in the editor has nowhere to run.
+     */
+    public function test_authoring_options_omits_rest_post_types_without_an_editing_screen(): void
+    {
+        $this->stub_post_type_registry(
+            array(
+                'vip_ideation' => array( '_builtin' => false, 'show_in_rest' => true, 'show_ui' => false, 'label' => 'Ideation Projects' ),
+            )
+        );
+
+        $response = $this->controller->get_authoring_options( $this->create_mock_request() );
+        $offered  = array_column( $response->get_data()['post_types'], 'value' );
+
+        $this->assertNotContains( 'vip_ideation', $offered );
+    }
+
+    /**
+     * Not being public is not the same as not being content. A private type an
+     * editorial team writes in wp-admin still runs a workflow.
+     */
+    public function test_authoring_options_keeps_private_post_types_with_an_editing_screen(): void
+    {
+        $this->stub_post_type_registry(
+            array(
+                'briefing' => array( '_builtin' => false, 'show_in_rest' => true, 'show_ui' => true, 'label' => 'Briefings' ),
+            )
+        );
+
+        $response = $this->controller->get_authoring_options( $this->create_mock_request() );
+        $offered  = array_column( $response->get_data()['post_types'], 'value' );
+
+        $this->assertContains( 'briefing', $offered );
     }
 
     /**
