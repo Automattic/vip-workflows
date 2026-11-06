@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Tests\Integration;
 
+use VIPWorkflows\API\WorkflowController;
 use VIPWorkflows\Sequences\SequenceRepository;
 use VIPWorkflows\Workflow\Actor;
 use VIPWorkflows\Workflow\AssignmentManager;
@@ -100,16 +101,22 @@ class MyWorkVisibilityTest extends TestCase {
 	/**
 	 * Create a workflow post without running a transition.
 	 *
+	 * Dated yesterday unless told otherwise: My Work only lists posts modified
+	 * inside its window, and an inserted post's modified date is its post date.
+	 *
 	 * @param int    $author_id Post author.
 	 * @param string $stage     Workflow stage.
+	 * @param int    $days_ago  How long ago the post was written and last modified.
 	 * @return int Post ID.
 	 */
-	private function make_post( int $author_id, string $stage = 'review' ): int {
+	private function make_post( int $author_id, string $stage = 'review', int $days_ago = 1 ): int {
+		$date    = gmdate( 'Y-m-d H:i:s', time() - $days_ago * DAY_IN_SECONDS );
 		$post_id = (int) self::factory()->post->create(
 			array(
-				'post_author' => $author_id,
-				'post_status' => 'published' === $stage ? 'publish' : 'draft',
-				'post_date'   => '2026-01-01 12:00:00',
+				'post_author'   => $author_id,
+				'post_status'   => 'published' === $stage ? 'publish' : 'draft',
+				'post_date'     => $date,
+				'post_date_gmt' => $date,
 			)
 		);
 		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->sequence_id );
@@ -162,6 +169,85 @@ class MyWorkVisibilityTest extends TestCase {
 	}
 
 	/**
+	 * The window bounds authorship only. A post the user wrote and nobody has
+	 * modified inside it is left out, in a workflow or not, and comes back the
+	 * moment it is edited. A post assigned to or claimed by the user is listed
+	 * however old it is: moving a post between stages in one status does not
+	 * change its modified date, so a window there would hide work just handed
+	 * to someone.
+	 */
+	public function test_windows_only_the_posts_the_user_wrote(): void {
+		$old_days = WorkflowController::MY_WORK_WINDOW_DAYS + 30;
+
+		$recent   = $this->make_post( $this->author_id );
+		$authored = $this->make_post( $this->author_id, 'review', $old_days );
+		$claimed  = $this->make_post( $this->other_id, 'review', $old_days );
+		$assigned = $this->make_post( $this->other_id, 'review', $old_days );
+		update_post_meta( $claimed, '_vip_workflows_assigned_to', $this->author_id );
+		( new AssignmentManager() )->assign( $assigned, 'reviewer', $this->author_id, 'user' );
+
+		$old_date = gmdate( 'Y-m-d H:i:s', time() - $old_days * DAY_IN_SECONDS );
+		$outside  = (int) self::factory()->post->create(
+			array(
+				'post_author'   => $this->author_id,
+				'post_date'     => $old_date,
+				'post_date_gmt' => $old_date,
+			)
+		);
+
+		// A draft inserted without dates, as a new post is, has empty GMT dates
+		// until it is first saved. It is still recent work.
+		$new_draft = (int) self::factory()->post->create(
+			array(
+				'post_author' => $this->author_id,
+				'post_status' => 'draft',
+			)
+		);
+		update_post_meta( $new_draft, StatusManager::SEQUENCE_META_KEY, $this->sequence_id );
+		update_post_meta( $new_draft, StatusManager::STAGE_META_KEY, 'review' );
+		$this->assertSame( '0000-00-00 00:00:00', get_post( $new_draft )->post_modified_gmt, 'Fixture: a never-saved draft has no GMT modified date.' );
+
+		$this->assertEqualsCanonicalizing(
+			array( $recent, $new_draft, $claimed, $assigned ),
+			array_column( $this->get_work(), 'post_id' ),
+			'Old assigned and claimed posts are listed; old authored posts are not.'
+		);
+
+		wp_update_post(
+			array(
+				'ID'         => $authored,
+				'post_title' => 'Edited today',
+			)
+		);
+
+		$rows = array_column( $this->get_work(), 'post_id' );
+		$this->assertEqualsCanonicalizing( array( $recent, $new_draft, $claimed, $assigned, $authored ), $rows );
+		$this->assertNotContains( $outside, $rows );
+	}
+
+	/**
+	 * count_only answers the same total as the full list, from the same
+	 * queries, with no rows.
+	 */
+	public function test_count_only_matches_the_full_list(): void {
+		$this->make_post( $this->author_id );
+		$assigned = $this->make_post( $this->other_id, 'review', WorkflowController::MY_WORK_WINDOW_DAYS + 30 );
+		( new AssignmentManager() )->assign( $assigned, 'reviewer', $this->author_id, 'user' );
+		$this->make_post( $this->other_id );
+
+		wp_set_current_user( $this->author_id );
+		$full    = rest_do_request( new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/my-work' ) );
+		$request = new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/my-work' );
+		$request->set_param( 'count_only', true );
+		$count = rest_do_request( $request );
+
+		$this->assertCount( 2, $full->get_data() );
+		$this->assertSame( array(), $count->get_data() );
+		$this->assertSame( '2', $count->get_headers()['X-WP-Total'] );
+		$this->assertSame( $full->get_headers()['X-WP-Total'], $count->get_headers()['X-WP-Total'] );
+	}
+
+	/**
 	 * Sticky injection must neither add unrelated rows nor turn a full first
 	 * page into 101 rows and prematurely stop pagination.
 	 */
@@ -207,9 +293,11 @@ class MyWorkVisibilityTest extends TestCase {
 		remove_filter( 'query', $count_queries );
 
 		$this->assertCount( 31, $rows );
-		// One read finds the posts the user is involved in, one reads the
-		// assignments of the rows found.
-		$this->assertCount( 2, $assignment_queries, implode( "\n", $assignment_queries ) );
+		// The posts the user is involved in come from the pending-assignee
+		// index, not a scan of the assignments, so the only assignment read is
+		// the one for the rows found.
+		$this->assertCount( 1, $assignment_queries, implode( "\n", $assignment_queries ) );
+		$this->assertStringContainsString( 'post_id IN', $assignment_queries[0] );
 
 		$by_id = array_column( $rows, null, 'post_id' );
 		foreach ( $by_id as $post_id => $row ) {

@@ -200,6 +200,9 @@ function maybe_upgrade_schema(): void {
 	$schema = new Database\Schema();
 	try {
 		$schema->install();
+	} catch ( Database\MigrationDeferred $e ) {
+		// More to do, on a later request; not a failure.
+		return;
 	} catch ( \RuntimeException $e ) {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( 'VIP Workflows: schema upgrade failed — ' . $e->getMessage() );

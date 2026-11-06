@@ -29,6 +29,20 @@ use WP_Error;
  */
 class WorkflowController extends WP_REST_Controller {
 
+	/**
+	 * How far back My Work looks for posts the user wrote, in days, by when a
+	 * post was last modified.
+	 *
+	 * My Work lists every post a user is involved with, across every stage of
+	 * every workflow and with no pagination, and authorship is the reason that
+	 * grows without bound: everything a person has ever written. So the window
+	 * applies to authorship only. A post assigned to the user, or claimed by
+	 * them, is listed however old it is: that is work they owe now, and moving
+	 * a post between stages in one status does not change its modified date,
+	 * so a window on those would hide work just handed to them. The admin page
+	 * is told the number so it can say what the list leaves out.
+	 */
+	public const MY_WORK_WINDOW_DAYS = 60;
 
 	/**
 	 * Constructor.
@@ -301,6 +315,13 @@ class WorkflowController extends WP_REST_Controller {
 					// author, claimer, assignee — decides relevance, not
 					// authorization, and the assignment picker offers Subscribers.
 					'permission_callback' => array( $this, 'get_my_work_permissions_check' ),
+					'args'                => array(
+						'count_only' => array(
+							'description' => 'Return no rows, only the X-WP-Total header. For a count such as a tab label: the same queries and read checks run, but no rows, thumbnails or assignees are built or sent.',
+							'type'        => 'boolean',
+							'default'     => false,
+						),
+					),
 				),
 			)
 		);
@@ -1509,7 +1530,9 @@ class WorkflowController extends WP_REST_Controller {
 	 * Get all active work items for current user.
 	 *
 	 * Returns posts where the user is involved (author, claimed, or has a pending
-	 * assignment) and that the user can read, at any stage of any sequence —
+	 * assignment) and that the user can read, at any stage of any sequence, with
+	 * posts they are involved in only as author limited to those modified in the
+	 * last MY_WORK_WINDOW_DAYS days —
 	 * including terminal stages such as Published, so a post does not vanish
 	 * from an author's own work list the moment it ships.
 	 *
@@ -1534,7 +1557,21 @@ class WorkflowController extends WP_REST_Controller {
 			return new WP_REST_Response( array() );
 		}
 
-		$involved_post_ids = $this->get_my_work_post_ids( $current_user_id );
+		$count_only = (bool) $request->get_param( 'count_only' );
+		$count      = 0;
+
+		// Local post_modified, not post_modified_gmt: WordPress leaves a draft's
+		// GMT dates empty until it is first saved, so a new draft would read as
+		// older than any window. post_modified is always set.
+		$since             = gmdate( 'Y-m-d H:i:s', (int) current_time( 'timestamp' ) - self::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS ); // phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested -- compared with post_modified, which is stored in site-local time.
+		$recent            = array(
+			array(
+				'column'    => 'post_modified',
+				'after'     => $since,
+				'inclusive' => true,
+			),
+		);
+		$involved_post_ids = $this->get_my_work_post_ids( $current_user_id, $since );
 		if ( $involved_post_ids instanceof WP_Error ) {
 			return $involved_post_ids;
 		}
@@ -1560,6 +1597,8 @@ class WorkflowController extends WP_REST_Controller {
 						array(
 							'posts_per_page' => 100,
 							// An empty post__in would select every post.
+							// Already windowed where it needs to be: authored posts
+							// arrive here only if recent (see get_my_work_post_ids()).
 							'post__in'       => $involved_post_ids ? $involved_post_ids : array( 0 ),
 							'orderby'        => 'date',
 							'order'          => 'DESC',
@@ -1580,6 +1619,11 @@ class WorkflowController extends WP_REST_Controller {
 					// Contributor can read their own published post but not edit
 					// it. The non-workflow pass below applies the same check.
 					if ( ! current_user_can( 'read_post', $post->ID ) ) {
+						continue;
+					}
+
+					++$count;
+					if ( $count_only ) {
 						continue;
 					}
 
@@ -1628,6 +1672,7 @@ class WorkflowController extends WP_REST_Controller {
 					'post_type'      => $workflow_post_types,
 					'posts_per_page' => 100,
 					'author'         => $current_user_id,
+					'date_query'     => $recent,
 				)
 			)
 		);
@@ -1642,6 +1687,11 @@ class WorkflowController extends WP_REST_Controller {
 			// `map_meta_cap` or a custom post type's capabilities, so this pass
 			// is checked against the post like the workflow pass above.
 			if ( ! current_user_can( 'read_post', $post->ID ) ) {
+				continue;
+			}
+
+			++$count;
+			if ( $count_only ) {
 				continue;
 			}
 
@@ -1673,6 +1723,12 @@ class WorkflowController extends WP_REST_Controller {
 			);
 		}
 
+		if ( $count_only ) {
+			$response = new WP_REST_Response( array() );
+			$response->header( 'X-WP-Total', (string) $count );
+			return $response;
+		}
+
 		// One assignment read for the whole list, not one per row: an author
 		// with thousands of posts would otherwise cost thousands of queries.
 		$current_assignments = $assignment_manager->get_current_for_posts( array_column( $items, 'post_id' ) );
@@ -1688,7 +1744,9 @@ class WorkflowController extends WP_REST_Controller {
 			);
 		}
 
-		return new WP_REST_Response( $items );
+		$response = new WP_REST_Response( $items );
+		$response->header( 'X-WP-Total', (string) $count );
+		return $response;
 	}
 
 	/**
@@ -1720,23 +1778,28 @@ class WorkflowController extends WP_REST_Controller {
 	/**
 	 * Find involvement before loading posts or paginating individual stages.
 	 *
-	 * Assignment slots contain serialized data, so inspect their records once
-	 * instead of issuing an assignment query for every post in every stage.
-	 * Actual post reads remain scoped by StageQuery and WP_Query.
+	 * Authorship, claims and pending user assignments are each read with one
+	 * indexed query, instead of an assignment query for every post in every
+	 * stage. Actual post reads remain scoped by StageQuery and WP_Query.
 	 *
-	 * @param int $user_id Current user ID.
+	 * Authorship is the one reason a user can have thousands of posts, so it
+	 * is bounded by the My Work window here as well as in the post queries.
+	 *
+	 * @param int    $user_id Current user ID.
+	 * @param string $since   Site-local datetime; authored posts last modified before it are left out.
 	 * @return int[]|WP_Error Involved post IDs, or a database read error.
 	 */
-	private function get_my_work_post_ids( int $user_id ) {
+	private function get_my_work_post_ids( int $user_id, string $since ) {
 		global $wpdb;
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- request-specific involvement lookup before WP_Query pagination.
 		$owned_rows = $wpdb->get_results(
 			$wpdb->prepare(
-				'SELECT ID FROM %i WHERE post_author = %d
+				'SELECT ID FROM %i WHERE post_author = %d AND post_modified >= %s
 				UNION SELECT post_id AS ID FROM %i WHERE meta_key = %s AND meta_value = %s',
 				$wpdb->posts,
 				$user_id,
+				$since,
 				$wpdb->postmeta,
 				'_vip_workflows_assigned_to',
 				(string) $user_id
@@ -1748,34 +1811,29 @@ class WorkflowController extends WP_REST_Controller {
 			return new WP_Error( 'my_work_read_failed', __( 'Could not load your work.', 'vip-workflows' ), array( 'status' => 500 ) );
 		}
 
-		$assignment_rows = $wpdb->get_results(
+		// One indexed lookup on a plain value, rather than reading every
+		// assignment on the site and unserializing each to find this user's.
+		// See AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY.
+		$assigned_ids = $wpdb->get_col(
 			$wpdb->prepare(
-				'SELECT post_id, meta_value FROM %i WHERE meta_key LIKE %s',
+				'SELECT post_id FROM %i WHERE meta_key = %s AND meta_value = %s',
 				$wpdb->postmeta,
-				$wpdb->esc_like( '_vip_workflows_assignment_' ) . '%'
+				\VIPWorkflows\Workflow\AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY,
+				(string) $user_id
 			)
 		);
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 
-		if ( null === $assignment_rows || '' !== $wpdb->last_error ) {
+		if ( '' !== $wpdb->last_error ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( '[VIP Workflows] Could not read My Work assignments: ' . $wpdb->last_error );
 			return new WP_Error( 'my_work_read_failed', __( 'Could not load your work.', 'vip-workflows' ), array( 'status' => 500 ) );
 		}
 
-		$post_ids = array_map( 'intval', array_column( $owned_rows, 'ID' ) );
-		foreach ( $assignment_rows as $row ) {
-			$assignment = maybe_unserialize( $row->meta_value );
-			if ( ! is_array( $assignment ) || ! isset( $assignment['type'], $assignment['value'], $assignment['status'] ) ) {
-				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				error_log( sprintf( '[VIP Workflows] Invalid assignment data on post %d.', $row->post_id ) );
-				return new WP_Error( 'my_work_assignment_invalid', __( 'Could not load your work.', 'vip-workflows' ), array( 'status' => 500 ) );
-			}
-
-			if ( 'user' === $assignment['type'] && $user_id === (int) $assignment['value'] && 'pending' === $assignment['status'] ) {
-				$post_ids[] = (int) $row->post_id;
-			}
-		}
+		$post_ids = array_merge(
+			array_map( 'intval', array_column( $owned_rows, 'ID' ) ),
+			array_map( 'intval', $assigned_ids )
+		);
 
 		return array_values( array_unique( $post_ids ) );
 	}

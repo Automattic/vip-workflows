@@ -24,7 +24,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from '@wordpress/element';
-import { __ } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import apiFetch from '@wordpress/api-fetch';
 import { Spinner, Notice, SelectControl } from '@wordpress/components';
 import { DataViews, filterSortAndPaginate } from '@wordpress/dataviews/wp';
@@ -156,6 +156,32 @@ function loadStoredView() {
 		throw new Error( 'The saved My Work view must be an object.' );
 	}
 	return { ...DEFAULT_VIEW, ...storedView };
+}
+
+/**
+ * The sentence that says what My Work covers.
+ *
+ * The server lists everything assigned to or claimed by the user, however
+ * old, but only the posts they wrote that were modified inside its window
+ * (`WorkflowController::MY_WORK_WINDOW_DAYS`). Saying so keeps a short list
+ * from reading as "this is everything you have ever written". The number
+ * comes from the server, so the page and the query cannot disagree.
+ *
+ * @return {string} Translated sentence.
+ */
+function getWindowNote() {
+	const days = window.vipWorkflowsAdmin.myWork.windowDays;
+
+	return sprintf(
+		/* translators: %d: number of days My Work looks back. */
+		_n(
+			'Showing everything assigned to or claimed by you, and posts you wrote that were updated in the last %d day.',
+			'Showing everything assigned to or claimed by you, and posts you wrote that were updated in the last %d days.',
+			days,
+			'vip-workflows'
+		),
+		days
+	);
 }
 
 export function MyWorkPage() {
@@ -448,6 +474,7 @@ export function MyWorkPage() {
 						render={ <p /> }
 						className="vip-workflows-description"
 					>
+						{ getWindowNote() }{ ' ' }
 						{ __(
 							'New work assigned to you will appear here.',
 							'vip-workflows'
@@ -521,6 +548,15 @@ export function MyWorkPage() {
 							</Stack>
 							<DataViews.FiltersToggled />
 							<DataViews.Layout />
+							<Stack justify="center">
+								<Text
+									variant="body-md"
+									render={ <p /> }
+									className="vip-workflows-description"
+								>
+									{ getWindowNote() }
+								</Text>
+							</Stack>
 							<DataViews.Pagination />
 						</Stack>
 					</DataViews>

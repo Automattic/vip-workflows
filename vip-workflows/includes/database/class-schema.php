@@ -21,7 +21,7 @@ class Schema {
 	/**
 	 * Database version.
 	 */
-	public const VERSION = '2.26.0';
+	public const VERSION = '2.27.0';
 
 	/**
 	 * Option name for storing DB version.
@@ -73,12 +73,68 @@ class Schema {
 	public const REGION_REVIEW_OPTION = 'vip_workflows_sequences_need_region_review';
 
 	/**
+	 * Where the pending-assignee backfill has got to: the last post ID done,
+	 * or ASSIGNEE_BACKFILL_COMPLETE once it has finished.
+	 *
+	 * Kept after the backfill finishes, so a request that started the upgrade
+	 * before another finished it does nothing. A later migration that wants to
+	 * rebuild this index has to delete this option first, or the backfill will
+	 * see itself as done.
+	 */
+	public const ASSIGNEE_BACKFILL_CURSOR_OPTION = 'vip_workflows_assignee_index_backfill_cursor';
+
+	/**
+	 * The cursor value that records a finished backfill.
+	 */
+	public const ASSIGNEE_BACKFILL_COMPLETE = 'complete';
+
+	/**
+	 * Option naming the one request allowed to write the backfill, as
+	 * "<token>|<expiry timestamp>".
+	 */
+	public const ASSIGNEE_BACKFILL_LEASE_OPTION = 'vip_workflows_assignee_index_backfill_lease';
+
+	/**
+	 * Seconds a backfill lease lasts without renewal. The owner renews it
+	 * before every page, which takes well under a second, so only an owner
+	 * that has died lets it run out.
+	 */
+	public const ASSIGNEE_BACKFILL_LEASE_TTL = 120;
+
+	/**
+	 * Seconds of backfill work one request does before it stops and leaves the
+	 * rest to the next request.
+	 *
+	 * The upgrade runs on an ordinary request, so a site with many assigned
+	 * posts would otherwise spend a visitor's whole request, and its time
+	 * limit, on the backfill. Static so the tests can shorten it.
+	 *
+	 * @var float
+	 */
+	private static float $assignee_backfill_budget = 10.0;
+
+	/**
+	 * Posts per backfill page. Static so the tests can shorten it.
+	 *
+	 * @var int
+	 */
+	private static int $assignee_backfill_page_size = 500;
+
+	/**
 	 * Install or upgrade database tables.
 	 */
 	public function install(): void {
 		$current_version = get_option( self::VERSION_OPTION, '0.0.0' );
 
 		if ( version_compare( $current_version, self::VERSION, '>=' ) ) {
+			return;
+		}
+
+		// Another request is backfilling the pending-assignee index, and bumps
+		// the version when it finishes. Running the upgrade here would only
+		// re-check every table and then stop at the lease, on every request
+		// for as long as the backfill takes, and log each time.
+		if ( self::assignee_backfill_running_elsewhere() ) {
 			return;
 		}
 
@@ -101,6 +157,7 @@ class Schema {
 	 *      IF NOT EXISTS guards on all DDL statements.
 	 *
 	 * @param string $from_version Installed DB version before this upgrade run.
+	 * @throws MigrationDeferred When a migration stopped short and resumes on a later request.
 	 * @throws \RuntimeException When a migration query fails.
 	 * @throws \InvalidArgumentException If a migration definition is invalid.
 	 */
@@ -118,6 +175,10 @@ class Schema {
 
 				try {
 					( $migration['run'] )();
+				} catch ( MigrationDeferred $e ) {
+					// Not a failure: the migration resumes on a later request, and
+					// the version stays unbumped until it finishes.
+					throw $e;
 				} catch ( \Throwable $e ) {
 					$message = sprintf( 'VIP Workflows schema migration to %s threw: %s', $migration['version'], $e->getMessage() );
                     // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -550,7 +611,355 @@ class Schema {
 					self::replay_stored_stage_configs( true );
 				},
 			),
+			// My Work finds a user's pending assignments through an index
+			// that every assignment write now keeps in step. Assignments made
+			// before it existed have no index rows, so build them once.
+			array(
+				'version' => '2.27.0',
+				'run'     => function (): void {
+					self::backfill_pending_assignee_index();
+				},
+			),
 		);
+	}
+
+	/**
+	 * Build the pending-assignee index for every post that has an assignment.
+	 *
+	 * Only the request holding the backfill lease writes (see
+	 * acquire_backfill_lease()); another request running the upgrade at the
+	 * same time stops without writing, and the holder bumps the schema
+	 * version when it finishes. A finished backfill is recorded, so a request
+	 * that starts after it does nothing.
+	 *
+	 * It runs on an ordinary request after the upgrade, so it does a page at a
+	 * time: one read of a page of posts' assignment rows, one delete and one
+	 * multi-row insert, rather than several queries per post. Each page is
+	 * read back after it is written, which settles a live assignment made
+	 * between the read and the write (see settle_pending_assignee_page()), and
+	 * only then is the page's last post ID saved, so an owner that dies
+	 * mid-page leaves that page to be redone, from a fresh read, by the next
+	 * owner once its lease expires.
+	 *
+	 * A request works for a few seconds at most ($assignee_backfill_budget),
+	 * then releases the lease and throws MigrationDeferred, so no visitor's
+	 * request carries the whole backfill; the next request resumes at the
+	 * cursor.
+	 *
+	 * Malformed slots are logged and left out, as
+	 * AssignmentManager::pending_user_ids_from_slots() describes.
+	 *
+	 * @throws MigrationDeferred When this request's time budget ran out. The
+	 *                           helpers it calls also throw MigrationDeferred
+	 *                           when another request holds the lease, and
+	 *                           RuntimeException when the lease is lost or the
+	 *                           rows cannot be read or written.
+	 */
+	private static function backfill_pending_assignee_index(): void {
+		$lease = self::acquire_backfill_lease();
+
+		try {
+			$cursor = self::read_option_from_primary( self::ASSIGNEE_BACKFILL_CURSOR_OPTION );
+			if ( self::ASSIGNEE_BACKFILL_COMPLETE === $cursor ) {
+				// Another request finished it after this one decided to upgrade.
+				return;
+			}
+
+			if ( ! self::write_backfill_pages( $lease, (int) $cursor ) ) {
+				// The time budget ran out. The cursor marks where the next
+				// request picks up; the lease is released below so it can.
+				throw new MigrationDeferred( 'The pending-assignee backfill used its time budget and resumes on the next request.' );
+			}
+
+			// Still the owner when recording the finish, or a request that took
+			// over could be told there is nothing left to do.
+			$lease = self::renew_backfill_lease( $lease );
+			self::write_option_to_primary( self::ASSIGNEE_BACKFILL_CURSOR_OPTION, self::ASSIGNEE_BACKFILL_COMPLETE );
+		} finally {
+			self::release_backfill_lease( $lease );
+		}
+	}
+
+	/**
+	 * Write the backfill a page at a time, from the post after $last_id.
+	 *
+	 * @param string $lease   This request's lease value, by reference: each
+	 *                        renewal changes it, and the caller releases the
+	 *                        lease by its latest value.
+	 * @param int    $last_id Last post ID already done.
+	 * @return bool True when every assigned post is done; false when the time
+	 *              budget ran out first.
+	 * @throws \RuntimeException When the rows cannot be read or written, or the lease was lost.
+	 */
+	private static function write_backfill_pages( string &$lease, int $last_id ): bool {
+		global $wpdb;
+
+		$index_key = \VIPWorkflows\Workflow\AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY;
+		$like      = $wpdb->esc_like( \VIPWorkflows\Workflow\AssignmentManager::STORAGE_PREFIX ) . '%';
+		$page_size = self::$assignee_backfill_page_size;
+		$deadline  = microtime( true ) + self::$assignee_backfill_budget;
+
+		do {
+			$post_ids = array_map(
+				'intval',
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off backfill over postmeta, paged by post ID; runs once per schema version
+				$wpdb->get_col(
+					$wpdb->prepare(
+						'SELECT DISTINCT post_id FROM %i WHERE meta_key LIKE %s AND post_id > %d ORDER BY post_id ASC LIMIT %d',
+						$wpdb->postmeta,
+						$like,
+						$last_id,
+						$page_size
+					)
+				)
+			);
+
+			if ( '' !== $wpdb->last_error ) {
+				throw new \RuntimeException( esc_html( 'Could not read assigned posts to index: ' . $wpdb->last_error ) );
+			}
+
+			if ( $post_ids ) {
+				// Still the owner, or stop before writing: a request whose lease
+				// ran out and was taken over must not write a page it read
+				// before the takeover.
+				$lease = self::renew_backfill_lease( $lease );
+
+				// Integers only, so the list is safe to inline.
+				$in = implode( ', ', $post_ids );
+
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one-off backfill; $in holds only integers.
+				$rows = $wpdb->get_results( $wpdb->prepare( "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$in} ) AND meta_key LIKE %s", $like ) );
+				if ( null === $rows || '' !== $wpdb->last_error ) {
+					throw new \RuntimeException( esc_html( 'Could not read assignments to index: ' . $wpdb->last_error ) );
+				}
+
+				$slots = array();
+				foreach ( $rows as $row ) {
+					$slots[ (int) $row->post_id ][ (string) $row->meta_key ] = $row->meta_value;
+				}
+
+				$values = array();
+				foreach ( $post_ids as $post_id ) {
+					$user_ids = \VIPWorkflows\Workflow\AssignmentManager::pending_user_ids_from_slots( $post_id, $slots[ $post_id ] ?? array() );
+					foreach ( $user_ids as $user_id ) {
+						$values[] = $wpdb->prepare( '( %d, %s, %s )', $post_id, $index_key, (string) $user_id );
+					}
+				}
+
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one-off backfill; $in holds only integers.
+				$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->postmeta} WHERE meta_key = %s AND post_id IN ( {$in} )", $index_key ) );
+				if ( $values && '' === $wpdb->last_error ) {
+					// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared -- one-off backfill; every row in $values was prepared above.
+					$wpdb->query( "INSERT INTO {$wpdb->postmeta} ( post_id, meta_key, meta_value ) VALUES " . implode( ', ', $values ) );
+				}
+				if ( '' !== $wpdb->last_error ) {
+					throw new \RuntimeException( esc_html( 'Could not write the pending-assignee index: ' . $wpdb->last_error ) );
+				}
+
+				foreach ( $post_ids as $post_id ) {
+					wp_cache_delete( $post_id, 'post_meta' );
+				}
+
+				self::settle_pending_assignee_page( $post_ids, $in, $like, $index_key );
+
+				// Saved only after the page is read back and settled, so an owner
+				// that dies before then leaves the page to be redone, from a fresh
+				// read, by the next owner.
+				$last_id = (int) end( $post_ids );
+				self::write_option_to_primary( self::ASSIGNEE_BACKFILL_CURSOR_OPTION, (string) $last_id );
+			}
+
+			$done = count( $post_ids ) < $page_size;
+		} while ( ! $done && microtime( true ) < $deadline );
+
+		return $done;
+	}
+
+	/**
+	 * Whether another request holds a live backfill lease.
+	 *
+	 * A cheap check before the upgrade starts, not the guard: it is a plain
+	 * read, which HyperDB may answer from a replica, so two requests can both
+	 * see no lease. The lease claim in acquire_backfill_lease() decides which
+	 * of them writes.
+	 *
+	 * @return bool
+	 */
+	private static function assignee_backfill_running_elsewhere(): bool {
+		$held = self::read_option_from_primary( self::ASSIGNEE_BACKFILL_LEASE_OPTION );
+
+		return null !== $held && (int) substr( (string) strrchr( $held, '|' ), 1 ) >= time();
+	}
+
+	/**
+	 * Take the backfill lease, or throw because another request holds it.
+	 *
+	 * Two requests can run the schema upgrade at once. Two backfill writers
+	 * could then leave a stale page behind: one finishes and marks the schema
+	 * current, the other overwrites a page from an older read and dies before
+	 * reading it back, and nothing runs the backfill again. So only the lease
+	 * holder writes. The lease is an option row inserted with INSERT IGNORE, so
+	 * exactly one request creates it; a write, it goes to the primary under
+	 * HyperDB, unlike a SELECT GET_LOCK. A lease past its expiry belonged to a
+	 * request that died, and is taken over with a compare-and-set.
+	 *
+	 * It throws MigrationDeferred, which is not logged as a failure, and leaves
+	 * the schema version unbumped for this request, which is right: the holder
+	 * bumps it when it finishes.
+	 *
+	 * @return string This request's lease value.
+	 * @throws MigrationDeferred When another request holds a live lease.
+	 * @throws \RuntimeException When the claim fails in the database.
+	 */
+	private static function acquire_backfill_lease(): string {
+		global $wpdb;
+
+		$lease = wp_generate_uuid4() . '|' . ( time() + self::ASSIGNEE_BACKFILL_LEASE_TTL );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- an atomic claim on a unique option name; the options API would overwrite an existing row.
+		$claimed = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} ( option_name, option_value, autoload ) VALUES ( %s, %s, 'off' )", self::ASSIGNEE_BACKFILL_LEASE_OPTION, $lease ) );
+		if ( false === $claimed ) {
+			throw new \RuntimeException( esc_html( 'Could not claim the pending-assignee backfill lease: ' . $wpdb->last_error ) );
+		}
+		if ( 1 === $claimed ) {
+			return $lease;
+		}
+
+		$held = (string) self::read_option_from_primary( self::ASSIGNEE_BACKFILL_LEASE_OPTION );
+		if ( (int) substr( (string) strrchr( $held, '|' ), 1 ) < time() ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- compare-and-set takeover of an expired lease.
+			$taken = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", $lease, self::ASSIGNEE_BACKFILL_LEASE_OPTION, $held ) );
+			if ( 1 === $taken ) {
+				return $lease;
+			}
+		}
+
+		throw new MigrationDeferred( 'The pending-assignee backfill is running in another request.' );
+	}
+
+	/**
+	 * Extend this request's lease, or throw because it was taken over.
+	 *
+	 * @param string $lease This request's lease value.
+	 * @return string The renewed lease value.
+	 * @throws \RuntimeException When the lease is no longer this request's.
+	 */
+	private static function renew_backfill_lease( string $lease ): string {
+		global $wpdb;
+
+		$token   = strtok( $lease, '|' );
+		$renewed = $token . '|' . ( time() + self::ASSIGNEE_BACKFILL_LEASE_TTL );
+
+		// Matched on the token, which is this request's, not on the whole
+		// value, whose expiry moves with every renewal.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- compare-and-set renewal of this request's own lease.
+		$rows = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value LIKE %s", $renewed, self::ASSIGNEE_BACKFILL_LEASE_OPTION, $wpdb->esc_like( $token . '|' ) . '%' ) );
+
+		// MySQL counts changed rows, so a renewal in the same second as the
+		// last one changes nothing and reports 0. Read the row to tell that
+		// apart from a takeover, which replaces the token.
+		if ( 1 !== $rows && strtok( (string) self::read_option_from_primary( self::ASSIGNEE_BACKFILL_LEASE_OPTION ), '|' ) !== $token ) {
+			throw new \RuntimeException( 'The pending-assignee backfill lease was taken over; stopping before writing.' );
+		}
+
+		return $renewed;
+	}
+
+
+	/**
+	 * Give the lease back, if it is still this request's.
+	 *
+	 * Matched on the token, so a value whose expiry has moved since it was
+	 * claimed is still released, and a lease another request took over is not.
+	 *
+	 * @param string $lease This request's lease value.
+	 */
+	private static function release_backfill_lease( string $lease ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- deletes only this request's own lease row.
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value LIKE %s", self::ASSIGNEE_BACKFILL_LEASE_OPTION, $wpdb->esc_like( strtok( $lease, '|' ) . '|' ) . '%' ) );
+	}
+
+
+	/**
+	 * Read an option row straight from the database, past every cache.
+	 *
+	 * Used after this request has written to the options table, so HyperDB
+	 * sends it to the primary.
+	 *
+	 * @param string $name Option name.
+	 * @return string|null The stored value, or null when there is none.
+	 */
+	private static function read_option_from_primary( string $name ): ?string {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- the backfill's own coordination rows, read past the cache.
+		return $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", $name ) );
+	}
+
+	/**
+	 * Write an option row straight to the database, and drop its cache entry.
+	 *
+	 * @param string $name  Option name.
+	 * @param string $value Value.
+	 */
+	private static function write_option_to_primary( string $name, string $value ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- the backfill's own coordination row.
+		$wpdb->query( $wpdb->prepare( "INSERT INTO {$wpdb->options} ( option_name, option_value, autoload ) VALUES ( %s, %s, 'off' ) ON DUPLICATE KEY UPDATE option_value = VALUES( option_value )", $name, $value ) );
+		wp_cache_delete( $name, 'options' );
+	}
+
+	/**
+	 * Check a backfilled page against its slots as stored now, and rebuild
+	 * any post that disagrees.
+	 *
+	 * The page was read before it was written, so a live assignment made in
+	 * between, or another upgrade request backfilling the same page, can leave
+	 * a post with a stale or doubled row. Reading the page again after the
+	 * write sees those, and AssignmentManager::sync_pending_assignee_index(),
+	 * which checks its own work, settles each post that disagrees.
+	 *
+	 * @param int[]  $post_ids  The page's post IDs.
+	 * @param string $in        Those IDs as an inlined integer list.
+	 * @param string $like      LIKE pattern for assignment slot keys.
+	 * @param string $index_key The index meta key.
+	 * @throws \RuntimeException When the page cannot be read back.
+	 */
+	private static function settle_pending_assignee_page( array $post_ids, string $in, string $like, string $index_key ): void {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one-off backfill; $in holds only integers.
+		$slot_rows = $wpdb->get_results( $wpdb->prepare( "SELECT post_id, meta_key, meta_value FROM {$wpdb->postmeta} WHERE post_id IN ( {$in} ) AND meta_key LIKE %s", $like ) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- one-off backfill; $in holds only integers.
+		$index_rows = $wpdb->get_results( $wpdb->prepare( "SELECT post_id, meta_value FROM {$wpdb->postmeta} WHERE meta_key = %s AND post_id IN ( {$in} )", $index_key ) );
+		if ( null === $slot_rows || null === $index_rows || '' !== $wpdb->last_error ) {
+			throw new \RuntimeException( esc_html( 'Could not read back the pending-assignee index: ' . $wpdb->last_error ) );
+		}
+
+		$slots = array();
+		foreach ( $slot_rows as $row ) {
+			$slots[ (int) $row->post_id ][ (string) $row->meta_key ] = $row->meta_value;
+		}
+		$indexed = array();
+		foreach ( $index_rows as $row ) {
+			$indexed[ (int) $row->post_id ][] = (int) $row->meta_value;
+		}
+
+		$manager = new \VIPWorkflows\Workflow\AssignmentManager();
+		foreach ( $post_ids as $post_id ) {
+			$expected = \VIPWorkflows\Workflow\AssignmentManager::pending_user_ids_from_slots( $post_id, $slots[ $post_id ] ?? array(), false );
+			$actual   = $indexed[ $post_id ] ?? array();
+			sort( $expected );
+			sort( $actual );
+
+			if ( $expected !== $actual ) {
+				// The page pass above already logged this post's malformed slots.
+				$manager->sync_pending_assignee_index( $post_id, false );
+			}
+		}
 	}
 
 	/**
