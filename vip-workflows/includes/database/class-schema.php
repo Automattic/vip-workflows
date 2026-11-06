@@ -73,9 +73,13 @@ class Schema {
 	public const REGION_REVIEW_OPTION = 'vip_workflows_sequences_need_region_review';
 
 	/**
-	 * Where the pending-assignee backfill has got to, as the last post ID done.
+	 * Where the pending-assignee backfill has got to: the last post ID done,
+	 * or ASSIGNEE_BACKFILL_COMPLETE once it has finished.
 	 *
-	 * Deleted when the backfill finishes.
+	 * Kept after the backfill finishes, so a request that started the upgrade
+	 * before another finished it does nothing. A later migration that wants to
+	 * rebuild this index has to delete this option first, or the backfill will
+	 * see itself as done.
 	 */
 	public const ASSIGNEE_BACKFILL_CURSOR_OPTION = 'vip_workflows_assignee_index_backfill_cursor';
 
@@ -104,6 +108,14 @@ class Schema {
 		$current_version = get_option( self::VERSION_OPTION, '0.0.0' );
 
 		if ( version_compare( $current_version, self::VERSION, '>=' ) ) {
+			return;
+		}
+
+		// Another request is backfilling the pending-assignee index, and bumps
+		// the version when it finishes. Running the upgrade here would only
+		// re-check every table and then stop at the lease, on every request
+		// for as long as the backfill takes, and log each time.
+		if ( self::assignee_backfill_running_elsewhere() ) {
 			return;
 		}
 
@@ -722,6 +734,22 @@ class Schema {
 	}
 
 	/**
+	 * Whether another request holds a live backfill lease.
+	 *
+	 * A cheap check before the upgrade starts, not the guard: it is a plain
+	 * read, which HyperDB may answer from a replica, so two requests can both
+	 * see no lease. The lease claim in acquire_backfill_lease() decides which
+	 * of them writes.
+	 *
+	 * @return bool
+	 */
+	private static function assignee_backfill_running_elsewhere(): bool {
+		$held = self::read_option_from_primary( self::ASSIGNEE_BACKFILL_LEASE_OPTION );
+
+		return null !== $held && (int) substr( (string) strrchr( $held, '|' ), 1 ) >= time();
+	}
+
+	/**
 	 * Take the backfill lease, or throw because another request holds it.
 	 *
 	 * Two requests can run the schema upgrade at once. Two backfill writers
@@ -746,6 +774,9 @@ class Schema {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- an atomic claim on a unique option name; the options API would overwrite an existing row.
 		$claimed = $wpdb->query( $wpdb->prepare( "INSERT IGNORE INTO {$wpdb->options} ( option_name, option_value, autoload ) VALUES ( %s, %s, 'off' )", self::ASSIGNEE_BACKFILL_LEASE_OPTION, $lease ) );
+		if ( false === $claimed ) {
+			throw new \RuntimeException( esc_html( 'Could not claim the pending-assignee backfill lease: ' . $wpdb->last_error ) );
+		}
 		if ( 1 === $claimed ) {
 			return $lease;
 		}
@@ -881,7 +912,8 @@ class Schema {
 			sort( $actual );
 
 			if ( $expected !== $actual ) {
-				$manager->sync_pending_assignee_index( $post_id );
+				// The page pass above already logged this post's malformed slots.
+				$manager->sync_pending_assignee_index( $post_id, false );
 			}
 		}
 	}

@@ -403,6 +403,43 @@ class PendingAssigneeIndexTest extends TestCase {
 	}
 
 	/**
+	 * While another request backfills, every other request that reaches the
+	 * upgrade returns before it re-checks the tables, says nothing in the log,
+	 * and leaves the version for the holder to bump. Otherwise each of them
+	 * would run the table checks and log twice, for the whole backfill.
+	 */
+	public function test_an_upgrade_returns_quietly_while_another_request_backfills(): void {
+		$previous = get_option( 'vip_workflows_db_version' );
+		update_option( 'vip_workflows_db_version', '2.26.0' );
+		$this->hold_lease( time() + 60 );
+
+		$schema_queries = 0;
+		$count          = function ( $query ) use ( &$schema_queries ) {
+			if ( preg_match( '/^\s*(?:SHOW|DESCRIBE|CREATE TABLE|ALTER TABLE)\b/i', $query ) ) {
+				++$schema_queries;
+			}
+			return $query;
+		};
+		add_filter( 'query', $count );
+
+		try {
+			$log = $this->capture_log(
+				function (): void {
+					( new Schema() )->install();
+				}
+			);
+		} finally {
+			remove_filter( 'query', $count );
+			$version = get_option( 'vip_workflows_db_version' );
+			update_option( 'vip_workflows_db_version', $previous );
+		}
+
+		$this->assertSame( '2.26.0', $version );
+		$this->assertSame( 0, $schema_queries, 'The upgrade re-checked the tables while another request held the lease.' );
+		$this->assertSame( '', $log );
+	}
+
+	/**
 	 * An owner whose lease was taken over stops before it writes a page, so a
 	 * page it read before the takeover is never written.
 	 *
