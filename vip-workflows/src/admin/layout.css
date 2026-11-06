@@ -33,3 +33,63 @@
 		transition: none;
 	}
 }
+
+/* ============================================================================
+   Notice Region
+   ============================================================================ */
+
+/*
+ * The one place the admin app's snackbars appear. AppShell portals it to
+ * <body>, so no screen's scrolling or stacking can bury it: pinned to the
+ * bottom of the viewport, clear of the admin menu at each of its widths.
+ *
+ * The stacking decision is made here and nowhere else. The region sits above
+ * every layer the app or wp-admin paints, the full-screen ideation drop
+ * overlay (100000) and core's modals (100000) included, because a notice that
+ * a layer can cover is a notice that can go unread. A new overlay should sit
+ * below this, not compete with it.
+ */
+.vip-workflows-notice-region {
+	--vip-workflows-notice-region-gap: var( --wpds-dimension-gap-lg );
+	position: fixed;
+	z-index: 100001;
+	bottom: var( --vip-workflows-notice-region-gap );
+	/* The expanded admin menu is 160px wide. */
+	left: calc( 160px + var( --vip-workflows-notice-region-gap ) );
+	max-width: min( 600px, calc( 100vw - 160px - var( --vip-workflows-notice-region-gap ) * 2 ) );
+	/* The region never takes a click meant for what is under it; the
+	   snackbars themselves do. */
+	pointer-events: none;
+}
+
+/* In normal flow inside the region, rather than core's own absolute
+   placement, so the region's edge is the list's edge. */
+.vip-workflows-notice-region .components-snackbar-list {
+	position: static;
+}
+
+.vip-workflows-notice-region .components-snackbar {
+	pointer-events: auto;
+}
+
+/* The folded admin menu is 36px wide: folded by choice, or auto-folded on a
+   medium screen. */
+.folded .vip-workflows-notice-region {
+	left: calc( 36px + var( --vip-workflows-notice-region-gap ) );
+}
+
+@media screen and (max-width: 960px) {
+	.auto-fold .vip-workflows-notice-region {
+		left: calc( 36px + var( --vip-workflows-notice-region-gap ) );
+	}
+}
+
+/* Below 783px the admin menu is off-canvas, so the region spans the screen. */
+@media screen and (max-width: 782px) {
+	.vip-workflows-notice-region,
+	.auto-fold .vip-workflows-notice-region {
+		left: var( --vip-workflows-notice-region-gap );
+		right: var( --vip-workflows-notice-region-gap );
+		max-width: none;
+	}
+}
