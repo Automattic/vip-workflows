@@ -51,12 +51,14 @@
  */
 .vip-workflows-notice-region {
 	--vip-workflows-notice-region-gap: var( --wpds-dimension-gap-lg );
+	/* The admin menu's width at this screen size: 160px expanded. The one
+	   value the rules below change, so `left` and `max-width` agree. */
+	--vip-workflows-notice-region-menu: 160px;
 	position: fixed;
 	z-index: 100001;
 	bottom: var( --vip-workflows-notice-region-gap );
-	/* The expanded admin menu is 160px wide. */
-	left: calc( 160px + var( --vip-workflows-notice-region-gap ) );
-	max-width: min( 600px, calc( 100vw - 160px - var( --vip-workflows-notice-region-gap ) * 2 ) );
+	left: calc( var( --vip-workflows-notice-region-menu ) + var( --vip-workflows-notice-region-gap ) );
+	max-width: min( 600px, calc( 100vw - var( --vip-workflows-notice-region-menu ) - var( --vip-workflows-notice-region-gap ) * 2 ) );
 	/* The region never takes a click meant for what is under it; the
 	   snackbars themselves do. */
 	pointer-events: none;
@@ -75,20 +77,23 @@
 /* The folded admin menu is 36px wide: folded by choice, or auto-folded on a
    medium screen. */
 .folded .vip-workflows-notice-region {
-	left: calc( 36px + var( --vip-workflows-notice-region-gap ) );
+	--vip-workflows-notice-region-menu: 36px;
 }
 
 @media screen and (max-width: 960px) {
 	.auto-fold .vip-workflows-notice-region {
-		left: calc( 36px + var( --vip-workflows-notice-region-gap ) );
+		--vip-workflows-notice-region-menu: 36px;
 	}
 }
 
-/* Below 783px the admin menu is off-canvas, so the region spans the screen. */
+/* Below 783px the admin menu is off-canvas, whether or not it is folded, so
+   the region spans the screen. Each menu-state selector is listed so this
+   out-specifies the rules above rather than losing to them. */
 @media screen and (max-width: 782px) {
 	.vip-workflows-notice-region,
+	.folded .vip-workflows-notice-region,
 	.auto-fold .vip-workflows-notice-region {
-		left: var( --vip-workflows-notice-region-gap );
+		--vip-workflows-notice-region-menu: 0px;
 		right: var( --vip-workflows-notice-region-gap );
 		max-width: none;
 	}
