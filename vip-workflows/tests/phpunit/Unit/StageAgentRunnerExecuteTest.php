@@ -326,7 +326,62 @@ class StageAgentRunnerExecuteTest extends TestCase
         ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
 
         $this->assertSame( 'failed', $job['status'] );
-        $this->assertStringContainsString( 'author cannot edit posts', $job['error'] );
+        $this->assertStringContainsString( 'Nobody who can edit this post started the agent', $job['error'] );
+    }
+
+    /**
+     * An editor who moves someone else's post into an AI stage is who the run
+     * acts as, so an author who cannot edit posts no longer stops it.
+     */
+    public function test_a_run_started_by_an_editor_executes_as_them_when_the_author_cannot(): void
+    {
+        Functions\when( 'get_post_meta' )->alias(
+            function ( $post_id, $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
+                    return 'ai_desk';
+                }
+                if ( StageAgentRunner::JOB_META === $key ) {
+                    return array( 'stage_key' => 'ai_desk', 'status' => 'pending', 'queued_at' => 't', 'started_by' => 3 );
+                }
+                return '';
+            }
+        );
+        // The author (7) cannot edit posts; the editor who moved it in (3) can edit this post.
+        Functions\when( 'user_can' )->alias(
+            static function ( $user_id, $capability ) {
+                return 3 === $user_id && 'edit_post' === $capability;
+            }
+        );
+        $acted_as = array();
+        Functions\when( 'wp_set_current_user' )->alias(
+            static function ( $user_id ) use ( &$acted_as ) {
+                $acted_as[] = $user_id;
+                return 1;
+            }
+        );
+
+        $seen           = null;
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ) );
+        $status_manager->shouldReceive( 'transition' )->once()->andReturnUsing(
+            function ( $post_id, $target, $options ) use ( &$seen ) {
+                $seen = $options;
+                return true;
+            }
+        );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )
+            ->once()
+            ->andReturn( self::make_result( true, array( 'status' => 'pass', 'summary' => 'ok' ) ) );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $this->assertSame( 3, $acted_as[0] ?? null, 'the ability executes as the editor' );
+        $this->assertSame( 0, end( $acted_as ), 'and the cron context is restored afterwards' );
+        $this->assertSame( 3, $seen['agent_actor_user'], 'the exit transition is authorised against the editor too' );
     }
 
     /**
@@ -736,6 +791,61 @@ class StageAgentRunnerExecuteTest extends TestCase
 
         $method = new \ReflectionMethod( StageAgentRunner::class, 'resolve_agent_user' );
         $this->assertSame( 7, $method->invoke( new StageAgentRunner(), 99 ) );
+    }
+
+    /**
+     * A person who started the run and can still edit this post is who it runs
+     * as, ahead of the author.
+     */
+    public function test_resolve_run_as_user_prefers_the_starter_who_can_edit_the_post(): void
+    {
+        Functions\when( 'get_post_field' )->justReturn( 7 );
+        Functions\when( 'user_can' )->alias(
+            static function ( $user_id, $capability, ...$args ) {
+                // The starter may edit post 99; the author may not edit posts at all.
+                return 3 === $user_id && 'edit_post' === $capability && array( 99 ) === $args;
+            }
+        );
+
+        $method = new \ReflectionMethod( StageAgentRunner::class, 'resolve_run_as_user' );
+        $this->assertSame( 3, $method->invoke( new StageAgentRunner(), 99, 3 ) );
+    }
+
+    /**
+     * A starter who can no longer edit this post (rights changed between the move
+     * and the run) is not borrowed: the run falls back to the author.
+     */
+    public function test_resolve_run_as_user_falls_back_to_the_author_when_the_starter_lost_the_right(): void
+    {
+        Functions\when( 'get_post_field' )->justReturn( 7 );
+        Functions\when( 'user_can' )->alias(
+            static function ( $user_id, $capability ) {
+                return 7 === $user_id && 'edit_posts' === $capability;
+            }
+        );
+
+        $method = new \ReflectionMethod( StageAgentRunner::class, 'resolve_run_as_user' );
+        $this->assertSame( 7, $method->invoke( new StageAgentRunner(), 99, 3 ) );
+    }
+
+    /**
+     * A run nobody started borrows nobody: with an author who cannot edit posts,
+     * there is no actor at all.
+     */
+    public function test_resolve_run_as_user_without_a_starter_yields_no_actor_for_an_incapable_author(): void
+    {
+        Functions\when( 'get_post_field' )->justReturn( 7 );
+        $asked = array();
+        Functions\when( 'user_can' )->alias(
+            static function ( $user_id ) use ( &$asked ) {
+                $asked[] = $user_id;
+                return false;
+            }
+        );
+
+        $method = new \ReflectionMethod( StageAgentRunner::class, 'resolve_run_as_user' );
+        $this->assertSame( 0, $method->invoke( new StageAgentRunner(), 99, 0 ) );
+        $this->assertSame( array( 7 ), $asked, 'only the author is considered when nobody started the run' );
     }
 
     /**
@@ -1851,10 +1961,10 @@ class StageAgentRunnerExecuteTest extends TestCase
 
         ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
 
-        // Not the post author (7) the agent acted as: Pendo would show the author
-        // doing something they did not do.
+        // Not the post author (7): Pendo would show the author doing something
+        // they did not do.
         $this->assertSame( 3, $this->run_event( $telemetry )['user'] );
-        $this->assertSame( 7, $options['agent_actor_user'], 'the agent still acts as the author' );
+        $this->assertSame( 3, $options['agent_actor_user'], 'the agent acts as the person who moved the post in, who can edit it' );
         $this->assertSame( 3, $options['telemetry_user'] );
     }
 
