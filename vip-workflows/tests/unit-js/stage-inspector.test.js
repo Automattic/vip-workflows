@@ -724,6 +724,36 @@ describe( 'StageInspector AI-stage config', () => {
 		).not.toBeInTheDocument();
 	} );
 
+	it( 'explains the agent field behind an info button beside its label', async () => {
+		renderInspector( stage() );
+
+		// The field's own name survives the composed label row: the visible
+		// copy is decoration, the hidden label is still the combobox's name.
+		expect( agentPicker() ).toBeInTheDocument();
+		// The visible label is hidden from assistive tech, so "Agent" is not
+		// announced twice.
+		expect(
+			screen
+				.getAllByText( 'Agent' )
+				.some( ( el ) => el.getAttribute( 'aria-hidden' ) === 'true' )
+		).toBe( true );
+		expect(
+			screen.getByText( 'Runs when a post enters this stage.' )
+		).toBeInTheDocument();
+
+		// A real trigger, named for the setting it explains, opening on focus
+		// so it is reachable without a pointer.
+		await act( async () => {
+			fireEvent.focus(
+				screen.getByRole( 'button', { name: 'About Agent' } )
+			);
+		} );
+
+		expect(
+			screen.getByText( /Choosing an agent makes this an AI stage\./ )
+		).toHaveTextContent( /pass, fail, error.*leads below/ );
+	} );
+
 	it( 'picking an agent is what makes the stage an AI stage', () => {
 		const onChange = renderInspector( stage() );
 
