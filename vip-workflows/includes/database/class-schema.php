@@ -102,6 +102,25 @@ class Schema {
 	public const ASSIGNEE_BACKFILL_LEASE_TTL = 120;
 
 	/**
+	 * Seconds of backfill work one request does before it stops and leaves the
+	 * rest to the next request.
+	 *
+	 * The upgrade runs on an ordinary request, so a site with many assigned
+	 * posts would otherwise spend a visitor's whole request, and its time
+	 * limit, on the backfill. Static so the tests can shorten it.
+	 *
+	 * @var float
+	 */
+	private static float $assignee_backfill_budget = 10.0;
+
+	/**
+	 * Posts per backfill page. Static so the tests can shorten it.
+	 *
+	 * @var int
+	 */
+	private static int $assignee_backfill_page_size = 500;
+
+	/**
 	 * Install or upgrade database tables.
 	 */
 	public function install(): void {
@@ -138,6 +157,7 @@ class Schema {
 	 *      IF NOT EXISTS guards on all DDL statements.
 	 *
 	 * @param string $from_version Installed DB version before this upgrade run.
+	 * @throws MigrationDeferred When a migration stopped short and resumes on a later request.
 	 * @throws \RuntimeException When a migration query fails.
 	 * @throws \InvalidArgumentException If a migration definition is invalid.
 	 */
@@ -155,6 +175,10 @@ class Schema {
 
 				try {
 					( $migration['run'] )();
+				} catch ( MigrationDeferred $e ) {
+					// Not a failure: the migration resumes on a later request, and
+					// the version stays unbumped until it finishes.
+					throw $e;
 				} catch ( \Throwable $e ) {
 					$message = sprintf( 'VIP Workflows schema migration to %s threw: %s', $migration['version'], $e->getMessage() );
                     // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -608,23 +632,30 @@ class Schema {
 	 * version when it finishes. A finished backfill is recorded, so a request
 	 * that starts after it does nothing.
 	 *
-	 * It runs on the first request after the upgrade, so it does a page at a
-	 * time: one read of 500 posts' assignment rows, one delete and one
+	 * It runs on an ordinary request after the upgrade, so it does a page at a
+	 * time: one read of a page of posts' assignment rows, one delete and one
 	 * multi-row insert, rather than several queries per post. Each page is
 	 * read back after it is written, which settles a live assignment made
-	 * between the read and the write (see settle_pending_assignee_page()).
-	 * Only then is the page's last post ID saved, so an owner that dies
+	 * between the read and the write (see settle_pending_assignee_page()), and
+	 * only then is the page's last post ID saved, so an owner that dies
 	 * mid-page leaves that page to be redone, from a fresh read, by the next
 	 * owner once its lease expires.
+	 *
+	 * A request works for a few seconds at most ($assignee_backfill_budget),
+	 * then releases the lease and throws MigrationDeferred, so no visitor's
+	 * request carries the whole backfill; the next request resumes at the
+	 * cursor.
 	 *
 	 * Malformed slots are logged and left out, as
 	 * AssignmentManager::pending_user_ids_from_slots() describes.
 	 *
-	 * @throws \RuntimeException When another request holds the lease, the lease is lost, or the rows cannot be read or written.
+	 * @throws MigrationDeferred When this request's time budget ran out. The
+	 *                           helpers it calls also throw MigrationDeferred
+	 *                           when another request holds the lease, and
+	 *                           RuntimeException when the lease is lost or the
+	 *                           rows cannot be read or written.
 	 */
 	private static function backfill_pending_assignee_index(): void {
-		global $wpdb;
-
 		$lease = self::acquire_backfill_lease();
 
 		try {
@@ -634,7 +665,11 @@ class Schema {
 				return;
 			}
 
-			self::write_backfill_pages( $lease, (int) $cursor );
+			if ( ! self::write_backfill_pages( $lease, (int) $cursor ) ) {
+				// The time budget ran out. The cursor marks where the next
+				// request picks up; the lease is released below so it can.
+				throw new MigrationDeferred( 'The pending-assignee backfill used its time budget and resumes on the next request.' );
+			}
 
 			// Still the owner when recording the finish, or a request that took
 			// over could be told there is nothing left to do.
@@ -652,13 +687,17 @@ class Schema {
 	 *                        renewal changes it, and the caller releases the
 	 *                        lease by its latest value.
 	 * @param int    $last_id Last post ID already done.
+	 * @return bool True when every assigned post is done; false when the time
+	 *              budget ran out first.
 	 * @throws \RuntimeException When the rows cannot be read or written, or the lease was lost.
 	 */
-	private static function write_backfill_pages( string &$lease, int $last_id ): void {
+	private static function write_backfill_pages( string &$lease, int $last_id ): bool {
 		global $wpdb;
 
 		$index_key = \VIPWorkflows\Workflow\AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY;
 		$like      = $wpdb->esc_like( \VIPWorkflows\Workflow\AssignmentManager::STORAGE_PREFIX ) . '%';
+		$page_size = self::$assignee_backfill_page_size;
+		$deadline  = microtime( true ) + self::$assignee_backfill_budget;
 
 		do {
 			$post_ids = array_map(
@@ -666,10 +705,11 @@ class Schema {
 				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one-off backfill over postmeta, paged by post ID; runs once per schema version
 				$wpdb->get_col(
 					$wpdb->prepare(
-						'SELECT DISTINCT post_id FROM %i WHERE meta_key LIKE %s AND post_id > %d ORDER BY post_id ASC LIMIT 500',
+						'SELECT DISTINCT post_id FROM %i WHERE meta_key LIKE %s AND post_id > %d ORDER BY post_id ASC LIMIT %d',
 						$wpdb->postmeta,
 						$like,
-						$last_id
+						$last_id,
+						$page_size
 					)
 				)
 			);
@@ -729,8 +769,10 @@ class Schema {
 				self::write_option_to_primary( self::ASSIGNEE_BACKFILL_CURSOR_OPTION, (string) $last_id );
 			}
 
-			$page_size = count( $post_ids );
-		} while ( 500 === $page_size );
+			$done = count( $post_ids ) < $page_size;
+		} while ( ! $done && microtime( true ) < $deadline );
+
+		return $done;
 	}
 
 	/**
@@ -761,11 +803,13 @@ class Schema {
 	 * HyperDB, unlike a SELECT GET_LOCK. A lease past its expiry belonged to a
 	 * request that died, and is taken over with a compare-and-set.
 	 *
-	 * Throwing leaves the schema version unbumped for this request, which is
-	 * right: the holder bumps it when it finishes.
+	 * It throws MigrationDeferred, which is not logged as a failure, and leaves
+	 * the schema version unbumped for this request, which is right: the holder
+	 * bumps it when it finishes.
 	 *
 	 * @return string This request's lease value.
-	 * @throws \RuntimeException When another request holds a live lease.
+	 * @throws MigrationDeferred When another request holds a live lease.
+	 * @throws \RuntimeException When the claim fails in the database.
 	 */
 	private static function acquire_backfill_lease(): string {
 		global $wpdb;
@@ -790,7 +834,7 @@ class Schema {
 			}
 		}
 
-		throw new \RuntimeException( 'The pending-assignee backfill is running in another request.' );
+		throw new MigrationDeferred( 'The pending-assignee backfill is running in another request.' );
 	}
 
 	/**

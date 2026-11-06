@@ -9,6 +9,7 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Tests\Integration;
 
+use VIPWorkflows\Database\MigrationDeferred;
 use VIPWorkflows\Database\Schema;
 use VIPWorkflows\Workflow\AssignmentManager;
 
@@ -524,6 +525,87 @@ class PendingAssigneeIndexTest extends TestCase {
 		$this->backfill();
 
 		$this->assertSame( array( $this->user_a, $this->user_b ), $this->indexed() );
+	}
+
+	/**
+	 * Set one of Schema's backfill limits for a test, returning the old value.
+	 *
+	 * @param string    $name  Static property name.
+	 * @param int|float $value Value to set.
+	 * @return int|float The previous value.
+	 */
+	private function set_backfill_limit( string $name, $value ) {
+		$property = new \ReflectionProperty( Schema::class, $name );
+		$previous = $property->getValue();
+		$property->setValue( null, $value );
+		return $previous;
+	}
+
+	/**
+	 * A backfill that uses up its time budget stops after the page in hand,
+	 * keeps its place, gives the lease back, and defers; it does not record
+	 * itself finished. The next run carries on from the cursor and finishes.
+	 *
+	 * Forced with a one-post page and a zero budget, so the first run does one
+	 * page and stops.
+	 */
+	public function test_a_backfill_out_of_time_defers_and_the_next_run_resumes(): void {
+		global $wpdb;
+
+		$pending = array(
+			'value'  => $this->user_a,
+			'type'   => 'user',
+			'status' => AssignmentManager::STATUS_PENDING,
+		);
+		$this->write_raw_slot( 'reviewer', $pending );
+		$later = (int) self::factory()->post->create();
+		update_post_meta( $later, AssignmentManager::STORAGE_PREFIX . 'reviewer', $pending );
+
+		$page   = $this->set_backfill_limit( 'assignee_backfill_page_size', 1 );
+		$budget = $this->set_backfill_limit( 'assignee_backfill_budget', 0.0 );
+		try {
+			$this->backfill();
+			$this->fail( 'A backfill out of time did not defer.' );
+		} catch ( MigrationDeferred $e ) {
+			$this->assertStringContainsString( 'time budget', $e->getMessage() );
+		} finally {
+			$this->set_backfill_limit( 'assignee_backfill_page_size', $page );
+			$this->set_backfill_limit( 'assignee_backfill_budget', $budget );
+		}
+
+		$cursor = fn () => $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Schema::ASSIGNEE_BACKFILL_CURSOR_OPTION ) );
+		$this->assertSame( array( $this->user_a ), $this->indexed(), 'The page in hand was finished.' );
+		$this->assertSame( array(), get_post_meta( $later, AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY ) );
+		$this->assertSame( (string) $this->post_id, $cursor() );
+		$this->assertNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Schema::ASSIGNEE_BACKFILL_LEASE_OPTION ) ), 'The lease was kept, so the next request could not resume.' );
+
+		$this->backfill();
+
+		$this->assertSame( array( (string) $this->user_a ), get_post_meta( $later, AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY ) );
+		$this->assertSame( Schema::ASSIGNEE_BACKFILL_COMPLETE, $cursor() );
+	}
+
+	/**
+	 * A deferred migration is not a failure: run_migrations() passes it
+	 * through as it is, without logging, so the version stays unbumped and
+	 * the upgrade hook can let it go quietly.
+	 */
+	public function test_a_deferred_migration_passes_through_unlogged(): void {
+		$this->hold_lease( time() + 60 );
+
+		$thrown = null;
+		$log    = $this->capture_log(
+			function () use ( &$thrown ): void {
+				try {
+					( new \ReflectionMethod( Schema::class, 'run_migrations' ) )->invoke( new Schema(), '2.26.0' );
+				} catch ( \Throwable $e ) {
+					$thrown = $e;
+				}
+			}
+		);
+
+		$this->assertInstanceOf( MigrationDeferred::class, $thrown );
+		$this->assertSame( '', $log );
 	}
 
 	/**
