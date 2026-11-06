@@ -485,16 +485,16 @@ describe( 'Transition pill description', () => {
 			.filter( Boolean )
 			.map( ( id ) => document.getElementById( id )?.textContent );
 
-	const REMOVE_HINT = 'Press Enter to select, then Backspace to remove.';
+	const REMOVE_HINT = 'Press Enter, then Backspace to remove.';
 
 	it( 'tells a removable transition how to remove it, from one shared element', async () => {
 		await renderCanvas();
 
 		const draft = screen.getByRole( 'button', {
-			name: 'Move to Writing, from Draft',
+			name: 'Edit transition: Move to Writing, from Draft',
 		} );
 		const writing = screen.getByRole( 'button', {
-			name: 'Move to Review, from Writing',
+			name: 'Edit transition: Move to Review, from Writing',
 		} );
 
 		// The name is unchanged; the hint is a description.
@@ -510,7 +510,7 @@ describe( 'Transition pill description', () => {
 		await renderCanvas();
 
 		screen
-			.getAllByRole( 'button', { name: /, from / } )
+			.getAllByRole( 'button', { name: /^Edit transition: / } )
 			.forEach( ( pill ) =>
 				expect( pill ).not.toHaveAttribute( 'aria-disabled' )
 			);

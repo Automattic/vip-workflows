@@ -1990,10 +1990,12 @@ function Flow( {
 			</ReactFlow>
 			{ /* What the transition pills' `aria-describedby` point at — see
 			     `pillHintId`. Backspace is React Flow's delete key, and it
-			     acts on the selection, which Enter on a pill makes. */ }
+			     acts on the selection, which Enter on a pill makes. The
+			     pill's name already says Enter edits the transition, so the
+			     hint only adds the second key. */ }
 			<VisuallyHidden id={ removeHintId }>
 				{ __(
-					'Press Enter to select, then Backspace to remove.',
+					'Press Enter, then Backspace to remove.',
 					'vip-workflows'
 				) }
 			</VisuallyHidden>

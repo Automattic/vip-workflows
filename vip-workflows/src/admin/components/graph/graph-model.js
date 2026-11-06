@@ -209,12 +209,15 @@ export function agentOutcomeNames( outcomes ) {
 /**
  * The accessible name of a transition's pill on the canvas.
  *
- * It starts with the pill's visible text, exactly — the label `buildGraph`
- * derived, the string the pill renders — so a voice-control user who says what
- * they see reaches it (WCAG 2.5.3, Label in Name). The source stage follows,
- * because that text is the writer's button label and every transition into the
- * same stage shares it. An agent outcome edge names its outcome as well, so the
- * lines of a pass/fail pair, which share both ends, are told apart.
+ * It opens with what activating the pill does — "Edit transition": Enter or a
+ * click selects the transition and opens its inspector; nothing moves a post.
+ * The pill's visible text follows, exactly and in one piece — the label
+ * `buildGraph` derived, the string the pill renders — so a voice-control user
+ * who says what they see reaches it (WCAG 2.5.3, Label in Name). Then the
+ * source stage, because that text is the writer's button label and every
+ * transition into the same stage shares it. An agent outcome edge names its
+ * outcome as well, so the lines of a pass/fail pair, which share both ends, are
+ * told apart.
  *
  * The source comes in as a display label — `stageLabel` already falls back to
  * the key for a stage with none, which `validateSequence` reports separately.
@@ -227,16 +230,16 @@ export function agentOutcomeNames( outcomes ) {
 export function transitionPillName( pillLabel, fromLabel, outcome = null ) {
 	if ( isAgentOutcome( outcome ) ) {
 		return sprintf(
-			/* translators: 1: transition button label, e.g. "Move to Done", 2: source stage name, 3: agent outcome, e.g. "On pass". Keep %1$s first: it is the visible text. */
-			__( '%1$s, from %2$s (%3$s)', 'vip-workflows' ),
+			/* translators: Accessible name of a transition on the sequence canvas; activating it opens the transition for editing. 1: transition button label, e.g. "Move to Done", 2: source stage name, 3: agent outcome, e.g. "On pass". Keep %1$s whole and unchanged: it is the visible text. */
+			__( 'Edit transition: %1$s, from %2$s (%3$s)', 'vip-workflows' ),
 			pillLabel,
 			fromLabel,
 			agentOutcomeLabel( outcome )
 		);
 	}
 	return sprintf(
-		/* translators: 1: transition button label, e.g. "Move to Done", 2: source stage name. Keep %1$s first: it is the visible text. */
-		__( '%1$s, from %2$s', 'vip-workflows' ),
+		/* translators: Accessible name of a transition on the sequence canvas; activating it opens the transition for editing. 1: transition button label, e.g. "Move to Done", 2: source stage name. Keep %1$s whole and unchanged: it is the visible text. */
+		__( 'Edit transition: %1$s, from %2$s', 'vip-workflows' ),
 		pillLabel,
 		fromLabel
 	);

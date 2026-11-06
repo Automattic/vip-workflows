@@ -76,7 +76,7 @@ const SHARED_LABEL = 'On pass, On fail share one transition';
 const PILL_LABEL = 'Move to Done';
 
 /** The pill's accessible name `buildGraph` derived alongside it. */
-const PILL_NAME = 'Move to Done, from Review (On pass)';
+const PILL_NAME = 'Edit transition: Move to Done, from Review (On pass)';
 
 /**
  * Render one outcome edge of a pair routed to the same destination.
@@ -197,15 +197,15 @@ describe( 'TransitionEdge pill', () => {
 		expect( screen.getByRole( 'button' ) ).toHaveTextContent( PILL_LABEL );
 	} );
 
-	it( 'is named by its visible text and the stage the line leaves', () => {
+	it( 'is named by what it does, its visible text and the stage the line leaves', () => {
 		renderEdge();
 
 		const pill = screen.getByRole( 'button', { name: PILL_NAME } );
 
-		// Label in Name: what is on screen is where the name begins.
-		expect(
-			pill.getAttribute( 'aria-label' ).startsWith( pill.textContent )
-		).toBe( true );
+		// Label in Name: what is on screen is in the name, whole.
+		expect( pill.getAttribute( 'aria-label' ) ).toContain(
+			pill.textContent
+		);
 	} );
 
 	it( 'is described by the ids the canvas hands it, and by nothing else', () => {
