@@ -304,74 +304,87 @@ export function WorkflowPanel() {
 
 	return (
 		<Stack className="vip-workflows-panel" direction="column" gap="lg">
-			{ /* Assignment info */ }
-			{ assignedTo && (
+			{ /* Who holds the post: its transition assignee and its claimer, in
+			     one group so the two rows line up. They are
+			     stored separately, so each keeps its own row, and Release —
+			     which clears the claim (/unclaim) and nothing else — sits on the
+			     claim's row. */ }
+			{ ( assignedTo || claimedBy ) && (
 				<Stack
-					className="vip-workflows-panel__assigned"
-					direction="row"
-					align="center"
-					wrap="wrap"
+					className="vip-workflows-panel__holders"
+					direction="column"
+					gap="xs"
 				>
-					<span className="vip-workflows-panel__assigned-label">
-						{ __( 'Assigned to:', 'vip-workflows' ) }
-					</span>
-					{ /* The same cell the lists draw an author with, so the
-					     person waiting on this post looks like the same person
-					     in the panel and in My Queue. "(you)" is the trailing
-					     slot: it is something this reader's context adds about
-					     the assignee, not part of their name. */ }
-					<AuthorCell
-						actor={ assignedTo }
-						className="vip-workflows-panel__assigned-name"
-					>
-						{ assignedTo.is_current && (
-							<Text
-								variant="body-md"
-								className="vip-workflows-panel__you"
-							>
-								{ '(' + __( 'you', 'vip-workflows' ) + ')' }
-							</Text>
-						) }
-					</AuthorCell>
-				</Stack>
-			) }
-
-			{ /* Claim info. A claim and a transition assignment are stored
-			     separately, so each gets its own row: Release clears the claim
-			     (/unclaim) and nothing else, so it belongs beside the claim. */ }
-			{ claimedBy && (
-				<Stack
-					className="vip-workflows-panel__claimed"
-					direction="row"
-					align="center"
-					wrap="wrap"
-				>
-					<span className="vip-workflows-panel__assigned-label">
-						{ __( 'Claimed by:', 'vip-workflows' ) }
-					</span>
-					<AuthorCell
-						actor={ claimedBy }
-						className="vip-workflows-panel__assigned-name"
-					>
-						{ claimedBy.is_current && (
-							<Text
-								variant="body-md"
-								className="vip-workflows-panel__you"
-							>
-								{ '(' + __( 'you', 'vip-workflows' ) + ')' }
-							</Text>
-						) }
-					</AuthorCell>
-					{ claimedBy.is_current && (
-						<Button
-							variant="link"
-							size="small"
-							onClick={ handleUnclaim }
-							disabled={ transitioning }
-							isDestructive
+					{ assignedTo && (
+						<Stack
+							className="vip-workflows-panel__assigned"
+							direction="row"
+							align="center"
+							wrap="wrap"
 						>
-							{ __( 'Release', 'vip-workflows' ) }
-						</Button>
+							<span className="vip-workflows-panel__assigned-label">
+								{ __( 'Assigned to:', 'vip-workflows' ) }
+							</span>
+							{ /* The same cell the lists draw an author with, so
+							     the person waiting on this post looks like the
+							     same person in the panel and in My Queue. "(you)"
+							     is the trailing slot: it is something this
+							     reader's context adds about the assignee, not
+							     part of their name. */ }
+							<AuthorCell
+								actor={ assignedTo }
+								className="vip-workflows-panel__assigned-name"
+							>
+								{ assignedTo.is_current && (
+									<Text
+										variant="body-md"
+										className="vip-workflows-panel__you"
+									>
+										{ '(' +
+											__( 'you', 'vip-workflows' ) +
+											')' }
+									</Text>
+								) }
+							</AuthorCell>
+						</Stack>
+					) }
+					{ claimedBy && (
+						<Stack
+							className="vip-workflows-panel__assigned"
+							direction="row"
+							align="center"
+							wrap="wrap"
+						>
+							<span className="vip-workflows-panel__assigned-label">
+								{ __( 'Claimed by:', 'vip-workflows' ) }
+							</span>
+							<AuthorCell
+								actor={ claimedBy }
+								className="vip-workflows-panel__assigned-name"
+							>
+								{ claimedBy.is_current && (
+									<Text
+										variant="body-md"
+										className="vip-workflows-panel__you"
+									>
+										{ '(' +
+											__( 'you', 'vip-workflows' ) +
+											')' }
+									</Text>
+								) }
+							</AuthorCell>
+							{ claimedBy.is_current && (
+								<Button
+									variant="link"
+									size="small"
+									onClick={ handleUnclaim }
+									disabled={ transitioning }
+									isDestructive
+								>
+									{ __( 'Release', 'vip-workflows' ) }
+								</Button>
+							) }
+						</Stack>
 					) }
 				</Stack>
 			) }
