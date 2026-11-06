@@ -54,10 +54,11 @@ npm run lint:wp-env-config
 Playwright tests drive the WordPress editor and admin UI through `@wordpress/e2e-test-utils-playwright`:
 
 ```bash
-npm run wp-env:start:tests
 npm --prefix vip-workflows run test:e2e
 npm run wp-env:stop:tests
 ```
+
+Locally, Playwright's `webServer` (`tools/wp-env-e2e-webserver.sh`) runs `npm run wp-env:start:tests` before every run, which starts the tests environment and then seeds it. Playwright waits for the line `VIP Workflows e2e environment ready`, which the script prints only after the seed succeeds, so the global setup and the specs never run against a half-seeded environment. The command runs even when the environment is already up: starting a running environment is a no-op, and the seed is idempotent. Expect a few extra seconds per run for the seed. Starting the environment yourself first is optional. In CI (`CI` set), the workflow runs `npm run wp-env:start:tests` itself and Playwright does not start or seed anything.
 
 Use `npm --prefix vip-workflows run test:e2e:headed` for a visible browser. Failures write traces and screenshots under `vip-workflows/artifacts/`.
 
@@ -72,7 +73,7 @@ Specs create their own posts and throwaway sequences, but they assume the tests 
 - The `admin` / `password` user that wp-env creates.
 - Built assets in `vip-workflows/build/`. The UI specs need them for the editor sidebar and admin screens.
 
-The development environment gets extra setup from `tools/wp-env-after-start.sh`: a theme, permalinks, and imported demo content. The tests environment does not run that script, and the specs do not depend on any of it. The tests environment gets its plugin state from `tools/wp-env-seed-tests.sh` instead. That script runs automatically after `npm run wp-env:start:tests`. It is additive and idempotent: it activates the plugin, runs the activation path (schema install and seeder), and checks the result. It never resets or recreates data.
+The development environment gets extra setup from `tools/wp-env-after-start.sh`: a theme, permalinks, and imported demo content. The tests environment does not run that script, and the specs do not depend on any of it. The tests environment gets its plugin state from `tools/wp-env-seed-tests.sh` instead. That script runs automatically after `npm run wp-env:start:tests`, so it runs before every local Playwright run and once in CI. It is additive and idempotent: it activates the plugin, runs the activation path (schema install and seeder), and checks the result. It never resets or recreates data.
 
 ### When every spec fails
 
@@ -95,7 +96,7 @@ The script ends with `Success: Tests environment seeded`. If it reports that a t
 Other causes of the same symptom:
 
 - **The suite points at the development environment.** The suite targets the tests environment on `:8889` only. It relies on that environment's `DISABLE_WP_CRON` and blocked egress, and `runDueCron()` in `tests/e2e/helpers/workflow.js` always runs WP-CLI against `.wp-env.tests.json`. Do not set `WP_BASE_URL=http://localhost:8888`. The global setup logs in again on every run and rewrites `artifacts/storage-states/admin.json` for the configured URL, so a stale storage state is not the cause.
-- **Port `:8889` serves another checkout.** wp-env names each environment after the directory of its config file. A tests environment started from another worktree can hold the port, and then it serves that worktree's code and build. Run `docker ps` and check that the container name matches your checkout before you trust a result.
+- **Port `:8889` serves another checkout.** wp-env names each environment after the directory of its config file. A tests environment started from another worktree can hold the port, and then it serves that worktree's code and build. A local run then stops before any spec, because the `webServer` command cannot start this checkout's environment on a port that is taken. If you start Playwright another way, run `docker ps` and check that the container name matches your checkout before you trust a result.
 
 ## GitHub Actions
 

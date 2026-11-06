@@ -7,9 +7,11 @@
  * fails every spec, including the REST-contract specs that never touch the UI,
  * and each failure reads as a broken spec instead of an empty environment.
  *
- * The check fails the run with the reseed command. It never seeds or repairs
- * anything itself: `npm run seed:tests` (repository root) does that, and runs
- * automatically after `npm run wp-env:start:tests`.
+ * The check fails the run with the reseed command. It never seeds, repairs or
+ * waits for anything itself: `npm run seed:tests` (repository root) does that,
+ * and runs automatically after `npm run wp-env:start:tests`. Seeding has
+ * finished before this runs: locally the Playwright `webServer` reports ready
+ * only after the seed succeeds, and CI seeds before it starts Playwright.
  *
  * See vip-workflows/docs/TESTING.md, "When every spec fails".
  */

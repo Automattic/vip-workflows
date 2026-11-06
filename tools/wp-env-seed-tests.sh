@@ -6,7 +6,8 @@
 #
 # The tests config drops the dev env's `afterStart` lifecycle script, so nothing
 # else brings a tests env up to that state. Runs automatically after
-# `npm run wp-env:start:tests`; run `npm run seed:tests` by hand to reseed a
+# `npm run wp-env:start:tests`, which local Playwright runs call through
+# `tools/wp-env-e2e-webserver.sh`; run `npm run seed:tests` by hand to reseed a
 # tests env that is already running.
 #
 # Additive and idempotent: it activates, installs and seeds only what is

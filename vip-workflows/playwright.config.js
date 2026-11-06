@@ -21,16 +21,23 @@ module.exports = {
 	// with the reseed command when the tests env is missing the plugin's
 	// seeded state, instead of letting every spec fail on its own.
 	globalSetup: require.resolve( './tests/e2e/global-setup.js' ),
-	// CI starts wp-env before Playwright, so Playwright must not manage the server.
-	// Locally, boot or reuse wp-env from the monorepo root (wp-env lives there,
-	// not in this plugin directory).
+	// CI starts and seeds wp-env before Playwright (`npm run wp-env:start:tests`),
+	// so Playwright must not manage the server there.
+	//
+	// Locally, every run starts the tests env (:8889, the baseURL
+	// @wordpress/scripts uses) from the monorepo root and seeds it. Readiness is
+	// the ready line the script prints after the seed succeeds, not the port:
+	// :8889 answers as soon as WordPress boots, before the seed has finished,
+	// and a port check would let the global setup race the seed. With no `port`
+	// or `url`, `reuseExistingServer` never skips the command, so an env that is
+	// already running is still seeded (starting it again is a no-op).
 	webServer: isCI
 		? undefined
 		: {
-				...baseConfig.webServer,
-				// e2e runs against the standalone tests config on :8889 (the baseURL
-				// @wordpress/scripts uses), so boot `wp-env:start:tests`, not the dev
-				// env (`wp-env:start`, :8888).
-				command: 'npm run wp-env:start:tests --prefix ..',
+				command: 'bash ../tools/wp-env-e2e-webserver.sh',
+				wait: { stdout: /VIP Workflows e2e environment ready/ },
+				stdout: 'pipe',
+				// A first boot pulls images and installs WordPress.
+				timeout: 300_000,
 		  },
 };
