@@ -120,20 +120,23 @@ describe( 'MetadataFieldsEditor Required toggle', () => {
 		expect( helpFor( requiredToggle() ) ).toBe( DISABLED_HELP );
 	} );
 
-	it( 'leaves Searchable alone either way', async () => {
-		render(
-			<MetadataFieldsEditor
-				fields={ [ { key: 'desk', label: 'Desk', type: 'text' } ] }
-				onChange={ () => {} }
-				hasPublishStage={ false }
-			/>
-		);
-		await openField( 'Desk' );
+	it.each( [ true, false ] )(
+		'leaves Searchable alone either way (hasPublishStage: %s)',
+		async ( publishes ) => {
+			render(
+				<MetadataFieldsEditor
+					fields={ [ { key: 'desk', label: 'Desk', type: 'text' } ] }
+					onChange={ () => {} }
+					hasPublishStage={ publishes }
+				/>
+			);
+			await openField( 'Desk' );
 
-		expect(
-			screen.getByRole( 'checkbox', { name: 'Searchable' } )
-		).toBeEnabled();
-	} );
+			expect(
+				screen.getByRole( 'checkbox', { name: 'Searchable' } )
+			).toBeEnabled();
+		}
+	);
 } );
 
 describe( 'hasPublishStage', () => {

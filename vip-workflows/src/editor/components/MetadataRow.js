@@ -7,8 +7,8 @@
  * that belongs to a metadata FIELD rather than to the pattern — whether the
  * field is required, and how that reaches a screen reader. The visible asterisk
  * rides on `label`, which is not associated with the trigger, so the signal is
- * spelled out as "(required to publish)" in the trigger's accessible name and in the
- * popover header.
+ * spelled out as "(required to publish)" in the trigger's accessible name and
+ * in the popover header.
  *
  * Required and BLOCKING is a second, louder state, and the two are not the same
  * thing: the asterisk says the field will be wanted eventually, the invalid
