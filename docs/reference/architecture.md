@@ -149,6 +149,7 @@ wp_register_ability('vip-workflows/seo-check', [
 
 1. **SEO Check** (`vip-workflows/seo-check`):
    - Word count (min/max thresholds)
+   - Prose block count (minimum)
    - Meta description (presence, length)
    - Title tags (length, keyword placement)
    - Keyword density

@@ -111,7 +111,7 @@ class SeoCheckParagraphCountTest extends TestCase
 
         $issue = $this->find_issue( $result['issues'], 'min_paragraphs' );
         $this->assertNotNull( $issue, 'No issue was emitted for the minimum paragraph count.' );
-        $this->assertSame( 'Content has 2 paragraphs. Aim for at least 3.', $issue['message'] );
+        $this->assertSame( 'Content has 2 prose blocks. Aim for at least 3.', $issue['message'] );
         $this->assertSame( 2, $result['analysis']['paragraph_count'] );
     }
 

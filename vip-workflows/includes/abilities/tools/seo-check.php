@@ -10,13 +10,20 @@ declare( strict_types=1 );
 namespace VIPWorkflows\Abilities\Tools;
 
 /**
- * Count the paragraphs a reader sees.
+ * Count the prose blocks in a post.
+ *
+ * A prose block is a run of visible text that is not a heading, list, table
+ * or other structural element. It approximates what wpautop() would wrap in
+ * a `<p>`, and it is deliberately not stricter than that: a standalone
+ * blockquote, or a table row on its own line, counts. This is an example
+ * check, so the user-facing wording says "prose blocks" rather than
+ * "paragraphs" instead of matching wpautop()'s full block-level tag list.
  *
  * HTML comments are removed first: they show nothing, and Gutenberg's block
- * delimiters are comments, so a `<p>` inside one is not a paragraph and a
+ * delimiters are comments, so a `<p>` inside one is not a block and a
  * block's delimiter does not hide the block-level element that follows it.
  *
- * Then two kinds of paragraph are counted, and added together, because a post
+ * Then two kinds of block are counted, and added together, because a post
  * can hold both:
  *
  * - `<p>` elements, which is how block content stores a paragraph. The tag
@@ -24,15 +31,13 @@ namespace VIPWorkflows\Abilities\Tools;
  *   the tag early.
  * - Text outside those elements, counted the way wpautop() would wrap classic
  *   content: split on blank lines, leaving out chunks that open with a
- *   block-level element (a heading, a list, a table, a wrapper `<div>`),
- *   which wpautop() does not wrap.
+ *   heading, list, table, figure, preformatted block, rule or wrapper `<div>`.
  *
  * Either kind counts only if it has visible text, so an empty block, a lone
- * `&nbsp;`, an image on its own line or a leftover closing tag is not a
- * paragraph.
+ * `&nbsp;`, an image on its own line or a leftover closing tag is not one.
  *
  * @param string $content Post content.
- * @return int Paragraph count.
+ * @return int Prose block count.
  */
 function count_paragraphs( string $content ): int {
 	$content   = preg_replace( '/<!--.*?-->/s', '', $content );
@@ -152,7 +157,10 @@ function execute_seo_check( ?array $input = null ) {
 		);
 	}
 
-	// Check 1b: Paragraph count.
+	// Check 1b: Prose block count. Shown to people as "prose blocks"; the
+	// setting and check key stay `min_paragraphs`, and the analysis key
+	// `paragraph_count`, because stored settings and Soft/Hard check modes are
+	// keyed by them.
 	$paragraph_count             = count_paragraphs( $content );
 	$analysis['paragraph_count'] = $paragraph_count;
 
@@ -163,8 +171,8 @@ function execute_seo_check( ?array $input = null ) {
 			'type'      => 'paragraph_count',
 			'check_key' => 'min_paragraphs',
 			'message'   => sprintf(
-			/* translators: 1: Current paragraph count, 2: Minimum paragraph count */
-				_n( 'Content has %1$d paragraph. Aim for at least %2$d.', 'Content has %1$d paragraphs. Aim for at least %2$d.', $paragraph_count, 'vip-workflows' ),
+			/* translators: 1: Current prose block count, 2: Minimum prose block count */
+				_n( 'Content has %1$d prose block. Aim for at least %2$d.', 'Content has %1$d prose blocks. Aim for at least %2$d.', $paragraph_count, 'vip-workflows' ),
 				$paragraph_count,
 				$min_paragraphs
 			),
@@ -172,7 +180,7 @@ function execute_seo_check( ?array $input = null ) {
 		);
 		$suggestions[] = array(
 			'type'    => 'split_paragraphs',
-			'message' => __( 'Break long passages into shorter paragraphs.', 'vip-workflows' ),
+			'message' => __( 'Break long passages into shorter blocks of text.', 'vip-workflows' ),
 		);
 	}
 
@@ -438,7 +446,7 @@ function register_seo_check(): void {
 					),
 					'min_paragraphs' => array(
 						'type'        => 'integer',
-						'description' => __( 'Minimum paragraph count.', 'vip-workflows' ),
+						'description' => __( 'Minimum number of prose blocks (paragraphs and other runs of text).', 'vip-workflows' ),
 					),
 					'min_images'     => array(
 						'type'        => 'integer',
@@ -504,7 +512,7 @@ function register_seo_check(): void {
 					'min_paragraphs' => array(
 						'type'        => 'integer',
 						'default'     => 3,
-						'label'       => __( 'Minimum paragraph count', 'vip-workflows' ),
+						'label'       => __( 'Minimum prose blocks', 'vip-workflows' ),
 						'minimum'     => 1,
 						'maximum'     => 50,
 						'enforceable' => true,
