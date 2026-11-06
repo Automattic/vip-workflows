@@ -63,6 +63,8 @@ class CopyStandardTest extends PHPUnitTestCase
         'What the assignment names:',
         // AI-stage publish-boundary notice, worded in review and kept verbatim.
         'This stage is run by an agent, and Sequence settings don’t allow AI stages',
+        // The Agent field's info tip, opened on purpose and worded in review.
+        'Choosing an agent makes this an AI stage.',
     );
 
     /**
