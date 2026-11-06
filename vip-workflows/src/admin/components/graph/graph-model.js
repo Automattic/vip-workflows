@@ -2265,7 +2265,7 @@ export function validateSequence( {
 			sprintf(
 				/* translators: %s: the stage key two stages share. */
 				__(
-					'Two stages share the key “%s”. Give one of them a key of its own.',
+					'Two stages share the key “%s”, so this sequence can’t be saved.',
 					'vip-workflows'
 				),
 				key
