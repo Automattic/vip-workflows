@@ -636,6 +636,13 @@ describe( 'StageInspector AI-stage config', () => {
 		// The field's own name survives the composed label row: the visible
 		// copy is decoration, the hidden label is still the combobox's name.
 		expect( agentPicker() ).toBeInTheDocument();
+		// The visible label is hidden from assistive tech, so "Agent" is not
+		// announced twice.
+		expect(
+			screen
+				.getAllByText( 'Agent' )
+				.some( ( el ) => el.getAttribute( 'aria-hidden' ) === 'true' )
+		).toBe( true );
 		expect(
 			screen.getByText( 'Runs when a post enters this stage.' )
 		).toBeInTheDocument();
@@ -650,7 +657,9 @@ describe( 'StageInspector AI-stage config', () => {
 
 		expect(
 			screen.getByText( /Choosing an agent makes this an AI stage\./ )
-		).toHaveTextContent( /pass, fail, or error.*exits below/ );
+		).toHaveTextContent(
+			/pass, fail, or error.*On pass, On fail, and On error rows below/
+		);
 	} );
 
 	it( 'picking an agent is what makes the stage an AI stage', () => {

@@ -670,6 +670,10 @@ export default function StageInspector( {
 	// an unrouted outcome is a thing to fix rather than a thing to omit.
 	const hasExits = isAgent || transitions.length > 0;
 
+	// One name for the agent field, said three times: the visible label, the
+	// combobox's hidden one, and the info button's "About …".
+	const agentLabel = __( 'Agent', 'vip-workflows' );
+
 	return (
 		<InspectorShell
 			eyebrow={ __( 'Stage', 'vip-workflows' ) }
@@ -721,11 +725,11 @@ export default function StageInspector( {
 					<div>
 						<Stack direction="row" align="flex-start" gap="xs">
 							<BaseControl.VisualLabel aria-hidden="true">
-								{ __( 'Agent', 'vip-workflows' ) }
+								{ agentLabel }
 							</BaseControl.VisualLabel>
-							<InfoTip about={ __( 'Agent', 'vip-workflows' ) }>
+							<InfoTip about={ agentLabel }>
 								{ __(
-									'Choosing an agent makes this an AI stage. The agent runs when a post enters, then moves the post on by outcome: pass, fail, or error. Set where each outcome leads on its row in the exits below, or drag from the stage’s colored handles on the canvas.',
+									'Choosing an agent makes this an AI stage. The agent runs when a post enters, then moves the post on by outcome: pass, fail, or error. Once one is chosen, set where each outcome leads on the On pass, On fail, and On error rows below, or drag from the stage’s colored handles on the canvas.',
 									'vip-workflows'
 								) }
 							</InfoTip>
@@ -733,7 +737,7 @@ export default function StageInspector( {
 						<ComboboxControl
 							__next40pxDefaultSize
 							__nextHasNoMarginBottom
-							label={ __( 'Agent', 'vip-workflows' ) }
+							label={ agentLabel }
 							hideLabelFromVision
 							help={ __(
 								'Runs when a post enters this stage.',
