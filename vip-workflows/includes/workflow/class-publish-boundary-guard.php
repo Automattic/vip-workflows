@@ -158,7 +158,7 @@ class PublishBoundaryGuard {
 	 * @param  \WP_REST_Request $request       The REST request.
 	 * @return \stdClass|\WP_Error The prepared post, or WP_Error when the change is vetoed.
 	 */
-	public function veto_rest_insert( $prepared_post, $request ) {
+	public function veto_rest_insert( $prepared_post, $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- required by rest_pre_insert_{post_type} filter
 		$post_id = (int) ( $prepared_post->ID ?? 0 );
 		$veto    = $this->resolve_veto( $post_id, (string) ( $prepared_post->post_status ?? '' ) );
 
@@ -397,14 +397,14 @@ class PublishBoundaryGuard {
 
 			return sprintf(
 				/* translators: %s: post title. */
-				__( "'%s' is in a workflow. To publish it directly, remove it from the workflow (this is logged), or move it through the workflow to a published stage.", 'vip-workflows' ),
+				__( '“%s” is in a workflow. Move it to a published stage, or remove it from the workflow.', 'vip-workflows' ),
 				$post_title
 			);
 		}
 
 		return sprintf(
 			/* translators: 1: post title, 2: workflow (sequence) name. */
-			__( "'%1\$s' is in the '%2\$s' workflow. To publish it directly, remove it from the workflow (this is logged), or move it through the workflow to a published stage.", 'vip-workflows' ),
+			__( '“%1$s” is in the “%2$s” workflow. Move it to a published stage, or remove it from the workflow.', 'vip-workflows' ),
 			$post_title,
 			$sequence->name
 		);
