@@ -167,4 +167,55 @@ describe( 'WorkflowPanel claim and release', () => {
 			screen.queryByRole( 'button', { name: 'Release' } )
 		).toBeNull();
 	} );
+
+	it( 're-reads the post when Release is refused, so a stale claim row goes', async () => {
+		// The panel still shows a claim another tab already released.
+		let claimed = true;
+		const calls = [];
+		apiFetch.mockImplementation( ( request ) => {
+			calls.push( request );
+			if ( request.path === STATUS_PATH ) {
+				return Promise.resolve(
+					status( {
+						claimed_by: claimed
+							? person( 5, 'Riley Reviewer', true )
+							: null,
+					} )
+				);
+			}
+			if ( request.path === UNCLAIM_PATH ) {
+				claimed = false;
+				return Promise.reject( {
+					code: 'post_not_claimed',
+					message:
+						'This post is not claimed, so there is nothing to release.',
+				} );
+			}
+			if ( request.path.startsWith( '/vip-workflows/v1/abilities' ) ) {
+				return Promise.resolve( [] );
+			}
+			return Promise.resolve( {} );
+		} );
+
+		render( <WorkflowPanel /> );
+		await waitFor( () =>
+			expect( screen.getByText( 'Claimed by:' ) ).toBeInTheDocument()
+		);
+
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Release' } ).click();
+		} );
+
+		await waitFor( () =>
+			expect( screen.queryByText( 'Claimed by:' ) ).toBeNull()
+		);
+		expect(
+			screen.getByText(
+				'This post is not claimed, so there is nothing to release.'
+			)
+		).toBeInTheDocument();
+		expect(
+			calls.filter( ( c ) => c.path === STATUS_PATH ).length
+		).toBeGreaterThan( 1 );
+	} );
 } );
