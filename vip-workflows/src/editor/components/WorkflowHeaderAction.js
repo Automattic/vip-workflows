@@ -144,11 +144,16 @@ export function WorkflowHeaderAction() {
 	const canRerun = agentFailed && !! workflow.agent_job.can_rerun;
 	const revertTo = agentFailed ? workflow.agent_job.revert_to : null;
 
+	// While a stage agent runs, the stage withholds its exits too, so there is
+	// no move to offer. The button stays, busy, for the whole run, rather than
+	// vanishing between the press that started it and the outcome.
+	const agentWorking = !! workflow?.agent_pending && ! primary;
+
 	const shown =
 		onWorkflowPost &&
 		!! workflow?.has_workflow &&
 		! workflow.orphaned &&
-		( !! primary || canRerun || !! revertTo );
+		( !! primary || agentWorking || canRerun || !! revertTo );
 	const replaces =
 		shown && replacesCorePublish( workflow, transitions, coreButtonSaves );
 	const hideCorePublish = replaces && mounted;
@@ -206,8 +211,9 @@ export function WorkflowHeaderAction() {
 	// down to secondary so the two never compete.
 	const variant = replaces ? 'primary' : 'secondary';
 
-	// The main half: the primary move, or on a failed AI stage, Run again
-	// when the server offers it and Go back otherwise.
+	// The main half: the primary move; while a stage agent runs, a busy
+	// stand-in; on a failed AI stage, Run again when the server offers it and
+	// Go back otherwise.
 	let main;
 	if ( primary ) {
 		main = (
@@ -224,6 +230,20 @@ export function WorkflowHeaderAction() {
 				accessibleWhenDisabled
 			>
 				{ primary.label }
+			</Button>
+		);
+	} else if ( agentWorking ) {
+		main = (
+			<Button
+				ref={ setMain }
+				variant={ variant }
+				size="compact"
+				className="vip-workflows-header-action__main"
+				isBusy
+				disabled
+				accessibleWhenDisabled
+			>
+				{ __( 'Agent working', 'vip-workflows' ) }
 			</Button>
 		);
 	} else if ( canRerun ) {

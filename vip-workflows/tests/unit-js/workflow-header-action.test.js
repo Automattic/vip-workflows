@@ -526,6 +526,30 @@ describe( 'WorkflowHeaderAction', () => {
 				path: expect.stringMatching( /agent-revert$/ ),
 			} )
 		);
+
+		// The run is now pending. The header keeps its button, busy, rather
+		// than dropping it until the outcome arrives.
+		const working = await screen.findByRole( 'button', {
+			name: 'Agent working',
+		} );
+		expect( working ).toHaveClass( 'is-busy' );
+		expect( working ).toHaveAttribute( 'aria-disabled', 'true' );
+	} );
+
+	it( 'stays on screen, busy, while a stage agent runs', async () => {
+		await renderHeader(
+			statusResponse( {
+				transitions: [],
+				agent_pending: true,
+				agent_job: { status: 'pending', error: '' },
+			} )
+		);
+
+		const working = await screen.findByRole( 'button', {
+			name: 'Agent working',
+		} );
+		expect( working ).toHaveClass( 'is-busy' );
+		expect( working ).toHaveAttribute( 'aria-disabled', 'true' );
 	} );
 
 	it( 'asks before a primary transition that publishes', async () => {
