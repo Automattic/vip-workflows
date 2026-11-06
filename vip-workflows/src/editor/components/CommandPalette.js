@@ -62,9 +62,10 @@ export function CommandPalette() {
 				return null;
 			}
 
-			setRanOnUnsavedEdits(
-				registry.select( editorStore ).isEditedPostDirty()
-			);
+			// Read before the request, which is when the tool reads the post.
+			// Stored only once the result is back, so a result still on screen
+			// keeps the flag it was produced with until its successor arrives.
+			const dirty = registry.select( editorStore ).isEditedPostDirty();
 
 			try {
 				const result = await apiFetch( {
@@ -72,6 +73,7 @@ export function CommandPalette() {
 					method: 'POST',
 					data: { post_id: postId, source: 'command_palette' },
 				} );
+				setRanOnUnsavedEdits( dirty );
 				return result;
 			} catch ( error ) {
 				return {

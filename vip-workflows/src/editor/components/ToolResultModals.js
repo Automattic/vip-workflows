@@ -123,14 +123,6 @@ export function CheckResultsModal( {
 			className="vip-workflows-results-modal vip-workflows-modal--truncate-title"
 			size="large"
 		>
-			{ ranOnUnsavedEdits && ! error && (
-				<Notice status="warning" isDismissible={ false }>
-					{ __(
-						'These results are for the last saved version. Save the post, then run the check again to include your edits.',
-						'vip-workflows'
-					) }
-				</Notice>
-			) }
 			{ error ? (
 				<ToolFailureNotice
 					error={ error }
@@ -139,6 +131,14 @@ export function CheckResultsModal( {
 				/>
 			) : (
 				<Stack direction="column" gap="md">
+					{ ranOnUnsavedEdits && (
+						<Notice status="warning" isDismissible={ false }>
+							{ __(
+								'These results are for the last saved version. Save the post, then run the check again to include your edits.',
+								'vip-workflows'
+							) }
+						</Notice>
+					) }
 					<Stack direction="row" align="center" gap="lg">
 						{ typeof score === 'number' && (
 							<div
