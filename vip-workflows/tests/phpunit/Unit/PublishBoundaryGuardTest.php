@@ -221,10 +221,11 @@ class PublishBoundaryGuardTest extends TestCase
     /**
      * Seat the post in the workflow at a stage, with a committed post_status.
      *
-     * @param string $stage       Current stage key.
-     * @param string $post_status Committed post_status.
+     * @param string $stage           Current stage key.
+     * @param string $post_status     Committed post_status.
+     * @param bool   $sequence_exists Whether the post's sequence row still exists.
      */
-    private function stub_workflow_post( string $stage, string $post_status ): void
+    private function stub_workflow_post( string $stage, string $post_status, bool $sequence_exists = true ): void
     {
         Functions\when( 'get_post' )->justReturn(
             $this->create_mock_post(
@@ -254,7 +255,7 @@ class PublishBoundaryGuardTest extends TestCase
             }
         );
 
-        $this->sequence_repository->shouldReceive( 'find' )->with( 1 )->andReturn( $this->sequence );
+        $this->sequence_repository->shouldReceive( 'find' )->with( 1 )->andReturn( $sequence_exists ? $this->sequence : null );
     }
 
     /**
@@ -386,6 +387,71 @@ class PublishBoundaryGuardTest extends TestCase
         $this->filter_data( 'draft' );
 
         $message = (string) reset( $this->transients );
+        $this->assertSame(
+            '“Test Post” is in the “Test Workflow” workflow, so its status can’t be changed directly. Move it through the workflow instead.',
+            $message
+        );
+    }
+
+    /**
+     * Run a callback with error_log() captured, and return what was logged.
+     *
+     * @param callable $callback Work that may log.
+     * @return string The log output.
+     */
+    private function capture_log( callable $callback ): string
+    {
+        $file     = (string) tempnam( sys_get_temp_dir(), 'vipwf-guard-log' );
+        $previous = ini_set( 'error_log', $file );
+        try {
+            $callback();
+        } finally {
+            ini_set( 'error_log', (string) $previous );
+        }
+        $log = (string) file_get_contents( $file );
+        unlink( $file );
+        return $log;
+    }
+
+    /**
+     * A post whose sequence row is gone is the orphan the client calls a
+     * deleted workflow, so the server refuses it in the client's own words
+     * (getOrphanedWorkflowMessage()): one sentence for one situation.
+     */
+    public function test_a_post_in_a_deleted_workflow_gets_the_clients_sentence(): void
+    {
+        $this->stub_workflow_post( 'review', 'draft', false );
+
+        $this->capture_log(
+            function (): void {
+                $this->filter_data( 'publish' );
+            }
+        );
+
+        $this->assertSame(
+            '“Test Post” is in a deleted workflow. Remove it from the workflow to change its status.',
+            (string) reset( $this->transients )
+        );
+    }
+
+    /**
+     * The sentence names the direction of the refused change. Built without
+     * the target status it cannot, and says so in the log rather than quietly
+     * picking the generic sentence.
+     */
+    public function test_a_veto_message_without_a_target_status_is_logged(): void
+    {
+        $this->stub_workflow_post( 'review', 'draft' );
+        $method = new \ReflectionMethod( PublishBoundaryGuard::class, 'veto_message' );
+
+        $message = null;
+        $log     = $this->capture_log(
+            function () use ( $method, &$message ): void {
+                $message = $method->invoke( $this->guard, self::POST_ID, 'Test Post', '' );
+            }
+        );
+
+        $this->assertStringContainsString( 'built without the target status', $log );
         $this->assertSame(
             '“Test Post” is in the “Test Workflow” workflow, so its status can’t be changed directly. Move it through the workflow instead.',
             $message

@@ -587,6 +587,15 @@ function describeStatusChange( {
  * @return {string} Translated message.
  */
 export function getPublishVetoMessage( { title, workflowName, targetStatus } ) {
+	if ( ! targetStatus ) {
+		// The sentence names the direction of the refused change, and a missing
+		// status names none. Say so rather than quietly pick the generic one.
+		// eslint-disable-next-line no-console
+		console.error(
+			'VIP Workflows: the publish veto copy was asked for without the target status, so it cannot name the direction of the refused change.'
+		);
+	}
+
 	if ( statusToRegion( targetStatus ) === 'publish' ) {
 		return sprintf(
 			/* translators: 1: post title. 2: workflow (sequence) name. */

@@ -402,15 +402,24 @@ class PublishBoundaryGuard {
 			// sequence meta; a sequence that will not resolve from it is a
 			// data-integrity bug. The veto stands (fail closed). There is no
 			// workflow to move the post through, so removal is the only way out
-			// and is named — the same answer a post in a deleted workflow gets.
+			// and is named. This is the orphaned post the client calls a deleted
+			// workflow, so it gets the client's sentence word for word
+			// (getOrphanedWorkflowMessage()): one string for one situation.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( sprintf( '[VIP Workflows] Post %d is workflow-managed but its sequence could not be resolved while building the publish-veto message.', $post_id ) );
 
 			return sprintf(
 				/* translators: %s: post title. */
-				__( '“%s” is in a workflow that can’t be found. Remove it from the workflow to change its status.', 'vip-workflows' ),
+				__( '“%s” is in a deleted workflow. Remove it from the workflow to change its status.', 'vip-workflows' ),
 				$post_title
 			);
+		}
+
+		if ( '' === $target_status ) {
+			// The sentence names the direction of the refused change, and an
+			// empty status names none; the generic sentence below is what's left.
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] The publish-veto message for post %d was built without the target status, so it cannot name the direction of the refused change.', $post_id ) );
 		}
 
 		if ( 'publish' === $this->status_manager->status_to_region( $target_status ) ) {

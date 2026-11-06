@@ -465,6 +465,32 @@ describe( 'getPublishVetoMessage', () => {
 	);
 } );
 
+describe( 'getPublishVetoMessage without a target status', () => {
+	// The sentence names the direction of the refused change. A caller that
+	// forgets the target status gets the generic sentence, and says so in the
+	// console instead of quietly picking it.
+	it( 'logs an error and falls back to the generic sentence', () => {
+		const report = jest
+			.spyOn( console, 'error' )
+			.mockImplementation( () => {} );
+		try {
+			expect(
+				getPublishVetoMessage( {
+					title: 'Budget piece',
+					workflowName: 'News desk',
+				} )
+			).toBe(
+				'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead.'
+			);
+			expect( report ).toHaveBeenCalledWith(
+				expect.stringContaining( 'without the target status' )
+			);
+		} finally {
+			report.mockRestore();
+		}
+	} );
+} );
+
 describe( 'getOrphanedWorkflowMessage', () => {
 	// A post whose sequence row was deleted is frozen by the save layer but has
 	// no workflow left to name, so it cannot reuse the ordinary veto's copy —
