@@ -26,7 +26,7 @@
  */
 
 import { memo } from '@wordpress/element';
-import { Icon } from '@wordpress/components';
+import { Icon } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
 import { login } from '@wordpress/icons';
 
@@ -46,6 +46,7 @@ function RegionNodeComponent( { data } ) {
 			data-region={ region }
 		>
 			{ showSlot && (
+				// wpds-allow R7 -- the drop-target outline is absolutely placed from runtime band coordinates; as a <Stack> that style attribute would become a component override
 				<div
 					className={ [
 						'wf-region__slot',

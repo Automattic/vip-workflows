@@ -101,7 +101,7 @@ The `statuses`/`post_types`/`settings`/`metadata_fields` payload is identical in
 
 ## 6. Validate before you write
 
-Call `vip-workflows/validate-sequence` (read-only, idempotent) with your proposed `config` (or a stored `sequence_id`). It reproduces the exact write gate and reports what is wrong plus the normalized result. Fix every reported error and re-run until it returns valid.
+Call `vip-workflows/validate-sequence` (read-only, idempotent) with your proposed `config` (or a stored `sequence_id`). It reproduces the exact write gate and reports what is wrong plus the normalized result. Fix every reported error and re-run until it returns valid. Retired note inputs (`textarea`, `text`) are removed before validating, as import removes them, and listed in `notes`; create and update refuse them, so leave them out of what you write.
 
 ## 7. Create, then activate
 

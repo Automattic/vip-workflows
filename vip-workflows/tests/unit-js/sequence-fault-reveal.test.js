@@ -17,24 +17,34 @@
  * All three are the same promise, so they are pinned together here: the panel
  * opens and takes focus, and the canvas is told where to pan.
  *
- * The pan itself cannot run here — React Flow measures a viewport jsdom does
- * not lay out — so it is tested as the arithmetic it is (`canvas-reveal`), and
- * the editor is held to handing the canvas the request.
+ * The canvas is stubbed here, so the editor is held to handing it the request,
+ * and the pan is tested as the arithmetic it is (`canvas-reveal`). What the
+ * canvas does with the request is `graph-canvas-reveal.test.js`.
  *
  * @package
  */
 
+import { screen, fireEvent } from './helpers/render-wp-component';
 import {
-	act,
-	render,
-	screen,
-	fireEvent,
-	waitFor,
-} from './helpers/render-wp-component';
+	canvasReveals,
+	nameField,
+	renderSequenceEditor,
+	resetCanvas,
+	saveButton,
+	sequenceOptions,
+} from './helpers/sequence-editor';
 
-import apiFetch from '@wordpress/api-fetch';
+import { createRoot, useEffect, useState } from '@wordpress/element';
 
 import Inspector from '../../src/admin/components/graph/Inspector';
+import {
+	INSPECTOR_PROPS,
+	STAGES,
+	body,
+	renderInspector,
+	toggle,
+} from './helpers/inspector-fixture';
+import { FAULTED_STAGES } from './helpers/faulted-sequence';
 import {
 	REVEAL_MARGIN,
 	revealNodeIds,
@@ -44,84 +54,14 @@ import { regionNodeId } from '../../src/admin/components/graph/graph-model';
 
 jest.mock( '@wordpress/api-fetch' );
 
-// Every reveal the canvas was handed, in order, deduplicated by identity: the
-// stub re-renders for reasons of its own (a keystroke in the panel), and a prop
-// arriving twice is still one instruction.
-let mockReveals = [];
-
 jest.mock(
 	'../../src/admin/components/graph/GraphCanvas',
-	() =>
-		function GraphCanvasStub( { reveal } ) {
-			if ( reveal && mockReveals[ mockReveals.length - 1 ] !== reveal ) {
-				mockReveals.push( reveal );
-			}
-			return <div data-testid="canvas" />;
-		}
+	() => require( './helpers/graph-canvas-stub' ).GraphCanvasStub
 );
 
-import SequenceGraphEditor from '../../src/admin/components/graph/SequenceGraphEditor';
-
 const heading = () => document.querySelector( '.wf-inspector__heading' );
-const body = () => document.querySelector( '.wf-inspector__body' );
-const toggle = () =>
-	screen.getByRole( 'button', { name: /Collapse panel|Expand panel/ } );
 
 // --- The panel a reveal opens ---------------------------------------------
-
-const STAGES = [
-	{
-		key: 'draft',
-		label: 'Draft',
-		status: 'draft',
-		region_entry: true,
-		transitions: [ { to: 'review', label: 'Submit' } ],
-	},
-	{ key: 'review', label: 'Review', status: 'pending', transitions: [] },
-];
-
-const SEQUENCE_SETTINGS = {
-	name: 'Editorial Review',
-	onNameChange: () => {},
-	description: '',
-	onDescriptionChange: () => {},
-	isActive: true,
-	onActiveChange: () => {},
-	postTypes: [ { label: 'Posts', value: 'post' } ],
-	selectedPostTypes: [ 'post' ],
-	onTogglePostType: () => {},
-	metadataFields: [],
-	onMetadataChange: () => {},
-	isNew: false,
-	onDelete: () => {},
-	deleting: false,
-};
-
-function renderInspector( overrides = {} ) {
-	const props = {
-		selection: { type: 'node', key: 'draft' },
-		isPhase: false,
-		stages: STAGES,
-		selectedStage: STAGES[ 0 ],
-		selectedTransition: null,
-		availableAgents: [],
-		availableRoles: [],
-		availableTools: [],
-		availableChannels: [],
-		onUpdateStage: () => {},
-		onDeleteStage: () => {},
-		onUpdateTransition: () => {},
-		onDeleteTransition: () => {},
-		sequenceSettings: SEQUENCE_SETTINGS,
-		...overrides,
-	};
-	const view = render( <Inspector { ...props } /> );
-	return {
-		...view,
-		update: ( next ) =>
-			view.rerender( <Inspector { ...props } { ...next } /> ),
-	};
-}
 
 // One reveal of the stage these tests select, as the editor builds one.
 const revealDraft = () => ( {
@@ -241,6 +181,10 @@ describe( 'a reveal opens the panel it selects into', () => {
 
 		update( { reveal: revealDraft() } );
 
+		// jsdom computes the name from `aria-labelledby` whatever the role,
+		// so the role is held to separately: a bare div is not something a
+		// screen reader announces by name.
+		expect( heading() ).toHaveAttribute( 'role', 'group' );
 		expect( heading() ).toHaveAccessibleName( 'Stage Draft' );
 	} );
 
@@ -274,6 +218,47 @@ describe( 'a reveal opens the panel it selects into', () => {
 		expect( assignments() ).toHaveAttribute( 'aria-expanded', 'true' );
 	} );
 
+	// The stage panel's sections keep their own open or shut state, so the
+	// panel is a fresh one per stage — or the section a reveal needs open on
+	// one stage stays the way the author left it on the last.
+	it( 'does not carry a stage’s open sections over to the next stage', () => {
+		const { update } = renderInspector();
+		const advanced = () =>
+			screen.getByRole( 'button', { name: /Advanced/ } );
+		fireEvent.click( advanced() );
+		expect( advanced() ).toHaveAttribute( 'aria-expanded', 'true' );
+
+		update( {
+			selection: { type: 'node', key: 'review' },
+			selectedStage: STAGES[ 1 ],
+			reveal: { target: { type: 'node', key: 'review' } },
+		} );
+
+		expect( advanced() ).toHaveAttribute( 'aria-expanded', 'false' );
+	} );
+
+	// The Key field renames the stage as it is typed, and the selection
+	// follows the new key. Still one stage, so still one panel: a fresh one
+	// would take focus out of the field mid-word.
+	it( 'keeps the stage’s panel while its key is typed', () => {
+		const { update } = renderInspector();
+		fireEvent.click( screen.getByRole( 'button', { name: /Advanced/ } ) );
+		const keyField = screen.getByRole( 'textbox', { name: 'Key' } );
+		keyField.focus();
+
+		const renamed = { ...STAGES[ 0 ], key: 'drafts' };
+		update( {
+			stages: [ renamed, STAGES[ 1 ] ],
+			selection: { type: 'node', key: 'drafts' },
+			selectedStage: renamed,
+		} );
+
+		expect( screen.getByRole( 'textbox', { name: 'Key' } ) ).toBe(
+			keyField
+		);
+		expect( keyField ).toHaveFocus();
+	} );
+
 	it( 'reveals again when the same fault is asked for twice', () => {
 		const { update } = renderInspector();
 		update( { reveal: revealDraft() } );
@@ -288,13 +273,111 @@ describe( 'a reveal opens the panel it selects into', () => {
 	} );
 } );
 
+// --- The order the two halves run in ---------------------------------------
+
+// The canvas measures the room the panel leaves on the frame after a reveal.
+// The panel has to be open by then, or a docked panel is measured as the title
+// bar it was collapsed to and the fault lands behind it once it opens.
+//
+// Nothing above can see this: `act` flushes every update before it returns, so
+// an expansion queued as a later task looks as done as one committed with the
+// selection. This runs the way a browser does — a root with no `act`, a native
+// click, and a frame that arrives before any task React queues after it, which
+// is the order Chromium ran them in when the panel was expanded from a passive
+// effect and the canvas measured it collapsed.
+describe( 'the panel a reveal opens, as the canvas measures it', () => {
+	it( 'is open by the frame after the press', async () => {
+		const actEnvironment = global.IS_REACT_ACT_ENVIRONMENT;
+		const { requestAnimationFrame: raf, cancelAnimationFrame: caf } =
+			window;
+		const desktop = window.matchMedia;
+		const container = document.createElement( 'div' );
+		document.body.appendChild( container );
+		const root = createRoot( container );
+
+		global.IS_REACT_ACT_ENVIRONMENT = false;
+		window.requestAnimationFrame = ( callback ) => {
+			queueMicrotask( () => callback( performance.now() ) );
+			return 0;
+		};
+		window.cancelAnimationFrame = () => {};
+		// A phone, where the panel starts collapsed and docks along the bottom
+		// — the layout in which its height is what the canvas measures.
+		window.matchMedia = () => ( {
+			matches: true,
+			media: '',
+			onchange: null,
+			addListener: () => {},
+			removeListener: () => {},
+			addEventListener: () => {},
+			removeEventListener: () => {},
+			dispatchEvent: () => false,
+		} );
+
+		// Whether the panel was hidden, each time the canvas measured it.
+		const measured = [];
+
+		// The canvas's side, as `GraphCanvas` does it: a frame after the
+		// reveal arrives, read the panel.
+		function CanvasProbe( { reveal } ) {
+			useEffect( () => {
+				if ( ! reveal ) {
+					return;
+				}
+				const frame = window.requestAnimationFrame( () =>
+					measured.push( body().hidden )
+				);
+				return () => window.cancelAnimationFrame( frame );
+			}, [ reveal ] );
+			return null;
+		}
+
+		function Editor() {
+			const [ reveal, setReveal ] = useState( null );
+			return (
+				<>
+					<button
+						className="show"
+						onClick={ () => setReveal( revealDraft() ) }
+					>
+						Show stage
+					</button>
+					<Inspector { ...INSPECTOR_PROPS } reveal={ reveal } />
+					<CanvasProbe reveal={ reveal } />
+				</>
+			);
+		}
+
+		const nextTask = () =>
+			new Promise( ( resolve ) => setTimeout( resolve, 20 ) );
+
+		try {
+			root.render( <Editor /> );
+			await nextTask();
+			expect( body() ).toHaveAttribute( 'hidden' );
+
+			container.querySelector( '.show' ).click();
+			await nextTask();
+
+			expect( measured ).toEqual( [ false ] );
+		} finally {
+			root.unmount();
+			container.remove();
+			window.matchMedia = desktop;
+			window.requestAnimationFrame = raf;
+			window.cancelAnimationFrame = caf;
+			global.IS_REACT_ACT_ENVIRONMENT = actEnvironment;
+		}
+	} );
+} );
+
 // --- Where the canvas pans -------------------------------------------------
 
 /**
  * The pane as it is above wp-admin's breakpoint: 800px wide with the floating
  * panel covering 360 of it, so the strip left visible is 440.
  */
-const PANE = { x: 0, y: 0, width: 440, height: 600 };
+const PANE = { y: 0, width: 440, height: 600 };
 const HOME = { x: 0, y: 0, zoom: 1 };
 
 // Where the centre of that strip is, in pane pixels.
@@ -350,7 +433,7 @@ describe( 'where a reveal pans the canvas', () => {
 		expect(
 			revealViewport( bounds, {
 				viewport: HOME,
-				visible: { x: 0, y: 0, width: 800, height: 600 },
+				visible: { y: 0, width: 800, height: 600 },
 			} )
 		).toBeNull();
 	} );
@@ -406,94 +489,38 @@ describe( 'where a reveal pans the canvas', () => {
 
 // --- The editor's side of the promise --------------------------------------
 
-// The one transition captures an assignment and names no key, which the server
-// refuses as `invalid_assignment_key`. The fault belongs to the transition, so
-// the notice offers "Show transition".
-const FAULTED = [
-	{
-		key: 'draft',
-		label: 'Draft',
-		color: '#C36EFF',
-		status: 'draft',
-		region_entry: true,
-		is_terminal: false,
-		transitions: [
-			{
-				to: 'legal',
-				label: 'Send to legal',
-				inputs: [ { type: 'assignment', meta_key: '' } ],
-			},
-		],
-	},
-	{
-		key: 'legal',
-		label: 'Legal',
-		color: '#C36EFF',
-		status: 'draft',
-		region_entry: false,
-		is_terminal: true,
-		transitions: [],
-	},
-];
-
-// The stages the stored sequence answers with; FAULTED unless a test says
-// otherwise.
-let mockStatuses = FAULTED;
-
-const sequence = () => ( {
+// The stages the stored sequence answers with; FAULTED_STAGES unless a test
+// says otherwise.
+const sequence = ( statuses = FAULTED_STAGES ) => ( {
 	id: 7,
 	name: 'Editorial Review',
 	description: '',
 	status: 'active',
 	stages_missing_region: [],
 	config: {
-		statuses: mockStatuses,
+		statuses,
 		post_types: [ 'post' ],
 		settings: {},
 		metadata_fields: [],
 	},
 } );
 
-const OPTIONS = {
-	post_types: [ { value: 'post', label: 'Posts' } ],
-	phase_transitions: [],
-	required_phase_transitions: [],
-};
-
 beforeEach( () => {
-	mockReveals = [];
-	mockStatuses = FAULTED;
-	apiFetch.mockImplementation( ( { path } ) => {
-		if ( path === '/vip-workflows/v1/sequences/options' ) {
-			return Promise.resolve( OPTIONS );
-		}
-		if (
-			path.startsWith( '/vip-workflows/v1/abilities' ) ||
-			path === '/vip-workflows/v1/notifications/channels'
-		) {
-			return Promise.resolve( [] );
-		}
-		return Promise.resolve( sequence() );
-	} );
+	resetCanvas();
 } );
 
 afterEach( () => {
 	jest.clearAllMocks();
 } );
 
-const saveButton = () =>
-	screen.getByRole( 'button', { name: /^(Save|Saving…|Saved!)$/ } );
-const nameField = () => screen.getByRole( 'textbox', { name: /^Name/ } );
 const showTransition = () =>
 	screen.getByRole( 'button', { name: 'Show transition' } );
 
-async function renderEditor() {
-	render( <SequenceGraphEditor sequenceId={ 7 } onCancel={ () => {} } /> );
-	await waitFor( () => expect( saveButton() ).toBeInTheDocument() );
-	await act( async () => {
-		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
+const renderEditor = ( statuses ) =>
+	renderSequenceEditor( {
+		sequence: sequence( statuses ),
+		options: sequenceOptions( { phase_transitions: [] } ),
 	} );
-}
 
 describe( 'the way a refused Save shows its fault', () => {
 	// Save is disabled until there is unsaved work, so it has to be given some
@@ -520,12 +547,12 @@ describe( 'the way a refused Save shows its fault', () => {
 	it( 'tells the canvas which transition to bring into view', async () => {
 		await renderEditor();
 		await pressSave();
-		expect( mockReveals ).toHaveLength( 0 );
+		expect( canvasReveals() ).toHaveLength( 0 );
 
 		fireEvent.click( showTransition() );
 
-		expect( mockReveals ).toHaveLength( 1 );
-		expect( mockReveals[ 0 ].target ).toMatchObject( {
+		expect( canvasReveals() ).toHaveLength( 1 );
+		expect( canvasReveals()[ 0 ].target ).toMatchObject( {
 			type: 'edge',
 			from: 'draft',
 			to: 'legal',
@@ -542,8 +569,9 @@ describe( 'the way a refused Save shows its fault', () => {
 		// One target, two requests. The canvas may have been panned away in
 		// between, so the second press has to arrive as a fresh instruction
 		// rather than as an unchanged prop.
-		expect( mockReveals ).toHaveLength( 2 );
-		expect( mockReveals[ 1 ] ).not.toBe( mockReveals[ 0 ] );
+		expect( canvasReveals() ).toHaveLength( 2 );
+		const [ first, second ] = canvasReveals();
+		expect( second ).not.toBe( first );
 	} );
 
 	// A stored sequence can carry two stages under one key — only from before
@@ -552,16 +580,15 @@ describe( 'the way a refused Save shows its fault', () => {
 	// meant, and every edit there would land on both. The notice names the
 	// fault and offers no way to it.
 	it( 'offers no way to a fault on a stage that shares its key', async () => {
-		mockStatuses = [
+		await renderEditor( [
 			{
-				...FAULTED[ 0 ],
+				...FAULTED_STAGES[ 0 ],
 				label: 'Other draft',
 				region_entry: false,
 				transitions: [ { to: 'legal', label: 'Plain' } ],
 			},
-			...FAULTED,
-		];
-		await renderEditor();
+			...FAULTED_STAGES,
+		] );
 		await pressSave();
 
 		expect( screen.getAllByText( /share the key/ ).length ).toBeGreaterThan(

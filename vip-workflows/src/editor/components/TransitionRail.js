@@ -23,9 +23,8 @@ import {
 import { Button, Icon, Spinner } from '@wordpress/components';
 import { check, close, error as errorTriangle } from '@wordpress/icons';
 import { Badge, Stack, Text } from '@wordpress/ui';
-import { speak } from '@wordpress/a11y';
 import { useInstanceId } from '@wordpress/compose';
-import { __, sprintf } from '@wordpress/i18n';
+import { __ } from '@wordpress/i18n';
 import { transitionLabel } from '../../common/transition-label';
 import { railGeometry, ARROW_PATH, RAIL } from './transition-rail-geometry';
 import '../../common/outcome-tones.css';
@@ -169,11 +168,12 @@ export function TransitionRail( {
 	const pathsSignatureRef = useRef( '' );
 	const labelId = useInstanceId( TransitionRail, 'vip-workflows-rail-stage' );
 
-	// Announce every move, and play the agent flash. The flash needs the
-	// resolved outcome, which only `agent_last_run` can supply — matching on
-	// the stage the run belonged to, so a coincidental stage change never
-	// flashes a button nobody's routing produced. Without the field the rail
-	// degrades to the announcement and the re-render.
+	// Play the agent flash. It needs the resolved outcome, which only
+	// `agent_last_run` can supply — matching on the stage the run belonged
+	// to, so a coincidental stage change never flashes a button nobody's
+	// routing produced. Without the field the rail degrades to the
+	// re-render. The move itself is announced by the transition flow, which
+	// is mounted whether or not this rail is.
 	useEffect( () => {
 		const prev = prevRef.current;
 		prevRef.current = { current, agentPending };
@@ -192,28 +192,10 @@ export function TransitionRail( {
 				stage: prev.current,
 				outcome: agentLastRun.outcome,
 			} );
-			speak(
-				sprintf(
-					/* translators: 1: the agent stage's label, 2: the new stage's label. */
-					__( '%1$s finished. Moved to %2$s.', 'vip-workflows' ),
-					prev.current?.label || '',
-					current.label || ''
-				),
-				'polite'
-			);
 			const timer = setTimeout( () => setFlash( null ), FLASH_MS );
 
 			return () => clearTimeout( timer );
 		}
-
-		speak(
-			sprintf(
-				/* translators: %s: the new stage's label. */
-				__( 'Moved to %s.', 'vip-workflows' ),
-				current.label || ''
-			),
-			'polite'
-		);
 	}, [ current, agentPending, agentLastRun ] );
 
 	// Measure the laid-out buttons and draw the rail from them, so the

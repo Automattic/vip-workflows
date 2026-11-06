@@ -266,7 +266,7 @@ export function useAssistantsSettings() {
 			name: 'plugin',
 			title: __( 'From plugins', 'vip-workflows' ),
 			empty: __(
-				'No agent plugins installed. Agents arrive as separate plugins.',
+				'No agent plugins installed. Agents ship as plugins.',
 				'vip-workflows'
 			),
 		},

@@ -34,13 +34,18 @@ const execFileAsync = promisify( execFile );
 const WORKFLOW_SIDEBAR = '.vip-workflows-sidebar';
 
 /**
+ * The workflow rows' own root in the Summary panel — the `<Stack
+ * className="vip-workflows-summary-rows">` WorkflowSummaryRows renders.
+ */
+const WORKFLOW_SUMMARY_ROWS = '.vip-workflows-summary-rows';
+
+/**
  * Open the Workflow plugin sidebar and return its root locator.
  *
- * Everything the plugin puts in the editor now lives here: the stage, its
- * progress, the transitions, Tools and Editorial Metadata. It replaces the two
- * `PluginDocumentSettingPanel`s ("Workflow Stage", "Editorial Metadata") specs
- * used to expand in the document settings sidebar, so
- * `editor.openDocumentSettingsSidebar()` no longer reaches any of it.
+ * What acts on the post's movement through its workflow lives here: the
+ * stage, the transitions and the history. Which workflow the post is in, and
+ * the editorial metadata fields, are rows in the document sidebar's Summary
+ * panel instead — see openWorkflowSummaryRows().
  *
  * Opening an unpinned plugin sidebar reliably has been the open problem in this
  * suite (see docs/TESTING.md); solving it once here is the point of this helper.
@@ -93,8 +98,45 @@ async function openWorkflowSidebar( page ) {
 }
 
 /**
- * The workflow panel inside the sidebar — the stage, its progress, the
- * transitions and the actions on the workflow itself.
+ * The workflow's rows in the document sidebar's Summary panel — the Workflow
+ * row (which sequence the post is in, and the way out of it) and the
+ * sequence-declared metadata rows.
+ *
+ * They are a `PluginPostStatusInfo` fill, so they render wherever the Summary
+ * panel does: the Settings sidebar's Post tab, open by default. The Settings
+ * sidebar shares its area with the Workflow plugin sidebar, so a spec that
+ * opened that one has to come back here explicitly. Anchored on the rows' own
+ * root rather than on core's panel chrome.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @return {Promise<import('@playwright/test').Locator>} The rows' root.
+ */
+async function openWorkflowSummaryRows( page ) {
+	const rows = page.locator( WORKFLOW_SUMMARY_ROWS );
+
+	if ( ! ( await rows.isVisible() ) ) {
+		const settings = page
+			.getByRole( 'region', { name: 'Editor top bar' } )
+			.getByRole( 'button', { name: 'Settings', exact: true } );
+
+		if ( 'true' !== ( await settings.getAttribute( 'aria-expanded' ) ) ) {
+			await settings.click();
+		}
+
+		// The Summary panel is on the document tab, not the Block tab.
+		await page
+			.getByRole( 'tab', { name: /^(Post|Page)$/ } )
+			.first()
+			.click();
+	}
+
+	await rows.waitFor( { state: 'visible' } );
+	return rows;
+}
+
+/**
+ * The workflow panel inside the sidebar — the stage, the transitions and the
+ * history.
  *
  * @param {import('@playwright/test').Page} page
  * @return {Promise<import('@playwright/test').Locator>} The panel root.
@@ -523,6 +565,7 @@ module.exports = {
 	EDITORIAL_REVIEW_SLUG,
 	WORKFLOW_SIDEBAR,
 	openWorkflowSidebar,
+	openWorkflowSummaryRows,
 	openWorkflowPanel,
 	getEditorialSequence,
 	createDraftPost,

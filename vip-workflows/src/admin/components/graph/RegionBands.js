@@ -31,7 +31,7 @@
 
 import { memo } from '@wordpress/element';
 import { useStore } from '@xyflow/react';
-import { Icon } from '@wordpress/components';
+import { Icon } from '@wordpress/ui';
 import { _n, sprintf } from '@wordpress/i18n';
 import { postList } from '@wordpress/icons';
 

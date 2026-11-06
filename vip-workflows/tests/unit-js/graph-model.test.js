@@ -26,6 +26,8 @@ import {
 	reconnectEdgeToNewStage,
 	canReconnectToNewStage,
 	entryStageKey,
+	markInitialStage,
+	reorderStages,
 	disconnectEdge,
 	setStageAgent,
 	routeOutcome,
@@ -39,6 +41,8 @@ import {
 	NODE_TYPE,
 	START_ID,
 	canReconnect,
+	endsAfterMove,
+	endpointMoveVerdict,
 	END_ID,
 	TERMINAL_NODE_TYPE,
 } from '../../src/admin/components/graph/graph-model';
@@ -309,9 +313,27 @@ describe( 'setEntryStage', () => {
 		] );
 	} );
 
-	it( 'is a no-op when already first or missing', () => {
-		expect( setEntryStage( stages(), 'draft' ) ).toEqual( stages() );
+	it( 'only flags the stage when already first, and ignores a missing key', () => {
+		const expected = stages();
+		expected[ 0 ].is_initial = true;
+		expect( setEntryStage( stages(), 'draft' ) ).toEqual( expected );
 		expect( setEntryStage( stages(), 'nope' ) ).toEqual( stages() );
+	} );
+
+	it( 'moves the is_initial flag to a draft-region target', () => {
+		const input = markInitialStage( stages() );
+		const next = setEntryStage( input, 'review' );
+		expect(
+			next.filter( ( s ) => s.is_initial ).map( ( s ) => s.key )
+		).toEqual( [ 'review' ] );
+		expect( entryStageKey( next ) ).toBe( 'review' );
+	} );
+
+	it( 'leaves the is_initial flag alone for a target outside the draft region', () => {
+		const input = markInitialStage( stages() );
+		const next = setEntryStage( input, 'done' );
+		expect( next[ 0 ].key ).toBe( 'done' );
+		expect( entryStageKey( next ) ).toBe( 'draft' );
 	} );
 
 	it( 'claims the draft region entry checkpoint for a draft-region target', () => {
@@ -345,6 +367,74 @@ describe( 'setEntryStage', () => {
 		// …and the draft region's checkpoint is untouched.
 		expect( next.find( ( s ) => s.key === 'draft' ).region_entry ).toBe(
 			true
+		);
+	} );
+} );
+
+describe( 'the start stage', () => {
+	it( 'follows the is_initial flag over the draft checkpoint and array order', () => {
+		const input = stages();
+		input[ 1 ].is_initial = true;
+		expect( entryStageKey( input ) ).toBe( 'review' );
+	} );
+
+	it( 'flags exactly one stage, the one Start points at', () => {
+		const input = stages();
+		input[ 2 ].is_initial = true;
+		input[ 2 ].region_entry = true;
+		const next = markInitialStage( input );
+		expect(
+			next.filter( ( s ) => s.is_initial ).map( ( s ) => s.key )
+		).toEqual( [ 'done' ] );
+	} );
+
+	it( 'flags the draft checkpoint when no stage carries the flag yet', () => {
+		const next = markInitialStage( stages() );
+		expect(
+			next.filter( ( s ) => s.is_initial ).map( ( s ) => s.key )
+		).toEqual( [ 'draft' ] );
+		expect( 'is_initial' in next[ 1 ] ).toBe( false );
+	} );
+
+	it( 'stays on its stage when the stages list is reordered', () => {
+		const before = markInitialStage( stages() );
+		// "Review" dragged to the top of the stages list.
+		const reordered = reorderStages( before, [
+			before[ 1 ],
+			before[ 0 ],
+			before[ 2 ],
+		] );
+		expect( reordered.map( ( s ) => s.key ) ).toEqual( [
+			'review',
+			'draft',
+			'done',
+		] );
+		expect( entryStageKey( reordered ) ).toBe( 'draft' );
+		// What the save sends still names "Draft", not the new first stage.
+		expect(
+			markInitialStage( reordered )
+				.filter( ( s ) => s.is_initial )
+				.map( ( s ) => s.key )
+		).toEqual( [ 'draft' ] );
+	} );
+
+	it( 'stays on its stage when a reorder moves another stage to the top', () => {
+		// A stage list no save has flagged yet: Start rests on the first stage
+		// because no draft checkpoint is marked. The reorder must not move it.
+		const before = stages().map( ( s ) => ( {
+			...s,
+			region_entry: false,
+		} ) );
+		expect( entryStageKey( before ) ).toBe( 'draft' );
+		const reordered = reorderStages( before, [
+			before[ 2 ],
+			before[ 0 ],
+			before[ 1 ],
+		] );
+		expect( entryStageKey( reordered ) ).toBe( 'draft' );
+		const { edges } = buildGraph( reordered );
+		expect( edges.find( ( e ) => e.source === START_ID ).target ).toBe(
+			'draft'
 		);
 	} );
 } );
@@ -537,6 +627,29 @@ describe( 'transition mutations', () => {
 	it( 'removeTransition deletes the edge', () => {
 		const next = removeTransition( stages(), 'draft', 'review' );
 		expect( findTransition( next, 'draft', 'review' ) ).toBeNull();
+	} );
+
+	it( 'removeTransition relies on one transition per target', () => {
+		// It deletes by target, so it is exact only while no edit can give a
+		// stage a second transition to the same target.
+		const toReview = ( list ) =>
+			list
+				.find( ( s ) => s.key === 'draft' )
+				.transitions.filter( ( t ) => t.to === 'review' );
+		const added = addTransition( stages(), 'draft', 'review', {
+			label: 'Again',
+		} );
+		const rewired = rewireTransition(
+			addTransition( stages(), 'draft', 'done' ),
+			'draft',
+			'done',
+			'review'
+		);
+		expect( toReview( added ) ).toHaveLength( 1 );
+		expect( toReview( rewired ) ).toHaveLength( 1 );
+
+		const next = removeTransition( added, 'draft', 'review' );
+		expect( toReview( next ) ).toHaveLength( 0 );
 	} );
 } );
 
@@ -944,6 +1057,89 @@ describe( 'canReconnect', () => {
 	} );
 } );
 
+describe( 'endpointMoveVerdict', () => {
+	// The one verdict for moving an edge's end: the canvas paints a held
+	// endpoint with it and the transition panel builds its From/To options
+	// from it, so both halves — the connection rule and `canReconnect` — are
+	// asked in one place.
+	const edge = { from: 'draft', to: 'review' };
+	const allowAll = () => true;
+
+	it( 'states the pair a move would make, for either end', () => {
+		expect( endsAfterMove( edge, 'target', 'done' ) ).toEqual( {
+			from: 'draft',
+			to: 'done',
+		} );
+		expect( endsAfterMove( edge, 'source', 'done' ) ).toEqual( {
+			from: 'done',
+			to: 'review',
+		} );
+	} );
+
+	it( 'calls a move onto the end it already has unchanged', () => {
+		const rule = jest.fn( allowAll );
+		expect(
+			endpointMoveVerdict( stages(), edge, 'target', 'review', rule )
+		).toBe( 'unchanged' );
+		expect( rule ).not.toHaveBeenCalled();
+	} );
+
+	it( 'accepts a move both halves allow', () => {
+		expect(
+			endpointMoveVerdict( stages(), edge, 'target', 'done', allowAll )
+		).toBe( 'valid' );
+	} );
+
+	it( 'refuses a move the connection rule refuses, though the model would take it', () => {
+		expect(
+			canReconnect( stages(), 'draft', 'review', 'draft', 'done' )
+		).toBe( true );
+		const rule = jest.fn( () => false );
+		expect(
+			endpointMoveVerdict( stages(), edge, 'target', 'done', rule )
+		).toBe( 'invalid' );
+		expect( rule ).toHaveBeenCalledWith( {
+			source: 'draft',
+			target: 'done',
+			sourceHandle: null,
+		} );
+	} );
+
+	it( 'refuses a move the model refuses, though the connection rule allows it', () => {
+		// A self-loop: no rule needed to refuse it, `canReconnect` does.
+		expect(
+			endpointMoveVerdict( stages(), edge, 'source', 'review', allowAll )
+		).toBe( 'invalid' );
+	} );
+
+	it( 'hands the edge’s outcome to both halves', () => {
+		const routed = stages().map( ( s ) =>
+			s.key === 'draft'
+				? {
+						...s,
+						agent: { ability_id: 'x', routing: { pass: 'review' } },
+				  }
+				: s
+		);
+		const rule = jest.fn( allowAll );
+		// An outcome's departure is fixed: moving its source is refused.
+		expect(
+			endpointMoveVerdict(
+				routed,
+				{ ...edge, outcome: 'pass' },
+				'source',
+				'done',
+				rule
+			)
+		).toBe( 'invalid' );
+		expect( rule ).toHaveBeenCalledWith( {
+			source: 'done',
+			target: 'review',
+			sourceHandle: 'pass',
+		} );
+	} );
+} );
+
 describe( 'canReconnectToNewStage', () => {
 	// The canvas paints a ghost card wherever this says yes, so its only
 	// contract is that it agrees with the mutation it predicts. A verdict that
@@ -1126,6 +1322,88 @@ describe( 'dangling transitions', () => {
 		expect( message ).toContain( 'Schedule' );
 		expect( message ).toContain( 'ghost' );
 	} );
+
+	it( 'names an unlabelled transition by the label its button carries', () => {
+		const s = stages();
+		s[ 1 ].transitions.push( { to: 'ghost' } );
+		const { warnings } = validateSequence( { name: 'Flow', stages: s } );
+
+		expect( warnings.review ).toEqual( [
+			expect.stringContaining( '“Move to ghost” transition' ),
+		] );
+	} );
+} );
+
+/*
+ * An unauthored transition label is never stored — the button derives "Move to
+ * {destination}" when it is read. A slot fault naming the transition by its raw
+ * label, falling back to the destination key, would point the author at a
+ * transition no button in the editor is called.
+ */
+describe( 'assignment slot faults name the transition', () => {
+	const assignment = ( metaKey ) => ( {
+		type: 'assignment',
+		assignee_type: 'role',
+		label: 'Pick desk',
+		required: true,
+		meta_key: metaKey,
+	} );
+
+	const withInputs = ( draftInputs, reviewInputs ) =>
+		stages().map( ( s ) => {
+			if ( 'draft' === s.key ) {
+				return {
+					...s,
+					transitions: [ { to: 'review', inputs: draftInputs } ],
+				};
+			}
+			if ( 'review' === s.key ) {
+				return {
+					...s,
+					transitions: [ { to: 'done', inputs: reviewInputs } ],
+				};
+			}
+			return s;
+		} );
+
+	it( 'by its derived label when it names no assignment key', () => {
+		const { errors } = validateSequence( {
+			name: 'Flow',
+			stages: withInputs( [ assignment( '' ) ], [] ),
+		} );
+
+		expect( messages( errors ) ).toEqual( [
+			expect.stringContaining(
+				'The “Move to Review” transition assigns work but names no assignment key'
+			),
+		] );
+	} );
+
+	it( 'by its derived label when it reuses another transition’s slot', () => {
+		const { errors } = validateSequence( {
+			name: 'Flow',
+			stages: withInputs(
+				[ assignment( 'wfp_nshared' ) ],
+				[ assignment( 'wfp_nshared' ) ]
+			),
+		} );
+
+		expect( messages( errors ) ).toEqual( [
+			expect.stringContaining(
+				'The “Move to Done” transition assigns to the same slot as another transition'
+			),
+		] );
+	} );
+
+	it( 'by its authored label when it has one', () => {
+		const next = withInputs( [ assignment( '' ) ], [] );
+		next[ 0 ].transitions[ 0 ].label = 'Send to legal';
+		const { errors } = validateSequence( { name: 'Flow', stages: next } );
+
+		expect( messages( errors ) ).toEqual( [
+			expect.stringContaining( 'The “Send to legal” transition' ),
+		] );
+	} );
 } );
 
 describe( 'validateSequence', () => {
@@ -1271,6 +1549,21 @@ describe( 'validateSequence', () => {
 		expect( warnings.review.join( ' ' ) ).toContain( '“review”' );
 	} );
 
+	it( 'treats a name of only spaces as no name', () => {
+		// The server trims it to empty, so letting it through here would save
+		// a stage writers see as a blank.
+		const blank = stages().map( ( s ) =>
+			s.key === 'review' ? { ...s, label: '   ' } : s
+		);
+		const { valid, errors, warnings } = validateSequence( {
+			name: 'Flow',
+			stages: blank,
+		} );
+		expect( valid ).toBe( false );
+		expect( messages( errors ).join( ' ' ) ).toContain( 'has no name' );
+		expect( warnings.review.join( ' ' ) ).toContain( '“review”' );
+	} );
+
 	it( 'names the stage that has no key, by the name writers see', () => {
 		const unkeyed = stages().map( ( s ) =>
 			s.key === 'review' ? { ...s, key: '' } : s
@@ -1393,16 +1686,28 @@ describe( 'validateSequence', () => {
 	} );
 
 	it( 'warns when the flow entry sits outside the draft region', () => {
-		// done (publish region) dragged to the front of the sequence.
+		// done (publish region) is the stage new posts start in.
 		const input = stages();
+		input[ 2 ].is_initial = true;
+		const result = validateSequence( {
+			name: 'Flow',
+			stages: input,
+		} );
+		expect( result.valid ).toBe( true );
+		expect( ( result.warnings.done || [] ).join( ' ' ) ).toContain(
+			'draft'
+		);
+	} );
+
+	it( 'does not warn about the flow entry when a reorder puts another stage first', () => {
+		const input = markInitialStage( stages() );
 		const reordered = [ input[ 2 ], input[ 0 ], input[ 1 ] ];
 		const result = validateSequence( {
 			name: 'Flow',
 			stages: reordered,
 		} );
-		expect( result.valid ).toBe( true );
-		expect( ( result.warnings.done || [] ).join( ' ' ) ).toContain(
-			'draft'
+		expect( ( result.warnings.done || [] ).join( ' ' ) ).not.toContain(
+			'New posts start as drafts'
 		);
 	} );
 
@@ -2042,29 +2347,24 @@ describe( 'validateSequence for AI stages', () => {
 			stages: agentStages( { pass: 'done' } ),
 		} );
 		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
-			'Let AI stages publish'
+			'Sequence settings do not allow AI stages to publish, please route the pass outcome to another stage.'
 		);
 		expect( result.errors ).toEqual( [] );
 	} );
 
-	// Turning the setting on would publish failed and errored runs too, so a
-	// held route anything but pass leads along only gets the reroute advice.
-	it( 'suggests the setting only for a route pass alone takes', () => {
+	it( 'names each held outcome in its warning', () => {
 		const warn = ( routing ) =>
 			validateSequence( {
 				name: 'Flow',
 				stages: agentStages( routing ),
 			} ).warnings.review.join( ' ' );
 
-		expect( warn( { pass: 'done', fail: 'draft' } ) ).toContain(
-			'Let AI stages publish'
+		expect( warn( { pass: 'draft', error: 'done' } ) ).toContain(
+			'please route the error outcome to another stage.'
 		);
-		expect( warn( { pass: 'draft', error: 'done' } ) ).not.toContain(
-			'Let AI stages publish'
-		);
-		expect( warn( { pass: 'done', fail: 'done' } ) ).not.toContain(
-			'Let AI stages publish'
-		);
+		const shared = warn( { pass: 'done', fail: 'done' } );
+		expect( shared ).toContain( 'route the pass outcome' );
+		expect( shared ).toContain( 'route the fail outcome' );
 	} );
 
 	it( 'holds only routes that cross into publish or private', () => {
@@ -2097,7 +2397,9 @@ describe( 'validateSequence for AI stages', () => {
 			stages: agentStages( { pass: 'done' } ),
 		} );
 		const warnings = ( result.warnings.review || [] ).join( ' ' );
-		expect( warnings ).toContain( 'the route is disabled' );
+		expect( warnings ).toContain(
+			'Sequence settings do not allow AI stages to publish, please route the pass outcome to another stage.'
+		);
 		expect( warnings ).not.toContain( 'no outcome routed anywhere' );
 	} );
 
@@ -2131,7 +2433,7 @@ describe( 'validateSequence for AI stages', () => {
 
 		expect( result.warnings.featured || [] ).toEqual( [] );
 		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
-			'Let AI stages publish'
+			'Sequence settings do not allow AI stages to publish, please route the pass outcome to another stage.'
 		);
 	} );
 

@@ -69,10 +69,9 @@ class TransitionInputsTest extends TestCase
         $transition = $this->gated_transition(
             $this->config_with_transition( array(
                 'input' => array(
-                    'type'      => 'textarea',
-                    'note_id'   => 'n1',
-                    'note_name' => 'Editor note',
-                    'required'  => true,
+                    'type'     => 'assignment',
+                    'meta_key' => 'legal_reviewer',
+                    'required' => true,
                 ),
             ) )
         );
@@ -81,10 +80,9 @@ class TransitionInputsTest extends TestCase
         $this->assertCount( 1, $transition['inputs'] );
         $this->assertSame(
             array(
-                'type'      => 'textarea',
-                'note_id'   => 'n1',
-                'note_name' => 'Editor note',
-                'required'  => true,
+                'type'     => 'assignment',
+                'meta_key' => 'legal_reviewer',
+                'required' => true,
             ),
             $transition['inputs'][0],
             'The input itself is carried across untouched.'
@@ -157,7 +155,7 @@ class TransitionInputsTest extends TestCase
     public function test_the_conversion_is_idempotent(): void
     {
         $config = $this->config_with_transition( array(
-            'input' => array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Note' ),
+            'input' => array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ),
         ) );
 
 		$once  = Sequence::prepare_config_for_write( $config );
@@ -178,8 +176,8 @@ class TransitionInputsTest extends TestCase
 
 		Sequence::prepare_config_for_write(
             $this->config_with_transition( array(
-                'input'  => array( 'type' => 'textarea' ),
-                'inputs' => array( array( 'type' => 'textarea' ) ),
+                'input'  => array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ),
+                'inputs' => array( array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ) ),
             ) )
         );
     }
@@ -216,47 +214,74 @@ class TransitionInputsTest extends TestCase
     // =========================================================================
 
     /**
-     * Notes are unbounded. A transition can ask for as many as its author wants,
-     * in the order they arranged them.
+     * An assignment is the only input a transition captures. A free-text note —
+     * `textarea`, or the older `text` — is refused rather than stored for the
+     * editor to pass over without a word.
+     *
+     * @dataProvider retired_input_types
+     *
+     * @param mixed $type The input type to offer the gate.
      */
-    public function test_gate_accepts_any_number_of_notes(): void
+    public function test_gate_refuses_an_input_that_is_not_an_assignment( $type ): void
     {
-        $transition = $this->gated_transition(
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'a transition may capture only an "assignment"' );
+
+		Sequence::prepare_config_for_write(
             $this->config_with_transition( array(
                 'inputs' => array(
-                    array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why' ),
-                    array( 'type' => 'textarea', 'note_id' => 'n2', 'note_name' => 'What changed' ),
-                    array( 'type' => 'textarea', 'note_id' => 'n3', 'note_name' => 'Who checked' ),
+                    array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ),
+                    array( 'type' => $type, 'note_name' => 'Why', 'required' => true ),
                 ),
             ) )
-        );
-
-        $this->assertCount( 3, $transition['inputs'] );
-        $this->assertSame(
-            array( 'Why', 'What changed', 'Who checked' ),
-            array_column( $transition['inputs'], 'note_name' ),
-            'The authored order is the stored order.'
         );
     }
 
     /**
-     * One assignment alongside any number of notes is fine, and the assignment
-     * does not have to lead the list.
+     * Input types the gate refuses.
+     *
+     * @return array<string, array{0: mixed}>
      */
-    public function test_gate_accepts_one_assignment_among_notes(): void
+    public static function retired_input_types(): array
     {
-        $transition = $this->gated_transition(
+        return array(
+            'textarea note' => array( 'textarea' ),
+            'text note'     => array( 'text' ),
+            'unknown kind'  => array( 'checkbox' ),
+            'empty type'    => array( '' ),
+        );
+    }
+
+    /**
+     * The same rule reaches the singular shape: a stored `input` that is a note
+     * converts onto the list and is refused there.
+     */
+    public function test_gate_refuses_a_singular_note_input(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'declares a "textarea" input' );
+
+		Sequence::prepare_config_for_write(
             $this->config_with_transition( array(
-                'inputs' => array(
-                    array( 'type' => 'textarea', 'note_id' => 'n1', 'note_name' => 'Why' ),
-                    array( 'type' => 'assignment', 'meta_key' => 'legal_reviewer' ),
-                    array( 'type' => 'textarea', 'note_id' => 'n2', 'note_name' => 'Notes' ),
-                ),
+                'input' => array( 'type' => 'textarea', 'note_name' => 'Editor note' ),
             ) )
         );
+    }
 
-        $this->assertCount( 3, $transition['inputs'] );
-        $this->assertSame( 'assignment', $transition['inputs'][1]['type'] );
+    /**
+     * Import converts the input shape on its own, before the full gate, and is
+     * held to the same rule.
+     */
+    public function test_normalize_input_shape_refuses_a_note(): void
+    {
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'declares a "textarea" input' );
+
+		Sequence::normalize_input_shape(
+            $this->config_with_transition( array(
+                'inputs' => array( array( 'type' => 'textarea', 'note_name' => 'Why' ) ),
+            ) )
+        );
     }
 
     /**
