@@ -244,8 +244,11 @@ class StageAgentRunner implements ModuleInterface {
 			delete_post_meta( $post_id, self::CHAIN_META );
 		}
 
-		// Who caused this run, for telemetry: the person whose move entered the
-		// stage, or, for an agent-to-agent hop, whoever started the chain.
+		// Who caused this run: the person whose move entered the stage, or, for an
+		// agent-to-agent hop, whoever started the chain. Nobody (0) when no person
+		// is behind it — cron, a scheduled publish, a reseat with no one logged in.
+		// The run acts as this person when they can still edit the post (see
+		// resolve_run_as_user()), and its telemetry is recorded as them.
 		$started_by = get_current_user_id();
 		if ( $started_by <= 0 ) {
 			$started_by = self::$exiting_run_started_by;
@@ -370,7 +373,8 @@ class StageAgentRunner implements ModuleInterface {
 		// knows the way back.
 		$from_stage = is_array( $job_at_dispatch ) ? (string) ( $job_at_dispatch['from_stage'] ?? '' ) : '';
 
-		// Who the run's telemetry is recorded as. See maybe_dispatch().
+		// Who started the run, if anyone: who it acts as and who its telemetry is
+		// recorded as. See maybe_dispatch().
 		$started_by = is_array( $job_at_dispatch ) ? (int) ( $job_at_dispatch['started_by'] ?? 0 ) : 0;
 
 		$status = $sequence->get_status( $stage_key );
@@ -450,16 +454,20 @@ class StageAgentRunner implements ModuleInterface {
 
 		// Stage agents run in an async (cron) context with no logged-in user, so
 		// the ability's permission_callback (typically current_user_can('edit_posts'))
-		// would fail. Execute as the capable post author and restore afterward.
-		// The impersonated human owns the write for capability purposes, so any
-		// revision the agent produces is natively
-		// authored by them; self::$acting_ability_id lets stamp_agent_revision()
-		// tag that revision with the agent that actually made the edit, and the
-		// revisions UI is relabelled from there.
+		// would fail. Execute as a capable person and restore afterward: the
+		// person who moved the post in, else its author (resolve_run_as_user()).
+		//
+		// The impersonated person owns the write for capability purposes, so any
+		// revision the agent produces is natively authored by them. That is
+		// deliberate: when an editor moves someone else's post into an AI stage,
+		// the revision is the editor's, because the editor is who asked for it.
+		// self::$acting_ability_id lets stamp_agent_revision() tag that revision
+		// with the agent that actually made the edit, and the revisions UI is
+		// relabelled from there.
 		$previous_user = get_current_user_id();
-		$actor_user    = $this->resolve_agent_user( $post_id );
+		$actor_user    = $this->resolve_run_as_user( $post_id, $started_by );
 
-		// No capable owner means no identity this run may legitimately borrow.
+		// No capable person means no identity this run may legitimately borrow.
 		// Stop in place regardless of the configured error route: an error-route
 		// transition would require the same missing actor and would replace this
 		// actionable failure with a generic transition error.
@@ -468,7 +476,7 @@ class StageAgentRunner implements ModuleInterface {
 				$post_id,
 				$stage_key,
 				$ability_id,
-				__( 'The author cannot edit posts, so the agent didn’t run. Reassign the post or move it back.', 'vip-workflows' ),
+				__( 'Nobody who can edit this post started the agent, so it didn’t run. Move it back, then in again as someone who can.', 'vip-workflows' ),
 				$from_stage,
 				array(
 					'stop_reason' => 'no_actor',
@@ -679,11 +687,38 @@ class StageAgentRunner implements ModuleInterface {
 	}
 
 	/**
-	 * Resolve a capable user to run the agent as, in the user-less cron context.
+	 * Resolve who a run acts as, in the user-less cron context.
+	 *
+	 * The person who started the run, when there is one and they can still edit
+	 * this post. Re-checked here rather than trusted from dispatch, because
+	 * capabilities can change between the move and the run. Running as them is
+	 * not an escalation: they authorized the move into this stage, and the
+	 * check proves they hold the rights for this post right now.
+	 *
+	 * Otherwise the post author, as resolve_agent_user() decides. That is the
+	 * only path for a run nobody started (cron, a scheduled publish, a reseat
+	 * with no one logged in), which has no person whose rights it could borrow.
+	 *
+	 * @param  int $post_id    Post ID.
+	 * @param  int $started_by The person who started the run, or 0.
+	 * @return int User ID, or 0 when neither can run the agent.
+	 */
+	private function resolve_run_as_user( int $post_id, int $started_by ): int {
+		if ( $started_by > 0 && user_can( $started_by, 'edit_post', $post_id ) ) {
+			return $started_by;
+		}
+
+		return $this->resolve_agent_user( $post_id );
+	}
+
+	/**
+	 * Resolve the post author as the user to run the agent as, when no capable
+	 * person started the run.
 	 *
 	 * The post author, and only the post author — they own the content, so the
 	 * revision the agent produces is attributed to the right person and the
-	 * agent can do nothing they could not have done by hand.
+	 * agent can do nothing they could not have done by hand. Never a substitute
+	 * for a person who started the run; see resolve_run_as_user().
 	 *
 	 * This used to fall back to the first administrator when the author could
 	 * not edit posts, which inverted the intent: the run gained privilege
