@@ -1,0 +1,32 @@
+# Dependabot configuration.
+#
+# This file only shapes security updates; it does not turn on routine version
+# updates (open-pull-requests-limit: 0 below). Security updates are opened from
+# GitHub's vulnerability alerts with or without this file, and their limit is
+# separate, so they keep arriving.
+#
+# Grouping is the point. Without it each vulnerable package gets its own PR,
+# and a fix that needs a newer @wordpress/scripts arrives as a single bump of
+# that package, without the @wordpress/* peers it depends on, which leaves the
+# lockfile out of sync and npm ci failing. Grouping the @wordpress/* packages
+# keeps them moving together, and the catch-all group folds the rest of a
+# directory's security fixes into one PR instead of one per package.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - "/"
+      - "/vip-workflows"
+      - "/workflow-tool-checklist"
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+    groups:
+      wordpress-packages:
+        applies-to: security-updates
+        patterns:
+          - "@wordpress/*"
+      other-security-fixes:
+        applies-to: security-updates
+        patterns:
+          - "*"
