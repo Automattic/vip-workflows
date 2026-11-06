@@ -306,6 +306,104 @@ describe( 'a blocking error names what is at fault', () => {
 	} );
 } );
 
+// A stage is addressed by its key. A key two stages share opens the first of
+// them whichever was meant, and every edit there lands on both; a stage with no
+// key has no address at all. Such a fault keeps its node badge but carries no
+// target, so the notice offers no way to a panel that cannot fix it.
+describe( 'a fault on a stage that has no address of its own', () => {
+	const COLLIDE = [
+		{
+			key: 'a',
+			label: 'A',
+			status: 'draft',
+			region_entry: true,
+			transitions: [],
+		},
+		{
+			key: 'a',
+			label: 'B',
+			status: 'draft',
+			is_terminal: true,
+			transitions: [],
+		},
+	];
+
+	it( 'leaves the shared-key fault untargeted, and still badges the node', () => {
+		const { errors, warnings } = validateSequence( {
+			name: 'Flow',
+			stages: COLLIDE,
+		} );
+		const found = errors.find( ( e ) =>
+			e.message.includes( 'share the key' )
+		);
+
+		expect( found ).toBeDefined();
+		expect( found.target ).toBeNull();
+		expect( ( warnings.a || [] ).join( ' ' ) ).toContain( 'share the key' );
+	} );
+
+	it( 'leaves every node fault on a shared-key stage untargeted', () => {
+		const stages = COLLIDE.map( ( s, i ) =>
+			i === 1 ? { ...s, label: '' } : s
+		);
+		const found = blockers( stages ).find( ( e ) =>
+			e.message.includes( 'has no name' )
+		);
+
+		expect( found ).toBeDefined();
+		expect( found.target ).toBeNull();
+	} );
+
+	// Only the second stage holds the faulted transition, so an edge built from
+	// the shared key would open the first stage's way out, or nothing.
+	it( 'leaves a transition fault untargeted when its stage shares a key', () => {
+		const stages = withAssignment( { type: 'assignment', meta_key: '' } );
+		stages.unshift( {
+			key: 'draft',
+			label: 'Other draft',
+			status: 'draft',
+			transitions: [ { to: 'legal', label: 'Plain' } ],
+		} );
+		const { errors, warnings } = validateSequence( {
+			name: 'Flow',
+			stages,
+		} );
+		const found = errors.find( ( e ) =>
+			e.message.includes( 'Send to legal' )
+		);
+
+		expect( found ).toBeDefined();
+		expect( found.target ).toBeNull();
+		expect( ( warnings.draft || [] ).join( ' ' ) ).toContain(
+			'Send to legal'
+		);
+	} );
+
+	it( 'leaves a transition fault untargeted when its stage has no key', () => {
+		const stages = withAssignment( { type: 'assignment', meta_key: '' } );
+		stages[ 0 ].key = '';
+		const found = blockers( stages ).find( ( e ) =>
+			e.message.includes( 'Send to legal' )
+		);
+
+		expect( found ).toBeDefined();
+		expect( found.target ).toBeNull();
+	} );
+
+	it( 'still targets a fault on a stage whose key is its own', () => {
+		const stages = withAssignment( {
+			type: 'assignment',
+			meta_key: 'legal-reviewer',
+		} ).map( ( s ) => ( s.key === 'legal' ? { ...s, label: '' } : s ) );
+		const found = blockers( stages ).find( ( e ) =>
+			e.message.includes( 'has no name' )
+		);
+
+		expect( found ).toBeDefined();
+		expect( found.target ).toEqual( { type: 'node', key: 'legal' } );
+	} );
+} );
+
 describe( 'the stage panel flags the exit at fault', () => {
 	const reviewStage = ( overrides = {} ) => ( {
 		key: 'review',

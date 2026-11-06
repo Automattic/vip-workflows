@@ -489,14 +489,16 @@ describe( 'where a reveal pans the canvas', () => {
 
 // --- The editor's side of the promise --------------------------------------
 
-const sequence = () => ( {
+// The stages the stored sequence answers with; FAULTED_STAGES unless a test
+// says otherwise.
+const sequence = ( statuses = FAULTED_STAGES ) => ( {
 	id: 7,
 	name: 'Editorial Review',
 	description: '',
 	status: 'active',
 	stages_missing_region: [],
 	config: {
-		statuses: FAULTED_STAGES,
+		statuses,
 		post_types: [ 'post' ],
 		settings: {},
 		metadata_fields: [],
@@ -514,9 +516,9 @@ afterEach( () => {
 const showTransition = () =>
 	screen.getByRole( 'button', { name: 'Show transition' } );
 
-const renderEditor = () =>
+const renderEditor = ( statuses ) =>
 	renderSequenceEditor( {
-		sequence: sequence(),
+		sequence: sequence( statuses ),
 		options: sequenceOptions( { phase_transitions: [] } ),
 	} );
 
@@ -570,5 +572,30 @@ describe( 'the way a refused Save shows its fault', () => {
 		expect( canvasReveals() ).toHaveLength( 2 );
 		const [ first, second ] = canvasReveals();
 		expect( second ).not.toBe( first );
+	} );
+
+	// A stored sequence can carry two stages under one key — only from before
+	// the server refused that. The key is the editor's only address for a
+	// stage, so a way to either of them would open the first whichever was
+	// meant, and every edit there would land on both. The notice names the
+	// fault and offers no way to it.
+	it( 'offers no way to a fault on a stage that shares its key', async () => {
+		await renderEditor( [
+			{
+				...FAULTED_STAGES[ 0 ],
+				label: 'Other draft',
+				region_entry: false,
+				transitions: [ { to: 'legal', label: 'Plain' } ],
+			},
+			...FAULTED_STAGES,
+		] );
+		await pressSave();
+
+		expect( screen.getAllByText( /share the key/ ).length ).toBeGreaterThan(
+			0
+		);
+		expect(
+			screen.queryByRole( 'button', { name: /^Show / } )
+		).not.toBeInTheDocument();
 	} );
 } );
