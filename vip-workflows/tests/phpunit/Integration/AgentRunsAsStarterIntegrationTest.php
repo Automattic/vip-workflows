@@ -290,4 +290,73 @@ class AgentRunsAsStarterIntegrationTest extends TestCase
 		$this->assertSame( 409, $response->get_status() );
 		$this->assertSame( 'no_agent_rerun', $response->get_data()['code'] );
 	}
+
+	/**
+	 * Failed run in a stage, Go back, then a Run again request that read the
+	 * failed marker before Go back deleted it. The stale write must not land:
+	 * no marker is created and no run is queued, so re-entering the stage later
+	 * cannot pick up a stale identity.
+	 */
+	public function test_a_stale_run_again_after_go_back_writes_and_queues_nothing(): void
+	{
+		list( $post_id ) = $this->make_post( 'subscriber' );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ai_desk' );
+		$failed = array(
+			'stage_key'  => 'ai_desk',
+			'ability_id' => 'test/desk-agent',
+			'status'     => 'failed',
+			'error'      => 'x',
+			'failed_at'  => current_time( 'mysql' ),
+			'from_stage' => 'drafting',
+		);
+		update_post_meta( $post_id, StageAgentRunner::JOB_META, $failed );
+		$stale = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
+
+		// Go back wins the race.
+		$back = rest_do_request( new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/agent-revert" ) );
+		$this->assertSame( 200, $back->get_status() );
+		$this->assertSame( '', get_post_meta( $post_id, StageAgentRunner::JOB_META, true ) );
+		wp_clear_scheduled_hook( StageAgentRunner::RUN_HOOK );
+
+		// The stale Run again now tries its conditional write.
+		$dispatch = new \ReflectionMethod( StageAgentRunner::class, 'dispatch' );
+		$written  = $dispatch->invoke( new StageAgentRunner(), $post_id, 'ai_desk', 'test/desk-agent', 'drafting', 'rerun', $this->editor_id, $stale );
+
+		$this->assertFalse( $written );
+		$this->assertSame( '', get_post_meta( $post_id, StageAgentRunner::JOB_META, true ), 'No marker was created.' );
+		$this->assertFalse( wp_next_scheduled( StageAgentRunner::RUN_HOOK, array( $post_id, 'ai_desk' ) ), 'No run was queued.' );
+	}
+
+	/**
+	 * Two Run again requests that read the same failed marker: one wins, the
+	 * other is refused, against the real database.
+	 */
+	public function test_two_racing_run_agains_only_one_wins(): void
+	{
+		list( $post_id ) = $this->make_post( 'subscriber' );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ai_desk' );
+		update_post_meta(
+			$post_id,
+			StageAgentRunner::JOB_META,
+			array(
+				'stage_key'  => 'ai_desk',
+				'ability_id' => 'test/desk-agent',
+				'status'     => 'failed',
+				'error'      => 'x',
+				'failed_at'  => current_time( 'mysql' ),
+				'from_stage' => 'drafting',
+			)
+		);
+		$read = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
+
+		$dispatch = new \ReflectionMethod( StageAgentRunner::class, 'dispatch' );
+		$first    = $dispatch->invoke( new StageAgentRunner(), $post_id, 'ai_desk', 'test/desk-agent', 'drafting', 'rerun', $this->editor_id, $read );
+		$second   = $dispatch->invoke( new StageAgentRunner(), $post_id, 'ai_desk', 'test/desk-agent', 'drafting', 'rerun', 1, $read );
+
+		$this->assertTrue( $first );
+		$this->assertFalse( $second );
+		$job = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
+		$this->assertSame( 'pending', $job['status'] );
+		$this->assertSame( $this->editor_id, $job['started_by'], 'The first writer stands.' );
+	}
 }

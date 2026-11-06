@@ -141,18 +141,17 @@ class StageAgentRunner implements ModuleInterface {
 	private static string $acting_ability_id = '';
 
 	/**
-	 * The person who started the run whose exit transition is in progress.
+	 * The run whose exit transition is in progress: its post and its starter.
 	 *
-	 * A next AI stage dispatched by an agent's exit transition takes its starter
-	 * from here, never from whoever happens to be logged in: the exit runs in a
-	 * cron context, where an ambient user (`wp cron event run --user=…`, or one an
-	 * earlier callback left set) authorized nothing. Set around the exit
-	 * transition only; null otherwise, so a starter of 0 (nobody) is still
-	 * carried as nobody.
+	 * A next AI stage that exit dispatches for the SAME post takes its starter
+	 * from here. Keyed by post, because a callback inside that transition can
+	 * move another post into an AI stage, and that post's run belongs to nobody
+	 * the exiting run vouches for. Set around the exit transition only; null
+	 * otherwise. A starter of 0 (nobody) is carried as nobody.
 	 *
-	 * @var int|null
+	 * @var array{post_id:int,started_by:int}|null
 	 */
-	private static ?int $exiting_run_started_by = null;
+	private static ?array $exiting_run = null;
 
 	/**
 	 * Ability executor used to run stage agents. Injectable for testing.
@@ -252,9 +251,7 @@ class StageAgentRunner implements ModuleInterface {
 		// is behind it — cron, a scheduled publish, a reseat with no one logged in.
 		// The run acts as this person when they can still edit the post (see
 		// resolve_run_as_user()), and its telemetry is recorded as them.
-		$started_by = null !== self::$exiting_run_started_by
-			? self::$exiting_run_started_by
-			: get_current_user_id();
+		$started_by = $this->dispatching_person( $post_id );
 
 		$this->dispatch(
 			$post_id,
@@ -264,6 +261,29 @@ class StageAgentRunner implements ModuleInterface {
 			(string) ( $context['cause'] ?? 'workflow' ),
 			$started_by
 		);
+	}
+
+	/**
+	 * Who a dispatch for this post belongs to.
+	 *
+	 * The starter an agent's own exit carries, for that post's next stage.
+	 * Otherwise the logged-in person whose request moved the post — but never
+	 * under cron, where nobody moved anything: a user present there (cron run
+	 * with `--user`, or one an earlier callback left set) authorized nothing.
+	 *
+	 * @param  int $post_id Post being dispatched.
+	 * @return int User ID, or 0 for nobody.
+	 */
+	private function dispatching_person( int $post_id ): int {
+		if ( null !== self::$exiting_run && self::$exiting_run['post_id'] === $post_id ) {
+			return self::$exiting_run['started_by'];
+		}
+
+		if ( wp_doing_cron() ) {
+			return 0;
+		}
+
+		return get_current_user_id();
 	}
 
 	/**
@@ -356,12 +376,7 @@ class StageAgentRunner implements ModuleInterface {
 
 		if ( null === $replacing ) {
 			update_post_meta( $post_id, self::JOB_META, $marker );
-		} elseif ( ! update_post_meta( $post_id, self::JOB_META, $marker, $replacing ) ) {
-			// A conditional update: the database row changes only where it still
-			// holds `$replacing`, so of two concurrent callers one matches. Core
-			// adds the row instead when none exists at all; a run queued that way
-			// for a stage the post has left is dropped by run_stage_agent()'s
-			// own stage check.
+		} elseif ( ! $this->replace_job_marker( $post_id, $replacing, $marker ) ) {
 			return false;
 		}
 
@@ -396,6 +411,42 @@ class StageAgentRunner implements ModuleInterface {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Replace the job marker, only where it is still exactly `$expected`.
+	 *
+	 * One UPDATE whose WHERE names the expected value, so of two concurrent
+	 * callers exactly one changes the row. Not update_post_meta()'s
+	 * `$prev_value`: when the row is missing altogether, core adds it rather than
+	 * failing, and a stale caller — one that read a marker a Go back has since
+	 * deleted — would then queue a run for a stage the post has left.
+	 *
+	 * @param  int   $post_id  Post ID.
+	 * @param  array $expected The marker the caller read and validated.
+	 * @param  array $marker   The marker to write in its place.
+	 * @return bool True when this caller replaced it.
+	 */
+	private function replace_job_marker( int $post_id, array $expected, array $marker ): bool {
+		global $wpdb;
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- a compare-and-swap on one post's job marker, found by post_id (indexed); the post's meta cache is cleared below.
+		$updated = $wpdb->update(
+			$wpdb->postmeta,
+			array( 'meta_value' => maybe_serialize( $marker ) ),
+			array(
+				'post_id'    => $post_id,
+				'meta_key'   => self::JOB_META,
+				'meta_value' => maybe_serialize( $expected ),
+			),
+			array( '%s' ),
+			array( '%d', '%s', '%s' )
+		);
+		// phpcs:enable
+
+		wp_cache_delete( $post_id, 'post_meta' );
+
+		return 1 === $updated;
 	}
 
 	/**
@@ -1200,12 +1251,15 @@ class StageAgentRunner implements ModuleInterface {
 			$options['comment'] = $comment;
 		}
 
-		$status_manager               = \VIPWorkflows\Plugin::get_instance()->get_status_manager();
-		self::$exiting_run_started_by = (int) ( $run['started_by'] ?? 0 );
+		$status_manager    = \VIPWorkflows\Plugin::get_instance()->get_status_manager();
+		self::$exiting_run = array(
+			'post_id'    => $post_id,
+			'started_by' => (int) ( $run['started_by'] ?? 0 ),
+		);
 		try {
 			$transitioned = $status_manager->transition( $post_id, $target, $options );
 		} finally {
-			self::$exiting_run_started_by = null;
+			self::$exiting_run = null;
 		}
 
 		// transition() answers with a warnings array rather than a WP_Error when

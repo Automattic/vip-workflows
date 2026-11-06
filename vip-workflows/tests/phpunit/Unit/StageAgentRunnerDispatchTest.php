@@ -50,6 +50,44 @@ class StageAgentRunnerDispatchTest extends TestCase
     }
 
     /**
+     * Mark an agent exit transition as in progress for a post.
+     *
+     * @param int $post_id    The exiting run's post.
+     * @param int $started_by The exiting run's starter.
+     */
+    private function exiting_run( int $post_id, int $started_by ): void
+    {
+        ( new \ReflectionProperty( StageAgentRunner::class, 'exiting_run' ) )->setValue(
+            null,
+            array(
+                'post_id'    => $post_id,
+                'started_by' => $started_by,
+            )
+        );
+    }
+
+    /**
+     * Mock $wpdb for the rerun compare-and-swap.
+     *
+     * @param int|false $rows Rows the conditional UPDATE reports changed.
+     * @param array     $seen Receives the update's data and where clauses.
+     */
+    private function wpdb_replacing( $rows, ?array &$seen = null ): void
+    {
+        global $wpdb;
+        $wpdb           = Mockery::mock( 'wpdb' );
+        $wpdb->postmeta = 'wp_postmeta';
+        $wpdb->shouldReceive( 'update' )->andReturnUsing(
+            function ( $table, $data, $where ) use ( $rows, &$seen ) {
+                $seen = array( 'table' => $table, 'data' => $data, 'where' => $where );
+                return $rows;
+            }
+        );
+        Functions\when( 'wp_cache_delete' )->justReturn( true );
+        Functions\when( 'maybe_serialize' )->alias( 'serialize' );
+    }
+
+    /**
      * Entering an AI stage writes a pending job marker and schedules the run hook.
      */
     public function test_dispatch_schedules_job_and_writes_pending_meta(): void
@@ -108,7 +146,7 @@ class StageAgentRunnerDispatchTest extends TestCase
         );
         Functions\when( 'wp_schedule_single_event' )->justReturn( true );
 
-        ( new \ReflectionProperty( StageAgentRunner::class, 'exiting_run_started_by' ) )->setValue( null, 3 );
+        $this->exiting_run( 42, 3 );
 
         $sequence = $this->sequence_with_status(
             array(
@@ -141,7 +179,7 @@ class StageAgentRunnerDispatchTest extends TestCase
         );
         Functions\when( 'wp_schedule_single_event' )->justReturn( true );
 
-        ( new \ReflectionProperty( StageAgentRunner::class, 'exiting_run_started_by' ) )->setValue( null, 3 );
+        $this->exiting_run( 42, 3 );
 
         $sequence = $this->sequence_with_status(
             array(
@@ -173,7 +211,7 @@ class StageAgentRunnerDispatchTest extends TestCase
         );
         Functions\when( 'wp_schedule_single_event' )->justReturn( true );
 
-        ( new \ReflectionProperty( StageAgentRunner::class, 'exiting_run_started_by' ) )->setValue( null, 0 );
+        $this->exiting_run( 42, 0 );
 
         $sequence = $this->sequence_with_status(
             array(
@@ -183,6 +221,68 @@ class StageAgentRunnerDispatchTest extends TestCase
         );
 
         $this->runner->maybe_dispatch( 42, 'ai_desk', 'other_ai_desk', $sequence );
+
+        $this->assertSame( 0, $captured['started_by'] );
+    }
+
+    /**
+     * A callback inside one post's agent exit can move ANOTHER post into an AI
+     * stage. That post's run does not borrow the exiting run's starter.
+     */
+    public function test_a_nested_dispatch_for_another_post_does_not_borrow_the_exiting_starter(): void
+    {
+        $captured = null;
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'get_post_meta' )->justReturn( '' );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+        Functions\when( 'update_post_meta' )->alias(
+            function ( $post_id, $key, $value ) use ( &$captured ) {
+                $captured = $value;
+                return true;
+            }
+        );
+        Functions\when( 'wp_schedule_single_event' )->justReturn( true );
+
+        $this->exiting_run( 7, 3 ); // post 7's agent is exiting, started by user 3
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
+            )
+        );
+
+        $this->runner->maybe_dispatch( 42, 'ai_desk', 'draft', $sequence );
+
+        $this->assertSame( 0, $captured['started_by'], 'post 42 is not post 7; its run is nobody\'s' );
+    }
+
+    /**
+     * Under cron, nobody moved the post, whoever happens to be logged in.
+     */
+    public function test_a_dispatch_under_cron_ignores_an_ambient_user(): void
+    {
+        $captured = null;
+        Functions\when( 'wp_doing_cron' )->justReturn( true );
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+        Functions\when( 'get_post_meta' )->justReturn( '' );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+        Functions\when( 'update_post_meta' )->alias(
+            function ( $post_id, $key, $value ) use ( &$captured ) {
+                $captured = $value;
+                return true;
+            }
+        );
+        Functions\when( 'wp_schedule_single_event' )->justReturn( true );
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
+            )
+        );
+
+        $this->runner->maybe_dispatch( 42, 'ai_desk', 'draft', $sequence, array( 'cause' => 'core' ) );
 
         $this->assertSame( 0, $captured['started_by'] );
     }
@@ -383,13 +483,8 @@ class StageAgentRunnerDispatchTest extends TestCase
             }
         );
         Functions\expect( 'delete_post_meta' )->once()->with( 42, StageAgentRunner::CHAIN_META );
-        $captured = null;
-        Functions\when( 'update_post_meta' )->alias(
-            function ( $post_id, $key, $value ) use ( &$captured ) {
-                $captured = $value;
-                return true;
-            }
-        );
+        $seen = null;
+        $this->wpdb_replacing( 1, $seen );
         Functions\expect( 'wp_schedule_single_event' )
             ->once()
             ->with( Mockery::type( 'int' ), StageAgentRunner::RUN_HOOK, array( 42, 'ai_desk' ), true )
@@ -403,6 +498,14 @@ class StageAgentRunnerDispatchTest extends TestCase
         );
 
         $this->assertTrue( $this->runner->rerun( 42, $sequence ) );
+        $this->assertSame( 'wp_postmeta', $seen['table'] );
+        $this->assertSame( StageAgentRunner::JOB_META, $seen['where']['meta_key'] );
+        $this->assertSame(
+            serialize( array( 'stage_key' => 'ai_desk', 'status' => 'failed', 'error' => 'x', 'from_stage' => 'draft' ) ),
+            $seen['where']['meta_value'],
+            'the update is conditional on the exact failed marker'
+        );
+        $captured = unserialize( $seen['data']['meta_value'] );
         $this->assertSame( 'pending', $captured['status'] );
         $this->assertSame( 'ai_desk', $captured['stage_key'] );
         $this->assertSame( 'test/agent', $captured['ability_id'] );
@@ -427,10 +530,10 @@ class StageAgentRunnerDispatchTest extends TestCase
                 return StageAgentRunner::JOB_META === $key ? $failed : '';
             }
         );
-        Functions\expect( 'update_post_meta' )
-            ->once()
-            ->with( 42, StageAgentRunner::JOB_META, Mockery::type( 'array' ), $failed )
-            ->andReturn( false );
+        // Gone or changed: the conditional UPDATE matches no row. It never
+        // adds one, so a Go back that deleted the marker also refuses here.
+        $this->wpdb_replacing( 0 );
+        Functions\expect( 'update_post_meta' )->never();
         Functions\expect( 'wp_schedule_single_event' )->never();
         Functions\expect( 'delete_post_meta' )->never();
 
