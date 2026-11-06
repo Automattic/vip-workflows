@@ -898,6 +898,39 @@ class WorkflowControllerTest extends TestCase
     }
 
     /**
+     * Test two releases racing: the one whose delete finds no row is refused,
+     * and logs nothing.
+     */
+    public function test_unclaim_post_refuses_when_another_release_won(): void
+    {
+        $post = $this->create_mock_post( array( 'ID' => 123 ) );
+
+        Functions\when( 'get_post' )->justReturn( $post );
+        Functions\when( 'get_current_user_id' )->justReturn( 5 );
+
+        // Read as claimed by the current user…
+        Functions\expect( 'get_post_meta' )
+            ->once()
+            ->with( 123, '_vip_workflows_assigned_to', true )
+            ->andReturn( '5' );
+
+        // …but the other request deleted it first.
+        Functions\expect( 'delete_post_meta' )
+            ->once()
+            ->with( 123, '_vip_workflows_assigned_to', '5' )
+            ->andReturn( false );
+
+        $this->wpdb->shouldReceive( 'insert' )->never();
+
+        $request  = $this->create_mock_request( array( 'id' => 123 ) );
+        $response = $this->controller->unclaim_post( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'post_not_claimed', $response->get_error_code() );
+        $this->assertSame( 409, $response->get_error_data()['status'] );
+    }
+
+    /**
      * Test unclaim_post fails if claimed by another user (non-admin).
      */
     public function test_unclaim_fails_for_other_users_claim(): void
@@ -943,7 +976,8 @@ class WorkflowControllerTest extends TestCase
 
         Functions\expect( 'delete_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflows_assigned_to' );
+            ->with( 123, '_vip_workflows_assigned_to', Mockery::any() )
+            ->andReturn( true );
 
         $this->wpdb->shouldReceive( 'insert' )->once()->andReturn( true );
 
@@ -981,7 +1015,8 @@ class WorkflowControllerTest extends TestCase
 
         Functions\expect( 'delete_post_meta' )
             ->once()
-            ->with( 123, '_vip_workflows_assigned_to' );
+            ->with( 123, '_vip_workflows_assigned_to', Mockery::any() )
+            ->andReturn( true );
 
         $this->wpdb->shouldReceive( 'insert' )->once()->andReturn( true );
 
