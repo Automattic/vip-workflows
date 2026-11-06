@@ -10,38 +10,144 @@ For corresponding REST endpoints see [quick-reference.md](quick-reference.md); f
 
 **Location**: `src/editor/`
 
-Everything the plugin adds to the block editor lives in one `PluginSidebar`
-named "Workflow" — the plugin used to also mount two
-`PluginDocumentSettingPanel`s in the document settings sidebar, which duplicated
-the sidebar's own readouts and split one feature across two places.
+The plugin adds to the block editor in two places, split by what the control
+acts on. Properties of the post — which workflow it is in, the editorial
+metadata fields its sequence declares, and taking it out of its workflow — are
+rows in the document sidebar's Summary panel, alongside Status, Slug and
+Author. What acts on the post's movement through the workflow — the transition
+rail and its history — lives in one `PluginSidebar` named "Workflow".
+Outside both sit the workflow split button in the editor header and the
+always-mounted save guard and transition flow, which work whether or not the
+sidebar is open.
 
 **Structure** (`index.js`):
 - `WorkflowSaveGuard` — mounted unconditionally, **outside the sidebar**, and
   renders no chrome. Its `editor.preSavePost` filter has to survive the sidebar
-  being closed, which is why it is not inside it.
-- One `Stack` (`.vip-workflows-sidebar`) holding `WorkflowPanel`. No card and no
-  heading of its own: `PluginSidebar` already names the sidebar "Workflow", and
-  the panel opens with the document-sidebar row that names the sequence. The
-  runs within the panel rule themselves apart.
-- `MetadataPanel` is a **child of** `WorkflowPanel`, not a sibling section. The
-  panel's foot — Show history, and the way out of the workflow — lives inside
-  the panel and acts on the workflow itself, so it has to come after the fields
-  the writer fills in; lifting the foot out instead would mean lifting the
-  panel's `transitioning`/`historyOpen` state and its lazily-loaded history
-  dialog with it, purely for a reorder. So the panel reads: sequence row →
-  assignment and claim → transition rail → metadata → foot. Every one of the
-  panel's returns renders the metadata slot, including the ones that draw no
-  workflow at all — nesting made the panel the only thing deciding whether the
-  section reaches the screen.
+  being closed, which is why it is not inside it. When it lets through a
+  status change it warned about (one that re-seats the post), it re-reads the
+  workflow status into the editor store once that save finishes successfully,
+  so the sidebar shows the new stage without a reload. Autosaves and failed
+  saves are ignored.
+- `TransitionFlow` — mounted unconditionally beside the guard. It runs every
+  transition, whichever surface started it: the agent-interrupt and publish
+  confirms, the assignee popover, the blocked and warnings dialogs, the
+  save-before-move and the request itself. The save runs for any unsaved
+  edit and, short of a live post, whenever the screen has classic meta boxes
+  (which the dirty flag cannot see), as core's Publish would. The save
+  decision is made when the move is pressed and made again just before the
+  save — after a save in flight lands or an assignee is picked — so edits
+  made in between are asked about too; a moment that needs no question
+  stays one click. On a live post that save is an Update, so a move with
+  unsaved edits asks first ("Publish your changes?"), and a clean live post
+  on a screen with meta boxes asks whether to save those fields (Save and
+  move / Move without saving / Cancel). Unsaved edits core will not save —
+  no title, content, or excerpt — stop the move with an error notice rather
+  than send the older stored copy on. After a stage agent has rewritten the
+  post under unsaved edits, the flow never saves over the agent; a move then
+  asks first ("Your edits won’t move": Reload / Move the agent’s version /
+  Cancel). Surfaces hand it a request through
+  the editor store (`requestTransition`) and read the move in flight back
+  (`getTransitioningTo`), so a dialog never belongs to a sidebar that can close
+  or a dropdown that closes on focus-out. It also follows a move into an AI
+  stage: the status poll while the agent runs, and — once the agent has
+  rewritten the post — the reload of a clean editor or, over unsaved edits, an
+  editor notice offering one. Neither can be the sidebar's, because the header
+  starts such a move with the sidebar closed. For the same reason it announces every stage
+  change (`speak()`), however the post moved; the rail only plays the agent
+  flash.
+- `PrePublishConfirm` — the publish confirm. A move into a publish-region
+  stage on a post that is not live yet stops here first; every other move
+  stays one click. Core's pre-publish panel cannot be the way through (its
+  Publish saves with `publish`, which the publish-boundary guard refuses), so
+  this dialog renders `PluginPrePublishPanel.Slot` itself: SEO, social and
+  checklist plugins' fills show here as they would before core's Publish. It
+  shows the title "Publish this post?", one warning sentence ("Moving this
+  post to “Published” publishes it right away."; for a scheduled post, that
+  the move publishes it now, not at its scheduled time; for a private post,
+  that it stops being private, since the move writes `publish` over
+  `private`), the plugins' checks, and Cancel / Publish. None of core's own
+  pre-publish content is repeated: tags, the featured image and a password
+  are post settings left to the sidebar. Its Publish stands down while saving
+  is locked, as core's does.
+- `WorkflowHeaderAction` — the split button in the editor header (a fill into
+  the `PinnedItems/core` slot). The main half runs the stage's **primary
+  transition** — the first in authored order, labelled with the author's own
+  label, drawn disabled with its reason as a tooltip when locked — and the
+  arrow opens the transition rail in a dropdown. "Primary" is the first
+  transition the person may take: the sequence editor badges the first in
+  authored order, and someone whose role cannot take that one is offered the
+  next they can. A stage whose agent failed has no
+  primary transition, so there the main half is **Go back to <origin>** — the
+  same store thunk (`revertAgentStage`) as the panel's button. Below the small
+  breakpoint the button stays on screen only while it stands in for Publish;
+  beside core's Publish it yields like any other pinned item. It renders for any post in a
+  live workflow whose stage offers this person a move, live posts included. It
+  **hides core's Publish button only** when the post is on the draft side of
+  the publish boundary (`guard.current_region` is `draft` or `pending`), the
+  person cannot bypass the workflow (`primary-transition.js`), and core's
+  button is still a plain Publish. Core draws one header button for several
+  jobs: once a status has been picked in Summary, for a privately published
+  post, for a pending post whose author cannot publish, and while another
+  entity has changes, it is the post's Save — usually the only one — and
+  stays. The status payload it decides from is served with the page
+  (`Editor_Integration::enqueue_editor_assets()`, via `rest_do_request()`), so
+  core's Publish is never painted and then withdrawn. Bypass users, orphaned
+  posts, stages with no move for this person,
+  live posts (where core's button is Save), and distraction-free mode (where
+  core hides the slot the button sits in) keep core's controls. The button
+  stands down entirely while core has the editor on another entity ("Edit
+  original" on a synced pattern, "Edit template"), and re-reads the workflow
+  when the post's persisted status changes, since a status core wrote re-seats
+  the post at another stage.
+- `WorkflowSummaryRows`, mounted through `PluginPostStatusInfo`. Its fills land
+  after core's Summary rows and above Move to trash; there is no positioning
+  between core rows. The fill's `PanelRow` wrapper is reduced to a plain block
+  in `style.css` so the rows keep their own full-width layout. The rows read:
+  Workflow row → metadata rows. The Workflow row's popover holds the sequence
+  list and, below it, Remove from workflow (withheld when the workflow is
+  enforced). A post whose sequence was deleted is drawn as the same row in its
+  invalid state, whose popover offers only removal. The slot is a render-prop
+  slot, so the rows take nothing from React context around the fill; they read
+  through `wp.data` and `useEntityProp`. The whole run is behind
+  `! isEditorPanelRemoved( 'post-status' )`, and some experimental DataForm
+  Summary builds (`window.__experimentalDataFormInspector`, posts and pages)
+  render no `PluginPostStatusInfo` slot at all. The fill is
+  `SummaryRowsFill`, which counts itself in the editor store
+  (`areSummaryRowsMounted()`, `haveSummaryRowsMounted()`) while it is mounted.
+  Preferences → Panels offers no switch for the Summary panel, and
+  `toggleEditorPanelEnabled( 'post-status' )` does not hide it.
+- One `Stack` (`.vip-workflows-sidebar`) holding `SummaryRowsFallback` and
+  `WorkflowPanel`. No card: `PluginSidebar` already names the sidebar
+  "Workflow". The panel reads: assignment and claim → transition rail → foot
+  (Show history).
+- `SummaryRowsFallback` draws the same `WorkflowSummaryRows`, under a "Details"
+  section heading, only where the Summary panel cannot show them: while the
+  `post-status` panel is removed, or while the experimental DataForm Summary is
+  active and the fill has not mounted once this session. It never draws while
+  the fill is mounted. "Not mounted right now" alone is not the test: the
+  document sidebar and the Workflow sidebar share one area, so the Summary
+  panel is never mounted while the Workflow sidebar is open.
 - `CommandPalette` and `WorkflowRequiredModal` — no chrome of their own.
 
 **Main Components**:
-- `WorkflowPanel.js` — the whole of a post's workflow state: the sequence the
-  post belongs to, assignment and claim, stage-agent states, the transition
-  rail, the metadata slot, and the footer actions (Show history, Remove from
-  workflow)
+- `WorkflowSummaryRows.js` — the Summary panel's workflow rows: the Workflow
+  row (assign, switch and remove, each through the editor store) and
+  `MetadataPanel`
+- `SummaryRowsFallback.js` — `SummaryRowsFill` (the fill's content, counted in
+  the store while mounted) and `SummaryRowsFallback` (the Workflow sidebar's
+  copy where the Summary panel cannot show the rows)
+- `WorkflowPanel.js` — the post's movement through its workflow: assignment and
+  claim, stage-agent states, the transition rail, and Show history. Its rail
+  hands every move to `TransitionFlow`
+- `TransitionFlow.js` — runs every transition. A post with unsaved edits is
+  always saved before any transition is sent, because the server judges every
+  move (required tools, required fields, an AI stage's agent) against the saved
+  post. The flow's confirmations come first; if the save does not persist, the
+  transition is not sent and the save-failure notice is shown
+- `WorkflowHeaderAction.js` — the editor-header split button; `PrePublishConfirm.js`
+  — the publish confirm, with the pre-publish plugin slot
 - `TransitionRail.js` — the current stage and every way out of it, drawn as
-  one figure. A transition's required tools are not listed: they run when it
+  one figure. Drawn in the sidebar and in the header button's dropdown. A transition's required tools are not listed: they run when it
   fires, and a refusal opens `ToolFailuresModal`
 - `WorkflowHistoryModal.js` — the transition trail, as a DataViews activity
   stream in a dialog. Code-split: DataViews is bundled rather than externalized,
@@ -66,8 +172,9 @@ the sidebar's own readouts and split one feature across two places.
 2. React components mount in the editor sidebar slot
 3. Components use `@wordpress/api-fetch` for REST API calls
 4. State managed with React hooks (useState, useEffect)
-5. One `GET /workflow/post/{id}/status` request feeds the whole panel; it polls
-   only while a stage agent is running
+5. One `GET /workflow/post/{id}/status` request, held in the editor store,
+   feeds the Summary rows and the panel; `TransitionFlow` polls it only while
+   a stage agent is running
 
 **Key Features**:
 - Color-coded stages, with the rail drawing the current one and the routes out

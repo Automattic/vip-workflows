@@ -12,9 +12,11 @@
  * And the other half of making that refusal survivable: the values the author
  * types into the sidebar are written through useEntityProp, which edits the
  * editor store and nothing else until a save, while the server's gate reads
- * post meta. A transition against a sequence that declares a required field
- * therefore has to flush the post first, or the author is refused for a field
- * whose value is on screen in front of them.
+ * post meta. A transition the gate can refuse therefore has to flush the post
+ * first, or the author is refused for a field whose value is on screen in front
+ * of them. The same holds for a required tool, which runs on any move that
+ * declares it and reads the saved post — so a dirty post is saved before every
+ * move, and the save has to finish before the transition request goes out.
  *
  * Which leaves the case the author actually hits first, since the server also
  * projects that gate onto the edge as `_locked`: the button is DISABLED, so the
@@ -35,14 +37,19 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 
 // Same stand-ins as the other WorkflowPanel tests: @wordpress/core-data,
 // /editor, /notices and /a11y each pull dependencies jsdom or Jest cannot load,
-// and the panel needs nothing from them but the store names.
+// and the panel needs nothing from them but the store names — except that a
+// move into the publish region opens the pre-publish step, which renders the
+// editor's pre-publish slot, so /editor is the stand-in package that has one.
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
-jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/editor', () => require( './helpers/editor-package' ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
 // eslint-disable-next-line import/first
 import { createReduxStore, register } from '@wordpress/data';
+// eslint-disable-next-line import/first
+import { SlotFillProvider } from '@wordpress/components';
 
 register(
 	createReduxStore( 'core', {
@@ -58,6 +65,7 @@ register(
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			removeNotice: () => ( { type: 'NOOP' } ),
 		},
 	} )
 );
@@ -94,7 +102,12 @@ register(
 			getEditedPostAttribute: ( state, attribute ) =>
 				'meta' === attribute ? editedMeta : 'draft',
 			getCurrentPostAttribute: () => 'draft',
+			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => postIsDirty,
+			didPostSaveRequestFail: () => false,
+			isEditedPostSaveable: () => true,
+			isSavingPost: () => false,
+			isPostSavingLocked: () => false,
 		},
 		actions: { savePost },
 	} )
@@ -104,9 +117,14 @@ register(
 import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 
+// A draft-region stage whose one way out stays short of the publish region.
+// Both sides carry their region, because whether a move crosses into publish —
+// the only move the required-field gate judges — is read off exactly these.
 const STATUS_RESPONSE = {
 	has_workflow: true,
 	sequence: { id: 1, name: 'Required Fields Flow' },
@@ -114,45 +132,80 @@ const STATUS_RESPONSE = {
 		key: 'draft',
 		label: 'Draft',
 		color: '#666',
+		status: 'draft',
 		is_terminal: false,
 	},
 	transitions: [
 		{
 			to: 'review',
 			label: 'Send to Review',
-			status_info: { key: 'review', label: 'Review' },
+			status_info: { key: 'review', label: 'Review', status: 'pending' },
 		},
 	],
 	can_remove: false,
 };
 
-// The same sequence, plus the sequence's declared metadata fields — the shape
-// the status endpoint really returns, and the only thing that tells the panel
-// this transition can depend on meta that is not persisted yet.
-const STATUS_WITH_REQUIRED_FIELD = {
+// The same draft-region stage, whose way out crosses into the publish region —
+// the one move the server's required-field gate can refuse.
+const STATUS_CROSSING_INTO_PUBLISH = {
 	...STATUS_RESPONSE,
-	metadata_fields: [
+	transitions: [
 		{
-			key: 'section',
-			label: 'Section',
-			type: 'text',
-			required: true,
-			meta_key: 'wf_meta_1_section',
+			to: 'live',
+			label: 'Send Live',
+			status_info: {
+				key: 'live',
+				label: 'On the site',
+				status: 'publish',
+			},
 		},
 	],
 };
 
+// A publish-region stage moving to another publish-region stage: the post is
+// already live, there is no boundary left to cross, and the gate does not run.
+const STATUS_WITHIN_PUBLISH = {
+	...STATUS_CROSSING_INTO_PUBLISH,
+	current: {
+		key: 'published',
+		label: 'Published',
+		color: '#666',
+		status: 'publish',
+		is_terminal: false,
+	},
+};
+
+const REQUIRED_SECTION = {
+	key: 'section',
+	label: 'Section',
+	type: 'text',
+	required: true,
+	meta_key: 'wf_meta_1_section',
+};
+
+// The crossing, plus the sequence's declared metadata fields — the shape the
+// status endpoint really returns, and what tells the panel this transition can
+// depend on meta that is not persisted yet.
+const STATUS_WITH_REQUIRED_FIELD = {
+	...STATUS_CROSSING_INTO_PUBLISH,
+	metadata_fields: [ REQUIRED_SECTION ],
+};
+
 const STATUS_WITH_OPTIONAL_FIELD = {
+	...STATUS_CROSSING_INTO_PUBLISH,
+	metadata_fields: [ { ...REQUIRED_SECTION, required: false } ],
+};
+
+// A required field on a sequence whose move stays short of publish.
+const STATUS_REQUIRED_FIELD_NO_CROSSING = {
 	...STATUS_RESPONSE,
-	metadata_fields: [
-		{
-			key: 'section',
-			label: 'Section',
-			type: 'text',
-			required: false,
-			meta_key: 'wf_meta_1_section',
-		},
-	],
+	metadata_fields: [ REQUIRED_SECTION ],
+};
+
+// A required field on a move between two publish-region stages.
+const STATUS_REQUIRED_FIELD_WITHIN_PUBLISH = {
+	...STATUS_WITHIN_PUBLISH,
+	metadata_fields: [ REQUIRED_SECTION ],
 };
 
 // Two required fields and a publish edge the server is holding for both — the
@@ -231,7 +284,12 @@ async function renderWithRefusal( error ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<SlotFillProvider>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</SlotFillProvider>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -248,9 +306,18 @@ async function renderWithRefusal( error ) {
  * Render the panel against a status payload and click the one transition, with
  * the transition POST succeeding.
  *
- * @param {Object} status Status-endpoint payload the store is answered with.
+ * A move that takes the post live asks before it goes; the confirm is accepted
+ * here, since what these tests watch is what happens after the author says yes.
+ *
+ * @param {Object}  status          Status-endpoint payload the store is answered with.
+ * @param {Object}  options         Options.
+ * @param {string}  options.label   Label of the transition button to click.
+ * @param {boolean} options.publish Whether the move opens the publish confirm.
  */
-async function renderAndTransition( status ) {
+async function renderAndTransition(
+	status,
+	{ label = 'Send Live', publish = true } = {}
+) {
 	apiFetch.mockImplementation( ( { path, method } ) => {
 		if ( path === STATUS_PATH && method !== 'POST' ) {
 			return Promise.resolve( status );
@@ -265,17 +332,28 @@ async function renderAndTransition( status ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<SlotFillProvider>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</SlotFillProvider>
+	);
 
 	await waitFor( () =>
 		expect(
-			screen.getByRole( 'button', { name: 'Send to Review' } )
+			screen.getByRole( 'button', { name: label } )
 		).toBeInTheDocument()
 	);
 
 	await act( async () => {
-		screen.getByRole( 'button', { name: 'Send to Review' } ).click();
+		screen.getByRole( 'button', { name: label } ).click();
 	} );
+
+	if ( publish ) {
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Publish' } ).click();
+		} );
+	}
 }
 
 /**
@@ -294,7 +372,12 @@ async function renderStatus( status ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<SlotFillProvider>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</SlotFillProvider>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -373,6 +456,64 @@ describe( 'WorkflowPanel required-field refusal', () => {
 		expect(
 			screen.queryByRole( 'dialog', { name: 'Transition blocked' } )
 		).not.toBeInTheDocument();
+		expect(
+			screen.getByText(
+				'You do not have permission to perform this transition.'
+			)
+		).toBeInTheDocument();
+	} );
+
+	/**
+	 * The panel reports its own failed writes and a refused move through one
+	 * notice, so the notice has to be about the last thing tried. A claim
+	 * failure left on screen must not stand in front of the reason a move was
+	 * refused — which would make the refusal look like a button doing nothing.
+	 */
+	it( 'shows a refused move in place of an earlier failure of the panel’s own', async () => {
+		apiFetch.mockImplementation( ( { path, method } ) => {
+			if ( path === STATUS_PATH && method !== 'POST' ) {
+				return Promise.resolve( {
+					...STATUS_RESPONSE,
+					can_claim: true,
+				} );
+			}
+			if ( path.endsWith( '/claim' ) ) {
+				return Promise.reject( {
+					message: 'Someone else claimed this post.',
+				} );
+			}
+			if ( 'POST' === method ) {
+				return Promise.reject( {
+					code: 'forbidden_transition',
+					message: 'Not yours to move.',
+				} );
+			}
+			return Promise.resolve( [] );
+		} );
+
+		render(
+			<SlotFillProvider>
+				<TransitionFlow />
+				<WorkflowPanel />
+			</SlotFillProvider>
+		);
+
+		const claim = await screen.findByRole( 'button', { name: 'Claim' } );
+		await act( async () => {
+			claim.click();
+		} );
+		expect(
+			screen.getByText( 'Someone else claimed this post.' )
+		).toBeInTheDocument();
+
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Send to Review' } ).click();
+		} );
+
+		expect( screen.getByText( 'Not yours to move.' ) ).toBeInTheDocument();
+		expect(
+			screen.queryByText( 'Someone else claimed this post.' )
+		).not.toBeInTheDocument();
 	} );
 
 	/**
@@ -382,7 +523,7 @@ describe( 'WorkflowPanel required-field refusal', () => {
 	 * transition is refused for a field that is filled in on screen — and
 	 * clicking again does exactly the same thing.
 	 */
-	it( 'saves a dirty post before a transition that can depend on meta', async () => {
+	it( 'saves a dirty post before a publish crossing that can depend on meta', async () => {
 		postIsDirty = true;
 
 		await renderAndTransition( STATUS_WITH_REQUIRED_FIELD );
@@ -392,17 +533,47 @@ describe( 'WorkflowPanel required-field refusal', () => {
 	} );
 
 	/**
-	 * The narrowing, stated: a sequence with no required field has nothing the
-	 * transition can be refused for, so a dirty post's unsaved work is left
-	 * where the author left it.
+	 * The save does not depend on what the panel can predict about the server's
+	 * gates: a sequence with no required field can still declare required
+	 * tools, and those read the saved post. A dirty post is saved first.
 	 */
-	it( 'leaves a dirty post alone when no field is required', async () => {
+	it( 'saves a dirty post when no field is required', async () => {
 		postIsDirty = true;
 
 		await renderAndTransition( STATUS_WITH_OPTIONAL_FIELD );
 
-		expect( savePost ).not.toHaveBeenCalled();
-		expect( sequence ).toEqual( [ 'transition' ] );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect( sequence ).toEqual( [ 'save', 'transition' ] );
+	} );
+
+	/**
+	 * A move that stays short of the publish region is not judged for required
+	 * fields, but its required tools still run against the saved post.
+	 */
+	it( 'saves a dirty post on a move that does not cross into publish', async () => {
+		postIsDirty = true;
+
+		await renderAndTransition( STATUS_REQUIRED_FIELD_NO_CROSSING, {
+			label: 'Send to Review',
+			publish: false,
+		} );
+
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect( sequence ).toEqual( [ 'save', 'transition' ] );
+	} );
+
+	/**
+	 * Nor is a move between two publish-region stages an exception.
+	 */
+	it( 'saves a dirty post on a move within the publish region', async () => {
+		postIsDirty = true;
+
+		await renderAndTransition( STATUS_REQUIRED_FIELD_WITHIN_PUBLISH, {
+			publish: false,
+		} );
+
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect( sequence ).toEqual( [ 'save', 'transition' ] );
 	} );
 
 	/**
@@ -512,5 +683,162 @@ describe( 'WorkflowPanel required-field refusal', () => {
 		expect(
 			screen.getByText( /Required fields are empty/ )
 		).toHaveTextContent( 'Assigned editor' );
+	} );
+} );
+
+/**
+ * Required tools on a move that never reaches the publish region.
+ *
+ * The server runs a stage's required tools on every transition that declares
+ * them, and a tool such as readability reads the saved post. An author who
+ * edits the content and moves the post to review would otherwise be passed or
+ * refused on the old content. Both outcomes are pinned: the save has to have
+ * FINISHED before the transition request is sent, not merely started.
+ */
+describe( 'WorkflowPanel save before a required-tool move', () => {
+	// A draft-region stage moving to review, with no metadata fields at all —
+	// nothing the panel can see says this move depends on the saved post.
+	const STATUS_REVIEW_MOVE = {
+		...STATUS_RESPONSE,
+		metadata_fields: [],
+	};
+
+	const TOOL_REFUSAL = {
+		code: 'tool_check_failed',
+		message: 'Transition blocked by required checks.',
+		data: {
+			status: 422,
+			hard_failures: [
+				{
+					tool: 'vip-workflows/readability',
+					message: 'Readability score is below the minimum.',
+				},
+			],
+			soft_warnings: [],
+		},
+	};
+
+	/**
+	 * Hold the save open until the test lets it go, so the panel cannot send
+	 * the transition while it is still in flight without the order showing it.
+	 */
+	function deferSave() {
+		let finish;
+		savePost.mockImplementationOnce( () => {
+			sequence.push( 'save:start' );
+			return new Promise( ( resolve ) => {
+				finish = () => {
+					postIsDirty = false;
+					sequence.push( 'save:done' );
+					resolve();
+				};
+			} );
+		} );
+		return () => finish();
+	}
+
+	/**
+	 * Render the review move and click it, with the transition POST answered by
+	 * `respond` and the save held open until the returned callback is called.
+	 *
+	 * @param {Function} respond Called for the POST; returns its promise.
+	 * @return {Promise<Function>} Releases the held save.
+	 */
+	async function clickReviewWithHeldSave( respond ) {
+		const releaseSave = deferSave();
+
+		apiFetch.mockImplementation( ( { path, method } ) => {
+			if ( path === STATUS_PATH && method !== 'POST' ) {
+				return Promise.resolve( STATUS_REVIEW_MOVE );
+			}
+			if ( path.startsWith( '/vip-workflows/v1/abilities' ) ) {
+				return Promise.resolve( [] );
+			}
+			if ( 'POST' === method ) {
+				sequence.push( 'transition' );
+				return respond();
+			}
+			return Promise.resolve( {} );
+		} );
+
+		render(
+			<SlotFillProvider>
+				<TransitionFlow />
+				<WorkflowPanel />
+			</SlotFillProvider>
+		);
+
+		await waitFor( () =>
+			expect(
+				screen.getByRole( 'button', { name: 'Send to Review' } )
+			).toBeInTheDocument()
+		);
+
+		await act( async () => {
+			screen.getByRole( 'button', { name: 'Send to Review' } ).click();
+		} );
+
+		return releaseSave;
+	}
+
+	beforeEach( () => {
+		apiFetch.mockReset();
+		savePost.mockClear();
+		postIsDirty = true;
+		editedMeta = {};
+		sequence = [];
+		seedEditorStore();
+	} );
+
+	it( 'saves unsaved edits before a move whose required tools pass', async () => {
+		const releaseSave = await clickReviewWithHeldSave( () =>
+			Promise.resolve( STATUS_REVIEW_MOVE )
+		);
+
+		// The save is in flight: nothing may have been sent yet.
+		expect( sequence ).toEqual( [ 'save:start' ] );
+
+		await act( async () => {
+			releaseSave();
+		} );
+
+		await waitFor( () =>
+			expect( sequence ).toEqual( [
+				'save:start',
+				'save:done',
+				'transition',
+			] )
+		);
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
+		expect(
+			screen.queryByRole( 'dialog', { name: 'Transition blocked' } )
+		).not.toBeInTheDocument();
+	} );
+
+	it( 'saves unsaved edits before a move whose required tools refuse it', async () => {
+		const releaseSave = await clickReviewWithHeldSave( () =>
+			Promise.reject( TOOL_REFUSAL )
+		);
+
+		expect( sequence ).toEqual( [ 'save:start' ] );
+
+		await act( async () => {
+			releaseSave();
+		} );
+
+		// The refusal is the server's verdict on the saved content, and it is
+		// shown as one.
+		expect(
+			await screen.findByRole( 'dialog', { name: 'Transition blocked' } )
+		).toBeInTheDocument();
+		expect(
+			screen.getByText( 'Readability score is below the minimum.' )
+		).toBeInTheDocument();
+		expect( sequence ).toEqual( [
+			'save:start',
+			'save:done',
+			'transition',
+		] );
+		expect( savePost ).toHaveBeenCalledTimes( 1 );
 	} );
 } );

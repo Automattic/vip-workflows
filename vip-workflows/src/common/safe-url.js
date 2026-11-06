@@ -21,11 +21,17 @@ const SAFE_SCHEME = /^(?:https?:|mailto:|tel:|#|\/)/i;
 /**
  * Whether a URL is safe to put in an href or src.
  *
- * @param {string} url Candidate URL.
+ * @param {*} url Candidate URL. A payload is decoded JSON, so any type can arrive.
  * @return {boolean} True when the URL may be linked.
  */
 export function isSafeUrl( url ) {
-	const trimmed = ( url || '' ).trim();
+	// Only a string can be an address. Answered here, not left to throw below:
+	// this runs while a card renders, and an error would take the card down.
+	if ( typeof url !== 'string' ) {
+		return false;
+	}
+
+	const trimmed = url.trim();
 
 	if ( ! trimmed ) {
 		return false;

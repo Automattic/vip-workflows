@@ -76,7 +76,7 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 				'vip-workflows'
 		  )
 		: __(
-				'Your organization recommends using a workflow for new posts. Select one below or skip to continue without a workflow:',
+				'Your organization recommends a workflow for new posts. Choose one or skip.',
 				'vip-workflows'
 		  );
 

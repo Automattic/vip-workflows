@@ -44,4 +44,6 @@ npm run check:all
 npm run test:php:integration
 ```
 
+The design-system section of `check:all` runs [loupe](https://github.com/dabowman/loupe), which `npm run setup` does not install; without it that section is skipped with a warning. In Claude Code, the repo's `.claude/settings.json` offers the loupe plugin and turns its write-time hooks on; accept the prompt when you trust the folder. [`tools/code-quality/README.md`](../tools/code-quality/README.md#in-claude-code) covers the hooks and how to run loupe outside Claude Code.
+
 Run `vip-workflows/vendor/bin/phpcbf` on changed PHP files before committing.

@@ -65,11 +65,19 @@ import {
 	isAgentOutcome,
 	isAgentStage,
 	isRequiredHandOff,
+	markInitialStage,
 	stageLabel,
+	transitionsIntoPublish,
 	START_ID,
 	END_ID,
 } from './graph-model';
-import { REGION_ORDER, stageRegion } from './regions';
+import {
+	REGION_ORDER,
+	keptRegions,
+	prunedRemovals,
+	regionHasOtherStage,
+	stageRegion,
+} from './regions';
 import { paletteColorAt, snapToPalette } from '../../utils/stage-palette';
 
 import '../../../common/outcome-tones.css';
@@ -133,8 +141,8 @@ function describeRepair( { dropped }, stages ) {
 	return sprintf(
 		/* translators: 1: number of transitions, 2: comma-separated list of transitions, each "From → To". */
 		_n(
-			'%1$d transition was removed because the stage already had one to the same place, and its label, roles, required tools and notifications went with it: %2$s.',
-			'%1$d transitions were removed because the stage already had ones to the same places, and their labels, roles, required tools and notifications went with them: %2$s.',
+			'Removed %1$d duplicate transition and its settings: %2$s.',
+			'Removed %1$d duplicate transitions and their settings: %2$s.',
 			dropped.length,
 			'vip-workflows'
 		),
@@ -200,6 +208,9 @@ const newWorkflowStages = () => [
 		// into it. Every used region needs exactly one, and the write gate
 		// refuses a config that gets that wrong.
 		region_entry: true,
+		// New posts start here. The flag, not array order, is what the server
+		// reads, so reordering the stages list cannot move it.
+		is_initial: true,
 		transitions: [ { to: 'publish' } ],
 	},
 	{
@@ -424,7 +435,9 @@ export default function SequenceGraphEditor( {
 	const [ description, setDescription ] = useState( blank.description );
 	const [ isActive, setIsActive ] = useState( blank.isActive );
 	const [ stages, setStages ] = useState( blank.stages );
-	const [ selection, setSelection ] = useState( null );
+	// What the author last picked. Read through `selection` below, which drops
+	// a group that is no longer drawn.
+	const [ pickedSelection, setSelection ] = useState( null );
 	const [ confirm, confirmDialog ] = useConfirm();
 
 	// The sequence as the server last confirmed it, serialized. Unsaved work is
@@ -450,13 +463,22 @@ export default function SequenceGraphEditor( {
 		isNew ? serializeSequence( isPhase, blank ) : null
 	);
 
-	// Status-region groups the author added from the canvas that hold no stage
-	// yet. A region with stages in it needs no bookkeeping — it's visible
-	// because a stage says so — but an empty one has nothing to derive it from,
-	// so it's remembered here until something is dragged in. Editing state, not
-	// sequence data: it isn't saved, and reopening the sequence shows the
-	// regions its stages actually use.
+	// The stages as the server last stored them: the load, each save, and a
+	// region repair. A status group they use stays drawn after the canvas's
+	// own stages leave it — a move, a delete, any edit that empties it — so
+	// it does not vanish from the canvas, the Post status picker and the stage
+	// context menu, and putting a stage back does not first mean adding the
+	// status again by hand. Saving makes what was stored the new reference,
+	// which is when an emptied group stops being drawn (see `keptRegions`).
+	const [ savedStages, setSavedStages ] = useState( blank.stages );
+	// Status-region groups the author added from the canvas. Kept for the rest
+	// of this editing session, saves included, until removed: an empty group
+	// is editing state, not sequence data, so it isn't saved, and reopening
+	// the sequence shows the regions its stages actually use.
 	const [ addedRegions, setAddedRegions ] = useState( [] );
+	// Empty groups the author took off the canvas that the saved stages would
+	// otherwise keep drawn. Pruned on save (see handleSave).
+	const [ removedRegions, setRemovedRegions ] = useState( [] );
 	const [ addingRegion, setAddingRegion ] = useState( false );
 
 	// Phase-only. The lifecycle hand-offs a phase sequence is allowed to draw,
@@ -702,16 +724,18 @@ export default function SequenceGraphEditor( {
 		if ( isNew ) {
 			return;
 		}
-		// Both editors wait for the options read. A workflow needs the post
-		// types to flag stale selections; a phase needs the hand-off graph
-		// before its canvas can judge a connection, or the author drags an edge
-		// the editor refuses for a rule it has not been told yet.
+		// Both editors wait for the options read. A workflow waits so the
+		// author is not shown its post types against a list the server has not
+		// described yet; a phase needs the hand-off graph before its canvas can
+		// judge a connection, or the author drags an edge the editor refuses
+		// for a rule it has not been told yet.
 		//
-		// And `postTypes` is one of this effect's own dependencies, so starting
-		// before the answer lands runs it a SECOND time when the answer arrives:
-		// a second read of the same sequence whose re-seat carries no `sent` and
-		// is therefore unconditional, throwing away anything typed between the
-		// two responses and re-taking the baseline from the server's copy — the
+		// The wait is the gate below, not an early start: `optionsLoaded` is
+		// one of this effect's dependencies, so starting before the answer
+		// lands would run it a SECOND time when the answer arrives — a second
+		// read of the same sequence whose re-seat carries no `sent` and is
+		// therefore unconditional, throwing away anything typed between the two
+		// responses and re-taking the baseline from the server's copy, the
 		// silent discard the `sent` mechanism exists to prevent.
 		if ( ! optionsLoaded ) {
 			return;
@@ -720,6 +744,7 @@ export default function SequenceGraphEditor( {
 		apiFetch( { path: `/vip-workflows/v1/sequences/${ sequenceId }` } )
 			.then( ( response ) => {
 				const fields = seedFromSequence( response );
+				setSavedStages( fields.stages );
 
 				if ( isPhase ) {
 					setSavedSnapshot( serializeSequence( isPhase, fields ) );
@@ -727,34 +752,20 @@ export default function SequenceGraphEditor( {
 					return;
 				}
 
-				// On load, a stored post type that no longer exists is real
-				// news — the sequence is attached to something that was
-				// unregistered since — so it is filtered out and named.
+				// A stored post type the options list does not offer stays
+				// attached. It may be unregistered for now (its plugin is
+				// switched off) or registered without an editing screen, so it
+				// is no longer offered for new workflows; either way, dropping
+				// it here would remove it from the sequence on the next save,
+				// whatever that save was about. The server keeps such a type
+				// on write for the same reason. The inspector lists it as not
+				// available, so removing it is a deliberate uncheck.
 				const savedPostTypes = response.config?.post_types || [];
-				const availableSlugs = postTypes.map( ( pt ) => pt.value );
-				const valid = savedPostTypes.filter( ( slug ) =>
-					availableSlugs.includes( slug )
-				);
-				const stale = savedPostTypes.filter(
-					( slug ) => ! availableSlugs.includes( slug )
-				);
-				if ( stale.length > 0 ) {
-					setError(
-						sprintf(
-							/* translators: %s: comma-separated post type slugs */
-							__(
-								'Warning: this sequence references post types that no longer exist: %s. Select valid post types and save.',
-								'vip-workflows'
-							),
-							stale.join( ', ' )
-						)
-					);
-				}
-				setSelectedPostTypes( valid );
+				setSelectedPostTypes( savedPostTypes );
 				setSavedSnapshot(
 					serializeSequence( isPhase, {
 						...fields,
-						selectedPostTypes: valid,
+						selectedPostTypes: savedPostTypes,
 					} )
 				);
 				setLoading( false );
@@ -773,14 +784,7 @@ export default function SequenceGraphEditor( {
 				setReadFailed( true );
 				setLoading( false );
 			} );
-	}, [
-		sequenceId,
-		isNew,
-		isPhase,
-		optionsLoaded,
-		postTypes,
-		seedFromSequence,
-	] );
+	}, [ sequenceId, isNew, isPhase, optionsLoaded, seedFromSequence ] );
 
 	// --- Region repair -----------------------------------------------------
 
@@ -799,6 +803,7 @@ export default function SequenceGraphEditor( {
 			.then( ( response ) => {
 				const repaired = response.config?.statuses || [];
 				setStages( repaired );
+				setSavedStages( repaired );
 				setMissingRegions( response.stages_missing_region || [] );
 				// The repair replays the stored config through the write gate,
 				// which collapses a stage's duplicate transitions on the way
@@ -880,7 +885,7 @@ export default function SequenceGraphEditor( {
 		if ( ! isPhase && selectedPostTypes.length === 0 ) {
 			reasons.push( {
 				message: __(
-					'This sequence is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types.',
+					'No post type selected. Click an empty part of the canvas and choose one under Post types.',
 					'vip-workflows'
 				),
 				target: null,
@@ -918,6 +923,11 @@ export default function SequenceGraphEditor( {
 			} );
 	}, [ validation.errors, isPhase, selectedPostTypes ] );
 
+	// Where the one reason the save is refused points, when there is exactly
+	// one and it has somewhere on the canvas to point; otherwise null.
+	const loneTarget =
+		saveBlockers.length === 1 ? saveBlockers[ 0 ].target : null;
+
 	// The refusal stands down once the last reason for it is gone, so it cannot
 	// reappear on its own the next time a field is half-edited.
 	useEffect( () => {
@@ -926,13 +936,15 @@ export default function SequenceGraphEditor( {
 		}
 	}, [ saveBlockers.length ] );
 
-	// The blocking faults that belong to one way out of a stage, keyed by the
-	// transition they belong to — `from->to`, without the outcome.
+	// The first blocking fault of each way out of a stage, keyed by the
+	// transition it belongs to — `from->to`, without the outcome.
 	//
 	// The stage panel's exit list reads this: a node badge says a stage needs
 	// attention, and without this the author has to open every transition it
 	// holds to find out which one the message meant. A stage holds one
-	// transition per destination, so `from->to` names the record; the outcome
+	// transition per destination, so `from->to` names the record — a stored
+	// stage that holds two shares one address between them, and its faults
+	// point at the stage rather than at an edge (see `validateSequence`); the outcome
 	// only says which of the edges drawn for it the canvas selects, and every
 	// row standing on that record carries the fault alike.
 	const exitProblems = useMemo( () => {
@@ -941,9 +953,10 @@ export default function SequenceGraphEditor( {
 			if ( target?.type !== 'edge' ) {
 				return;
 			}
+			// One row, one line. A transition can hold more than one fault at
+			// once, and the first is the one to fix first.
 			const id = edgeId( target.from, target.to );
-			byEdge[ id ] = byEdge[ id ] || [];
-			byEdge[ id ].push( message );
+			byEdge[ id ] = byEdge[ id ] || message;
 		} );
 		return byEdge;
 	}, [ validation.errors ] );
@@ -1063,7 +1076,41 @@ export default function SequenceGraphEditor( {
 		leaveEditor();
 	}, [ isDirty, confirmDiscard, leaveEditor ] );
 
+	// --- Status regions ----------------------------------------------------
+
+	// Which groups the canvas draws: every region a stage lives in, plus the
+	// empty ones the saved stages use or the author added (minus those the
+	// author removed), plus draft (where new content starts).
+	// Phase sequences have no post statuses at all, so they get no groups.
+	const regions = useMemo(
+		() =>
+			isPhase
+				? []
+				: visibleRegions(
+						stages,
+						keptRegions( savedStages, addedRegions, removedRegions )
+				  ),
+		[ isPhase, stages, savedStages, addedRegions, removedRegions ]
+	);
+	// The statuses the server allows that aren't drawn yet — what "Add post
+	// status…" offers, and whether it is offered at all.
+	// Memoized so the canvas menu's own memo, which depends on it, holds.
+	const addableRegions = useMemo(
+		() => REGION_ORDER.filter( ( region ) => ! regions.includes( region ) ),
+		[ regions ]
+	);
+
 	// --- Selection helpers -------------------------------------------------
+
+	// A selected group that is no longer drawn — an emptied group a save
+	// cleared — reads as no selection, so the panel never offers to remove a
+	// group that is already gone. Derived in the same render rather than
+	// cleared by an effect a render later.
+	const selection =
+		pickedSelection?.type === 'region' &&
+		! regions.includes( pickedSelection.region )
+			? null
+			: pickedSelection;
 
 	const selectedStage =
 		selection?.type === 'node'
@@ -1106,24 +1153,16 @@ export default function SequenceGraphEditor( {
 		setReveal( { target } );
 	}, [] );
 
-	// --- Status regions ----------------------------------------------------
-
-	// Which groups the canvas draws: every region a stage lives in, plus the
-	// empty ones the author added, plus draft (where new content starts).
-	// Phase sequences have no post statuses at all, so they get no groups.
-	const regions = useMemo(
-		() => ( isPhase ? [] : visibleRegions( stages, addedRegions ) ),
-		[ isPhase, stages, addedRegions ]
-	);
-	// The statuses the server allows that aren't drawn yet — what "Add post
-	// status…" offers, and whether it is offered at all.
-	const addableRegions = REGION_ORDER.filter(
-		( region ) => ! regions.includes( region )
-	);
+	// --- Status region handlers --------------------------------------------
 
 	const handleAddRegion = useCallback( ( region ) => {
 		setAddedRegions( ( current ) =>
 			current.includes( region ) ? current : [ ...current, region ]
+		);
+		setRemovedRegions( ( current ) =>
+			current.includes( region )
+				? current.filter( ( r ) => r !== region )
+				: current
 		);
 		setSelection( { type: 'region', region } );
 	}, [] );
@@ -1134,6 +1173,9 @@ export default function SequenceGraphEditor( {
 	const handleRemoveRegion = useCallback( ( region ) => {
 		setAddedRegions( ( current ) =>
 			current.filter( ( r ) => r !== region )
+		);
+		setRemovedRegions( ( current ) =>
+			current.includes( region ) ? current : [ ...current, region ]
 		);
 		setSelection( null );
 	}, [] );
@@ -1185,9 +1227,7 @@ export default function SequenceGraphEditor( {
 	const handleSetStageStatus = useCallback( ( key, region ) => {
 		setStages( ( current ) => {
 			const moved = setStageStatus( current, key, region );
-			const empty = ! current.some(
-				( s ) => s.key !== key && stageRegion( s ) === region
-			);
+			const empty = ! regionHasOtherStage( current, key, region );
 			return empty && moved !== current
 				? setRegionEntry( moved, key )
 				: moved;
@@ -1199,12 +1239,18 @@ export default function SequenceGraphEditor( {
 	// Add a stage that flows out of nothing yet — the canvas's own verb, as
 	// against `handleAddStageFromNode`, which grows one off a source handle. It
 	// lands in Draft (where content is created) and takes the selection, because
-	// what the author needs next is to name it and say where it leads.
-	const handleAddStage = useCallback( () => {
-		const result = addStage( stages );
-		setStages( result.stages );
-		setSelection( { type: 'node', key: result.key } );
-	}, [ stages ] );
+	// what the author needs next is to name it and say where it leads. The
+	// canvas menu names the region it was opened over, and takes the key back
+	// to put the node there.
+	const handleAddStage = useCallback(
+		( region = null ) => {
+			const result = addStage( stages, region ? { status: region } : {} );
+			setStages( result.stages );
+			setSelection( { type: 'node', key: result.key } );
+			return result.key;
+		},
+		[ stages ]
+	);
 
 	// Add a stage flowing out of an existing node — what dropping a connection on
 	// empty canvas does. Returns the new stage's key so the canvas can put the
@@ -1522,7 +1568,11 @@ export default function SequenceGraphEditor( {
 				}
 
 				const validToolIds = availableTools.map( ( t ) => t.id );
-				const cleanedStatuses = stages.map( ( status ) => {
+				// Every save names the stage new posts start in. Without the
+				// flag the server takes the first stage in the array, and the
+				// stages list reorders that array.
+				const flagged = markInitialStage( stages );
+				const cleanedStatuses = flagged.map( ( status ) => {
 					const next = { ...status };
 					// Drop a partial AI-stage agent (routing left behind by a
 					// cleared ability) — the server rejects an agent without
@@ -1648,6 +1698,19 @@ export default function SequenceGraphEditor( {
 			// unsaved work is measured against, so a field that held onto an
 			// in-flight edit reads as the unsaved work it is.
 			setSavedSnapshot( serializeSequence( isPhase, fields ) );
+			// What was stored is the new reference for which emptied groups
+			// stay drawn — always the server's copy, like the baseline above,
+			// so a group the stored stages no longer use stops being drawn,
+			// and one emptied while the write was out is still drawn because
+			// the stored stages still use it.
+			setSavedStages( fields.stages );
+			// A removal only means something while the stored stages use the
+			// group. One made before the write went out, of a group the stored
+			// stages use again, was undone by refilling it, so it is dropped
+			// here rather than hiding the group the next time it empties.
+			setRemovedRegions( ( live ) =>
+				prunedRemovals( live, removedRegions, fields.stages )
+			);
 			setSaveStatus( 'success' );
 			setTimeout( () => setSaveStatus( null ), 2000 );
 		} catch ( err ) {
@@ -1773,6 +1836,32 @@ export default function SequenceGraphEditor( {
 
 	// Sequence-level settings, handed to the inspector whole. Phase sequences
 	// use only the first three; the rest drive SequenceSettingsInspector.
+	// The options list plus any stored post type it does not offer, so every
+	// attached type has a row and can be unchecked on purpose. Only once the
+	// list has arrived: before then nothing is "not offered", and an empty
+	// list is what makes the inspector show its spinner. A new sequence is on
+	// screen at once with `post` selected, so without this it would briefly
+	// show the default type as not available.
+	const offeredSlugs = postTypes.map( ( pt ) => pt.value );
+	const inspectorPostTypes = ! optionsLoaded
+		? postTypes
+		: [
+				...postTypes,
+				...selectedPostTypes
+					.filter( ( slug ) => ! offeredSlugs.includes( slug ) )
+					.map( ( slug ) => ( {
+						value: slug,
+						label: sprintf(
+							/* translators: %s: post type slug. */
+							__(
+								'%s (not available for new workflows)',
+								'vip-workflows'
+							),
+							slug
+						),
+					} ) ),
+		  ];
+
 	const sequenceSettings = {
 		name,
 		onNameChange: setName,
@@ -1780,19 +1869,27 @@ export default function SequenceGraphEditor( {
 		onDescriptionChange: setDescription,
 		isActive,
 		onActiveChange: setIsActive,
-		postTypes,
+		postTypes: inspectorPostTypes,
 		selectedPostTypes,
 		onTogglePostType: togglePostType,
 		settings,
 		onSettingsChange: setSettings,
 		metadataFields,
 		onMetadataChange: setMetadataFields,
-		// The canvas's own two verbs, given a home that isn't a right-click.
-		// Nothing on the canvas says that right-clicking is how a post status
-		// gets added, and until now nothing anywhere said how a stage does.
-		onAddStage: isPhase ? undefined : handleAddStage,
-		onAddPostStatus: () => setAddingRegion( true ),
-		canAddPostStatus: addableRegions.length > 0,
+		// Required fields are checked only on a transition into publish, so
+		// whether "Required" can mean anything depends on the edges drawn now.
+		hasTransitionIntoPublish: transitionsIntoPublish( stages ).length > 0,
+		// Wrapped: the list's add button passes its option value, not a region.
+		onAddStage: isPhase ? undefined : () => handleAddStage(),
+		stages,
+		onStagesChange: setStages,
+		onRemoveStage: handleDeleteStage,
+		regions,
+		addableRegions,
+		onAddRegion: handleAddRegion,
+		onRemoveRegion: handleRemoveRegion,
+		onSelectNode: selectNode,
+		onSelectRegion: selectRegion,
 		// Whether there is a row to delete, which a new sequence gains the
 		// moment it is first saved.
 		isNew: ! savedId,
@@ -1842,20 +1939,16 @@ export default function SequenceGraphEditor( {
 								// neither of which has anything on the canvas
 								// to open.
 								actions={
-									! error &&
-									saveBlockers.length === 1 &&
-									saveBlockers[ 0 ].target
+									! error && loneTarget
 										? [
 												{
 													label: blockedTargetLabel(
-														saveBlockers[ 0 ]
-															.target,
+														loneTarget,
 														isPhase
 													),
 													onClick: () =>
 														showTarget(
-															saveBlockers[ 0 ]
-																.target
+															loneTarget
 														),
 													variant: 'primary',
 												},
@@ -1911,7 +2004,7 @@ export default function SequenceGraphEditor( {
 								{ sprintf(
 									/* translators: %s: comma-separated stage keys. */
 									__(
-										'These stages have no status region and cannot be used until one is set: %s. Assigning the default puts them in Draft; drag any of them into another status’s section of the canvas afterwards.',
+										'These stages have no status and can’t be used: %s. Assigning the default puts them in Draft.',
 										'vip-workflows'
 									),
 									missingRegions.join( ', ' )
@@ -1955,6 +2048,7 @@ export default function SequenceGraphEditor( {
 						onClearSelection={ clearSelection }
 						onDeleteNode={ handleDeleteStage }
 						onDeleteEdge={ handleDeleteTransition }
+						onAddStage={ isPhase ? undefined : handleAddStage }
 						requiredTransitions={ requiredPhaseTransitions }
 						onAddStageFromNode={
 							isPhase ? undefined : handleAddStageFromNode
@@ -1962,6 +2056,7 @@ export default function SequenceGraphEditor( {
 						onPlaceStage={ handlePlaceStage }
 						onSetStageStatus={ handleSetStageStatus }
 						onAddRegion={ () => setAddingRegion( true ) }
+						addableRegions={ addableRegions }
 						onRemoveRegion={ handleRemoveRegion }
 						// A fault the notice offered to show has to end up
 						// somewhere the author can see it, not just selected.
@@ -1998,6 +2093,10 @@ export default function SequenceGraphEditor( {
 						onDeleteTransition={ handleDeleteTransition }
 						onConnectTransition={ handleConnect }
 						onReconnectTransition={ handleReconnect }
+						// The canvas's connection rule, so the transition
+						// panel's From/To options are judged by the same
+						// verdict a dragged endpoint is.
+						isValidConnection={ isValidConnection }
 						onSelectNode={ selectNode }
 						onAddHandOff={ handleAddHandOff }
 						requiredTransitions={ requiredPhaseTransitions }

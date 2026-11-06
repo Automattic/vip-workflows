@@ -22,7 +22,7 @@ namespace VIPWorkflows\Abilities\Tools;
  * @return array|\WP_Error Result data or error.
  */
 function execute_import_sequence( ?array $input = null ) {
-	$input          = $input ?? array();
+	$input         = $input ?? array();
 	$sequence_json = $input['sequence_json'] ?? null;
 
 	if ( ! is_array( $sequence_json ) ) {
@@ -41,7 +41,7 @@ function execute_import_sequence( ?array $input = null ) {
 		return $response;
 	}
 
-	$data      = $response->get_data();
+	$data     = $response->get_data();
 	$sequence = is_array( $data ) ? ( $data['sequence'] ?? null ) : null;
 
 	// Per the no-fallback rule, a success response missing the prepared sequence
@@ -72,7 +72,7 @@ function register_import_sequence(): void {
 		'vip-workflows/import-sequence',
 		array(
 			'label'               => __( 'Import sequence', 'vip-workflows' ),
-			'description'         => __( 'Imports a workflow sequence from a WRAPPED envelope passed as the sequence_json parameter: {type, name, description, config} with the stages under config.statuses, the shape the export endpoint emits, not the FLAT create-sequence body. The imported sequence is created as a draft; activate it afterwards.', 'vip-workflows' ),
+			'description'         => __( 'Imports a workflow sequence from a WRAPPED envelope passed as the sequence_json parameter: {type, name, description, config} with the stages under config.statuses (the phases under config.phases for a phase sequence), the shape the export endpoint emits, not the FLAT create-sequence body. The imported sequence is created as a draft; activate it afterwards.', 'vip-workflows' ),
 			'category'            => 'vip-workflows',
 			'input_schema'        => array(
 				'type'                 => 'object',
@@ -81,9 +81,9 @@ function register_import_sequence(): void {
 				'properties'           => array(
 					'sequence_json' => array(
 						'type'        => 'object',
-						'description' => __( 'The exported sequence object (as produced by the export endpoint): must include type, name, and config.statuses.', 'vip-workflows' ),
+						'description' => __( 'The exported sequence object (as produced by the export endpoint): must include type, name, and config.statuses (config.phases for a phase sequence).', 'vip-workflows' ),
 					),
-					'name'           => array(
+					'name'          => array(
 						'type'        => 'string',
 						'description' => __( 'Optional name override for the imported sequence. Defaults to the name in the JSON.', 'vip-workflows' ),
 					),

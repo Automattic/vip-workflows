@@ -17,12 +17,13 @@ import {
 	getAgentInterruptWarning,
 	getEntryStageLabels,
 	getOrphanedWorkflowMessage,
+	getPublishVetoMessage,
 	getRegionLabel,
 	getStatusChangeWarning,
 	getTransitionPublishWarning,
 	getTransitionWarningsMessage,
 	statusToRegion,
-} from '../../src/entries/confirm-workflow-side-effect';
+} from '../../src/common/confirm-workflow-side-effect';
 
 /**
  * A sequence whose draft checkpoint is NOT its first draft stage.
@@ -252,10 +253,8 @@ describe( 'getStatusChangeWarning', () => {
 				agentPending: false,
 			} );
 
-			expect( message ).toContain(
-				'leaves this post at its current workflow stage'
-			);
-			expect( message ).not.toContain( 're-seats' );
+			expect( message ).toContain( 'keeps this post at its stage' );
+			expect( message ).not.toContain( 'moves' );
 		} );
 
 		// boundary_region() forces `publish` for a live post whatever its stage
@@ -271,8 +270,8 @@ describe( 'getStatusChangeWarning', () => {
 				agentPending: false,
 			} );
 
-			expect( message ).toContain( 'already a Draft stage' );
-			expect( message ).not.toContain( 're-seats' );
+			expect( message ).toContain( 'at its current Draft stage' );
+			expect( message ).not.toContain( 'moves' );
 			expect( message ).not.toContain( 'Writing' );
 		} );
 	} );
@@ -311,7 +310,7 @@ describe( 'getStatusChangeWarning', () => {
 
 			expect( message ).toContain( 'it stays there when it goes live' );
 			expect( message ).not.toContain( 'Published' );
-			expect( message ).not.toContain( 're-seats' );
+			expect( message ).not.toContain( 'moves' );
 		} );
 	} );
 
@@ -339,11 +338,11 @@ describe( 'getStatusChangeWarning', () => {
 				} );
 
 				expect( message ).toContain(
-					'cannot resolve this post’s workflow stage'
+					'workflow stage can’t be resolved'
 				);
 				expect( message ).not.toContain( 'undefined' );
 				expect( message ).not.toContain( 'null' );
-				expect( message ).not.toContain( 're-seats' );
+				expect( message ).not.toContain( 'moves' );
 				// It never reaches getRegionLabel(), so there is no region to
 				// complain about either.
 				expect( spy ).not.toHaveBeenCalled();
@@ -398,17 +397,34 @@ describe( 'getTransitionWarningsMessage', () => {
 
 describe( 'getTransitionPublishWarning', () => {
 	// A transition into a publish-region stage writes `publish` before the
-	// stage move, so the post goes publicly live as a side effect of what
-	// reads as a workflow step. The confirm names the destination stage and
-	// says plainly that the post becomes public.
-	it( 'names the destination stage and says the post goes public', () => {
+	// stage move, so the post goes live as a side effect of what reads as a
+	// workflow step. The confirm names the destination stage and says, once,
+	// that the move publishes. It does not say "publicly": who can see the
+	// post is its visibility setting, and a private post is not public.
+	it( 'names the destination stage and says, once, that the move publishes', () => {
 		const message = getTransitionPublishWarning( {
 			stageLabel: 'On the site',
 			scheduled: false,
 		} );
 
-		expect( message ).toContain( 'On the site' );
-		expect( message ).toContain( 'publicly visible' );
+		expect( message ).toBe(
+			'Moving this post to “On the site” publishes it right away.'
+		);
+	} );
+
+	// A private post is in a region of its own, so the move writes `publish`
+	// over `private` and the post stops being private. The author has to hear
+	// that, so the private variant says it.
+	it( 'tells a private post it stops being private', () => {
+		expect(
+			getTransitionPublishWarning( {
+				stageLabel: 'On the site',
+				scheduled: false,
+				isPrivate: true,
+			} )
+		).toBe(
+			'This post is private. Moving it to “On the site” publishes it right away, and it stops being private.'
+		);
 	} );
 
 	// A scheduled post's stage stayed put when it was scheduled, so moving it
@@ -421,9 +437,74 @@ describe( 'getTransitionPublishWarning', () => {
 			scheduled: true,
 		} );
 
-		expect( message ).toContain( 'On the site' );
-		expect( message ).toContain( 'scheduled' );
-		expect( message ).toContain( 'now' );
+		expect( message ).toBe(
+			'This post is scheduled. Moving it to “On the site” publishes it now, not at its scheduled time.'
+		);
+	} );
+} );
+
+describe( 'getPublishVetoMessage', () => {
+	// The client sentence is the server's (PublishBoundaryGuard::veto_message()),
+	// so a refusal reads the same whichever layer says it. It names the workflow
+	// as the way through and never suggests leaving it: this is what a habitual
+	// Publish click produces.
+	it.each( [ 'publish', 'future' ] )(
+		'says a %s cannot be done directly and names the workflow route',
+		( targetStatus ) => {
+			expect(
+				getPublishVetoMessage( {
+					title: 'Budget piece',
+					workflowName: 'News desk',
+					targetStatus,
+				} )
+			).toBe(
+				'“Budget piece” is in the “News desk” workflow, so it can’t be published directly. Move it through the workflow to a published stage.'
+			);
+		}
+	);
+
+	// The veto is symmetric. An unpublish is not told to move the post to a
+	// published stage.
+	it.each( [ 'draft', 'pending', 'private' ] )(
+		'says the status cannot be changed directly for %s',
+		( targetStatus ) => {
+			const message = getPublishVetoMessage( {
+				title: 'Budget piece',
+				workflowName: 'News desk',
+				targetStatus,
+			} );
+
+			expect( message ).toBe(
+				'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead.'
+			);
+			expect( message.toLowerCase() ).not.toContain( 'remove' );
+		}
+	);
+} );
+
+describe( 'getPublishVetoMessage without a target status', () => {
+	// The sentence names the direction of the refused change. A caller that
+	// forgets the target status gets the generic sentence, and says so in the
+	// console instead of quietly picking it.
+	it( 'logs an error and falls back to the generic sentence', () => {
+		const report = jest
+			.spyOn( console, 'error' )
+			.mockImplementation( () => {} );
+		try {
+			expect(
+				getPublishVetoMessage( {
+					title: 'Budget piece',
+					workflowName: 'News desk',
+				} )
+			).toBe(
+				'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead.'
+			);
+			expect( report ).toHaveBeenCalledWith(
+				expect.stringContaining( 'without the target status' )
+			);
+		} finally {
+			report.mockRestore();
+		}
 	} );
 } );
 

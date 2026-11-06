@@ -58,6 +58,13 @@ class WorkflowControllerTest extends TestCase
     private $wpdb;
 
     /**
+     * Batched My Work assignment reads seen by the wpdb double.
+     *
+     * @var int
+     */
+    private int $my_work_assignment_reads = 0;
+
+    /**
      * Set up test fixtures.
      */
     protected function setUp(): void
@@ -374,7 +381,11 @@ class WorkflowControllerTest extends TestCase
         $last_run = $args['last_run'] ?? null;
         $agent_job = $args['agent_job'] ?? null;
         Functions\when( 'get_post_meta' )->alias(
-            function ( $post_id, $key ) use ( $last_run, $agent_job ) {
+            function ( $post_id, $key = '' ) use ( $last_run, $agent_job ) {
+                // The keyless form returns every meta row for the post: none here.
+                if ( '' === $key ) {
+                    return array();
+                }
                 if ( \VIPWorkflows\Workflow\StageAgentRunner::LAST_RUN_META === $key ) {
                     return $last_run ?? '';
                 }
@@ -1401,7 +1412,8 @@ class WorkflowControllerTest extends TestCase
                     'ID'            => 11,
                     'post_title'    => 'Reviewed piece',
                     'post_author'   => 9,
-                    'post_modified' => '2026-01-02 15:45:00',
+                    'post_modified'     => '2026-01-02 15:45:00',
+                    'post_modified_gmt' => '2026-01-02 15:45:00',
                 )
             ),
         );
@@ -1409,13 +1421,27 @@ class WorkflowControllerTest extends TestCase
             fn( $capability, $post_id = null ) => 'edit_post' === $capability && 11 === $post_id
         );
 
+        // A UTC site, so local and GMT coincide. The route asks for the GMT
+        // column as a Unix timestamp, as core's get_post_modified_time()
+        // answers it; a non-UTC site is SiteTimezoneTimestampsIntegrationTest's.
+        Functions\when( 'get_post_modified_time' )->alias(
+            function ( $format, $gmt, $post ) {
+                $this->assertSame( 'U', $format );
+                $this->assertTrue( $gmt );
+                return strtotime( $post->post_modified_gmt . ' UTC' );
+            }
+        );
+
         // Captured rather than asserted on its output: the wording is
         // WordPress's own and translated, so what is worth pinning is which
-        // moment it was asked about — the post's, not the query's or now's.
+        // moment it was asked about — the post's, not the query's or now's —
+        // and that "now" is a real timestamp, not one shifted by the offset.
         $worded_from = array();
+        $worded_to   = array();
         Functions\when( 'human_time_diff' )->alias(
-            function ( $from, $to ) use ( &$worded_from ) {
+            function ( $from, $to ) use ( &$worded_from, &$worded_to ) {
                 $worded_from[] = $from;
+                $worded_to[]   = $to;
                 return '3 hours';
             }
         );
@@ -1432,6 +1458,8 @@ class WorkflowControllerTest extends TestCase
         $this->assertSame( '3 hours', $data[0]['waiting'] );
         $this->assertSame( '2026-01-02 15:45:00', $data[0]['modified'] );
         $this->assertSame( array( strtotime( '2026-01-02 15:45:00' ) ), $worded_from );
+        $this->assertCount( 1, $worded_to );
+        $this->assertEqualsWithDelta( time(), $worded_to[0], 5 );
     }
 
     /**
@@ -1549,7 +1577,14 @@ class WorkflowControllerTest extends TestCase
      */
     private function seed_my_work( array $sequence_rows, ?array $owned_ids = null, array $assignments = array() ): void
     {
+        defined( 'DAY_IN_SECONDS' ) || define( 'DAY_IN_SECONDS', 86400 );
+
         Functions\when( 'get_current_user_id' )->justReturn( 7 );
+
+        // Every row passes the per-post read check here; these cases are about
+        // row shape and pagination. MyWorkPerObjectGateTest runs the check
+        // against real capabilities.
+        Functions\when( 'current_user_can' )->justReturn( true );
 
         // No claim on any post: involvement comes from authorship below.
         Functions\when( 'get_post_meta' )->justReturn( '' );
@@ -1586,7 +1621,34 @@ class WorkflowControllerTest extends TestCase
         $this->wpdb->postmeta = 'wp_postmeta';
         Functions\when( 'maybe_unserialize' )->alias( fn( $value ) => unserialize( $value ) );
         $this->wpdb->shouldReceive( 'esc_like' )->andReturnUsing( fn( $text ) => $text );
-        $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing( fn( $query ) => $query );
+        // The batched assignment read keeps its post IDs, so the mock below can
+        // answer it for those posts alone.
+        $this->my_work_assignment_reads = 0;
+        $this->wpdb->shouldReceive( 'prepare' )->byDefault()->andReturnUsing(
+            function ( $query, ...$args ) {
+                if ( false === strpos( $query, 'post_id IN' ) ) {
+                    return $query;
+                }
+                $ids = array_slice( $args[0], 0, -1 );
+                return preg_replace( '/post_id IN \( [^)]* \)/', 'post_id IN ( ' . implode( ', ', array_map( 'intval', $ids ) ) . ' )', $query );
+            }
+        );
+
+        // The pending-assignee index, as AssignmentManager::sync_pending_assignee_index()
+        // would have written it for these slots: derived by the same function
+        // the index uses, so this stub cannot drift from it.
+        $this->wpdb->shouldReceive( 'get_col' )->byDefault()->andReturnUsing(
+            function ( $query ) use ( $assignments ) {
+                $ids = array();
+                foreach ( $assignments as $row ) {
+                    $slots = array( \VIPWorkflows\Workflow\AssignmentManager::STORAGE_PREFIX . 'reviewer' => $row->meta_value );
+                    if ( in_array( 7, \VIPWorkflows\Workflow\AssignmentManager::pending_user_ids_from_slots( (int) $row->post_id, $slots ), true ) ) {
+                        $ids[] = (string) $row->post_id;
+                    }
+                }
+                return $ids;
+            }
+        );
 
         // Resolve the involvement lookup independently from sequence reads.
         $this->wpdb->shouldReceive( 'get_results' )->byDefault()->andReturnUsing(
@@ -1601,8 +1663,21 @@ class WorkflowControllerTest extends TestCase
                     }
                     return array_map( fn( $id ) => (object) array( 'ID' => $id ), $ids );
                 }
-                if ( false !== strpos( $query, 'SELECT post_id, meta_value' ) ) {
-                    return $assignments;
+                // AssignmentManager::get_current_for_posts() for every row.
+                if ( preg_match( '/SELECT post_id, meta_key, meta_value .* post_id IN \( ([\d, ]*) \)/s', $query, $m ) ) {
+                    ++$this->my_work_assignment_reads;
+                    $ids  = array_map( 'intval', explode( ', ', $m[1] ) );
+                    $rows = array();
+                    foreach ( $assignments as $row ) {
+                        if ( in_array( (int) $row->post_id, $ids, true ) ) {
+                            $rows[] = (object) array(
+                                'post_id'    => $row->post_id,
+                                'meta_key'   => '_vip_workflows_assignment_reviewer',
+                                'meta_value' => $row->meta_value,
+                            );
+                        }
+                    }
+                    return $rows;
                 }
                 return $sequence_rows;
             }
@@ -1747,9 +1822,7 @@ class WorkflowControllerTest extends TestCase
                 $this->wpdb->last_error = 'database unavailable';
                 return array();
             } );
-        $this->wpdb->shouldReceive( 'get_results' )
-            ->never()
-            ->withArgs( fn( $query ) => false !== strpos( $query, 'SELECT post_id, meta_value' ) );
+        $this->wpdb->shouldReceive( 'get_col' )->never();
 
         $result = $this->controller->get_my_work( $this->create_mock_request() );
 
@@ -1764,9 +1837,8 @@ class WorkflowControllerTest extends TestCase
     public function test_get_my_work_reports_assignment_read_failure(): void
     {
         $this->seed_my_work( array( $this->my_work_sequence_row() ), array( 1 ) );
-        $this->wpdb->shouldReceive( 'get_results' )
+        $this->wpdb->shouldReceive( 'get_col' )
             ->once()
-            ->withArgs( fn( $query ) => false !== strpos( $query, 'SELECT post_id, meta_value' ) )
             ->andReturnUsing( function () {
                 $this->wpdb->last_error = 'database unavailable';
                 return array();
@@ -1777,6 +1849,31 @@ class WorkflowControllerTest extends TestCase
         $this->assertInstanceOf( \WP_Error::class, $result );
         $this->assertSame( 'my_work_read_failed', $result->get_error_code() );
         $this->assertSame( array(), \WP_Query::$constructed_args );
+    }
+
+    /**
+     * A failed current-assignment read fails My Work rather than showing the
+     * unread rows as unassigned.
+     */
+    public function test_get_my_work_reports_current_assignment_read_failure(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ) );
+        \WP_Query::$next_posts = array(
+            $this->create_mock_post( array( 'ID' => 1, 'post_author' => 7, 'post_modified' => '2026-01-02 00:00:00' ) ),
+        );
+        $this->wpdb->shouldReceive( 'get_results' )
+            ->once()
+            ->withArgs( fn( $query ) => false !== strpos( $query, 'SELECT post_id, meta_key, meta_value' ) )
+            ->andReturnUsing( function () {
+                $this->wpdb->last_error = 'database unavailable';
+                return null;
+            } );
+
+        $result = $this->controller->get_my_work( $this->create_mock_request() );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'assignment_read_failed', $result->get_error_code() );
+        $this->assertSame( 500, $result->get_error_data()['status'] );
     }
 
     /**
@@ -1814,6 +1911,11 @@ class WorkflowControllerTest extends TestCase
         $this->assertSame( 2001, $workflow_rows[2000]['post_id'] );
         $this->assertCount( 2001, $plain_rows );
         $this->assertSame( 2001, $plain_rows[2000]['post_id'] );
+        $this->assertSame(
+            (int) ceil( 2001 / \VIPWorkflows\Workflow\AssignmentManager::CURRENT_FOR_POSTS_CHUNK ),
+            $this->my_work_assignment_reads,
+            'Assignments are read once per chunk of rows, not once per row.'
+        );
     }
 
     /**
@@ -1842,6 +1944,7 @@ class WorkflowControllerTest extends TestCase
 
     /**
      * Claims and pending user slots qualify; completed, role and other-user slots do not.
+     * A row's assignee is its pending assignment, or its claim when nothing is pending.
      */
     public function test_get_my_work_preserves_claim_and_pending_user_involvement(): void
     {
@@ -1868,7 +1971,76 @@ class WorkflowControllerTest extends TestCase
 
         $this->assertSame( array( 1, 2, 3 ), array_column( $data, 'post_id' ) );
         $this->assertSame( 7, $data[0]['assignee']['id'] );
-        $this->assertNull( $data[1]['assignee'], 'A pending slot is not the single claim.' );
+        $this->assertSame( 7, $data[1]['assignee']['id'], 'A pending assignment is shown as the assignee.' );
+    }
+
+    /**
+     * The window bounds authorship only. The authorship read and the pass for
+     * authored posts outside any workflow carry it; the workflow pass does
+     * not, so a post assigned to or claimed by the user is listed however old
+     * it is. Moving a post between stages in one status leaves its modified
+     * date alone, so a window there would hide work just handed to someone.
+     */
+    public function test_get_my_work_windows_authorship_only(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ), array( 1 ) );
+        $prepared = array();
+        $this->wpdb->shouldReceive( 'prepare' )->andReturnUsing(
+            function ( $query, ...$args ) use ( &$prepared ) {
+                $prepared[] = array( $query, $args );
+                return $query;
+            }
+        );
+        \WP_Query::$next_posts = array();
+
+        Functions\when( 'current_time' )->justReturn( time() );
+        $before = gmdate( 'Y-m-d H:i:s', time() - WorkflowController::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS - 5 );
+        $this->controller->get_my_work( $this->create_mock_request() );
+        $after = gmdate( 'Y-m-d H:i:s', time() - WorkflowController::MY_WORK_WINDOW_DAYS * DAY_IN_SECONDS + 5 );
+
+        $workflow_pass = array_values( array_filter( \WP_Query::$constructed_args, fn( $args ) => ! isset( $args['author'] ) ) );
+        $authored_pass = array_values( array_filter( \WP_Query::$constructed_args, fn( $args ) => isset( $args['author'] ) ) );
+
+        $this->assertNotEmpty( $workflow_pass );
+        foreach ( $workflow_pass as $args ) {
+            $this->assertArrayNotHasKey( 'date_query', $args, 'The workflow pass must not window assigned or claimed posts.' );
+        }
+
+        $this->assertCount( 1, $authored_pass );
+        $window = $authored_pass[0]['date_query'][0];
+        $this->assertSame( 'post_modified', $window['column'] );
+        $this->assertGreaterThanOrEqual( $before, $window['after'] );
+        $this->assertLessThanOrEqual( $after, $window['after'] );
+
+        $authorship = array_values( array_filter( $prepared, fn( $call ) => false !== strpos( $call[0], 'post_author' ) ) );
+        $this->assertCount( 1, $authorship );
+        $this->assertStringContainsString( 'post_modified >= %s', $authorship[0][0] );
+        $this->assertSame( $window['after'], $authorship[0][1][2] );
+    }
+
+    /**
+     * The dashboard tab only needs the number. count_only sends no rows and
+     * builds none, and counts exactly the rows the full list would serve:
+     * a post the reader cannot read is in neither.
+     */
+    public function test_get_my_work_count_only_counts_the_rows_the_list_would_serve(): void
+    {
+        $this->seed_my_work( array( $this->my_work_sequence_row() ), array( 1, 2, 3 ) );
+        \WP_Query::$next_posts = array_map(
+            fn( $id ) => $this->create_mock_post( array( 'ID' => $id, 'post_author' => 7, 'post_modified' => '2026-01-02 00:00:00' ) ),
+            array( 1, 2, 3 )
+        );
+        Functions\when( 'current_user_can' )->alias( fn( $cap, $post_id = 0 ) => 2 !== $post_id );
+
+        $full = $this->controller->get_my_work( $this->create_mock_request() );
+
+        Functions\expect( 'get_the_post_thumbnail_url' )->never();
+        $count = $this->controller->get_my_work( $this->create_mock_request( array( 'count_only' => true ) ) );
+
+        $this->assertSame( array(), $count->get_data() );
+        $this->assertSame( (string) count( $full->get_data() ), $count->get_headers()['X-WP-Total'] );
+        $this->assertSame( $full->get_headers()['X-WP-Total'], $count->get_headers()['X-WP-Total'] );
+        $this->assertNotContains( 2, array_column( $full->get_data(), 'post_id' ) );
     }
 
     /**

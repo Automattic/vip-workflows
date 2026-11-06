@@ -42,6 +42,29 @@ use VIPWorkflows\Workflow\StatusManager;
 class StatusManagerAgentGatingTest extends TestCase
 {
     /**
+     * Stub get_gmt_from_date() for a UTC site.
+     *
+     * has_pending_agent_job() converts the site-local queued_at to a UTC
+     * timestamp with get_gmt_from_date(). The base TestCase stamps
+     * current_time( 'mysql' ) with gmdate(), i.e. a UTC site, so local and
+     * GMT coincide here. This mirrors core: parse in the site timezone, and
+     * for an unparseable string return the epoch in the requested format
+     * (gmdate( $format, 0 ), so '0' for 'U'). The non-UTC case is covered
+     * by the SiteTimezoneTimestampsIntegrationTest integration test.
+     */
+    protected function set_up()
+    {
+        parent::set_up();
+
+        Functions\when( 'get_gmt_from_date' )->alias(
+            function ( $date, $format = 'Y-m-d H:i:s' ) {
+                $datetime = date_create( (string) $date, new \DateTimeZone( 'UTC' ) );
+                return false === $datetime ? gmdate( $format, 0 ) : $datetime->format( $format );
+            }
+        );
+    }
+
+    /**
      * Build a StatusManager without running its constructor (avoids DB wiring).
      *
      * @return StatusManager
@@ -141,6 +164,25 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->assertSame( 'failed', $written['status'] );
         $this->assertSame( 'Agent run timed out.', $written['error'] );
         $this->assertSame( 'draft', $written['from_stage'] );
+    }
+
+    /**
+     * An unparseable queued_at is treated as stale, as it was when strtotime()
+     * failed: get_gmt_from_date() returns the epoch, '0' for 'U', which casts to 0.
+     */
+    public function test_unparseable_queued_at_is_stale(): void
+    {
+        Functions\when( 'get_post_meta' )->justReturn(
+            array(
+                'stage_key'  => 'ai_desk',
+                'status'     => 'pending',
+                'ability_id' => 'x',
+                'queued_at'  => 'not a date',
+            )
+        );
+        Functions\when( 'update_post_meta' )->justReturn( true );
+
+        $this->assertFalse( $this->status_manager()->has_pending_agent_job( 42, 'ai_desk' ) );
     }
 
     /**
@@ -332,6 +374,105 @@ class StatusManagerAgentGatingTest extends TestCase
 
         $this->assertInstanceOf( 'WP_Error', $result );
         $this->assertSame( 'update_failed', $result->get_error_code() );
+    }
+
+    /**
+     * Sequence mock whose ai_desk → review edge leads INTO an AI stage.
+     *
+     * @return object
+     */
+    private function sequence_into_an_ai_stage(): object
+    {
+        $sequence = Mockery::mock( Sequence::class );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturn( true );
+        $sequence->shouldReceive( 'get_transition' )->andReturn( array() );
+        $sequence->shouldReceive( 'can_user_transition' )->andReturn( true );
+        $sequence->shouldReceive( 'get_status' )->with( 'ai_desk' )->andReturn( array( 'key' => 'ai_desk' ) );
+        $sequence->shouldReceive( 'get_status' )->with( 'review' )->andReturn(
+            array(
+                'key'   => 'review',
+                'agent' => array( 'ability_id' => 'test/agent' ),
+            )
+        );
+        $sequence->shouldReceive( 'get_stage_status' )->with( 'ai_desk' )->andReturn( 'draft' );
+        $sequence->shouldReceive( 'get_stage_status' )->with( 'review' )->andReturn( 'publish' );
+        $sequence->shouldReceive( 'get_missing_required_metadata' )->andReturn( array() );
+        return $sequence;
+    }
+
+    /**
+     * A person cannot move a post into an AI stage while someone else has it
+     * open: the agent's server-side write and the shared editing session would
+     * overwrite each other.
+     */
+    public function test_transition_into_an_ai_stage_is_refused_while_the_post_is_shared(): void
+    {
+        $this->stub_post_in_ai_stage( '' );
+        $this->stub_current_user_roles( array( 'editor' ) );
+        $this->stub_granted_caps();
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+        $this->stub_room_presence_users( 2 );
+
+        $manager = $this->gated_status_manager( $this->sequence_into_an_ai_stage() );
+        $result  = $manager->transition( 42, 'review' );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'co_editing', $result->get_error_code() );
+    }
+
+    /**
+     * One editor is the ordinary case and proceeds. wp_update_post is stubbed
+     * to fail so reaching it proves the co-editing check let it through.
+     */
+    public function test_transition_into_an_ai_stage_proceeds_with_one_editor(): void
+    {
+        $this->stub_post_in_ai_stage( '' );
+        $this->stub_current_user_roles( array( 'editor' ) );
+        $this->stub_granted_caps();
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+        Functions\when( 'wp_update_post' )->justReturn( new \WP_Error( 'update_failed', 'stop here' ) );
+        $this->stub_room_presence_users( 1 );
+
+        $manager = $this->gated_status_manager( $this->sequence_into_an_ai_stage() );
+        $result  = $manager->transition( 42, 'review' );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'update_failed', $result->get_error_code() );
+    }
+
+    /**
+     * The agent's own hop into the next AI stage is not refused here: the
+     * runner checks again when that stage's run starts, and stops it in place,
+     * where Re-run can pick it up.
+     */
+    public function test_agent_hop_into_an_ai_stage_is_not_refused_while_shared(): void
+    {
+        $this->stub_post_in_ai_stage( '' );
+        $this->stub_granted_caps();
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'get_option' )->justReturn( array() );
+        Functions\when( 'user_can' )->justReturn( true );
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+        Functions\when( 'wp_update_post' )->justReturn( new \WP_Error( 'update_failed', 'stop here' ) );
+        $this->stub_room_presence_users( 2 );
+
+        $manager = $this->gated_status_manager( $this->sequence_into_an_ai_stage() );
+        $result  = $manager->transition(
+            42,
+            'review',
+            array(
+                'agent_actor'      => true,
+                'agent_actor_user' => 5,
+            )
+        );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertNotSame( 'co_editing', $result->get_error_code() );
+        $this->assertSame(
+            0,
+            \VIPRealTimeCollaboration\Presence\RoomPresence::$asked,
+            'an agent hop is checked by the runner, not here'
+        );
     }
 
     /**
@@ -698,7 +839,7 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->assertSame( 'unrouted_agent_exit', $result->get_error_code() );
         // The destination IS routed, so the refusal names the setting holding it
         // rather than calling it unrouted.
-        $this->assertStringContainsString( 'Let AI stages publish', $result->get_error_message() );
+        $this->assertSame( 'This stage is run by an agent, and Sequence settings don’t allow AI stages to publish. Move the post to another stage first.', $result->get_error_message() );
         $this->assertStringNotContainsString( 'only the destinations its outcomes route to', $result->get_error_message() );
     }
 
@@ -869,18 +1010,6 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->assertInstanceOf( 'WP_Error', $result );
         $this->assertSame( 'tool_check_failed', $result->get_error_code() );
         $this->assertSame( 'tool_disabled', $result->get_error_data()['hard_failures'][0]['key'] );
-    }
-
-    /**
-     * The setting is suggested only where a pass verdict alone reaches the held
-     * destination — never where it would also publish failed or errored runs.
-     */
-    public function test_publish_setting_is_suggested_only_for_pass_only_routes(): void
-    {
-        $this->assertTrue( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'fail' => 'draft' ), 'live' ) );
-        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'error' => 'live' ), 'live' ) );
-        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'live', 'fail' => 'live' ), 'live' ) );
-        $this->assertFalse( StageAgentRunner::publish_setting_fixes_route( array( 'pass' => 'review', 'error' => 'live' ), 'live' ) );
     }
 
     /**

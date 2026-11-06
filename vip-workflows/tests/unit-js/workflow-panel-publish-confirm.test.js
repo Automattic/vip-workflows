@@ -2,9 +2,9 @@
  * The confirm that stands between a transition and publishing the post.
  *
  * A transition into a publish-region stage crosses the publish boundary, so the
- * server writes `publish` before the stage move — the post goes publicly live
- * from a sidebar button that reads as a workflow step. Core's own Publish
- * button asks first; these tests pin that the panel does too, that declining
+ * server writes `publish` before the stage move — the post goes live from a
+ * sidebar button that reads as a workflow step. Core's own Publish button
+ * asks first; these tests pin that the panel does too, that declining
  * really declines, and that the question is only asked when publishing is
  * actually the news: a within-region move, or a post that is already live,
  * proceeds without it.
@@ -26,15 +26,19 @@ jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
 
 /*
  * `@wordpress/editor` pulls @wordpress/blocks, whose ESM-only dependencies Jest
- * cannot parse. The panel only needs the store's name plus a few post-state
- * selectors, so a named test store stands in for all of it.
+ * cannot parse. The panel needs the store's name plus a few post-state
+ * selectors, so a named test store stands in for it; the confirm also renders
+ * the pre-publish slot, which the stand-in package provides.
  */
-jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
+jest.mock( '@wordpress/editor', () => require( './helpers/editor-package' ) );
+jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
 // eslint-disable-next-line import/first
 import { createReduxStore, register } from '@wordpress/data';
+// eslint-disable-next-line import/first
+import { SlotFillProvider } from '@wordpress/components';
 
 // The committed post status, settable per test: the confirm keys off what is
 // persisted, so an already-live post must be able to differ from a draft one.
@@ -54,6 +58,7 @@ register(
 		actions: {
 			createSuccessNotice: () => ( { type: 'NOOP' } ),
 			createErrorNotice: () => ( { type: 'NOOP' } ),
+			removeNotice: () => ( { type: 'NOOP' } ),
 		},
 	} )
 );
@@ -64,7 +69,10 @@ register(
 		selectors: {
 			getEditedPostAttribute: () => mockSavedStatus,
 			getCurrentPostAttribute: () => mockSavedStatus,
+			getCurrentPostId: () => 42,
 			isEditedPostDirty: () => false,
+			isSavingPost: () => false,
+			isPostSavingLocked: () => false,
 		},
 		actions: { savePost: () => ( { type: 'NOOP' } ) },
 	} )
@@ -78,6 +86,8 @@ register(
 import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 const TRANSITION_PATH = '/vip-workflows/v1/workflow/post/42/transition';
@@ -166,7 +176,12 @@ async function renderPanel( status ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<SlotFillProvider>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</SlotFillProvider>
+	);
 
 	await waitFor( () => expect( button( 'Send Live' ) ).toBeInTheDocument() );
 }
@@ -230,6 +245,25 @@ describe( 'WorkflowPanel publish confirm', () => {
 			screen.queryByText( 'Publish this post?' )
 		).not.toBeInTheDocument();
 		expect( transitionPosts() ).toHaveLength( 1 );
+	} );
+
+	it( 'tells the author a private post stops being private', async () => {
+		// Private is a region of its own: the move writes `publish` over
+		// `private`, so the post becomes readable by anyone. That is the one
+		// visibility change a publishing move makes, so the confirm says it.
+		mockSavedStatus = 'private';
+		await renderPanel( statusResponse( 'private' ) );
+
+		await act( async () => {
+			button( 'Send Live' ).click();
+		} );
+
+		expect(
+			screen.getByText(
+				'This post is private. Moving it to “On the site” publishes it right away, and it stops being private.'
+			)
+		).toBeInTheDocument();
+		expect( transitionPosts() ).toHaveLength( 0 );
 	} );
 
 	it( 'does not ask on a post that is already live', async () => {
