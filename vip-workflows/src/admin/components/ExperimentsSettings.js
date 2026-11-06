@@ -123,7 +123,7 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 		return (
 			<Text variant="body-md" render={ <p /> }>
 				{ __(
-					'No experiments on this site. They arrive with plugin releases.',
+					'No experiments yet. They ship with plugin releases.',
 					'vip-workflows'
 				) }
 			</Text>

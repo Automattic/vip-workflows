@@ -41,6 +41,12 @@
  * is visibly set for all of them rather than looking like it belongs to the
  * edge that was clicked.
  *
+ * A transition the sequence cannot save with says so at the top as well.
+ * `saveBlocker` holds the first blocking message `validateSequence` aimed at this
+ * record — a fault such as two transitions assigning one slot, which no single
+ * row here can see. The blocked-Save notice's "Show transition" lands on this
+ * panel, so the panel has to name what it was sent to fix.
+ *
  * @package
  */
 
@@ -106,10 +112,7 @@ function toolProblem( tool ) {
 	if ( ! tool ) {
 		return {
 			short: __( 'Missing', 'vip-workflows' ),
-			full: __(
-				'No tool with this id is registered on this site — its plugin may be inactive. Saving this sequence drops it from the transition.',
-				'vip-workflows'
-			),
+			full: __( 'Tool not found. Saving removes it.', 'vip-workflows' ),
 		};
 	}
 
@@ -117,7 +120,7 @@ function toolProblem( tool ) {
 		return {
 			short: __( 'Turned off', 'vip-workflows' ),
 			full: __(
-				'This tool is turned off for the whole site under Workflows → Tools, so this transition skips it and the check never runs.',
+				'Turned off site-wide, so this check is skipped.',
 				'vip-workflows'
 			),
 		};
@@ -132,7 +135,7 @@ function toolProblem( tool ) {
 			full:
 				requirementText( tool.availability.groups ) ||
 				__(
-					'This tool has required settings that are not yet configured.',
+					'Some required settings are not configured.',
 					'vip-workflows'
 				),
 		};
@@ -152,6 +155,7 @@ export default function TransitionInspector( {
 	targetLabel,
 	outcome = null,
 	sharedOutcomes = null,
+	saveBlocker = null,
 	disabled = false,
 	publishHeld = false,
 	suggestAgentPublish = false,
@@ -186,12 +190,6 @@ export default function TransitionInspector( {
 	const hasAssignment = inputs.some(
 		( input ) => 'assignment' === input.type
 	);
-
-	// Everything else on the list is a stored input the editor sidebar no
-	// longer collects — a retired note, or a kind this build does not know.
-	const uncollectedCount = inputs.filter(
-		( input ) => 'assignment' !== input.type
-	).length;
 
 	// One row per stored id, resolved against what this site offers. Every id
 	// gets a row, including one nothing answers to: the list is the stored array
@@ -298,24 +296,10 @@ export default function TransitionInspector( {
 
 	const subtitle = `${ sourceLabel } → ${ targetLabel }`;
 
-	// Collapsed-state gist, so the section reads while shut. An input left to
-	// remove outranks the assignment: it is the one thing in here that needs the
-	// author, and a shut section saying "None" would hide it.
-	let assignmentSummary = __( 'None', 'vip-workflows' );
-	if ( uncollectedCount ) {
-		assignmentSummary = sprintf(
-			/* translators: %d: how many stored inputs are no longer collected. */
-			_n(
-				'%d input to remove',
-				'%d inputs to remove',
-				uncollectedCount,
-				'vip-workflows'
-			),
-			uncollectedCount
-		);
-	} else if ( hasAssignment ) {
-		assignmentSummary = __( '1 assignment', 'vip-workflows' );
-	}
+	// Collapsed-state gist, so the section reads while shut.
+	const assignmentSummary = hasAssignment
+		? __( '1 assignment', 'vip-workflows' )
+		: __( 'None', 'vip-workflows' );
 
 	return (
 		<InspectorShell
@@ -345,6 +329,15 @@ export default function TransitionInspector( {
 			title={ subtitle }
 		>
 			<Stack direction="column" gap="lg" align="stretch">
+				{ /* What stops the sequence saving, first: the blocked-Save
+				     notice's "Show transition" lands here, and this is what
+				     it was sent to show. One line, as the stage panel's exit
+				     row gives it — the first fault is the one to fix first. */ }
+				{ saveBlocker && (
+					<Notice status="error" isDismissible={ false }>
+						{ saveBlocker }
+					</Notice>
+				) }
 				{ /* Says why nothing here can fire, before the fields that
 				     configure it — the alternative is an author filling in
 				     roles and tools with no hint that the stage's agent has
@@ -352,7 +345,7 @@ export default function TransitionInspector( {
 				{ disabled && ! publishHeld && (
 					<Notice status="warning" isDismissible={ false }>
 						{ __(
-							'This transition is disabled. An agent runs this stage and routes content onward by outcome, so nobody can use this. It keeps its settings — routing an outcome along it, or removing the stage’s agent, makes it live again.',
+							'The stage’s agent routes by outcome. Route an outcome here or remove the agent.',
 							'vip-workflows'
 						) }
 					</Notice>
@@ -366,7 +359,7 @@ export default function TransitionInspector( {
 							? sprintf(
 									/* translators: %s: destination stage name. */
 									__(
-										'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so the agent stops instead of taking it. It keeps its settings — turning on “Let AI stages publish” in the sequence settings makes it live again, or route this outcome to a stage before publishing.',
+										'%s publishes, which is prevented by Sequence settings, please reroute.',
 										'vip-workflows'
 									),
 									targetLabel
@@ -374,7 +367,7 @@ export default function TransitionInspector( {
 							: sprintf(
 									/* translators: %s: destination stage name. */
 									__(
-										'This transition is disabled. %s publishes, and this sequence doesn’t allow AI stages to publish, so the agent stops instead of taking it. It keeps its settings — route failures and errors to a stage before publishing; turning on “Let AI stages publish” would publish failed runs too.',
+										'%s publishes, which is prevented by Sequence settings, please reroute. Allowing it would publish failed runs too.',
 										'vip-workflows'
 									),
 									targetLabel
@@ -393,7 +386,7 @@ export default function TransitionInspector( {
 						{ sprintf(
 							/* translators: 1: comma-separated agent outcome names, e.g. "On pass, On fail"; 2: destination stage name. */
 							__(
-								'%1$s all lead to %2$s along this one transition, so everything below applies to all of them. Giving an outcome its own roles, tools, notifications or assignment means routing it to a stage of its own.',
+								'%1$s all lead to %2$s, so settings below apply to all of them.',
 								'vip-workflows'
 							),
 							agentOutcomeNames( sharedOutcomes ),
@@ -435,7 +428,7 @@ export default function TransitionInspector( {
 							value={ to }
 							options={ toOptions }
 							help={ __(
-								'Where content goes when this transition is used. “End of workflow” makes the stage it leaves a final one and drops this transition, settings and all — a final stage exits the flow rather than moving content on.',
+								'“End of workflow” removes this transition and its settings.',
 								'vip-workflows'
 							) }
 							onChange={ ( next ) => onRepoint( from, next ) }
@@ -563,7 +556,7 @@ export default function TransitionInspector( {
 										'vip-workflows'
 								  )
 								: __(
-										'This transition runs no tools. Add one to check the post before it moves on.',
+										'No tools yet. Add one to check the post first.',
 										'vip-workflows'
 								  )
 						}
@@ -607,62 +600,23 @@ export default function TransitionInspector( {
 						<InspectorFieldList
 							items={ inputs }
 							onChange={ updateInputs }
-							// Only an assignment writes under its key, so only
-							// assignments can collide: an uncollected input
-							// writes nothing, and its stale key is no reason
-							// to flag a live assignment beside it.
-							keyOf={ ( item ) =>
-								'assignment' === item.type
-									? item.meta_key || ''
-									: ''
-							}
+							// The write gate refuses any input that is not an
+							// assignment, so every row here is one, and its
+							// key is the slot two rows can collide on.
+							keyOf={ ( item ) => item.meta_key || '' }
 							// An assignment is started the moment it exists:
 							// its key is minted with it rather than derived
 							// from anything typed, so a blank one is a stored
 							// config `validateSequence` blocks Save on. A row
 							// that said nothing would leave the author with
 							// Save switched off and no row to point at.
-							isStarted={ ( item ) => 'assignment' === item.type }
-							// Anything else a stored sequence still carries —
-							// a retired note, or a kind this build does not
-							// know — stays on the list so the author can see
-							// and remove it. It has nothing to configure, so
-							// its row says why in a tip rather than opening a
-							// popover with nothing in it to focus.
-							describe={ ( item ) =>
-								'assignment' === item.type
-									? {
-											label:
-												item.label ||
-												__(
-													'Untitled',
-													'vip-workflows'
-												),
-											value: __(
-												'Assignment',
-												'vip-workflows'
-											),
-									  }
-									: {
-											label:
-												item.note_name ||
-												item.label ||
-												item.type ||
-												__(
-													'Untitled',
-													'vip-workflows'
-												),
-											value: __(
-												'No longer collected',
-												'vip-workflows'
-											),
-											tip: __(
-												'The editor no longer asks for this input when the transition is taken, so it does nothing. Remove it.',
-												'vip-workflows'
-											),
-											invalid: true,
-									  }
-							}
+							isStarted={ () => true }
+							describe={ ( item ) => ( {
+								label:
+									item.label ||
+									__( 'Untitled', 'vip-workflows' ),
+								value: __( 'Assignment', 'vip-workflows' ),
+							} ) }
 							renderConfig={ ( { item, update, problem } ) => (
 								<>
 									{ /* The row says the key is wrong, and there
@@ -711,7 +665,7 @@ export default function TransitionInspector( {
 								'vip-workflows'
 							) }
 							emptyLabel={ __(
-								'This transition assigns nothing. Add an assignment to ask who takes the post on as it moves.',
+								'No assignment yet. Add one to ask who takes it on.',
 								'vip-workflows'
 							) }
 						/>

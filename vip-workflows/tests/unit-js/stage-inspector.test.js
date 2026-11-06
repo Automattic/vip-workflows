@@ -46,10 +46,15 @@ import {
 	act,
 } from './helpers/render-wp-component';
 
-import { useState } from '@wordpress/element';
+import {
+	END_ID,
+	edgeId,
+	isTransitionDisabled,
+} from '../../src/admin/components/graph/graph-model';
+import { createRef, useState } from '@wordpress/element';
 
-import { isTransitionDisabled } from '../../src/admin/components/graph/graph-model';
 import StageInspector from '../../src/admin/components/graph/StageInspector';
+import { InspectorPanelContext } from '../../src/admin/components/graph/InspectorShell';
 
 const AGENTS = [
 	{ id: 'workflow-agent-copy-edit/copy-edit', label: 'Copy Edit' },
@@ -218,6 +223,30 @@ describe( 'StageInspector transition read-out', () => {
 		).toHaveTextContent( 'Done' );
 	} );
 
+	/**
+	 * The first exit is the one the post editor's header button offers. The
+	 * row is a button named by its label alone, so a badge drawn inside it is
+	 * silent unless the label says it too.
+	 */
+	it( 'marks the first way out as primary, in its name as well as its badge', () => {
+		renderInspector(
+			stage( {
+				transitions: [
+					{ to: 'done', label: 'Approve' },
+					{ to: 'review', label: 'Send back' },
+				],
+			} )
+		);
+
+		const first = screen.getByRole( 'button', {
+			name: 'Select Approve (primary): Done',
+		} );
+		expect( first ).toHaveTextContent( 'Primary' );
+		expect(
+			screen.getByRole( 'button', { name: /^Select Send back: / } )
+		).not.toHaveTextContent( 'Primary' );
+	} );
+
 	it( 'names an unlabelled transition the way the runtime will', () => {
 		// Not "Unlabelled transition": leaving the label blank does not leave
 		// the transition nameless, it makes `StatusManager::transition_label()`
@@ -280,9 +309,49 @@ describe( 'StageInspector transition read-out', () => {
 		// has to name what is empty itself — and it carries both ways of
 		// filling it, which are most needed on exactly this stage. The drag is
 		// named second now: it is the one an author might not be able to make.
-		expect(
-			screen.getByText( /Nothing leaves this stage yet/ )
-		).toHaveTextContent( 'Add an exit above, or drag from one of the' );
+		expect( screen.getByText( /No exits yet/ ) ).toHaveTextContent(
+			'Add one or drag from a handle'
+		);
+	} );
+
+	// A final stage's way out is the end of the workflow. Calling it exit-less
+	// sends an author looking for a connection that is already there.
+	it( 'lists the end of the workflow as a final stage’s exit', () => {
+		const onSelectEdge = jest.fn();
+		const onDeleteExit = jest.fn();
+		renderInspector(
+			stage( { transitions: [], is_terminal: true } ),
+			jest.fn(),
+			{ onSelectEdge, onDeleteExit }
+		);
+
+		expect( screen.queryByText( /No exits yet/ ) ).toBeNull();
+
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'Select End of workflow' } )
+		);
+		expect( onSelectEdge ).toHaveBeenCalledWith(
+			edgeId( 'review', END_ID )
+		);
+
+		fireEvent.click(
+			screen.getByRole( 'button', { name: 'Remove exit' } )
+		);
+		expect( onDeleteExit ).toHaveBeenCalledWith( END_ID );
+	} );
+
+	it( 'lists the end after the transitions a final stage also has', () => {
+		renderInspector( stage( { is_terminal: true } ) );
+
+		const names = screen
+			.getAllByRole( 'button', { name: /^Select / } )
+			.map( ( button ) => button.getAttribute( 'aria-label' ) );
+		// The first transition is still the stage's primary exit: the end of
+		// the workflow is not a move the header button offers.
+		expect( names ).toEqual( [
+			'Select Approve (primary): Done',
+			'Select End of workflow',
+		] );
 	} );
 
 	it( 'marks a transition the stage’s agent has taken over', () => {
@@ -388,10 +457,16 @@ describe( 'StageInspector deduplicated exit list', () => {
 	it( 'renders one row per exit: three routed outcomes plus the unclaimed transition', () => {
 		renderInspector( routedStage(), jest.fn(), props );
 
-		const exits = screen
+		const outcomes = screen
 			.getByText( 'Send to copyedit · on pass' )
 			.closest( 'ul' );
-		expect( within( exits ).getAllByRole( 'listitem' ) ).toHaveLength( 4 );
+		expect( within( outcomes ).getAllByRole( 'listitem' ) ).toHaveLength(
+			3
+		);
+		const transitionList = screen.getByText( 'Archive' ).closest( 'ul' );
+		expect(
+			within( transitionList ).getAllByRole( 'listitem' )
+		).toHaveLength( 1 );
 	} );
 
 	it( 'composes each routed outcome’s row from its transition’s name', () => {
@@ -491,11 +566,26 @@ describe( 'StageInspector deduplicated exit list', () => {
 
 		fireEvent.click(
 			screen.getByRole( 'button', {
-				name: 'Select Send to copyedit · on pass',
+				name: 'Select Send to copyedit · on pass: Copy Edit',
 			} )
 		);
 
 		expect( onSelectEdge ).toHaveBeenCalledWith( 'review:pass->copyedit' );
+	} );
+
+	it( 'names each exit row by where it goes, not only by what it is', () => {
+		// The row's name replaces its text, so a screen reader hears only
+		// what the name carries: the destination has to be in it, as the
+		// Entry checkpoint row folds in its Yes or No.
+		renderInspector( stage(), jest.fn(), { onSelectEdge: jest.fn() } );
+
+		// The only exit is also the primary one, which its name says beside
+		// the label, where the badge sits.
+		expect(
+			screen.getByRole( 'button', {
+				name: 'Select Approve (primary): Done',
+			} )
+		).toBeInTheDocument();
 	} );
 
 	it( 'keeps a dangling transition listed and clickable', () => {
@@ -519,9 +609,11 @@ describe( 'StageInspector deduplicated exit list', () => {
 		const row = screen.getByText( 'Move to deleted' ).closest( 'li' );
 		expect( row ).toHaveTextContent( 'deleted (missing)' );
 
+		// Its name carries what its value column says — missing, and (no
+		// outcome routing along it) disabled — not only what it is.
 		fireEvent.click(
 			within( row ).getByRole( 'button', {
-				name: 'Select Move to deleted',
+				name: 'Select Move to deleted: deleted (missing) (disabled)',
 			} )
 		);
 
@@ -560,7 +652,7 @@ describe( 'StageInspector deduplicated exit list', () => {
 		const row = screen.getByText( 'Move to deleted' ).closest( 'li' );
 		fireEvent.click(
 			within( row ).getByRole( 'button', {
-				name: 'Select Move to deleted',
+				name: 'Select Move to deleted: deleted (missing)',
 			} )
 		);
 		expect( onSelectEdge ).toHaveBeenCalledWith( 'review->deleted' );
@@ -1008,15 +1100,18 @@ describe( 'StageInspector panel structure', () => {
 			} )
 		);
 
-		const exits = screen.getByText( 'On fail' ).closest( 'ul' );
-		// Both kinds of exit in the same list: to a post travelling them, a
-		// button an author drew and a route an agent takes are the same thing.
+		// Agent outcomes and transition rows sit in adjacent lists inside the
+		// same exits section; together they are every way out of the stage.
+		const outcomes = screen.getByText( 'On fail' ).closest( 'ul' );
 		expect(
-			within( exits ).getByText( 'Approve · on pass' )
+			within( outcomes ).getByText( 'Approve · on pass' )
 		).toBeInTheDocument();
-		expect( within( exits ).getByText( 'Archive' ) ).toBeInTheDocument();
+		const transitionList = screen.getByText( 'Archive' ).closest( 'ul' );
+		expect( transitionList ).toBeInTheDocument();
 		// And apart from the facts about the stage itself, which keep their own.
-		expect( within( exits ).queryByText( 'Entry checkpoint' ) ).toBeNull();
+		expect(
+			within( outcomes ).queryByText( 'Entry checkpoint' )
+		).toBeNull();
 	} );
 
 	it( 'keeps label and color open in place', () => {
@@ -1102,7 +1197,7 @@ describe( 'StageInspector panel structure', () => {
 			).toBeInTheDocument();
 			expect(
 				screen.getByText(
-					/following the on-error route if one is set, stopping here otherwise/
+					/Until this is set up, posts here will error/
 				)
 			).toBeInTheDocument();
 		} );
@@ -1117,7 +1212,7 @@ describe( 'StageInspector panel structure', () => {
 			);
 
 			expect(
-				screen.getByText( /no longer available on this site/ )
+				screen.getByText( /is unavailable, so posts here will error/ )
 			).toBeInTheDocument();
 		} );
 
@@ -1149,138 +1244,105 @@ describe( 'StageInspector panel structure', () => {
 			);
 
 			expect(
-				screen.queryByText( /following the on-error route/ )
+				screen.queryByText( /posts here will error/ )
 			).not.toBeInTheDocument();
 		} );
 	} );
 } );
 
-describe( 'StageInspector End of workflow exit', () => {
-	// Making a stage final is an exit added from the panel, so un-making it is
-	// an exit removed from the panel: the stage's exits list carries an End of
-	// workflow row with a remove control, and removing it clears the flag.
-	const removeEnd = () =>
-		screen.queryByRole( 'button', { name: 'Remove end of workflow' } );
+describe( 'StageInspector End of workflow row, beyond its existence', () => {
+	const endRow = () =>
+		screen.queryByRole( 'button', { name: 'Select End of workflow' } );
 
 	/**
-	 * Render a stage whose final flag lives in state, the way the editor holds
-	 * it, so removing the row re-renders the panel without it.
+	 * Render a final stage whose flag lives in state, the way the editor holds
+	 * it, so removing the End row re-renders the panel without it.
 	 *
-	 * @param {Object} initial Initial stage.
-	 * @return {jest.Mock} The clear handler.
+	 * @param {Object} options             Options.
+	 * @param {Array}  options.exitOptions What Add exit offers once the stage is
+	 *                                     not final; empty hides the control.
+	 * @return {Object} The panel heading's ref.
 	 */
-	function renderStateful( initial ) {
-		const onClear = jest.fn();
+	function renderStateful( { exitOptions } ) {
+		const headingRef = createRef();
 		function Harness() {
-			const [ current, setCurrent ] = useState( initial );
+			const [ current, setCurrent ] = useState(
+				stage( { transitions: [], is_terminal: true } )
+			);
 			return (
-				<StageInspector
-					stage={ current }
-					availableAgents={ AGENTS }
-					resolveStageLabel={ ( key ) =>
-						key === 'done' ? 'Done' : key
-					}
-					stageExists={ ( key ) => key === 'done' }
-					isTransitionDisabled={ () => false }
-					// End is offered again once the stage is not final.
-					exitOptions={
-						current.is_terminal
-							? []
-							: [
-									{
-										label: 'End of workflow',
-										value: '__wf_end__',
-									},
-							  ]
-					}
-					onAddExit={ () => {} }
-					onClearTerminal={ () => {
-						onClear();
-						setCurrent( ( s ) => ( { ...s, is_terminal: false } ) );
-					} }
-					onChange={ () => {} }
-					onDelete={ () => {} }
-					canDelete={ true }
-					isKeyInUse={ () => false }
-				/>
+				<InspectorPanelContext.Provider value={ { headingRef } }>
+					<StageInspector
+						stage={ current }
+						availableAgents={ AGENTS }
+						resolveStageLabel={ ( key ) => key }
+						stageExists={ () => true }
+						isTransitionDisabled={ () => false }
+						exitOptions={ current.is_terminal ? [] : exitOptions }
+						onAddExit={ () => {} }
+						onDeleteExit={ ( target ) => {
+							expect( target ).toBe( END_ID );
+							setCurrent( ( s ) => ( {
+								...s,
+								is_terminal: false,
+							} ) );
+						} }
+						onChange={ () => {} }
+						onDelete={ () => {} }
+						canDelete={ true }
+						isKeyInUse={ () => false }
+					/>
+				</InspectorPanelContext.Provider>
 			);
 		}
 		render( <Harness /> );
-		return onClear;
+		return headingRef;
 	}
 
-	it( 'lists End of workflow among the exits of a final stage', () => {
-		renderInspector( stage( { is_terminal: true } ), jest.fn(), {
-			onClearTerminal: jest.fn(),
-		} );
-
-		expect( screen.getByText( 'End of workflow' ) ).toBeInTheDocument();
-		expect( screen.getByText( 'Final stage' ) ).toBeInTheDocument();
-		expect( removeEnd() ).toBeInTheDocument();
-	} );
-
-	it( 'counts the flow’s exit as a way out, not an empty list', () => {
-		renderInspector(
-			stage( { is_terminal: true, transitions: [] } ),
-			jest.fn(),
-			{ onClearTerminal: jest.fn() }
-		);
-
-		expect( screen.getByText( 'End of workflow' ) ).toBeInTheDocument();
-		expect(
-			screen.queryByText( /Nothing leaves this stage yet/ )
-		).toBeNull();
-	} );
-
-	it( 'shows no End row on a stage that is not final', () => {
-		renderInspector( stage(), jest.fn(), {
-			onClearTerminal: jest.fn(),
-		} );
-
-		expect( screen.queryByText( 'End of workflow' ) ).toBeNull();
-		expect( removeEnd() ).toBeNull();
-	} );
-
-	it( 'clears the final flag when the row is removed', () => {
-		const onClear = renderStateful( stage( { is_terminal: true } ) );
-
-		fireEvent.click( removeEnd() );
-
-		expect( onClear ).toHaveBeenCalledTimes( 1 );
-		expect( screen.queryByText( 'End of workflow' ) ).toBeNull();
-		expect( removeEnd() ).toBeNull();
-	} );
-
-	it( 'keeps keyboard focus in the panel after the row is removed', () => {
-		renderStateful( stage( { is_terminal: true } ) );
-
-		const button = removeEnd();
+	const removeEnd = () => {
+		const button = screen.getByRole( 'button', { name: 'Remove exit' } );
 		button.focus();
 		fireEvent.click( button );
+	};
 
-		// The pressed button is gone; focus lands on Add exit, where End is
-		// on offer again, rather than falling to the document.
+	it( 'moves focus to Add exit once the row is removed', () => {
+		// The pressed button unmounts with its row. Add exit is where End is
+		// on offer again, so that is where the author is put.
+		renderStateful( {
+			exitOptions: [ { label: 'End of workflow', value: END_ID } ],
+		} );
+
+		removeEnd();
+
+		expect( endRow() ).toBeNull();
 		expect(
 			screen.getByRole( 'button', { name: 'Add exit' } )
 		).toHaveFocus();
+	} );
+
+	it( 'falls back to the panel heading when nothing can be added', () => {
+		const headingRef = renderStateful( { exitOptions: [] } );
+
+		removeEnd();
+
+		expect( endRow() ).toBeNull();
+		expect( headingRef.current ).toHaveFocus();
 		expect( document.body ).not.toHaveFocus();
 	} );
 
 	it( 'gives an AI stage no End row, whatever its stored flag says', () => {
-		// An AI stage leaves only by its outcomes and cannot be final.
+		// An AI stage leaves only by its outcomes and cannot be made final
+		// (`isValidConnection`), so it is not offered a row to remove.
 		renderInspector(
 			stage( {
+				transitions: [],
 				is_terminal: true,
 				agent: {
 					ability_id: AGENTS[ 0 ].id,
 					routing: { pass: 'done' },
 				},
-			} ),
-			jest.fn(),
-			{ onClearTerminal: jest.fn() }
+			} )
 		);
 
-		expect( screen.queryByText( 'End of workflow' ) ).toBeNull();
-		expect( removeEnd() ).toBeNull();
+		expect( endRow() ).toBeNull();
 	} );
 } );
