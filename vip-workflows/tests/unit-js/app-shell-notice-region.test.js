@@ -10,7 +10,12 @@
  * @package
  */
 
-import { render, screen, waitFor } from './helpers/render-wp-component';
+import {
+	render,
+	screen,
+	waitFor,
+	fireEvent,
+} from './helpers/render-wp-component';
 
 jest.mock( '@wordpress/api-fetch', () =>
 	jest.fn( () => new Promise( () => {} ) )
@@ -41,11 +46,21 @@ const NOTICES = [
 	},
 ];
 
+const removed = [];
+
 register(
 	createReduxStore( 'core/notices', {
-		reducer: ( state = NOTICES ) => state,
+		reducer: ( state = NOTICES, action ) =>
+			'REMOVE_NOTICE' === action.type
+				? state.filter( ( notice ) => notice.id !== action.id )
+				: state,
 		selectors: { getNotices: ( state ) => state },
-		actions: { removeNotice: () => ( { type: 'NOOP' } ) },
+		actions: {
+			removeNotice: ( id ) => {
+				removed.push( id );
+				return { type: 'REMOVE_NOTICE', id };
+			},
+		},
 	} )
 );
 
@@ -53,6 +68,17 @@ register(
 import AppShell from '../../src/admin/components/AppShell';
 
 describe( 'AppShell notice region', () => {
+	// A Snackbar can move focus and scroll as it mounts or is clicked, and
+	// jsdom implements no scrolling. Stubbed for every test in the file,
+	// because when it happens depends on timing.
+	let scrollTo;
+	beforeEach( () => {
+		scrollTo = jest
+			.spyOn( window, 'scrollTo' )
+			.mockImplementation( () => {} );
+	} );
+	afterEach( () => scrollTo.mockRestore() );
+
 	it( 'renders snackbars in one region on <body>, outside the screen', async () => {
 		const { container } = render( <AppShell /> );
 
@@ -71,7 +97,7 @@ describe( 'AppShell notice region', () => {
 		).toHaveLength( 1 );
 	} );
 
-	it( 'leaves non-snackbar notices to the screens that raise them', async () => {
+	it( 'shows only snackbar notices; other types are not drawn in the region', async () => {
 		render( <AppShell /> );
 
 		await waitFor( () =>
@@ -83,5 +109,27 @@ describe( 'AppShell notice region', () => {
 		expect(
 			screen.queryByText( 'An inline notice the shell does not own.' )
 		).toBeNull();
+	} );
+
+	// Last: it removes the snackbar from the shared store.
+	it( 'dismisses a snackbar through the notices store', async () => {
+		render( <AppShell /> );
+
+		const message = await waitFor( () =>
+			screen.getByText(
+				'The draft could not be created: the project has no seed.'
+			)
+		);
+
+		fireEvent.click( message.closest( '.components-snackbar' ) );
+
+		await waitFor( () => expect( removed ).toContain( 'refused' ) );
+		await waitFor( () =>
+			expect(
+				screen.queryByText(
+					'The draft could not be created: the project has no seed.'
+				)
+			).toBeNull()
+		);
 	} );
 } );
