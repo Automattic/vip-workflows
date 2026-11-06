@@ -51,6 +51,12 @@ export function CommandPalette() {
 	 * edits. So the result says which copy it describes instead.
 	 */
 	const [ ranOnUnsavedEdits, setRanOnUnsavedEdits ] = useState( false );
+	/*
+	 * Whether the post was published when the shown result was produced. The
+	 * saved copy of a published post is the live one, and saving it publishes
+	 * the edits, so the result tells the author that instead of a plain "save".
+	 */
+	const [ ranOnPublishedPost, setRanOnPublishedPost ] = useState( false );
 	const registry = useRegistry();
 
 	const runTool = useCallback(
@@ -65,7 +71,9 @@ export function CommandPalette() {
 			// Read before the request, which is when the tool reads the post.
 			// Stored only once the result is back, so a result still on screen
 			// keeps the flag it was produced with until its successor arrives.
-			const dirty = registry.select( editorStore ).isEditedPostDirty();
+			const editor = registry.select( editorStore );
+			const dirty = editor.isEditedPostDirty();
+			const published = editor.isCurrentPostPublished();
 
 			try {
 				const result = await apiFetch( {
@@ -74,6 +82,7 @@ export function CommandPalette() {
 					data: { post_id: postId, source: 'command_palette' },
 				} );
 				setRanOnUnsavedEdits( dirty );
+				setRanOnPublishedPost( published );
 				return result;
 			} catch ( error ) {
 				return {
@@ -325,6 +334,7 @@ export function CommandPalette() {
 					onClose={ closeModal }
 					requirementGroups={ modalTool?.availability?.groups || [] }
 					ranOnUnsavedEdits={ ranOnUnsavedEdits }
+					ranOnPublishedPost={ ranOnPublishedPost }
 				/>
 			) }
 		</>

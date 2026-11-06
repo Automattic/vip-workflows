@@ -23,6 +23,9 @@ import { CheckResultsModal } from '../../src/editor/components/ToolResultModals'
 const STALE_COPY =
 	'These results are for the last saved version. Save the post, then run the check again to include your edits.';
 
+const PUBLISHED_COPY =
+	'These results are for the published version. Save the post to publish your edits, then run the check again.';
+
 const RESULT = {
 	summary: 'SEO score: 85',
 	output: {
@@ -55,12 +58,34 @@ describe( 'CheckResultsModal', () => {
 		).toBeGreaterThan( 0 );
 	} );
 
-	it( 'says nothing about the saved copy when the post was clean', () => {
-		renderModal();
+	/**
+	 * Saving a published post publishes the edits, so the copy says so rather
+	 * than presenting the save as a harmless step.
+	 */
+	it( 'says saving publishes the edits when the post was published', () => {
+		renderModal( { ranOnUnsavedEdits: true, ranOnPublishedPost: true } );
+
+		const dialog = within( screen.getByRole( 'dialog' ) );
+		expect( dialog.getAllByText( PUBLISHED_COPY ).length ).toBeGreaterThan(
+			0
+		);
+		expect( dialog.queryByText( STALE_COPY ) ).not.toBeInTheDocument();
+	} );
+
+	it( 'keeps the draft copy when the post was not published', () => {
+		renderModal( { ranOnUnsavedEdits: true, ranOnPublishedPost: false } );
 
 		expect(
-			within( screen.getByRole( 'dialog' ) ).queryByText( STALE_COPY )
+			within( screen.getByRole( 'dialog' ) ).queryByText( PUBLISHED_COPY )
 		).not.toBeInTheDocument();
+	} );
+
+	it( 'says nothing about the saved copy when the post was clean', () => {
+		renderModal( { ranOnPublishedPost: true } );
+
+		const dialog = within( screen.getByRole( 'dialog' ) );
+		expect( dialog.queryByText( STALE_COPY ) ).not.toBeInTheDocument();
+		expect( dialog.queryByText( PUBLISHED_COPY ) ).not.toBeInTheDocument();
 	} );
 
 	/**
