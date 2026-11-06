@@ -27,6 +27,22 @@ import { refreshPostEntity } from './refresh-post-entity';
 const STORE_NAME = 'vip-workflows/editor';
 
 /**
+ * The Workflow document panel's name in core's panel preferences: the plugin's
+ * name and the `PluginDocumentSettingPanel`'s own, joined the way core joins
+ * them (src/editor/index.js registers both).
+ *
+ * @type {string}
+ */
+const WORKFLOW_PANEL_NAME = 'vip-workflows/workflow';
+
+/**
+ * The Settings sidebar's Post tab, as core's interface store names it.
+ *
+ * @type {string}
+ */
+const DOCUMENT_SIDEBAR = 'edit-post/document';
+
+/**
  * The status endpoint: the whole of a post's workflow state in one read — the
  * sequence, the stage, the ways out, the agent job, the guard payload and the
  * sequences this post could be moved to.
@@ -105,6 +121,11 @@ const DEFAULT_STATE = {
 	// itself (see components/SummaryRowsFallback.js).
 	summaryRowsMounted: 0,
 	summaryRowsSeen: false,
+
+	// Set by showWorkflowPanel() and cleared by the panel body once it has
+	// taken focus: the panel is not mounted when it is asked to show itself,
+	// so the request has to wait for it here.
+	workflowPanelFocusRequested: false,
 };
 
 const actions = {
@@ -223,6 +244,46 @@ const actions = {
 	 */
 	unmountSummaryRows() {
 		return { type: 'UNMOUNT_SUMMARY_ROWS' };
+	},
+
+	/**
+	 * Show the Workflow document panel and move focus into it.
+	 *
+	 * The recovery for the one configuration in which the Summary rows live
+	 * only in that panel and the person has switched the panel off in
+	 * Preferences → Panels (see components/WorkflowPanelRecovery.js). Turns
+	 * the panel back on, expands it, opens the Settings sidebar on its Post
+	 * tab, and leaves a focus request for the panel body to answer once it
+	 * has mounted.
+	 */
+	showWorkflowPanel:
+		() =>
+		( { dispatch, registry } ) => {
+			const editor = registry.select( 'core/editor' );
+			const editorActions = registry.dispatch( 'core/editor' );
+
+			if ( ! editor.isEditorPanelEnabled( WORKFLOW_PANEL_NAME ) ) {
+				editorActions.toggleEditorPanelEnabled( WORKFLOW_PANEL_NAME );
+			}
+			if ( ! editor.isEditorPanelOpened( WORKFLOW_PANEL_NAME ) ) {
+				editorActions.toggleEditorPanelOpened( WORKFLOW_PANEL_NAME );
+			}
+
+			// The same call core's own "Open Settings" makes. Named by its
+			// store string: importing @wordpress/interface registers a store
+			// core has already registered.
+			registry
+				.dispatch( 'core/interface' )
+				.enableComplementaryArea( 'core', DOCUMENT_SIDEBAR );
+
+			dispatch( { type: 'REQUEST_WORKFLOW_PANEL_FOCUS' } );
+		},
+
+	/**
+	 * Record that the panel body has taken the focus it was asked for.
+	 */
+	clearWorkflowPanelFocus() {
+		return { type: 'CLEAR_WORKFLOW_PANEL_FOCUS' };
 	},
 
 	/**
@@ -452,6 +513,12 @@ function reducer( state = DEFAULT_STATE, action ) {
 				summaryRowsMounted: Math.max( 0, state.summaryRowsMounted - 1 ),
 			};
 
+		case 'REQUEST_WORKFLOW_PANEL_FOCUS':
+			return { ...state, workflowPanelFocusRequested: true };
+
+		case 'CLEAR_WORKFLOW_PANEL_FOCUS':
+			return { ...state, workflowPanelFocusRequested: false };
+
 		default:
 			return state;
 	}
@@ -480,6 +547,8 @@ const selectors = {
 	getTransitionError: ( state ) => state.transitionError,
 	areSummaryRowsMounted: ( state ) => state.summaryRowsMounted > 0,
 	haveSummaryRowsMounted: ( state ) => state.summaryRowsSeen,
+	isWorkflowPanelFocusRequested: ( state ) =>
+		state.workflowPanelFocusRequested,
 };
 
 const store = createReduxStore( STORE_NAME, {
@@ -490,5 +559,5 @@ const store = createReduxStore( STORE_NAME, {
 
 register( store );
 
-export { STORE_NAME };
+export { STORE_NAME, WORKFLOW_PANEL_NAME, DOCUMENT_SIDEBAR };
 export default store;

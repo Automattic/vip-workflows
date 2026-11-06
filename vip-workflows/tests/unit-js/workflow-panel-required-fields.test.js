@@ -96,6 +96,9 @@ register(
 	createReduxStore( 'core/editor', {
 		reducer: ( state = {} ) => state,
 		selectors: {
+			// The Summary panel and the Workflow panel are both on screen.
+			isEditorPanelRemoved: () => false,
+			isEditorPanelEnabled: () => true,
 			// The post's meta as the editor holds it — saved values with the
 			// sidebar's unsaved edits merged over them. This is what stands in
 			// for fields the author has filled in but not yet persisted.

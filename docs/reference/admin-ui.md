@@ -113,9 +113,9 @@ which work whether or not the sidebar or the panel is open.
   Preferences → Panels offers no switch for the Summary panel, and
   `toggleEditorPanelEnabled( 'post-status' )` does not hide it.
 - The "Workflow" `PluginDocumentSettingPanel` (`.vip-workflows-document-panel`,
-  panel name `vip-workflows/workflow`), holding one `Stack`
-  (`.vip-workflows-document-panel__body`) with `SummaryRowsFallback` and
-  `WorkflowPanel`. One heading, for movement through the workflow; the post's
+  panel name `vip-workflows/workflow`), holding one `WorkflowPanelBody`
+  (a `Stack`, `.vip-workflows-document-panel__body`) with `SummaryRowsFallback`
+  and `WorkflowPanel`. One heading, for movement through the workflow; the post's
   properties stay in Summary. Core's `PanelBody` supplies the inset, the
   collapse state (remembered per user, collapsed until first opened) and the
   Preferences → Panels switch. The panel reads: assignment and claim →
@@ -127,6 +127,18 @@ which work whether or not the sidebar or the panel is open.
   the fill is mounted. "Not mounted right now" alone is not the test: the
   Workflow panel renders in the same commit as the Summary, before the fill
   has counted itself.
+- `WorkflowPanelRecovery` — a tertiary "Show Workflow panel" button in the
+  header's pinned items, after the split button. It appears only while
+  `SummaryRowsFallback` is drawing the rows, the person has switched the
+  Workflow panel off in Preferences → Panels (a panel removed in code is not
+  offered), and something waits on those rows: a move held on an empty
+  required field, or an orphaned post. The required-fields "Transition
+  blocked" dialog offers the same action in that configuration. The action is
+  the store thunk `showWorkflowPanel()`: it turns the panel on
+  (`toggleEditorPanelEnabled`), expands it (`toggleEditorPanelOpened`), opens
+  the Settings sidebar on the Post tab
+  (`enableComplementaryArea( 'core', 'edit-post/document' )`), and leaves a
+  focus request that `WorkflowPanelBody` answers when it mounts.
 - `CommandPalette` and `WorkflowRequiredModal` — no chrome of their own.
 
 **Main Components**:

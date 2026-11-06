@@ -10,7 +10,6 @@ import {
 	PluginDocumentSettingPanel,
 	PluginPostStatusInfo,
 } from '@wordpress/editor';
-import { Stack } from '@wordpress/ui';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
 
@@ -20,6 +19,10 @@ import { WorkflowPanel } from './components/WorkflowPanel';
 import { WorkflowSaveGuard } from './components/WorkflowSaveGuard';
 import { TransitionFlow } from './components/TransitionFlow';
 import { WorkflowHeaderAction } from './components/WorkflowHeaderAction';
+import {
+	WorkflowPanelBody,
+	WorkflowPanelRecovery,
+} from './components/WorkflowPanelRecovery';
 import { WorkflowRequiredModal } from './components/WorkflowRequiredModal';
 import { CommandPalette } from './components/CommandPalette';
 import {
@@ -99,6 +102,12 @@ function WorkflowPlugin() {
 			     core's Publish button where that button could only fail. */ }
 			<WorkflowHeaderAction />
 
+			{ /* The way back to the Workflow panel when it is switched off in
+			     Preferences → Panels and holds the only copy of the Summary
+			     rows a held move or an orphaned post is waiting on. Outside
+			     the panel, so that switching the panel off cannot take it. */ }
+			<WorkflowPanelRecovery />
+
 			{ showModal && (
 				<WorkflowRequiredModal
 					postId={ postId }
@@ -132,8 +141,9 @@ function WorkflowPlugin() {
 			     Where the Summary panel cannot show the Workflow and metadata
 			     rows, the same rows are drawn here instead, above the rail.
 			     In that configuration this panel is their only home: turned
-			     off, it takes the rows with it, and a move locked on a
-			     required field cannot be cleared until it is turned back on.
+			     off, it takes the rows with it, so the header offers "Show
+			     Workflow panel" (WorkflowPanelRecovery) while a move is held
+			     on a required field or the post is orphaned.
 			     The panel's body already carries core's standard inset, so
 			     what sits inside it adds none of its own. */ }
 			<PluginDocumentSettingPanel
@@ -141,14 +151,10 @@ function WorkflowPlugin() {
 				title={ __( 'Workflow', 'vip-workflows' ) }
 				className="vip-workflows-document-panel"
 			>
-				<Stack
-					className="vip-workflows-document-panel__body"
-					direction="column"
-					gap="lg"
-				>
+				<WorkflowPanelBody>
 					<SummaryRowsFallback />
 					<WorkflowPanel />
-				</Stack>
+				</WorkflowPanelBody>
 			</PluginDocumentSettingPanel>
 		</>
 	);

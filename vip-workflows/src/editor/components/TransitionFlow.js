@@ -51,6 +51,7 @@ import {
 } from '../required-metadata';
 import { TransitionAssignmentPopover } from './TransitionInputPopover';
 import { ToolFailuresModal } from '../../common/ToolFailuresModal';
+import { useWorkflowPanelSwitchedOff } from './WorkflowPanelRecovery';
 import { PrePublishConfirm } from './PrePublishConfirm';
 
 /**
@@ -135,6 +136,9 @@ export function TransitionFlow() {
 	// so a move they offer is a move this flow will run. See
 	// required-metadata.js.
 	const { transitions } = useRequiredMetadataGate();
+	// Whether the required-field rows this dialog points at are reachable
+	// only through a Workflow panel switched off in Preferences → Panels.
+	const workflowPanelSwitchedOff = useWorkflowPanelSwitchedOff();
 
 	const [ toolFailures, setToolFailures ] = useState( null ); // blocked transition details
 	const [ warningsModal, setWarningsModal ] = useState( null ); // { toStatus, warnings, inputData, comment }
@@ -204,6 +208,7 @@ export function TransitionFlow() {
 		clearTransitionRequest,
 		setTransitioningTo,
 		setTransitionError,
+		showWorkflowPanel,
 	} = useDispatch( STORE_NAME );
 	const registry = useRegistry();
 	const [ confirm, confirmDialog ] = useConfirm();
@@ -918,6 +923,34 @@ export function TransitionFlow() {
 							: undefined
 					}
 					onClose={ () => setToolFailures( null ) }
+					// The fields to fill are in a panel the person has
+					// switched off, and nothing else on screen draws them:
+					// the way to them is this dialog's action.
+					actions={
+						toolFailures.code === REQUIRED_METADATA_LOCK &&
+						workflowPanelSwitchedOff ? (
+							<>
+								<Button
+									variant="tertiary"
+									onClick={ () => setToolFailures( null ) }
+								>
+									{ __( 'Close', 'vip-workflows' ) }
+								</Button>
+								<Button
+									variant="primary"
+									onClick={ () => {
+										setToolFailures( null );
+										showWorkflowPanel();
+									} }
+								>
+									{ __(
+										'Show Workflow panel',
+										'vip-workflows'
+									) }
+								</Button>
+							</>
+						) : undefined
+					}
 				/>
 			) }
 

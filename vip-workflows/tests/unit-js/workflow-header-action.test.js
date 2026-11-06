@@ -79,6 +79,9 @@ register(
 				? { ...state, ...action.patch }
 				: state,
 		selectors: {
+			// The Summary panel and the Workflow panel are both on screen.
+			isEditorPanelRemoved: () => false,
+			isEditorPanelEnabled: () => true,
 			getEditedPostAttribute: ( state, attribute ) =>
 				'meta' === attribute ? NO_META : state.editedStatus,
 			getCurrentPostAttribute: ( state ) => state.savedStatus,
