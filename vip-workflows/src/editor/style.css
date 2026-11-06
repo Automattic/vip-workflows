@@ -180,15 +180,15 @@
 	justify-content: center;
 }
 
-/* Assignment info. The 6px gap stays here because the gap scale steps 4→8 and
-   neither reads right between the label, the name and the Release button. */
+/* Holder rows (assignee, claimer). The 6px gap stays here because the gap scale
+   steps 4→8 and neither reads right between the label, the name and Release. */
 .vip-workflows-panel__assigned {
 	gap: 6px;
-	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
-	/* wpds-allow R6 -- <Stack> draws nothing; the tinted surface must be set here. */
-	background: var(--wpds-color-background-surface-info-weak);
-	/* wpds-allow R6 -- <Stack> exposes no border-radius prop. */
-	border-radius: var( --wpds-border-radius-md );
+}
+
+/* Assignee and claimer rows, plain like core's own document-sidebar rows, and
+   in one group so they line up. */
+.vip-workflows-panel__holders {
 	/* wpds-allow R6 -- <Stack> exposes no type-scale prop; the label and name spans inherit this. */
 	font: var(--vip-workflows-text-body-md);
 }
