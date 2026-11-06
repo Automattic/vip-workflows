@@ -26,6 +26,7 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 import { plus } from '@wordpress/icons';
 
 import { ModalActions } from '../../common/ModalActions';
+import { recordTracksEvent } from '../../common/tracks';
 import AdminPage from './AdminPage';
 import { CardGridView } from './CardGridView';
 import { HowToModal } from './HowToModal';
@@ -321,6 +322,11 @@ export function SequencesList() {
 					variant="primary"
 					icon={ plus }
 					href="#/new?type=workflow"
+					onClick={ () =>
+						recordTracksEvent( 'sequence_create_started', {
+							source: 'header',
+						} )
+					}
 				>
 					{ __( 'New sequence', 'vip-workflows' ) }
 				</Button>
@@ -376,6 +382,14 @@ export function SequencesList() {
 											<Button
 												variant="primary"
 												href="#/new?type=workflow"
+												onClick={ () =>
+													recordTracksEvent(
+														'sequence_create_started',
+														{
+															source: 'empty_state',
+														}
+													)
+												}
 											>
 												{ __(
 													'New sequence',
@@ -586,9 +600,11 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 				},
 			} );
 
+			recordTracksEvent( 'sequence_imported', { result: 'success' } );
 			onSuccess();
 			onClose();
 		} catch ( err ) {
+			recordTracksEvent( 'sequence_imported', { result: 'error' } );
 			setError( err.message );
 			setImporting( false );
 		}
