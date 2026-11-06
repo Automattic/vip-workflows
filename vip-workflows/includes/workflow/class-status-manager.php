@@ -870,6 +870,20 @@ class StatusManager {
 			}
 		}
 
+		// A stage agent writes the post on the server, out of sight of a shared
+		// editing session, so a person may not start one while anyone else has
+		// the post open (see CoEditing). Checked here because every surface comes
+		// through here; StageAgentRunner checks again when the run starts, for
+		// agent-to-agent hops and anyone who joined in between.
+		$to_config = $sequence->get_status( $to_status );
+		if ( ! $is_agent_actor && ! empty( $to_config['agent']['ability_id'] ) && CoEditing::is_shared( $post_id ) ) {
+			return new \WP_Error(
+				'co_editing',
+				__( 'More than one person is editing this post. Try the AI stage again, once they have closed it.', 'vip-workflows' ),
+				array( 'status' => 409 )
+			);
+		}
+
 		// Interrupting a running stage agent is a confirm, not a block.
 		//
 		// The agent runs on the user's behalf, so anyone who may perform this

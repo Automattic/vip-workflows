@@ -40,6 +40,7 @@ import {
 	getSwitchWorkflowConfirmTitle,
 	getSwitchWorkflowConfirmLabel,
 	getSwitchWorkflowConfirmation,
+	getCoEditingRefusal,
 } from '../common/confirm-workflow-side-effect';
 
 window.vipWorkflowsSideEffect = {
@@ -69,4 +70,5 @@ window.vipWorkflowsSideEffect = {
 	getSwitchWorkflowConfirmTitle,
 	getSwitchWorkflowConfirmLabel,
 	getSwitchWorkflowConfirmation,
+	getCoEditingRefusal,
 };

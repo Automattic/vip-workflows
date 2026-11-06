@@ -122,6 +122,11 @@ abstract class TestCase extends YoastTestCase
         // The list is shared with the integration base, so the two cannot drift.
         \VIPWorkflows\Tests\ReportedDiagnostics::reset();
 
+        // The editing-user count a test reported; a leftover count holds a
+        // later test's AI stage back.
+        \VIPRealTimeCollaboration\Presence\RoomPresence::$users = 0;
+        \VIPRealTimeCollaboration\Presence\RoomPresence::$asked = 0;
+
         // The shared Telemetry double a test installed; a leftover one would
         // record a later test's events.
         \VIPWorkflows\Telemetry\Tracker::set_telemetry( null );
@@ -236,6 +241,18 @@ abstract class TestCase extends YoastTestCase
                 },
             )
         );
+    }
+
+    /**
+     * Report a number of users editing each post through the
+     * VIP Real-Time Collaboration double (see tests/phpunit/stubs/room-presence.php).
+     * `RoomPresence::$asked` counts how many times CoEditing read it.
+     *
+     * @param int $users Users to report.
+     */
+    protected function stub_room_presence_users( int $users ): void
+    {
+        \VIPRealTimeCollaboration\Presence\RoomPresence::$users = $users;
     }
 
     /**

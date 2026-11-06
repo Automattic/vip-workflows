@@ -38,12 +38,14 @@ import { STORE_NAME } from '../store';
 import { useConfirm, CONFIRM_ALTERNATIVE } from '../../common/use-confirm';
 import {
 	getAgentInterruptWarning,
+	getCoEditingRefusal,
 	getLiveEditsConfirmLabel,
 	getLiveEditsConfirmTitle,
 	getLiveEditsWarning,
 	getStatusChangeConfirmLabel,
 	getStatusChangeConfirmTitle,
 } from '../../common/confirm-workflow-side-effect';
+import { useHasOtherEditorsOpen } from '../co-editing';
 import { refreshPostEntity } from '../refresh-post-entity';
 import {
 	REQUIRED_METADATA_LOCK,
@@ -135,6 +137,10 @@ export function TransitionFlow() {
 	// so a move they offer is a move this flow will run. See
 	// required-metadata.js.
 	const { transitions } = useRequiredMetadataGate();
+
+	// Whether someone else is in this post, which holds AI stages back (see
+	// co-editing.js).
+	const otherEditorsOpen = useHasOtherEditorsOpen( postId, postType );
 
 	const [ toolFailures, setToolFailures ] = useState( null ); // blocked transition details
 	const [ warningsModal, setWarningsModal ] = useState( null ); // { toStatus, warnings, inputData, comment }
@@ -549,6 +555,17 @@ export function TransitionFlow() {
 			return;
 		}
 
+		// Refuse before saving anything: the agent's write and the shared
+		// editing session would overwrite each other (see co-editing.js).
+		const targetTransition = transitions.find( ( t ) => t.to === toStatus );
+		const targetIsAiStage =
+			!! targetTransition?.status_info?.agent?.ability_id;
+
+		if ( targetIsAiStage && otherEditorsOpen ) {
+			reportError( getCoEditingRefusal() );
+			return;
+		}
+
 		setTransitioningTo( toStatus );
 		clearErrors();
 		setToolFailures( null );
@@ -569,9 +586,6 @@ export function TransitionFlow() {
 		// was pressed: a save core has in flight is waited out rather than
 		// raced, and the post can become dirty during that wait or while an
 		// assignee is picked. See decideSave.
-		const targetTransition = transitions.find( ( t ) => t.to === toStatus );
-		const targetIsAiStage =
-			!! targetTransition?.status_info?.agent?.ability_id;
 		let saved = false;
 
 		whenSaveSettles( registry )
@@ -789,6 +803,13 @@ export function TransitionFlow() {
 		}
 
 		consentRef.current = {};
+
+		// Refuse before any confirm or assignment popover; handleTransition
+		// checks again for the paths that reach it directly.
+		if ( transition.status_info?.agent?.ability_id && otherEditorsOpen ) {
+			reportError( getCoEditingRefusal() );
+			return;
+		}
 
 		// Moving the stage while a stage agent runs cancels that agent. The
 		// server no longer refuses this — a human can always stop an agent —

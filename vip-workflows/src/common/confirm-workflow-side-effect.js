@@ -771,3 +771,19 @@ export function getSwitchWorkflowConfirmation( {
 		toWorkflowName
 	);
 }
+
+/**
+ * Why an AI stage cannot start while someone else has the post open.
+ *
+ * Same sentence as the server's `co_editing` refusal in
+ * StatusManager::transition(), to the character, so the two share one .pot
+ * entry.
+ *
+ * @return {string} Translated message.
+ */
+export function getCoEditingRefusal() {
+	return __(
+		'More than one person is editing this post. Try the AI stage again, once they have closed it.',
+		'vip-workflows'
+	);
+}
