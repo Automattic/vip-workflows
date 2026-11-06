@@ -69,7 +69,13 @@
  * @package
  */
 
-import { useState, useEffect, useMemo } from '@wordpress/element';
+import {
+	useState,
+	useEffect,
+	useMemo,
+	useRef,
+	useContext,
+} from '@wordpress/element';
 import {
 	Button,
 	TextControl,
@@ -89,7 +95,7 @@ import { Fact } from './InspectorFacts';
 import InspectorFieldList, {
 	InspectorFieldListAdd,
 } from './InspectorFieldList';
-import InspectorShell from './InspectorShell';
+import InspectorShell, { InspectorPanelContext } from './InspectorShell';
 import InspectorSection from './InspectorSection';
 import InspectorDangerZone from './InspectorDangerZone';
 import {
@@ -358,6 +364,31 @@ export default function StageInspector( {
 	// outcome. Each route is picked on its outcome's row below, or drawn on the
 	// canvas from the node's pass / fail / error handles.
 	const isAgent = isAgentStage( stage );
+
+	// A final stage's exit is the end of the workflow. An AI stage leaves only
+	// by its outcomes and cannot be made final (`isValidConnection`), so it
+	// lists no End row even when a stored flag says otherwise — the same rule
+	// the canvas menu gates "Not a final stage" on.
+	const isFinal = ! isAgent && Boolean( stage.is_terminal );
+
+	// Removing the End row unmounts the button that was pressed, which would
+	// drop focus to the document. Once the stage reports itself no longer
+	// final, focus moves to the Add exit control — where End is offered
+	// again — or to the panel heading when nothing can be added.
+	const addExitRef = useRef( null );
+	const refocusAfterClear = useRef( false );
+	const panel = useContext( InspectorPanelContext );
+	useEffect( () => {
+		if ( isFinal || ! refocusAfterClear.current ) {
+			return;
+		}
+		refocusAfterClear.current = false;
+		const target =
+			addExitRef.current?.querySelector( 'button' ) ||
+			panel?.headingRef?.current;
+		target?.focus();
+	}, [ isFinal, panel ] );
+
 	const abilityId = stage.agent?.ability_id || '';
 	const routing = stage.agent?.routing || {};
 
@@ -799,6 +830,7 @@ export default function StageInspector( {
 						     picks its own destination on its own row below. */ }
 						{ ! isAgent && exitOptions.length > 0 && (
 							<Stack
+								ref={ addExitRef }
 								direction="row"
 								align="center"
 								justify="flex-end"
@@ -921,8 +953,7 @@ export default function StageInspector( {
 						{ /* A final stage's way out is the end of the
 						     workflow, so the list says so rather than
 						     calling the stage exit-less. */ }
-						{ ( displayedTransitions.length > 0 ||
-							! stage.is_terminal ) && (
+						{ ( displayedTransitions.length > 0 || ! isFinal ) && (
 							<InspectorFieldList
 								items={ displayedTransitions }
 								onChange={ handleTransitionsChange }
@@ -1002,7 +1033,7 @@ export default function StageInspector( {
 								) }
 							/>
 						) }
-						{ stage.is_terminal && (
+						{ isFinal && (
 							<Stack
 								render={ <ul /> }
 								direction="column"
@@ -1034,9 +1065,10 @@ export default function StageInspector( {
 												'vip-workflows'
 											) }
 											showTooltip
-											onClick={ () =>
-												onDeleteExit( END_ID )
-											}
+											onClick={ () => {
+												refocusAfterClear.current = true;
+												onDeleteExit( END_ID );
+											} }
 											isDestructive
 											size="small"
 										/>

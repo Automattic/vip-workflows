@@ -51,7 +51,10 @@ import {
 	edgeId,
 	isTransitionDisabled,
 } from '../../src/admin/components/graph/graph-model';
+import { createRef, useState } from '@wordpress/element';
+
 import StageInspector from '../../src/admin/components/graph/StageInspector';
+import { InspectorPanelContext } from '../../src/admin/components/graph/InspectorShell';
 
 const AGENTS = [
 	{ id: 'workflow-agent-copy-edit/copy-edit', label: 'Copy Edit' },
@@ -1244,5 +1247,102 @@ describe( 'StageInspector panel structure', () => {
 				screen.queryByText( /posts here will error/ )
 			).not.toBeInTheDocument();
 		} );
+	} );
+} );
+
+describe( 'StageInspector End of workflow row, beyond its existence', () => {
+	const endRow = () =>
+		screen.queryByRole( 'button', { name: 'Select End of workflow' } );
+
+	/**
+	 * Render a final stage whose flag lives in state, the way the editor holds
+	 * it, so removing the End row re-renders the panel without it.
+	 *
+	 * @param {Object} options             Options.
+	 * @param {Array}  options.exitOptions What Add exit offers once the stage is
+	 *                                     not final; empty hides the control.
+	 * @return {Object} The panel heading's ref.
+	 */
+	function renderStateful( { exitOptions } ) {
+		const headingRef = createRef();
+		function Harness() {
+			const [ current, setCurrent ] = useState(
+				stage( { transitions: [], is_terminal: true } )
+			);
+			return (
+				<InspectorPanelContext.Provider value={ { headingRef } }>
+					<StageInspector
+						stage={ current }
+						availableAgents={ AGENTS }
+						resolveStageLabel={ ( key ) => key }
+						stageExists={ () => true }
+						isTransitionDisabled={ () => false }
+						exitOptions={ current.is_terminal ? [] : exitOptions }
+						onAddExit={ () => {} }
+						onDeleteExit={ ( target ) => {
+							expect( target ).toBe( END_ID );
+							setCurrent( ( s ) => ( {
+								...s,
+								is_terminal: false,
+							} ) );
+						} }
+						onChange={ () => {} }
+						onDelete={ () => {} }
+						canDelete={ true }
+						isKeyInUse={ () => false }
+					/>
+				</InspectorPanelContext.Provider>
+			);
+		}
+		render( <Harness /> );
+		return headingRef;
+	}
+
+	const removeEnd = () => {
+		const button = screen.getByRole( 'button', { name: 'Remove exit' } );
+		button.focus();
+		fireEvent.click( button );
+	};
+
+	it( 'moves focus to Add exit once the row is removed', () => {
+		// The pressed button unmounts with its row. Add exit is where End is
+		// on offer again, so that is where the author is put.
+		renderStateful( {
+			exitOptions: [ { label: 'End of workflow', value: END_ID } ],
+		} );
+
+		removeEnd();
+
+		expect( endRow() ).toBeNull();
+		expect(
+			screen.getByRole( 'button', { name: 'Add exit' } )
+		).toHaveFocus();
+	} );
+
+	it( 'falls back to the panel heading when nothing can be added', () => {
+		const headingRef = renderStateful( { exitOptions: [] } );
+
+		removeEnd();
+
+		expect( endRow() ).toBeNull();
+		expect( headingRef.current ).toHaveFocus();
+		expect( document.body ).not.toHaveFocus();
+	} );
+
+	it( 'gives an AI stage no End row, whatever its stored flag says', () => {
+		// An AI stage leaves only by its outcomes and cannot be made final
+		// (`isValidConnection`), so it is not offered a row to remove.
+		renderInspector(
+			stage( {
+				transitions: [],
+				is_terminal: true,
+				agent: {
+					ability_id: AGENTS[ 0 ].id,
+					routing: { pass: 'done' },
+				},
+			} )
+		);
+
+		expect( endRow() ).toBeNull();
 	} );
 } );

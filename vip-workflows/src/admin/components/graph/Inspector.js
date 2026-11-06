@@ -45,6 +45,7 @@ import SequenceIdentityFields from './SequenceIdentityFields';
 import RegionInspector from './RegionInspector';
 import {
 	edgeId,
+	isAgentStage,
 	stageRegion,
 	stageLabel,
 	isTransitionDisabled,
@@ -56,7 +57,7 @@ import {
 	START_ID,
 	END_ID,
 } from './graph-model';
-import { DEFAULT_REGION } from './regions';
+import { DEFAULT_REGION, regionLabel } from './regions';
 
 import './Inspector.css';
 
@@ -384,6 +385,19 @@ function renderPanel( {
 	) {
 		const isStart = selection.from === START_ID;
 		const stageKey = isStart ? selection.to : selection.from;
+		// An AI stage lists no End of workflow row (its outcomes are its only
+		// exits), so a stored final flag on one can only be cleared here.
+		const finalHelp = isAgentStage(
+			stages.find( ( s ) => s.key === stageKey )
+		)
+			? __(
+					'Delete this connection to make the stage non-final.',
+					'vip-workflows'
+			  )
+			: __(
+					'To make the stage non-final, remove End of workflow from the stage’s exits, or delete this connection.',
+					'vip-workflows'
+			  );
 		return (
 			<InspectorShell
 				eyebrow={
@@ -399,14 +413,15 @@ function renderPanel( {
 					className="wf-inspector__help"
 				>
 					{ isStart
-						? __(
-								'Drag the Start connection to another stage to change it.',
-								'vip-workflows'
+						? sprintf(
+								/* translators: %s: post status label (e.g. Draft) */
+								__(
+									'To change it, set the entry checkpoint in the “%s” post status options, or drag the Start connection to another stage.',
+									'vip-workflows'
+								),
+								regionLabel( DEFAULT_REGION )
 						  )
-						: __(
-								'Delete this connection to make the stage non-final.',
-								'vip-workflows'
-						  ) }
+						: finalHelp }
 				</Text>
 			</InspectorShell>
 		);
