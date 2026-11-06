@@ -37,15 +37,15 @@ function require_post_edit_permission( int $post_id ): ?\WP_Error {
  * refused by WP_Ability::execute() before the tool runs. This is for a PHP
  * caller that calls the tool's function directly, which the schema never sees.
  *
- * @param array  $input   Ability input.
- * @param string $key     Input key.
- * @param int    $default Value used when the key is absent or null.
- * @param int    $min     Lowest value returned.
- * @param int    $max     Highest value returned.
+ * @param array  $input    Ability input.
+ * @param string $key      Input key.
+ * @param int    $fallback Value used when the key is absent or null.
+ * @param int    $min      Lowest value returned.
+ * @param int    $max      Highest value returned.
  * @return int
  */
-function bounded_int( array $input, string $key, int $default, int $min, int $max ): int {
-	return max( $min, min( $max, (int) ( $input[ $key ] ?? $default ) ) );
+function bounded_int( array $input, string $key, int $fallback, int $min, int $max ): int {
+	return max( $min, min( $max, (int) ( $input[ $key ] ?? $fallback ) ) );
 }
 
 /**
