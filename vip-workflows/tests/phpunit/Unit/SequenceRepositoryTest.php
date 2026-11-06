@@ -481,6 +481,60 @@ class SequenceRepositoryTest extends TestCase
     }
 
     /**
+     * A direct repository write of a phase sequence with a malformed transition
+     * is refused before the insert, even when a valid Ideation-to-Editorial
+     * hand-off follows the bad entry.
+     */
+    public function test_create_refuses_a_phase_sequence_with_a_scalar_transition(): void
+    {
+        $this->wpdb->shouldReceive( 'insert' )->never();
+
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'Every transition on the “ideation” phase must name the phase it goes to.' );
+
+        $this->repository->create(
+            'Bad Phases',
+            'bad-phases',
+            '',
+            array(
+                'phases' => array(
+                    array( 'key' => 'ideation', 'transitions' => array( 'editorial', array( 'to' => 'editorial' ) ) ),
+                    array( 'key' => 'editorial', 'transitions' => array() ),
+                ),
+            ),
+            1,
+            Sequence::TYPE_PHASE
+        );
+    }
+
+    /**
+     * update() refuses a phase config that declares the same hand-off twice.
+     */
+    public function test_update_refuses_a_phase_sequence_with_a_duplicate_target(): void
+    {
+        $row = $this->create_db_row( array( 'type' => Sequence::TYPE_PHASE ) );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'prepared_query' );
+        $this->wpdb->shouldReceive( 'get_row' )->once()->andReturn( $row );
+        $this->wpdb->shouldReceive( 'update' )->never();
+
+        $this->expectException( \InvalidArgumentException::class );
+        $this->expectExceptionMessage( 'The “ideation” phase may hand off to “editorial” only once.' );
+
+        $this->repository->update(
+            1,
+            array(
+                'config' => array(
+                    'phases' => array(
+                        array( 'key' => 'ideation', 'transitions' => array( array( 'to' => 'editorial' ), array( 'to' => 'editorial' ) ) ),
+                        array( 'key' => 'editorial', 'transitions' => array() ),
+                    ),
+                ),
+            )
+        );
+    }
+
+    /**
      * update() routes a config change through the write gate too — the second
      * write path cannot bypass normalization or validation.
      */

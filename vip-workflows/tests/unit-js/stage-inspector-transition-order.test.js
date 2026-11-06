@@ -161,9 +161,7 @@ describe( 'StageInspector outgoing transitions list', () => {
 			transitions: [],
 		} );
 
-		expect(
-			screen.getByText( /no outgoing transitions|nothing leaves/i )
-		).toBeInTheDocument();
+		expect( screen.getByText( /No exits yet/ ) ).toBeInTheDocument();
 	} );
 
 	/**

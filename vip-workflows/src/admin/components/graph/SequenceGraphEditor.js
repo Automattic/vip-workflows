@@ -65,6 +65,7 @@ import {
 	isAgentOutcome,
 	isAgentStage,
 	isRequiredHandOff,
+	markInitialStage,
 	stageLabel,
 	START_ID,
 	END_ID,
@@ -133,8 +134,8 @@ function describeRepair( { dropped }, stages ) {
 	return sprintf(
 		/* translators: 1: number of transitions, 2: comma-separated list of transitions, each "From → To". */
 		_n(
-			'%1$d transition was removed because the stage already had one to the same place, and its label, roles, required tools and notifications went with it: %2$s.',
-			'%1$d transitions were removed because the stage already had ones to the same places, and their labels, roles, required tools and notifications went with them: %2$s.',
+			'Removed %1$d duplicate transition and its settings: %2$s.',
+			'Removed %1$d duplicate transitions and their settings: %2$s.',
 			dropped.length,
 			'vip-workflows'
 		),
@@ -200,6 +201,9 @@ const newWorkflowStages = () => [
 		// into it. Every used region needs exactly one, and the write gate
 		// refuses a config that gets that wrong.
 		region_entry: true,
+		// New posts start here. The flag, not array order, is what the server
+		// reads, so reordering the stages list cannot move it.
+		is_initial: true,
 		transitions: [ { to: 'publish' } ],
 	},
 	{
@@ -743,7 +747,7 @@ export default function SequenceGraphEditor( {
 						sprintf(
 							/* translators: %s: comma-separated post type slugs */
 							__(
-								'Warning: this sequence references post types that no longer exist: %s. Select valid post types and save.',
+								'These post types no longer exist: %s. Select valid ones and save.',
 								'vip-workflows'
 							),
 							stale.join( ', ' )
@@ -880,7 +884,7 @@ export default function SequenceGraphEditor( {
 		if ( ! isPhase && selectedPostTypes.length === 0 ) {
 			reasons.push( {
 				message: __(
-					'This sequence is attached to no post type, so nothing would ever run through it. Click an empty part of the canvas and choose at least one under Post types.',
+					'No post type selected. Click an empty part of the canvas and choose one under Post types.',
 					'vip-workflows'
 				),
 				target: null,
@@ -918,6 +922,11 @@ export default function SequenceGraphEditor( {
 			} );
 	}, [ validation.errors, isPhase, selectedPostTypes ] );
 
+	// Where the one reason the save is refused points, when there is exactly
+	// one and it has somewhere on the canvas to point; otherwise null.
+	const loneTarget =
+		saveBlockers.length === 1 ? saveBlockers[ 0 ].target : null;
+
 	// The refusal stands down once the last reason for it is gone, so it cannot
 	// reappear on its own the next time a field is half-edited.
 	useEffect( () => {
@@ -926,13 +935,15 @@ export default function SequenceGraphEditor( {
 		}
 	}, [ saveBlockers.length ] );
 
-	// The blocking faults that belong to one way out of a stage, keyed by the
-	// transition they belong to — `from->to`, without the outcome.
+	// The first blocking fault of each way out of a stage, keyed by the
+	// transition it belongs to — `from->to`, without the outcome.
 	//
 	// The stage panel's exit list reads this: a node badge says a stage needs
 	// attention, and without this the author has to open every transition it
 	// holds to find out which one the message meant. A stage holds one
-	// transition per destination, so `from->to` names the record; the outcome
+	// transition per destination, so `from->to` names the record — a stored
+	// stage that holds two shares one address between them, and its faults
+	// point at the stage rather than at an edge (see `validateSequence`); the outcome
 	// only says which of the edges drawn for it the canvas selects, and every
 	// row standing on that record carries the fault alike.
 	const exitProblems = useMemo( () => {
@@ -941,9 +952,10 @@ export default function SequenceGraphEditor( {
 			if ( target?.type !== 'edge' ) {
 				return;
 			}
+			// One row, one line. A transition can hold more than one fault at
+			// once, and the first is the one to fix first.
 			const id = edgeId( target.from, target.to );
-			byEdge[ id ] = byEdge[ id ] || [];
-			byEdge[ id ].push( message );
+			byEdge[ id ] = byEdge[ id ] || message;
 		} );
 		return byEdge;
 	}, [ validation.errors ] );
@@ -1117,8 +1129,10 @@ export default function SequenceGraphEditor( {
 	);
 	// The statuses the server allows that aren't drawn yet — what "Add post
 	// status…" offers, and whether it is offered at all.
-	const addableRegions = REGION_ORDER.filter(
-		( region ) => ! regions.includes( region )
+	// Memoized so the canvas menu's own memo, which depends on it, holds.
+	const addableRegions = useMemo(
+		() => REGION_ORDER.filter( ( region ) => ! regions.includes( region ) ),
+		[ regions ]
 	);
 
 	const handleAddRegion = useCallback( ( region ) => {
@@ -1199,12 +1213,18 @@ export default function SequenceGraphEditor( {
 	// Add a stage that flows out of nothing yet — the canvas's own verb, as
 	// against `handleAddStageFromNode`, which grows one off a source handle. It
 	// lands in Draft (where content is created) and takes the selection, because
-	// what the author needs next is to name it and say where it leads.
-	const handleAddStage = useCallback( () => {
-		const result = addStage( stages );
-		setStages( result.stages );
-		setSelection( { type: 'node', key: result.key } );
-	}, [ stages ] );
+	// what the author needs next is to name it and say where it leads. The
+	// canvas menu names the region it was opened over, and takes the key back
+	// to put the node there.
+	const handleAddStage = useCallback(
+		( region = null ) => {
+			const result = addStage( stages, region ? { status: region } : {} );
+			setStages( result.stages );
+			setSelection( { type: 'node', key: result.key } );
+			return result.key;
+		},
+		[ stages ]
+	);
 
 	// Add a stage flowing out of an existing node — what dropping a connection on
 	// empty canvas does. Returns the new stage's key so the canvas can put the
@@ -1522,7 +1542,11 @@ export default function SequenceGraphEditor( {
 				}
 
 				const validToolIds = availableTools.map( ( t ) => t.id );
-				const cleanedStatuses = stages.map( ( status ) => {
+				// Every save names the stage new posts start in. Without the
+				// flag the server takes the first stage in the array, and the
+				// stages list reorders that array.
+				const flagged = markInitialStage( stages );
+				const cleanedStatuses = flagged.map( ( status ) => {
 					const next = { ...status };
 					// Drop a partial AI-stage agent (routing left behind by a
 					// cleared ability) — the server rejects an agent without
@@ -1787,12 +1811,17 @@ export default function SequenceGraphEditor( {
 		onSettingsChange: setSettings,
 		metadataFields,
 		onMetadataChange: setMetadataFields,
-		// The canvas's own two verbs, given a home that isn't a right-click.
-		// Nothing on the canvas says that right-clicking is how a post status
-		// gets added, and until now nothing anywhere said how a stage does.
-		onAddStage: isPhase ? undefined : handleAddStage,
-		onAddPostStatus: () => setAddingRegion( true ),
-		canAddPostStatus: addableRegions.length > 0,
+		// Wrapped: the list's add button passes its option value, not a region.
+		onAddStage: isPhase ? undefined : () => handleAddStage(),
+		stages,
+		onStagesChange: setStages,
+		onRemoveStage: handleDeleteStage,
+		regions,
+		addableRegions,
+		onAddRegion: handleAddRegion,
+		onRemoveRegion: handleRemoveRegion,
+		onSelectNode: selectNode,
+		onSelectRegion: selectRegion,
 		// Whether there is a row to delete, which a new sequence gains the
 		// moment it is first saved.
 		isNew: ! savedId,
@@ -1842,20 +1871,16 @@ export default function SequenceGraphEditor( {
 								// neither of which has anything on the canvas
 								// to open.
 								actions={
-									! error &&
-									saveBlockers.length === 1 &&
-									saveBlockers[ 0 ].target
+									! error && loneTarget
 										? [
 												{
 													label: blockedTargetLabel(
-														saveBlockers[ 0 ]
-															.target,
+														loneTarget,
 														isPhase
 													),
 													onClick: () =>
 														showTarget(
-															saveBlockers[ 0 ]
-																.target
+															loneTarget
 														),
 													variant: 'primary',
 												},
@@ -1911,7 +1936,7 @@ export default function SequenceGraphEditor( {
 								{ sprintf(
 									/* translators: %s: comma-separated stage keys. */
 									__(
-										'These stages have no status region and cannot be used until one is set: %s. Assigning the default puts them in Draft; drag any of them into another status’s section of the canvas afterwards.',
+										'These stages have no status and can’t be used: %s. Assigning the default puts them in Draft.',
 										'vip-workflows'
 									),
 									missingRegions.join( ', ' )
@@ -1955,6 +1980,7 @@ export default function SequenceGraphEditor( {
 						onClearSelection={ clearSelection }
 						onDeleteNode={ handleDeleteStage }
 						onDeleteEdge={ handleDeleteTransition }
+						onAddStage={ isPhase ? undefined : handleAddStage }
 						requiredTransitions={ requiredPhaseTransitions }
 						onAddStageFromNode={
 							isPhase ? undefined : handleAddStageFromNode
@@ -1962,6 +1988,7 @@ export default function SequenceGraphEditor( {
 						onPlaceStage={ handlePlaceStage }
 						onSetStageStatus={ handleSetStageStatus }
 						onAddRegion={ () => setAddingRegion( true ) }
+						addableRegions={ addableRegions }
 						onRemoveRegion={ handleRemoveRegion }
 						// A fault the notice offered to show has to end up
 						// somewhere the author can see it, not just selected.
@@ -1998,6 +2025,10 @@ export default function SequenceGraphEditor( {
 						onDeleteTransition={ handleDeleteTransition }
 						onConnectTransition={ handleConnect }
 						onReconnectTransition={ handleReconnect }
+						// The canvas's connection rule, so the transition
+						// panel's From/To options are judged by the same
+						// verdict a dragged endpoint is.
+						isValidConnection={ isValidConnection }
 						onSelectNode={ selectNode }
 						onAddHandOff={ handleAddHandOff }
 						requiredTransitions={ requiredPhaseTransitions }

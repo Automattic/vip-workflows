@@ -59,7 +59,14 @@ Surface-specific consequences:
   among locked siblings. Consequence rides the confirm flow
   (`warnings_pending`), not the palette — a move that skips work its siblings
   do looks like any other, because nothing in the sequence says which those
-  are.
+  are. The rail never promotes by order: that is the header's job, below.
+- **Editor header:** the workflow split button runs the stage's **primary
+  transition** — the first in the stage's authored order, which the stage
+  inspector badges "Primary" so the order is a visible choice. It is
+  `primary` only where it stands in for core's Publish button; beside core's
+  own Save or Publish it is `secondary`, keeping one primary in the header. A
+  locked primary is drawn disabled with its reason as a tooltip rather than
+  skipped.
 - **Cards:** the screen's leading verb is `primary` at the `SummaryCard` call
   site (Sequences → `Edit`); utilities are `tertiary`. (There is no Jobs
   screen — an earlier job-registry framework was removed; see

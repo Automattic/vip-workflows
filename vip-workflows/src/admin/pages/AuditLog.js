@@ -27,7 +27,7 @@ export default function AuditLog() {
 			] }
 			title={ __( 'Audit Log', 'vip-workflows' ) }
 			subtitle={ __(
-				'Every workflow event on this site — what happened, who did it, and when.',
+				'Every workflow event, who did it, and when.',
 				'vip-workflows'
 			) }
 		>

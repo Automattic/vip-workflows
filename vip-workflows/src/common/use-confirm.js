@@ -17,6 +17,12 @@
  *
  * `options` may set `title`, `confirmLabel`, `cancelLabel`, and `isDestructive`.
  *
+ * A question with a third answer — save and move, move without saving, or
+ * cancel — sets `alternativeLabel` too. That adds a secondary button between
+ * Cancel and the primary, and pressing it resolves `CONFIRM_ALTERNATIVE`
+ * rather than `true`. A caller that sets it has to compare the result to
+ * that constant: it is truthy.
+ *
  * @package
  */
 
@@ -26,6 +32,13 @@ import { useState, useRef, useCallback, useEffect } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 
 import { ModalActions } from './ModalActions';
+
+/**
+ * What `confirm()` resolves when its `alternativeLabel` button is pressed.
+ *
+ * @type {string}
+ */
+export const CONFIRM_ALTERNATIVE = 'alternative';
 
 export function useConfirm() {
 	const [ dialog, setDialog ] = useState( null );
@@ -75,6 +88,14 @@ export function useConfirm() {
 				<Button variant="tertiary" onClick={ () => settle( false ) }>
 					{ dialog.cancelLabel || __( 'Cancel', 'vip-workflows' ) }
 				</Button>
+				{ dialog.alternativeLabel && (
+					<Button
+						variant="secondary"
+						onClick={ () => settle( CONFIRM_ALTERNATIVE ) }
+					>
+						{ dialog.alternativeLabel }
+					</Button>
+				) }
 				<Button
 					variant="primary"
 					isDestructive={ dialog.isDestructive }

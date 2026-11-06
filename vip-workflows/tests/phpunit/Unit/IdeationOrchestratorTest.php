@@ -41,25 +41,6 @@ class IdeationOrchestratorTest extends TestCase {
 
 	private const ADMIN_URL = 'https://example.test/wp-admin/options-connectors.php';
 
-	/**
-	 * Hand back whatever `$wpdb` was, so a stub cannot leak into a later test.
-	 *
-	 * @var mixed
-	 */
-	private $original_wpdb;
-
-	protected function set_up() {
-		parent::set_up();
-
-		$this->original_wpdb = $GLOBALS['wpdb'] ?? null;
-	}
-
-	protected function tear_down() {
-		$GLOBALS['wpdb'] = $this->original_wpdb;
-
-		parent::tear_down();
-	}
-
 	public function test_brand_context_preserves_full_gutenberg_guideline_packet(): void {
 		$long_guidelines = str_repeat( 'Use precise language. ', 30 ) . 'Keep this final instruction.';
 
@@ -155,37 +136,20 @@ class IdeationOrchestratorTest extends TestCase {
 	}
 
 	/**
-	 * Install a $wpdb double returning the given per-assistant meta rows.
+	 * Stub the post's meta with the given per-assistant results.
 	 *
 	 * @param array<string, array> $rows Assistant id => stored result.
+	 * @param array<string, array> $raw  Extra meta key => list of raw values, as the keyless get_post_meta() returns them.
 	 */
-	private function stub_assistant_meta_rows( array $rows ): void {
-		$results = array();
+	private function stub_assistant_meta_rows( array $rows, array $raw = array() ): void {
+		$meta = array();
 		foreach ( $rows as $assistant_id => $data ) {
-			$results[] = (object) array(
-				'meta_key'   => '_vip_ideation_asst_' . str_replace( '/', '__', $assistant_id ),
-				'meta_value' => (string) json_encode( $data ),
-			);
+			$meta[ '_vip_ideation_asst_' . str_replace( '/', '__', $assistant_id ) ] = array( (string) json_encode( $data ) );
 		}
 
-		global $wpdb;
-		$wpdb = new class( $results ) {
-			public string $postmeta = 'wp_postmeta';
+		$meta = array_merge( $meta, $raw );
 
-			public function __construct( private array $results ) {}
-
-			public function prepare( string $query, ...$args ): string {
-				return $query;
-			}
-
-			public function esc_like( string $text ): string {
-				return $text;
-			}
-
-			public function get_results( string $query ): array {
-				return $this->results;
-			}
-		};
+		Functions\when( 'get_post_meta' )->justReturn( $meta );
 	}
 
 	/**
@@ -308,5 +272,49 @@ class IdeationOrchestratorTest extends TestCase {
 
 		$this->assertSame( $stored, $actual );
 		$this->assertArrayNotHasKey( 'availability', $assistants['vip-workflows/web-researcher'] );
+	}
+
+	public function test_meta_keys_outside_the_assistant_prefix_are_not_read_as_assistants(): void {
+		Functions\when( 'wp_get_abilities' )->justReturn( array() );
+
+		$this->stub_assistant_meta_rows(
+			array( 'vip-workflows/seed-analyst' => array( 'status' => 'completed' ) ),
+			array(
+				'_vip_ideation_seed' => array( (string) json_encode( array( 'status' => 'completed' ) ) ),
+				'_edit_lock'         => array( (string) json_encode( array( 'status' => 'completed' ) ) ),
+			)
+		);
+
+		$this->assertSame( array( 'vip-workflows/seed-analyst' ), array_keys( $this->read_assistant_meta() ) );
+	}
+
+	public function test_no_assistants_are_read_when_get_post_meta_answers_false(): void {
+		Functions\when( 'wp_get_abilities' )->justReturn( array() );
+		// Core's get_post_meta() answers false, not an array, for a post ID of 0.
+		Functions\when( 'get_post_meta' )->justReturn( false );
+
+		$this->assertSame( array(), $this->read_assistant_meta() );
+	}
+
+	public function test_two_values_under_one_assistant_key_are_both_read_and_the_last_wins(): void {
+		Functions\when( 'wp_get_abilities' )->justReturn( array() );
+
+		$key = '_vip_ideation_asst_vip-workflows__seed-analyst';
+
+		Functions\when( 'get_post_meta' )->justReturn(
+			array(
+				$key                 => array(
+					(string) json_encode( array( 'status' => 'failed' ) ),
+					'not json, skipped',
+					(string) json_encode( array( 'status' => 'completed' ) ),
+				),
+				'_vip_ideation_seed' => array( (string) json_encode( array( 'status' => 'failed' ) ) ),
+			)
+		);
+
+		$assistants = $this->read_assistant_meta();
+
+		$this->assertSame( array( 'vip-workflows/seed-analyst' ), array_keys( $assistants ) );
+		$this->assertSame( 'completed', $assistants['vip-workflows/seed-analyst']['status'] );
 	}
 }
