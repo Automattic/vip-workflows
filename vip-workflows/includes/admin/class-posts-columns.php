@@ -670,7 +670,8 @@ class PostsColumns {
 				? api.getOrphanedWorkflowMessage({ title: titleFor(row, postId) })
 				: api.getPublishVetoMessage({
 					title: titleFor(row, postId),
-					workflowName: data.dataset.sequenceName
+					workflowName: data.dataset.sequenceName,
+					targetStatus: targetStatus
 				}));
 			return false;
 		}

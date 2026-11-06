@@ -591,6 +591,10 @@ class PostsColumnsQuickEditScriptTest extends TestCase
         $this->assertStringContainsString( 'window.vipWorkflowsSideEffect', $script );
         $this->assertStringContainsString( 'api.evaluateStatusChange(', $script );
         $this->assertStringContainsString( 'api.getPublishVetoMessage(', $script );
+        // The veto sentence depends on the direction of the refused change, so
+        // the row's target status has to reach it. Without it a publish attempt
+        // is told only that the status cannot be changed.
+        $this->assertMatchesRegularExpression( '/api\.getPublishVetoMessage\(\{[^}]*targetStatus: targetStatus[^}]*\}\)/', $script );
         $this->assertStringContainsString( 'api.getStatusChangeWarning(', $script );
         // The warn copy names a stage, so the row's entry-stage map and the
         // stage's own region go with it — and resolving the checkpoint stays

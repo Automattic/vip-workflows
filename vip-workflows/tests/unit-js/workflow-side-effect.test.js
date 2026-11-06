@@ -17,6 +17,7 @@ import {
 	getAgentInterruptWarning,
 	getEntryStageLabels,
 	getOrphanedWorkflowMessage,
+	getPublishVetoMessage,
 	getRegionLabel,
 	getStatusChangeWarning,
 	getTransitionPublishWarning,
@@ -422,6 +423,71 @@ describe( 'getTransitionPublishWarning', () => {
 		expect( message ).toContain( 'On the site' );
 		expect( message ).toContain( 'scheduled' );
 		expect( message ).toContain( 'now' );
+	} );
+} );
+
+describe( 'getPublishVetoMessage', () => {
+	// The client sentence is the server's (PublishBoundaryGuard::veto_message()),
+	// so a refusal reads the same whichever layer says it. It names the workflow
+	// as the way through and never suggests leaving it: this is what a habitual
+	// Publish click produces.
+	it.each( [ 'publish', 'future' ] )(
+		'says a %s cannot be done directly and names the workflow route',
+		( targetStatus ) => {
+			expect(
+				getPublishVetoMessage( {
+					title: 'Budget piece',
+					workflowName: 'News desk',
+					targetStatus,
+				} )
+			).toBe(
+				'“Budget piece” is in the “News desk” workflow, so it can’t be published directly. Move it through the workflow to a published stage.'
+			);
+		}
+	);
+
+	// The veto is symmetric. An unpublish is not told to move the post to a
+	// published stage.
+	it.each( [ 'draft', 'pending', 'private' ] )(
+		'says the status cannot be changed directly for %s',
+		( targetStatus ) => {
+			const message = getPublishVetoMessage( {
+				title: 'Budget piece',
+				workflowName: 'News desk',
+				targetStatus,
+			} );
+
+			expect( message ).toBe(
+				'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead.'
+			);
+			expect( message.toLowerCase() ).not.toContain( 'remove' );
+		}
+	);
+} );
+
+describe( 'getPublishVetoMessage without a target status', () => {
+	// The sentence names the direction of the refused change. A caller that
+	// forgets the target status gets the generic sentence, and says so in the
+	// console instead of quietly picking it.
+	it( 'logs an error and falls back to the generic sentence', () => {
+		const report = jest
+			.spyOn( console, 'error' )
+			.mockImplementation( () => {} );
+		try {
+			expect(
+				getPublishVetoMessage( {
+					title: 'Budget piece',
+					workflowName: 'News desk',
+				} )
+			).toBe(
+				'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead.'
+			);
+			expect( report ).toHaveBeenCalledWith(
+				expect.stringContaining( 'without the target status' )
+			);
+		} finally {
+			report.mockRestore();
+		}
 	} );
 } );
 
