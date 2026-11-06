@@ -53,7 +53,7 @@ import './WorkflowSummaryRows.css';
  * @param {Object}  props
  * @param {boolean} props.grouped Rule the rows off from core's rows above them.
  *                                False where nothing sits above them: the
- *                                workflow sidebar's fallback copy.
+ *                                workflow panel's fallback copy.
  * @return {JSX.Element} The rows.
  */
 export function WorkflowSummaryRows( { grouped = true } = {} ) {

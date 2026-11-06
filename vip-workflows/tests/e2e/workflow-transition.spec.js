@@ -2,7 +2,7 @@
  * Status transition through the editor UI.
  *
  * The crown-jewel flow: an editor opens a post enrolled in a workflow and moves
- * it to the next stage from the Workflow sidebar. Proves the editor sidebar is
+ * it to the next stage from the Workflow panel. Proves the editor panel is
  * wired to the same transition path that workflow-lifecycle.spec.js exercises
  * over REST.
  */
@@ -25,7 +25,7 @@ test.describe( 'VIP Workflows — transition (editor UI)', () => {
 		}
 	} );
 
-	test( 'editor submits a draft for review from the Workflow sidebar', async ( {
+	test( 'editor submits a draft for review from the Workflow panel', async ( {
 		admin,
 		page,
 		requestUtils,

@@ -103,11 +103,23 @@ test.describe( 'VIP Workflows — sequence inspector controls', () => {
 		// Adding an exit from the stage panel keeps that stage selected.
 		await expect( stageLabel ).toHaveValue( 'Review' );
 		await expect( edges ).toHaveCount( 4 );
+		// The edge's label pill is the transition's one tab stop; React Flow's
+		// edge group stays out of the tab order. Its name says it edits the
+		// transition and ends with the source stage; Review has a single exit.
 		const reviewEdge = page.locator(
 			'.react-flow__edge[data-id="review->done"]'
 		);
-		await expect( reviewEdge ).toHaveAttribute( 'tabindex', '0' );
-		await reviewEdge.focus();
+		await expect( reviewEdge ).not.toHaveAttribute( 'tabindex' );
+		const reviewPill = page.getByRole( 'button', {
+			name: /^Edit transition: .*, from Review$/,
+		} );
+		// How to remove it is a description, so the name above is unchanged;
+		// the pill still selects, so it is not marked aria-disabled.
+		await expect( reviewPill ).toHaveAccessibleDescription(
+			'Press Enter, then Backspace to remove.'
+		);
+		await expect( reviewPill ).not.toHaveAttribute( 'aria-disabled' );
+		await reviewPill.focus();
 		await page.keyboard.press( 'Space' );
 		const destination = page.getByRole( 'combobox', {
 			name: 'To',

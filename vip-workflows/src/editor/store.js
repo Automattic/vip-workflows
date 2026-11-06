@@ -6,7 +6,7 @@
  * Extensions and core components consume via useSelect( 'vip-workflows/editor' ).
  *
  * The post status endpoint's answer lives here, whole, because more than one
- * surface changes it: the sidebar panel assigns, removes and transitions, and
+ * surface changes it: the workflow panel assigns, removes and transitions, and
  * the save guard's veto notice removes from outside the sidebar entirely. While
  * the panel kept a private copy of that answer the two could disagree — a
  * removal from the notice left the panel rendering the workflow it had just
@@ -25,6 +25,22 @@ import apiFetch from '@wordpress/api-fetch';
 import { refreshPostEntity } from './refresh-post-entity';
 
 const STORE_NAME = 'vip-workflows/editor';
+
+/**
+ * The Workflow document panel's name in core's panel preferences: the plugin's
+ * name and the `PluginDocumentSettingPanel`'s own, joined the way core joins
+ * them (src/editor/index.js registers both).
+ *
+ * @type {string}
+ */
+const WORKFLOW_PANEL_NAME = 'vip-workflows/workflow';
+
+/**
+ * The Settings sidebar's Post tab, as core's interface store names it.
+ *
+ * @type {string}
+ */
+const DOCUMENT_SIDEBAR = 'edit-post/document';
 
 /**
  * The status endpoint: the whole of a post's workflow state in one read — the
@@ -76,7 +92,7 @@ const DEFAULT_STATE = {
 
 	// A transition someone asked for and the transition flow has not yet
 	// picked up: `{ transition, anchor, source }`. Two surfaces start moves —
-	// the rail in the sidebar and the split button in the editor header — and
+	// the rail in the workflow panel and the split button in the editor header — and
 	// neither owns the dialogs a move can open (the publish confirm, the
 	// assignee popover, the blocked and warnings dialogs). Those live in one
 	// always-mounted TransitionFlow, so a request is handed to it here rather
@@ -96,15 +112,20 @@ const DEFAULT_STATE = {
 	workflowWriting: false,
 
 	// The last refused move, worded for the author, until they dismiss it or
-	// start another. Shown by the sidebar panel.
+	// start another. Shown by the workflow panel.
 	transitionError: null,
 
 	// How many copies of the Summary rows are mounted inside core's Summary
 	// panel right now, and whether any ever has been this session. The
-	// workflow sidebar reads both to decide whether it has to carry the rows
+	// workflow panel reads both to decide whether it has to carry the rows
 	// itself (see components/SummaryRowsFallback.js).
 	summaryRowsMounted: 0,
 	summaryRowsSeen: false,
+
+	// Set by showWorkflowPanel() and cleared by the panel body once it has
+	// taken focus: the panel is not mounted when it is asked to show itself,
+	// so the request has to wait for it here.
+	workflowPanelFocusRequested: false,
 };
 
 const actions = {
@@ -203,7 +224,7 @@ const actions = {
 	},
 
 	/**
-	 * Record, or clear, the refusal the sidebar panel reports.
+	 * Record, or clear, the refusal the workflow panel reports.
 	 *
 	 * @param {?string} message Refusal worded for the author.
 	 */
@@ -223,6 +244,46 @@ const actions = {
 	 */
 	unmountSummaryRows() {
 		return { type: 'UNMOUNT_SUMMARY_ROWS' };
+	},
+
+	/**
+	 * Show the Workflow document panel and move focus into it.
+	 *
+	 * The recovery for the one configuration in which the Summary rows live
+	 * only in that panel and the person has switched the panel off in
+	 * Preferences → Panels (see components/WorkflowPanelRecovery.js). Turns
+	 * the panel back on, expands it, opens the Settings sidebar on its Post
+	 * tab, and leaves a focus request for the panel body to answer once it
+	 * has mounted.
+	 */
+	showWorkflowPanel:
+		() =>
+		( { dispatch, registry } ) => {
+			const editor = registry.select( 'core/editor' );
+			const editorActions = registry.dispatch( 'core/editor' );
+
+			if ( ! editor.isEditorPanelEnabled( WORKFLOW_PANEL_NAME ) ) {
+				editorActions.toggleEditorPanelEnabled( WORKFLOW_PANEL_NAME );
+			}
+			if ( ! editor.isEditorPanelOpened( WORKFLOW_PANEL_NAME ) ) {
+				editorActions.toggleEditorPanelOpened( WORKFLOW_PANEL_NAME );
+			}
+
+			// The same call core's own "Open Settings" makes. Named by its
+			// store string: importing @wordpress/interface registers a store
+			// core has already registered.
+			registry
+				.dispatch( 'core/interface' )
+				.enableComplementaryArea( 'core', DOCUMENT_SIDEBAR );
+
+			dispatch( { type: 'REQUEST_WORKFLOW_PANEL_FOCUS' } );
+		},
+
+	/**
+	 * Record that the panel body has taken the focus it was asked for.
+	 */
+	clearWorkflowPanelFocus() {
+		return { type: 'CLEAR_WORKFLOW_PANEL_FOCUS' };
 	},
 
 	/**
@@ -307,7 +368,7 @@ const actions = {
 	/**
 	 * Return a post whose stage agent failed to the stage it came from.
 	 *
-	 * The failed AI stage's one exit, offered by the sidebar panel and the
+	 * The failed AI stage's one exit, offered by the workflow panel and the
 	 * header button alike. It runs as the move in flight (`transitioningTo`),
 	 * so both surfaces stand down together while it does. Rejects with the
 	 * server's error for the caller to report where the author is looking.
@@ -452,6 +513,12 @@ function reducer( state = DEFAULT_STATE, action ) {
 				summaryRowsMounted: Math.max( 0, state.summaryRowsMounted - 1 ),
 			};
 
+		case 'REQUEST_WORKFLOW_PANEL_FOCUS':
+			return { ...state, workflowPanelFocusRequested: true };
+
+		case 'CLEAR_WORKFLOW_PANEL_FOCUS':
+			return { ...state, workflowPanelFocusRequested: false };
+
 		default:
 			return state;
 	}
@@ -480,6 +547,8 @@ const selectors = {
 	getTransitionError: ( state ) => state.transitionError,
 	areSummaryRowsMounted: ( state ) => state.summaryRowsMounted > 0,
 	haveSummaryRowsMounted: ( state ) => state.summaryRowsSeen,
+	isWorkflowPanelFocusRequested: ( state ) =>
+		state.workflowPanelFocusRequested,
 };
 
 const store = createReduxStore( STORE_NAME, {
@@ -490,5 +559,5 @@ const store = createReduxStore( STORE_NAME, {
 
 register( store );
 
-export { STORE_NAME };
+export { STORE_NAME, WORKFLOW_PANEL_NAME, DOCUMENT_SIDEBAR };
 export default store;

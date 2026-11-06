@@ -471,3 +471,85 @@ describe( 'Transition keyboard selection', () => {
 		expect( onSelectEdge ).not.toHaveBeenCalled();
 	} );
 } );
+
+describe( 'Transition pill description', () => {
+	/**
+	 * The texts a pill's `aria-describedby` points at, in order.
+	 *
+	 * @param {HTMLElement} pill The pill.
+	 * @return {string[]} The descriptions.
+	 */
+	const descriptions = ( pill ) =>
+		( pill.getAttribute( 'aria-describedby' ) || '' )
+			.split( ' ' )
+			.filter( Boolean )
+			.map( ( id ) => document.getElementById( id )?.textContent );
+
+	const REMOVE_HINT = 'Press Enter, then Backspace to remove.';
+
+	it( 'tells a removable transition how to remove it, from one shared element', async () => {
+		await renderCanvas();
+
+		const draft = screen.getByRole( 'button', {
+			name: 'Edit transition: Move to Writing, from Draft',
+		} );
+		const writing = screen.getByRole( 'button', {
+			name: 'Edit transition: Move to Review, from Writing',
+		} );
+
+		// The name is unchanged; the hint is a description.
+		expect( draft ).toHaveAccessibleDescription( REMOVE_HINT );
+		// Said once for the canvas and pointed at, not once per pill.
+		expect( draft.getAttribute( 'aria-describedby' ) ).toBe(
+			writing.getAttribute( 'aria-describedby' )
+		);
+		expect( screen.getAllByText( REMOVE_HINT ) ).toHaveLength( 1 );
+	} );
+
+	it( 'does not mark a pill aria-disabled: every pill still selects', async () => {
+		await renderCanvas();
+
+		screen
+			.getAllByRole( 'button', { name: /^Edit transition: / } )
+			.forEach( ( pill ) =>
+				expect( pill ).not.toHaveAttribute( 'aria-disabled' )
+			);
+	} );
+
+	it( 'says a disabled transition is disabled before how to remove it', async () => {
+		await renderCanvas();
+
+		const pill = document.querySelector(
+			'.wf-transition-edge__pill.is-disabled'
+		);
+		// Without this, the test would pass vacuously on a canvas with none.
+		expect( pill ).not.toBeNull();
+
+		expect( descriptions( pill ) ).toEqual( [
+			'Disabled transition.',
+			REMOVE_HINT,
+		] );
+	} );
+
+	it( 'offers no removal hint on a hand-off a phase sequence owes', async () => {
+		await renderCanvas( {
+			stages: PHASES,
+			isPhase: true,
+			required: [ { from: 'ideation', to: 'editorial' } ],
+		} );
+
+		const pill = screen.getByRole( 'button', {
+			name: /, from Ideation$/,
+		} );
+
+		expect( pill ).not.toHaveAttribute( 'aria-describedby' );
+	} );
+
+	it( 'offers the removal hint on a phase hand-off that is not owed', async () => {
+		await renderCanvas( { stages: PHASES, isPhase: true } );
+
+		expect(
+			screen.getByRole( 'button', { name: /, from Ideation$/ } )
+		).toHaveAccessibleDescription( REMOVE_HINT );
+	} );
+} );

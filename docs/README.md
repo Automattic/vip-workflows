@@ -34,7 +34,7 @@
 
 ## Feature references and demos
 
-- [Shipped feature specifications](specs/README.md)
+- [Feature specifications](specs/README.md) — shipped specs, plus proposed design specs such as the [error-state pattern](specs/planned/error-state-pattern.md).
 - [Multimedia sequence demo](demos/multimedia-sequence.json)
 - [Sequence examples](examples/) — the Editorial Review pipeline in the FLAT and WRAPPED shapes.
 - [Plugin integration](../vip-workflows/docs/PLUGIN-INTEGRATION.md)

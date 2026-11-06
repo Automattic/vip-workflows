@@ -197,12 +197,13 @@ GET         /vip-workflows/v1/audit-log/users
 ### React/JavaScript Patterns
 
 **Editor Sidebar State**:
-- The panels live in one "Workflow" `PluginSidebar`; there are no
-  `PluginDocumentSettingPanel`s. The Summary panel rows (below) and the
-  header split button (`WorkflowHeaderAction`) sit outside it
+- There is no plugin sidebar. The post's movement lives in one "Workflow"
+  `PluginDocumentSettingPanel` in the document sidebar, below Summary. The
+  Summary panel rows (below) and the header split button
+  (`WorkflowHeaderAction`) sit outside it
 - Which workflow the post is in, and its metadata fields, are rows in the
   document sidebar's Summary panel (`WorkflowSummaryRows.js`); the Workflow
-  sidebar carries a fallback copy only where that panel cannot show them
+  panel carries a fallback copy only where Summary cannot show them
 - `WorkflowPanel.js` draws the post's movement — one
   `/workflow/post/{id}/status` request, held in the editor store, feeds the
   progress list, assignment/claim, the stage agent's state and the transitions
@@ -210,7 +211,7 @@ GET         /vip-workflows/v1/audit-log/users
   `_locked_reason` and (for the required-metadata gate) `_locked_code` — see
   **Held Transitions** above for the one lock the editor may release itself
 - `TransitionFlow.js` (mounted once from `index.js`) owns every transition:
-  the sidebar rail and the header split button dispatch `requestTransition`,
+  the panel's rail and the header split button dispatch `requestTransition`,
   and the flow runs the confirms, input capture and refusal dialogs, saving a
   dirty post before the request
 - `WorkflowSaveGuard.js` is mounted unconditionally from `index.js`, outside

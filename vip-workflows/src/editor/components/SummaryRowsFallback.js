@@ -16,24 +16,24 @@
  *
  * Without the rows, an author cannot assign or remove a workflow or fill a
  * required field, which can block a publish move or strand an orphaned post
- * without its only recovery control. So the workflow sidebar carries the same
- * rows, the same component, in those configurations.
+ * without its only recovery control. So the workflow panel, below Summary in
+ * the same document sidebar, carries the same rows, the same component, in
+ * those configurations.
  *
  * Whether the rows are mounted in the Summary panel is read from the fill
  * itself: `SummaryRowsFill` counts itself in the editor store while it is
- * mounted. That alone cannot answer the question, because the document sidebar
- * and the workflow sidebar share one complementary area: while the workflow
- * sidebar is open the Summary panel is never mounted, so "not mounted now"
- * would put a second copy in the sidebar for every author. The fallback is
- * therefore drawn only where the slot cannot render, and never while the fill
- * is mounted:
+ * mounted. "Not mounted now" alone does not answer the question: the panel
+ * renders in the same commit as the Summary, before the fill's layout effect
+ * has counted it, so that answer would mount a second copy of the rows (and
+ * their reads) only to tear it down again. The fallback is therefore drawn
+ * only where the slot cannot render, and never while the fill is mounted:
  *
  * - the `post-status` panel is removed (reactive: a plugin may remove it after
  *   load), or
  * - the experimental DataForm Summary is active for this post type and the fill
  *   has not mounted once this session. An experiment build that does draw the
- *   slot mounts the fill the first time the document sidebar opens, and the
- *   fallback is withdrawn from then on.
+ *   slot mounts the fill as the document sidebar renders, and the fallback is
+ *   withdrawn from then on.
  *
  * Both answers are synchronous store and window reads, so there is no load-time
  * flash of a second copy.
@@ -75,7 +75,7 @@ export function SummaryRowsFill() {
 }
 
 /**
- * Whether the workflow sidebar has to carry the Summary rows itself.
+ * Whether the workflow panel has to carry the Summary rows itself.
  *
  * @return {boolean} True where core's Summary panel cannot show them.
  */
@@ -101,7 +101,7 @@ export function useSummaryRowsFallback() {
 }
 
 /**
- * The Summary rows in the workflow sidebar, where the Summary panel cannot
+ * The Summary rows in the workflow panel, where the Summary panel cannot
  * show them. Renders nothing otherwise.
  *
  * @return {JSX.Element|null} The section, or null.
@@ -116,15 +116,15 @@ export function SummaryRowsFallback() {
 	return (
 		<Stack
 			render={
-				<section aria-labelledby="vip-workflows-sidebar-details" />
+				<section aria-labelledby="vip-workflows-document-panel-details" />
 			}
-			className="vip-workflows-sidebar__details"
+			className="vip-workflows-document-panel__details"
 			direction="column"
 			gap="md"
 		>
 			<Text
 				variant="heading-sm"
-				render={ <h3 id="vip-workflows-sidebar-details" /> }
+				render={ <h3 id="vip-workflows-document-panel-details" /> }
 				className="vip-workflows-eyebrow"
 			>
 				{ __( 'Details', 'vip-workflows' ) }

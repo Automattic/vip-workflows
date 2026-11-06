@@ -215,7 +215,7 @@ export function WorkflowSaveGuard() {
 				// the notice the user sees — no notice is raised here, so there
 				// is exactly one, and no one-click way out of the workflow rides
 				// along with it. Removing the post from its workflow stays a
-				// deliberate act in the sidebar panel, not a button on an error.
+				// deliberate act in the workflow panel, not a button on an error.
 				throw new Error( message );
 			}
 

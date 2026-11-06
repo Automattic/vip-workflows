@@ -101,6 +101,8 @@
  * click, and enter/leave — along the React tree. So the pill's click reaches
  * `onEdgeClick`, and moving between the line and the pill neither leaves nor
  * re-enters the edge; the pill needs no handlers of its own.
+ * The keyboard takes the same route: the pill is the transition's only tab
+ * stop, and Enter or Space on a button is a click.
  * Endpoints *are* draggable, but not by React Flow — its anchors sit where it
  * thinks the edge ends rather than where this one does, so the grab handles are
  * drawn on the planned ports by `EdgeAnchors` instead.
@@ -295,12 +297,22 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 								} }
 								// No handlers: React Flow's own edge click and
 								// hover reach it through the portal.
-								// The pill elides a long destination name
-								// rather than growing to the width of the
-								// canvas. The accessible name is the full
-								// string either way — this is what gets it
-								// back for a pointer.
-								title={ pill }
+								//
+								// The canvas's one tab stop per transition —
+								// React Flow's edge group is kept out of the
+								// tab order (`EDGE_GROUP_A11Y`, `graph-model`).
+								// Its name says what activating it does — edit
+								// the transition, not move a post — then carries
+								// the visible text whole, so voice control
+								// matches, then the source stage: the text is
+								// the writer's button label, shared by every line
+								// into the same stage (`transitionPillName`).
+								aria-label={ data.pillName }
+								// What can be done with it, and whether it is a
+								// disabled transition: shared descriptions the
+								// canvas renders once (`GraphCanvas`), left off
+								// a pill that cannot be removed.
+								aria-describedby={ data.pillDescribedBy }
 							>
 								{ /* An array preserves Button's icon-and-text
 								     layout while the label has an ellipsis wrapper. */ }
