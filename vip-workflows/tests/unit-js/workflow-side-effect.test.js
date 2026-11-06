@@ -411,6 +411,21 @@ describe( 'getTransitionPublishWarning', () => {
 		);
 	} );
 
+	// A private post is in a region of its own, so the move writes `publish`
+	// over `private` and the post stops being private. The author has to hear
+	// that, so the private variant says it.
+	it( 'tells a private post it stops being private', () => {
+		expect(
+			getTransitionPublishWarning( {
+				stageLabel: 'On the site',
+				scheduled: false,
+				isPrivate: true,
+			} )
+		).toBe(
+			'This post is private. Moving it to “On the site” publishes it right away, and it stops being private.'
+		);
+	} );
+
 	// A scheduled post's stage stayed put when it was scheduled, so moving it
 	// into a publish-region stage still crosses the boundary — and publishes
 	// it now, overriding the schedule. That is the part the author most needs

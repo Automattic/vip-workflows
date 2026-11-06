@@ -150,7 +150,7 @@ export function TransitionFlow() {
 
 	// The pre-publish step a publishing move is waiting on, with the resolver
 	// its answer settles. See PrePublishConfirm.
-	const [ prePublish, setPrePublish ] = useState( null ); // { stageLabel, scheduled, resolve }
+	const [ prePublish, setPrePublish ] = useState( null ); // { stageLabel, scheduled, isPrivate, resolve }
 
 	// Which surface asked for the move being run, so its refusal is reported
 	// where the author is looking. Survives the warnings re-fire, which is the
@@ -827,6 +827,7 @@ export function TransitionFlow() {
 				setPrePublish( {
 					stageLabel: transition.status_info?.label || transition.to,
 					scheduled: savedStatus === 'future',
+					isPrivate: savedStatus === 'private',
 					resolve,
 				} )
 			);
@@ -1001,6 +1002,7 @@ export function TransitionFlow() {
 				<PrePublishConfirm
 					stageLabel={ prePublish.stageLabel }
 					scheduled={ prePublish.scheduled }
+					isPrivate={ prePublish.isPrivate }
 					onConfirm={ () => {
 						setPrePublish( null );
 						prePublish.resolve( true );

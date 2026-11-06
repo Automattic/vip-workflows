@@ -376,15 +376,19 @@ export function getLiveEditsWarning() {
  *
  * A transition into a publish-region stage crosses the publish boundary, so
  * `StatusManager::transition()` writes `publish` before the stage move — the
- * post goes live as a side effect of what reads as a workflow step. (Live is
- * not necessarily public: a private or password-protected post publishes too.)
- * Core's own Publish button asks before doing that; a transition that does the
- * same thing owes the same question.
+ * post goes live as a side effect of what reads as a workflow step. Core's
+ * own Publish button asks before doing that; a transition that does the same
+ * thing owes the same question.
  *
  * One statement, in the verb the title and button use. It used to add "it
- * becomes publicly visible", which said the same thing twice and was wrong
- * for a private or password-protected post. Who can see a published post is
- * the post's visibility setting, which this does not restate.
+ * becomes publicly visible", which said the same thing twice, and is not true
+ * of a password-protected post, which publishes but stays behind its
+ * password.
+ *
+ * The private variant exists because a private post is in a region of its
+ * own: the move writes `publish` over `private`, so the post stops being
+ * private and anyone can read it. That is the one change of visibility a
+ * publishing move makes, and the author has to hear it.
  *
  * The scheduled variant exists because a scheduled post's stage stays where it
  * was (scheduling is an overlay), so moving it into a publish-region stage
@@ -395,9 +399,25 @@ export function getLiveEditsWarning() {
  * @param {Object}  options            Message input.
  * @param {string}  options.stageLabel Destination stage label.
  * @param {boolean} options.scheduled  Whether the post is currently scheduled.
+ * @param {boolean} options.isPrivate  Whether the post is currently private.
  * @return {string} Translated message.
  */
-export function getTransitionPublishWarning( { stageLabel, scheduled } ) {
+export function getTransitionPublishWarning( {
+	stageLabel,
+	scheduled,
+	isPrivate,
+} ) {
+	if ( isPrivate ) {
+		return sprintf(
+			/* translators: %s: destination workflow stage label, e.g. "Published". */
+			__(
+				'This post is private. Moving it to “%s” publishes it right away, and it stops being private.',
+				'vip-workflows'
+			),
+			stageLabel
+		);
+	}
+
 	if ( scheduled ) {
 		return sprintf(
 			/* translators: %s: destination workflow stage label, e.g. "Published". */

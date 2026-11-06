@@ -62,11 +62,13 @@ sidebar is open.
   this dialog renders `PluginPrePublishPanel.Slot` itself: SEO, social and
   checklist plugins' fills show here as they would before core's Publish. It
   shows the title "Publish this post?", one warning sentence ("Moving this
-  post to “Published” publishes it right away.", or for a scheduled post,
-  that the move publishes it now, not at its scheduled time), the plugins'
-  checks, and Cancel / Publish. None of core's own pre-publish content is
-  repeated: visibility, tags and the featured image are post settings left to
-  the sidebar. Its Publish stands down while saving is locked, as core's does.
+  post to “Published” publishes it right away."; for a scheduled post, that
+  the move publishes it now, not at its scheduled time; for a private post,
+  that it stops being private, since the move writes `publish` over
+  `private`), the plugins' checks, and Cancel / Publish. None of core's own
+  pre-publish content is repeated: tags, the featured image and a password
+  are post settings left to the sidebar. Its Publish stands down while saving
+  is locked, as core's does.
 - `WorkflowHeaderAction` — the split button in the editor header (a fill into
   the `PinnedItems/core` slot). The main half runs the stage's **primary
   transition** — the first in authored order, labelled with the author's own

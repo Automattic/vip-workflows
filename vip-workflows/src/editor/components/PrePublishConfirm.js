@@ -38,6 +38,7 @@ import { ModalActions } from '../../common/ModalActions';
  * @param {Object}   props            Component props.
  * @param {string}   props.stageLabel The destination stage's label.
  * @param {boolean}  props.scheduled  Whether the post is scheduled.
+ * @param {boolean}  props.isPrivate  Whether the post is private.
  * @param {Function} props.onConfirm  Called when the person publishes.
  * @param {Function} props.onCancel   Called when the person backs out.
  * @return {JSX.Element} The dialog.
@@ -45,6 +46,7 @@ import { ModalActions } from '../../common/ModalActions';
 export function PrePublishConfirm( {
 	stageLabel,
 	scheduled,
+	isPrivate,
 	onConfirm,
 	onCancel,
 } ) {
@@ -61,7 +63,11 @@ export function PrePublishConfirm( {
 			className="vip-workflows-pre-publish"
 		>
 			<Text variant="body-md" render={ <p /> }>
-				{ getTransitionPublishWarning( { stageLabel, scheduled } ) }
+				{ getTransitionPublishWarning( {
+					stageLabel,
+					scheduled,
+					isPrivate,
+				} ) }
 			</Text>
 			<div className="vip-workflows-pre-publish__checks">
 				<PluginPrePublishPanel.Slot />
