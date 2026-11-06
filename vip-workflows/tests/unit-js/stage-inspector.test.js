@@ -658,7 +658,7 @@ describe( 'StageInspector AI-stage config', () => {
 		expect(
 			screen.getByText( /Choosing an agent makes this an AI stage\./ )
 		).toHaveTextContent(
-			/pass, fail, or error.*On pass, On fail, and On error rows below/
+			/pass, fail, or error.*Set where each outcome leads below/
 		);
 	} );
 

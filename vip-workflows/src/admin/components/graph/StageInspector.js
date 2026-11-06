@@ -729,7 +729,7 @@ export default function StageInspector( {
 							</BaseControl.VisualLabel>
 							<InfoTip about={ agentLabel }>
 								{ __(
-									'Choosing an agent makes this an AI stage. The agent runs when a post enters, then moves the post on by outcome: pass, fail, or error. Once one is chosen, set where each outcome leads on the On pass, On fail, and On error rows below, or drag from the stage’s colored handles on the canvas.',
+									'Choosing an agent makes this an AI stage. The agent runs when a post enters, then moves the post based on the outcome: pass, fail, or error. Set where each outcome leads below, or drag from the stage’s colored handles on the canvas.',
 									'vip-workflows'
 								) }
 							</InfoTip>
