@@ -187,7 +187,7 @@ class AssignmentManager {
 	 * @return array Array of assignments keyed by meta_key.
 	 */
 	public function get_all( int $post_id ): array {
-		$prefix  = '_vip_workflows_assignment_';
+		$prefix  = self::STORAGE_PREFIX;
 		$results = array();
 		// get_post_meta() answers false, not an array, for a post ID of 0.
 		foreach ( (array) get_post_meta( $post_id ) as $meta_key => $values ) {
@@ -256,7 +256,7 @@ class AssignmentManager {
 			return array();
 		}
 
-		$prefix  = '_vip_workflows_assignment_';
+		$prefix  = self::STORAGE_PREFIX;
 		$by_post = array_fill_keys( $post_ids, array() );
 
 		foreach ( array_chunk( $post_ids, self::CURRENT_FOR_POSTS_CHUNK ) as $chunk ) {
@@ -1384,7 +1384,9 @@ class AssignmentManager {
 			return null;
 		}
 
-		// The last row per key wins, as get_post_meta( ..., true ) would answer.
+		// The newest row per key wins, as get_all() resolves a duplicated slot,
+		// so the index names whoever My Work shows as the assignee. That is not
+		// get_post_meta( ..., true )'s answer, which is the oldest row.
 		$slots = array();
 		foreach ( $rows as $row ) {
 			$slots[ (string) $row->meta_key ] = $row->meta_value;
@@ -1448,7 +1450,7 @@ class AssignmentManager {
 	 * @return string Full meta key for storage.
 	 */
 	private function get_storage_key( string $meta_key ): string {
-		return '_vip_workflows_assignment_' . sanitize_key( $meta_key );
+		return self::STORAGE_PREFIX . sanitize_key( $meta_key );
 	}
 
 	/**
