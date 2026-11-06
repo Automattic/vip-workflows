@@ -112,11 +112,40 @@ class ReportedDiagnosticsCoverageTest extends TestCase
      */
     public static function base_files(): array
     {
-        $root = dirname( __DIR__ );
+        // Found, not listed: a base added under tests/phpunit/<Suite>/ is
+        // covered the moment it exists, rather than when someone remembers it.
+        $bases = glob( dirname( __DIR__ ) . '/*/TestCase.php' );
 
-        return array(
-            'unit'        => array( $root . '/Unit/TestCase.php' ),
-            'integration' => array( $root . '/Integration/TestCase.php' ),
+        return array_combine(
+            array_map( static fn ( string $path ): string => strtolower( basename( dirname( $path ) ) ), $bases ),
+            array_map( static fn ( string $path ): array => array( $path ), $bases )
+        );
+    }
+
+    public function test_the_base_scan_finds_both_suites(): void
+    {
+        $this->assertSame( array( 'integration', 'unit' ), array_keys( self::base_files() ) );
+    }
+
+    /**
+     * The integration isolation test trips every reset class twice. It cannot
+     * be loaded here (it needs WordPress), so its REPORTERS list is read from
+     * source: a class added to ReportedDiagnostics::CLASSES without a reporter
+     * there fails in the unit suite too, not only when integration runs.
+     */
+    public function test_the_isolation_test_trips_every_reset_class(): void
+    {
+        $source = (string) file_get_contents( dirname( __DIR__ ) . '/Integration/ReportedDiagnosticsIsolationTest.php' );
+
+        $this->assertSame( 1, preg_match( '/const\s+REPORTERS\s*=\s*array\((.*?)\n\s*\);/s', $source, $block ), 'REPORTERS was not found in the isolation test.' );
+        preg_match_all( '/([\w\\\\]+)::class/', $block[1], $classes );
+
+        $tripped = array_map( static fn ( string $class ): string => ltrim( $class, '\\' ), $classes[1] );
+
+        $this->assertSame(
+            array(),
+            array_values( array_diff( ReportedDiagnostics::CLASSES, $tripped ) ),
+            'These classes are reset but not tripped by ReportedDiagnosticsIsolationTest.'
         );
     }
 

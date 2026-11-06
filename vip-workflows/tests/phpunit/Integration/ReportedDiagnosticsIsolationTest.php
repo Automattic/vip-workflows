@@ -29,6 +29,20 @@ class ReportedDiagnosticsIsolationTest extends TestCase
         array( \VIPWorkflows\Integrations\LlmTextGenerator::class, 'report', 'bounded_max_tokens' ),
     );
 
+    /**
+     * Every map the shared list resets is tripped twice here, so adding a
+     * class to ReportedDiagnostics::CLASSES also demands this end-to-end
+     * proof that its repeat fault is reported again in a later test.
+     */
+    public function test_every_reset_class_is_tripped_here(): void
+    {
+        $this->assertSame(
+            array(),
+            array_values( array_diff( \VIPWorkflows\Tests\ReportedDiagnostics::CLASSES, array_column( self::REPORTERS, 0 ) ) ),
+            'These classes are reset but never tripped twice here, so nothing proves the repeat fault is reported again.'
+        );
+    }
+
     public function test_first_occurrence_is_reported(): void
     {
         $this->trip_every_reporter();
