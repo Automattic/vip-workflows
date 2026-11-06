@@ -127,3 +127,28 @@ describe( 'A stored post type the options list does not offer', () => {
 		expect( writes[ 0 ].data.post_types ).toEqual( [ 'post' ] );
 	} );
 } );
+
+describe( 'A new sequence while the options list is loading', () => {
+	it( 'shows the loading spinner, not its default type as unavailable', async () => {
+		// Hold the options read open: the window the inspector is on screen
+		// with `post` selected and no list to check it against.
+		serveSequenceEditor( {
+			sequence: stored,
+			options: () => new Promise( () => {} ),
+		} );
+
+		render( <SequenceGraphEditor onCancel={ () => {} } /> );
+		await settle();
+
+		expect(
+			screen.queryByText( /not available for new workflows/ )
+		).not.toBeInTheDocument();
+
+		const section = screen
+			.getByText( 'Post types' )
+			.closest( 'section, div' );
+		expect(
+			section.parentElement.querySelector( '.components-spinner' )
+		).not.toBeNull();
+	} );
+} );
