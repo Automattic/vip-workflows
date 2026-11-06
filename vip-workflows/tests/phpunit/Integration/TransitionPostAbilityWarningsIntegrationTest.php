@@ -198,4 +198,42 @@ class TransitionPostAbilityWarningsIntegrationTest extends TestCase
 		$this->assertTrue( $result['success'] );
 		$this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
 	}
+
+	/**
+	 * Both return shapes must satisfy the registered output schema.
+	 *
+	 * The tests above call execute_transition_post() directly, which skips the
+	 * Abilities API's output validation. WP_Ability::execute() runs it after the
+	 * callback, so an undeclared key (post_title, once) turns a committed move
+	 * into a reported error — and an agent that believes the move failed may
+	 * retry it. Going through the registered ability is what catches that.
+	 */
+	public function test_registered_ability_output_matches_its_schema(): void
+	{
+		$ability = wp_get_ability( 'vip-workflows/transition-post' );
+		$this->assertNotNull( $ability, 'transition-post must be registered.' );
+
+		$post_id = $this->make_post_with_running_agent();
+
+		$pending = $ability->execute(
+			array(
+				'post_id'   => $post_id,
+				'to_status' => 'review',
+			)
+		);
+		$this->assertNotWPError( $pending );
+		$this->assertTrue( $pending['warnings_pending'] );
+
+		$moved = $ability->execute(
+			array(
+				'post_id'              => $post_id,
+				'to_status'            => 'review',
+				'acknowledge_warnings' => true,
+			)
+		);
+		$this->assertNotWPError( $moved );
+		$this->assertTrue( $moved['success'] );
+		$this->assertSame( get_the_title( $post_id ), $moved['post_title'] );
+		$this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
+	}
 }
