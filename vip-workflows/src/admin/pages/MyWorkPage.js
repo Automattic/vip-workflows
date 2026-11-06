@@ -39,6 +39,8 @@ import {
 	sortByTimestamp,
 } from '../../common/datetime';
 import { toElements } from '../utils/dataview-elements';
+import { describeFilterChange } from '../utils/filter-change';
+import { recordTracksEvent } from '../../common/tracks';
 
 import './MyWorkPage.css';
 
@@ -190,21 +192,38 @@ export function MyWorkPage() {
 	const [ error, setError ] = useState( null );
 	const [ view, setView ] = useState( loadStoredView );
 
-	const handleChangeView = useCallback( ( nextView ) => {
-		try {
-			window.localStorage.setItem(
-				storageKey(),
-				JSON.stringify( nextView )
+	const handleChangeView = useCallback(
+		( nextView ) => {
+			try {
+				window.localStorage.setItem(
+					storageKey(),
+					JSON.stringify( nextView )
+				);
+			} catch ( err ) {
+				setError( err.message );
+				return;
+			}
+
+			const filterChange = describeFilterChange(
+				view.filters,
+				nextView.filters
 			);
-		} catch ( err ) {
-			setError( err.message );
-			return;
-		}
-		setView( nextView );
-	}, [] );
+			if ( filterChange ) {
+				recordTracksEvent( 'dashboard_filter_changed', filterChange );
+			}
+
+			setView( nextView );
+		},
+		[ view ]
+	);
 
 	const handleChangeGroupBy = useCallback(
 		( field ) => {
+			if ( field !== ( view.groupBy?.field ?? '' ) ) {
+				recordTracksEvent( 'dashboard_grouping_changed', {
+					group_by: field || 'none',
+				} );
+			}
 			handleChangeView( {
 				...view,
 				groupBy: field ? { field } : undefined,
