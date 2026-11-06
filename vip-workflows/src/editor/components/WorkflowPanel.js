@@ -294,6 +294,7 @@ export function WorkflowPanel() {
 		current,
 		all_statuses: allStatuses,
 		assigned_to: assignedTo,
+		claimed_by: claimedBy,
 		can_claim: canClaim,
 		agent_pending: agentPending,
 		agent_job: agentJob,
@@ -332,7 +333,36 @@ export function WorkflowPanel() {
 							</Text>
 						) }
 					</AuthorCell>
-					{ assignedTo.is_current && (
+				</Stack>
+			) }
+
+			{ /* Claim info. A claim and a transition assignment are stored
+			     separately, so each gets its own row: Release clears the claim
+			     (/unclaim) and nothing else, so it belongs beside the claim. */ }
+			{ claimedBy && (
+				<Stack
+					className="vip-workflows-panel__claimed"
+					direction="row"
+					align="center"
+					wrap="wrap"
+				>
+					<span className="vip-workflows-panel__assigned-label">
+						{ __( 'Claimed by:', 'vip-workflows' ) }
+					</span>
+					<AuthorCell
+						actor={ claimedBy }
+						className="vip-workflows-panel__assigned-name"
+					>
+						{ claimedBy.is_current && (
+							<Text
+								variant="body-md"
+								className="vip-workflows-panel__you"
+							>
+								{ '(' + __( 'you', 'vip-workflows' ) + ')' }
+							</Text>
+						) }
+					</AuthorCell>
+					{ claimedBy.is_current && (
 						<Button
 							variant="link"
 							size="small"

@@ -492,9 +492,9 @@ class WorkflowController extends WP_REST_Controller {
 				$assigned_to['is_current'] = 'user' === $current_assignment['assignment']['type']
 					&& get_current_user_id() === $assigned_to['id'];
 				// Which assignment slot this came from. Served but not yet
-				// read: the sidebar's Release button posts to /unclaim,
-				// which clears the claim meta rather than an assignment, so
-				// nothing consumes this today.
+				// read: the sidebar offers no release for an assignment —
+				// its Release button belongs to the claim (`claimed_by`)
+				// and posts to /unclaim, which clears only the claim meta.
 				$assigned_to['slot'] = $current_assignment['meta_key'];
 			}
 		}
@@ -1051,7 +1051,18 @@ class WorkflowController extends WP_REST_Controller {
 		$current_assignee = get_post_meta( $post_id, '_vip_workflows_assigned_to', true );
 		$current_user_id  = get_current_user_id();
 
-		if ( $current_assignee && (int) $current_assignee !== $current_user_id && ! current_user_can( 'manage_options' ) ) {
+		// Nothing to release. Answering success here would tell the caller a
+		// claim was cleared when none existed, and a Release that changes
+		// nothing would look like it worked.
+		if ( ! $current_assignee ) {
+			return new WP_Error(
+				'post_not_claimed',
+				__( 'This post is not claimed, so there is nothing to release.', 'vip-workflows' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		if ( (int) $current_assignee !== $current_user_id && ! current_user_can( 'manage_options' ) ) {
 			return new WP_Error(
 				'cannot_unclaim',
 				__( 'You can only release posts you have claimed.', 'vip-workflows' ),

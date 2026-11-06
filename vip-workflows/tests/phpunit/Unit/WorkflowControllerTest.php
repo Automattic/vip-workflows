@@ -871,6 +871,33 @@ class WorkflowControllerTest extends TestCase
     }
 
     /**
+     * Test unclaim_post refuses when the post is not claimed, rather than
+     * reporting a release that cleared nothing.
+     */
+    public function test_unclaim_post_refuses_when_not_claimed(): void
+    {
+        $post = $this->create_mock_post( array( 'ID' => 123 ) );
+
+        Functions\when( 'get_post' )->justReturn( $post );
+        Functions\when( 'get_current_user_id' )->justReturn( 5 );
+
+        Functions\expect( 'get_post_meta' )
+            ->once()
+            ->with( 123, '_vip_workflows_assigned_to', true )
+            ->andReturn( '' );
+
+        Functions\expect( 'delete_post_meta' )->never();
+        $this->wpdb->shouldReceive( 'insert' )->never();
+
+        $request  = $this->create_mock_request( array( 'id' => 123 ) );
+        $response = $this->controller->unclaim_post( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'post_not_claimed', $response->get_error_code() );
+        $this->assertSame( 409, $response->get_error_data()['status'] );
+    }
+
+    /**
      * Test unclaim_post fails if claimed by another user (non-admin).
      */
     public function test_unclaim_fails_for_other_users_claim(): void
