@@ -42,6 +42,10 @@ abstract class TestCase extends YoastTestCase
         $this->stubEscapeFunctions();
         $this->stubTranslationFunctions();
 
+        // Not a cron request unless a test says so. Code that treats cron as
+        // a context with no person behind it reads this on ordinary paths.
+        Functions\when( 'wp_doing_cron' )->justReturn( false );
+
         $this->setup_common_wp_functions();
     }
 
@@ -135,8 +139,8 @@ abstract class TestCase extends YoastTestCase
         // mis-attributes revisions in a later test.
         ( new \ReflectionProperty( \VIPWorkflows\Workflow\StageAgentRunner::class, 'acting_ability_id' ) )
             ->setValue( null, '' );
-        ( new \ReflectionProperty( \VIPWorkflows\Workflow\StageAgentRunner::class, 'exiting_run_started_by' ) )
-            ->setValue( null, 0 );
+        ( new \ReflectionProperty( \VIPWorkflows\Workflow\StageAgentRunner::class, 'exiting_run' ) )
+            ->setValue( null, null );
 
         // Re-entrancy guard keyed by post id; a leftover key makes a later
         // transition look already in progress and silently no-op.

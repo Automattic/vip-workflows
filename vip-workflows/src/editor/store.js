@@ -199,6 +199,22 @@ const actions = {
 	},
 
 	/**
+	 * Ask the transition flow to run this post's failed stage agent again.
+	 *
+	 * Through the flow rather than straight to the server, so the author's
+	 * unsaved edits are saved first, as they are before a move into an AI
+	 * stage: the agent reads the stored post.
+	 *
+	 * @param {string} source 'panel' or 'header' — where a refusal is reported.
+	 */
+	requestRerun( source = 'panel' ) {
+		return {
+			type: 'REQUEST_TRANSITION',
+			request: { rerun: true, source },
+		};
+	},
+
+	/**
 	 * Mark the pending request as taken by the transition flow.
 	 */
 	clearTransitionRequest() {
@@ -392,6 +408,48 @@ const actions = {
 
 				dispatch.receiveWorkflowStatus( status );
 				refreshPostEntity( registry, select.getPostType(), postId );
+			} finally {
+				dispatch.setTransitioningTo( null );
+			}
+		},
+
+	/**
+	 * Run this post's failed stage agent again, in place.
+	 *
+	 * Run by the transition flow (see requestRerun), after it has saved the
+	 * post, for the workflow panel and the header button alike, whenever the
+	 * failed job says it can run again (`agent_job.can_rerun`). The run is
+	 * started by the person who asks, so it acts as them when they can edit
+	 * the post. It holds the current stage's key as the move in flight, so
+	 * both surfaces stand down together. On a refusal it re-reads the post,
+	 * then rejects with the server's error.
+	 */
+	rerunAgentStage:
+		() =>
+		async ( { dispatch, select } ) => {
+			const postId = select.getPostId();
+
+			dispatch.setTransitioningTo(
+				select.getWorkflowStatus()?.current?.key ?? null
+			);
+
+			try {
+				// The response is the status payload with the new pending
+				// job. The post stays where it is, so the editor's own record
+				// has nothing to re-read.
+				const status = await apiFetch( {
+					path: `/vip-workflows/v1/workflow/post/${ postId }/agent-rerun`,
+					method: 'POST',
+				} );
+
+				dispatch.receiveWorkflowStatus( status );
+			} catch ( error ) {
+				// A refusal is news about the post: someone else ran it again
+				// or took it back, so the failed state on screen is stale.
+				// Re-read it, so the panel and header offer what the post
+				// allows now, then let the caller report the error.
+				await dispatch.fetchWorkflowStatus();
+				throw error;
 			} finally {
 				dispatch.setTransitioningTo( null );
 			}

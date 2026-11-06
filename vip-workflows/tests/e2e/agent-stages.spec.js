@@ -17,12 +17,12 @@
  *                    agent's AI call always fails. The suite's sequence routes
  *                    no `error` destination (the error path is opt-in), so the
  *                    post stays in the AI stage and the editor surfaces the
- *                    error + a "Go back to Draft" action wired to the
- *                    agent-revert endpoint — the stage's own transitions stay
+ *                    error + "Run again" (agent-rerun) and "Go back to Draft"
+ *                    (agent-revert) actions — the stage's own transitions stay
  *                    withheld.
  *   4. Go back     — reverting a failed agent returns the post to the stage it
- *                    entered from; re-entering the AI stage is how a run is
- *                    retried.
+ *                    entered from. Running it again in place is the other
+ *                    way out.
  *   5. Error route — a stage that DOES route `error` sends the errored run
  *                    along it instead of failing in place.
  *
@@ -137,8 +137,8 @@ test.describe( 'VIP Workflows — stage agents', () => {
 		// the sequence's routed outcomes in their place — labelled, but never
 		// clickable. Not offering an edge is not refusing it — transition()
 		// still confirms for a caller who means it. If the run fails, the
-		// exits STAY withheld: the failed state's one action is the panel's
-		// "Go back" button.
+		// exits STAY withheld: the failed state's actions are the panel's
+		// "Run again" and "Go back" buttons.
 		await expect(
 			panel.locator(
 				'.vip-workflows-rail__actions button:not([aria-disabled="true"])'

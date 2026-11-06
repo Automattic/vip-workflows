@@ -212,6 +212,7 @@ export function TransitionFlow() {
 		fetchWorkflowStatus,
 		receiveWorkflowStatus,
 		clearTransitionRequest,
+		rerunAgentStage,
 		setTransitioningTo,
 		setTransitionError,
 		showWorkflowPanel,
@@ -537,6 +538,106 @@ export function TransitionFlow() {
 		return ( ! live || consent.metaBoxes ) && editor.isEditedPostSaveable();
 	};
 
+	/**
+	 * Save the post first when decideSave() says so, and confirm it took.
+	 *
+	 * Waits out a save core already has in flight rather than racing it, then
+	 * decides (the post can become dirty during that wait), then saves. Every
+	 * request that has the server act on the post — a move, or running a stage
+	 * agent again — goes through here, so the server judges the work on screen.
+	 *
+	 * @param {string} failureMessage What to report when the save fails.
+	 * @return {Promise<void>} Resolves once the post is saved or needs no
+	 *                         save. Rejects with MOVE_CANCELLED when the author
+	 *                         backs out, or with an error to report.
+	 */
+	const saveFirst = ( failureMessage ) => {
+		const editor = registry.select( editorStore );
+		let saved = false;
+
+		return whenSaveSettles( registry )
+			.then( decideSave )
+			.then( ( shouldSave ) => {
+				saved = shouldSave;
+
+				if ( ! saved ) {
+					return;
+				}
+
+				// Core's own save controls stand down while saving is locked
+				// — an upload still in flight, a plugin's pre-publish check —
+				// but savePost() itself never asks.
+				if ( editor.isPostSavingLocked() ) {
+					throw {
+						code: 'save_locked',
+						message: __(
+							'The post can’t be saved yet. Wait for uploads to finish, then try again.',
+							'vip-workflows'
+						),
+					};
+				}
+
+				return savePost();
+			} )
+			.then( () => {
+				// savePost() resolves even when the save request fails (the error
+				// is recorded in the editor store, meta boxes' included). If it
+				// failed, or the post is still dirty, the content never
+				// persisted, so bail rather than send a request the server will
+				// judge against a row that is not what the author is looking at.
+				if (
+					saved &&
+					( editor.didPostSaveRequestFail() ||
+						editor.isEditedPostDirty() )
+				) {
+					throw { code: 'save_failed', message: failureMessage };
+				}
+			} );
+	};
+
+	/**
+	 * Run a failed stage agent again, in place.
+	 *
+	 * The agent reads the stored post, so the author's unsaved edits are saved
+	 * first on exactly the terms a move into an AI stage uses — the edits on
+	 * screen are the edits it works from. Refused, like entering the stage,
+	 * while another editor has the post open.
+	 */
+	const handleRerun = () => {
+		consentRef.current = {};
+
+		if ( otherEditorsOpen ) {
+			reportError( getCoEditingRefusal() );
+			return;
+		}
+
+		clearErrors();
+		setTransitioningTo( workflow?.current?.key ?? null );
+
+		saveFirst(
+			__(
+				'Could not save the post before running the agent again. Try again.',
+				'vip-workflows'
+			)
+		)
+			.then( () => rerunAgentStage() )
+			.catch( ( err ) => {
+				setTransitioningTo( null );
+
+				if ( MOVE_CANCELLED === err?.code ) {
+					return;
+				}
+
+				reportError(
+					err?.message ||
+						__(
+							'Could not run the agent again. Try again.',
+							'vip-workflows'
+						)
+				);
+			} );
+	};
+
 	const handleTransition = (
 		toStatus,
 		acknowledgeWarnings = false,
@@ -587,62 +688,18 @@ export function TransitionFlow() {
 			requestData.comment = comment;
 		}
 
-		// Whether to save first is decided again here, not only when the move
-		// was pressed: a save core has in flight is waited out rather than
-		// raced, and the post can become dirty during that wait or while an
-		// assignee is picked. See decideSave.
-		let saved = false;
-
-		whenSaveSettles( registry )
-			.then( decideSave )
-			.then( ( shouldSave ) => {
-				saved = shouldSave;
-
-				if ( ! saved ) {
-					return;
-				}
-
-				// Core's own save controls stand down while saving is locked
-				// — an upload still in flight, a plugin's pre-publish check —
-				// but savePost() itself never asks.
-				if ( editor.isPostSavingLocked() ) {
-					throw {
-						code: 'save_locked',
-						message: __(
-							'The post can’t be saved yet. Wait for uploads to finish, then try again.',
-							'vip-workflows'
-						),
-					};
-				}
-
-				return savePost();
-			} )
+		saveFirst(
+			targetIsAiStage
+				? __(
+						'Could not save the post before starting the AI stage. Try again.',
+						'vip-workflows'
+				  )
+				: __(
+						'Could not save the post before the transition. Try again.',
+						'vip-workflows'
+				  )
+		)
 			.then( () => {
-				// savePost() resolves even when the save request fails (the error
-				// is recorded in the editor store, meta boxes' included). If it
-				// failed, or the post is still dirty, the content never
-				// persisted, so bail rather than send a transition the server
-				// will judge against a row that is not what the author is
-				// looking at.
-				if (
-					saved &&
-					( editor.didPostSaveRequestFail() ||
-						editor.isEditedPostDirty() )
-				) {
-					throw {
-						code: 'save_failed',
-						message: targetIsAiStage
-							? __(
-									'Could not save the post before starting the AI stage. Try again.',
-									'vip-workflows'
-							  )
-							: __(
-									'Could not save the post before the transition. Try again.',
-									'vip-workflows'
-							  ),
-					};
-				}
-
 				return apiFetch( {
 					path: `/vip-workflows/v1/workflow/post/${ postId }/transition`,
 					method: 'POST',
@@ -918,6 +975,10 @@ export function TransitionFlow() {
 		}
 
 		sourceRef.current = request.source;
+		if ( request.rerun ) {
+			handleRerun();
+			return;
+		}
 		handleTransitionClick( request.transition, request.anchor );
 		// Only a new request starts a move; the handler is rebuilt every
 		// render and reads the current state when it runs.
