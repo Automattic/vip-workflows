@@ -4,7 +4,7 @@
  *
  * The rows are a `PluginPostStatusInfo` fill. Core skips that slot while the
  * `post-status` panel is removed, and some experimental DataForm Summary builds
- * draw no slot at all. In both, the Workflow sidebar has to carry the same rows,
+ * draw no slot at all. In both, the Workflow panel has to carry the same rows,
  * or the author has no way to assign or remove a workflow or fill a required
  * field. And it must never carry a second copy where the Summary panel shows
  * them.
@@ -16,22 +16,24 @@
 
 const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
 const {
-	WORKFLOW_SIDEBAR,
+	WORKFLOW_PANEL_BODY,
 	createDraftPost,
 	deletePost,
 	getEditorialSequence,
-	openWorkflowSidebar,
+	openWorkflowDocumentPanel,
 	openWorkflowSummaryRows,
 } = require( './helpers/workflow' );
 
 /**
- * The sidebar's copy of the rows, found by its section label.
+ * The Workflow panel's copy of the rows, found by its section label.
  *
  * @param {import('@playwright/test').Page} page
  * @return {import('@playwright/test').Locator} The section.
  */
-const sidebarDetails = ( page ) =>
-	page.locator( WORKFLOW_SIDEBAR ).getByRole( 'region', { name: 'Details' } );
+const panelDetails = ( page ) =>
+	page
+		.locator( WORKFLOW_PANEL_BODY )
+		.getByRole( 'region', { name: 'Details' } );
 
 test.describe( 'VIP Workflows — Summary rows fallback', () => {
 	let postId;
@@ -43,7 +45,7 @@ test.describe( 'VIP Workflows — Summary rows fallback', () => {
 		}
 	} );
 
-	test( 'the Workflow sidebar carries no copy while the Summary panel shows the rows', async ( {
+	test( 'the Workflow panel carries no copy while the Summary panel shows the rows', async ( {
 		admin,
 		page,
 		requestUtils,
@@ -56,12 +58,12 @@ test.describe( 'VIP Workflows — Summary rows fallback', () => {
 		await admin.editPost( postId );
 		await openWorkflowSummaryRows( page );
 
-		await openWorkflowSidebar( page );
+		await openWorkflowDocumentPanel( page );
 		await expect( page.locator( '.vip-workflows-panel' ) ).toBeVisible();
-		await expect( sidebarDetails( page ) ).toHaveCount( 0 );
+		await expect( panelDetails( page ) ).toHaveCount( 0 );
 	} );
 
-	test( 'with the post-status panel removed, the Workflow sidebar assigns the workflow', async ( {
+	test( 'with the post-status panel removed, the Workflow panel assigns the workflow', async ( {
 		admin,
 		page,
 		requestUtils,
@@ -85,8 +87,8 @@ test.describe( 'VIP Workflows — Summary rows fallback', () => {
 			page.locator( '.vip-workflows-summary-rows' )
 		).toHaveCount( 0 );
 
-		await openWorkflowSidebar( page );
-		const details = sidebarDetails( page );
+		await openWorkflowDocumentPanel( page );
+		const details = panelDetails( page );
 		await expect( details ).toBeVisible();
 		await expect(
 			details.getByRole( 'heading', { name: 'Details' } )
@@ -155,7 +157,7 @@ test.describe( 'VIP Workflows — Summary rows fallback', () => {
 
 		/*
 		 * Gutenberg builds differ here. An experimental DataForm Summary that
-		 * draws no slot leaves the rows to the Workflow sidebar; a build that
+		 * draws no slot leaves the rows to the Workflow panel; a build that
 		 * draws the slot (and the stabilized Summary, where the experiment
 		 * switch no longer exists) shows them in the Summary panel. Either way
 		 * the author reaches exactly one copy.
@@ -184,12 +186,12 @@ test.describe( 'VIP Workflows — Summary rows fallback', () => {
 				.locator( '.editor-post-summary .vip-workflows-summary-rows' )
 				.count();
 
-			await openWorkflowSidebar( page );
+			await openWorkflowDocumentPanel( page );
 			await expect(
 				page.locator( '.vip-workflows-panel' )
 			).toBeVisible();
 
-			const details = sidebarDetails( page );
+			const details = panelDetails( page );
 			await expect( details ).toHaveCount( inSummary ? 0 : 1 );
 
 			if ( ! inSummary ) {

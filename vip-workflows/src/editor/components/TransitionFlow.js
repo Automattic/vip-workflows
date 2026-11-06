@@ -2,12 +2,12 @@
  * Transition Flow — everything that happens between pressing a transition and
  * the post arriving at its new stage.
  *
- * Two surfaces start moves: the transition rail in the Workflow sidebar, and
+ * Two surfaces start moves: the transition rail in the Workflow panel, and
  * the split button that stands in the editor header. A move can stop to ask
  * something on the way — whether to interrupt a running agent, whether to take
  * the post live, who to assign — and can come back refused or with warnings to
  * acknowledge. None of that may belong to the surface that was pressed. The
- * sidebar only exists while it is open, and the header's rail sits in a
+ * panel's rail exists only while the panel is open; the header's sits in a
  * dropdown that closes the moment focus leaves it, so a dialog owned by either
  * would be unmounted mid-question.
  *
@@ -18,9 +18,9 @@
  * disabled together while either one's move runs.
  *
  * Following a move into an AI stage is part of the same job, for the same
- * reason: the header can start one with the sidebar closed, so the poll that
+ * reason: the header can start one with the panel closed, so the poll that
  * waits for the agent and the reload that brings its rewrite into the editor
- * live here too, not in the sidebar panel.
+ * live here too, not in the workflow panel.
  *
  * @package
  */
@@ -244,7 +244,7 @@ export function TransitionFlow() {
 
 	// Announce every stage change, from wherever it came — the rail, the
 	// header, an agent routing on, another person's move picked up by a poll.
-	// Here and not in the rail: the rail is only mounted while the sidebar or
+	// Here and not in the rail: the rail is only mounted while the panel or
 	// the header dropdown is open, and a move started from the header closes
 	// the dropdown as it starts.
 	useEffect( () => {
@@ -290,7 +290,7 @@ export function TransitionFlow() {
 	// finished edge: auto-reload when the editor is clean (nothing to lose), or
 	// offer a reload when there are unsaved edits so we never discard the
 	// user's in-progress work without asking. The offer is an editor notice
-	// rather than something drawn in the sidebar, which may not be open.
+	// rather than something drawn in the panel, which may not be open.
 	useEffect( () => {
 		const wasPending = wasAgentPendingRef.current;
 		wasAgentPendingRef.current = agentIsPending;
@@ -362,7 +362,7 @@ export function TransitionFlow() {
 			return;
 		}
 
-		// Nobody pressed anything for this dialog to open, and the sidebar may
+		// Nobody pressed anything for this dialog to open, and the panel may
 		// be closed, so a refusal of its Continue goes to the editor notice.
 		sourceRef.current = 'header';
 		consentRef.current = {};

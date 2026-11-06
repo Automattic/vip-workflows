@@ -10,14 +10,14 @@
  * and so is taking the post out of its workflow, which lives in the Workflow
  * row's popover beside the choice of workflow.
  *
- * It used to be two components — this one in the plugin sidebar and a
+ * It used to be two components — this one in a plugin sidebar and a
  * `WorkflowStatusPanel` in the document sidebar — which independently requested
  * the same status endpoint and independently rendered the sequence name, the
  * current stage and the terminal state from it. Two panels disagreeing about
  * the same post (one of them a request behind) is the failure that split
  * invited, so the transition actions moved here and the panel became the single
  * home. The save-layer guard did NOT come with them: it stays mounted
- * unconditionally from `src/editor/index.js`, outside the sidebar's sections.
+ * unconditionally from `src/editor/index.js`, outside every collapsible panel.
  * See WorkflowSaveGuard.
  *
  * Running a transition is not the panel's either. The editor header offers the
@@ -25,7 +25,7 @@
  * dialogs a move can open live in TransitionFlow, mounted once beside the save
  * guard; the rail here hands it a request through the store. Waiting on a stage
  * agent went with it: the poll, and the reload once the agent has rewritten the
- * post, have to run whether or not this sidebar is open.
+ * post, have to run whether or not this panel is open.
  *
  * The state itself is not the panel's. It lives in the `vip-workflows/editor`
  * store, which performs the one read of the status endpoint and answers every
@@ -57,7 +57,7 @@ import { IdeationPanel } from './IdeationPanel';
 
 // Loaded on demand. The history dialog is the editor's only DataViews consumer,
 // and DataViews is bundled rather than externalized — keeping it out of the
-// editor entry means the sidebar costs nothing extra for the readers who never
+// editor entry means the panel costs nothing extra for the readers who never
 // open the trail.
 const WorkflowHistoryModal = lazy( () => import( './WorkflowHistoryModal' ) );
 
@@ -316,7 +316,7 @@ export function WorkflowPanel() {
 					</span>
 					{ /* The same cell the lists draw an author with, so the
 					     person waiting on this post looks like the same person
-					     in the sidebar and in My Queue. "(you)" is the trailing
+					     in the panel and in My Queue. "(you)" is the trailing
 					     slot: it is something this reader's context adds about
 					     the assignee, not part of their name. */ }
 					<AuthorCell

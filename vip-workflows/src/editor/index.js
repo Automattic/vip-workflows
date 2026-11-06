@@ -1,5 +1,5 @@
 /**
- * VIP Workflows Editor Sidebar
+ * VIP Workflows in the post editor
  *
  * @package
  */
@@ -7,12 +7,10 @@
 import { useState } from '@wordpress/element';
 import { registerPlugin } from '@wordpress/plugins';
 import {
+	PluginDocumentSettingPanel,
 	PluginPostStatusInfo,
-	PluginSidebar,
-	PluginSidebarMoreMenuItem,
 } from '@wordpress/editor';
 import { Stack } from '@wordpress/ui';
-import { replace as workflowIcon } from '@wordpress/icons';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
 
@@ -87,11 +85,11 @@ function WorkflowPlugin() {
 
 			{ /* The save-layer guard. Mounted unconditionally and outside every
 			     collapsible panel: a status change has to be caught whether or
-			     not the sidebar happens to be open, and it evaluates nothing for
-			     a post that is not in a workflow. */ }
+			     not the workflow panel happens to be open, and it evaluates
+			     nothing for a post that is not in a workflow. */ }
 			<WorkflowSaveGuard />
 
-			{ /* Every transition, from the sidebar rail or the header button,
+			{ /* Every transition, from the panel's rail or the header button,
 			     runs here: its confirms and dialogs must outlive whichever
 			     surface was pressed. Mounted unconditionally for the same
 			     reason as the guard. */ }
@@ -122,42 +120,39 @@ function WorkflowPlugin() {
 				<SummaryRowsFill />
 			</PluginPostStatusInfo>
 
-			{ /* Same icon the plugin uses for its top-level wp-admin menu. */ }
-			<PluginSidebarMoreMenuItem
-				target="vip-workflows-sidebar"
-				icon={ workflowIcon }
-			>
-				{ __( 'Workflow', 'vip-workflows' ) }
-			</PluginSidebarMoreMenuItem>
-			<PluginSidebar
-				name="vip-workflows-sidebar"
-				icon={ workflowIcon }
-				title={ __( 'Workflow', 'vip-workflows' ) }
-			>
-				{ /* `PluginSidebar` hands its children an edge-to-edge scroll
-				     region that draws nothing of its own. What sits inside it
-				     is flat — the pattern core's document sidebar uses
-				     (`PostPanelSection`): no card, no border of its own, just
-				     the standard panel inset, which lives on
-				     `.vip-workflows-sidebar` in style.css keyed to the direct
-				     child. The sidebar's own header already says "Workflow".
+			{ /* The post's movement through its workflow — where it sits, who
+			     holds it, every way onward, and the record of how it got
+			     there — as one panel in the document sidebar, below Summary.
+			     One heading, for one subject: the post's properties stay in
+			     the Summary rows above, and this panel holds only what moves
+			     the post. The header's split button (WorkflowHeaderAction)
+			     offers the same rail, so the panel being collapsed, or turned
+			     off in Preferences → Panels, never leaves a move unreachable.
 
-				     What is here acts on the post's movement through its
-				     workflow. Which workflow it is in, and the fields that
-				     workflow declares, are rows in the document sidebar's
-				     Summary panel. Where that panel cannot show them, the
-				     same rows are drawn here instead, above the panel. */ }
-				<Stack className="vip-workflows-sidebar" direction="column">
+			     Where the Summary panel cannot show the Workflow and metadata
+			     rows, the same rows are drawn here instead, above the rail.
+			     The panel's body already carries core's standard inset, so
+			     what sits inside it adds none of its own. */ }
+			<PluginDocumentSettingPanel
+				name="workflow"
+				title={ __( 'Workflow', 'vip-workflows' ) }
+				className="vip-workflows-document-panel"
+			>
+				<Stack
+					className="vip-workflows-document-panel__body"
+					direction="column"
+					gap="lg"
+				>
 					<SummaryRowsFallback />
 					<WorkflowPanel />
 				</Stack>
-			</PluginSidebar>
+			</PluginDocumentSettingPanel>
 		</>
 	);
 }
 
 /**
- * Register the plugin sidebar
+ * Register the editor plugin
  */
 registerPlugin( 'vip-workflows', {
 	render: WorkflowPlugin,

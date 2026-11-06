@@ -6,7 +6,7 @@
  * Extensions and core components consume via useSelect( 'vip-workflows/editor' ).
  *
  * The post status endpoint's answer lives here, whole, because more than one
- * surface changes it: the sidebar panel assigns, removes and transitions, and
+ * surface changes it: the workflow panel assigns, removes and transitions, and
  * the save guard's veto notice removes from outside the sidebar entirely. While
  * the panel kept a private copy of that answer the two could disagree — a
  * removal from the notice left the panel rendering the workflow it had just
@@ -76,7 +76,7 @@ const DEFAULT_STATE = {
 
 	// A transition someone asked for and the transition flow has not yet
 	// picked up: `{ transition, anchor, source }`. Two surfaces start moves —
-	// the rail in the sidebar and the split button in the editor header — and
+	// the rail in the workflow panel and the split button in the editor header — and
 	// neither owns the dialogs a move can open (the publish confirm, the
 	// assignee popover, the blocked and warnings dialogs). Those live in one
 	// always-mounted TransitionFlow, so a request is handed to it here rather
@@ -96,12 +96,12 @@ const DEFAULT_STATE = {
 	workflowWriting: false,
 
 	// The last refused move, worded for the author, until they dismiss it or
-	// start another. Shown by the sidebar panel.
+	// start another. Shown by the workflow panel.
 	transitionError: null,
 
 	// How many copies of the Summary rows are mounted inside core's Summary
 	// panel right now, and whether any ever has been this session. The
-	// workflow sidebar reads both to decide whether it has to carry the rows
+	// workflow panel reads both to decide whether it has to carry the rows
 	// itself (see components/SummaryRowsFallback.js).
 	summaryRowsMounted: 0,
 	summaryRowsSeen: false,
@@ -203,7 +203,7 @@ const actions = {
 	},
 
 	/**
-	 * Record, or clear, the refusal the sidebar panel reports.
+	 * Record, or clear, the refusal the workflow panel reports.
 	 *
 	 * @param {?string} message Refusal worded for the author.
 	 */
@@ -307,7 +307,7 @@ const actions = {
 	/**
 	 * Return a post whose stage agent failed to the stage it came from.
 	 *
-	 * The failed AI stage's one exit, offered by the sidebar panel and the
+	 * The failed AI stage's one exit, offered by the workflow panel and the
 	 * header button alike. It runs as the move in flight (`transitioningTo`),
 	 * so both surfaces stand down together while it does. Rejects with the
 	 * server's error for the caller to report where the author is looking.

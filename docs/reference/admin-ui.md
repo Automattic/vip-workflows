@@ -6,27 +6,27 @@ For corresponding REST endpoints see [quick-reference.md](quick-reference.md); f
 
 ---
 
-### Editor Sidebar (React)
+### Editor (React)
 
 **Location**: `src/editor/`
 
-The plugin adds to the block editor in two places, split by what the control
-acts on. Properties of the post — which workflow it is in, the editorial
-metadata fields its sequence declares, and taking it out of its workflow — are
-rows in the document sidebar's Summary panel, alongside Status, Slug and
-Author. What acts on the post's movement through the workflow — the transition
-rail and its history — lives in one `PluginSidebar` named "Workflow".
-Outside both sit the workflow split button in the editor header and the
-always-mounted save guard and transition flow, which work whether or not the
-sidebar is open.
+The plugin adds to the block editor's document sidebar in two places, split by
+what the control acts on. Properties of the post — which workflow it is in, the
+editorial metadata fields its sequence declares, and taking it out of its
+workflow — are rows in the Summary panel, alongside Status, Slug and Author.
+What acts on the post's movement through the workflow — the transition rail and
+its history — is one `PluginDocumentSettingPanel` titled "Workflow", below
+Summary. There is no plugin sidebar. Outside both sit the workflow split button
+in the editor header and the always-mounted save guard and transition flow,
+which work whether or not the sidebar or the panel is open.
 
 **Structure** (`index.js`):
-- `WorkflowSaveGuard` — mounted unconditionally, **outside the sidebar**, and
+- `WorkflowSaveGuard` — mounted unconditionally, **outside every panel**, and
   renders no chrome. Its `editor.preSavePost` filter has to survive the sidebar
-  being closed, which is why it is not inside it. When it lets through a
+  being closed or the panel collapsed, which is why it is not inside it. When it lets through a
   status change it warned about (one that re-seats the post), it re-reads the
   workflow status into the editor store once that save finishes successfully,
-  so the sidebar shows the new stage without a reload. Autosaves and failed
+  so the panel shows the new stage without a reload. Autosaves and failed
   saves are ignored.
 - `TransitionFlow` — mounted unconditionally beside the guard. It runs every
   transition, whichever surface started it: the agent-interrupt and publish
@@ -47,12 +47,12 @@ sidebar is open.
   asks first ("Your edits won’t move": Reload / Move the agent’s version /
   Cancel). Surfaces hand it a request through
   the editor store (`requestTransition`) and read the move in flight back
-  (`getTransitioningTo`), so a dialog never belongs to a sidebar that can close
-  or a dropdown that closes on focus-out. It also follows a move into an AI
+  (`getTransitioningTo`), so a dialog never belongs to a panel that can
+  collapse or a dropdown that closes on focus-out. It also follows a move into an AI
   stage: the status poll while the agent runs, and — once the agent has
   rewritten the post — the reload of a clean editor or, over unsaved edits, an
-  editor notice offering one. Neither can be the sidebar's, because the header
-  starts such a move with the sidebar closed. For the same reason it announces every stage
+  editor notice offering one. Neither can be the panel's, because the header
+  starts such a move with the panel closed. For the same reason it announces every stage
   change (`speak()`), however the post moved; the rail only plays the agent
   flash.
 - `PrePublishConfirm` — the publish confirm. A move into a publish-region
@@ -112,17 +112,21 @@ sidebar is open.
   (`areSummaryRowsMounted()`, `haveSummaryRowsMounted()`) while it is mounted.
   Preferences → Panels offers no switch for the Summary panel, and
   `toggleEditorPanelEnabled( 'post-status' )` does not hide it.
-- One `Stack` (`.vip-workflows-sidebar`) holding `SummaryRowsFallback` and
-  `WorkflowPanel`. No card: `PluginSidebar` already names the sidebar
-  "Workflow". The panel reads: assignment and claim → transition rail → foot
-  (Show history).
+- The "Workflow" `PluginDocumentSettingPanel` (`.vip-workflows-document-panel`,
+  panel name `vip-workflows/workflow`), holding one `Stack`
+  (`.vip-workflows-document-panel__body`) with `SummaryRowsFallback` and
+  `WorkflowPanel`. One heading, for movement through the workflow; the post's
+  properties stay in Summary. Core's `PanelBody` supplies the inset, the
+  collapse state (remembered per user, collapsed until first opened) and the
+  Preferences → Panels switch. The panel reads: assignment and claim →
+  transition rail → foot (Show history).
 - `SummaryRowsFallback` draws the same `WorkflowSummaryRows`, under a "Details"
   section heading, only where the Summary panel cannot show them: while the
   `post-status` panel is removed, or while the experimental DataForm Summary is
   active and the fill has not mounted once this session. It never draws while
   the fill is mounted. "Not mounted right now" alone is not the test: the
-  document sidebar and the Workflow sidebar share one area, so the Summary
-  panel is never mounted while the Workflow sidebar is open.
+  Workflow panel renders in the same commit as the Summary, before the fill
+  has counted itself.
 - `CommandPalette` and `WorkflowRequiredModal` — no chrome of their own.
 
 **Main Components**:
@@ -130,7 +134,7 @@ sidebar is open.
   row (assign, switch and remove, each through the editor store) and
   `MetadataPanel`
 - `SummaryRowsFallback.js` — `SummaryRowsFill` (the fill's content, counted in
-  the store while mounted) and `SummaryRowsFallback` (the Workflow sidebar's
+  the store while mounted) and `SummaryRowsFallback` (the Workflow panel's
   copy where the Summary panel cannot show the rows)
 - `WorkflowPanel.js` — the post's movement through its workflow: assignment and
   claim, stage-agent states, the transition rail, and Show history. Its rail
@@ -143,7 +147,7 @@ sidebar is open.
 - `WorkflowHeaderAction.js` — the editor-header split button; `PrePublishConfirm.js`
   — the publish confirm, with the pre-publish plugin slot
 - `TransitionRail.js` — the current stage and every way out of it, drawn as
-  one figure. Drawn in the sidebar and in the header button's dropdown. A transition's required tools are not listed: they run when it
+  one figure. Drawn in the Workflow panel and in the header button's dropdown. A transition's required tools are not listed: they run when it
   fires, and a refusal opens `ToolFailuresModal`
 - `WorkflowHistoryModal.js` — the transition trail, as a DataViews activity
   stream in a dialog. Code-split: DataViews is bundled rather than externalized,

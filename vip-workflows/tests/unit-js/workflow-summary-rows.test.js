@@ -661,7 +661,7 @@ describe( 'WorkflowSummaryRows', () => {
 
 		// An empty row would say "Select a workflow" over a post that may well
 		// be in one. The rows ask for the status themselves: the Summary panel
-		// is open by default, and the workflow sidebar may never be.
+		// is open by default, and the Workflow panel may never be.
 		expect(
 			screen.queryByRole( 'button', { name: 'Select a workflow' } )
 		).not.toBeInTheDocument();

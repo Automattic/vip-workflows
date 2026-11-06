@@ -260,12 +260,12 @@ src/
 │       └── Settings.js                       # Settings page (General, AI services, Prompts, Experiments)
 │
 ├── editor/
-│   ├── index.js                              # Editor sidebar entry point
+│   ├── index.js                              # Editor entry point
 │   ├── store.js                              # WordPress data store
 │   └── components/
 │       ├── index.js                          # Component exports
 │       ├── WorkflowSummaryRows.js            # Summary panel rows: workflow + metadata
-│       ├── SummaryRowsFallback.js            # Summary rows fill + Workflow sidebar fallback
+│       ├── SummaryRowsFallback.js            # Summary rows fill + Workflow panel fallback
 │       ├── WorkflowPanel.js                  # Stage, progress, transitions, history
 │       ├── WorkflowHistoryModal.js           # Transition trail (DataViews, code-split)
 │       ├── WorkflowSaveGuard.js              # editor.preSavePost guard — no chrome
