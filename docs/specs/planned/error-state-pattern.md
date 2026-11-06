@@ -1,7 +1,7 @@
 ---
 status: proposed
-version: 0.1
-last_updated: 2026-11-04
+version: 0.2
+last_updated: 2026-11-06
 related:
   - ../../guides/copy-standard.md
   - ../../guides/modal-standard.md
@@ -44,7 +44,7 @@ Line numbers are against `main` at the time of writing. Paths are relative to
 | 10 | Editor transition, claim or release failed | `WorkflowPanel.js:704-708` (move back), `:724-727` (claim), `:743-747` (release), `:882-890` (notice) | Dismissible `Notice` in the panel. The fallback copy "Failed to move the post back", "Failed to claim post" and "Failed to release post" breaks the copy standard. |
 | 11 | Misconfigured transition | `src/editor/components/TransitionInputPopover.js:395-405` | `error` `Notice` inside the popover. Says what happened, why, and what the sequence needs. Good copy, inline, correct. |
 | 12 | List and page loads | `src/admin/components/AssistantsTab.js:458-466`; `admin/pages/MyWorkPage.js:429`; `admin/pages/MyQueuePage.js:329`; `KanbanBoard.js:498` | Dismissible `error` `Notice` above the list, or a page replaced by a non-dismissible `Notice`. Usually shows the raw `err.message`. |
-| 13 | Action failures in lists | `KanbanBoard.js:281, 295, 391`; `SequencesList.js:132`; `IdeationWorkspace.js` (6 call sites besides create draft); `admin/pages/Calendar.js:821`; `src/editor/components/CommandPalette.js:47, 102` | `createErrorNotice( …, { type: 'snackbar' } )` into `SnackbarList` at `AppShell.js:206-242`. These disappear by themselves, even when the message asks for a decision. |
+| 13 | Action failures in lists | `KanbanBoard.js:281, 295, 391`; `SequencesList.js:132`; `IdeationWorkspace.js` (6 call sites besides create draft); `admin/pages/Calendar.js:821`; `src/editor/components/CommandPalette.js:47, 102` | `createErrorNotice( …, { type: 'snackbar' } )` into `SnackbarList` at `AppShell.js:206-242`. These report failures, yet disappear by themselves, including when the message asks for a decision. |
 | 14 | wp-admin notices (PHP) | `includes/admin/class-admin.php:543-555` (build required), `:606-628` (region review); `includes/workflow/class-publish-boundary-guard.php:84, 214` | Core `notice notice-error` markup. Correct for PHP-rendered screens. Out of scope except for copy. |
 | 15 | Render crash | `src/admin/components/ErrorBoundary.js:33-50` (wraps every screen in `AppShell.js`) | The page is replaced by the title "Something went wrong" and a "Reload page" button. The title names nothing, which the anatomy below forbids. |
 | 16 | Settings loads and modal forms | `src/admin/components/GeneralSettings.js:176`; `admin/pages/Settings.js:184`; `src/admin/components/AddSourceModal.js:167`; `src/admin/components/ProjectEditModal.js:59`; `ideation/cards/ArticleCard.js:269` | `error` `Notice` at the top of the settings screen or inside the modal body. Some append the raw message after "Details: %s". |
@@ -62,7 +62,7 @@ this app.
 | **Collection** | A list, board, grid or panel could not load or refresh as a whole, or one action failed in a way that affects the whole set. | `Notice` at the top of that collection, inside its container, above its items. | Until resolved, retried or dismissed. |
 | **Page / global** | The whole screen is unusable or a save was refused: read failed, Save blocked, render crashed. (Background failures outside any visible item are an open question.) | The shell's notice region. Components report; the region places. | Until resolved or dismissed. |
 | **Blocking** | The user cannot continue until they decide something. | `Modal` (existing `ToolFailuresModal`; see the [modal standard](../../guides/modal-standard.md)). | Until closed. |
-| **Transient confirmation** | Something finished, or failed, and asks for no decision. | Snackbar through the notice region. | Auto-dismiss. **Never** for a message that asks for an action, a retry or another person. |
+| **Transient confirmation** | Something finished, or an informational outcome needs no follow-up. Never a failure. | Snackbar through the notice region. | Auto-dismiss. **Never** for a failure, even one that offers no action, retry or decision. |
 
 **Choosing rules.**
 
@@ -75,8 +75,11 @@ this app.
 3. **One failure, one message.** Do not repeat it at two levels. The exception
    is a page-level *summary* that links to the items, as Save blockers do with
    "Show transition".
-4. **If it needs a decision, it does not time out.** Any message with a retry,
-   a link, or "ask an administrator" is persistent.
+4. **Failures never time out.** Every failure gets a persistent notice at its
+   scope: on the item, the collection or the page. This holds even when the
+   message offers no retry, link or decision. A failure that disappears by
+   itself lets the reader believe the action succeeded. Snackbars carry only
+   confirmations and informational outcomes.
 5. **Configuration gaps are warnings, not errors.** Unmet requirements on an
    enabled agent card are `warning`: nothing failed yet. The same gap
    becomes `error` when a run actually fails because of it.
@@ -131,19 +134,41 @@ the prefix. Proposed client-side classes:
 
 Prefer WPDS over custom components. Add no new visual vocabulary.
 
-- **`Notice` from `@wordpress/ui`** (`Notice.Root` with `intent="error" |
-  "warning"`, `Notice.Title`, `Notice.Description`, `Notice.Actions`,
-  `Notice.ActionButton`, `Notice.CloseIconButton`). Use it for item,
-  collection and page messages. Render page-level ones inside `Notice.List`
-  so they are announced. That list belongs to the notice region.
-  `@wordpress/components` `Notice` remains the fallback until the pinned
-  `@wordpress/ui` version (currently `^0.9.0`) is confirmed to export it.
+- **`Notice` from `@wordpress/ui`**, at the version the plugin installs
+  (`^0.9.0`, locked to 0.9.0). Use it for item, collection and page messages.
+  The 0.9.0 parts are `Notice.Root`, `Notice.Title`, `Notice.Description`,
+  `Notice.Actions`, `Notice.ActionButton`, `Notice.ActionLink` and
+  `Notice.CloseIcon`. `Notice.Root` takes `intent` (`"error"`, `"warning"`,
+  `"info"`, `"success"` or `"neutral"`), `icon`, `spokenMessage` and
+  `politeness`. Use `Notice.ActionButton` for Retry, `Notice.ActionLink` for a
+  settings or credential link, and `Notice.CloseIcon` with an `onClick`
+  handler to dismiss. The app uses `@wordpress/components` `Notice` today; the
+  retrofit moves each surface to `@wordpress/ui` `Notice`.
+- **Stacks of notices.** 0.9.0 has no list container for notices. Where more
+  than one notice can show at once (the notice region, the top of a
+  collection), wrap them in the `@wordpress/ui` `Stack` layout primitive with
+  `direction="column"` and a `gap` token. `Stack` owns the spacing. Notices get
+  no margins of their own.
+- **Announcements.** In 0.9.0 each `Notice.Root` announces itself. On mount,
+  and whenever its `spokenMessage` text changes, it calls `speak()` from
+  `@wordpress/a11y`. It sets no `role` or live-region attribute, so `speak()` is its only announcement.
+  `error` defaults to `assertive` politeness; every other intent defaults to
+  `polite`. `spokenMessage` defaults to the notice's whole content, including
+  button labels, so `ErrorState` passes the title and cause as
+  `spokenMessage`. A re-render with the same text does not announce again;
+  retrying into the same failure must change the text or remount the notice.
+  `speak()` writes into one shared live region per politeness level, so
+  notices that mount in the same render can overwrite each other's
+  announcement. When the notice region adds several at once, it announces one
+  summary rather than relying on each notice.
+- **Disclosed details.** Raw provider text goes inside a `@wordpress/ui`
+  `Collapsible` within `Notice.Description`, closed by default.
 - **`Badge` from `@wordpress/ui`** with `intent="high"`, for the *item-face*
   state on cards and rows. `Badge` has no `error` intent; `high` is what the
   app already uses for failed states (`ideation/TopBar.js` `statusIntent`). This replaces the icon-plus-tooltip on document
   cards. `Tooltip` is never the only carrier of an error.
-- **`Snackbar` and `SnackbarList`**, through the notice region, for transient
-  confirmations only.
+- **`Snackbar` and `SnackbarList`**, through the notice region, for
+  confirmations and informational outcomes only. Never for a failure.
 - **`Modal` / `ToolFailuresModal`** for blocking decisions. No change.
 - **`AgentRequirements`** stays the one renderer for unmet requirements. Only
   its container is decided by this spec.
@@ -181,24 +206,34 @@ hex. No new `z-index`: stacking belongs to the notice region.
 | 9, 11 | Transition blocked modal, misconfigured popover | Already conform. No change. |
 | 10 | Transition, claim or release failed | Copy fix for all three fallbacks (`Could not move the post back. …`, `Could not claim the post. …`, `Could not release the post. …`). Stays item-level in the panel, dismissible. |
 | 12 | List loads | Collection-level `ErrorState` with Retry. Raw `err.message` moves to details. |
-| 13 | Action snackbars | Audit each one. Keep the snackbar only when no decision is needed. Otherwise use item-level on the affected card. |
+| 13 | Action snackbars | Every failure snackbar becomes a persistent notice at its scope: item-level on the affected card or row, collection-level when the action touched the whole set, page-level when no narrower scope exists. Snackbars stay only for confirmations and informational outcomes. |
 | 14 | wp-admin notices | Copy review only. |
 | 15 | Render crash | Page level. The title names what failed (`Could not show this screen.`). The reload action stays. |
 | 16 | Settings loads and modal forms | Settings loads are collection-level `ErrorState` with Retry. In a modal, the modal body is the collection: the `Notice` sits above the form. Raw `Details: %s` text moves to details. |
 
+## Future: upgrading `@wordpress/ui`
+
+Later `@wordpress/ui` releases introduce
+`Notice.CloseIconButton` (0.24.0), add a `Notice.List` container (0.26.0) and
+change how notices are announced. Upgrading to 0.26.0 or later is out of scope
+for this spec and is tracked separately. When that upgrade lands, update the
+*Shared components* section: the stacking and announcement rules above are
+written for 0.9.0.
+
 ## Open questions
 
-1. **Is `@wordpress/ui` `Notice` ready?** Should we adopt it now, at
-   `^0.9.0`, or keep `@wordpress/components` `Notice` until it stabilises?
-   This decides whether `ErrorState` wraps one or the other.
+1. **Resolved: is `@wordpress/ui` `Notice` ready?** Yes. Adopt it now, at the
+   installed 0.9.0, which exports `Notice`. `ErrorState` wraps the 0.9.0 API
+   described above.
 2. **Is degraded media an error?** Should a hotlinked image that will not load
    stay a silent neutral tile, or carry a quiet "Image unavailable" caption?
 3. **Agent requirements: warning or error?** Is "enabled but unconfigured" a
    `warning` (proposed) or an `error`? It is the most frequent state on a
    fresh install.
 4. **Where do background failures go?** An agent run that fails while its
-   card is scrolled away, or on another tab: does it escalate to the page
-   region, or wait silently on the item?
+   card is scrolled away, or on another tab, always gets a persistent notice
+   on its item. Does it also escalate to the page region, or only wait on the
+   item?
 5. **What do editors see for `limit`?** Editors cannot change token ceilings.
    Is "ask an administrator" enough, or should the message link to a request
    flow?
