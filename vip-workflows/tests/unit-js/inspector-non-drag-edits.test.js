@@ -389,6 +389,30 @@ describe( 'Un-marking a final stage from its panel', () => {
 		).toBeInTheDocument();
 	} );
 
+	it( 'does not point an AI stage’s End connection at a row it lacks', () => {
+		// An AI stage lists no End row, so a final flag it still carries can
+		// only be cleared from the connection itself.
+		const stages = STAGES.map( ( s ) =>
+			s.key === 'done'
+				? { ...s, agent: { ability_id: 'agent/x', routing: {} } }
+				: s
+		);
+		renderInspector( {
+			stages,
+			selection: { type: 'edge', from: 'done', to: '__wf_end__' },
+			selectedStage: null,
+		} );
+
+		expect(
+			screen.queryByText(
+				/remove End of workflow from the stage’s exits/
+			)
+		).toBeNull();
+		expect(
+			screen.getByText( /Delete this connection to make the stage/ )
+		).toBeInTheDocument();
+	} );
+
 	it( 'points the Start connection’s panel at the Draft entry checkpoint', () => {
 		renderInspector( {
 			selection: { type: 'edge', from: '__wf_start__', to: 'draft' },

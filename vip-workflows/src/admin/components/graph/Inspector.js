@@ -45,6 +45,7 @@ import SequenceIdentityFields from './SequenceIdentityFields';
 import RegionInspector from './RegionInspector';
 import {
 	edgeId,
+	isAgentStage,
 	stageRegion,
 	stageLabel,
 	isTransitionDisabled,
@@ -365,6 +366,19 @@ function renderPanel( {
 	) {
 		const isStart = selection.from === START_ID;
 		const stageKey = isStart ? selection.to : selection.from;
+		// An AI stage lists no End row (its outcomes are its only exits), so
+		// a stored final flag on one can only be cleared from this connection.
+		const finalHelp = isAgentStage(
+			stages.find( ( s ) => s.key === stageKey )
+		)
+			? __(
+					'This is a final stage — content exits the flow here. Delete this connection to make the stage non-final.',
+					'vip-workflows'
+			  )
+			: __(
+					'This is a final stage — content exits the flow here. To make it non-final, remove End of workflow from the stage’s exits, or delete this connection.',
+					'vip-workflows'
+			  );
 		return (
 			<InspectorShell
 				eyebrow={
@@ -388,10 +402,7 @@ function renderPanel( {
 								),
 								regionLabel( DEFAULT_REGION )
 						  )
-						: __(
-								'This is a final stage — content exits the flow here. To make it non-final, remove End of workflow from the stage’s exits, or delete this connection.',
-								'vip-workflows'
-						  ) }
+						: finalHelp }
 				</Text>
 			</InspectorShell>
 		);
