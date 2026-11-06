@@ -70,6 +70,11 @@ test.describe( 'VIP Workflows — claim / release (REST)', () => {
 		const released = await releasePost( reviewerUtils, postId );
 		expect( released.success ).toBe( true );
 
+		// Releasing again is refused: there is no claim left to clear.
+		await expect(
+			releasePost( reviewerUtils, postId )
+		).rejects.toMatchObject( { code: 'post_not_claimed' } );
+
 		// Released — it can be claimed again.
 		const reclaimed = await claimPost( requestUtils, postId );
 		expect( reclaimed.success ).toBe( true );
