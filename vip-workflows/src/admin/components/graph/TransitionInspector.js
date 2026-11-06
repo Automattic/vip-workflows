@@ -58,6 +58,7 @@ import {
 } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
 import { __, _n, sprintf } from '@wordpress/i18n';
+import { recordTracksEvent } from '../../../common/tracks';
 import { requirementText } from '../../../common/AgentRequirements';
 import { AssignmentInputConfig } from '../TransitionAssignmentConfig';
 import InspectorShell from './InspectorShell';
@@ -225,8 +226,10 @@ export default function TransitionInspector( {
 			description: tool.meta?.summary,
 		} ) );
 
-	const addTool = ( id ) =>
+	const addTool = ( id ) => {
 		onChange( { required_tools: [ ...requiredToolIds, id ] } );
+		recordTracksEvent( 'sequence_tool_added', { ability_id: id } );
+	};
 
 	/**
 	 * What a tool's row reads.
@@ -583,12 +586,15 @@ export default function TransitionInspector( {
 											value: 'assignment',
 										},
 									] }
-									onAdd={ () =>
+									onAdd={ () => {
 										updateInputs( [
 											...inputs,
 											createAssignment(),
-										] )
-									}
+										] );
+										recordTracksEvent(
+											'sequence_assignment_added'
+										);
+									} }
 									label={ __(
 										'Add an assignment',
 										'vip-workflows'

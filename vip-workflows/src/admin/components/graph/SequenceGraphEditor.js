@@ -38,6 +38,7 @@ import { __, _n, sprintf } from '@wordpress/i18n';
 
 import AdminPage from '../AdminPage';
 import { useConfirm } from '../../../common/use-confirm';
+import { recordTracksEvent } from '../../../common/tracks';
 import { getSaveButtonLabel } from '../../utils/save-button-label';
 import GraphCanvas from './GraphCanvas';
 import Inspector from './Inspector';
@@ -1156,6 +1157,7 @@ export default function SequenceGraphEditor( {
 	// --- Status region handlers --------------------------------------------
 
 	const handleAddRegion = useCallback( ( region ) => {
+		recordTracksEvent( 'sequence_post_status_added' );
 		setAddedRegions( ( current ) =>
 			current.includes( region ) ? current : [ ...current, region ]
 		);
@@ -1271,6 +1273,9 @@ export default function SequenceGraphEditor( {
 			if ( ! result.key ) {
 				return null;
 			}
+			recordTracksEvent( 'sequence_stage_added', {
+				source: 'connection_drop',
+			} );
 			setStages( result.stages );
 			setSelection( { type: 'node', key: result.key } );
 			return result.key;
@@ -1384,6 +1389,9 @@ export default function SequenceGraphEditor( {
 			if ( ! result.key ) {
 				return null;
 			}
+			recordTracksEvent( 'sequence_stage_added', {
+				source: 'edge_reconnect',
+			} );
 			setStages( result.stages );
 			setSelection( { type: 'node', key: result.key } );
 			return result.key;
@@ -1880,7 +1888,14 @@ export default function SequenceGraphEditor( {
 		// whether "Required" can mean anything depends on the edges drawn now.
 		hasTransitionIntoPublish: transitionsIntoPublish( stages ).length > 0,
 		// Wrapped: the list's add button passes its option value, not a region.
-		onAddStage: isPhase ? undefined : () => handleAddStage(),
+		onAddStage: isPhase
+			? undefined
+			: () => {
+					handleAddStage();
+					recordTracksEvent( 'sequence_stage_added', {
+						source: 'stage_list',
+					} );
+			  },
 		stages,
 		onStagesChange: setStages,
 		onRemoveStage: handleDeleteStage,
