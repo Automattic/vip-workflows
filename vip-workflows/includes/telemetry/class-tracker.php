@@ -86,6 +86,27 @@ class Tracker {
 	}
 
 	/**
+	 * Base properties for the events the browser records (src/common/tracks.js).
+	 *
+	 * The same properties the library puts on server events: VIP environment and
+	 * organization, the anonymized user, and the plugin version. The browser
+	 * records nothing when this is null, or when the environment is local.
+	 *
+	 * @return array<string,mixed>|null Null where the VIP Telemetry library isn't loaded.
+	 */
+	public static function get_client_properties(): ?array {
+		$core_properties = '\\Automattic\\VIP\\Telemetry\\Tracks\\get_tracks_core_properties';
+		if ( ! self::is_available() || ! function_exists( $core_properties ) ) {
+			return null;
+		}
+
+		return array_merge(
+			$core_properties(),
+			array( 'plugin_version' => VIP_WORKFLOWS_VERSION )
+		);
+	}
+
+	/**
 	 * Replace the Telemetry instance, for tests. Pass null to use the library.
 	 *
 	 * @param object|null $telemetry Object with a record_event( string, array ) method.
