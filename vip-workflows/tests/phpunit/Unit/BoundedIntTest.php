@@ -14,7 +14,7 @@ use function VIPWorkflows\Abilities\Tools\bounded_int;
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/helpers.php';
 
 /**
- * A tool reads each of its numbers with `bounded_int( $input, $key, $default,
+ * A tool reads each of its numbers with `bounded_int( $input, $key, $fallback,
  * $min, $max )`, and gets an integer between `$min` and `$max` whatever the
  * input holds.
  *
