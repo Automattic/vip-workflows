@@ -35,6 +35,16 @@ class PendingAssigneeIndexTest extends TestCase {
 		$this->post_id     = (int) self::factory()->post->create();
 		$this->user_a      = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
 		$this->user_b      = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
+
+		// Booting the suite installed the plugin, which ran this backfill on an
+		// empty site and recorded it as finished. Each test starts as an
+		// upgrade does: nothing done, no lease. The test transaction rolls
+		// this back.
+		global $wpdb;
+		foreach ( array( Schema::ASSIGNEE_BACKFILL_CURSOR_OPTION, Schema::ASSIGNEE_BACKFILL_LEASE_OPTION ) as $option ) {
+			$wpdb->delete( $wpdb->options, array( 'option_name' => $option ) );
+			wp_cache_delete( $option, 'options' );
+		}
 	}
 
 	/**
@@ -230,13 +240,13 @@ class PendingAssigneeIndexTest extends TestCase {
 	}
 
 	/**
-	 * Two upgrade requests can backfill the same page at once, and both insert
-	 * its rows. Reading the page back after the write removes the doubles.
+	 * A live rebuild can insert a post's row while the backfill is writing the
+	 * same post, leaving it twice. Reading the page back removes the double.
 	 *
-	 * Forced at the backfill's INSERT, where the other request's rows land
+	 * Forced at the backfill's INSERT, where the other writer's row lands
 	 * first.
 	 */
-	public function test_two_backfills_of_one_page_leave_each_user_once(): void {
+	public function test_a_backfill_page_doubled_by_another_writer_leaves_each_user_once(): void {
 		$this->write_raw_slot(
 			'reviewer',
 			array(
@@ -249,7 +259,7 @@ class PendingAssigneeIndexTest extends TestCase {
 		$interleave = function ( $query ) use ( &$interleave ) {
 			if ( 0 === stripos( ltrim( $query ), 'INSERT INTO' ) && false !== strpos( $query, AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY ) ) {
 				remove_filter( 'query', $interleave );
-				// The other request's insert of the same page.
+				// The other writer's row for the same post.
 				add_post_meta( $this->post_id, AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY, (string) $this->user_a );
 			}
 			return $query;
@@ -262,8 +272,8 @@ class PendingAssigneeIndexTest extends TestCase {
 	}
 
 	/**
-	 * A backfill cut short resumes after the last post it finished, and clears
-	 * its cursor once it reaches the end.
+	 * A backfill cut short resumes after the last post it finished, and
+	 * records that it is finished once it reaches the end.
 	 */
 	public function test_the_backfill_resumes_from_its_cursor(): void {
 		$pending = array(
@@ -275,12 +285,175 @@ class PendingAssigneeIndexTest extends TestCase {
 		$later = (int) self::factory()->post->create();
 		update_post_meta( $later, AssignmentManager::STORAGE_PREFIX . 'reviewer', $pending );
 
-		update_option( Schema::ASSIGNEE_BACKFILL_CURSOR_OPTION, $this->post_id );
+		update_option( Schema::ASSIGNEE_BACKFILL_CURSOR_OPTION, (string) $this->post_id, false );
 		( new \ReflectionMethod( Schema::class, 'backfill_pending_assignee_index' ) )->invoke( null );
 
 		$this->assertSame( array(), $this->indexed(), 'The post at the cursor was done before the cut, so it is not redone.' );
 		$this->assertSame( array( (string) $this->user_a ), get_post_meta( $later, AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY ) );
-		$this->assertFalse( get_option( Schema::ASSIGNEE_BACKFILL_CURSOR_OPTION ) );
+		global $wpdb;
+		$this->assertSame( Schema::ASSIGNEE_BACKFILL_COMPLETE, $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Schema::ASSIGNEE_BACKFILL_CURSOR_OPTION ) ) );
+	}
+
+	/**
+	 * The stored pending assignment the lease tests backfill.
+	 */
+	private function write_pending_slot_for_user_a(): void {
+		$this->write_raw_slot(
+			'reviewer',
+			array(
+				'value'  => $this->user_a,
+				'type'   => 'user',
+				'status' => AssignmentManager::STATUS_PENDING,
+			)
+		);
+	}
+
+	/**
+	 * Hold the backfill lease as another request would.
+	 *
+	 * @param int $expires Expiry timestamp.
+	 */
+	private function hold_lease( int $expires ): void {
+		global $wpdb;
+
+		$wpdb->insert(
+			$wpdb->options,
+			array(
+				'option_name'  => Schema::ASSIGNEE_BACKFILL_LEASE_OPTION,
+				'option_value' => 'another-request|' . $expires,
+				'autoload'     => 'off',
+			)
+		);
+	}
+
+	/**
+	 * Run the backfill.
+	 */
+	private function backfill(): void {
+		( new \ReflectionMethod( Schema::class, 'backfill_pending_assignee_index' ) )->invoke( null );
+	}
+
+	/**
+	 * While another request holds a live lease, a second request running the
+	 * upgrade writes nothing, and does not mark the backfill finished.
+	 */
+	public function test_a_backfill_writes_nothing_while_another_request_holds_the_lease(): void {
+		$this->write_pending_slot_for_user_a();
+		$this->hold_lease( time() + 60 );
+
+		try {
+			$this->backfill();
+			$this->fail( 'A backfill ran while another request held the lease.' );
+		} catch ( \RuntimeException $e ) {
+			$this->assertStringContainsString( 'running in another request', $e->getMessage() );
+		}
+
+		$this->assertSame( array(), $this->indexed() );
+		global $wpdb;
+		$this->assertNotSame( Schema::ASSIGNEE_BACKFILL_COMPLETE, $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Schema::ASSIGNEE_BACKFILL_CURSOR_OPTION ) ) );
+	}
+
+	/**
+	 * A lease past its expiry belonged to a request that died. It is taken
+	 * over, the backfill runs, and the lease is given back.
+	 */
+	public function test_an_expired_lease_is_taken_over(): void {
+		global $wpdb;
+
+		$this->write_pending_slot_for_user_a();
+		$this->hold_lease( time() - 1 );
+
+		$this->backfill();
+
+		$this->assertSame( array( $this->user_a ), $this->indexed() );
+		$this->assertNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Schema::ASSIGNEE_BACKFILL_LEASE_OPTION ) ) );
+	}
+
+	/**
+	 * An owner whose lease was taken over stops before it writes a page, so a
+	 * page it read before the takeover is never written.
+	 *
+	 * Forced by taking the lease over at the owner's first page read.
+	 */
+	public function test_an_owner_that_lost_its_lease_writes_nothing(): void {
+		global $wpdb;
+
+		$this->write_pending_slot_for_user_a();
+
+		$take_over = function ( $query ) use ( &$take_over, $wpdb ) {
+			if ( false !== stripos( $query, 'SELECT DISTINCT post_id' ) ) {
+				remove_filter( 'query', $take_over );
+				$wpdb->update( $wpdb->options, array( 'option_value' => 'another-request|' . ( time() + 60 ) ), array( 'option_name' => Schema::ASSIGNEE_BACKFILL_LEASE_OPTION ) );
+			}
+			return $query;
+		};
+		add_filter( 'query', $take_over );
+
+		try {
+			$this->backfill();
+			$this->fail( 'An owner that lost its lease kept writing.' );
+		} catch ( \RuntimeException $e ) {
+			$this->assertStringContainsString( 'taken over', $e->getMessage() );
+		}
+
+		$this->assertSame( array(), $this->indexed() );
+	}
+
+	/**
+	 * The case a lease alone does not cover: a request that decided to upgrade
+	 * before another finished must not write once it has. The finished
+	 * backfill is recorded, so the late request does nothing.
+	 */
+	public function test_a_backfill_started_after_another_finished_does_nothing(): void {
+		update_option( Schema::ASSIGNEE_BACKFILL_CURSOR_OPTION, Schema::ASSIGNEE_BACKFILL_COMPLETE );
+		$this->write_pending_slot_for_user_a();
+
+		$this->backfill();
+
+		$this->assertSame( array(), $this->indexed(), 'A late backfill wrote after the backfill was finished.' );
+	}
+
+	/**
+	 * An owner can write a page from a read a live assignment has since made
+	 * stale, then die before reading it back. Its cursor was not moved past
+	 * that page, so the next owner, taking over the expired lease, redoes the
+	 * page from a fresh read and the live assignment is indexed.
+	 *
+	 * Forced by assigning live at the page's DELETE, then failing the read
+	 * back, and leaving an expired lease as a dead request would.
+	 */
+	public function test_a_page_left_stale_by_an_owner_that_died_is_redone_by_the_next(): void {
+		$this->write_pending_slot_for_user_a();
+
+		$interleave = function ( $query ) use ( &$interleave ) {
+			if ( 0 === stripos( ltrim( $query ), 'DELETE FROM' ) && false !== strpos( $query, AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY ) ) {
+				remove_filter( 'query', $interleave );
+				$this->assignments->assign( $this->post_id, 'legal', $this->user_b, 'user' );
+			}
+			return $query;
+		};
+		$die = function ( $query ) use ( &$die ) {
+			if ( false !== stripos( $query, 'SELECT post_id, meta_value FROM' ) ) {
+				remove_filter( 'query', $die );
+				throw new \RuntimeException( 'The request died before reading its page back.' );
+			}
+			return $query;
+		};
+		add_filter( 'query', $interleave );
+		add_filter( 'query', $die );
+
+		try {
+			$this->backfill();
+			$this->fail( 'The simulated death did not happen.' );
+		} catch ( \RuntimeException $e ) {
+			$this->assertStringContainsString( 'died', $e->getMessage() );
+		}
+		$this->assertSame( array( $this->user_a ), $this->indexed(), 'Fixture: the dead owner left the page stale.' );
+
+		$this->hold_lease( time() - 1 );
+		$this->backfill();
+
+		$this->assertSame( array( $this->user_a, $this->user_b ), $this->indexed() );
 	}
 
 	/**
