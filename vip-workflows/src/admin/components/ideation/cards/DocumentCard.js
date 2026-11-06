@@ -163,7 +163,7 @@ export default function DocumentCard( {
 	const showStuck = isProcessing && isStuck;
 	const isError = card.processing_status === 'error';
 	const stuckMessage = __(
-		'Still processing — this is taking longer than expected.',
+		'Processing is taking longer than expected.',
 		'vip-workflows'
 	);
 
@@ -189,7 +189,7 @@ export default function DocumentCard( {
 		summaryContent = (
 			<Text render={ <p /> }>
 				{ __(
-					'This document is being analyzed by AI. Check back shortly.',
+					'Analyzing this document. Check back shortly.',
 					'vip-workflows'
 				) }
 			</Text>

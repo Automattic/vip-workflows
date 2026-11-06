@@ -20,55 +20,33 @@
  * hardcoded `ideation → editorial` would pass against an editor that had
  * stopped asking.
  *
- * The canvas is stubbed to the props under test: React Flow measures a viewport
+ * The canvas is stubbed (helpers/sequence-editor): React Flow measures a viewport
  * jsdom does not lay out, and selection and deletion both reach the editor as
  * plain callbacks, so calling one directly is the gesture minus the drag.
  *
  * @package
  */
 
+import { act, fireEvent, screen, waitFor } from './helpers/render-wp-component';
 import {
-	act,
-	fireEvent,
-	render,
-	screen,
-	waitFor,
-} from './helpers/render-wp-component';
-
-import apiFetch from '@wordpress/api-fetch';
+	IDEATION_TO_EDITORIAL,
+	LIFECYCLE,
+	LIFECYCLE_CONNECTED,
+	canvas,
+	renderSequenceEditor,
+	resetCanvas,
+	saveButton,
+	sequenceOptions,
+} from './helpers/sequence-editor';
 
 jest.mock( '@wordpress/api-fetch' );
 
-// The canvas's callbacks, held where a test can drive them.
-let canvas;
-
 jest.mock(
 	'../../src/admin/components/graph/GraphCanvas',
-	() =>
-		function GraphCanvasStub( props ) {
-			canvas = props;
-			return <div data-testid="canvas" />;
-		}
+	() => require( './helpers/graph-canvas-stub' ).GraphCanvasStub
 );
 
-import SequenceGraphEditor from '../../src/admin/components/graph/SequenceGraphEditor';
 import { isRequiredHandOff } from '../../src/admin/components/graph/graph-model';
-
-const IDEATION_TO_EDITORIAL = [ { from: 'ideation', to: 'editorial' } ];
-
-const LIFECYCLE = [
-	{ key: 'ideation', label: 'Ideation', transitions: [] },
-	{ key: 'editorial', label: 'Editorial', transitions: [] },
-];
-
-const LIFECYCLE_CONNECTED = [
-	{
-		key: 'ideation',
-		label: 'Ideation',
-		transitions: [ { to: 'editorial', label: 'Create Draft' } ],
-	},
-	{ key: 'editorial', label: 'Editorial', transitions: [] },
-];
 
 /** Every write the editor made, in order. */
 let writes;
@@ -91,48 +69,17 @@ async function renderPhaseEditor( {
 	required = transitions,
 	mode = 'phase',
 } ) {
-	apiFetch.mockImplementation( ( { path, method, data } ) => {
-		if ( path === '/vip-workflows/v1/sequences/options' ) {
-			return Promise.resolve( {
-				post_types: [ { value: 'post', label: 'Posts' } ],
-				phase_transitions: transitions,
-				required_phase_transitions: required,
-			} );
-		}
-		if (
-			path.startsWith( '/vip-workflows/v1/abilities' ) ||
-			path === '/vip-workflows/v1/notifications/channels'
-		) {
-			return Promise.resolve( [] );
-		}
-		if ( method === 'POST' || method === 'PUT' ) {
-			writes.push( { path, method, data } );
-		}
-		return Promise.resolve( {
-			id: 3,
-			name: 'Content Lifecycle',
-			description: '',
-			status: 'active',
-			type: mode,
-			config:
-				'phase' === mode
-					? { phases }
-					: { statuses: phases, post_types: [ 'post' ] },
-		} );
-	} );
-
-	render(
-		<SequenceGraphEditor
-			sequenceId={ 3 }
-			mode={ mode }
-			onCancel={ jest.fn() }
-		/>
-	);
-
-	await waitFor( () => expect( canvas ).toBeDefined() );
-	await act( async () => {
-		await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
-	} );
+	( { writes } = await renderSequenceEditor( {
+		mode,
+		config:
+			'phase' === mode
+				? { phases }
+				: { statuses: phases, post_types: [ 'post' ] },
+		options: sequenceOptions( {
+			phase_transitions: transitions,
+			required_phase_transitions: required,
+		} ),
+	} ) );
 }
 
 /**
@@ -141,7 +88,7 @@ async function renderPhaseEditor( {
  * @param {string} key The phase to select.
  * @return {Promise<void>} Resolves once the panel has rendered.
  */
-const selectPhase = ( key ) => act( () => canvas.onSelectNode( key ) );
+const selectPhase = ( key ) => act( () => canvas().onSelectNode( key ) );
 
 /**
  * Open a hand-off's panel, as clicking the line does.
@@ -151,14 +98,10 @@ const selectPhase = ( key ) => act( () => canvas.onSelectNode( key ) );
  * @return {Promise<void>} Resolves once the panel has rendered.
  */
 const selectHandOff = ( from, to ) =>
-	act( () => canvas.onSelectEdge( `${ from }->${ to }` ) );
-
-const saveButton = () =>
-	screen.getByRole( 'button', { name: /^(Save|Saving…|Saved!)$/ } );
+	act( () => canvas().onSelectEdge( `${ from }->${ to }` ) );
 
 beforeEach( () => {
-	canvas = undefined;
-	writes = [];
+	resetCanvas();
 } );
 
 describe( 'A phase panel opened on a missing hand-off', () => {
@@ -228,7 +171,7 @@ describe( 'A phase panel opened on a missing hand-off', () => {
 		const heading = document.querySelector( '.wf-inspector__heading' );
 		expect( heading ).toHaveTextContent( 'Ideation → Editorial' );
 		expect( heading ).toHaveFocus();
-		expect( canvas.reveal?.target ).toMatchObject( {
+		expect( canvas().reveal?.target ).toMatchObject( {
 			type: 'edge',
 			from: 'ideation',
 			to: 'editorial',
@@ -345,9 +288,9 @@ describe( 'A hand-off the sequence owes', () => {
 	it( 'survives the canvas delete the panel has no button for', async () => {
 		await renderPhaseEditor( { phases: LIFECYCLE_CONNECTED } );
 
-		await act( () => canvas.onDeleteEdge( 'ideation', 'editorial' ) );
+		await act( () => canvas().onDeleteEdge( 'ideation', 'editorial' ) );
 
-		expect( canvas.stages[ 0 ].transitions ).toEqual( [
+		expect( canvas().stages[ 0 ].transitions ).toEqual( [
 			expect.objectContaining( { to: 'editorial' } ),
 		] );
 		// And nothing was written to be undone: a refused gesture leaves the
@@ -370,17 +313,17 @@ describe( 'A hand-off the sequence owes', () => {
 			required: IDEATION_TO_EDITORIAL,
 		} );
 
-		expect( canvas.requiredTransitions ).toEqual( IDEATION_TO_EDITORIAL );
+		expect( canvas().requiredTransitions ).toEqual( IDEATION_TO_EDITORIAL );
 		expect(
 			isRequiredHandOff(
-				canvas.requiredTransitions,
+				canvas().requiredTransitions,
 				'ideation',
 				'editorial'
 			)
 		).toBe( true );
 		expect(
 			isRequiredHandOff(
-				canvas.requiredTransitions,
+				canvas().requiredTransitions,
 				'ideation',
 				'triage'
 			)
@@ -452,8 +395,8 @@ describe( 'A hand-off the sequence owes', () => {
 			screen.getByRole( 'button', { name: /Remove transition/i } )
 		).toBeInTheDocument();
 
-		await act( () => canvas.onDeleteEdge( 'ideation', 'editorial' ) );
+		await act( () => canvas().onDeleteEdge( 'ideation', 'editorial' ) );
 
-		expect( canvas.stages[ 0 ].transitions ).toEqual( [] );
+		expect( canvas().stages[ 0 ].transitions ).toEqual( [] );
 	} );
 } );

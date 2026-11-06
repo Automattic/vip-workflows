@@ -151,9 +151,7 @@ describe( 'Required tools list', () => {
 	it( 'says the transition runs none rather than showing nothing', () => {
 		renderInspector( { transition: { to: 'review' } } );
 
-		expect(
-			screen.getByText( /This transition runs no tools/ )
-		).toBeInTheDocument();
+		expect( screen.getByText( /No tools yet/ ) ).toBeInTheDocument();
 	} );
 
 	it( 'says so when the site has no tool to offer', () => {
@@ -390,7 +388,7 @@ describe( 'Required tools list', () => {
 			} );
 
 			expect(
-				screen.getByText( /not yet configured/ )
+				screen.getByText( /required settings are not configured/ )
 			).toBeInTheDocument();
 		} );
 

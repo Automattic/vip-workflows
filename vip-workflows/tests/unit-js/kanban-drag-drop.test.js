@@ -92,6 +92,10 @@ register(
 				notices.push( { status: 'error', message, options } );
 				return { type: 'NOOP' };
 			},
+			createWarningNotice: ( message, options ) => {
+				notices.push( { status: 'warning', message, options } );
+				return { type: 'NOOP' };
+			},
 		},
 	} )
 );
@@ -511,6 +515,49 @@ describe( 'KanbanBoard drop failure reporting', () => {
 			status: 'success',
 			message: 'Card moved.',
 			options: { type: 'snackbar' },
+		} );
+
+		// No assignee-access warning in the response, none on screen.
+		expect(
+			notices.filter( ( notice ) => notice.status === 'warning' )
+		).toEqual( [] );
+	} );
+
+	it( 'shows each assignee-access warning the move returns, in the server words', async () => {
+		const message =
+			'Some members of the Contributor role cannot open this post.';
+		mockRoutes( {
+			transition: () =>
+				Promise.resolve( {
+					warnings: [
+						{
+							type: 'assignee_cannot_read',
+							meta_key: '_vip_workflows_reviewer',
+							role: 'contributor',
+							message,
+						},
+					],
+				} ),
+		} );
+		await renderBoard();
+		await startDrag();
+		await drop( 11, 'newsroom__review' );
+
+		// The move landed, and the warning rides the same snackbar surface,
+		// keyed per assignment slot and held until dismissed.
+		expect( notices ).toContainEqual( {
+			status: 'success',
+			message: 'Card moved.',
+			options: { type: 'snackbar' },
+		} );
+		expect( notices ).toContainEqual( {
+			status: 'warning',
+			message,
+			options: {
+				id: 'vip-workflows-assignee-access-_vip_workflows_reviewer',
+				type: 'snackbar',
+				explicitDismiss: true,
+			},
 		} );
 	} );
 } );

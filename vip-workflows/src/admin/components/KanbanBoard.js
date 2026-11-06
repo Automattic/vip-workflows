@@ -36,7 +36,7 @@ import { useConfirm } from '../../common/use-confirm';
 import {
 	getTransitionWarningsMessage,
 	getTransitionWarningsTitle,
-} from '../../entries/confirm-workflow-side-effect';
+} from '../../common/confirm-workflow-side-effect';
 
 import './KanbanBoard.css';
 
@@ -109,7 +109,7 @@ export function KanbanBoard() {
 	// pre-move stage) land on drag 2.
 	const dragTokenRef = useRef( 0 );
 
-	const { createSuccessNotice, createErrorNotice } =
+	const { createSuccessNotice, createErrorNotice, createWarningNotice } =
 		useDispatch( noticesStore );
 	const [ confirm, confirmDialog ] = useConfirm();
 
@@ -369,6 +369,19 @@ export function KanbanBoard() {
 				type: 'snackbar',
 			} );
 
+			// The move happened. A role assignee whose members cannot all
+			// open the post is accepted, and the response says so; tell the
+			// assigner, who can still pick someone else. One snackbar per
+			// assignment slot, so a repeat replaces rather than stacks, and
+			// it stays until dismissed rather than timing out unread.
+			( response.warnings || [] ).forEach( ( warning ) => {
+				createWarningNotice( warning.message, {
+					id: `vip-workflows-assignee-access-${ warning.meta_key }`,
+					type: 'snackbar',
+					explicitDismiss: true,
+				} );
+			} );
+
 			// Refresh to get accurate data.
 			fetchData();
 		} catch ( err ) {
@@ -547,12 +560,14 @@ export function KanbanBoard() {
 						{ __( 'Hidden:', 'vip-workflows' ) }
 					</Text>
 					{ hiddenColumnInfo.map( ( col ) => (
+						// wpds-allow system/inline-style -- borderColor is the column's colour from the sequence config, known only at runtime.
 						<Button
 							key={ col.key }
 							className="vip-workflows-kanban-hidden-column-badge"
 							onClick={ () => toggleColumnVisibility( col.key ) }
 							style={ { borderColor: col.color } }
 						>
+							{ /* wpds-allow system/raw-element -- colour swatch dot, not text; it has no <Text> analog. */ }
 							<span
 								className="vip-workflows-kanban-hidden-column-badge__dot"
 								style={ { backgroundColor: col.color } }

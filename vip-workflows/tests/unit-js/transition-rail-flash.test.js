@@ -1,8 +1,8 @@
 /**
  * The agent three-beat resolve: when a run finishes, the taken outcome holds
- * its pressed state for a beat before the panel re-renders on the new stage,
- * and the move is announced — nobody clicked, so the flash and the
- * announcement are the only things saying which way the agent routed.
+ * its pressed state for a beat before the panel re-renders on the new stage —
+ * nobody clicked, so the flash (and the flow's announcement, tested with the
+ * header) is the only thing saying which way the agent routed.
  *
  * The flash keys on `agent_last_run` matching the stage the rail was
  * watching; without the field (an older server), the rail degrades straight
@@ -13,7 +13,6 @@
 
 import { render, act } from './helpers/render-wp-component';
 import { screen } from '@testing-library/react';
-import { speak } from '@wordpress/a11y';
 
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
@@ -65,7 +64,6 @@ const landedProps = ( agentLastRun ) => ( {
 describe( 'TransitionRail agent resolve flash', () => {
 	beforeEach( () => {
 		jest.useFakeTimers();
-		speak.mockReset();
 	} );
 
 	afterEach( () => {
@@ -109,12 +107,6 @@ describe( 'TransitionRail agent resolve flash', () => {
 			screen.queryByRole( 'button', { name: 'Re-run fact check' } )
 		).not.toBeInTheDocument();
 
-		// The announcement lands with the flash, not after it.
-		expect( speak ).toHaveBeenCalledWith(
-			expect.stringContaining( 'Fact-check finished' ),
-			'polite'
-		);
-
 		// Beat three: the flash releases and the new stage renders.
 		await act( async () => {
 			jest.advanceTimersByTime( 700 );
@@ -144,15 +136,10 @@ describe( 'TransitionRail agent resolve flash', () => {
 			rerender( <TransitionRail { ...landedProps( null ) } /> );
 		} );
 
-		// No flash to hold: the new stage is already on screen, and the move
-		// is still announced.
+		// No flash to hold: the new stage is already on screen.
 		expect(
 			screen.getByRole( 'button', { name: 'Re-run fact check' } )
 		).toBeInTheDocument();
-		expect( speak ).toHaveBeenCalledWith(
-			expect.stringContaining( 'Moved to Copyedit' ),
-			'polite'
-		);
 	} );
 
 	it( 'never flashes on a stage change an agent did not make', async () => {

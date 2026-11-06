@@ -50,10 +50,7 @@ function statusIntent( status ) {
 /**
  * The word and the classes each status renders with.
  *
- * `className` lands on the row, `toneClassName` on the tone dot. They are separate
- * names rather than one name matched by descendant selector because the CSS
- * hygiene gate resolves every class in a selector back to the element carrying it,
- * and a shared name would read a dot's `background` as a `Stack` override.
+ * `className` lands on the row, `toneClassName` on the tone dot.
  */
 const STATUS_INDICATORS = {
 	pending: {
