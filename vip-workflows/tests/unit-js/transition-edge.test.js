@@ -208,6 +208,32 @@ describe( 'TransitionEdge pill', () => {
 		).toBe( true );
 	} );
 
+	it( 'is described by the ids the canvas hands it, and by nothing else', () => {
+		const { unmount } = renderEdge( {
+			pillDescribedBy: 'hint-disabled hint-remove',
+		} );
+		expect( screen.getByRole( 'button' ) ).toHaveAttribute(
+			'aria-describedby',
+			'hint-disabled hint-remove'
+		);
+		unmount();
+
+		// A pill that cannot be removed gets no hint promising it can.
+		renderEdge();
+		expect( screen.getByRole( 'button' ) ).not.toHaveAttribute(
+			'aria-describedby'
+		);
+	} );
+
+	it( 'is not marked aria-disabled, even on a disabled transition', () => {
+		// It still selects, and is the way to remove the transition.
+		renderEdge( { disabled: true } );
+
+		expect( screen.getByRole( 'button' ) ).not.toHaveAttribute(
+			'aria-disabled'
+		);
+	} );
+
 	it( 'carries no title repeating its visible text', () => {
 		renderEdge();
 

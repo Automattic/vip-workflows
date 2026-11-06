@@ -307,6 +307,11 @@ function TransitionEdgeComponent( { id, data, selected } ) {
 								// label, shared by every line into the same
 								// stage (`transitionPillName`).
 								aria-label={ data.pillName }
+								// What can be done with it, and whether it is a
+								// disabled transition: shared descriptions the
+								// canvas renders once (`GraphCanvas`), left off
+								// a pill that cannot be removed.
+								aria-describedby={ data.pillDescribedBy }
 							>
 								{ /* An array preserves Button's icon-and-text
 								     layout while the label has an ellipsis wrapper. */ }

@@ -113,6 +113,12 @@ test.describe( 'VIP Workflows — sequence inspector controls', () => {
 		const reviewPill = page.getByRole( 'button', {
 			name: /, from Review$/,
 		} );
+		// How to remove it is a description, so the name above is unchanged;
+		// the pill still selects, so it is not marked aria-disabled.
+		await expect( reviewPill ).toHaveAccessibleDescription(
+			'Press Enter to select, then Backspace to remove.'
+		);
+		await expect( reviewPill ).not.toHaveAttribute( 'aria-disabled' );
 		await reviewPill.focus();
 		await page.keyboard.press( 'Space' );
 		const destination = page.getByRole( 'combobox', {

@@ -85,7 +85,8 @@ import {
 	useReactFlow,
 	useStoreApi,
 } from '@xyflow/react';
-import { Icon } from '@wordpress/ui';
+import { useInstanceId } from '@wordpress/compose';
+import { Icon, VisuallyHidden } from '@wordpress/ui';
 import { rotateLeft, plus, trash } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
 import StageNode from './StageNode';
@@ -576,6 +577,14 @@ function Flow( {
 	// target while something is in flight.
 	const [ draggingNode, setDraggingNode ] = useState( false );
 
+	// The transition pills' descriptions, said once for the whole canvas and
+	// pointed at by each pill (`aria-describedby`) rather than rendered once
+	// per pill. The name says which transition a pill is; these say what can
+	// be done with it, and the one state its muted tone shows.
+	const pillHintId = useInstanceId( Flow, 'wf-transition-pill-hint' );
+	const removeHintId = `${ pillHintId }-remove`;
+	const disabledHintId = `${ pillHintId }-disabled`;
+
 	// Decoration: in-flight drag positions, selection, and per-stage warnings.
 	// Cheap (plain maps), so it can re-run on every selection or edit without
 	// paying for another layout.
@@ -612,8 +621,42 @@ function Flow( {
 			return { ...node, selected: node.id === selectedNodeKey, data };
 		} );
 
+		/**
+		 * The ids a transition pill is described by. A disabled transition is
+		 * still selectable and removable, so it is described as disabled
+		 * rather than marked `aria-disabled` — the pill still acts. The removal
+		 * hint is left off a hand-off a phase sequence owes, which
+		 * `handleDeleteTransition` refuses: the hint would promise a removal
+		 * that does nothing.
+		 *
+		 * @param {Object} edge A transition edge.
+		 * @return {string|undefined} Space-separated ids, or undefined for none.
+		 */
+		function pillDescription( edge ) {
+			const removable = ! (
+				isPhase &&
+				isRequiredHandOff(
+					requiredTransitions,
+					edge.source,
+					edge.target
+				)
+			);
+			const ids = [
+				edge.data.disabled && disabledHintId,
+				removable && removeHintId,
+			].filter( Boolean );
+			return ids.length > 0 ? ids.join( ' ' ) : undefined;
+		}
+
 		const decoratedEdges = layout.edges.map( ( edge ) => ( {
 			...edge,
+			// Only a transition has a pill to describe; Start/End have none.
+			data: edge.data?.label
+				? {
+						...edge.data,
+						pillDescribedBy: pillDescription( edge ),
+				  }
+				: edge.data,
 			selected: edge.id === selectedEdgeId,
 			className: [
 				// What `buildGraph` already put there — the checkpoint tie
@@ -643,6 +686,10 @@ function Flow( {
 		} ) );
 		return { nodes: decoratedNodes, edges: decoratedEdges };
 	}, [
+		isPhase,
+		requiredTransitions,
+		removeHintId,
+		disabledHintId,
 		layout,
 		dragPositions,
 		warnings,
@@ -1941,6 +1988,18 @@ function Flow( {
 					onDragChange={ setReconnectingEdgeId }
 				/>
 			</ReactFlow>
+			{ /* What the transition pills' `aria-describedby` point at — see
+			     `pillHintId`. Backspace is React Flow's delete key, and it
+			     acts on the selection, which Enter on a pill makes. */ }
+			<VisuallyHidden id={ removeHintId }>
+				{ __(
+					'Press Enter to select, then Backspace to remove.',
+					'vip-workflows'
+				) }
+			</VisuallyHidden>
+			<VisuallyHidden id={ disabledHintId }>
+				{ __( 'Disabled transition.', 'vip-workflows' ) }
+			</VisuallyHidden>
 			{ menu && (
 				<CanvasMenu
 					// One instance per thing it was opened on. The menu takes
