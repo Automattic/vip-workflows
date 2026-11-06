@@ -2504,8 +2504,20 @@ export function validateSequence( {
 			deadEnds.push( stage );
 		}
 		// An agent whose only routes are held for publishing does route
-		// somewhere; the held-route warning below says why content stops.
-		if ( ! isTerminal && outgoing.length === 0 && held.length === 0 ) {
+		// somewhere; the held-route warning below says why content stops. So
+		// does one whose routes lead to a missing stage or travel no
+		// transition — the routing warnings below name each of those, and
+		// "no outcome routed anywhere" would contradict them.
+		const routesSomewhere =
+			! isPhase &&
+			isAgentStage( stage ) &&
+			AGENT_OUTCOMES.some( ( o ) => ( stage.agent.routing || {} )[ o ] );
+		if (
+			! isTerminal &&
+			outgoing.length === 0 &&
+			held.length === 0 &&
+			! routesSomewhere
+		) {
 			addWarning(
 				stage.key,
 				isAgentStage( stage )
@@ -2707,7 +2719,7 @@ export function validateSequence( {
 						/* translators: %s: comma-separated stage names. */
 						_n(
 							'Nothing ends this sequence: %s has no way out. Choose Add exit, then End of workflow, or drag it to the End node.',
-							'Nothing ends this sequence: %s have no way out. On one, choose Add exit, then End of workflow, or drag it to the End node.',
+							'Nothing ends this sequence: %s have no way out. On one, choose Add exit, then End of workflow, or drag to the End node.',
 							deadEnds.length,
 							'vip-workflows'
 						),
