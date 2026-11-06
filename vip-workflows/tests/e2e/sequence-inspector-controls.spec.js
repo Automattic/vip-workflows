@@ -111,7 +111,7 @@ test.describe( 'VIP Workflows — sequence inspector controls', () => {
 		const reviewEdge = page.locator(
 			'.react-flow__edge[data-id="review->done"]'
 		);
-		await expect( reviewEdge ).not.toHaveAttribute( 'tabindex', '0' );
+		await expect( reviewEdge ).not.toHaveAttribute( 'tabindex' );
 		const reviewPill = page.getByRole( 'button', {
 			name: /, from Review$/,
 		} );

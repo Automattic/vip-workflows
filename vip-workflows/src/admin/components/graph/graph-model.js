@@ -416,6 +416,8 @@ export function buildGraph( stages, options = {} ) {
 			! isPhase && isAgentStage( stage )
 				? stage.agent.routing || {}
 				: null;
+		// The source half of every pill name on this stage's lines.
+		const fromLabel = stageLabel( stages, stage.key );
 		( stage.transitions || [] ).forEach( ( transition ) => {
 			if ( ! keys.has( transition.to ) ) {
 				return; // dangling; surfaced as a sequence error
@@ -482,7 +484,7 @@ export function buildGraph( stages, options = {} ) {
 						// have the same source and would otherwise share a name.
 						pillName: transitionPillName(
 							label,
-							stageLabel( stages, stage.key ),
+							fromLabel,
 							outcome
 						),
 						// Every outcome standing on this one transition record,
