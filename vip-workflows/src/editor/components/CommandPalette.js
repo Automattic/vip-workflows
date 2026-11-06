@@ -12,7 +12,8 @@ import {
 	useCallback,
 	createPortal,
 } from '@wordpress/element';
-import { useSelect, useDispatch } from '@wordpress/data';
+import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
+import { store as editorStore } from '@wordpress/editor';
 import { store as noticesStore } from '@wordpress/notices';
 import apiFetch from '@wordpress/api-fetch';
 import { __, sprintf } from '@wordpress/i18n';
@@ -40,6 +41,17 @@ export function CommandPalette() {
 	const [ regenerating, setRegenerating ] = useState( false );
 	const [ isRunning, setIsRunning ] = useState( false );
 	const [ runningToolLabel, setRunningToolLabel ] = useState( '' );
+	/*
+	 * Whether the post had unsaved edits when the shown result was produced.
+	 *
+	 * A tool is handed the post ID and reads the post from the database, so a
+	 * run over unsaved edits judges the last saved copy, not the one on screen.
+	 * A transition saves before its tool gate runs; a run from here does not,
+	 * because it is a read-only look and saving a live post would publish the
+	 * edits. So the result says which copy it describes instead.
+	 */
+	const [ ranOnUnsavedEdits, setRanOnUnsavedEdits ] = useState( false );
+	const registry = useRegistry();
 
 	const runTool = useCallback(
 		async ( tool ) => {
@@ -49,6 +61,10 @@ export function CommandPalette() {
 				} );
 				return null;
 			}
+
+			setRanOnUnsavedEdits(
+				registry.select( editorStore ).isEditedPostDirty()
+			);
 
 			try {
 				const result = await apiFetch( {
@@ -65,7 +81,7 @@ export function CommandPalette() {
 				};
 			}
 		},
-		[ postId, createErrorNotice ]
+		[ postId, createErrorNotice, registry ]
 	);
 
 	// Generic handler for applying tool results to post fields.
@@ -306,6 +322,7 @@ export function CommandPalette() {
 					toolLabel={ modalTool?.label || modalTool?.name || '' }
 					onClose={ closeModal }
 					requirementGroups={ modalTool?.availability?.groups || [] }
+					ranOnUnsavedEdits={ ranOnUnsavedEdits }
 				/>
 			) }
 		</>
