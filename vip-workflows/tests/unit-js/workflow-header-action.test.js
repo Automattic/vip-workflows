@@ -586,6 +586,91 @@ describe( 'WorkflowHeaderAction', () => {
 		).toBeInTheDocument();
 	} );
 
+	/**
+	 * The agent reads the stored post, so Run again saves the author's
+	 * unsaved edits first — as a move into an AI stage does — and only then
+	 * asks the server to run it.
+	 */
+	it( 'saves unsaved edits before running the agent again', async () => {
+		setCoreEditor( { dirty: true } );
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				can_rerun: true,
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		await renderHeader( failed );
+
+		const order = [];
+		savePost.mockImplementationOnce( () => ( { dispatch: editor } ) => {
+			order.push( 'save' );
+			editor.setCoreEditor( { dirty: false } );
+		} );
+		apiFetch.mockImplementation( ( { path } ) => {
+			if ( path.endsWith( '/agent-rerun' ) ) {
+				order.push( 'rerun' );
+				return Promise.resolve(
+					statusResponse( {
+						transitions: [],
+						agent_pending: true,
+						agent_job: { status: 'pending', error: '' },
+					} )
+				);
+			}
+			return Promise.resolve( failed );
+		} );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Run again' } )
+			).click();
+		} );
+
+		await waitFor( () => expect( order ).toEqual( [ 'save', 'rerun' ] ) );
+	} );
+
+	it( 'does not run the agent again when the save fails', async () => {
+		setCoreEditor( { dirty: true } );
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				can_rerun: true,
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		await renderHeader( failed );
+
+		savePost.mockImplementationOnce( () => ( { dispatch: editor } ) => {
+			editor.setCoreEditor( { saveFailed: true } );
+		} );
+		const reruns = [];
+		apiFetch.mockImplementation( ( { path } ) => {
+			if ( path.endsWith( '/agent-rerun' ) ) {
+				reruns.push( path );
+			}
+			return Promise.resolve( failed );
+		} );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Run again' } )
+			).click();
+		} );
+
+		await waitFor( () =>
+			expect( createErrorNotice ).toHaveBeenCalledWith(
+				'Could not save the post before running the agent again. Try again.',
+				expect.anything()
+			)
+		);
+		expect( reruns ).toHaveLength( 0 );
+	} );
+
 	it( 'stays on screen, busy, while a stage agent runs', async () => {
 		await renderHeader(
 			statusResponse( {

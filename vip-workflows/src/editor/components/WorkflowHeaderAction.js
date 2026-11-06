@@ -104,7 +104,7 @@ export function WorkflowHeaderAction() {
 		fetchWorkflowStatus,
 		requestTransition,
 		revertAgentStage,
-		rerunAgentStage,
+		requestRerun,
 	} = useDispatch( STORE_NAME );
 	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
 
@@ -174,20 +174,9 @@ export function WorkflowHeaderAction() {
 
 	const locked = !! primary?._locked;
 
-	const runAgain = async () => {
+	const runAgain = () => {
 		removeNotice( HEADER_NOTICE_ID );
-		try {
-			await rerunAgentStage();
-		} catch ( err ) {
-			createErrorNotice(
-				err.message ||
-					__(
-						'Could not run the agent again. Try again.',
-						'vip-workflows'
-					),
-				{ id: HEADER_NOTICE_ID, isDismissible: true }
-			);
-		}
+		requestRerun( 'header' );
 	};
 
 	const goBack = async () => {

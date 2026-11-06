@@ -198,7 +198,7 @@ export function WorkflowPanel() {
 		fetchWorkflowStatus,
 		requestTransition,
 		revertAgentStage,
-		rerunAgentStage,
+		requestRerun,
 		setWorkflowWriting,
 		setTransitionError,
 	} = useDispatch( STORE_NAME );
@@ -236,23 +236,11 @@ export function WorkflowPanel() {
 		requestTransition( transition, anchor, 'panel' );
 
 	// The failed AI stage's two actions. Run again retries the agent in place,
-	// started by — and so acting as — whoever presses it. Go back returns the
-	// post to the stage it came from. The store runs both, so the header's
-	// button and these are the same moves.
-	const handleAgentRerun = async () => {
-		clearErrors();
-		try {
-			await rerunAgentStage();
-		} catch ( err ) {
-			setActionError(
-				err.message ||
-					__(
-						'Could not run the agent again. Try again.',
-						'vip-workflows'
-					)
-			);
-		}
-	};
+	// started by — and so acting as — whoever presses it; the transition flow
+	// runs it, saving unsaved edits first, as it does before any move into an
+	// AI stage. Go back returns the post to the stage it came from. Both are
+	// shared with the header's button, so they are the same moves.
+	const handleAgentRerun = () => requestRerun( 'panel' );
 
 	const handleAgentRevert = async () => {
 		clearErrors();
@@ -500,11 +488,12 @@ export function WorkflowPanel() {
 				</Stack>
 			) }
 
-			{ /* AI stage failed: surface the error, and offer the one exit a
-			     failed stage has — back the way the post came. The server names
-			     the destination (agent_job.revert_to) exactly when it will honor
-			     the move; without it the stage's routed transitions are released
-			     instead and the rail below carries them, so no button here. */ }
+			{ /* AI stage failed: surface the error and its two actions. Run
+			     again retries in place when the job allows it (can_rerun). Go
+			     back returns the post the way it came; the server names that
+			     destination (agent_job.revert_to) exactly when it will honor the
+			     move. Without either, the stage's routed transitions are
+			     released and the rail below carries them. */ }
 			{ ! agentPending && agentFailed && (
 				// wpds-allow R7 -- error surface (background + border + radius) whose title, error line and button sit at three different distances; <Stack> draws none of the three and has one uniform gap.
 				<div className="vip-workflows-panel__agent-failed">
@@ -593,7 +582,8 @@ export function WorkflowPanel() {
 			     agent works AND while it sits failed with a go-back available
 			     (StatusManager::agent_owns_stage_exits) — the rail renders the
 			     sequence's routed outcomes in their place, and the failed
-			     state's exit is the Go back button above. Only a failure whose
+			     state's ways out are the Run again and Go back buttons above.
+			     Only a failure whose
 			     origin cannot be resolved releases the routed transitions here,
 			     so a failed agent never strands the post.
 

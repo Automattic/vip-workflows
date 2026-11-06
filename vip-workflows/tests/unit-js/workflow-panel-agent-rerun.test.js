@@ -60,6 +60,8 @@ register(
 import { seedEditorStore } from './helpers/editor-store';
 // eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
+// eslint-disable-next-line import/first
+import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 const RERUN_PATH = '/vip-workflows/v1/workflow/post/42/agent-rerun';
@@ -105,7 +107,12 @@ async function renderPanel( payload ) {
 		return Promise.resolve( {} );
 	} );
 
-	render( <WorkflowPanel /> );
+	render(
+		<>
+			<TransitionFlow />
+			<WorkflowPanel />
+		</>
+	);
 
 	await waitFor( () =>
 		expect(
@@ -194,7 +201,12 @@ describe( 'WorkflowPanel failed agent actions', () => {
 			return Promise.resolve( {} );
 		} );
 
-		render( <WorkflowPanel /> );
+		render(
+			<>
+				<TransitionFlow />
+				<WorkflowPanel />
+			</>
+		);
 		await waitFor( () =>
 			expect(
 				screen.getByRole( 'button', { name: 'Run again' } )
