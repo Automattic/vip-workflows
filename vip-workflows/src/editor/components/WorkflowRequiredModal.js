@@ -14,6 +14,7 @@ import { store as noticesStore } from '@wordpress/notices';
 import apiFetch from '@wordpress/api-fetch';
 import { __ } from '@wordpress/i18n';
 import { ModalActions } from '../../common/ModalActions';
+import { recordTracksEvent } from '../../common/tracks';
 
 export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 	const [ sequences, setSequences ] = useState( [] );
@@ -58,6 +59,9 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 			data: { sequence_id: parseInt( selectedId, 10 ) },
 		} )
 			.then( () => {
+				recordTracksEvent( 'editor_workflow_selected', {
+					source: 'required_modal',
+				} );
 				onSelect?.();
 			} )
 			.catch( ( err ) => {
