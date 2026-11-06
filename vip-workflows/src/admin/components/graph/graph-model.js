@@ -2216,7 +2216,7 @@ export function validateSequence( {
 	if ( ! stages || stages.length === 0 ) {
 		addError(
 			__(
-				'This sequence has no stages. Right-click the canvas to add one.',
+				'This sequence has no stages. Choose Add stage in the Sequence panel to add one.',
 				'vip-workflows'
 			)
 		);
@@ -2445,7 +2445,7 @@ export function validateSequence( {
 				stage.key,
 				isAgentStage( stage )
 					? __(
-							'The agent has no outcome routed anywhere. Drag from an outcome handle to route one.',
+							'The agent has no outcome routed anywhere. Use an outcome’s Route button in the Stage panel, or drag its handle.',
 							'vip-workflows'
 					  )
 					: __(
@@ -2488,13 +2488,15 @@ export function validateSequence( {
 					addWarning(
 						stage.key,
 						sprintf(
-							/* translators: 1: agent outcome label, 2: target stage key */
+							/* translators: 1: agent outcome label, 2: target stage name */
 							__(
-								'“%1$s” route has no transition to travel on (%2$s). Re-drag its handle.',
+								'The agent’s “%1$s” route has no transition to travel on (%2$s). Set it to Not routed, then route it again.',
 								'vip-workflows'
 							),
 							agentOutcomeLabel( outcome ),
-							target
+							// The Route menu lists stages by name, so the
+							// message names the one to pick the same way.
+							stageLabel( stages, target )
 						)
 					);
 				}
@@ -2621,15 +2623,26 @@ export function validateSequence( {
 	// as final") named the rule and left the author to work out which stage it
 	// was about and how one gets marked — the two things they actually need. So
 	// the stages content would pile up in are named, since those are the
-	// candidates, and the gesture that ends the flow is spelled out.
+	// candidates, and the way to end the flow is spelled out — the Stage panel's
+	// Add exit first, since that works from the keyboard, then the drag.
+	//
+	// Neither reaches an AI stage: its panel has no Add exit, and an outcome
+	// cannot route to End (`isValidConnection`). It is made final by clearing
+	// its agent first, so when the stages the message points at include one,
+	// that is said too rather than leaving the author hunting for a control
+	// that isn't there.
 	if ( ! isPhase && ! stages.some( ( s ) => s.is_terminal ) ) {
-		addError(
+		const pointsAtAgent =
+			deadEnds.length > 0
+				? deadEnds.some( isAgentStage )
+				: stages.every( isAgentStage );
+		const nothingEnds =
 			deadEnds.length > 0
 				? sprintf(
 						/* translators: %s: comma-separated stage names. */
 						_n(
-							'Nothing ends this sequence: %s has no way out. Drag from it to the End node.',
-							'Nothing ends this sequence: %s have no way out. Drag from one to the End node.',
+							'Nothing ends this sequence: %s has no way out. Choose Add exit, then End of workflow, or drag it to the End node.',
+							'Nothing ends this sequence: %s have no way out. On one, choose Add exit, then End of workflow, or drag it to the End node.',
 							deadEnds.length,
 							'vip-workflows'
 						),
@@ -2644,9 +2657,21 @@ export function validateSequence( {
 							.join( ', ' )
 				  )
 				: __(
-						'Nothing ends this sequence. Drag from the stage that should finish it to the End node.',
+						'Nothing ends this sequence. On the last stage, choose Add exit, then End of workflow, or drag it to the End node.',
 						'vip-workflows'
+				  );
+		addError(
+			pointsAtAgent
+				? sprintf(
+						/* translators: 1: the "nothing ends this sequence" message, 2: how an AI stage is made final. */
+						__( '%1$s %2$s', 'vip-workflows' ),
+						nothingEnds,
+						__(
+							'An AI stage cannot end the flow while it has an agent: clear the Agent field in its Stage panel first.',
+							'vip-workflows'
+						)
 				  )
+				: nothingEnds
 		);
 	}
 
