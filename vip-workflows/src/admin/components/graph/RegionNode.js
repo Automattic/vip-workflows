@@ -31,16 +31,30 @@ import { __ } from '@wordpress/i18n';
 import { login } from '@wordpress/icons';
 
 function RegionNodeComponent( { data } ) {
-	const { region, hasEntry, isSlotTarget, isDragging, slotX, slotY } = data;
+	const {
+		region,
+		hasEntry,
+		stageCount,
+		isSlotTarget,
+		isDragging,
+		slotX,
+		slotY,
+	} = data;
 
 	// The slot shows when there's nothing in it, and while a drag is in flight
 	// so there's something to aim at — including when the stage in flight is the
 	// one that was filling it.
 	const showSlot = ! hasEntry || isDragging;
 
+	// Only a region holding stages blocks Save for want of a checkpoint
+	// (`validateSequence` skips an empty group, which nothing is saved for), so
+	// only that one wears the Save-blocking red. An empty group's slot stays
+	// neutral: it is somewhere to drop a stage, not a fault.
+	const isUnset = ! hasEntry && stageCount > 0;
+
 	return (
 		<div
-			className={ [ 'wf-region', ! hasEntry && 'is-unset' ]
+			className={ [ 'wf-region', isUnset && 'is-unset' ]
 				.filter( Boolean )
 				.join( ' ' ) }
 			data-region={ region }

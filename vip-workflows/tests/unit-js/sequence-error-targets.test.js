@@ -329,7 +329,11 @@ describe( 'a fault on a stage that has no address of its own', () => {
 	];
 
 	it( 'leaves the shared-key fault untargeted, and still badges the node', () => {
-		const { errors, warnings } = validateSequence( {
+		const {
+			errors,
+			warnings,
+			blockers: red,
+		} = validateSequence( {
 			name: 'Flow',
 			stages: COLLIDE,
 		} );
@@ -340,6 +344,8 @@ describe( 'a fault on a stage that has no address of its own', () => {
 		expect( found ).toBeDefined();
 		expect( found.target ).toBeNull();
 		expect( ( warnings.a || [] ).join( ' ' ) ).toContain( 'share the key' );
+		// No panel to open, but the node still turns red: it blocks Save.
+		expect( ( red.a || [] ).join( ' ' ) ).toContain( 'share the key' );
 	} );
 
 	it( 'leaves every node fault on a shared-key stage untargeted', () => {

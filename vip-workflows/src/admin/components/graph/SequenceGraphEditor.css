@@ -3,8 +3,10 @@
  *
  * Colors, elevation, and on-scale spacing come from WPDS tokens (`--wpds-*`),
  * matching the rest of the admin: neutral surfaces/strokes for chrome, the brand
- * tone for selection, and the caution tone for a flagged stage — red is kept
- * for what actually stops the sequence being saved. The stage's palette
+ * tone for selection, the caution tone for a stage carrying only hints, and
+ * the error tone for whatever actually stops the sequence being saved: on this
+ * canvas, red means "blocks Save" (why caution rather than warning amber is
+ * recorded in `src/styles/tokens.css`). The stage's palette
  * color appears nowhere on the canvas — it identifies the stage in badges and
  * the inspector, and the card's tinted states carry the node's meaning here.
  * Type comes from the `--vip-workflows-text-*` composites and the WPDS
@@ -287,27 +289,34 @@
 	background: var( --wpds-color-background-interactive-brand-weak-active );
 }
 
-/* A stage the validator flagged wears the caution tone whole-card, like
-   selection does the brand: amber border, amber-washed surface, and the flag in
-   the title. Caution rather than error because these are hints — a dangling
-   transition, a stage nothing reaches — that the author can save straight past;
-   only `validation.errors` stop the save, and those are said in the blocked
-   notice. Painting both states red made a hint indistinguishable from a
-   blocker, and the louder reading won.
+/* A stage the validator flagged wears its tone whole-card, like selection does
+   the brand: tinted border, washed surface, and the flag in the title.
 
-   The border is the caution family's own strong surface stroke; the wash is its
-   weak surface. */
+   Caution amber (`is-warning`) is for hints — a dangling transition, a stage
+   nothing reaches — that the author can save straight past. Error red
+   (`is-error`) is for a stage holding a fault the save is refused for; the
+   node emits it from `validation.blockers`, not from the message text. One tone
+   for both made a hint indistinguishable from a blocker, so each keeps its own.
+
+   Each border is its family's own strong surface stroke; each wash is its weak
+   surface. */
 .wf-stage-node.is-warning {
 	border-color: var( --wpds-color-stroke-surface-caution-strong );
 	background: var( --wpds-color-background-surface-caution-weak );
+}
+
+.wf-stage-node.is-error {
+	border-color: var( --wpds-color-stroke-surface-error-strong );
+	background: var( --wpds-color-background-surface-error-weak );
 }
 
 /* An AI stage takes the purple used for every other AI surface in the product
    as its whole card — border and a light wash of the same tone — so "an agent
    runs here" is legible from across the canvas.
 
-   Ordered after the base states so it wins over them; the warning treatment
-   still wins over this, since a broken route is the more urgent thing to see. */
+   Ordered after the base states so it wins over them; the warning and error
+   treatments still win over this, since a broken route is the more urgent
+   thing to see. */
 .wf-stage-node.is-agent {
 	border-color: var( --vip-workflows-color-stroke-ai );
 	background: color-mix(
@@ -330,6 +339,11 @@
 .wf-stage-node.is-agent.is-warning {
 	border-color: var( --wpds-color-stroke-surface-caution-strong );
 	background: var( --wpds-color-background-surface-caution-weak );
+}
+
+.wf-stage-node.is-agent.is-error {
+	border-color: var( --wpds-color-stroke-surface-error-strong );
+	background: var( --wpds-color-background-surface-error-weak );
 }
 
 /* The card's one in-flow child — the title row stacked over the footer row.
@@ -363,6 +377,13 @@
 	fill: var( --wpds-color-foreground-content-caution-weak );
 }
 
+/* The same reasoning in red: `fg-content-error-weak` is the family's
+   icon-legible weight, and the value the error card's border uses. */
+.wf-stage-node__flag--error {
+	/* wpds-allow R6 -- <Icon> renders the raw SVG and exposes no color prop; `fill` is the only way to tint the flag */
+	fill: var( --wpds-color-foreground-content-error-weak );
+}
+
 /* Both footer read-outs are <Text variant="body-sm"> (`StageNode`), which is
    where their type comes from; only the tone is left here. */
 .wf-stage-node__meta {
@@ -393,6 +414,26 @@
    canvas adds to it. */
 .wf-terminal-node {
 	cursor: grab;
+}
+
+/* End when nothing is joined to it: the sequence has no way to finish, which
+   blocks Save, and a drag onto End is the fix — so End wears the same error
+   tone a Save-blocking stage does. The label takes the error foreground
+   rather than the pill's neutral-weak, which is what clears 4.5:1 on the
+   error wash. */
+.wf-terminal-node.is-error {
+	border-color: var( --wpds-color-stroke-surface-error-strong );
+	background: var( --wpds-color-background-surface-error-weak );
+}
+
+.wf-terminal-node.is-error .wf-terminal-pill__label {
+	color: var( --wpds-color-foreground-content-error-weak );
+}
+
+.wf-terminal-node__flag {
+	flex: 0 0 auto;
+	/* wpds-allow R6 -- <Icon> renders the raw SVG and exposes no color prop; `fill` is the only way to tint the flag */
+	fill: var( --wpds-color-foreground-content-error-weak );
 }
 
 .wf-terminal-node__handle.react-flow__handle {
@@ -700,11 +741,15 @@
 	fill: currentColor;
 }
 
-/* Empty with nothing in flight: the sequence can't be saved like this, so the
-   slot says so in the same tone the node warnings use. */
+/* Empty in a region that holds stages: the sequence can't be saved like this,
+   so the slot says so in the error tone a Save-blocking stage uses. A region
+   with no stages is not checked, so its slot keeps the neutral outline. The
+   border is the error family's strong surface stroke; the label takes its icon-legible
+   foreground (the same value), which still clears 4.5:1 on the slot's
+   surface. */
 .wf-region.is-unset .wf-region__slot {
-	border-color: var( --wpds-color-foreground-content-caution );
-	color: var( --wpds-color-foreground-content-caution );
+	border-color: var( --wpds-color-stroke-surface-error-strong );
+	color: var( --wpds-color-foreground-content-error-weak );
 }
 
 /* Letting go here makes the dragged stage this region's checkpoint. */

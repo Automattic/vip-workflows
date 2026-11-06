@@ -2173,8 +2173,8 @@ export function disconnectEdge( stages, from, to, outcome = null ) {
 
 // ---------------------------------------------------------------------------
 // Validation — mirrors the old SequenceEditor.handleSave rules and feeds both
-// the Save guard (sequence-level errors) and the node warning variant
-// (per-stage warnings).
+// the Save guard (sequence-level errors) and the node fault variants
+// (per-stage blockers and warnings).
 // ---------------------------------------------------------------------------
 
 /**
@@ -2271,13 +2271,19 @@ export function isRequiredHandOff( requiredTransitions, from, to ) {
  *                                               `allow_agent_publish`, used to
  *                                               warn on agent routes the
  *                                               runtime will hold.
- * @return {{ valid: boolean, errors: Array<Object>, warnings: Object }} Result.
+ * @return {{ valid: boolean, errors: Array<Object>, warnings: Object, blockers: Object }} Result.
  *         `errors` block Save, each `{ message, target }` — `target` naming the
  *         node, edge or region whose panel fixes it, or null for a fault that
  *         belongs to the sequence rather than to anything on the canvas.
  *         `warnings` is `{ stageKey: string[] }` for nodes. A rule the server
  *         would refuse the save for appears in both, so the author is stopped
- *         *and* shown which stage to open. `valid` is `errors.length === 0`,
+ *         *and* shown which stage to open. `blockers` is the same
+ *         `{ stageKey: string[] }` shape holding only those Save-blocking
+ *         messages, so the canvas can tell a stage that stops the save from
+ *         one that only carries a hint without reading the message text. It
+ *         is keyed by canvas node id: a stage key, or `END_ID` when nothing
+ *         ends the sequence, so the End node can wear the red too.
+ *         `valid` is `errors.length === 0`,
  *         kept as part of this function's contract for callers that only need
  *         the yes/no — the editor is not one of them, since it gathers `errors`
  *         into the reasons it shows the author.
@@ -2292,6 +2298,7 @@ export function validateSequence( {
 } ) {
 	const errors = [];
 	const warnings = {};
+	const blockers = {};
 
 	// What an error is about, in the vocabulary the editor's selection already
 	// speaks (`{ type: 'node' | 'edge' | 'region', … }`), so reporting a fault
@@ -2332,6 +2339,11 @@ export function validateSequence( {
 	// badge but carries no target, so the notice offers no way to a panel that
 	// cannot fix it. `duplicateKeys` is read at call time, after it is gathered
 	// below; no blocker is reported before then.
+	//
+	// The stage's copy also lands in `blockers`, which is what lets the node
+	// tell "this stops the save" (red) from "this is a hint" (amber): both
+	// kinds share `warnings`, so its length alone cannot say which it holds.
+	// The node turns red whether or not the error kept its target.
 	const addBlocker = ( message, target ) => {
 		const stageKey = targetStageKey( target );
 		const isStageTarget =
@@ -2341,6 +2353,19 @@ export function validateSequence( {
 			( '' !== stageKey && ! duplicateKeys.includes( stageKey ) );
 		addError( message, addressable ? target : null );
 		addWarning( stageKey, message );
+		blockers[ stageKey ] = blockers[ stageKey ] || [];
+		blockers[ stageKey ].push( message );
+	};
+
+	// A Save blocker whose error targets something other than the node that
+	// should turn red: a status group's fault lives on the group's panel, but
+	// the stages causing it are what the canvas can paint; a fault of the whole
+	// flow has no panel at all, but the End node is where it is fixed. This
+	// marks that canvas node (a stage key, or `END_ID`) without adding a
+	// second error, so the Save notice still lists the fault once.
+	const markBlocked = ( key, message ) => {
+		blockers[ key ] = blockers[ key ] || [];
+		blockers[ key ].push( message );
 	};
 
 	if ( ! ( name || '' ).trim() ) {
@@ -2359,7 +2384,7 @@ export function validateSequence( {
 				'vip-workflows'
 			)
 		);
-		return { valid: errors.length === 0, errors, warnings };
+		return { valid: errors.length === 0, errors, warnings, blockers };
 	}
 
 	const keys = new Set( stages.map( ( s ) => s.key ) );
@@ -2811,19 +2836,22 @@ export function validateSequence( {
 						'Nothing ends this sequence. On the last stage, choose Add exit, then End of workflow, or drag it to the End node.',
 						'vip-workflows'
 				  );
-		addError(
-			pointsAtAgent
-				? sprintf(
-						/* translators: 1: the "nothing ends this sequence" message, 2: how an AI stage is made final. */
-						__( '%1$s %2$s', 'vip-workflows' ),
-						nothingEnds,
-						__(
-							'An AI stage cannot end the flow while it has an agent: clear the Agent field in its Stage panel first.',
-							'vip-workflows'
-						)
-				  )
-				: nothingEnds
-		);
+		const message = pointsAtAgent
+			? sprintf(
+					/* translators: 1: the "nothing ends this sequence" message, 2: how an AI stage is made final. */
+					__( '%1$s %2$s', 'vip-workflows' ),
+					nothingEnds,
+					__(
+						'An AI stage cannot end the flow while it has an agent: clear the Agent field in its Stage panel first.',
+						'vip-workflows'
+					)
+			  )
+			: nothingEnds;
+		addError( message );
+		// The End node is where this is fixed — every remedy ends in a route to
+		// it — so it is what turns red. The error keeps its null target: End is
+		// not selectable, so there is no panel for the notice to open.
+		markBlocked( END_ID, message );
 	}
 
 	if ( ! isPhase ) {
@@ -2862,18 +2890,23 @@ export function validateSequence( {
 				return;
 			}
 			if ( entries.length > 1 ) {
-				addError(
-					sprintf(
-						/* translators: 1: status region name, 2: comma-separated stage labels */
-						__(
-							'The “%1$s” status group has more than one entry checkpoint: %2$s. Keep exactly one.',
-							'vip-workflows'
-						),
-						regionLabel( region ),
-						entries.map( ( s ) => s.label || s.key ).join( ', ' )
+				const message = sprintf(
+					/* translators: 1: status region name, 2: comma-separated stage labels */
+					__(
+						'The “%1$s” status group has more than one entry checkpoint: %2$s. Keep exactly one.',
+						'vip-workflows'
 					),
-					regionTarget( region )
+					regionLabel( region ),
+					entries.map( ( s ) => s.label || s.key ).join( ', ' )
 				);
+				addError( message, regionTarget( region ) );
+				// One error, opening the group's panel where the choice is
+				// made; but every competing checkpoint turns red, since any one
+				// of them is a stage the author might fix it from.
+				entries.forEach( ( s ) => {
+					addWarning( s.key, message );
+					markBlocked( s.key, message );
+				} );
 			}
 		} );
 
@@ -2966,7 +2999,7 @@ export function validateSequence( {
 		}
 	}
 
-	return { valid: errors.length === 0, errors, warnings };
+	return { valid: errors.length === 0, errors, warnings, blockers };
 }
 
 /**

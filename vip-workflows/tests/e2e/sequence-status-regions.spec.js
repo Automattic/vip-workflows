@@ -394,10 +394,12 @@ test.describe( 'VIP Workflows — sequence status regions', () => {
 		await expect(
 			page.locator( '.wf-stage-node.is-checkpoint' )
 		).toHaveCount( 0 );
-		// The empty slot is now showing, and Save is refused.
+		// The empty slot is now showing, in the Save-blocking red, and Save is
+		// refused.
 		await expect(
 			band( page, 'draft' ).locator( '.wf-region__slot' )
 		).toBeVisible();
+		await expect( band( page, 'draft' ) ).toHaveClass( /\bis-unset\b/ );
 		await page.getByRole( 'button', { name: 'Save' } ).click();
 		await expect(
 			page
@@ -609,5 +611,48 @@ test.describe( 'VIP Workflows — sequence status regions', () => {
 		await expect(
 			page.getByRole( 'button', { name: 'Remove this status' } )
 		).toBeDisabled();
+	} );
+
+	test( 'End turns red when nothing ends the sequence, and clears when a stage is final again', async ( {
+		admin,
+		page,
+		requestUtils,
+	} ) => {
+		const bp = await createTwoStageSequence( requestUtils );
+		sequenceId = bp.id;
+
+		await openEditor( admin, page, bp.name );
+		await fitView( page );
+
+		const end = page.locator( '.wf-terminal-node--end' );
+		await expect( end ).not.toHaveClass( /\bis-error\b/ );
+
+		// Review is the only final stage; un-marking it leaves nothing joined
+		// to End, which blocks Save.
+		const review = page
+			.locator( '.wf-stage-node' )
+			.filter( { hasText: 'Review' } );
+		await review.click( { button: 'right' } );
+		await page
+			.getByRole( 'menuitem', { name: 'Not a final stage' } )
+			.click();
+
+		await expect( end ).toHaveClass( /\bis-error\b/ );
+		await expect( end.getByRole( 'img' ) ).toHaveAttribute(
+			'aria-label',
+			/^Blocks Save: Nothing ends this sequence/
+		);
+		await page.getByRole( 'button', { name: 'Save' } ).click();
+		await expect(
+			page
+				.locator( '.components-notice' )
+				.filter( { hasText: /Nothing ends this sequence/ } )
+		).toBeVisible();
+
+		await review.click( { button: 'right' } );
+		await page
+			.getByRole( 'menuitem', { name: 'Make this a final stage' } )
+			.click();
+		await expect( end ).not.toHaveClass( /\bis-error\b/ );
 	} );
 } );

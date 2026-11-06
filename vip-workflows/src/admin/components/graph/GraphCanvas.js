@@ -147,6 +147,12 @@ const edgeTypes = { [ EDGE_TYPE ]: TransitionEdge };
 // warnings. (Node changes are not: see `handleNodesChange`.)
 const noop = () => {};
 
+// What a canvas given no `blockers` decorates with: no stage blocks Save. One
+// frozen object rather than an inline `{}` default, because `blockers` is a
+// dependency of the decoration memo and a fresh object would re-run it on
+// every render.
+const NO_BLOCKERS = Object.freeze( {} );
+
 // Zoom range for the canvas. The floor goes below React Flow's default 0.5 so a
 // long sequence can be read end to end.
 const MIN_ZOOM = 0.25;
@@ -360,6 +366,7 @@ function Flow( {
 	isPhase,
 	allowAgentPublish = false,
 	warnings,
+	blockers = NO_BLOCKERS,
 	regions: regionsProp = [],
 	selectedNodeKey,
 	selectedEdgeId,
@@ -585,7 +592,8 @@ function Flow( {
 	const removeHintId = `${ pillHintId }-remove`;
 	const disabledHintId = `${ pillHintId }-disabled`;
 
-	// Decoration: in-flight drag positions, selection, and per-stage warnings.
+	// Decoration: in-flight drag positions, selection, and per-stage warnings
+	// and blockers.
 	// Cheap (plain maps), so it can re-run on every selection or edit without
 	// paying for another layout.
 	const { nodes, edges } = useMemo( () => {
@@ -610,6 +618,15 @@ function Flow( {
 				};
 			}
 
+			// End carries the flow's own blocker ("nothing ends this
+			// sequence"), which `validateSequence` keys by its node id.
+			if ( node.id === END_ID ) {
+				return {
+					...node,
+					data: { ...node.data, blockers: blockers[ END_ID ] || [] },
+				};
+			}
+
 			if ( node.type !== NODE_TYPE ) {
 				return node;
 			}
@@ -617,6 +634,7 @@ function Flow( {
 			const data = {
 				...node.data,
 				warnings: warnings[ node.id ] || [],
+				blockers: blockers[ node.id ] || [],
 			};
 			return { ...node, selected: node.id === selectedNodeKey, data };
 		} );
@@ -693,6 +711,7 @@ function Flow( {
 		layout,
 		dragPositions,
 		warnings,
+		blockers,
 		selectedNodeKey,
 		selectedEdgeId,
 		dropSlotRegion,
