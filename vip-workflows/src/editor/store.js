@@ -398,6 +398,39 @@ const actions = {
 		},
 
 	/**
+	 * Run this post's failed stage agent again, in place.
+	 *
+	 * Offered by the workflow panel and the header button alike, whenever the
+	 * failed job says it can run again (`agent_job.can_rerun`). The run is
+	 * started by the person who asks, so it acts as them when they can edit
+	 * the post. It holds the current stage's key as the move in flight, so
+	 * both surfaces stand down together. Rejects with the server's error.
+	 */
+	rerunAgentStage:
+		() =>
+		async ( { dispatch, select } ) => {
+			const postId = select.getPostId();
+
+			dispatch.setTransitioningTo(
+				select.getWorkflowStatus()?.current?.key ?? null
+			);
+
+			try {
+				// The response is the status payload with the new pending
+				// job. The post stays where it is, so the editor's own record
+				// has nothing to re-read.
+				const status = await apiFetch( {
+					path: `/vip-workflows/v1/workflow/post/${ postId }/agent-rerun`,
+					method: 'POST',
+				} );
+
+				dispatch.receiveWorkflowStatus( status );
+			} finally {
+				dispatch.setTransitioningTo( null );
+			}
+		},
+
+	/**
 	 * Take this post out of its workflow.
 	 *
 	 * Removal is offered by the Workflow row in the Summary panel

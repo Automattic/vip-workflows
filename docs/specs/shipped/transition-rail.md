@@ -323,9 +323,12 @@ Beat 2 needs data the payload does not carry — see **The one server change**.
 A run that fails in place keeps the failed treatment in the panel above the
 rail, but the exits do NOT return *(revised after shipping — the original
 design released them beside a Re-run affordance)*: `agent_owns_stage_exits`
-keeps withholding while the failed job records a resolvable origin stage, the
-panel's one action — and the header button's — is "Go back to <origin>" (the
-`agent-revert` endpoint), and
+keeps withholding while the failed job records a resolvable origin stage. The
+failed state's lead action — in the panel and as the header button — is "Run
+again" (the `agent-rerun` endpoint) whenever the job reports `can_rerun`: the
+post stays at its stage and a fresh run starts, acting as whoever pressed it.
+"Go back to <origin>" (the `agent-revert` endpoint) sits beside it in the
+panel, and leads when a re-run is not offered; and
 the rail keeps drawing the routed outcomes disabled. Only a failure with no
 resolvable origin (a marker predating `from_stage`, or an origin the sequence
 no longer defines) releases the stage's transitions — and then only the ones

@@ -299,4 +299,120 @@ class StageAgentRunnerDispatchTest extends TestCase
 
         $this->addToAssertionCount( 1 );
     }
+
+    /**
+     * Run again keeps the post at its stage and dispatches a fresh run started
+     * by the person asking, keeping the go-back origin and restarting the chain.
+     */
+    public function test_rerun_dispatches_a_fresh_run_started_by_the_person_asking(): void
+    {
+        Functions\when( 'get_post_meta' )->alias(
+            static function ( $post_id, $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
+                    return 'ai_desk';
+                }
+                if ( StageAgentRunner::JOB_META === $key ) {
+                    return array( 'stage_key' => 'ai_desk', 'status' => 'failed', 'error' => 'x', 'from_stage' => 'draft' );
+                }
+                return '';
+            }
+        );
+        Functions\expect( 'delete_post_meta' )->once()->with( 42, StageAgentRunner::CHAIN_META );
+        $captured = null;
+        Functions\when( 'update_post_meta' )->alias(
+            function ( $post_id, $key, $value ) use ( &$captured ) {
+                $captured = $value;
+                return true;
+            }
+        );
+        Functions\expect( 'wp_schedule_single_event' )
+            ->once()
+            ->with( Mockery::type( 'int' ), StageAgentRunner::RUN_HOOK, array( 42, 'ai_desk' ), true )
+            ->andReturn( true );
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
+            )
+        );
+
+        $this->assertTrue( $this->runner->rerun( 42, $sequence ) );
+        $this->assertSame( 'pending', $captured['status'] );
+        $this->assertSame( 'ai_desk', $captured['stage_key'] );
+        $this->assertSame( 'test/agent', $captured['ability_id'] );
+        $this->assertSame( 'draft', $captured['from_stage'], 'go-back still knows where the post came from' );
+        $this->assertSame( 'rerun', $captured['cause'] );
+        $this->assertSame( 5, $captured['started_by'], 'the run belongs to whoever pressed Run again' );
+    }
+
+    /**
+     * Only a run that failed at the post's current stage can run again.
+     *
+     * @dataProvider not_rerunnable_jobs
+     *
+     * @param mixed $job The stored job marker.
+     */
+    public function test_rerun_refuses_without_a_failed_run_at_the_current_stage( $job ): void
+    {
+        Functions\when( 'get_post_meta' )->alias(
+            static function ( $post_id, $key ) use ( $job ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
+                    return 'ai_desk';
+                }
+                return StageAgentRunner::JOB_META === $key ? $job : '';
+            }
+        );
+        Functions\expect( 'update_post_meta' )->never();
+        Functions\expect( 'wp_schedule_single_event' )->never();
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
+            )
+        );
+
+        $result = $this->runner->rerun( 42, $sequence );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'no_agent_rerun', $result->get_error_code() );
+    }
+
+    /**
+     * Job markers that do not allow a re-run.
+     *
+     * @return array
+     */
+    public static function not_rerunnable_jobs(): array
+    {
+        return array(
+            'no job'                => array( '' ),
+            'still pending'         => array( array( 'stage_key' => 'ai_desk', 'status' => 'pending' ) ),
+            'held for a person'     => array( array( 'stage_key' => 'ai_desk', 'status' => 'warnings_pending' ) ),
+            'failed at other stage' => array( array( 'stage_key' => 'other', 'status' => 'failed' ) ),
+        );
+    }
+
+    /**
+     * A stage whose agent was removed from the sequence has nothing to run again.
+     */
+    public function test_rerun_refuses_when_the_stage_no_longer_has_an_agent(): void
+    {
+        Functions\when( 'get_post_meta' )->alias(
+            static function ( $post_id, $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
+                    return 'ai_desk';
+                }
+                return StageAgentRunner::JOB_META === $key
+                    ? array( 'stage_key' => 'ai_desk', 'status' => 'failed' )
+                    : '';
+            }
+        );
+        Functions\expect( 'wp_schedule_single_event' )->never();
+
+        $result = $this->runner->rerun( 42, $this->sequence_with_status( array( 'key' => 'ai_desk' ) ) );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+    }
 }
