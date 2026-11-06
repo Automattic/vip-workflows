@@ -40,6 +40,8 @@
 		"wp-env:stop": "wp-env stop",
 		"prewp-env:start:tests": "node scripts/gen-wp-env-tests.js",
 		"wp-env:start:tests": "wp-env start --config .wp-env.tests.json",
+		"postwp-env:start:tests": "npm run seed:tests",
+		"seed:tests": "bash tools/wp-env-seed-tests.sh",
 		"wp-env:stop:tests": "wp-env stop --config .wp-env.tests.json",
 		"wp-env:destroy": "wp-env destroy",
 		"wp-env:clean": "wp-env clean all",

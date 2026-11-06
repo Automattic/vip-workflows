@@ -6,6 +6,8 @@ Repository tooling and local-development helpers:
 - `restart-workflow.sh` deactivates and reactivates the plugin in wp-env.
 - `use-worktree.sh` points the shared development wp-env at another Git worktree.
 - `wp-env-after-start.sh` configures the local site and imports synthetic demo content.
+- `wp-env-seed-tests.sh` gives the tests environment the plugin state the e2e suite assumes (`npm run seed:tests`; also runs after `npm run wp-env:start:tests`).
+- `wp-env-e2e-webserver.sh` is the Playwright `webServer` command for local e2e runs: it starts and seeds the tests environment, then reports ready.
 - `create-test-authors.py` and `create-test-content.py` create optional local fixtures through the WordPress REST API.
 - `code-quality/` discovers packages and runs the appropriate lint and unit-test commands.
 - `playground/` builds the pull request preview (`build-preview.sh`), validates its blueprint (`build-preview-blueprint.mjs`), boots it locally (`serve-preview.sh`), and shifts demo-content dates for both the preview and wp-env (`shift-wxr-dates.php`).

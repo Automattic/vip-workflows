@@ -30,9 +30,10 @@
  *   - drop `lifecycleScripts` — afterStart runs `wp-env run cli` with no
  *                            `--config`, which targets the DEV env; in a
  *                            tests-only CI boot the dev env isn't running, so it
- *                            would fail the start. e2e seeds its own data and
- *                            doesn't need permalinks/import, so this is a no-op
- *                            for the suite.
+ *                            would fail the start. e2e doesn't need the
+ *                            permalinks/import; the plugin state it does need
+ *                            comes from `tools/wp-env-seed-tests.sh`, which
+ *                            runs after `npm run wp-env:start:tests`.
  *
  * The output is a committed, generated artifact. DO NOT EDIT it by hand — edit
  * `.wp-env.json` and re-run this script. A pre-commit hook regenerates it when
