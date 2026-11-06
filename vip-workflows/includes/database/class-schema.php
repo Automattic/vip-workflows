@@ -623,6 +623,10 @@ class Schema {
 			}
 
 			self::write_backfill_pages( $lease, (int) $cursor );
+
+			// Still the owner when recording the finish, or a request that took
+			// over could be told there is nothing left to do.
+			$lease = self::renew_backfill_lease( $lease );
 			self::write_option_to_primary( self::ASSIGNEE_BACKFILL_CURSOR_OPTION, self::ASSIGNEE_BACKFILL_COMPLETE );
 		} finally {
 			self::release_backfill_lease( $lease );
@@ -632,11 +636,13 @@ class Schema {
 	/**
 	 * Write the backfill a page at a time, from the post after $last_id.
 	 *
-	 * @param string $lease   This request's lease value.
+	 * @param string $lease   This request's lease value, by reference: each
+	 *                        renewal changes it, and the caller releases the
+	 *                        lease by its latest value.
 	 * @param int    $last_id Last post ID already done.
 	 * @throws \RuntimeException When the rows cannot be read or written, or the lease was lost.
 	 */
-	private static function write_backfill_pages( string $lease, int $last_id ): void {
+	private static function write_backfill_pages( string &$lease, int $last_id ): void {
 		global $wpdb;
 
 		$index_key = \VIPWorkflows\Workflow\AssignmentManager::PENDING_ASSIGNEE_INDEX_KEY;
@@ -766,22 +772,30 @@ class Schema {
 	private static function renew_backfill_lease( string $lease ): string {
 		global $wpdb;
 
-		$renewed = strtok( $lease, '|' ) . '|' . ( time() + self::ASSIGNEE_BACKFILL_LEASE_TTL );
+		$token   = strtok( $lease, '|' );
+		$renewed = $token . '|' . ( time() + self::ASSIGNEE_BACKFILL_LEASE_TTL );
 
+		// Matched on the token, which is this request's, not on the whole
+		// value, whose expiry moves with every renewal.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- compare-and-set renewal of this request's own lease.
-		$rows = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value = %s", $renewed, self::ASSIGNEE_BACKFILL_LEASE_OPTION, $lease ) );
+		$rows = $wpdb->query( $wpdb->prepare( "UPDATE {$wpdb->options} SET option_value = %s WHERE option_name = %s AND option_value LIKE %s", $renewed, self::ASSIGNEE_BACKFILL_LEASE_OPTION, $wpdb->esc_like( $token . '|' ) . '%' ) );
+
 		// MySQL counts changed rows, so a renewal in the same second as the
 		// last one changes nothing and reports 0. Read the row to tell that
-		// apart from a takeover.
-		if ( 1 !== $rows && self::read_option_from_primary( self::ASSIGNEE_BACKFILL_LEASE_OPTION ) !== $renewed ) {
+		// apart from a takeover, which replaces the token.
+		if ( 1 !== $rows && strtok( (string) self::read_option_from_primary( self::ASSIGNEE_BACKFILL_LEASE_OPTION ), '|' ) !== $token ) {
 			throw new \RuntimeException( 'The pending-assignee backfill lease was taken over; stopping before writing.' );
 		}
 
 		return $renewed;
 	}
 
+
 	/**
 	 * Give the lease back, if it is still this request's.
+	 *
+	 * Matched on the token, so a value whose expiry has moved since it was
+	 * claimed is still released, and a lease another request took over is not.
 	 *
 	 * @param string $lease This request's lease value.
 	 */
@@ -789,8 +803,9 @@ class Schema {
 		global $wpdb;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- deletes only this request's own lease row.
-		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value = %s", self::ASSIGNEE_BACKFILL_LEASE_OPTION, $lease ) );
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$wpdb->options} WHERE option_name = %s AND option_value LIKE %s", self::ASSIGNEE_BACKFILL_LEASE_OPTION, $wpdb->esc_like( strtok( $lease, '|' ) . '|' ) . '%' ) );
 	}
+
 
 	/**
 	 * Read an option row straight from the database, past every cache.

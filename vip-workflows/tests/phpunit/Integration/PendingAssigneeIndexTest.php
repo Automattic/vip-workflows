@@ -370,6 +370,39 @@ class PendingAssigneeIndexTest extends TestCase {
 	}
 
 	/**
+	 * Every renewal changes the lease's value, and the owner gives the lease
+	 * back by its latest value. Releasing by the value it first claimed would
+	 * match nothing once a renewal moved the expiry, and leave the lease
+	 * standing, blocking every other request, until it ran out.
+	 *
+	 * Forced by waiting at the first page read, after the claim and before
+	 * the renewal, until the clock ticks over, so the renewal must change the
+	 * value.
+	 */
+	public function test_the_lease_is_released_after_a_renewal_changed_it(): void {
+		global $wpdb;
+
+		$this->write_pending_slot_for_user_a();
+
+		$tick = function ( $query ) use ( &$tick ) {
+			if ( false !== stripos( $query, 'SELECT DISTINCT post_id' ) ) {
+				remove_filter( 'query', $tick );
+				$claimed_at = time();
+				while ( time() === $claimed_at ) {
+					usleep( 50000 );
+				}
+			}
+			return $query;
+		};
+		add_filter( 'query', $tick );
+
+		$this->backfill();
+
+		$this->assertSame( array( $this->user_a ), $this->indexed() );
+		$this->assertNull( $wpdb->get_var( $wpdb->prepare( "SELECT option_value FROM {$wpdb->options} WHERE option_name = %s", Schema::ASSIGNEE_BACKFILL_LEASE_OPTION ) ), 'The lease was left behind after the backfill finished.' );
+	}
+
+	/**
 	 * An owner whose lease was taken over stops before it writes a page, so a
 	 * page it read before the takeover is never written.
 	 *
