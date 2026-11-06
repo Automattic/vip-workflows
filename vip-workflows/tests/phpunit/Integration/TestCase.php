@@ -106,8 +106,10 @@ abstract class TestCase extends WPIntegrationTestCase
         // costs nothing and clears any backend a test installed.
         ( new \ReflectionProperty( \VIPWorkflows\AI\Credentials::class, 'instance' ) )->setValue( null, null );
 
-        // Once-per-request diagnostic de-duplication.
-        ( new \ReflectionProperty( \VIPWorkflows\AI\AiInference::class, 'reported' ) )->setValue( null, array() );
+        // Once-per-request diagnostic de-duplication; a leftover entry silences
+        // the same fault in a later test. The list is shared with the unit base,
+        // so the two cannot drift.
+        \VIPWorkflows\Tests\ReportedDiagnostics::reset();
 
         // Re-entrancy guard keyed by post id; a leftover key makes a later
         // transition look already in progress and silently no-op.

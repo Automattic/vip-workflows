@@ -119,11 +119,8 @@ abstract class TestCase extends YoastTestCase
 
         // Once-per-request diagnostic de-duplication; a leftover entry silences
         // the notice a later test is asserting on.
-        ( new \ReflectionProperty( \VIPWorkflows\AI\AiInference::class, 'reported' ) )->setValue( null, array() );
-        ( new \ReflectionProperty( \VIPWorkflows\Integrations\LlmTextGenerator::class, 'reported' ) )
-            ->setValue( null, array() );
-        ( new \ReflectionProperty( \VIPWorkflows\Integrations\GuidelineContextProvider::class, 'reported' ) )
-            ->setValue( null, array() );
+        // The list is shared with the integration base, so the two cannot drift.
+        \VIPWorkflows\Tests\ReportedDiagnostics::reset();
 
         // The shared Telemetry double a test installed; a leftover one would
         // record a later test's events.
