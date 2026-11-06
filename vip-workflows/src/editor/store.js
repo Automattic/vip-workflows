@@ -199,6 +199,22 @@ const actions = {
 	},
 
 	/**
+	 * Ask the transition flow to run this post's failed stage agent again.
+	 *
+	 * Through the flow rather than straight to the server, so the author's
+	 * unsaved edits are saved first, as they are before a move into an AI
+	 * stage: the agent reads the stored post.
+	 *
+	 * @param {string} source 'panel' or 'header' — where a refusal is reported.
+	 */
+	requestRerun( source = 'panel' ) {
+		return {
+			type: 'REQUEST_TRANSITION',
+			request: { rerun: true, source },
+		};
+	},
+
+	/**
 	 * Mark the pending request as taken by the transition flow.
 	 */
 	clearTransitionRequest() {
@@ -400,7 +416,8 @@ const actions = {
 	/**
 	 * Run this post's failed stage agent again, in place.
 	 *
-	 * Offered by the workflow panel and the header button alike, whenever the
+	 * Run by the transition flow (see requestRerun), after it has saved the
+	 * post, for the workflow panel and the header button alike, whenever the
 	 * failed job says it can run again (`agent_job.can_rerun`). The run is
 	 * started by the person who asks, so it acts as them when they can edit
 	 * the post. It holds the current stage's key as the move in flight, so

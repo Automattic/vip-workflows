@@ -446,6 +446,13 @@ class StageAgentRunner implements ModuleInterface {
 
 		wp_cache_delete( $post_id, 'post_meta' );
 
+		// false is a failed query, not a lost race: say so in the log, since
+		// the caller can only report both to the author as a conflict.
+		if ( false === $updated ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Agent job marker update failed: post=%d db_error=%s', $post_id, self::log_token( (string) $wpdb->last_error ) ) );
+		}
+
 		return 1 === $updated;
 	}
 
