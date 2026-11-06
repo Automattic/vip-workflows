@@ -2331,13 +2331,15 @@ export function validateSequence( {
 					addWarning(
 						stage.key,
 						sprintf(
-							/* translators: 1: agent outcome label, 2: target stage key */
+							/* translators: 1: agent outcome label, 2: target stage name */
 							__(
 								'The agent’s “%1$s” route has no transition to travel on (%2$s). In the Stage panel, set it to Not routed with its Route button, then route it to that stage again.',
 								'vip-workflows'
 							),
 							agentOutcomeLabel( outcome ),
-							target
+							// The Route menu lists stages by name, so the
+							// message names the one to pick the same way.
+							stageLabel( stages, target )
 						)
 					);
 				}
@@ -2472,8 +2474,18 @@ export function validateSequence( {
 	// the stages content would pile up in are named, since those are the
 	// candidates, and the way to end the flow is spelled out — the Stage panel's
 	// Add exit first, since that works from the keyboard, then the drag.
+	//
+	// Neither reaches an AI stage: its panel has no Add exit, and an outcome
+	// cannot route to End (`isValidConnection`). It is made final by clearing
+	// its agent first, so when the stages the message points at include one,
+	// that is said too rather than leaving the author hunting for a control
+	// that isn't there.
 	if ( ! isPhase && ! stages.some( ( s ) => s.is_terminal ) ) {
-		addError(
+		const pointsAtAgent =
+			deadEnds.length > 0
+				? deadEnds.some( isAgentStage )
+				: stages.every( isAgentStage );
+		const nothingEnds =
 			deadEnds.length > 0
 				? sprintf(
 						/* translators: %s: comma-separated stage names. */
@@ -2496,7 +2508,19 @@ export function validateSequence( {
 				: __(
 						'Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Open the Stage panel of the stage that should finish the flow, choose Add exit, and pick End of workflow. Or drag from it to the End node.',
 						'vip-workflows'
+				  );
+		addError(
+			pointsAtAgent
+				? sprintf(
+						/* translators: 1: the "nothing ends this sequence" message, 2: how an AI stage is made final. */
+						__( '%1$s %2$s', 'vip-workflows' ),
+						nothingEnds,
+						__(
+							'An AI stage cannot end the flow while it has an agent: clear the Agent field in its Stage panel first.',
+							'vip-workflows'
+						)
 				  )
+				: nothingEnds
 		);
 	}
 

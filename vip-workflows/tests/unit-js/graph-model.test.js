@@ -1173,6 +1173,27 @@ describe( 'validateSequence', () => {
 		expect( message ).toContain( 'Add exit' );
 		expect( message ).toContain( 'End of workflow' );
 		expect( message ).toContain( 'End node' );
+		// No AI stage among them, so nothing about clearing an agent.
+		expect( message ).not.toContain( 'Agent field' );
+	} );
+
+	it( 'tells an author an AI dead end has to lose its agent before it can end the flow', () => {
+		// An AI stage's panel has no Add exit and its outcomes cannot route to
+		// End, so the blocker cannot leave the panel advice as the whole story.
+		const noTerminal = stages().map( ( s ) => ( {
+			...s,
+			is_terminal: false,
+			...( s.key === 'review'
+				? { agent: { ability_id: 'copy-edit', routing: {} } }
+				: {} ),
+		} ) );
+		const { errors } = validateSequence( {
+			name: 'Flow',
+			stages: noTerminal,
+		} );
+		const message = messages( errors ).join( ' ' );
+		expect( message ).toContain( '“Review”' );
+		expect( message ).toContain( 'Agent field' );
 	} );
 
 	it( 'uses a readable fallback when an unnamed, unkeyed stage is a dead end', () => {
@@ -2032,9 +2053,10 @@ describe( 'validateSequence for AI stages', () => {
 			name: 'Flow',
 			stages: agentStages( { error: 'draft' } ),
 		} );
-		expect( ( result.warnings.review || [] ).join( ' ' ) ).toContain(
-			'no transition to travel on'
-		);
+		const warning = ( result.warnings.review || [] ).join( ' ' );
+		expect( warning ).toContain( 'no transition to travel on' );
+		// Named the way the Route menu lists it, so it can be picked there.
+		expect( warning ).toContain( '(Draft)' );
 	} );
 
 	it( 'fixes a route with no transition the way its warning says: clear it, then route it again', () => {
