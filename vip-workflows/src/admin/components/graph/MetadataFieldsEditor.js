@@ -114,10 +114,13 @@ export function MetadataFieldsAdd( { fields, onChange } ) {
  * What the Required toggle says under itself, and whether it can be changed.
  *
  * The server checks required fields at one moment only: a transition that
- * crosses into the publish region (`Sequence::crosses_into_publish()`). On a
- * sequence with no publish-region stage that moment never comes, so marking a
- * field required would promise something nothing enforces. The toggle is
- * disabled there, and says why.
+ * crosses into the publish region (`Sequence::crosses_into_publish()`) — from
+ * a stage outside publish to a stage inside it. On a sequence with no such
+ * transition that moment never comes, so marking a field required would
+ * promise something nothing enforces. That includes a sequence that has
+ * publish stages but never moves a post into them from outside: one whose
+ * publish stages are reached only from each other, or not at all. The toggle
+ * is disabled there, and says why.
  *
  * A field that is ALREADY stored as required on such a sequence is the one
  * exception. Its toggle reads back as on, because that is what is stored —
@@ -126,16 +129,17 @@ export function MetadataFieldsAdd( { fields, onChange } ) {
  * flag that does nothing, and its help says that it does nothing. Once it is
  * off, it is disabled like every other field on the sequence.
  *
- * @param {Object}  field           The field being configured.
- * @param {boolean} hasPublishStage Whether any stage sits in the publish region.
+ * @param {Object}  field                    The field being configured.
+ * @param {boolean} hasTransitionIntoPublish Whether any transition takes the
+ *                                           post into the publish region.
  * @return {{disabled: boolean, help: string}} The toggle's state and help.
  */
-function requiredToggleState( field, hasPublishStage ) {
-	if ( hasPublishStage ) {
+function requiredToggleState( field, hasTransitionIntoPublish ) {
+	if ( hasTransitionIntoPublish ) {
 		return {
 			disabled: false,
 			help: __(
-				'Must have a value before the post is published.',
+				'Must have a value before a transition moves the post into Published.',
 				'vip-workflows'
 			),
 		};
@@ -144,7 +148,7 @@ function requiredToggleState( field, hasPublishStage ) {
 		return {
 			disabled: false,
 			help: __(
-				'Never checked, because no stage here publishes.',
+				'Never checked, because no transition here leads into Published.',
 				'vip-workflows'
 			),
 		};
@@ -152,7 +156,7 @@ function requiredToggleState( field, hasPublishStage ) {
 	return {
 		disabled: true,
 		help: __(
-			'Only checked at publish, and no stage here publishes.',
+			'Only checked on transitions into Published, and this sequence has none.',
 			'vip-workflows'
 		),
 	};
@@ -161,18 +165,19 @@ function requiredToggleState( field, hasPublishStage ) {
 /**
  * The sequence's metadata field list.
  *
- * @param {Object}   props                 Component props.
- * @param {Array}    props.fields          The current fields.
- * @param {Function} props.onChange        Reports the whole list back.
- * @param {boolean}  props.hasPublishStage Whether any stage of the sequence sits
- *                                         in the publish region — the only
- *                                         place required fields are checked.
+ * @param {Object}   props                          Component props.
+ * @param {Array}    props.fields                   The current fields.
+ * @param {Function} props.onChange                 Reports the whole list back.
+ * @param {boolean}  props.hasTransitionIntoPublish Whether any transition takes
+ *                                                  the post into the publish
+ *                                                  region — the only place
+ *                                                  required fields are checked.
  * @return {JSX.Element} The field list.
  */
 export default function MetadataFieldsEditor( {
 	fields,
 	onChange,
-	hasPublishStage,
+	hasTransitionIntoPublish,
 } ) {
 	return (
 		<InspectorFieldList
@@ -191,7 +196,7 @@ export default function MetadataFieldsEditor( {
 			renderConfig={ ( { item: field, update, problem } ) => {
 				const requiredToggle = requiredToggleState(
 					field,
-					hasPublishStage
+					hasTransitionIntoPublish
 				);
 				return (
 					<>

@@ -3,13 +3,14 @@
  *
  * Required fields are checked at one moment only: a transition that crosses
  * into the publish region (`Sequence::crosses_into_publish()`). A sequence with
- * no publish-region stage never reaches that moment, so the toggle there is
+ * no such transition never reaches that moment, so the toggle there is
  * disabled and says why, rather than accepting a promise nothing keeps. On a
- * sequence that does publish, its help says when the value is due.
+ * sequence that has one, its help says when the value is due. Which edges
+ * count is `transitionsIntoPublish()`, tested in graph-model.test.js.
  *
- * A field already stored as required on a sequence that never publishes reads
- * back as on, because that is what is stored, and stays switchable so the
- * author can clear it. Nothing rewrites it for them.
+ * A field already stored as required on a sequence with no transition into
+ * publish reads back as on, because that is what is stored, and stays
+ * switchable so the author can clear it. Nothing rewrites it for them.
  *
  * @package
  */
@@ -19,11 +20,13 @@ import { useState } from '@wordpress/element';
 import { render, screen, fireEvent, act } from './helpers/render-wp-component';
 
 import MetadataFieldsEditor from '../../src/admin/components/graph/MetadataFieldsEditor';
-import { hasPublishStage } from '../../src/admin/components/graph/regions';
 
-const ENABLED_HELP = 'Must have a value before the post is published.';
-const DISABLED_HELP = 'Only checked at publish, and no stage here publishes.';
-const STORED_HELP = 'Never checked, because no stage here publishes.';
+const ENABLED_HELP =
+	'Must have a value before a transition moves the post into Published.';
+const DISABLED_HELP =
+	'Only checked on transitions into Published, and this sequence has none.';
+const STORED_HELP =
+	'Never checked, because no transition here leads into Published.';
 
 async function openField( label ) {
 	// Popover settles its position after mount, so the open has to be awaited
@@ -45,13 +48,13 @@ function helpFor( control ) {
 }
 
 describe( 'MetadataFieldsEditor Required toggle', () => {
-	it( 'is live on a sequence with a publish stage, and says the deadline', async () => {
+	it( 'is live on a sequence with a transition into publish, and says the deadline', async () => {
 		const onChange = jest.fn();
 		render(
 			<MetadataFieldsEditor
 				fields={ [ { key: 'desk', label: 'Desk', type: 'text' } ] }
 				onChange={ onChange }
-				hasPublishStage
+				hasTransitionIntoPublish
 			/>
 		);
 		await openField( 'Desk' );
@@ -69,12 +72,12 @@ describe( 'MetadataFieldsEditor Required toggle', () => {
 		] );
 	} );
 
-	it( 'is disabled on a sequence with no publish stage, and says why', async () => {
+	it( 'is disabled on a sequence with no transition into publish, and says why', async () => {
 		render(
 			<MetadataFieldsEditor
 				fields={ [ { key: 'desk', label: 'Desk', type: 'text' } ] }
 				onChange={ () => {} }
-				hasPublishStage={ false }
+				hasTransitionIntoPublish={ false }
 			/>
 		);
 		await openField( 'Desk' );
@@ -97,7 +100,7 @@ describe( 'MetadataFieldsEditor Required toggle', () => {
 				<MetadataFieldsEditor
 					fields={ fields }
 					onChange={ setFields }
-					hasPublishStage={ false }
+					hasTransitionIntoPublish={ false }
 				/>
 			);
 		}
@@ -113,21 +116,21 @@ describe( 'MetadataFieldsEditor Required toggle', () => {
 			fireEvent.click( toggle );
 		} );
 
-		// Off now, and like every other field on a sequence that never
-		// publishes, it cannot be turned back on.
+		// Off now, and like every other field on a sequence with no
+		// transition into publish, it cannot be turned back on.
 		expect( requiredToggle() ).not.toBeChecked();
 		expect( requiredToggle() ).toBeDisabled();
 		expect( helpFor( requiredToggle() ) ).toBe( DISABLED_HELP );
 	} );
 
 	it.each( [ true, false ] )(
-		'leaves Searchable alone either way (hasPublishStage: %s)',
+		'leaves Searchable alone either way (hasTransitionIntoPublish: %s)',
 		async ( publishes ) => {
 			render(
 				<MetadataFieldsEditor
 					fields={ [ { key: 'desk', label: 'Desk', type: 'text' } ] }
 					onChange={ () => {} }
-					hasPublishStage={ publishes }
+					hasTransitionIntoPublish={ publishes }
 				/>
 			);
 			await openField( 'Desk' );
@@ -137,29 +140,4 @@ describe( 'MetadataFieldsEditor Required toggle', () => {
 			).toBeEnabled();
 		}
 	);
-} );
-
-describe( 'hasPublishStage', () => {
-	it( 'is true when any stage sits in publish', () => {
-		expect(
-			hasPublishStage( [
-				{ key: 'draft', status: 'draft' },
-				{ key: 'live', status: 'publish' },
-			] )
-		).toBe( true );
-	} );
-
-	it( 'is false for a sequence of drafts, including stages with no status', () => {
-		expect(
-			hasPublishStage( [
-				{ key: 'idea', status: 'draft' },
-				{ key: 'review', status: 'pending' },
-				{ key: 'unset' },
-			] )
-		).toBe( false );
-	} );
-
-	it( 'is false for no stages at all', () => {
-		expect( hasPublishStage( [] ) ).toBe( false );
-	} );
 } );

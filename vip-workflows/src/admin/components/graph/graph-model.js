@@ -1047,6 +1047,58 @@ export function findTransition( stages, from, to ) {
 	return ( stage.transitions || [] ).find( ( t ) => t.to === to ) || null;
 }
 
+/**
+ * Whether a move between two regions takes the post INTO publish.
+ *
+ * Mirrors `Sequence::crosses_into_publish()`, the scope of the server's
+ * required-metadata gate: the target is in publish and the source is not. A
+ * move with publish on both ends does not qualify — the post is already live —
+ * and neither does any move between two non-publish regions.
+ *
+ * @param {string} fromRegion Region the post is leaving.
+ * @param {string} toRegion   Region the post is entering.
+ * @return {boolean} True when the move crosses into publish.
+ */
+export function crossesIntoPublish( fromRegion, toRegion ) {
+	return toRegion === 'publish' && fromRegion !== 'publish';
+}
+
+/**
+ * Every authored transition that takes the post into the publish region.
+ *
+ * These are the only edges the server checks required metadata fields on
+ * (`StatusManager::transition()` asks `Sequence::crosses_into_publish()` of
+ * each move), so a sequence with none of them never enforces "Required". A
+ * stage in publish is not enough on its own: an entry stage already in
+ * publish, or publish stages reached only from other publish stages, are
+ * never crossed into. A transition whose target is not a stage of the
+ * sequence leads nowhere and is not counted.
+ *
+ * @param {Array} stages Stage objects.
+ * @return {Array<{from: string, to: string}>} The crossing transitions, in
+ *                                             stage then transition order.
+ */
+export function transitionsIntoPublish( stages ) {
+	const byKey = new Map( stages.map( ( stage ) => [ stage.key, stage ] ) );
+	return stages.flatMap( ( stage ) =>
+		( stage.transitions || [] )
+			.filter( ( transition ) => {
+				const target = byKey.get( transition.to );
+				return (
+					Boolean( target ) &&
+					crossesIntoPublish(
+						stageRegion( stage ),
+						stageRegion( target )
+					)
+				);
+			} )
+			.map( ( transition ) => ( {
+				from: stage.key,
+				to: transition.to,
+			} ) )
+	);
+}
+
 // ---------------------------------------------------------------------------
 // Agent (AI stage) mutations.
 //

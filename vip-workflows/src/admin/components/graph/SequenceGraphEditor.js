@@ -67,10 +67,11 @@ import {
 	isRequiredHandOff,
 	markInitialStage,
 	stageLabel,
+	transitionsIntoPublish,
 	START_ID,
 	END_ID,
 } from './graph-model';
-import { REGION_ORDER, hasPublishStage, stageRegion } from './regions';
+import { REGION_ORDER, stageRegion } from './regions';
 import { paletteColorAt, snapToPalette } from '../../utils/stage-palette';
 
 import '../../../common/outcome-tones.css';
@@ -1811,9 +1812,9 @@ export default function SequenceGraphEditor( {
 		onSettingsChange: setSettings,
 		metadataFields,
 		onMetadataChange: setMetadataFields,
-		// Required fields are checked only on a move into publish, so whether
-		// "Required" can mean anything depends on the stages drawn right now.
-		hasPublishStage: hasPublishStage( stages ),
+		// Required fields are checked only on a transition into publish, so
+		// whether "Required" can mean anything depends on the edges drawn now.
+		hasTransitionIntoPublish: transitionsIntoPublish( stages ).length > 0,
 		// Wrapped: the list's add button passes its option value, not a region.
 		onAddStage: isPhase ? undefined : () => handleAddStage(),
 		stages,
