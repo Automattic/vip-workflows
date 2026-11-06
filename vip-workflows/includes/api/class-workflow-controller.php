@@ -1070,8 +1070,17 @@ class WorkflowController extends WP_REST_Controller {
 			);
 		}
 
-		// Release the post.
-		delete_post_meta( $post_id, '_vip_workflows_assigned_to' );
+		// Release the post: delete exactly the claim read above. Of two releases
+		// racing, only one deletes a row; the other finds nothing to release and
+		// says so, rather than reporting (and logging) a release that did not
+		// happen.
+		if ( ! delete_post_meta( $post_id, '_vip_workflows_assigned_to', $current_assignee ) ) {
+			return new WP_Error(
+				'post_not_claimed',
+				__( 'This post is not claimed, so there is nothing to release.', 'vip-workflows' ),
+				array( 'status' => 409 )
+			);
+		}
 
 		// Log the event.
 		$this->log_event(
