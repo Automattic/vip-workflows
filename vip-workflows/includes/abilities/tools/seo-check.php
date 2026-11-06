@@ -36,10 +36,14 @@ namespace VIPWorkflows\Abilities\Tools;
  * Either kind counts only if it has visible text, so an empty block, a lone
  * `&nbsp;`, an image on its own line or a leftover closing tag is not one.
  *
+ * A pattern that hits a PCRE limit (a very long post with an unclosed `<p>`,
+ * say) leaves the count unknown, not zero: it is logged and null is
+ * returned, so the caller does not report "0 prose blocks" as a fact.
+ *
  * @param string $content Post content.
- * @return int Prose block count.
+ * @return int|null Prose block count, or null when it could not be counted.
  */
-function count_paragraphs( string $content ): int {
+function count_paragraphs( string $content ): ?int {
 	$content   = preg_replace( '/<!--.*?-->/s', '', $content );
 	$count     = 0;
 	$remainder = null === $content ? null : preg_replace_callback(
@@ -55,14 +59,15 @@ function count_paragraphs( string $content ): int {
 		$content
 	);
 
-	if ( null === $remainder ) {
-		// The pattern hit a PCRE limit, so the count would be a guess.
+	$chunks = null === $remainder ? false : preg_split( '/\R\s*\R/', $remainder );
+	if ( false === $chunks ) {
+		// A pattern hit a PCRE limit, so any count would be a guess.
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( '[VIP Workflows] SEO check could not count paragraphs: ' . preg_last_error_msg() );
-		return 0;
+		error_log( '[VIP Workflows] SEO check could not count prose blocks: ' . preg_last_error_msg() );
+		return null;
 	}
 
-	foreach ( preg_split( '/\R\s*\R/', $remainder ) as $chunk ) {
+	foreach ( $chunks as $chunk ) {
 		if ( preg_match( '/^\s*<(?:h[1-6]|ul|ol|dl|table|figure|pre|hr|div)\b/i', $chunk ) ) {
 			continue;
 		}
@@ -165,7 +170,16 @@ function execute_seo_check( ?array $input = null ) {
 	$analysis['paragraph_count'] = $paragraph_count;
 
 	$min_paragraphs = $settings['min_paragraphs'] ?? 3;
-	if ( $paragraph_count < $min_paragraphs ) {
+	if ( null === $paragraph_count ) {
+		// Unknown is not zero. Say the check could not run; `error` makes the
+		// gate treat it as a failure to reach a verdict, not a pass.
+		$issues[] = array(
+			'type'      => 'paragraph_count',
+			'check_key' => 'min_paragraphs',
+			'message'   => __( 'Prose blocks could not be counted for this post.', 'vip-workflows' ),
+			'severity'  => 'error',
+		);
+	} elseif ( $paragraph_count < $min_paragraphs ) {
 		$score        -= 10;
 		$issues[]      = array(
 			'type'      => 'paragraph_count',

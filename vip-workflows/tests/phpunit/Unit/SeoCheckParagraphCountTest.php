@@ -83,19 +83,101 @@ class SeoCheckParagraphCountTest extends TestCase
     }
 
     /**
-     * The patterns stay linear: a long post with many paragraphs, a quoted
-     * attribute and block delimiters on each is counted quickly and right.
+     * The patterns stay within PCRE's limits on a long post: many blocks, a
+     * quoted attribute and block delimiters on each, counted right with no
+     * PCRE error. Checked by error, not by wall clock, so it holds under
+     * coverage instrumentation too.
      */
-    public function test_large_content_is_counted_quickly(): void
+    public function test_large_content_is_counted_without_hitting_a_pcre_limit(): void
     {
         $content = str_repeat( "<!-- wp:paragraph -->\n<p class=\"note\" data-x=\"a>b\">" . str_repeat( 'word ', 30 ) . "</p>\n<!-- /wp:paragraph -->\n\n", 1000 );
         $this->assertGreaterThan( 200000, strlen( $content ) );
 
-        $started = microtime( true );
-        $count   = count_paragraphs( $content );
+        $this->assertSame( 1000, count_paragraphs( $content ) );
+        $this->assertSame( PREG_NO_ERROR, preg_last_error() );
+    }
 
-        $this->assertSame( 1000, $count );
-        $this->assertLessThan( 1.0, microtime( true ) - $started );
+    /**
+     * Run a callback with PCRE's JIT off and its backtrack limit at 1, so the
+     * counting patterns fail the way a pathological post would make them.
+     *
+     * @param callable $callback Work to run.
+     * @return mixed What the callback returned.
+     */
+    private function with_pcre_exhausted( callable $callback )
+    {
+        $jit       = ini_get( 'pcre.jit' );
+        $backtrack = ini_get( 'pcre.backtrack_limit' );
+        $log       = ini_get( 'error_log' );
+        ini_set( 'pcre.jit', '0' );
+        ini_set( 'pcre.backtrack_limit', '1' );
+        ini_set( 'error_log', '/dev/null' );
+
+        try {
+            return $callback();
+        } finally {
+            ini_set( 'pcre.jit', (string) $jit );
+            ini_set( 'pcre.backtrack_limit', (string) $backtrack );
+            ini_set( 'error_log', (string) $log );
+        }
+    }
+
+    /**
+     * A count PCRE could not finish is unknown, not zero.
+     */
+    public function test_a_pcre_failure_leaves_the_count_unknown(): void
+    {
+        $count = $this->with_pcre_exhausted(
+            fn() => count_paragraphs( '<!-- wp:paragraph --><p>One.</p><!-- /wp:paragraph -->' )
+        );
+
+        $this->assertNull( $count );
+    }
+
+    /**
+     * An unknown count is reported as the check failing to run, with error
+     * severity so the gate cannot read it as a pass, and never as "0 prose
+     * blocks".
+     */
+    public function test_a_pcre_failure_emits_an_error_issue_rather_than_a_false_zero(): void
+    {
+        $this->with_options( array( 'min_paragraphs' => 3 ) );
+        // The test double for wp_strip_all_tags() uses PCRE itself; with PCRE
+        // exhausted it would hand strip_tags() a null. Core's does not matter
+        // here, so a PCRE-free stand-in keeps the rest of the check quiet.
+        Functions\when( 'wp_strip_all_tags' )->alias( static fn( $text ) => strip_tags( (string) $text ) );
+
+        $result = $this->with_pcre_exhausted(
+            fn() => execute_seo_check(
+                array(
+                    'title'   => 'A title long enough to pass the title length check',
+                    'content' => '<!-- wp:paragraph --><p>One.</p><!-- /wp:paragraph -->',
+                )
+            )
+        );
+
+        $issue = $this->find_issue( $result['issues'], 'min_paragraphs' );
+        $this->assertNotNull( $issue );
+        $this->assertSame( 'error', $issue['severity'] );
+        $this->assertSame( 'Prose blocks could not be counted for this post.', $issue['message'] );
+        $this->assertNull( $result['analysis']['paragraph_count'] );
+    }
+
+    /**
+     * The singular form of the message, with its arguments in the right order.
+     */
+    public function test_one_prose_block_reads_in_the_singular(): void
+    {
+        $this->with_options( array( 'min_paragraphs' => 2 ) );
+
+        $result = execute_seo_check(
+            array(
+                'title'   => 'A title long enough to pass the title length check',
+                'content' => '<p>Only one.</p>',
+            )
+        );
+
+        $this->assertSame( 'Content has 1 prose block. Aim for at least 2.', $this->find_issue( $result['issues'], 'min_paragraphs' )['message'] );
     }
 
     public function test_too_few_paragraphs_emits_an_issue_keyed_to_the_setting(): void
