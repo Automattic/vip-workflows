@@ -7,7 +7,7 @@
  * is the one its edge leaves by. End is its own drop target — like a stage
  * node, the whole pill accepts a dropped connection (see `StageNode`) and that
  * marks the source stage a flow exit. They aren't stored stages and aren't
- * selectable; the actual data lives in stage order (`statuses[0]` = entry) and
+ * selectable; the actual data lives in the `is_initial` flag (entry) and
  * the `is_terminal` flag.
  *
  * @package

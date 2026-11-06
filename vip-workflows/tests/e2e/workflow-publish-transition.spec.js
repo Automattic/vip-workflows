@@ -2,9 +2,8 @@
  * Publishing through a workflow transition, in the editor UI.
  *
  * A transition into a publish-region stage crosses the publish boundary, so
- * the server writes `publish` — the post goes publicly live from a sidebar
- * button. Two behaviours are pinned here, both user-reported bugs in their
- * absence:
+ * the server writes `publish` — the post goes live from a sidebar button. Two
+ * behaviours are pinned here, both user-reported bugs in their absence:
  *
  * 1. The panel asks before publishing (core's own Publish button does), and
  *    declining really declines.

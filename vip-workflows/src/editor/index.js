@@ -1,14 +1,15 @@
 /**
- * VIP Workflows Editor Sidebar
+ * VIP Workflows in the post editor
  *
  * @package
  */
 
 import { useState } from '@wordpress/element';
 import { registerPlugin } from '@wordpress/plugins';
-import { PluginSidebar, PluginSidebarMoreMenuItem } from '@wordpress/editor';
-import { Stack } from '@wordpress/ui';
-import { replace as workflowIcon } from '@wordpress/icons';
+import {
+	PluginDocumentSettingPanel,
+	PluginPostStatusInfo,
+} from '@wordpress/editor';
 import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
 import { __ } from '@wordpress/i18n';
 
@@ -16,14 +17,29 @@ import { STORE_NAME } from './store';
 import { refreshPostEntity } from './refresh-post-entity';
 import { WorkflowPanel } from './components/WorkflowPanel';
 import { WorkflowSaveGuard } from './components/WorkflowSaveGuard';
+import { TransitionFlow } from './components/TransitionFlow';
+import { WorkflowHeaderAction } from './components/WorkflowHeaderAction';
+import {
+	WorkflowPanelBody,
+	WorkflowPanelRecovery,
+} from './components/WorkflowPanelRecovery';
 import { WorkflowRequiredModal } from './components/WorkflowRequiredModal';
 import { CommandPalette } from './components/CommandPalette';
-import { MetadataPanel } from './components/MetadataPanel';
+import {
+	SummaryRowsFallback,
+	SummaryRowsFill,
+} from './components/SummaryRowsFallback';
 
 import './style.css';
 
-// Hydrate the store from the server-rendered localized data.
-wp.data.dispatch( STORE_NAME ).hydrate( window.vipWorkflowsEditor || {} );
+// Hydrate the store from the server-rendered localized data. The status
+// endpoint's answer, served with the page, goes in the way a fetched one does,
+// so everything the store derives from it is derived in one place.
+const { workflowStatus, ...bootstrap } = window.vipWorkflowsEditor || {};
+wp.data.dispatch( STORE_NAME ).hydrate( bootstrap );
+if ( workflowStatus ) {
+	wp.data.dispatch( STORE_NAME ).receiveWorkflowStatus( workflowStatus );
+}
 
 /**
  * Main Workflow Plugin Component
@@ -47,8 +63,8 @@ function WorkflowPlugin() {
 
 	// The enforcement modal assigns the sequence itself and then says so. One
 	// read of the status endpoint re-sources everything that changed — the
-	// panel's sequence and stage, and the Metadata section's fields — because
-	// the store answers both from the same payload.
+	// Summary panel's Workflow row and metadata fields, and the panel's stage —
+	// because the store answers all of them from the same payload.
 	//
 	// The panels used to be thrown away and rebuilt on a counter passed as
 	// their `key` instead. A remount is not synchronisation: it re-runs each
@@ -72,9 +88,25 @@ function WorkflowPlugin() {
 
 			{ /* The save-layer guard. Mounted unconditionally and outside every
 			     collapsible panel: a status change has to be caught whether or
-			     not the sidebar happens to be open, and it evaluates nothing for
-			     a post that is not in a workflow. */ }
+			     not the workflow panel happens to be open, and it evaluates
+			     nothing for a post that is not in a workflow. */ }
 			<WorkflowSaveGuard />
+
+			{ /* Every transition, from the panel's rail or the header button,
+			     runs here: its confirms and dialogs must outlive whichever
+			     surface was pressed. Mounted unconditionally for the same
+			     reason as the guard. */ }
+			<TransitionFlow />
+
+			{ /* The post's next move in the editor header, standing in for
+			     core's Publish button where that button could only fail. */ }
+			<WorkflowHeaderAction />
+
+			{ /* The way back to the Workflow panel when it is switched off in
+			     Preferences → Panels and holds the only copy of the Summary
+			     rows a held move or an orphaned post is waiting on. Outside
+			     the panel, so that switching the panel off cannot take it. */ }
+			<WorkflowPanelRecovery />
 
 			{ showModal && (
 				<WorkflowRequiredModal
@@ -85,52 +117,51 @@ function WorkflowPlugin() {
 				/>
 			) }
 
-			{ /* Same icon the plugin uses for its top-level wp-admin menu. */ }
-			<PluginSidebarMoreMenuItem
-				target="vip-workflows-sidebar"
-				icon={ workflowIcon }
-			>
-				{ __( 'Workflow', 'vip-workflows' ) }
-			</PluginSidebarMoreMenuItem>
-			<PluginSidebar
-				name="vip-workflows-sidebar"
-				icon={ workflowIcon }
-				title={ __( 'Workflow', 'vip-workflows' ) }
-			>
-				{ /* `PluginSidebar` hands its children an edge-to-edge scroll
-				     region that draws nothing of its own. What sits inside it
-				     is flat — the pattern core's document sidebar uses
-				     (`PostPanelSection`): no card, no border of its own, just
-				     the standard panel inset, which lives on
-				     `.vip-workflows-sidebar` in style.css keyed to the direct
-				     child. The runs within the panel rule themselves apart.
+			{ /* Which workflow the post is in, and the metadata fields its
+			     sequence declares, are properties of the post — so they sit
+			     with Status, Slug and Author in the document sidebar's Summary
+			     panel. The fill lands after core's rows, above Move to trash.
+			     `PluginPostStatusInfo` wraps its children in a `PanelRow`,
+			     whose flex row layout is neutralised in style.css so the rows
+			     keep their own full-width layout. The fill counts itself in the
+			     store while it is mounted; see SummaryRowsFallback.js. */ }
+			<PluginPostStatusInfo className="vip-workflows-post-summary">
+				<SummaryRowsFill />
+			</PluginPostStatusInfo>
 
-				     Nothing here carries a heading of its own. The sidebar's
-				     own header already says "Workflow", and the panel opens
-				     with the document sidebar's label-beside-value rows — the
-				     sequence the post is in, then the fields that sequence
-				     declares — which name themselves. */ }
-				<Stack className="vip-workflows-sidebar" direction="column">
-					{ /* Editorial metadata is nested, not a sibling section.
-					     The panel's foot — Show history, and the way out of
-					     the workflow — lives inside WorkflowPanel, and those
-					     two act on the workflow rather than on the post, so
-					     they belong after the fields the writer fills in, not
-					     between the rail and them. The panel seats this
-					     between its rail and its foot. It still renders
-					     nothing at all when the active sequence declares no
-					     fields, and its hairline comes with it (style.css). */ }
-					<WorkflowPanel>
-						<MetadataPanel />
-					</WorkflowPanel>
-				</Stack>
-			</PluginSidebar>
+			{ /* The post's movement through its workflow — where it sits, who
+			     holds it, every way onward, and the record of how it got
+			     there — as one panel in the document sidebar, below Summary.
+			     One heading, for one subject: the post's properties stay in
+			     the Summary rows above, and this panel holds only what moves
+			     the post. The header's split button (WorkflowHeaderAction)
+			     offers the same rail, so the panel being collapsed, or turned
+			     off in Preferences → Panels, never leaves a move unreachable.
+
+			     Where the Summary panel cannot show the Workflow and metadata
+			     rows, the same rows are drawn here instead, above the rail.
+			     In that configuration this panel is their only home: turned
+			     off, it takes the rows with it, so the header offers "Show
+			     Workflow panel" (WorkflowPanelRecovery) while a move is held
+			     on a required field or the post is orphaned.
+			     The panel's body already carries core's standard inset, so
+			     what sits inside it adds none of its own. */ }
+			<PluginDocumentSettingPanel
+				name="workflow"
+				title={ __( 'Workflow', 'vip-workflows' ) }
+				className="vip-workflows-document-panel"
+			>
+				<WorkflowPanelBody>
+					<SummaryRowsFallback />
+					<WorkflowPanel />
+				</WorkflowPanelBody>
+			</PluginDocumentSettingPanel>
 		</>
 	);
 }
 
 /**
- * Register the plugin sidebar
+ * Register the editor plugin
  */
 registerPlugin( 'vip-workflows', {
 	render: WorkflowPlugin,

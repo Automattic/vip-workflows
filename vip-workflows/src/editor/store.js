@@ -6,7 +6,7 @@
  * Extensions and core components consume via useSelect( 'vip-workflows/editor' ).
  *
  * The post status endpoint's answer lives here, whole, because more than one
- * surface changes it: the sidebar panel assigns, removes and transitions, and
+ * surface changes it: the workflow panel assigns, removes and transitions, and
  * the save guard's veto notice removes from outside the sidebar entirely. While
  * the panel kept a private copy of that answer the two could disagree — a
  * removal from the notice left the panel rendering the workflow it had just
@@ -25,6 +25,22 @@ import apiFetch from '@wordpress/api-fetch';
 import { refreshPostEntity } from './refresh-post-entity';
 
 const STORE_NAME = 'vip-workflows/editor';
+
+/**
+ * The Workflow document panel's name in core's panel preferences: the plugin's
+ * name and the `PluginDocumentSettingPanel`'s own, joined the way core joins
+ * them (src/editor/index.js registers both).
+ *
+ * @type {string}
+ */
+const WORKFLOW_PANEL_NAME = 'vip-workflows/workflow';
+
+/**
+ * The Settings sidebar's Post tab, as core's interface store names it.
+ *
+ * @type {string}
+ */
+const DOCUMENT_SIDEBAR = 'edit-post/document';
 
 /**
  * The status endpoint: the whole of a post's workflow state in one read — the
@@ -73,6 +89,43 @@ const DEFAULT_STATE = {
 	// status payload of its own, and without this the slower of the two lands
 	// last and reinstates the state the user just left.
 	workflowStatusRequest: 0,
+
+	// A transition someone asked for and the transition flow has not yet
+	// picked up: `{ transition, anchor, source }`. Two surfaces start moves —
+	// the rail in the workflow panel and the split button in the editor header — and
+	// neither owns the dialogs a move can open (the publish confirm, the
+	// assignee popover, the blocked and warnings dialogs). Those live in one
+	// always-mounted TransitionFlow, so a request is handed to it here rather
+	// than handled by whichever surface happened to be clicked. `anchor` is the
+	// DOM node an input popover opens against.
+	transitionRequest: null,
+
+	// The destination of the move in flight, or null. Shared for the same
+	// reason: a move started from the header has to disable the rail, and the
+	// reverse.
+	transitioningTo: null,
+
+	// A workflow-level write in flight — assigning, switching or removing the
+	// workflow, claiming or releasing the post. Not a move, but a move started
+	// under it would race it, so every surface stands down for it too
+	// (`isTransitioning`).
+	workflowWriting: false,
+
+	// The last refused move, worded for the author, until they dismiss it or
+	// start another. Shown by the workflow panel.
+	transitionError: null,
+
+	// How many copies of the Summary rows are mounted inside core's Summary
+	// panel right now, and whether any ever has been this session. The
+	// workflow panel reads both to decide whether it has to carry the rows
+	// itself (see components/SummaryRowsFallback.js).
+	summaryRowsMounted: 0,
+	summaryRowsSeen: false,
+
+	// Set by showWorkflowPanel() and cleared by the panel body once it has
+	// taken focus: the panel is not mounted when it is asked to show itself,
+	// so the request has to wait for it here.
+	workflowPanelFocusRequested: false,
 };
 
 const actions = {
@@ -126,6 +179,111 @@ const actions = {
 	 */
 	failWorkflowStatusRequest() {
 		return { type: 'FAIL_WORKFLOW_STATUS_REQUEST' };
+	},
+
+	/**
+	 * Ask the transition flow to move the post along a transition.
+	 *
+	 * Every human-started move goes through here, so the confirmations, input
+	 * capture and refusal dialogs are the same whichever surface was pressed.
+	 *
+	 * @param {Object}       transition The transition, as the rail lists it.
+	 * @param {?HTMLElement} anchor     Element an input popover opens against.
+	 * @param {string}       source     'panel' or 'header' — where a refusal is reported.
+	 */
+	requestTransition( transition, anchor = null, source = 'panel' ) {
+		return {
+			type: 'REQUEST_TRANSITION',
+			request: { transition, anchor, source },
+		};
+	},
+
+	/**
+	 * Mark the pending request as taken by the transition flow.
+	 */
+	clearTransitionRequest() {
+		return { type: 'CLEAR_TRANSITION_REQUEST' };
+	},
+
+	/**
+	 * Record which destination is in flight, or null once nothing is.
+	 *
+	 * @param {?string} to Destination stage key.
+	 */
+	setTransitioningTo( to ) {
+		return { type: 'SET_TRANSITIONING_TO', to };
+	},
+
+	/**
+	 * Record whether a workflow-level write is in flight.
+	 *
+	 * @param {boolean} writing Whether one is.
+	 */
+	setWorkflowWriting( writing ) {
+		return { type: 'SET_WORKFLOW_WRITING', writing };
+	},
+
+	/**
+	 * Record, or clear, the refusal the workflow panel reports.
+	 *
+	 * @param {?string} message Refusal worded for the author.
+	 */
+	setTransitionError( message ) {
+		return { type: 'SET_TRANSITION_ERROR', message };
+	},
+
+	/**
+	 * Record that the Summary rows mounted inside core's Summary panel.
+	 */
+	mountSummaryRows() {
+		return { type: 'MOUNT_SUMMARY_ROWS' };
+	},
+
+	/**
+	 * Record that the Summary rows left core's Summary panel.
+	 */
+	unmountSummaryRows() {
+		return { type: 'UNMOUNT_SUMMARY_ROWS' };
+	},
+
+	/**
+	 * Show the Workflow document panel and move focus into it.
+	 *
+	 * The recovery for the one configuration in which the Summary rows live
+	 * only in that panel and the person has switched the panel off in
+	 * Preferences → Panels (see components/WorkflowPanelRecovery.js). Turns
+	 * the panel back on, expands it, opens the Settings sidebar on its Post
+	 * tab, and leaves a focus request for the panel body to answer once it
+	 * has mounted.
+	 */
+	showWorkflowPanel:
+		() =>
+		( { dispatch, registry } ) => {
+			const editor = registry.select( 'core/editor' );
+			const editorActions = registry.dispatch( 'core/editor' );
+
+			if ( ! editor.isEditorPanelEnabled( WORKFLOW_PANEL_NAME ) ) {
+				editorActions.toggleEditorPanelEnabled( WORKFLOW_PANEL_NAME );
+			}
+			if ( ! editor.isEditorPanelOpened( WORKFLOW_PANEL_NAME ) ) {
+				editorActions.toggleEditorPanelOpened( WORKFLOW_PANEL_NAME );
+			}
+
+			// The same call core's own "Open Settings" makes. Named by its
+			// store string: importing @wordpress/interface registers a store
+			// core has already registered.
+			registry
+				.dispatch( 'core/interface' )
+				.enableComplementaryArea( 'core', DOCUMENT_SIDEBAR );
+
+			dispatch( { type: 'REQUEST_WORKFLOW_PANEL_FOCUS' } );
+		},
+
+	/**
+	 * Record that the panel body has taken the focus it was asked for.
+	 */
+	clearWorkflowPanelFocus() {
+		return { type: 'CLEAR_WORKFLOW_PANEL_FOCUS' };
 	},
 
 	/**
@@ -184,13 +342,20 @@ const actions = {
 		async ( { dispatch, select, registry } ) => {
 			const postId = select.getPostId();
 
+			dispatch.setWorkflowWriting( true );
+
 			// The route answers with the post's new status payload, so the
 			// assignment and the state it produced arrive together.
-			const status = await apiFetch( {
-				path: sequencePath( postId ),
-				method: 'POST',
-				data: { sequence_id: sequenceId },
-			} );
+			let status;
+			try {
+				status = await apiFetch( {
+					path: sequencePath( postId ),
+					method: 'POST',
+					data: { sequence_id: sequenceId },
+				} );
+			} finally {
+				dispatch.setWorkflowWriting( false );
+			}
 
 			dispatch.receiveWorkflowStatus( status );
 
@@ -201,12 +366,44 @@ const actions = {
 		},
 
 	/**
+	 * Return a post whose stage agent failed to the stage it came from.
+	 *
+	 * The failed AI stage's one exit, offered by the workflow panel and the
+	 * header button alike. It runs as the move in flight (`transitioningTo`),
+	 * so both surfaces stand down together while it does. Rejects with the
+	 * server's error for the caller to report where the author is looking.
+	 */
+	revertAgentStage:
+		() =>
+		async ( { dispatch, select, registry } ) => {
+			const postId = select.getPostId();
+			const revertTo = select.getWorkflowStatus()?.agent_job?.revert_to;
+
+			dispatch.setTransitioningTo( revertTo?.key ?? null );
+
+			try {
+				// The response is a full status payload, exactly like a
+				// transition's: a revert can cross a region boundary, so the
+				// editor chrome must adopt the change too.
+				const status = await apiFetch( {
+					path: `/vip-workflows/v1/workflow/post/${ postId }/agent-revert`,
+					method: 'POST',
+				} );
+
+				dispatch.receiveWorkflowStatus( status );
+				refreshPostEntity( registry, select.getPostType(), postId );
+			} finally {
+				dispatch.setTransitioningTo( null );
+			}
+		},
+
+	/**
 	 * Take this post out of its workflow.
 	 *
-	 * Both surfaces that offer removal — the sidebar panel's footer and the
-	 * publish veto's escape hatch — come through here, so neither can leave the
-	 * other's view of the post behind. Unlike assignment, the route answers with
-	 * a bare `true`: the post's new state (no workflow, and the sequences it
+	 * Removal is offered by the Workflow row in the Summary panel
+	 * (WorkflowSummaryRows), and it comes through here so no reader of the
+	 * store is left drawing the workflow it deleted. Unlike assignment, the
+	 * route answers with a bare `true`: the post's new state (no workflow, and the sequences it
 	 * could now be started in) has to be read.
 	 */
 	removeWorkflow:
@@ -214,12 +411,18 @@ const actions = {
 		async ( { dispatch, select, registry } ) => {
 			const postId = select.getPostId();
 
-			await apiFetch( {
-				path: sequencePath( postId ),
-				method: 'DELETE',
-			} );
+			dispatch.setWorkflowWriting( true );
 
-			await dispatch.fetchWorkflowStatus();
+			try {
+				await apiFetch( {
+					path: sequencePath( postId ),
+					method: 'DELETE',
+				} );
+
+				await dispatch.fetchWorkflowStatus();
+			} finally {
+				dispatch.setWorkflowWriting( false );
+			}
 
 			// Matches assignment: the workflow identity the editor renders from
 			// is gone from the database, so the record it renders from must be
@@ -236,6 +439,21 @@ function reducer( state = DEFAULT_STATE, action ) {
 				...state,
 				...action.data,
 			};
+
+		case 'REQUEST_TRANSITION':
+			return { ...state, transitionRequest: action.request };
+
+		case 'CLEAR_TRANSITION_REQUEST':
+			return { ...state, transitionRequest: null };
+
+		case 'SET_TRANSITIONING_TO':
+			return { ...state, transitioningTo: action.to };
+
+		case 'SET_WORKFLOW_WRITING':
+			return { ...state, workflowWriting: action.writing };
+
+		case 'SET_TRANSITION_ERROR':
+			return { ...state, transitionError: action.message };
 
 		case 'BEGIN_WORKFLOW_STATUS_REQUEST':
 			return {
@@ -282,6 +500,25 @@ function reducer( state = DEFAULT_STATE, action ) {
 			};
 		}
 
+		case 'MOUNT_SUMMARY_ROWS':
+			return {
+				...state,
+				summaryRowsMounted: state.summaryRowsMounted + 1,
+				summaryRowsSeen: true,
+			};
+
+		case 'UNMOUNT_SUMMARY_ROWS':
+			return {
+				...state,
+				summaryRowsMounted: Math.max( 0, state.summaryRowsMounted - 1 ),
+			};
+
+		case 'REQUEST_WORKFLOW_PANEL_FOCUS':
+			return { ...state, workflowPanelFocusRequested: true };
+
+		case 'CLEAR_WORKFLOW_PANEL_FOCUS':
+			return { ...state, workflowPanelFocusRequested: false };
+
 		default:
 			return state;
 	}
@@ -303,6 +540,15 @@ const selectors = {
 	getWorkflowStatus: ( state ) => state.workflowStatus,
 	isWorkflowStatusResolved: ( state ) => state.workflowStatusResolved,
 	getWorkflowStatusRequest: ( state ) => state.workflowStatusRequest,
+	getTransitionRequest: ( state ) => state.transitionRequest,
+	getTransitioningTo: ( state ) => state.transitioningTo,
+	isTransitioning: ( state ) =>
+		null !== state.transitioningTo || state.workflowWriting,
+	getTransitionError: ( state ) => state.transitionError,
+	areSummaryRowsMounted: ( state ) => state.summaryRowsMounted > 0,
+	haveSummaryRowsMounted: ( state ) => state.summaryRowsSeen,
+	isWorkflowPanelFocusRequested: ( state ) =>
+		state.workflowPanelFocusRequested,
 };
 
 const store = createReduxStore( STORE_NAME, {
@@ -313,5 +559,5 @@ const store = createReduxStore( STORE_NAME, {
 
 register( store );
 
-export { STORE_NAME };
+export { STORE_NAME, WORKFLOW_PANEL_NAME, DOCUMENT_SIDEBAR };
 export default store;

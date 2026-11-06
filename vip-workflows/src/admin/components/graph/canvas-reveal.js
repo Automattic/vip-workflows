@@ -73,7 +73,6 @@ export function revealNodeIds( target ) {
  * @param {number} axis.zoom         Current zoom.
  * @param {number} axis.visibleStart Start of the visible strip, in pane px.
  * @param {number} axis.visibleSize  Length of the visible strip, in px.
- * @param {number} axis.margin       Room to keep at either end, in px.
  * @param {number} axis.anchorStart  Where an overflowing span is aligned from,
  *                                   in flow coordinates.
  * @return {?number} The new translation, or null when nothing need move.
@@ -85,16 +84,15 @@ function axisPan( {
 	zoom,
 	visibleStart,
 	visibleSize,
-	margin,
 	anchorStart,
 } ) {
 	const screenStart = offset + start * zoom;
 	const screenSize = size * zoom;
-	const boxStart = visibleStart + margin;
+	const boxStart = visibleStart + REVEAL_MARGIN;
 	// A viewport narrower than its own margins still has to answer something,
 	// so the box floors at zero rather than going negative and inverting every
 	// comparison below.
-	const boxSize = Math.max( 0, visibleSize - margin * 2 );
+	const boxSize = Math.max( 0, visibleSize - REVEAL_MARGIN * 2 );
 
 	if (
 		screenStart >= boxStart &&
@@ -118,9 +116,11 @@ function axisPan( {
  * @param {Object}  options          Where it is being shown.
  * @param {Object}  options.viewport React Flow's current `{ x, y, zoom }`.
  * @param {Object}  options.visible  The part of the pane the floating panel
- *                                   leaves visible, as `{ x, y, width,
- *                                   height }` in pane pixels.
- * @param {number}  [options.margin] Room to keep at the edges, in px.
+ *                                   leaves visible, as `{ y, width, height }`
+ *                                   in pane pixels. It always starts at the
+ *                                   pane's left edge: the panel takes its room
+ *                                   from the right or the bottom, and the
+ *                                   notices from the top.
  * @param {Object}  [options.anchor] The part of the target an overflowing axis
  *                                   is aligned to, in flow coordinates — the
  *                                   stage a transition leaves. The whole
@@ -129,7 +129,7 @@ function axisPan( {
  */
 export function revealViewport(
 	bounds,
-	{ viewport, visible, margin = REVEAL_MARGIN, anchor = bounds }
+	{ viewport, visible, anchor = bounds }
 ) {
 	if ( ! bounds || ! Number.isFinite( bounds.x + bounds.y ) ) {
 		return null;
@@ -140,9 +140,8 @@ export function revealViewport(
 		size: bounds.width,
 		offset: viewport.x,
 		zoom: viewport.zoom,
-		visibleStart: visible.x,
+		visibleStart: 0,
 		visibleSize: visible.width,
-		margin,
 		anchorStart: anchor.x,
 	} );
 	const y = axisPan( {
@@ -152,7 +151,6 @@ export function revealViewport(
 		zoom: viewport.zoom,
 		visibleStart: visible.y,
 		visibleSize: visible.height,
-		margin,
 		anchorStart: anchor.y,
 	} );
 

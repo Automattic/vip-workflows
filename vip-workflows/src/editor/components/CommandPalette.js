@@ -12,7 +12,8 @@ import {
 	useCallback,
 	createPortal,
 } from '@wordpress/element';
-import { useSelect, useDispatch } from '@wordpress/data';
+import { useSelect, useDispatch, useRegistry } from '@wordpress/data';
+import { store as editorStore } from '@wordpress/editor';
 import { store as noticesStore } from '@wordpress/notices';
 import apiFetch from '@wordpress/api-fetch';
 import { __, sprintf } from '@wordpress/i18n';
@@ -40,6 +41,23 @@ export function CommandPalette() {
 	const [ regenerating, setRegenerating ] = useState( false );
 	const [ isRunning, setIsRunning ] = useState( false );
 	const [ runningToolLabel, setRunningToolLabel ] = useState( '' );
+	/*
+	 * Whether the post had unsaved edits when the shown result was produced.
+	 *
+	 * A tool is handed the post ID and reads the post from the database, so a
+	 * run over unsaved edits judges the last saved copy, not the one on screen.
+	 * A transition saves before its tool gate runs; a run from here does not,
+	 * because it is a read-only look and saving a live post would publish the
+	 * edits. So the result says which copy it describes instead.
+	 */
+	const [ ranOnUnsavedEdits, setRanOnUnsavedEdits ] = useState( false );
+	/*
+	 * Whether the post was published when the shown result was produced. The
+	 * saved copy of a published post is the live one, and saving it publishes
+	 * the edits, so the result tells the author that instead of a plain "save".
+	 */
+	const [ ranOnPublishedPost, setRanOnPublishedPost ] = useState( false );
+	const registry = useRegistry();
 
 	const runTool = useCallback(
 		async ( tool ) => {
@@ -50,12 +68,21 @@ export function CommandPalette() {
 				return null;
 			}
 
+			// Read before the request, which is when the tool reads the post.
+			// Stored only once the result is back, so a result still on screen
+			// keeps the flag it was produced with until its successor arrives.
+			const editor = registry.select( editorStore );
+			const dirty = editor.isEditedPostDirty();
+			const published = editor.isCurrentPostPublished();
+
 			try {
 				const result = await apiFetch( {
 					path: `/vip-workflows/v1/abilities/${ tool.id }/run`,
 					method: 'POST',
 					data: { post_id: postId, source: 'command_palette' },
 				} );
+				setRanOnUnsavedEdits( dirty );
+				setRanOnPublishedPost( published );
 				return result;
 			} catch ( error ) {
 				return {
@@ -65,7 +92,7 @@ export function CommandPalette() {
 				};
 			}
 		},
-		[ postId, createErrorNotice ]
+		[ postId, createErrorNotice, registry ]
 	);
 
 	// Generic handler for applying tool results to post fields.
@@ -306,6 +333,8 @@ export function CommandPalette() {
 					toolLabel={ modalTool?.label || modalTool?.name || '' }
 					onClose={ closeModal }
 					requirementGroups={ modalTool?.availability?.groups || [] }
+					ranOnUnsavedEdits={ ranOnUnsavedEdits }
+					ranOnPublishedPost={ ranOnPublishedPost }
 				/>
 			) }
 		</>

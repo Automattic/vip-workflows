@@ -1,7 +1,7 @@
 /**
  * Ideation Panel
  *
- * Shows what a post was commissioned from, in the workflow sidebar directly
+ * Shows what a post was commissioned from, in the workflow panel directly
  * under the stage.
  *
  * A post that came out of ideation arrives in the editor stripped of the
@@ -13,7 +13,7 @@
  * thing being written about, so it leads. Under it go only the items somebody
  * chose: pinned cards, and sources added by hand. The rest of a project is
  * assistant output that nobody has ruled on, and reprinting it here would turn
- * the sidebar into a second set of search results.
+ * the panel into a second set of search results.
  *
  * Renders nothing at all for a post with no ideation project, which is most
  * posts.

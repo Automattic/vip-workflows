@@ -64,11 +64,13 @@ export function ToolFailureNotice( {
 /**
  * Check Results Modal Component - for Check-type tools.
  *
- * @param {Object}   props                   Component props.
- * @param {Object}   props.result            Tool result with summary, output, and error fields.
- * @param {string}   props.toolLabel         Display label shown as the modal title.
- * @param {Function} props.onClose           Callback invoked to close the modal.
- * @param {Array}    props.requirementGroups Live availability groups, when the tool was refused.
+ * @param {Object}   props                    Component props.
+ * @param {Object}   props.result             Tool result with summary, output, and error fields.
+ * @param {string}   props.toolLabel          Display label shown as the modal title.
+ * @param {Function} props.onClose            Callback invoked to close the modal.
+ * @param {Array}    props.requirementGroups  Live availability groups, when the tool was refused.
+ * @param {boolean}  props.ranOnUnsavedEdits  Whether the post had unsaved edits when the check ran. The check read the saved post, so the findings may not match the screen.
+ * @param {boolean}  props.ranOnPublishedPost Whether the post was published when the check ran. Its saved copy is the live one, and saving publishes the edits.
  * @return {JSX.Element} The rendered check results modal.
  */
 export function CheckResultsModal( {
@@ -76,6 +78,8 @@ export function CheckResultsModal( {
 	toolLabel,
 	onClose,
 	requirementGroups = [],
+	ranOnUnsavedEdits = false,
+	ranOnPublishedPost = false,
 } ) {
 	const { summary, output = {}, error } = result;
 	const { score, status, issues = [], suggestions = [] } = output;
@@ -129,6 +133,24 @@ export function CheckResultsModal( {
 				/>
 			) : (
 				<Stack direction="column" gap="md">
+					{ ranOnUnsavedEdits && (
+						<Notice status="warning" isDismissible={ false }>
+							{ /*
+							 * The editor's button for a published post reads
+							 * "Save", and pressing it publishes the edits, so
+							 * the copy says both.
+							 */ }
+							{ ranOnPublishedPost
+								? __(
+										'These results are for the published version. Save the post to publish your edits, then run the check again.',
+										'vip-workflows'
+								  )
+								: __(
+										'These results are for the last saved version. Save the post, then run the check again to include your edits.',
+										'vip-workflows'
+								  ) }
+						</Notice>
+					) }
 					<Stack direction="row" align="center" gap="lg">
 						{ typeof score === 'number' && (
 							<div

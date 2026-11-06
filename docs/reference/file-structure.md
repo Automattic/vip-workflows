@@ -68,7 +68,7 @@ includes/
 │   └── class-sequence-repository.php # Sequence CRUD
 │
 ├── database/
-│   ├── class-schema.php               # Table creation/updates (v2.24.0)
+│   ├── class-schema.php               # Table creation/updates (v2.26.0)
 │   └── class-seeder.php              # Default data seeding
 │
 ├── discovery/
@@ -119,6 +119,7 @@ includes/
 │   ├── class-llm-json-parser.php      # Parse LLM responses as JSON
 │   ├── class-llm-text-generator.php   # Generate plain-text content via LLM
 │   ├── class-markdown.php             # Markdown helpers shared across integrations
+│   ├── class-safe-url.php             # Allows only http/https in a provider-supplied URL before it is stored
 │   ├── class-ssrf-guard.php           # Guards outbound URL fetches against SSRF
 │   ├── class-uploads-path-guard.php   # Validates upload paths stay inside the uploads directory
 │   └── class-you-tube-transcript.php  # YouTube transcript extraction
@@ -259,15 +260,21 @@ src/
 │       └── Settings.js                       # Settings page (General, AI services, Prompts, Experiments)
 │
 ├── editor/
-│   ├── index.js                              # Editor sidebar entry point
+│   ├── index.js                              # Editor entry point
 │   ├── store.js                              # WordPress data store
 │   └── components/
 │       ├── index.js                          # Component exports
-│       ├── WorkflowPanel.js                  # Stage, progress, transitions, actions
+│       ├── WorkflowSummaryRows.js            # Summary panel rows: workflow + metadata
+│       ├── SummaryRowsFallback.js            # Summary rows fill + Workflow panel fallback
+│       ├── WorkflowPanelRecovery.js          # "Show Workflow panel" header action + panel body
+│       ├── WorkflowPanel.js                  # Stage, progress, transitions, history
 │       ├── WorkflowHistoryModal.js           # Transition trail (DataViews, code-split)
 │       ├── WorkflowSaveGuard.js              # editor.preSavePost guard — no chrome
 │       ├── MetadataPanel.js                  # Editorial metadata fields
 │       ├── TransitionRail.js                 # Current stage and its transitions
+│       ├── TransitionFlow.js                 # Runs every transition: confirms, inputs, refusals
+│       ├── PrePublishConfirm.js              # Publish confirm with other plugins' pre-publish checks
+│       ├── WorkflowHeaderAction.js           # Header split button: primary transition + rail
 │       ├── WorkflowRequiredModal.js          # Required workflow prompt
 │       ├── TransitionInputPopover.js         # Transition input (assignee + notes)
 │       ├── ToolResultModals.js               # Tool result display modals
@@ -276,12 +283,13 @@ src/
 │       └── BylineList.js                     # Byline display
 │
 ├── common/                                   # JS shared across entries
+│   ├── confirm-workflow-side-effect.js       # Status-change decision table + copy
 │   ├── event-description.js                  # One sentence per workflow event
 │   ├── ToolFailuresModal.js                  # Hard failures and soft warnings
 │   └── use-confirm.js                        # Confirm / acknowledge dialogs
 │
 ├── entries/                                  # Build entries with no page tree of their own
-│   ├── confirm-workflow-side-effect.js       # Status-change decision table + copy
+│   ├── side-effect.js                        # Publishes the decision table as a global
 │   └── classic-admin.css                     # Styles for the classic wp-admin screens
 │
 ├── styles/                                   # CSS shared across entries

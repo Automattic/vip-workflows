@@ -40,6 +40,10 @@ export function MyDashboardPage() {
 							...prev,
 							[ key ]: total,
 						} ) );
+						// Only the header is needed, but the body has to be read
+						// too: an unread response body leaves the request open,
+						// so the page never goes network-idle.
+						return res.text();
 					} )
 					.catch( () => {} );
 			} else {
@@ -54,7 +58,12 @@ export function MyDashboardPage() {
 			}
 		};
 
-		fetchCount( 'my-work', '/vip-workflows/v1/workflow/my-work' );
+		// The tab only needs the number; the list itself loads with the tab.
+		fetchCount(
+			'my-work',
+			'/vip-workflows/v1/workflow/my-work?count_only=1',
+			true
+		);
 		if ( ideationEnabled ) {
 			fetchCount(
 				'my-ideation',

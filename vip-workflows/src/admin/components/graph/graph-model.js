@@ -40,6 +40,27 @@ export { regionEntryStage, stageRegion, visibleRegions };
 export const NODE_TYPE = 'stage';
 export const EDGE_TYPE = 'transition';
 
+/**
+ * What a transition edge tells React Flow about its own `<g>`, for the keyboard
+ * and assistive technology.
+ *
+ * Out of the tab order, and hidden from the accessibility tree. A transition's
+ * one stop is its pill (`TransitionEdge`), whose name says what activating it
+ * does and which stages the line joins; the group React Flow would otherwise
+ * focus first is named from raw stage keys ("Edge from review to done") and
+ * left a keyboard author two stops per line, saying two different things. The
+ * pill is portalled out of the group in the DOM, so hiding the group does not
+ * hide it.
+ *
+ * Transition edges only. The synthetic Start/End lines have no pill, so their
+ * group is still their one stop — and the End line's is the keyboard's way to
+ * make a stage non-final, by selecting it and deleting it.
+ */
+const EDGE_GROUP_A11Y = {
+	focusable: false,
+	domAttributes: { 'aria-hidden': true },
+};
+
 // Fixed stage-node footprint — the Figma card proportions (drawn 120×80),
 // widened so typical stage names fit before truncating. Set explicitly on each
 // node so React Flow renders them at a constant size rather than measuring —
@@ -48,8 +69,9 @@ export const STAGE_WIDTH = 200;
 export const STAGE_HEIGHT = 80;
 
 // Synthetic flow endpoints. These are rendered on the canvas but are NOT stored
-// stages: the Start node's edge points at the entry stage (which the runtime
-// reads as `statuses[0]`), and a stage's edge to the End node marks it terminal
+// stages: the Start node's edge points at the entry stage (the one stage the
+// save marks `is_initial`, which is where the server puts new posts), and a
+// stage's edge to the End node marks it terminal
 // (`is_terminal`). Their ids are namespaced so they can't collide with a stage
 // key (`sanitize_key` would never produce these).
 export const TERMINAL_NODE_TYPE = 'terminal';
@@ -185,6 +207,45 @@ export function agentOutcomeNames( outcomes ) {
 }
 
 /**
+ * The accessible name of a transition's pill on the canvas.
+ *
+ * It opens with what activating the pill does — "Edit transition": Enter or a
+ * click selects the transition and opens its inspector; nothing moves a post.
+ * The pill's visible text follows, exactly and in one piece — the label
+ * `buildGraph` derived, the string the pill renders — so a voice-control user
+ * who says what they see reaches it (WCAG 2.5.3, Label in Name). Then the
+ * source stage, because that text is the writer's button label and every
+ * transition into the same stage shares it. An agent outcome edge names its
+ * outcome as well, so the lines of a pass/fail pair, which share both ends, are
+ * told apart.
+ *
+ * The source comes in as a display label — `stageLabel` already falls back to
+ * the key for a stage with none, which `validateSequence` reports separately.
+ *
+ * @param {string}  pillLabel The pill's visible text.
+ * @param {string}  fromLabel Source stage label.
+ * @param {?string} [outcome] Agent outcome the edge carries, if any.
+ * @return {string} Translated accessible name.
+ */
+export function transitionPillName( pillLabel, fromLabel, outcome = null ) {
+	if ( isAgentOutcome( outcome ) ) {
+		return sprintf(
+			/* translators: Accessible name of a transition on the sequence canvas; activating it opens the transition for editing. 1: transition button label, e.g. "Move to Done", 2: source stage name, 3: agent outcome, e.g. "On pass". Keep %1$s whole and unchanged: it is the visible text. */
+			__( 'Edit transition: %1$s, from %2$s (%3$s)', 'vip-workflows' ),
+			pillLabel,
+			fromLabel,
+			agentOutcomeLabel( outcome )
+		);
+	}
+	return sprintf(
+		/* translators: Accessible name of a transition on the sequence canvas; activating it opens the transition for editing. 1: transition button label, e.g. "Move to Done", 2: source stage name. Keep %1$s whole and unchanged: it is the visible text. */
+		__( 'Edit transition: %1$s, from %2$s', 'vip-workflows' ),
+		pillLabel,
+		fromLabel
+	);
+}
+
+/**
  * Build a stable edge id from its endpoints. A stage may have at most one
  * transition to a given target, so `from->to` uniquely identifies an edge —
  * except on an AI stage, where two outcomes may route to the same destination
@@ -253,8 +314,10 @@ export function buildGraph( stages, options = {} ) {
 
 	// The projection options `drawnOutcomes` answers under, so the edge ids
 	// drawn here and the edge ids an error's target names are built from one
-	// rule rather than two that agree by coincidence.
-	const drawnAs = { isPhase, stageExists: ( key ) => keys.has( key ) };
+	// rule rather than two that agree by coincidence. No `stageExists`: a
+	// transition to a stage that is gone returns before it is drawn, so every
+	// one asked about here exists.
+	const drawnAs = { isPhase };
 
 	// Stages with at least one incoming transition; the rest are entry points.
 	const hasIncoming = new Set();
@@ -359,6 +422,8 @@ export function buildGraph( stages, options = {} ) {
 			! isPhase && isAgentStage( stage )
 				? stage.agent.routing || {}
 				: null;
+		// The source half of every pill name on this stage's lines.
+		const fromLabel = stageLabel( stages, stage.key );
 		( stage.transitions || [] ).forEach( ( transition ) => {
 			if ( ! keys.has( transition.to ) ) {
 				return; // dangling; surfaced as a sequence error
@@ -380,11 +445,27 @@ export function buildGraph( stages, options = {} ) {
 					allowAgentPublish
 				);
 			const variants = claimed.length > 0 ? claimed : [ null ];
+			// The label on the transition's pill. Derived here rather than read
+			// off the transition, because most transitions have no stored
+			// label — `addTransition` deliberately stores none, so a renamed
+			// stage renames its buttons — and a pill bound to the raw field
+			// would be blank on nearly every edge. `transitionLabel` is the same
+			// rule `StatusManager::transition_label()` applies server-side, from
+			// the single shared copy in `src/common/transition-label.js`, so the
+			// pill says what the writer's button will say.
+			//
+			// Re-derived on every build, never stored: this is the live value,
+			// not a snapshot of one.
+			const label = transitionLabel(
+				transition,
+				stageLabel( stages, transition.to )
+			);
 			variants.forEach( ( outcome, index ) => {
 				const id = edgeId( stage.key, transition.to, outcome );
 				edges.push( {
 					id,
 					type: EDGE_TYPE,
+					...EDGE_GROUP_A11Y,
 					source: stage.key,
 					target: transition.to,
 					// Anchors the edge at the outcome's handle; null lets React
@@ -399,22 +480,18 @@ export function buildGraph( stages, options = {} ) {
 						outcome,
 						disabled,
 						// The exception, and the one the canvas draws: the
-						// label on the transition's pill. Derived here rather
-						// than read off the transition, because most
-						// transitions have no stored label — `addTransition`
-						// deliberately stores none, so a renamed stage renames
-						// its buttons — and a pill bound to the raw field would
-						// be blank on nearly every edge. `transitionLabel` is
-						// the same rule `StatusManager::transition_label()`
-						// applies server-side, from the single shared copy in
-						// `src/common/transition-label.js`, so the pill says
-						// what the writer's button will say.
-						//
-						// Re-derived on every build, never stored: this is the
-						// live value, not a snapshot of one.
-						label: transitionLabel(
-							transition,
-							stageLabel( stages, transition.to )
+						// label on the transition's pill (see `label` above).
+						label,
+						// The pill's accessible name. It starts with that same
+						// string, so voice control matches what is on screen,
+						// then names the source: "Move to Done" is what every
+						// transition into Done says. An outcome edge adds its
+						// outcome, because the lines of a shared pass/fail pair
+						// have the same source and would otherwise share a name.
+						pillName: transitionPillName(
+							label,
+							fromLabel,
+							outcome
 						),
 						// Every outcome standing on this one transition record,
 						// when more than one does — null otherwise. Two edges
@@ -438,10 +515,7 @@ export function buildGraph( stages, options = {} ) {
 	} );
 
 	// Synthetic Start / End endpoints (workflow only). Start connects to the
-	// flow entry — the draft region's entry checkpoint ("where content
-	// enters"; `setEntryStage` keeps it at `statuses[0]`, but legacy data may
-	// not, so fall back to `statuses[0]` when no draft stage is marked). Each
-	// terminal stage connects to End.
+	// flow entry — see `entryStageKey`. Each terminal stage connects to End.
 	if ( ! isPhase && stages.length > 0 ) {
 		const entryKey = entryStageKey( stages );
 
@@ -764,10 +838,15 @@ export function setStageStatus( stages, key, status ) {
 }
 
 /**
- * The stage the synthetic Start edge points at — the draft region's entry
- * checkpoint ("where content enters"; `setEntryStage` keeps it at
- * `statuses[0]`, but legacy data may not, so fall back to `statuses[0]` when no
- * draft stage is marked).
+ * The stage the synthetic Start edge points at: the stage marked `is_initial`,
+ * which is where the server puts new posts. The save writes that flag (see
+ * `markInitialStage`), so on a stored sequence the answer never depends on
+ * stage order — reordering the stages list cannot move Start.
+ *
+ * Only a stage list no save has touched yet can carry no flag: a sequence
+ * started in this editor, or one whose start stage was just removed. There the
+ * draft region's entry checkpoint stands in ("where content enters"), then
+ * `statuses[0]`, and the next save writes the flag on whichever that is.
  *
  * Shared by the projection that draws that edge and the gestures that move it,
  * so "where does Start point" has one answer: a gesture that cannot change this
@@ -780,6 +859,10 @@ export function entryStageKey( stages ) {
 	if ( stages.length === 0 ) {
 		return null;
 	}
+	const flagged = stages.find( ( s ) => Boolean( s.is_initial ) );
+	if ( flagged ) {
+		return flagged.key;
+	}
 	const draftEntry = stages.find(
 		( s ) => Boolean( s.region_entry ) && stageRegion( s ) === 'draft'
 	);
@@ -787,15 +870,68 @@ export function entryStageKey( stages ) {
 }
 
 /**
+ * Flag one stage `is_initial` and clear the flag from every other.
+ *
+ * @param {Array}  stages Existing stages.
+ * @param {string} key    The stage new posts start in.
+ * @return {Array} New stages array. Stages that need no change keep their identity.
+ */
+function flagInitialStage( stages, key ) {
+	return stages.map( ( stage ) => {
+		if ( stage.key === key ) {
+			return stage.is_initial === true
+				? stage
+				: { ...stage, is_initial: true };
+		}
+		if ( ! ( 'is_initial' in stage ) ) {
+			return stage;
+		}
+		const next = { ...stage };
+		delete next.is_initial;
+		return next;
+	} );
+}
+
+/**
+ * Mark exactly one stage `is_initial`: the one Start points at now.
+ *
+ * The server puts new posts in the flagged stage, and refuses a sequence that
+ * flags more than one. Writing the flag on every save is what keeps stage
+ * order out of it: a sequence written without one has its first stage flagged
+ * by the server, and a reorder in the stages list changes which stage that is.
+ *
+ * @param {Array} stages Existing stages.
+ * @return {Array} Stages with the flag on the entry stage and on no other.
+ */
+export function markInitialStage( stages ) {
+	return flagInitialStage( stages, entryStageKey( stages ) );
+}
+
+/**
+ * Put the stages in a new order without moving Start.
+ *
+ * The stages list hands back the whole array in its new order. Start stays on
+ * the stage it pointed at before the move, flagged so that no later reading of
+ * the array can put it anywhere else.
+ *
+ * @param {Array} stages    Stages before the move.
+ * @param {Array} reordered The same stages, in their new order.
+ * @return {Array} The reordered stages, with Start's stage flagged.
+ */
+export function reorderStages( stages, reordered ) {
+	return flagInitialStage( reordered, entryStageKey( stages ) );
+}
+
+/**
  * Make a stage the flow entry. The synthetic Start edge and the draft
  * region's `region_entry` are the same concept — "where content enters" — so
  * pointing Start at a draft-region stage claims that region's entry
- * checkpoint: the stage moves to the front of the array (`statuses[0]`) and
- * becomes the draft region's sole entry.
+ * checkpoint and the `is_initial` flag (no other stage keeps either), and the
+ * stage moves to the front of the array.
  *
  * Dropping Start on a stage outside the draft region only reorders — the
- * target region's checkpoint is left alone, and `validateSequence` warns that
- * the flow entry sits outside the draft region.
+ * flag and the target region's checkpoint are left alone, and
+ * `validateSequence` warns when the flow entry sits outside the draft region.
  *
  * @param {Array}  stages Existing stages.
  * @param {string} key    Stage to promote to entry.
@@ -813,7 +949,7 @@ export function setEntryStage( stages, key ) {
 	if ( stageRegion( target ) !== 'draft' ) {
 		return reordered;
 	}
-	return setRegionEntry( reordered, key );
+	return setRegionEntry( flagInitialStage( reordered, key ), key );
 }
 
 // ---------------------------------------------------------------------------
@@ -947,6 +1083,10 @@ export function updateTransition( stages, from, to, changes ) {
 /**
  * Remove a transition.
  *
+ * Matches by target alone, which is exact only because a stage holds at most
+ * one transition per target (`addTransition` and `rewireTransition` refuse a
+ * second, and the editor collapses duplicates on load).
+ *
  * @param {Array}  stages Existing stages.
  * @param {string} from   Source stage key.
  * @param {string} to     Target stage key.
@@ -979,6 +1119,58 @@ export function findTransition( stages, from, to ) {
 		return null;
 	}
 	return ( stage.transitions || [] ).find( ( t ) => t.to === to ) || null;
+}
+
+/**
+ * Whether a move between two regions takes the post INTO publish.
+ *
+ * Mirrors `Sequence::crosses_into_publish()`, the scope of the server's
+ * required-metadata gate: the target is in publish and the source is not. A
+ * move with publish on both ends does not qualify — the post is already live —
+ * and neither does any move between two non-publish regions.
+ *
+ * @param {string} fromRegion Region the post is leaving.
+ * @param {string} toRegion   Region the post is entering.
+ * @return {boolean} True when the move crosses into publish.
+ */
+export function crossesIntoPublish( fromRegion, toRegion ) {
+	return toRegion === 'publish' && fromRegion !== 'publish';
+}
+
+/**
+ * Every authored transition that takes the post into the publish region.
+ *
+ * These are the only edges the server checks required metadata fields on
+ * (`StatusManager::transition()` asks `Sequence::crosses_into_publish()` of
+ * each move), so a sequence with none of them never enforces "Required". A
+ * stage in publish is not enough on its own: an entry stage already in
+ * publish, or publish stages reached only from other publish stages, are
+ * never crossed into. A transition whose target is not a stage of the
+ * sequence leads nowhere and is not counted.
+ *
+ * @param {Array} stages Stage objects.
+ * @return {Array<{from: string, to: string}>} The crossing transitions, in
+ *                                             stage then transition order.
+ */
+export function transitionsIntoPublish( stages ) {
+	const byKey = new Map( stages.map( ( stage ) => [ stage.key, stage ] ) );
+	return stages.flatMap( ( stage ) =>
+		( stage.transitions || [] )
+			.filter( ( transition ) => {
+				const target = byKey.get( transition.to );
+				return (
+					Boolean( target ) &&
+					crossesIntoPublish(
+						stageRegion( stage ),
+						stageRegion( target )
+					)
+				);
+			} )
+			.map( ( transition ) => ( {
+				from: stage.key,
+				to: transition.to,
+			} ) )
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -1177,7 +1369,7 @@ export function outcomesRoutedTo( stage, targetKey ) {
  *
  * Only when a pass verdict alone leads there. With fail or error routed there
  * too, the setting would publish failed and errored runs — the cheap way around
- * the boundary. Mirrors `StageAgentRunner::publish_setting_fixes_route()`.
+ * the boundary.
  *
  * @param {Object} stage     The AI stage.
  * @param {string} targetKey The held destination.
@@ -1218,7 +1410,7 @@ export function publishSettingFixesRoute( stage, targetKey ) {
  * @param {?Function} [options.stageExists] Whether a stage key is still on the canvas.
  * @return {string[]} The outcomes, in `AGENT_OUTCOMES` order.
  */
-export function drawnOutcomes(
+function drawnOutcomes(
 	stage,
 	targetKey,
 	{ isPhase = false, stageExists = null } = {}
@@ -1244,7 +1436,7 @@ export function drawnOutcomes(
  * @param {Object} [options] Projection options — see `drawnOutcomes`.
  * @return {?string} The outcome, or null when the edge carries none.
  */
-export function drawnOutcome( stage, targetKey, options ) {
+function drawnOutcome( stage, targetKey, options ) {
 	return drawnOutcomes( stage, targetKey, options )[ 0 ] || null;
 }
 
@@ -1268,6 +1460,29 @@ const edgeTarget = ( stage, transition, options ) => ( {
 	to: transition.to,
 	outcome: drawnOutcome( stage, transition.to, options ),
 } );
+
+/**
+ * Where a fault in one of a stage's transitions points.
+ *
+ * Usually the transition's own edge. But an edge is addressed by `from->to`
+ * (plus the outcome on an AI stage), and a stage stored before the
+ * one-transition-per-target rule can hold two transitions to the same stage —
+ * two transitions with one address. Selecting that address opens whichever
+ * comes first, which need not be the one at fault, and edits made there land
+ * on both. So a fault in either of them points at the stage instead: its
+ * panel lists both rows, and the message names the one it means.
+ *
+ * @param {Object} stage      The stage the transition leaves.
+ * @param {Object} transition The transition at fault.
+ * @param {Object} [options]  Projection options — see `drawnOutcomes`.
+ * @return {Object} An edge target, or the stage's node target when the edge
+ *                  address is shared.
+ */
+const transitionTarget = ( stage, transition, options ) =>
+	( stage.transitions || [] ).filter( ( t ) => t.to === transition.to )
+		.length > 1
+		? nodeTarget( stage.key )
+		: edgeTarget( stage, transition, options );
 
 /**
  * @param {string} region Status region.
@@ -1299,7 +1514,7 @@ function targetStageKey( target ) {
  * A target's identity, for telling apart two faults that read the same.
  *
  * A message is not a fault's name. An unlabelled transition is named by its
- * destination (`transition.label || transition.to`), so two stages each holding
+ * destination ("Move to {destination}"), so two stages each holding
  * an unlabelled transition to the same place word their faults identically
  * while pointing at two different transitions — two things to fix, in two
  * places, each with its own way to it.
@@ -1517,7 +1732,7 @@ export function addStageFromNode( stages, sourceKey, options = {} ) {
  * Apply a new connection drawn on the canvas.
  *
  * A drag off an outcome handle routes that outcome; otherwise Start → stage
- * re-assigns the flow entry (`statuses[0]`), stage → End marks the source stage
+ * re-assigns the flow entry (`is_initial`), stage → End marks the source stage
  * terminal, and stage → stage adds a transition.
  *
  * @param {Array}   stages         Existing stages.
@@ -1652,6 +1867,71 @@ export function canReconnect(
 		stages.some( ( s ) => s.key === newTo ) &&
 		! findTransition( stages, newFrom, newTo )
 	);
+}
+
+/**
+ * The endpoints an edge would have after one of its ends moved to `candidate`.
+ *
+ * One statement of it, asked by the canvas while the end is held and again
+ * when it is let go, and by the transition panel's From/To selects: the
+ * verdict painted under the pointer, the move committed on release and the
+ * options a select offers have to be about the same pair.
+ *
+ * @param {Object}  edge      The edge being moved — `{ from, to }`.
+ * @param {string}  end       Which end is moving: `'source'` or `'target'`.
+ * @param {?string} candidate Node the end would land on.
+ * @return {{ from: string, to: string }} The prospective endpoints.
+ */
+export function endsAfterMove( edge, end, candidate ) {
+	return {
+		from: end === 'source' ? candidate : edge.from,
+		to: end === 'target' ? candidate : edge.to,
+	};
+}
+
+/**
+ * What moving one end of an edge onto a node would do.
+ *
+ * The whole verdict, in the order it is asked: a move that lands where the
+ * end already is changes nothing; then the canvas's own rule for a hand-drawn
+ * connection, so an endpoint can reach exactly what a fresh connection can;
+ * then `canReconnect`, which decides whether this particular move is a move at
+ * all. The canvas paints its held endpoint with this, and the transition panel
+ * builds its From/To options from it, so a rule added to either half is
+ * enforced by both — a select cannot offer a destination a drag would refuse.
+ *
+ * @param {Array}    stages            Existing stages.
+ * @param {Object}   edge              The edge — `{ from, to, outcome? }`.
+ * @param {string}   end               Which end is moving: `'source'` or `'target'`.
+ * @param {string}   candidate         Node id the end would land on.
+ * @param {Function} isValidConnection The canvas's connection rule, called
+ *                                     with `{ source, target, sourceHandle }`.
+ * @return {'unchanged'|'valid'|'invalid'} The verdict.
+ */
+export function endpointMoveVerdict(
+	stages,
+	edge,
+	end,
+	candidate,
+	isValidConnection
+) {
+	const { from, to } = endsAfterMove( edge, end, candidate );
+	if ( from === edge.from && to === edge.to ) {
+		return 'unchanged';
+	}
+	const outcome = edge.outcome || null;
+	if (
+		! isValidConnection( {
+			source: from,
+			target: to,
+			sourceHandle: outcome,
+		} )
+	) {
+		return 'invalid';
+	}
+	return canReconnect( stages, edge.from, edge.to, from, to, outcome )
+		? 'valid'
+		: 'invalid';
 }
 
 /**
@@ -2053,15 +2333,28 @@ export function validateSequence( {
 	// editor crashes on Save rendering an object as a React child. One order for
 	// both is what keeps that from ever being a plausible slip.
 	//
+	// A stage is addressed by its key, so a key two stages share, or no key at
+	// all, is no address: whatever opened would be the first stage under that
+	// key, and every edit there would land on both. Such a fault keeps its node
+	// badge but carries no target, so the notice offers no way to a panel that
+	// cannot fix it. `duplicateKeys` is read at call time, after it is gathered
+	// below; no blocker is reported before then.
+	//
 	// The stage's copy also lands in `blockers`, which is what lets the node
 	// tell "this stops the save" (red) from "this is a hint" (amber): both
 	// kinds share `warnings`, so its length alone cannot say which it holds.
+	// The node turns red whether or not the error kept its target.
 	const addBlocker = ( message, target ) => {
-		const key = targetStageKey( target );
-		addError( message, target );
-		addWarning( key, message );
-		blockers[ key ] = blockers[ key ] || [];
-		blockers[ key ].push( message );
+		const stageKey = targetStageKey( target );
+		const isStageTarget =
+			target?.type === 'node' || target?.type === 'edge';
+		const addressable =
+			! isStageTarget ||
+			( '' !== stageKey && ! duplicateKeys.includes( stageKey ) );
+		addError( message, addressable ? target : null );
+		addWarning( stageKey, message );
+		blockers[ stageKey ] = blockers[ stageKey ] || [];
+		blockers[ stageKey ].push( message );
 	};
 
 	// A Save blocker whose error targets something other than the node that
@@ -2087,7 +2380,7 @@ export function validateSequence( {
 	if ( ! stages || stages.length === 0 ) {
 		addError(
 			__(
-				'This sequence has no stages, so there is nothing for a post to be in. Right-click the canvas to add one.',
+				'This sequence has no stages. Choose Add stage in the Sequence panel to add one.',
 				'vip-workflows'
 			)
 		);
@@ -2123,7 +2416,7 @@ export function validateSequence( {
 			sprintf(
 				/* translators: %s: the stage key two stages share. */
 				__(
-					'Two stages share the key “%s”, so saving would collapse them into one and drop the second stage’s transitions. Open one of them and give it a key of its own.',
+					'Two stages share the key “%s”, so this sequence can’t be saved.',
 					'vip-workflows'
 				),
 				key
@@ -2214,7 +2507,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: ability id of the agent the stage references. */
 					__(
-						'Agent “%s” is not available on this site; posts entering this stage will error — following the on-error route if one is set, stopping here otherwise.',
+						'Agent “%s” is not available on this site. Posts here will error.',
 						'vip-workflows'
 					),
 					abilityId
@@ -2229,7 +2522,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: agent name, e.g. "Copy Edit". */
 					__(
-						'Agent “%s” needs setup; until it is configured, posts entering this stage will error — following the on-error route if one is set, stopping here otherwise.',
+						'Agent “%s” needs setup. Until then, posts here will error.',
 						'vip-workflows'
 					),
 					entry.label
@@ -2252,22 +2545,25 @@ export function validateSequence( {
 		// Each half named on its own, because the fix differs and so does what
 		// breaks: a stage with no name is one writers meet as a blank on the
 		// board, a stage with no key is one the server refuses to store.
-		if ( ! stage.key && ! stage.label ) {
+		// A name of only spaces is no name: the server trims it to empty, so
+		// it must block here exactly as a blank one does.
+		const hasName = Boolean( stage.label?.trim() );
+		if ( ! stage.key && ! hasName ) {
 			// No key is no address: nothing on the canvas can be selected by it,
 			// so the fault carries no target and the notice offers no way to it.
 			addBlocker(
 				__(
-					'A stage on the canvas has neither a name nor a key. Open it and fill in both — the name is what writers see, the key is what the stage is stored under.',
+					'A stage has no name or key. Open it and fill in both.',
 					'vip-workflows'
 				),
 				null
 			);
-		} else if ( ! stage.label ) {
+		} else if ( ! hasName ) {
 			addBlocker(
 				sprintf(
 					/* translators: %s: the stage's key, e.g. "in_review". */
 					__(
-						'The stage keyed “%s” has no name. Open it and fill in Label — it is what writers see on the board and on the buttons that move a post.',
+						'The stage keyed “%s” has no name. Open it and fill in Label.',
 						'vip-workflows'
 					),
 					stage.key
@@ -2279,7 +2575,7 @@ export function validateSequence( {
 				sprintf(
 					/* translators: %s: the stage's name, e.g. "In Review". */
 					__(
-						'Stage “%s” has no key, so there is nothing to store it under. Open it and fill in Key.',
+						'Stage “%s” has no key. Open it and fill in Key.',
 						'vip-workflows'
 					),
 					stage.label
@@ -2307,13 +2603,25 @@ export function validateSequence( {
 			deadEnds.push( stage );
 		}
 		// An agent whose only routes are held for publishing does route
-		// somewhere; the held-route warning below says why content stops.
-		if ( ! isTerminal && outgoing.length === 0 && held.length === 0 ) {
+		// somewhere; the held-route warning below says why content stops. So
+		// does one whose routes lead to a missing stage or travel no
+		// transition — the routing warnings below name each of those, and
+		// "no outcome routed anywhere" would contradict them.
+		const routesSomewhere =
+			! isPhase &&
+			isAgentStage( stage ) &&
+			AGENT_OUTCOMES.some( ( o ) => ( stage.agent.routing || {} )[ o ] );
+		if (
+			! isTerminal &&
+			outgoing.length === 0 &&
+			held.length === 0 &&
+			! routesSomewhere
+		) {
 			addWarning(
 				stage.key,
 				isAgentStage( stage )
 					? __(
-							'The agent has no outcome routed anywhere and the stage is not marked final — content cannot leave it. Drag from the stage’s outcome handles to route it.',
+							'The agent has no outcome routed anywhere. Use an outcome’s Route button in the Stage panel, or drag its handle.',
 							'vip-workflows'
 					  )
 					: __(
@@ -2356,13 +2664,15 @@ export function validateSequence( {
 					addWarning(
 						stage.key,
 						sprintf(
-							/* translators: 1: agent outcome label, 2: target stage key */
+							/* translators: 1: agent outcome label, 2: target stage name */
 							__(
-								'The agent’s “%1$s” route has no transition to travel on (%2$s). Re-drag the handle onto that stage.',
+								'The agent’s “%1$s” route has no transition to travel on (%2$s). Set it to Not routed, then route it again.',
 								'vip-workflows'
 							),
 							agentOutcomeLabel( outcome ),
-							target
+							// The Route menu lists stages by name, so the
+							// message names the one to pick the same way.
+							stageLabel( stages, target )
 						)
 					);
 				}
@@ -2375,25 +2685,14 @@ export function validateSequence( {
 			for ( const outcome of held ) {
 				addWarning(
 					stage.key,
-					publishSettingFixesRoute( stage, routing[ outcome ] )
-						? sprintf(
-								/* translators: 1: agent outcome label, 2: target stage key */
-								__(
-									'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Turn on “Let AI stages publish” in the sequence settings, or route it to a stage before publishing.',
-									'vip-workflows'
-								),
-								agentOutcomeLabel( outcome ),
-								routing[ outcome ]
-						  )
-						: sprintf(
-								/* translators: 1: agent outcome label, 2: target stage key */
-								__(
-									'The agent’s “%1$s” route leads to a stage that publishes (%2$s), but this sequence doesn’t allow AI stages to publish, so the route is disabled and posts will stop here instead. Route it to a stage before publishing.',
-									'vip-workflows'
-								),
-								agentOutcomeLabel( outcome ),
-								routing[ outcome ]
-						  )
+					sprintf(
+						/* translators: %s: agent outcome key (pass, fail or error). */
+						__(
+							'Sequence settings do not allow AI stages to publish, please route the %s outcome to another stage.',
+							'vip-workflows'
+						),
+						outcome
+					)
 				);
 			}
 		}
@@ -2411,7 +2710,7 @@ export function validateSequence( {
 							'The “%1$s” transition points to a stage that doesn’t exist (%2$s). Reconnect or remove it.',
 							'vip-workflows'
 						),
-						t.label || t.to,
+						transitionLabel( t, stageLabel( stages, t.to ) ),
 						t.to
 					)
 				);
@@ -2442,18 +2741,23 @@ export function validateSequence( {
 		for ( const transition of stage.transitions || [] ) {
 			// A transition captures a list, of which at most one entry assigns
 			// work — a cap the server refuses a save for breaking, and one the
-			// add control in the inspector will not let an author reach. Walked
-			// as a list all the same: an assignment need not lead the list, and a
-			// config imported past the editor can carry two.
+			// add control in the inspector will not let an author reach; import
+			// passes through the same server gate, so no saved config carries two.
+			// Walked as a list all the same because an assignment need not lead it.
 			for ( const input of transition.inputs || [] ) {
 				if ( input?.type !== 'assignment' ) {
 					continue;
 				}
 
-				// Named the way the dangling-target rule above names one: the button
-				// label the author typed, falling back to the destination key, so
-				// the message points at a transition they can find.
-				const transitionName = transition.label || transition.to;
+				// Named the way the dangling-target rule above names one: the label
+				// its button will carry. An unauthored label is never stored, so the
+				// raw label is blank on nearly every transition — falling back to the
+				// destination key would name it something no button in the editor
+				// says. `transitionLabel` derives "Move to {destination}" instead.
+				const transitionName = transitionLabel(
+					transition,
+					stageLabel( stages, transition.to )
+				);
 				const key = normalizeSlotKey( input.meta_key );
 
 				if ( '' === key ) {
@@ -2461,12 +2765,12 @@ export function validateSequence( {
 						sprintf(
 							/* translators: %s: transition button label */
 							__(
-								'The “%s” transition assigns work but names no assignment key, so there is nowhere to record the assignment. Remove its assignment and add it again.',
+								'The “%s” transition assigns work but names no assignment key. Re-add its assignment.',
 								'vip-workflows'
 							),
 							transitionName
 						),
-						edgeTarget( stage, transition, drawnAs )
+						transitionTarget( stage, transition, drawnAs )
 					);
 					continue;
 				}
@@ -2476,12 +2780,12 @@ export function validateSequence( {
 						sprintf(
 							/* translators: %s: transition button label */
 							__(
-								'The “%s” transition assigns to the same slot as another transition — the second assignment would overwrite the first. Remove its assignment and add it again.',
+								'The “%s” transition assigns to the same slot as another transition. Re-add its assignment.',
 								'vip-workflows'
 							),
 							transitionName
 						),
-						edgeTarget( stage, transition, drawnAs )
+						transitionTarget( stage, transition, drawnAs )
 					);
 					continue;
 				}
@@ -2495,15 +2799,26 @@ export function validateSequence( {
 	// as final") named the rule and left the author to work out which stage it
 	// was about and how one gets marked — the two things they actually need. So
 	// the stages content would pile up in are named, since those are the
-	// candidates, and the gesture that ends the flow is spelled out.
+	// candidates, and the way to end the flow is spelled out — the Stage panel's
+	// Add exit first, since that works from the keyboard, then the drag.
+	//
+	// Neither reaches an AI stage: its panel has no Add exit, and an outcome
+	// cannot route to End (`isValidConnection`). It is made final by clearing
+	// its agent first, so when the stages the message points at include one,
+	// that is said too rather than leaving the author hunting for a control
+	// that isn't there.
 	if ( ! isPhase && ! stages.some( ( s ) => s.is_terminal ) ) {
-		const message =
+		const pointsAtAgent =
+			deadEnds.length > 0
+				? deadEnds.some( isAgentStage )
+				: stages.every( isAgentStage );
+		const nothingEnds =
 			deadEnds.length > 0
 				? sprintf(
 						/* translators: %s: comma-separated stage names. */
 						_n(
-							'Nothing ends this sequence: %s has no way out and is not marked as the end, so a post arriving there would be stuck. Drag from it to the End node to finish the flow there.',
-							'Nothing ends this sequence: %s have no way out and none is marked as the end, so a post arriving at one would be stuck. Drag from whichever should finish the flow to the End node.',
+							'Nothing ends this sequence: %s has no way out. Choose Add exit, then End of workflow, or drag it to the End node.',
+							'Nothing ends this sequence: %s have no way out. On one, choose Add exit, then End of workflow, or drag to the End node.',
 							deadEnds.length,
 							'vip-workflows'
 						),
@@ -2518,13 +2833,24 @@ export function validateSequence( {
 							.join( ', ' )
 				  )
 				: __(
-						'Nothing ends this sequence: no stage is joined to the End node, so a post could travel it forever without finishing. Drag from the stage that should finish the flow to the End node.',
+						'Nothing ends this sequence. On the last stage, choose Add exit, then End of workflow, or drag it to the End node.',
 						'vip-workflows'
 				  );
+		const message = pointsAtAgent
+			? sprintf(
+					/* translators: 1: the "nothing ends this sequence" message, 2: how an AI stage is made final. */
+					__( '%1$s %2$s', 'vip-workflows' ),
+					nothingEnds,
+					__(
+						'An AI stage cannot end the flow while it has an agent: clear the Agent field in its Stage panel first.',
+						'vip-workflows'
+					)
+			  )
+			: nothingEnds;
 		addError( message );
-		// The End node is where this is fixed — every remedy is a drag onto
-		// it — so it is what turns red. The error keeps its null target: End
-		// is not selectable, so there is no panel for the notice to open.
+		// The End node is where this is fixed — every remedy ends in a route to
+		// it — so it is what turns red. The error keeps its null target: End is
+		// not selectable, so there is no panel for the notice to open.
 		markBlocked( END_ID, message );
 	}
 
@@ -2554,7 +2880,7 @@ export function validateSequence( {
 					sprintf(
 						/* translators: %s: status region name (e.g. Draft, Published) */
 						__(
-							'The “%s” status group has no entry checkpoint. Open its Post status panel and choose a stage under Entry checkpoint to set where posts entering that status land.',
+							'The “%s” status group has no entry checkpoint. Choose one in its Post status panel.',
 							'vip-workflows'
 						),
 						regionLabel( region )
@@ -2613,7 +2939,7 @@ export function validateSequence( {
 			}
 		};
 
-		reach( stages[ 0 ].key );
+		reach( entryStageKey( stages ) );
 		stages.forEach( ( stage ) => {
 			if ( stage.region_entry ) {
 				reach( stage.key );
@@ -2650,20 +2976,23 @@ export function validateSequence( {
 				addWarning(
 					stage.key,
 					__(
-						'No transition leads here and this is not its status group’s entry checkpoint, so no post can ever reach this stage.',
+						'No transition leads here, so no post can ever reach this stage. Draw one into it.',
 						'vip-workflows'
 					)
 				);
 			} );
 
-		// The flow entry (statuses[0], the Start edge) should live in the
-		// draft region — new content is created as a draft, so an entry
-		// outside it never receives new posts.
-		if ( stageRegion( stages[ 0 ] ) !== 'draft' ) {
+		// The flow entry (the Start edge) should live in the draft region —
+		// new content is created as a draft, so an entry outside it never
+		// receives new posts.
+		const entryStage = stages.find(
+			( s ) => s.key === entryStageKey( stages )
+		);
+		if ( stageRegion( entryStage ) !== 'draft' ) {
 			addWarning(
-				stages[ 0 ].key,
+				entryStage.key,
 				__(
-					'The flow entry is outside the “draft” status region — new content starts as a draft and will land at the draft region’s entry stage instead.',
+					'New posts start as drafts, so they skip this stage. Move it into the “Draft” status group.',
 					'vip-workflows'
 				)
 			);

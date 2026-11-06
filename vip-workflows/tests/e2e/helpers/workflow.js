@@ -26,82 +26,120 @@ const WP_ENV_BIN = path.join(
 const execFileAsync = promisify( execFile );
 
 /**
- * The workflow sidebar's own root — the `<Stack className="vip-workflows-sidebar">`
- * that `src/editor/index.js` renders inside its `PluginSidebar`. Anchoring on
- * our own markup rather than on core's complementary-area chrome, whose class
- * names and ARIA labels are core's to change.
+ * The Workflow panel in the document sidebar — the `PluginDocumentSettingPanel`
+ * that `src/editor/index.js` registers. Core hands its `className` to the
+ * panel's `PanelBody`, so this matches the whole panel, heading included.
  */
-const WORKFLOW_SIDEBAR = '.vip-workflows-sidebar';
+const WORKFLOW_DOCUMENT_PANEL = '.vip-workflows-document-panel';
 
 /**
- * Open the Workflow plugin sidebar and return its root locator.
+ * The Workflow panel's body — the `<Stack
+ * className="vip-workflows-document-panel__body">` inside it. Anchoring on our
+ * own markup rather than on core's panel chrome, whose class names and ARIA
+ * labels are core's to change.
+ */
+const WORKFLOW_PANEL_BODY = '.vip-workflows-document-panel__body';
+
+/**
+ * The workflow rows' own root in the Summary panel — the `<Stack
+ * className="vip-workflows-summary-rows">` WorkflowSummaryRows renders.
+ */
+const WORKFLOW_SUMMARY_ROWS = '.vip-workflows-summary-rows';
+
+/**
+ * Show the document sidebar's Post (or Page) tab.
  *
- * Everything the plugin puts in the editor now lives here: the stage, its
- * progress, the transitions, Tools and Editorial Metadata. It replaces the two
- * `PluginDocumentSettingPanel`s ("Workflow Stage", "Editorial Metadata") specs
- * used to expand in the document settings sidebar, so
- * `editor.openDocumentSettingsSidebar()` no longer reaches any of it.
- *
- * Opening an unpinned plugin sidebar reliably has been the open problem in this
- * suite (see docs/TESTING.md); solving it once here is the point of this helper.
- * Two routes, in order:
- *
- *  1. The pinned header button. `PluginSidebar` is pinnable and pinned by
- *     default, so its icon sits in the editor header with the sidebar's title
- *     as its accessible name. This is the fast path and the one a user takes.
- *  2. The Options (⋮) menu. `PluginSidebarMoreMenuItem` puts the sidebar in
- *     that menu unconditionally, so it works even if a preference has unpinned
- *     the icon. Both routes *toggle*, which is why an already-open sidebar
- *     returns before either is used — clicking would close it.
+ * The Settings button *toggles*, so it is pressed only while the sidebar is
+ * closed. The tab is pressed either way: selecting the selected tab changes
+ * nothing, and the sidebar may have been left on the Block tab.
  *
  * @param {import('@playwright/test').Page} page
- * @return {Promise<import('@playwright/test').Locator>} The sidebar root.
  */
-async function openWorkflowSidebar( page ) {
-	const sidebar = page.locator( WORKFLOW_SIDEBAR );
+async function openDocumentSidebar( page ) {
+	const settings = page
+		.getByRole( 'region', { name: 'Editor top bar' } )
+		.getByRole( 'button', { name: 'Settings', exact: true } );
 
-	if ( ! ( await sidebar.isVisible() ) ) {
-		const pinned = page
-			.getByRole( 'region', { name: 'Editor top bar' } )
-			.getByRole( 'button', { name: 'Workflow', exact: true } );
-
-		if ( await pinned.count() ) {
-			await pinned.first().click();
-		} else {
-			await page.getByRole( 'button', { name: 'Options' } ).click();
-			// The item carries its checked state, so core renders it as a
-			// `menuitemcheckbox`; matched as either so a core change to the
-			// menu primitive does not silently take the fallback away.
-			await page
-				.getByRole( 'menuitemcheckbox', {
-					name: 'Workflow',
-					exact: true,
-				} )
-				.or(
-					page.getByRole( 'menuitem', {
-						name: 'Workflow',
-						exact: true,
-					} )
-				)
-				.first()
-				.click();
-		}
+	if ( 'true' !== ( await settings.getAttribute( 'aria-expanded' ) ) ) {
+		await settings.click();
 	}
 
-	await sidebar.waitFor( { state: 'visible' } );
-	return sidebar;
+	await page
+		.getByRole( 'tab', { name: /^(Post|Page)$/ } )
+		.first()
+		.click();
 }
 
 /**
- * The workflow panel inside the sidebar — the stage, its progress, the
- * transitions and the actions on the workflow itself.
+ * Open the Workflow panel in the document sidebar and return its body.
+ *
+ * What acts on the post's movement through its workflow lives here: the
+ * stage, the transitions and the history. Which workflow the post is in, and
+ * the editorial metadata fields, are rows in the Summary panel above it
+ * instead — see openWorkflowSummaryRows().
+ *
+ * The panel is a `PluginDocumentSettingPanel`: collapsed until someone opens
+ * it, and core remembers that choice per user. Its heading button carries
+ * `aria-expanded` and *toggles*, so it is pressed only while the panel is
+ * collapsed.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @return {Promise<import('@playwright/test').Locator>} The panel's body.
+ */
+async function openWorkflowDocumentPanel( page ) {
+	const body = page.locator( WORKFLOW_PANEL_BODY );
+
+	if ( ! ( await body.isVisible() ) ) {
+		await openDocumentSidebar( page );
+
+		const toggle = page
+			.locator( WORKFLOW_DOCUMENT_PANEL )
+			.getByRole( 'button', { name: 'Workflow', exact: true } )
+			.first();
+		await toggle.waitFor( { state: 'visible' } );
+
+		if ( 'true' !== ( await toggle.getAttribute( 'aria-expanded' ) ) ) {
+			await toggle.click();
+		}
+	}
+
+	await body.waitFor( { state: 'visible' } );
+	return body;
+}
+
+/**
+ * The workflow's rows in the document sidebar's Summary panel — the Workflow
+ * row (which sequence the post is in, and the way out of it) and the
+ * sequence-declared metadata rows.
+ *
+ * They are a `PluginPostStatusInfo` fill, so they render wherever the Summary
+ * panel does: the Settings sidebar's Post tab, open by default. Anchored on the
+ * rows' own root rather than on core's panel chrome.
+ *
+ * @param {import('@playwright/test').Page} page
+ * @return {Promise<import('@playwright/test').Locator>} The rows' root.
+ */
+async function openWorkflowSummaryRows( page ) {
+	const rows = page.locator( WORKFLOW_SUMMARY_ROWS );
+
+	if ( ! ( await rows.isVisible() ) ) {
+		await openDocumentSidebar( page );
+	}
+
+	await rows.waitFor( { state: 'visible' } );
+	return rows;
+}
+
+/**
+ * The workflow panel inside the Workflow document panel — the stage, the
+ * transitions and the history.
  *
  * @param {import('@playwright/test').Page} page
  * @return {Promise<import('@playwright/test').Locator>} The panel root.
  */
 async function openWorkflowPanel( page ) {
-	const sidebar = await openWorkflowSidebar( page );
-	const panel = sidebar.locator( '.vip-workflows-panel' );
+	const body = await openWorkflowDocumentPanel( page );
+	const panel = body.locator( '.vip-workflows-panel' );
 	await panel.waitFor( { state: 'visible' } );
 	return panel;
 }
@@ -521,8 +559,9 @@ function releasePost( utils, postId ) {
 
 module.exports = {
 	EDITORIAL_REVIEW_SLUG,
-	WORKFLOW_SIDEBAR,
-	openWorkflowSidebar,
+	WORKFLOW_PANEL_BODY,
+	openWorkflowDocumentPanel,
+	openWorkflowSummaryRows,
 	openWorkflowPanel,
 	getEditorialSequence,
 	createDraftPost,

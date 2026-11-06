@@ -115,8 +115,8 @@ body:has( .vip-workflows-admin-page ) {
 	:where( p, h1, h2, h3, h4, h5, h6 ):where(
 		:not( .description, .notice, .notice * )
 	) {
-	font: revert-layer; /* wpds-allow R5 -- not raw type styling; reverts to the DS @layer wp-ui-components value over wp-admin globals */
-	margin: 0; /* wpds-allow R2,R3 -- not spacing between siblings; strips the margin wp-admin injects onto a margin-free DS component, and zero needs no token */
+	font: revert-layer; /* not raw type styling: reverts to the DS @layer wp-ui-components value over wp-admin globals */
+	margin: 0; /* not spacing between siblings: strips the margin wp-admin injects onto a margin-free DS component */
 }
 
 /* ============================================================================

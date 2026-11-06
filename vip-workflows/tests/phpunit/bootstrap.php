@@ -133,6 +133,10 @@ if ( $vipwf_is_integration ) {
         define( 'ARRAY_A', 'ARRAY_A' );
     }
 
+    if ( ! defined( 'MINUTE_IN_SECONDS' ) ) {
+        define( 'MINUTE_IN_SECONDS', 60 );
+    }
+
     /*
      * OpenAI is unconditionally keyed for the whole unit suite.
      *
@@ -176,6 +180,13 @@ if ( $vipwf_is_integration ) {
      * pre-defining the stub would shadow core's API and crash bootstrap.
      */
     require_once __DIR__ . '/stubs/ai-client.php';
+
+    /*
+     * VIP Real-Time Collaboration's room presence, which CoEditing reads
+     * when that plugin is active. Unit branch only, for the same reason as the
+     * AI client: under integration the real plugin may be loaded.
+     */
+    require_once __DIR__ . '/stubs/room-presence.php';
 
     /*
      * Shared ability-tool helper functions.
