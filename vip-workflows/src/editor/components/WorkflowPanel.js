@@ -62,6 +62,47 @@ import { IdeationPanel } from './IdeationPanel';
 const WorkflowHistoryModal = lazy( () => import( './WorkflowHistoryModal' ) );
 
 /**
+ * One person who holds the post — its assignee or its claimer — drawn the same
+ * way whichever it is, so the two rows line up and stay alike.
+ *
+ * The person is drawn with the cell the lists use for an author, so the person
+ * waiting on this post looks the same in the panel and in My Queue. "(you)" is
+ * the cell's trailing slot: it is something this reader's context adds about
+ * the person, not part of their name.
+ *
+ * @param {Object} props            Props.
+ * @param {string} props.label      What the row says about them ("Assigned to:").
+ * @param {Object} props.actor      The person, in the shared actor shape.
+ * @param {*}      [props.children] Actions on the row, after the person.
+ */
+function HolderRow( { label, actor, children } ) {
+	return (
+		<Stack
+			className="vip-workflows-panel__holder"
+			direction="row"
+			align="center"
+			wrap="wrap"
+		>
+			<span className="vip-workflows-panel__holder-label">{ label }</span>
+			<AuthorCell
+				actor={ actor }
+				className="vip-workflows-panel__holder-name"
+			>
+				{ actor.is_current && (
+					<Text
+						variant="body-md"
+						className="vip-workflows-panel__you"
+					>
+						{ '(' + __( 'you', 'vip-workflows' ) + ')' }
+					</Text>
+				) }
+			</AuthorCell>
+			{ children }
+		</Stack>
+	);
+}
+
+/**
  * The post's place in its workflow, and everything that moves it.
  */
 export function WorkflowPanel() {
@@ -194,6 +235,10 @@ export function WorkflowPanel() {
 							'vip-workflows'
 						)
 				);
+				// A refusal is news about the post (someone else claimed it,
+				// or it left the queue): re-read it, so the panel shows the
+				// post rather than the attempt.
+				fetchWorkflowStatus();
 				setWorkflowWriting( false );
 			} );
 	};
@@ -217,6 +262,10 @@ export function WorkflowPanel() {
 							'vip-workflows'
 						)
 				);
+				// The claim may already be gone (another release, or the post
+				// taken out of its workflow): re-read it, so the row and its
+				// Release button match the post rather than the attempt.
+				fetchWorkflowStatus();
 				setWorkflowWriting( false );
 			} );
 	};
@@ -316,63 +365,16 @@ export function WorkflowPanel() {
 					gap="xs"
 				>
 					{ assignedTo && (
-						<Stack
-							className="vip-workflows-panel__assigned"
-							direction="row"
-							align="center"
-							wrap="wrap"
-						>
-							<span className="vip-workflows-panel__assigned-label">
-								{ __( 'Assigned to:', 'vip-workflows' ) }
-							</span>
-							{ /* The same cell the lists draw an author with, so
-							     the person waiting on this post looks like the
-							     same person in the panel and in My Queue. "(you)"
-							     is the trailing slot: it is something this
-							     reader's context adds about the assignee, not
-							     part of their name. */ }
-							<AuthorCell
-								actor={ assignedTo }
-								className="vip-workflows-panel__assigned-name"
-							>
-								{ assignedTo.is_current && (
-									<Text
-										variant="body-md"
-										className="vip-workflows-panel__you"
-									>
-										{ '(' +
-											__( 'you', 'vip-workflows' ) +
-											')' }
-									</Text>
-								) }
-							</AuthorCell>
-						</Stack>
+						<HolderRow
+							label={ __( 'Assigned to:', 'vip-workflows' ) }
+							actor={ assignedTo }
+						/>
 					) }
 					{ claimedBy && (
-						<Stack
-							className="vip-workflows-panel__assigned"
-							direction="row"
-							align="center"
-							wrap="wrap"
+						<HolderRow
+							label={ __( 'Claimed by:', 'vip-workflows' ) }
+							actor={ claimedBy }
 						>
-							<span className="vip-workflows-panel__assigned-label">
-								{ __( 'Claimed by:', 'vip-workflows' ) }
-							</span>
-							<AuthorCell
-								actor={ claimedBy }
-								className="vip-workflows-panel__assigned-name"
-							>
-								{ claimedBy.is_current && (
-									<Text
-										variant="body-md"
-										className="vip-workflows-panel__you"
-									>
-										{ '(' +
-											__( 'you', 'vip-workflows' ) +
-											')' }
-									</Text>
-								) }
-							</AuthorCell>
 							{ claimedBy.is_current && (
 								<Button
 									variant="link"
@@ -384,7 +386,7 @@ export function WorkflowPanel() {
 									{ __( 'Release', 'vip-workflows' ) }
 								</Button>
 							) }
-						</Stack>
+						</HolderRow>
 					) }
 				</Stack>
 			) }

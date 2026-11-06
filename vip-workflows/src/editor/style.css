@@ -182,7 +182,7 @@
 
 /* Holder rows (assignee, claimer). The 6px gap stays here because the gap scale
    steps 4→8 and neither reads right between the label, the name and Release. */
-.vip-workflows-panel__assigned {
+.vip-workflows-panel__holder {
 	gap: 6px;
 }
 
@@ -193,14 +193,14 @@
 	font: var(--vip-workflows-text-body-md);
 }
 
-.vip-workflows-panel__assigned-label {
+.vip-workflows-panel__holder-label {
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* The shared <AuthorCell>, emphasised. The weight is inherited by the name span
    inside it rather than set on the span directly, because the cell also holds
    the avatar and the trailing "(you)" and they read as one emphasised unit. */
-.vip-workflows-panel__assigned-name {
+.vip-workflows-panel__holder-name {
 	font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 
