@@ -225,7 +225,18 @@ function activate(): void {
 
 	// Seed default data.
 	$seeder = new Database\Seeder();
-	$seeder->seed();
+	try {
+		$seeder->seed();
+	} catch ( \RuntimeException $e ) {
+		wp_die(
+			esc_html( $e->getMessage() ),
+			esc_html__( 'VIP Workflows activation failed', 'vip-workflows' ),
+			array(
+				'response'  => 500,
+				'back_link' => true,
+			)
+		);
+	}
 
 	// Clear rewrite rules. On VIP, rewrite rules are managed at the platform
 	// level, so the flush is both unnecessary and restricted.
