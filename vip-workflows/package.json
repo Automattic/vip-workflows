@@ -1,6 +1,6 @@
 {
 	"name": "vip-workflows",
-	"version": "0.0.5",
+	"version": "1.0.0-beta.1",
 	"description": "Enterprise workflows and automation platform for WordPress VIP",
 	"scripts": {
 		"build": "wp-scripts build",
