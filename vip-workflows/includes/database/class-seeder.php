@@ -112,10 +112,22 @@ class Seeder {
 			return;
 		}
 
+		$reviewer_roles = $this->reviewer_roles();
+
+		$approve = array(
+			'to'    => 'ready',
+			'label' => 'Approve',
+		);
+		if ( $reviewer_roles ) {
+			// Approval is the review. Left open, the author can approve their
+			// own post; reviewer_roles only decides who may claim it, not who
+			// may move it.
+			$approve['allowed_roles'] = $reviewer_roles;
+		}
+
 		$config = array(
 			'version'         => '2.0',
 			'post_types'      => array( 'post' ),
-			'reviewer_roles'  => array( 'editor', 'administrator' ),
 			'statuses'        => array(
 				array(
 					'key'          => 'draft',
@@ -138,14 +150,7 @@ class Seeder {
 					'icon'        => 'visibility',
 					'status'      => 'draft',
 					'transitions' => array(
-						array(
-							'to'            => 'ready',
-							'label'         => 'Approve',
-							// Approval is the review. Left open, the author can
-							// approve their own post; reviewer_roles above only
-							// decides who may claim it, not who may move it.
-							'allowed_roles' => array( 'editor', 'administrator' ),
-						),
+						$approve,
 						array(
 							'to'    => 'draft',
 							'label' => 'Request changes',
@@ -224,6 +229,10 @@ class Seeder {
 
 		$config['statuses'] = $this->apply_palette_colors( $config['statuses'] );
 
+		if ( $reviewer_roles ) {
+			$config['reviewer_roles'] = $reviewer_roles;
+		}
+
 		$repository->create(
 			'Editorial Review',
 			'editorial-review',
@@ -231,6 +240,33 @@ class Seeder {
 			$config,
 			0
 		);
+	}
+
+	/**
+	 * The site's roles that can review other people's posts.
+	 *
+	 * Read from the roles that exist when the plugin is activated rather than
+	 * named outright, because sites replace or rename the core roles: a site
+	 * whose editors hold a custom role would otherwise have nobody but
+	 * administrators able to approve, and one without an `administrator` role
+	 * nobody at all. `edit_others_posts` is what core uses to mark editor-level
+	 * access, so on a stock site this is administrator and editor.
+	 *
+	 * Empty when no role qualifies. The caller then leaves the sequence's roles
+	 * unset rather than seed a review step nobody can complete.
+	 *
+	 * @return string[] Role slugs.
+	 */
+	private function reviewer_roles(): array {
+		$roles = array();
+
+		foreach ( wp_roles()->role_objects as $slug => $role ) {
+			if ( $role->has_cap( 'edit_others_posts' ) ) {
+				$roles[] = (string) $slug;
+			}
+		}
+
+		return $roles;
 	}
 
 	/**
