@@ -51,7 +51,14 @@ class BootstrapConformanceTest extends TestCase
 
         require_once self::PLUGIN_FILE;
 
-        $this->assertMatchesRegularExpression( '/^\\d+\\.\\d+\\.\\d+$/', VIP_WORKFLOWS_VERSION, 'VIP_WORKFLOWS_VERSION should be a semantic version.' );
+        // SemVer 2.0 permits prerelease identifiers and build metadata (https://semver.org/).
+        $this->assertMatchesRegularExpression(
+            '/\A(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)'
+            . '(?:-((?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*))?'
+            . '(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?\z/',
+            VIP_WORKFLOWS_VERSION,
+            'VIP_WORKFLOWS_VERSION should be a semantic version.'
+        );
 
         $source = (string) file_get_contents( self::PLUGIN_FILE );
         $this->assertSame( 1, preg_match( '/^\s*\*\s*Version:\s*(.+)$/m', $source, $matches ), 'Plugin header must declare a Version.' );
