@@ -29,6 +29,10 @@ class StageAgentHelpersTest extends TestCase
 
         // generate() applies a per-user AI rate ceiling; cron context is exempt.
         Functions\when( 'wp_doing_cron' )->justReturn( true );
+
+        // write_content() drops the request's copy of the post before it checks
+        // or writes; the integration test covers what that buys.
+        Functions\when( 'clean_post_cache' )->justReturn( null );
     }
 
     // --- is_sentinel ---------------------------------------------------------
