@@ -26,7 +26,7 @@ jobs:
     uses: WordPress/action-wp-playground-pr-preview/.github/workflows/preview-build.yml@1b15093d61b5e98cdfeb31466f34ade495762cd7 # v4
     with:
       node-version: '22'
-      php-version: '8.3'
+      php-version: '8.2'
       # Keep in step with ARTIFACTS in tools/playground/build-preview.sh.
       artifacts: |
         vip-workflows=dist/preview/vip-workflows.zip

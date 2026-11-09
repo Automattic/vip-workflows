@@ -4,7 +4,7 @@
 
 - Node.js 22 (see `.nvmrc`)
 - npm
-- PHP 8.3 or newer
+- PHP 8.2 or newer
 - Composer 2
 - Docker Desktop or another Docker-compatible runtime for wp-env
 
