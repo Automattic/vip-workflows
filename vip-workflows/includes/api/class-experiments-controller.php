@@ -121,14 +121,18 @@ class ExperimentsController extends WP_REST_Controller {
 			$registry->disable( $id );
 		}
 
+		// The vip_workflows_experiments filter can pin an experiment on or off
+		// whatever was requested, so compare the effective state before and after.
+		$is_enabled = $registry->is_enabled( $id );
+
 		// Recorded here rather than in the browser: the Settings screen reloads
 		// as soon as its save resolves, which would drop an event still queued.
-		if ( $was_enabled !== $enabled ) {
+		if ( $was_enabled !== $is_enabled ) {
 			Tracker::record(
 				'settings_experiment_toggled',
 				array(
 					'experiment_id' => $id,
-					'enabled'       => $enabled,
+					'enabled'       => $is_enabled,
 				)
 			);
 		}

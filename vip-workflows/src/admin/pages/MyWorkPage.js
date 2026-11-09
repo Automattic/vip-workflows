@@ -212,6 +212,13 @@ export function MyWorkPage() {
 				recordTracksEvent( 'dashboard_filter_changed', filterChange );
 			}
 
+			const groupBy = nextView.groupBy?.field ?? '';
+			if ( groupBy !== ( view.groupBy?.field ?? '' ) ) {
+				recordTracksEvent( 'dashboard_grouping_changed', {
+					group_by: groupBy || 'none',
+				} );
+			}
+
 			setView( nextView );
 		},
 		[ view ]
@@ -219,11 +226,6 @@ export function MyWorkPage() {
 
 	const handleChangeGroupBy = useCallback(
 		( field ) => {
-			if ( field !== ( view.groupBy?.field ?? '' ) ) {
-				recordTracksEvent( 'dashboard_grouping_changed', {
-					group_by: field || 'none',
-				} );
-			}
 			handleChangeView( {
 				...view,
 				groupBy: field ? { field } : undefined,
