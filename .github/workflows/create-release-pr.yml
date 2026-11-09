@@ -11,6 +11,12 @@ on:
           - patch
           - minor
           - major
+          - alpha
+          - beta
+      version:
+        description: Optional exact version (e.g. 1.0.0-beta.1); overrides release_type
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -39,8 +45,11 @@ jobs:
 
       - name: Run release script
         id: release
+        env:
+          RELEASE_TYPE: ${{ inputs.release_type }}
+          RELEASE_VERSION: ${{ inputs.version }}
         run: |
-          ./bin/release "${{ inputs.release_type }}"
+          ./bin/release "${RELEASE_VERSION:-$RELEASE_TYPE}"
 
           VERSION=$(sed -n 's/.*Version: *//p' vip-workflows/vip-workflows.php | head -n 1 | tr -d '[:space:]')
           BRANCH="release/v${VERSION}"

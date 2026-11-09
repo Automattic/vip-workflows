@@ -26,6 +26,26 @@ tree is left untouched. `--pick` is the only mode that needs `gum`, so unattende
 builds neither require it nor can block on a prompt. From `vip-workflows/`, the
 same script runs as `npm run package -- 1.2.0`.
 
+## Releases
+
+Run **Create release PR** in GitHub Actions, or `npm run release -- <type-or-version>`
+locally. The workflow's optional `version` input overrides `release_type` when
+starting a specific release series, for example `1.0.0-beta.1`.
+
+- `major`, `minor`, and `patch` prepare stable releases. `patch` promotes a current
+  prerelease to its stable version (`1.0.0-beta.2` → `1.0.0`).
+- `alpha` and `beta` start at `.1`, increment an existing matching prerelease
+  number, or move alpha to beta (`1.0.0-alpha.2` → `1.0.0-beta.1`). From a stable
+  version, they start a prerelease of the next patch.
+- An exact version such as `1.0.0-beta.1` starts a new major/minor prerelease
+  series. Versions must increase; beta-to-alpha and other downgrades are rejected.
+
+For example, select exact `version: 1.0.0-beta.1`, then `release_type: beta` for
+`1.0.0-beta.2`, and finally `release_type: patch` for stable `1.0.0`. Merge each
+release PR before preparing the next one. Alpha and beta releases are marked as
+GitHub prereleases, so they do not replace the latest stable release. Plugin
+headers, runtime version constants, and npm manifests retain the full version.
+
 Run the repository checks from the root:
 
 ```bash
