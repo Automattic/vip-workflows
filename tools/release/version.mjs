@@ -36,31 +36,32 @@ function compareVersions( left, right ) {
 	return 0;
 }
 
-export function nextVersion( currentVersion, releaseType ) {
+export function nextVersion( currentVersion, releaseType, channel = 'stable' ) {
 	const current = parseVersion( currentVersion );
+	if ( ! [ 'major', 'minor', 'patch', 'none' ].includes( releaseType ) ) {
+		throw new Error(
+			'Invalid release type. Use major, minor, patch, or none.'
+		);
+	}
+	if ( ! [ 'stable', 'alpha', 'beta' ].includes( channel ) ) {
+		throw new Error(
+			'Invalid release channel. Use stable, alpha, or beta.'
+		);
+	}
 	const core = [ ...current.core ];
-	let next;
-	if ( releaseType === 'alpha' || releaseType === 'beta' ) {
-		// Continue the current prerelease; start the next patch from stable.
-		if ( ! current.channel ) core[ 2 ]++;
-		const number =
-			current.channel === releaseType ? current.number + 1n : 1n;
-		next = `${ core.join( '.' ) }-${ releaseType }.${ number }`;
-	} else if ( [ 'major', 'minor', 'patch' ].includes( releaseType ) ) {
-		// Match npm's stable bumps: patch promotes a prerelease to stable.
+	if ( releaseType !== 'none' ) {
 		const index = { major: 0, minor: 1, patch: 2 }[ releaseType ];
-		if (
-			! current.channel ||
-			core.slice( index + 1 ).some( ( part ) => part !== 0n )
-		) {
-			core[ index ]++;
-		}
+		core[ index ]++;
 		for ( let reset = index + 1; reset < core.length; reset++ )
 			core[ reset ] = 0n;
-		next = core.join( '.' );
-	} else {
-		// Exact versions allow starting a new major/minor prerelease series.
-		next = releaseType;
+	}
+	let next = core.join( '.' );
+	if ( channel !== 'stable' ) {
+		const number =
+			releaseType === 'none' && current.channel === channel
+				? current.number + 1n
+				: 1n;
+		next += `-${ channel }.${ number }`;
 	}
 	if ( compareVersions( parseVersion( next ), current ) <= 0 ) {
 		throw new Error(
@@ -75,15 +76,19 @@ if (
 	import.meta.url === pathToFileURL( process.argv[ 1 ] ).href
 ) {
 	try {
-		const [ current, type ] = process.argv.slice( 2 );
-		if ( process.argv.length !== 4 )
+		const [ current, type, channel ] = process.argv.slice( 2 );
+		if (
+			process.argv.length < 4 ||
+			process.argv.length > 5 ||
+			( current === '--prerelease' && channel !== undefined )
+		)
 			throw new Error(
-				'Expected a current version and release type/version.'
+				'Expected a current version, release type, and optional channel, or --prerelease <version>.'
 			);
 		console.log(
 			current === '--prerelease'
 				? Boolean( parseVersion( type ).channel )
-				: nextVersion( current, type )
+				: nextVersion( current, type, channel )
 		);
 	} catch ( error ) {
 		console.error( error.message );

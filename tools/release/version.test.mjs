@@ -19,46 +19,42 @@ const root = path.resolve(
 	'../..'
 );
 
-for ( const [ current, type, expected ] of [
-	[ '0.0.5', 'patch', '0.0.6' ],
-	[ '0.0.5', 'minor', '0.1.0' ],
-	[ '0.0.5', 'major', '1.0.0' ],
-	[ '0.0.5', 'alpha', '0.0.6-alpha.1' ],
-	[ '0.0.5', 'beta', '0.0.6-beta.1' ],
-	[ '0.0.5', '1.0.0-beta.1', '1.0.0-beta.1' ],
-	[ '1.0.0-alpha.1', 'alpha', '1.0.0-alpha.2' ],
-	[ '1.0.0-alpha.2', 'beta', '1.0.0-beta.1' ],
-	[ '1.0.0-beta.1', 'beta', '1.0.0-beta.2' ],
-	[ '1.0.0-beta.9', 'beta', '1.0.0-beta.10' ],
-	[ '1.0.0-beta.2', 'patch', '1.0.0' ],
-	[ '1.0.0-beta.2', 'minor', '1.0.0' ],
-	[ '1.0.0-beta.2', 'major', '1.0.0' ],
-	[ '1.2.3-beta.2', 'minor', '1.3.0' ],
-	[ '1.2.3-beta.2', 'major', '2.0.0' ],
-	[ '1.0.0-beta.2', '1.0.0', '1.0.0' ],
+for ( const [ current, type, channel, expected ] of [
+	[ '0.0.5', 'patch', 'stable', '0.0.6' ],
+	[ '0.0.5', 'minor', 'stable', '0.1.0' ],
+	[ '0.0.5', 'major', 'stable', '1.0.0' ],
+	[ '0.0.5', 'patch', 'alpha', '0.0.6-alpha.1' ],
+	[ '0.0.5', 'minor', 'beta', '0.1.0-beta.1' ],
+	[ '0.0.5', 'major', 'beta', '1.0.0-beta.1' ],
+	[ '1.0.0-alpha.1', 'none', 'alpha', '1.0.0-alpha.2' ],
+	[ '1.0.0-alpha.2', 'none', 'beta', '1.0.0-beta.1' ],
+	[ '1.0.0-beta.1', 'none', 'beta', '1.0.0-beta.2' ],
+	[ '1.0.0-beta.9', 'none', 'beta', '1.0.0-beta.10' ],
+	[ '1.0.0-beta.2', 'none', 'stable', '1.0.0' ],
+	[ '1.0.0-alpha.2', 'none', 'stable', '1.0.0' ],
+	[ '1.0.0-beta.2', 'patch', 'beta', '1.0.1-beta.1' ],
+	[ '1.0.0-beta.2', 'minor', 'beta', '1.1.0-beta.1' ],
+	[ '1.0.0-beta.2', 'major', 'beta', '2.0.0-beta.1' ],
+	[ '1.0.0-beta.2', 'minor', 'alpha', '1.1.0-alpha.1' ],
+	[ '1.2.3-beta.2', 'major', 'stable', '2.0.0' ],
 ] ) {
-	test( `${ current } + ${ type } = ${ expected }`, () => {
-		assert.equal( nextVersion( current, type ), expected );
+	test( `${ current } + ${ type } + ${ channel } = ${ expected }`, () => {
+		assert.equal( nextVersion( current, type, channel ), expected );
 	} );
 }
 
 test( 'rejects duplicate versions and semantic downgrades', () => {
-	for ( const type of [
-		'alpha',
-		'1.0.0-beta.2',
-		'1.0.0-beta.1',
-		'1.0.0-alpha.9',
-		'0.9.9',
+	for ( const [ current, channel ] of [
+		[ '1.0.0-beta.2', 'alpha' ],
+		[ '1.0.0', 'alpha' ],
+		[ '1.0.0', 'beta' ],
+		[ '1.0.0', 'stable' ],
 	] ) {
 		assert.throws(
-			() => nextVersion( '1.0.0-beta.2', type ),
+			() => nextVersion( current, 'none', channel ),
 			/must be newer/
 		);
 	}
-	assert.throws(
-		() => nextVersion( '1.0.0', '1.0.0-beta.1' ),
-		/must be newer/
-	);
 } );
 
 test( 'rejects malformed versions and unsupported release types', () => {
@@ -80,8 +76,13 @@ test( 'rejects malformed versions and unsupported release types', () => {
 	}
 	assert.throws(
 		() => nextVersion( '1.0.0', 'unknown' ),
-		/Invalid release version/
+		/Invalid release type/
 	);
+	assert.throws(
+		() => nextVersion( '1.0.0', 'major', 'rc' ),
+		/Invalid release channel/
+	);
+	assert.equal( nextVersion( '0.0.5', 'patch' ), '0.0.6' );
 } );
 
 test( 'the release workflow classifies stable, alpha, and beta versions', () => {
@@ -157,12 +158,12 @@ test( 'the release script prepares sequential beta releases and promotes to stab
 	run( 'git', [ 'config', 'user.email', 'release@example.com' ] );
 	run( 'git', [ 'add', '.' ] );
 	run( 'git', [ 'commit', '-m', 'Initial version' ] );
-	for ( const [ type, version ] of [
-		[ '1.0.0-beta.1', '1.0.0-beta.1' ],
-		[ 'beta', '1.0.0-beta.2' ],
-		[ 'patch', '1.0.0' ],
+	for ( const [ type, channel, version ] of [
+		[ 'major', 'beta', '1.0.0-beta.1' ],
+		[ 'none', 'beta', '1.0.0-beta.2' ],
+		[ 'none', 'stable', '1.0.0' ],
 	] ) {
-		run( 'sh', [ 'bin/release', type ] );
+		run( 'sh', [ 'bin/release', type, channel ] );
 		const php = readFileSync(
 			path.join( directory, 'vip-workflows/vip-workflows.php' ),
 			'utf8'
@@ -197,7 +198,7 @@ test( 'the release script prepares sequential beta releases and promotes to stab
 		assert.equal( run( 'git', [ 'status', '--porcelain' ] ), '' );
 	}
 	const head = run( 'git', [ 'rev-parse', 'HEAD' ] );
-	assert.throws( () => run( 'sh', [ 'bin/release', '1.0.0-beta.1' ] ) );
+	assert.throws( () => run( 'sh', [ 'bin/release', 'none', 'beta' ] ) );
 	assert.equal( run( 'git', [ 'rev-parse', 'HEAD' ] ), head );
 	assert.equal( run( 'git', [ 'status', '--porcelain' ] ), '' );
 } );
