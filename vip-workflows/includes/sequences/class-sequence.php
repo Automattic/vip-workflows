@@ -1351,6 +1351,24 @@ class Sequence {
 	 * @throws \InvalidArgumentException If the config has no stages, an empty or duplicate stage key, an invalid stage status region, more than one region entry per region, more than one start stage, or a transition to an undefined stage; or, for a phase sequence, if it is missing a required phase or the hand-off between two of them.
 	 */
 	public static function prepare_config_for_write( array $config, string $type = self::TYPE_WORKFLOW ): array {
+		// PostTypeManager uses each value as an array key during init. Reject
+		// malformed mappings before persistence or activation, not while reading.
+		if ( array_key_exists( 'post_types', $config ) ) {
+			if ( ! is_array( $config['post_types'] ) || ! array_is_list( $config['post_types'] ) ) {
+				throw new \InvalidArgumentException(
+					esc_html__( 'post_types must be a list of non-empty strings.', 'vip-workflows' )
+				);
+			}
+
+			foreach ( $config['post_types'] as $post_type ) {
+				if ( ! is_string( $post_type ) || '' === trim( $post_type ) ) {
+					throw new \InvalidArgumentException(
+						esc_html__( 'post_types must be a list of non-empty strings.', 'vip-workflows' )
+					);
+				}
+			}
+		}
+
 		// Phase sequences carry a `phases` graph, not `statuses`; the stage rules
 		// below don't apply to them, the lifecycle does.
 		if ( self::TYPE_PHASE === $type ) {
