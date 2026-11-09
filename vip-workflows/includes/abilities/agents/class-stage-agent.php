@@ -459,6 +459,11 @@ class StageAgent {
 	 * impersonates a capable user (who may hold unfiltered_html), and
 	 * machine-generated markup must never ride that capability.
 	 *
+	 * The concurrent-edit check reads the post fresh from the database, so a
+	 * save made by anyone else while the agent was waiting on the model is
+	 * caught. It is not atomic with the write: a save landing in the moment
+	 * between the check and the update can still be overwritten.
+	 *
 	 * @param  int         $post_id           Post ID.
 	 * @param  string      $new_content       New post content.
 	 * @param  string|null $expected_modified post_modified_gmt captured by read_post();
@@ -478,6 +483,18 @@ class StageAgent {
 	 * @return true|\WP_Error
 	 */
 	public static function write_content( int $post_id, string $new_content, ?string $expected_modified = null, bool $sanitize = true ) {
+		/*
+		 * Drop this request's copy of the post before checking or writing.
+		 *
+		 * read_post() ran earlier in the same request, so without this the
+		 * get_post() below hands back that same object: the comparison checks
+		 * the timestamp against itself and always passes, however long the
+		 * model call took and whoever saved in the meantime. wp_update_post()
+		 * also fills every field the agent does not set (title, excerpt, …)
+		 * from that object, so a stale copy would revert those fields too.
+		 */
+		clean_post_cache( $post_id );
+
 		if ( null !== $expected_modified ) {
 			$current = get_post( $post_id );
 			if ( ! $current ) {
