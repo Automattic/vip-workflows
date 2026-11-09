@@ -39,6 +39,9 @@ class StageAgentsBatchTest extends TestCase
 
         Functions\when( 'current_user_can' )->justReturn( true );
         Functions\when( 'current_time' )->justReturn( 'July 7, 2026' );
+        // StageAgent::write_content() drops the request's copy of the post
+        // before it checks or writes; StageAgentConcurrentEditTest covers that.
+        Functions\when( 'clean_post_cache' )->justReturn( null );
         // Pin the per-run verdict nonce (StageAgent::verdict_token) so the
         // stubbed model can echo it as the pass verdict; the pass cases below
         // set AiClient::$generatedText to this same token.
