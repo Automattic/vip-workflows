@@ -25,6 +25,8 @@ jobs:
             echo "No version change detected"
             exit 0
           fi
+          PRERELEASE=$(node tools/release/version.mjs --prerelease "$NEW_VERSION")
+          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
           echo "new_version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "Version changed from $OLD_VERSION to $NEW_VERSION"
 
@@ -63,3 +65,5 @@ jobs:
           tag_name: v${{ steps.version_check.outputs.new_version }}
           files: dist/vip-workflows.zip
           generate_release_notes: true
+          prerelease: ${{ steps.version_check.outputs.prerelease == 'true' }}
+          make_latest: ${{ steps.version_check.outputs.prerelease != 'true' }}
