@@ -7,19 +7,14 @@
  * only where the VIP Telemetry library is loaded, so off VIP there is nothing
  * to send. Local environments send nothing either.
  *
- * The Tracks client is imported on the first event rather than with the bundle:
- * importing it loads stats.wp.com/w.js, which no screen should do when nothing
- * will be recorded.
- *
- * Events are queued with the client's `pushEventToTracksQueue()`, not its
- * `recordTracksEvent()`: that one drops every event whose source is not on its
- * own hard-coded list (`calypso`, `jetpack`, ...), which `vip` is not. The
- * analytics consent check it would have made is made here instead.
+ * Events go on the standard Tracks queue, `window._tkq`, and the Tracks script
+ * (stats.wp.com/w.js) is loaded on the first event, rather than with the
+ * bundle, so no screen loads it when nothing will be recorded. The script
+ * sends whatever is already queued once it loads.
  */
 
 const EVENT_PREFIX = 'vip_workflows_';
-
-let client = null;
+const SCRIPT_URL = 'https://stats.wp.com/w.js';
 
 /**
  * The base properties PHP localized for this screen.
@@ -35,20 +30,19 @@ export function getTracksBaseProperties() {
 }
 
 /**
- * The Tracks client, imported once. A failed import is forgotten, so the next
- * event tries again.
- *
- * @return {Promise<Object>} The client module.
+ * Load the Tracks script, unless it is on the page already (another plugin may
+ * have loaded it). A failed load is removed, so the next event tries again.
  */
-function loadClient() {
-	client ??= import(
-		/* webpackChunkName: "tracks" */ '@automattic/calypso-analytics'
-	).catch( ( error ) => {
-		client = null;
-		throw error;
-	} );
+function loadScript() {
+	if ( document.querySelector( 'script[src*="stats.wp.com/w.js"]' ) ) {
+		return;
+	}
 
-	return client;
+	const script = document.createElement( 'script' );
+	script.async = true;
+	script.src = SCRIPT_URL;
+	script.onerror = () => script.remove();
+	document.head.appendChild( script );
 }
 
 /**
@@ -60,32 +54,27 @@ function loadClient() {
  *
  * @param {string} event      Event name, without the `vip_workflows_` prefix.
  * @param {Object} properties Event properties, merged over the base properties.
- * @return {Promise<void>} Settles once the event is queued, or skipped.
  */
 export function recordTracksEvent( event, properties = {} ) {
 	const base = getTracksBaseProperties();
 
 	if ( ! base || base.vip_env === 'local' ) {
-		return Promise.resolve();
+		return;
 	}
 
-	return loadClient()
-		.then( ( analytics ) => {
-			if ( ! analytics.getTrackingPrefs()?.buckets?.analytics ) {
-				return;
-			}
-
-			analytics.pushEventToTracksQueue( [
-				'recordEvent',
-				`${ EVENT_PREFIX }${ event }`,
-				Object.fromEntries(
-					Object.entries( { ...base, ...properties } ).filter(
-						( [ , value ] ) => value !== undefined
-					)
-				),
-			] );
-		} )
-		.catch( () => {
-			// Telemetry must never break the screen it is measuring.
-		} );
+	try {
+		window._tkq = window._tkq || [];
+		window._tkq.push( [
+			'recordEvent',
+			`${ EVENT_PREFIX }${ event }`,
+			Object.fromEntries(
+				Object.entries( { ...base, ...properties } ).filter(
+					( [ , value ] ) => value !== undefined
+				)
+			),
+		] );
+		loadScript();
+	} catch {
+		// Telemetry must never break the screen it is measuring.
+	}
 }
