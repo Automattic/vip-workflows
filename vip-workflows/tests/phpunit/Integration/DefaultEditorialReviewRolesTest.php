@@ -22,6 +22,7 @@ namespace VIPWorkflows\Tests\Integration;
 use VIPWorkflows\Database\Seeder;
 use VIPWorkflows\Sequences\Sequence;
 use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Workflow\StatusManager;
 
 class DefaultEditorialReviewRolesTest extends TestCase
 {
@@ -61,9 +62,8 @@ class DefaultEditorialReviewRolesTest extends TestCase
     {
         $repository = new SequenceRepository();
 
-        // The tests environment is seeded once up front, and the seeder skips a
-        // sequence that already exists. Remove it (the test's transaction puts
-        // it back) so this reads what the seeder writes today.
+        // Remove any existing sequence so this reads what the seeder writes
+        // today. The test's transaction restores it after the test.
         $existing = $repository->find_by_slug( 'editorial-review' );
         if ( $existing ) {
             $repository->delete( (int) $existing->id );
@@ -146,9 +146,40 @@ class DefaultEditorialReviewRolesTest extends TestCase
         }
     }
 
-    public function test_approve_is_left_open_when_no_role_can_review(): void
+    public function test_seeding_requires_a_reviewer_role_and_can_be_retried(): void
     {
-        // A site where no role can edit other people's posts.
+        $without_reviewers = static function ( array $capabilities ): array {
+            unset( $capabilities['edit_others_posts'] );
+            return $capabilities;
+        };
+        add_filter( 'role_has_cap', $without_reviewers );
+
+        $failure = null;
+        try {
+            $this->seeded_sequence();
+        } catch ( \RuntimeException $error ) {
+            $failure = $error;
+        } finally {
+            remove_filter( 'role_has_cap', $without_reviewers );
+        }
+
+        $this->assertInstanceOf( \RuntimeException::class, $failure, 'Seeding must reject a site with no reviewer role.' );
+        $this->assertSame(
+            'Editorial Review requires a reviewer role. Configure a role with edit_others_posts, then retry.',
+            $failure->getMessage()
+        );
+        $this->assertNull( ( new SequenceRepository() )->find_by_slug( 'editorial-review' ) );
+
+        ( new Seeder() )->seed();
+        $sequence = ( new SequenceRepository() )->find_by_slug( 'editorial-review' );
+        $this->assertInstanceOf( Sequence::class, $sequence );
+        $this->assertSame( array( 'administrator', 'editor' ), $sequence->get_reviewer_roles() );
+        $this->assertSame( $sequence->get_reviewer_roles(), $sequence->get_transition( 'review', 'ready' )['allowed_roles'] );
+    }
+
+    public function test_existing_sequence_is_preserved_when_no_role_can_review(): void
+    {
+        $sequence = $this->seeded_sequence();
         add_filter(
             'role_has_cap',
             static function ( array $capabilities ): array {
@@ -157,12 +188,41 @@ class DefaultEditorialReviewRolesTest extends TestCase
             }
         );
 
+        ( new Seeder() )->seed();
+
+        $existing = ( new SequenceRepository() )->find_by_slug( 'editorial-review' );
+        $this->assertSame( $sequence->id, $existing->id );
+        $this->assertSame( $sequence->config, $existing->config );
+    }
+
+    public function test_author_cannot_approve_but_editor_can(): void
+    {
         $sequence  = $this->seeded_sequence();
         $author_id = (int) self::factory()->user->create( array( 'role' => 'author' ) );
-
-        $this->assertTrue(
-            $sequence->can_user_transition( 'review', 'ready', $author_id ),
-            'With nobody able to review, a restricted Approve would leave every submitted post stuck.'
+        $editor_id = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
+        $post_id   = (int) self::factory()->post->create(
+            array(
+                'post_author' => $author_id,
+                'post_status' => 'draft',
+            )
         );
+        update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $sequence->id );
+        update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'draft' );
+
+        $manager = new StatusManager();
+        wp_set_current_user( $author_id );
+        $this->assertTrue( $manager->transition( $post_id, 'review' ) );
+
+        $result = $manager->transition( $post_id, 'ready' );
+        $this->assertWPError( $result );
+        $this->assertSame( 'forbidden_transition', $result->get_error_code() );
+        $this->assertSame( 403, $result->get_error_data()['status'] );
+        $this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
+        $this->assertSame( 'draft', get_post_status( $post_id ) );
+
+        wp_set_current_user( $editor_id );
+        $this->assertTrue( $manager->transition( $post_id, 'ready' ) );
+        $this->assertSame( 'ready', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
+        $this->assertSame( 'draft', get_post_status( $post_id ) );
     }
 }

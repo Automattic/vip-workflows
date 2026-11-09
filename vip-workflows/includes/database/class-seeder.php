@@ -40,6 +40,8 @@ class Seeder {
 
 	/**
 	 * Seed all initial data.
+	 *
+	 * @throws \RuntimeException When a new Editorial Review sequence has no eligible reviewer role.
 	 */
 	public function seed(): void {
 		$this->seed_roles();
@@ -105,6 +107,7 @@ class Seeder {
 	 * Seed the Editorial Review sequence.
 	 *
 	 * @param SequenceRepository $repository Sequence repository.
+	 * @throws \RuntimeException When no role can review other people's posts.
 	 */
 	private function seed_editorial_sequence( SequenceRepository $repository ): void {
 		$existing = $repository->find_by_slug( 'editorial-review' );
@@ -113,21 +116,17 @@ class Seeder {
 		}
 
 		$reviewer_roles = $this->reviewer_roles();
-
-		$approve = array(
-			'to'    => 'ready',
-			'label' => 'Approve',
-		);
-		if ( $reviewer_roles ) {
-			// Approval is the review. Left open, the author can approve their
-			// own post; reviewer_roles only decides who may claim it, not who
-			// may move it.
-			$approve['allowed_roles'] = $reviewer_roles;
+		if ( ! $reviewer_roles ) {
+			// Missing or empty allowed_roles permits every role to approve.
+			throw new \RuntimeException(
+				esc_html__( 'Editorial Review requires a reviewer role. Configure a role with edit_others_posts, then retry.', 'vip-workflows' )
+			);
 		}
 
 		$config = array(
 			'version'         => '2.0',
 			'post_types'      => array( 'post' ),
+			'reviewer_roles'  => $reviewer_roles,
 			'statuses'        => array(
 				array(
 					'key'          => 'draft',
@@ -150,7 +149,11 @@ class Seeder {
 					'icon'        => 'visibility',
 					'status'      => 'draft',
 					'transitions' => array(
-						$approve,
+						array(
+							'to'            => 'ready',
+							'label'         => 'Approve',
+							'allowed_roles' => $reviewer_roles,
+						),
 						array(
 							'to'    => 'draft',
 							'label' => 'Request changes',
@@ -229,10 +232,6 @@ class Seeder {
 
 		$config['statuses'] = $this->apply_palette_colors( $config['statuses'] );
 
-		if ( $reviewer_roles ) {
-			$config['reviewer_roles'] = $reviewer_roles;
-		}
-
 		$repository->create(
 			'Editorial Review',
 			'editorial-review',
@@ -252,8 +251,7 @@ class Seeder {
 	 * nobody at all. `edit_others_posts` is what core uses to mark editor-level
 	 * access, so on a stock site this is administrator and editor.
 	 *
-	 * Empty when no role qualifies. The caller then leaves the sequence's roles
-	 * unset rather than seed a review step nobody can complete.
+	 * Empty when no role qualifies. The caller must reject this before seeding.
 	 *
 	 * @return string[] Role slugs.
 	 */
