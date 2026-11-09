@@ -195,6 +195,55 @@ class DefaultEditorialReviewRolesTest extends TestCase
         $this->assertSame( $sequence->config, $existing->config );
     }
 
+    public function test_activation_reports_missing_reviewers_and_can_be_retried(): void
+    {
+        $repository = new SequenceRepository();
+        $existing   = $repository->find_by_slug( 'editorial-review' );
+        if ( $existing ) {
+            $repository->delete( (int) $existing->id );
+        }
+
+        $without_reviewers = static function ( array $capabilities ): array {
+            unset( $capabilities['edit_others_posts'] );
+            return $capabilities;
+        };
+        add_filter( 'role_has_cap', $without_reviewers );
+
+        $flushes = 0;
+        add_filter(
+            'flush_rewrite_rules_hard',
+            static function () use ( &$flushes ): bool {
+                ++$flushes;
+                return false; // Do not write server configuration during the test.
+            }
+        );
+
+        $failure = null;
+        try {
+            \VIPWorkflows\activate();
+        } catch ( \WPDieException $error ) {
+            $failure = $error;
+        } finally {
+            remove_filter( 'role_has_cap', $without_reviewers );
+        }
+
+        $this->assertInstanceOf( \WPDieException::class, $failure, 'Activation must stop through WordPress error handling.' );
+        $this->assertSame(
+            'Editorial Review requires a reviewer role. Configure a role with edit_others_posts, then retry.',
+            $failure->getMessage()
+        );
+        $this->assertSame( 500, $failure->getCode() );
+        $this->assertSame( 0, $flushes, 'Failed activation must not flush rewrite rules.' );
+        $this->assertNull( $repository->find_by_slug( 'editorial-review' ) );
+
+        \VIPWorkflows\activate();
+
+        $sequence = $repository->find_by_slug( 'editorial-review' );
+        $this->assertInstanceOf( Sequence::class, $sequence );
+        $this->assertSame( array( 'administrator', 'editor' ), $sequence->get_transition( 'review', 'ready' )['allowed_roles'] );
+        $this->assertSame( 1, $flushes, 'Successful activation must reach the rewrite flush.' );
+    }
+
     public function test_author_cannot_approve_but_editor_can(): void
     {
         $sequence  = $this->seeded_sequence();
