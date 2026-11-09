@@ -139,8 +139,12 @@ class Seeder {
 					'status'      => 'draft',
 					'transitions' => array(
 						array(
-							'to'    => 'ready',
-							'label' => 'Approve',
+							'to'            => 'ready',
+							'label'         => 'Approve',
+							// Approval is the review. Left open, the author can
+							// approve their own post; reviewer_roles above only
+							// decides who may claim it, not who may move it.
+							'allowed_roles' => array( 'editor', 'administrator' ),
 						),
 						array(
 							'to'    => 'draft',
