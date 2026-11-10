@@ -116,7 +116,7 @@ GET         /vip-workflows/v1/audit-log/event-types
 GET         /vip-workflows/v1/audit-log/users
 ```
 
-> **AI Agent chat endpoints are not in this repo.** They were extracted to the standalone `vip-ai-agent` plugin (2026-07-09); see [`docs/specs/shipped/ai-agent.md`](../specs/shipped/ai-agent.md).
+> **AI Agent chat endpoints are not in this repo.** They were extracted to the standalone `vip-ai-agent` plugin (2026-07-09).
 >
 > **There is no Jobs REST namespace.** An earlier job-registry framework (`/jobs`, `/jobs/{id}/settings`, `/jobs/{id}/run`) was removed — see [architecture.md §7](architecture.md#7-scheduled-cleanup). The only scheduled work today is the nightly `Maintenance\Cleanup` routine, which has no settings or run-now endpoint.
 

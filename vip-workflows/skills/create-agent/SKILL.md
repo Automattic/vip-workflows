@@ -13,7 +13,7 @@ An **agent** is a standalone WordPress plugin that extends VIP Workflows. All ag
 - **Discovery** — runs *before* an editor has a seed, on the ideation landing page. Returns story prompts that editors can click to spawn a new project.
 - **Stage** — runs when a post enters an AI-owned workflow stage. Returns a pass/fail verdict the stage's routing map turns into an exit transition; execution errors follow the stage's optional error route or fail in place.
 
-A single plugin can provide research only, discovery only, stage only, or a combination. See `docs/specs/shipped/unified-assistants-tab.md` for the underlying architecture.
+A single plugin can provide research only, discovery only, stage only, or a combination. See the Ideation section of `docs/SPEC.md` for the underlying architecture.
 
 ## Decide the Shape First
 

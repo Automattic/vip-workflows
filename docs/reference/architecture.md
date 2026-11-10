@@ -25,7 +25,7 @@ The scope is deliberately broader than simple status transitions, but the repo n
 | Story-to-Object links | `wp_vip_story_objects` join table + `_vip_story_id` meta |
 | Audit Trail | `wp_vip_workflows_events` (post-scoped; no `story_id` column) |
 
-See [`docs/specs/shipped/content-hierarchy.md`](../specs/shipped/content-hierarchy.md) for the full hierarchy and relationship model.
+See [SPEC.md § Ideation](../SPEC.md#ideation) for the full hierarchy and relationship model.
 
 ### Key Benefits
 
@@ -174,8 +174,7 @@ wp_register_ability('vip-workflows/seo-check', [
 > **AI Agent moved out of core (2026-07-09):** the conversational chat sidebar
 > ability, its `AiAgentService`/`AiAgentController` classes, and the
 > `vip_ai_agent_conversations` table now live in the standalone `vip-ai-agent`
-> plugin, not in this repo. See
-> [`docs/specs/shipped/ai-agent.md`](../specs/shipped/ai-agent.md).
+> plugin, not in this repo.
 
 **Extension Plugin Tools** (demonstrate extensibility):
 
@@ -227,7 +226,7 @@ foreach ($issues as $issue) {
 
 ### 4. Ideation System
 
-Pre-workflow system for capturing and developing ideas before they become posts, gated behind the `ideation` experiment (see [§ Experiments](../specs/shipped/experiments.md)). One CPT: `vip_ideation` — story ideation projects, registered by `IdeationPostTypes` in `includes/ideation/research/class-ideation-post-types.php` (namespace `VIPWorkflows\Ideation\Research`).
+Pre-workflow system for capturing and developing ideas before they become posts, gated behind the `ideation` experiment (see [SPEC.md § Experiments](../SPEC.md#experiments)). One CPT: `vip_ideation` — story ideation projects, registered by `IdeationPostTypes` in `includes/ideation/research/class-ideation-post-types.php` (namespace `VIPWorkflows\Ideation\Research`).
 
 > **A standalone asset library used to live here and was removed** (schema migration `2.16.0`: "The Workflow Notes (assets) subsystem was removed"). There is no `vip_workflows_note` CPT, no `AssetsController`, no `AIMediaAnalyzer`, no `/vip-workflows/v1/assets/upload` route, and no `AssetManager.js` — none of that exists on `main` any more. Uploaded-document AI analysis lives inside the Story Ideation flow below instead (`_vip_ideation_asst_{id}` meta, `MediaProcessor` shared with research), not as a separate asset manager. There is also no ideation-specific assignment feature ("Direct Assignment" / "Automatic") — assignment is a workflow (post-transition) concept, handled by `AssignmentManager` and documented under Sequences above.
 
@@ -295,7 +294,7 @@ add_filter( 'vip_workflows_media_providers', function( $providers ) {
 - `includes/ideation/assistants/` - all assistant classes
 - `includes/api/class-ideation-controller.php` - REST controller
 - `src/admin/components/ideation/` - all React components
-- [`docs/specs/shipped/interactive-ideation-assistants.md`](../specs/shipped/interactive-ideation-assistants.md) — ideation assistant design
+- [SPEC.md § Ideation](../SPEC.md#ideation) — ideation assistants
 
 ### 5. Story Discovery Framework
 
@@ -314,7 +313,7 @@ add_filter( 'vip_workflows_media_providers', function( $providers ) {
 - `includes/api/class-discovery-controller.php` - REST controller
 - `src/admin/components/ideation/StoryDiscovery.js` - landing page section
 - `src/admin/components/ideation/DiscoverySearchModal.js` - search modal
-- [`docs/specs/shipped/story-discovery.md`](../specs/shipped/story-discovery.md) — full spec
+- [SPEC.md § Ideation](../SPEC.md#ideation) — story discovery
 
 ### 5a. Unified Assistants (Agents page)
 
@@ -332,7 +331,7 @@ add_filter( 'vip_workflows_media_providers', function( $providers ) {
 - `includes/api/class-assistants-controller.php` - REST controller
 - `src/admin/components/AssistantsTab.js` - unified tab
 - `src/admin/components/AssistantCard.js` - unified card
-- [`docs/specs/shipped/unified-assistants-tab.md`](../specs/shipped/unified-assistants-tab.md) — full spec
+- [SPEC.md § Ideation](../SPEC.md#ideation) — Agents admin page
 
 ### 6. Notifications System
 

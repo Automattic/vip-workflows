@@ -69,7 +69,7 @@ GitHub Actions runs PHPCS, JavaScript lint and unit tests, PHPUnit on PHP 8.2–
 - [Architecture reference](docs/reference/architecture.md)
 - [Database schema](docs/reference/database-schema.md)
 - [Extension points](docs/reference/extension-points.md)
-- [Shipped feature specifications](docs/specs/README.md)
+- [Specification](docs/SPEC.md) — user stories, platform surface and feature behavior, in one file
 - [WordPress Playground](PLAYGROUND.md)
 
 ## Contributing and security

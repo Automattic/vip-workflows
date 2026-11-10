@@ -1,25 +1,5 @@
-# Feature specifications
+# Proposed design specs
 
-## Proposed
-
-Design specs awaiting review. They describe intended behavior, not current behavior.
+Shipped behavior is described in one place, [`docs/SPEC.md`](../SPEC.md). This folder holds only design specs awaiting review. They describe intended behavior, not current behavior. When one ships, its content moves into `docs/SPEC.md` and its file here is deleted.
 
 - [Error-state pattern](planned/error-state-pattern.md)
-
-## Shipped
-
-These documents describe implemented behavior and the design decisions behind it. Source code and tests remain authoritative where a document has drifted.
-
-
-- [AI agent](shipped/ai-agent.md)
-- [Content hierarchy](shipped/content-hierarchy.md)
-- [Experiments](shipped/experiments.md)
-- [Extensible research agents](shipped/extensible-research-agents.md)
-- [Interactive ideation assistants](shipped/interactive-ideation-assistants.md)
-- [Module registry](shipped/module-registry.md)
-- [Open region crossings](shipped/open-region-crossings.md)
-- [Phase sequence](shipped/phase-sequence.md)
-- [Story discovery](shipped/story-discovery.md)
-- [Transition rail](shipped/transition-rail.md)
-- [Unified assistants tab](shipped/unified-assistants-tab.md)
-- [Unified settings schema](shipped/unified-settings-schema.md)

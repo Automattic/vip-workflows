@@ -3,7 +3,7 @@
  *
  * `railGeometry()` is pure — measured row midpoints in, path data out — so
  * every layout the rail can draw is a fixture here, without a DOM. The rules
- * under test are the spec's (docs/specs/shipped/transition-rail.md): the
+ * under test are the spec's (docs/SPEC.md, "Transitions and tools"): the
  * trunk ends at the last fillet so nothing overruns past the last button, and
  * every arrowhead stops `MARK_STANDOFF` short of the button border.
  *

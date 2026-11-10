@@ -10,10 +10,10 @@ VIP Workflows is designed to be extended. You don't fork it; you ship a small Wo
 | Add an agent that can own an AI workflow stage | Register a stage-eligible Ability plus an agent manifest with `capabilities: [ 'stage' ]`; the manifest claim is validated against the ability metadata (see [`vip-workflows/skills/create-agent/SKILL.md`](../../vip-workflows/skills/create-agent/SKILL.md)) |
 | Add a check / helper tool that runs on transitions | Same Abilities API with `meta.type` = `check`, `helper`, or `validator` ([`vip-workflows/skills/create-tool/SKILL.md`](../../vip-workflows/skills/create-tool/SKILL.md)) |
 | Deliver notifications over a new channel (Slack DM, push, SMS) | Extend `NotificationChannel`, filter `vip_workflows_notification_channels` ([`vip-workflows/skills/create-notification-channel/SKILL.md`](../../vip-workflows/skills/create-notification-channel/SKILL.md)) |
-| Surface story prompts from an external source (wire, trending, calendars) | Register a Discovery Provider on `vip_workflows_register_discovery_providers` ([`specs/shipped/story-discovery.md`](../specs/shipped/story-discovery.md)) |
+| Surface story prompts from an external source (wire, trending, calendars) | Register a Discovery Provider on `vip_workflows_register_discovery_providers` ([SPEC.md § Ideation](../SPEC.md#ideation)) |
 | Add a signal to story prompts another plugin fetched | Filter `vip_workflows_discovery_prompts` — cached reads only ([`reference/extension-points.md`](../reference/extension-points.md#10-discovery-prompt-enrichment)) |
 | Add an admin page under the Workflow shell | Standard `add_submenu_page` with parent slug `vip-workflows` (see [`vip-workflows/docs/PLUGIN-INTEGRATION.md`](../../vip-workflows/docs/PLUGIN-INTEGRATION.md)) |
-| Add a new internal subsystem to the core plugin | Implement `ModuleInterface`, register via `vip_workflows_register_modules` ([`specs/shipped/module-registry.md`](../specs/shipped/module-registry.md)) |
+| Add a new internal subsystem to the core plugin | Implement `ModuleInterface`, register via `vip_workflows_register_modules` ([SPEC.md § Admin surfaces](../SPEC.md#admin-surfaces)) |
 | Ship or script an editorial workflow without the graph editor | Author the sequence JSON and create it over REST or the Abilities API (see [`vip-workflows/skills/create-sequence/SKILL.md`](../../vip-workflows/skills/create-sequence/SKILL.md)) |
 
 ## Extension plugin anatomy

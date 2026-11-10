@@ -2,6 +2,7 @@
 
 ## Start here
 
+- [Specification](SPEC.md) — start here. User stories, the platform surface a PR can change, and each feature's behavior, invariants and footguns.
 - [AI context index](AI_CONTEXT.md) — architecture and subsystem reference map.
 - [Local development](local-development.md) — install, build, and run the project.
 - [Testing](../vip-workflows/docs/TESTING.md) — unit, integration, and end-to-end test environments.
@@ -34,7 +35,7 @@
 
 ## Feature references and demos
 
-- [Feature specifications](specs/README.md) — shipped specs, plus proposed design specs such as the [error-state pattern](specs/planned/error-state-pattern.md).
+- [Proposed design specs](specs/README.md) — such as the [error-state pattern](specs/planned/error-state-pattern.md).
 - [Multimedia sequence demo](demos/multimedia-sequence.json)
 - [Sequence examples](examples/) — the Editorial Review pipeline in the FLAT and WRAPPED shapes.
 - [Plugin integration](../vip-workflows/docs/PLUGIN-INTEGRATION.md)
