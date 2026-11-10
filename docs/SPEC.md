@@ -411,73 +411,20 @@ Workflows uses two queues:
 - **Action Scheduler (AS)** is bundled through Composer (`woocommerce/action-scheduler ^3.7`) and loaded from `vip-workflows/vip-workflows.php` when it is in `vendor/`. AS also runs work on admin requests through its own async loopback runner.
 - **WP-Cron** is used directly for stage agents and by the Parse.ly extension.
 
-On VIP, Cron Control runs both queues. With `DISABLE_WP_CRON` and no runner, which is common in local environments, nothing below runs. Each hook's entry says what the user sees when that happens.
+On VIP, Cron Control runs both queues. With `DISABLE_WP_CRON` and no runner, which is common in local environments, nothing below runs; the last column says what users see then.
 
-| Hook | Queue | Owner |
-| --- | --- | --- |
-| `vip_workflows_run_stage_agent` | WP-Cron single event | `vip-workflows/includes/workflow/class-stage-agent-runner.php` |
-| `vip_workflows_run_agent` | WP-Cron single event | `vip-workflows/includes/workflow/class-agent-runner.php` |
-| `vip_workflows_send_notification` | AS async action | `vip-workflows/includes/notifications/class-notification-dispatcher.php` |
-| `vip_workflows_process_source` | AS async action | `vip-workflows/includes/ideation/research/class-source-processing-job.php` |
-| `vip_workflows_cleanup` | AS recurring, daily | `vip-workflows/includes/maintenance/class-cleanup.php` |
-| `workflow_parsely_poll_discovery` | WP-Cron recurring | `workflow-parsely/includes/discovery/class-discovery-poller.php` |
-| `workflow_parsely_warm_prompt_scores` | WP-Cron single event | `workflow-parsely/includes/discovery/class-prompt-scorer.php` |
-| `workflow_parsely_warm_performance_checks` | WP-Cron single event | `workflow-parsely/includes/abilities/class-performance-check.php` |
+| Hook | Runs when | What it does | If it never runs |
+| --- | --- | --- | --- |
+| `vip_workflows_run_stage_agent` (`$post_id, $stage_key`) | WP-Cron single event at `time()`, when a post enters a stage with `agent.ability_id` (on `vip_workflows_status_transition`) | Runs the stage's agent, then routes the post by pass, fail or error | `_vip_workflows_agent_job` stays `pending`; after `PENDING_TTL` (15 min) `StatusManager::has_pending_agent_job()` treats it as failed, so the post isn't gated forever |
+| `vip_workflows_run_agent` (`$task_data`) | WP-Cron single event, on `vip_workflows_agent_assigned` | Legacy agent path: calls a handler from the `vip_workflows_agents` filter and marks the assignment completed or expired | The assignment stays open. Nothing in this repo registers a handler |
+| `vip_workflows_send_notification` (`channel_id, event_type, data`) | AS async action, group `vip-workflows-notifications`, from `NotificationDispatcher::dispatch()` on transitions and core go-live | Sends one notification to one channel (Slack webhook or `wp_mail`) | Notifications queue up unsent |
+| `vip_workflows_process_source` (`$project_id, $source_id`) | AS async action, group `vip-workflows`, from the ideation source upload and retry routes; registered only while `ideation` is on | Extracts, transcribes and summarizes an uploaded source with AI (see [Outbound calls](#outbound-calls)) | The source stays `pending` with no summary |
+| `vip_workflows_cleanup` | AS recurring, daily from 02:00 of the site's date read as UTC; scheduled on `admin_init` if missing | One `DELETE` per table: `vip_ability_results` older than 90 days and `vip_workflows_events` older than 1 year; then logs `maintenance.cleanup` | Both tables grow without bound |
+| `workflow_parsely_poll_discovery` | WP-Cron recurring, schedule `workflow_parsely_poll` (default 15 min, filter `workflow_parsely_poll_interval`, minimum 60 s), scheduled on `init` when Parse.ly is enabled and configured | Calls every discovery provider's `recommend` callback and queues unscored items | Scores fill in only after someone opens Ideation |
+| `workflow_parsely_warm_prompt_scores` | WP-Cron single event at `time() + 30`, rescheduling while the queue has items | Scores 4 queued prompts per run against Parse.ly (queue option capped at 200; scores cached 1 day, errors 15 min) | Cards show no score |
+| `workflow_parsely_warm_performance_checks` | WP-Cron single event at `time() + 30`, self-rescheduling | Warms the performance-check cache, 2 posts per run (queue capped at 200) | The check computes on demand, more slowly |
 
-**`vip_workflows_run_stage_agent`** (`$post_id, $stage_key`)
-
-- Trigger: a WP-Cron single event at `time()`, scheduled when a post enters a stage whose config has `agent.ability_id` (listens on `vip_workflows_status_transition`).
-- Does: runs the stage's agent ability, then routes the post by pass, fail or error.
-- If cron does not run: post meta `_vip_workflows_agent_job` stays `pending`. After `PENDING_TTL` (15 min), `StatusManager::has_pending_agent_job()` treats it as failed so the post is not gated forever. The agent never runs.
-
-**`vip_workflows_run_agent`** (`$task_data`)
-
-- Trigger: a WP-Cron single event, scheduled on `vip_workflows_agent_assigned`.
-- Does: the legacy agent path. It calls a handler registered through the `vip_workflows_agents` filter and marks the assignment completed or expired.
-- If cron does not run: the assignment stays open. Nothing in this repo registers a `vip_workflows_agents` handler.
-
-**`vip_workflows_send_notification`** (`channel_id, event_type, data`)
-
-- Trigger: an Action Scheduler async action in group `vip-workflows-notifications`, enqueued by `NotificationDispatcher::dispatch()` on stage transitions and on core go-live.
-- Does: sends one notification to one channel (Slack webhook or `wp_mail`).
-- If cron does not run: notifications queue up and are not sent.
-
-**`vip_workflows_process_source`** (`$project_id, $source_id`)
-
-- Trigger: an Action Scheduler async action in group `vip-workflows`, enqueued by the ideation source upload and retry REST routes in `vip-workflows/includes/api/class-ideation-sources-controller.php`. Only registered while the `ideation` experiment is on.
-- Does: extracts, transcribes and summarizes an uploaded ideation source with AI (see [Outbound calls](#outbound-calls)).
-- If cron does not run: the source stays `pending` with no summary.
-
-**`vip_workflows_cleanup`**
-
-- Trigger: AS recurring, daily. The first run is 02:00 of today's site date, with `strtotime` interpreting that time as UTC. Scheduled on `admin_init` when it is not already scheduled.
-- Does: one `DELETE` per table, removing `vip_ability_results` rows older than 90 days and `vip_workflows_events` rows older than 1 year, then writes a `maintenance.cleanup` audit event.
-- If cron does not run: both tables grow without bound.
-
-**`workflow_parsely_poll_discovery`**
-
-- Trigger: WP-Cron recurring on the custom schedule `workflow_parsely_poll` (default 15 min, filter `workflow_parsely_poll_interval`, minimum 60 s). Scheduled on every `init` when Parse.ly is enabled and configured.
-- Does: calls every discovery provider's `recommend` callback and queues unscored items for scoring.
-- If cron does not run: scores only fill in after someone opens ideation.
-
-**`workflow_parsely_warm_prompt_scores`**
-
-- Trigger: a WP-Cron single event at `time() + 30`. It reschedules itself while the queue has items.
-- Does: scores 4 queued prompts per run against Parse.ly. The queue is an option capped at 200; scores are cached for 1 day and errors for 15 min.
-- If cron does not run: cards show no score.
-
-**`workflow_parsely_warm_performance_checks`**
-
-- Trigger: a WP-Cron single event at `time() + 30`, self-rescheduling.
-- Does: warms the performance-check cache, 2 posts per run, with the queue capped at 200.
-- If cron does not run: the check computes on demand, which is slower.
-
-What bounds these loops:
-
-- Stage agent chains stop after `MAX_CHAIN` = 10 consecutive agent-to-agent hops. The post then fails in place, never along an error route.
-- A duplicate stage-agent event for the same post and stage is treated as already queued.
-- The Parse.ly warmers are bounded by batch size, the queue cap and `wp_next_scheduled()` dedupe.
-- There are no other retries.
+**What bounds these loops:** stage agent chains stop after `MAX_CHAIN` = 10 consecutive agent-to-agent hops, and the post then fails in place, never along an error route. A duplicate stage-agent event for the same post and stage counts as already queued. The Parse.ly warmers are bounded by batch size, the queue cap and `wp_next_scheduled()` dedupe. There are no other retries.
 
 **Footguns**
 
@@ -485,6 +432,14 @@ What bounds these loops:
 - **A failed notification is gone.** It is logged, not retried.
 - **A killed source job strands the source.** A job killed mid-run leaves the source in `processing` permanently, with no retry.
 - **The cleanup's first run time is computed in UTC.** `strtotime` reads 02:00 of the site's date as UTC.
+
+**Code**
+
+- `vip-workflows/includes/workflow/class-stage-agent-runner.php` (stage agents), `vip-workflows/includes/workflow/class-agent-runner.php` (legacy agents)
+- `vip-workflows/includes/notifications/class-notification-dispatcher.php`
+- `vip-workflows/includes/ideation/research/class-source-processing-job.php`, enqueued from `vip-workflows/includes/api/class-ideation-sources-controller.php`
+- `vip-workflows/includes/maintenance/class-cleanup.php`
+- `workflow-parsely/includes/discovery/class-discovery-poller.php`, `workflow-parsely/includes/discovery/class-prompt-scorer.php`, `workflow-parsely/includes/abilities/class-performance-check.php`
 
 ### Outbound calls
 
@@ -686,6 +641,20 @@ The kanban, calendar and my_queue gates are in `vip-workflows/includes/admin/cla
 ## Features
 
 Each feature section has the same parts: **What it's for**, **How it works**, **Always true** (what a PR must keep true), **Footguns** (known sharp edges) and **Code** (where to look).
+
+| Feature | In one line |
+| --- | --- |
+| [Sequences and stages](#sequences-and-stages) | How a team's process is modeled: stages, status regions, validation, import and export |
+| [Publish boundary](#publish-boundary) | Why nobody can publish, schedule or unpublish a workflow post except through the workflow |
+| [Transitions and tools](#transitions-and-tools) | What happens when a post moves: the checks, in order, and the tools a move can require |
+| [Assignments](#assignments) | Handing a post to a person or role, and how My Dashboard and My Queue find it |
+| [Notifications](#notifications) | Email and Slack messages on moves and go-live, and why they never block a move |
+| [Audit and history](#audit-and-history) | What gets recorded for every move, and who can see it |
+| [Admin surfaces](#admin-surfaces) | The Workflows screens, who can open them, and how subsystems are loaded |
+| [Stage agents](#stage-agents) | AI that owns a stage: how it runs, routes the post and is kept in bounds |
+| [Ideation](#ideation) | The experiment for planning stories before a draft exists, through to Create Draft |
+| [Parse.ly integration](#parsely-integration) | The optional extension that adds trending stories, performance checks and link suggestions |
+| [Included tools and agents](#included-tools-and-agents) | Every tool and agent that ships in this repo, and what it calls |
 
 ### Sequences and stages
 
