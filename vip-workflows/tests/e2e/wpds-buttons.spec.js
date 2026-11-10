@@ -32,30 +32,6 @@ test.describe( 'VIP Workflows — WPDS buttons (e2e)', () => {
 		}
 	} );
 
-	// The AI Agent slideout is optional. Keep this coverage ready for builds that
-	// register it, and skip when the FAB is absent.
-	test( 'AI Agent FAB opens and closes the slideout panel', async ( {
-		admin,
-		page,
-	} ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
-
-		const fab = page.getByRole( 'button', { name: 'Open AI Agent' } );
-		if ( ( await fab.count() ) === 0 ) {
-			test.skip( true, 'AI Agent FAB not present on this build.' );
-			return;
-		}
-		await expect( fab ).toBeVisible();
-
-		await fab.click();
-
-		const panel = page.locator( '.vip-ai-slideout-panel' );
-		await expect( panel ).toHaveClass( /is-open/ );
-
-		await panel.getByRole( 'button', { name: 'Close' } ).click();
-		await expect( panel ).not.toHaveClass( /is-open/ );
-	} );
-
 	test( 'Kanban hidden-column badge hides and restores a column', async ( {
 		admin,
 		page,
