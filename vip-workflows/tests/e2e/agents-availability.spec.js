@@ -6,9 +6,11 @@
  * nowhere. Web Researcher and Media Scout hit it on a fresh install, so an env
  * with no Tavily/YouTube credential is exactly the reproduction case.
  *
- * These assert the structured payload arrives from both routes, that the card
- * names the requirement and offers a destination, and — the rule that matters
- * most — that no requirement ever renders an anchor the user cannot act on.
+ * These assert that the card names the requirement and offers a destination,
+ * and — the rule that matters most — that no requirement ever renders an
+ * anchor the user cannot act on. The payload's shape on both REST routes is
+ * covered against real WordPress by
+ * tests/phpunit/Integration/AssistantsControllerRequirementsTest.php.
  *
  * The screen was migrated to docs/guides/settings-standard.md, which changed
  * three things these tests depend on:
@@ -71,50 +73,6 @@ function headerSave( page ) {
 }
 
 test.describe( 'VIP Workflows — agent availability requirements', () => {
-	test( 'the list endpoint carries the structured availability shape', async ( {
-		requestUtils,
-	} ) => {
-		const agents = await fetchAgents( requestUtils );
-
-		expect( Array.isArray( agents ) ).toBe( true );
-		expect( agents.length ).toBeGreaterThan( 0 );
-
-		for ( const agent of agents ) {
-			// `groups` is always a list, never null — clients must not have to
-			// distinguish "no requirements" from "key absent".
-			expect( Array.isArray( agent.availability.groups ) ).toBe( true );
-			expect( agent.availability.available ).toBe( agent.available );
-			expect( [ 'available', 'partial', 'unavailable' ] ).toContain(
-				agent.availability_state
-			);
-			expect( Array.isArray( agent.availability_sources ) ).toBe( true );
-			// The screen groups by origin, so every entry has to name one.
-			expect( [ 'built-in', 'plugin' ] ).toContain( agent.origin );
-
-			if ( agent.available ) {
-				expect( agent.availability.groups ).toHaveLength( 0 );
-			}
-		}
-	} );
-
-	test( 'the single-item route returns the same entry as the list', async ( {
-		requestUtils,
-	} ) => {
-		const agents = await fetchAgents( requestUtils );
-		const target = agents.find( ( a ) => ! a.available ) || agents[ 0 ];
-
-		const single = await requestUtils.rest( {
-			path: `/vip-workflows/v1/assistants/${ target.slug }`,
-		} );
-
-		expect( single.slug ).toBe( target.slug );
-		expect( single.available ).toBe( target.available );
-		expect( single.availability_state ).toBe( target.availability_state );
-		expect( single.availability.groups ).toEqual(
-			target.availability.groups
-		);
-	} );
-
 	test( 'divides the agents into a built-in tab and a plugin tab', async ( {
 		admin,
 		page,

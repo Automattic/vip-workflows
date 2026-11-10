@@ -1,37 +1,15 @@
 /**
- * Smoke tests — the cheap regression net.
+ * Smoke tests.
  *
- * Confirms the plugin is active, its REST API answers, the default sequences
- * are seeded, and the admin Workflow app mounts. If an AI change breaks
- * activation, asset enqueueing, or REST registration, these fail first.
+ * That the plugin is active, its REST API answers and the default sequences
+ * are seeded is checked before any spec runs, by the preflight in
+ * global-setup.js. That the admin app mounts is checked by
+ * navigation.spec.js. What is left here is the wp-admin chrome around it.
  */
 
 const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
-const { EDITORIAL_REVIEW_SLUG } = require( './helpers/workflow' );
 
 test.describe( 'VIP Workflows — smoke', () => {
-	test( 'REST API is available and default sequences are seeded', async ( {
-		requestUtils,
-	} ) => {
-		const sequences = await requestUtils.rest( {
-			path: '/vip-workflows/v1/sequences',
-		} );
-
-		expect( Array.isArray( sequences ) ).toBe( true );
-		const slugs = sequences.map( ( bp ) => bp.slug );
-		expect( slugs ).toContain( EDITORIAL_REVIEW_SLUG );
-	} );
-
-	test( 'admin Workflow app renders', async ( { admin, page } ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
-
-		// The React app mounts into #vip-workflows-root (src/admin/index.js).
-		const root = page.locator( '#vip-workflows-root' );
-		await expect( root ).toBeAttached();
-		// The app renders content into the root once booted.
-		await expect( root ).not.toBeEmpty();
-	} );
-
 	test( 'renders in the standard wp-admin canvas (no fullscreen shell)', async ( {
 		admin,
 		page,

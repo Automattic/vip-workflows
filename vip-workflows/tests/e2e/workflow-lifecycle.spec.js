@@ -1,17 +1,14 @@
 /**
  * Workflow lifecycle (REST end-to-end).
  *
- * Drives a post through the full Editorial Review chain
- * (draft → review → ready → publish) against the real REST API, StatusManager,
- * and database. Deterministic and fast — it doesn't depend on editor UI state,
- * so it's the dependable backbone of workflow coverage. The UI transition spec
- * complements it by proving the editor wires into the same path.
+ * The audit log records each transition. The full Editorial Review chain
+ * (draft → review → ready → publish → promote) is driven over REST in
+ * workflow-post-publish-stage.spec.js.
  */
 
 const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
 const {
 	createWorkflowPost,
-	getWorkflowStatus,
 	transition,
 	deletePost,
 } = require( './helpers/workflow' );
@@ -24,39 +21,6 @@ test.describe( 'VIP Workflows — lifecycle (REST)', () => {
 			await deletePost( requestUtils, postId );
 			postId = undefined;
 		}
-	} );
-
-	test( 'post advances draft → review → ready → publish', async ( {
-		requestUtils,
-	} ) => {
-		( { postId } = await createWorkflowPost( requestUtils, {
-			title: 'Lifecycle e2e',
-		} ) );
-
-		// Starts in draft with a single "Submit for review" transition.
-		let status = await getWorkflowStatus( requestUtils, postId );
-		expect( status.has_workflow ).toBe( true );
-		expect( status.current.key ).toBe( 'draft' );
-		expect( status.transitions.map( ( t ) => t.to ) ).toContain( 'review' );
-
-		// draft → review.
-		await transition( requestUtils, postId, 'review' );
-		status = await getWorkflowStatus( requestUtils, postId );
-		expect( status.current.key ).toBe( 'review' );
-
-		// review → ready.
-		await transition( requestUtils, postId, 'ready' );
-		status = await getWorkflowStatus( requestUtils, postId );
-		expect( status.current.key ).toBe( 'ready' );
-
-		// ready → publish (the publish gate — no longer terminal; a post-publish
-		// `promote` stage follows it.
-		await transition( requestUtils, postId, 'publish' );
-		status = await getWorkflowStatus( requestUtils, postId );
-		expect( status.current.key ).toBe( 'publish' );
-		expect( status.transitions.map( ( t ) => t.to ) ).toContain(
-			'promote'
-		);
 	} );
 
 	test( 'history records each transition', async ( { requestUtils } ) => {

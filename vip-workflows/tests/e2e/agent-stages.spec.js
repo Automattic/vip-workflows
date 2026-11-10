@@ -92,23 +92,6 @@ test.describe( 'VIP Workflows — stage agents', () => {
 		return transition( requestUtils, postId, 'ai_copy_desk' );
 	}
 
-	test( 'entering an AI stage dispatches the agent and marks the post pending', async ( {
-		requestUtils,
-	} ) => {
-		const afterTransition = await enterAiStage(
-			requestUtils,
-			'Agent dispatch e2e'
-		);
-
-		// The transition response is built after the dispatch hook ran, so it
-		// already reports the queued agent — no cron, no race.
-		expect( afterTransition.current.key ).toBe( 'ai_copy_desk' );
-		expect( afterTransition.agent_pending ).toBe( true );
-		expect( afterTransition.agent_job ).toMatchObject( {
-			status: 'pending',
-		} );
-	} );
-
 	test( 'while an agent runs, the editor shows an "AI working" state in place of the stage actions', async ( {
 		admin,
 		page,

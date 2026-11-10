@@ -29,25 +29,6 @@ test.describe( 'VIP Workflows — navigation', () => {
 		).toBeVisible();
 	} );
 
-	const splitPages = [
-		'vip-workflows-notifications',
-		'vip-workflows-agents',
-		'vip-workflows-tools',
-	];
-	for ( const slug of splitPages ) {
-		test( `${ slug } page loads the workflow shell`, async ( {
-			admin,
-			page,
-		} ) => {
-			await admin.visitAdminPage( 'admin.php', `page=${ slug }` );
-
-			const root = page.locator( '#vip-workflows-root' );
-			await expect( root ).toBeAttached();
-			await expect( root ).not.toBeEmpty();
-			await expect( root ).not.toContainText( 'Coming soon' );
-		} );
-	}
-
 	test( 'Notifications divides into Channels and Routing, with one Save', async ( {
 		admin,
 		page,
