@@ -13,67 +13,172 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  NODE_MODULES_PATHS: |
+    node_modules
+    vip-workflows/node_modules
+    workflow-tool-checklist/node_modules
+
 jobs:
   e2e:
-    name: Playwright
+    # Each shard boots its own wp-env, so specs that change site-wide state
+    # (experiments, settings, the seeded sequence) never share a database.
+    # Docs-only changes skip the steps below rather than the job, so the
+    # required "Playwright" check (the summary job below) still reports.
+    name: Playwright shard ${{ matrix.shard }}/${{ strategy.job-total }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # On a pull request this is the merge commit; its first parent is the
+          # base branch, so HEAD^1..HEAD is exactly what the PR changes.
+          fetch-depth: 2
+
+      - name: Detect whether end-to-end tests are needed
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed=$( git diff --name-only HEAD^1 HEAD )
+          echo "$changed"
+          # Anything other than Markdown or docs/ can affect the suite.
+          if echo "$changed" | grep -qvE '(\.md$|^docs/)'; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Only documentation changed; skipping end-to-end tests."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Setup Node.js
+        if: steps.changes.outputs.run == 'true'
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: |
-            package-lock.json
-            vip-workflows/package-lock.json
-            workflow-tool-checklist/package-lock.json
 
       - name: Setup PHP
+        if: steps.changes.outputs.run == 'true'
         uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
         with:
           php-version: '8.2'
           tools: composer:v2
           coverage: none
 
-      - name: Install dependencies
+      # Caches the installed node_modules folders rather than npm's download
+      # cache, so a hit skips `npm ci` entirely. The key covers every lockfile
+      # and the wp-env patch that the root postinstall applies inside
+      # node_modules. Only main writes this cache (see "Save node_modules"),
+      # which pull requests can read; a PR that changes a lockfile misses and
+      # installs as before.
+      - name: Restore node_modules
+        if: steps.changes.outputs.run == 'true'
+        id: node-modules
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.NODE_MODULES_PATHS }}
+          key: e2e-node-modules-${{ runner.os }}-${{ hashFiles('.nvmrc', 'package-lock.json', 'vip-workflows/package-lock.json', 'workflow-tool-checklist/package-lock.json', 'scripts/patch-wp-env.js') }}
+
+      - name: Install root dependencies
+        if: steps.changes.outputs.run == 'true' && steps.node-modules.outputs.cache-hit != 'true'
         run: |
           npm config set fetch-retries 5
           npm config set fetch-retry-mintimeout 20000
           npm config set fetch-retry-maxtimeout 120000
           npm ci
-          npm --prefix vip-workflows ci
-          npm --prefix workflow-tool-checklist ci
+
+      - name: Install PHP dependencies
+        if: steps.changes.outputs.run == 'true'
+        run: |
           composer --working-dir=vip-workflows install --no-interaction --prefer-dist --no-progress
           composer --working-dir=workflow-parsely install --no-interaction --prefer-dist --no-progress
 
+      # wp-env needs only the root install and the PHP dependencies. Boot it in
+      # the background so the image pull and WordPress install overlap with the
+      # plugin installs and build. Seeding waits until the build is done.
+      - name: Start WordPress test environment (background)
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          node scripts/gen-wp-env-tests.js
+          (
+            node_modules/.bin/wp-env start --config .wp-env.tests.json > "$RUNNER_TEMP/wp-env.log" 2>&1
+            echo $? > "$RUNNER_TEMP/wp-env.exit"
+          ) &
+
+      - name: Install plugin dependencies
+        if: steps.changes.outputs.run == 'true' && steps.node-modules.outputs.cache-hit != 'true'
+        run: |
+          npm --prefix vip-workflows ci
+          npm --prefix workflow-tool-checklist ci
+
+      - name: Save node_modules
+        # One shard saves; the others would only race to write the same key.
+        if: steps.changes.outputs.run == 'true' && steps.node-modules.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' && matrix.shard == 1
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ env.NODE_MODULES_PATHS }}
+          key: ${{ steps.node-modules.outputs.cache-primary-key }}
+
       - name: Build plugins
+        if: steps.changes.outputs.run == 'true'
         run: npm run build
 
       - name: Install Playwright browser
+        if: steps.changes.outputs.run == 'true'
         working-directory: vip-workflows
         run: npx playwright install chromium --with-deps
 
-      - name: Start WordPress test environment
-        run: npm run wp-env:start:tests
+      - name: Wait for WordPress test environment and seed it
+        if: steps.changes.outputs.run == 'true'
+        run: |
+          for _ in $( seq 1 300 ); do
+            [ -f "$RUNNER_TEMP/wp-env.exit" ] && break
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/wp-env.log"
+          if [ "$( cat "$RUNNER_TEMP/wp-env.exit" 2>/dev/null )" != "0" ]; then
+            echo "::error::wp-env did not start (see log above)."
+            exit 1
+          fi
+          npm run seed:tests
 
       - name: Run end-to-end tests
+        if: steps.changes.outputs.run == 'true'
         working-directory: vip-workflows
         env:
           CI: true
-        run: npm run test:e2e
+        run: npm run test:e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
       - name: Upload failure artifacts
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: playwright-artifacts
+          name: playwright-artifacts-shard-${{ matrix.shard }}
           path: artifacts/test-results
           if-no-files-found: ignore
 
       - name: Stop WordPress test environment
-        if: always()
+        if: always() && steps.changes.outputs.run == 'true'
         run: npm run wp-env:stop:tests
+
+  # "Playwright" is the required status check on main. The matrix jobs report
+  # as "Playwright shard N/3", so this job carries the required name and fails
+  # unless every shard succeeded.
+  e2e-result:
+    name: Playwright
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check shard results
+        run: |
+          if [ "${{ needs.e2e.result }}" != "success" ]; then
+            echo "::error::End-to-end shards finished with result: ${{ needs.e2e.result }}"
+            exit 1
+          fi

@@ -58,7 +58,7 @@ npm --prefix vip-workflows run test:e2e
 npm run wp-env:stop:tests
 ```
 
-Locally, Playwright's `webServer` (`tools/wp-env-e2e-webserver.sh`) runs `npm run wp-env:start:tests` before every run, which starts the tests environment and then seeds it. Playwright waits for the line `VIP Workflows e2e environment ready`, which the script prints only after the seed succeeds, so the global setup and the specs never run against a half-seeded environment. The command runs even when the environment is already up: starting a running environment is a no-op, and the seed is idempotent. Expect a few extra seconds per run for the seed. Starting the environment yourself first is optional. In CI (`CI` set), the workflow runs `npm run wp-env:start:tests` itself and Playwright does not start or seed anything.
+Locally, Playwright's `webServer` (`tools/wp-env-e2e-webserver.sh`) runs `npm run wp-env:start:tests` before every run, which starts the tests environment and then seeds it. Playwright waits for the line `VIP Workflows e2e environment ready`, which the script prints only after the seed succeeds, so the global setup and the specs never run against a half-seeded environment. The command runs even when the environment is already up: starting a running environment is a no-op, and the seed is idempotent. Expect a few extra seconds per run for the seed. Starting the environment yourself first is optional. In CI (`CI` set), the workflow starts the tests environment in the background while dependencies install and the plugins build, seeds it with `npm run seed:tests` once the build is done, and Playwright does not start or seed anything.
 
 Use `npm --prefix vip-workflows run test:e2e:headed` for a visible browser. Failures write traces and screenshots under `vip-workflows/artifacts/`.
 
@@ -108,6 +108,6 @@ Public GitHub-hosted runners execute:
 | `js-unit.yml` | Package discovery tests, JavaScript/CSS lint, and Jest |
 | `phpunit.yml` | Unit suite on PHP 8.2, 8.3, 8.4, and 8.5 |
 | `phpunit-integration.yml` | Real-WordPress integration suites in wp-env |
-| `e2e.yml` | Production builds and Playwright browser tests |
+| `e2e.yml` | Production builds and Playwright browser tests, split across three shards that each run their own tests environment. A summary job named `Playwright` reports the combined result as the required check. Pull requests that change only Markdown or `docs/` skip the suite. |
 
 The integration and end-to-end workflows always stop their tests environment with an `if: always()` teardown step.
