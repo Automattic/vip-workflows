@@ -9,7 +9,7 @@ Two promises hold across the product:
 
 ## How to use this document
 
-This is the one spec for the plugin and its extensions in this repo. It describes what the code does on `main`, not design history. Where it and the code disagree, the code wins and this file is wrong.
+This is the one spec for the plugin and its extensions in this repo. It describes what the code does on `main`today. Where it and the code disagree, the code is true, and the spec needs updating.
 
 - **Reviewing a PR:** read the stories the PR touches, then check the change against the [platform surface](#platform-surface) and the feature's invariants. Each feature section lists its own footguns.
 - **Writing a PR:** update the parts of this file your change affects, in the same PR. A change to behavior, stored data, routes, permissions, background jobs, outbound calls or extension points always needs an update here.
@@ -86,6 +86,36 @@ For these teams, Workflows is about approvals. The question each story answers i
 ## Platform surface
 
 What a PR can change underneath the features: stored data, routes, permissions, background work, outbound calls and extension points. A PR that touches any of these updates the matching table.
+
+How every path reaches the same core. People and agents use different surfaces, but each move or configuration change ends in the same controllers and `StatusManager`, so checks, audit rows and side effects are the same whichever path made it.
+
+```mermaid
+flowchart LR
+  subgraph People
+    UI["Admin screens and<br/>block editor panel"]
+    CP["Command palette"]
+    CORE["Core writes: Publish button,<br/>Quick Edit, REST, WP-CLI"]
+  end
+  subgraph Agents
+    MCP["MCP client"]
+  end
+  UI --> REST["REST routes<br/>vip-workflows/v1"]
+  CP --> RUN["REST /abilities/{id}/run"]
+  MCP --> ABIL["Abilities API"]
+  RUN --> ABIL
+  REST --> CTRL["Controllers<br/>(sequences, workflow, settings)"]
+  ABIL -->|"sequence abilities"| CTRL
+  ABIL -->|"transition-post,<br/>remove-from-workflow"| SM
+  ABIL -->|"tools and checks"| TOOLS["Tool and agent abilities"]
+  CTRL --> SM["StatusManager"]
+  CORE --> GUARD["PublishBoundaryGuard<br/>(save layer)"]
+  GUARD -->|"allowed changes are reconciled"| SM
+  SM --> DATA[("post_status, stage meta,<br/>vip_workflows_events")]
+  SM -->|"vip_workflows_status_transition"| AGENT["StageAgentRunner<br/>(WP-Cron)"]
+  SM -->|"vip_workflows_status_transition"| NOTIFY["NotificationDispatcher<br/>(Action Scheduler or inline)"]
+  AGENT --> TOOLS
+  AGENT -->|"exit transition"| SM
+```
 
 ### Stored data
 
@@ -390,6 +420,24 @@ A workflow stage has a `key`, `label`, `color`, a `status` region (`draft` | `pe
 
 Stage and status form a matrix. A transition between two stages in the same region writes stage meta only and never touches `post_status`. A transition whose endpoints are in different regions first writes the target region's status through `wp_update_post()` (`commit_post_status()`), accepts what core commits (for example `publish` coerced to `future` for a future-dated post), then compare-and-swaps the stage meta. A transition may target any stage in any region ("open region crossings"); there is no rule that a crossing must land on a particular stage.
 
+An example sequence for an approval workflow. Each stage sits in one WordPress status region. Moves inside a region change only the stage; moves across regions also change `post_status`.
+
+```mermaid
+flowchart LR
+  subgraph draft["draft region"]
+    D["Drafting"]
+  end
+  subgraph pending["pending region"]
+    E["Editing"] --> C["Copy"] --> L["Legal"]
+    L -->|"send back:<br/>stage only"| E
+  end
+  subgraph publish["publish region (scheduled future counts here)"]
+    P["Published"]
+  end
+  D -->|"crosses: sets pending"| E
+  L -->|"crosses: sets publish or future<br/>(legal role only)"| P
+```
+
 `region_entry` marks the one stage per used region where a post is seated when something outside the workflow puts it in that region: a core status change (Publish button, Quick Edit, REST, WP-CLI, cron, untrash) is reconciled by `StatusManager::on_status_transition()` → `resolve_reseat_stage()`, which writes the entry stage and fires the stage events with `cause: 'core'`. `future` and `trash` are overlays (`Sequence::OVERLAY_STATUSES`): they never reseat. A region the sequence does not model leaves the stage where it was and logs.
 
 Posts enter a sequence only by explicit assignment (`POST /vip-workflows/v1/workflow/post/{id}/sequence` → `StatusManager::assign_sequence()`). The post is seated at the `region_entry` stage of the region its current status maps to, never at `is_initial`, and no status is written. Assignment is refused for a trashed post, for a sequence not mapped to the post's type, and with `unmodeled_post_status` when the sequence has no stage in the post's region. The REST path also creates a Story for the post if it has none. Post-type scoping comes from each active workflow sequence's `post_types` list (`vip-workflows/includes/workflow/class-post-type-manager.php`, filterable via `vip_workflows_sequences_for_post`). The "require/recommend a workflow" setting is enforced only by the editor modal (`vip-workflows/src/editor/components/WorkflowRequiredModal.js`).
@@ -438,6 +486,22 @@ The predicate is `StatusManager::crosses_publish_boundary()`. It is symmetric (i
 
 The veto does not apply when any of these hold (`resolve_veto()` / `is_system_context()`): the post is new or has no sequence meta; cron (`wp_doing_cron()` or `DOING_CRON`); autosave or revision; a workflow commit in progress (`StatusManager::is_transition_in_progress()`); the status is unchanged; `future` → `publish` (core going live); restoring from `trash` to a non-publish-region status; no current user; or the user is in `bypass_workflow_roles` (default `administrator`).
 
+```mermaid
+flowchart TD
+  A["Status change on a post"] --> B{"Post has workflow<br/>sequence meta?"}
+  B -->|no| OK["Allowed"]
+  B -->|yes| C{"System context?<br/>cron, autosave or revision,<br/>workflow commit in progress,<br/>no current user"}
+  C -->|yes| OK
+  C -->|no| D{"Exempt change?<br/>status unchanged, future to publish,<br/>trash to a non-publish status"}
+  D -->|yes| OK
+  D -->|no| E{"User in bypass roles?<br/>(administrator by default)"}
+  E -->|yes| OK
+  E -->|no| F{"Crosses the publish boundary?<br/>(publish or future on either side;<br/>unresolvable workflow state counts as yes)"}
+  F -->|no| OK
+  F -->|yes| V["Vetoed: REST returns 409,<br/>other writes keep the stored status"]
+  OK --> RS["StatusManager reseats the stage<br/>if the region changed"]
+```
+
 A post leaves its workflow through `StatusManager::remove_sequence()` (REST `DELETE /workflow/post/{id}/sequence`, or the `remove-from-workflow` ability), which needs `edit_post`. It deletes the sequence, stage and claim meta, completes pending person assignments, logs `workflow.removed`, and writes no status. The post is then unguarded. The other way through is a workflow transition into a publish-region stage, which still needs the post type's `publish_posts` cap.
 
 **Invariants**
@@ -463,6 +527,28 @@ A post leaves its workflow through `StatusManager::remove_sequence()` (REST `DEL
 A transition is an object in a stage's `transitions` array: `to`, `label`, `required_tools`, `allowed_roles`, `notifications`, `show_in_queue`, `inputs`. Every caller goes through `StatusManager::transition()`: the editor rail and header button (`POST /vip-workflows/v1/workflow/post/{id}/transition`, `vip-workflows/includes/api/class-workflow-controller.php`), the Kanban drag (same endpoint, `vip-workflows/src/admin/components/KanbanBoard.js`), My Queue quick actions, and the `vip-workflows/transition-post` MCP ability (`vip-workflows/includes/abilities/tools/transition-post.php`). The REST route needs `edit_post`; the ability needs `edit_posts` plus `edit_post` on the post.
 
 `transition()` checks, in order: post not trashed (409); sequence and stage present; edge exists (422); on an AI stage, target is one of the agent's routed destinations (403 `unrouted_agent_exit`); target is a defined stage; only declared input keys (400); `edit_post`; for a region crossing, the post type's `publish_posts` (into `publish`/`private`) or `edit_published_posts` (out of `publish`); `allowed_roles` (403 `forbidden_transition`, skipped for bypass roles); required assignments present and valid and able to read the post; not starting an AI stage while co-edited; a running agent job (soft warning `agent_in_progress`); required metadata on a crossing into publish (422 `required_fields_missing`, skipped for bypass roles); required tools. Only then does it write status, stage, assignments, the log row, and fire `vip_workflows_status_transition`, `vip_workflows_entered_{stage}` and `vip_workflows_exited_{stage}`.
+
+```mermaid
+flowchart TD
+  A["Move requested<br/>(editor, Kanban, My Queue, MCP)"] --> B{"Post, sequence, stage<br/>and edge valid?"}
+  B -->|no| R1["Refused: 409, 422 or 403<br/>(unrouted_agent_exit on an AI stage)"]
+  B -->|yes| C{"edit_post, and region-crossing<br/>capability if it crosses?"}
+  C -->|no| R2["Refused: 403"]
+  C -->|yes| D{"Role allowed on this transition?<br/>(bypass roles skip)"}
+  D -->|no| R3["Refused: 403 forbidden_transition"]
+  D -->|yes| E{"Required assignments valid?<br/>Not starting an AI stage while co-edited?"}
+  E -->|no| R4["Refused: 400, 409 or 422"]
+  E -->|yes| F{"Required metadata filled<br/>(crossing into publish)?"}
+  F -->|no| R5["Refused: 422 required_fields_missing<br/>(bypass roles skip)"]
+  F -->|yes| G{"Required tools"}
+  G -->|"hard failure"| R6["Refused: 422 tool_check_failed<br/>logged as transition_blocked"]
+  G -->|"soft warnings,<br/>not acknowledged"| W["200 warnings_pending<br/>nothing written"]
+  W -.->|"resent with acknowledge_warnings"| G
+  G -->|"pass, or acknowledged"| H["Commit: post_status if crossing,<br/>stage meta (compare-and-swap),<br/>assignments, history row"]
+  H --> I["Fire vip_workflows_status_transition,<br/>entered and exited stage hooks"]
+```
+
+Nothing is written until every check has passed. A bypass role skips role limits, required metadata and (with tool-check bypass) required tools, but never core capabilities.
 
 Required tools are abilities run by `run_transition_tools()` with `{ post_id }` plus the tool's saved options (`AbilityExecutor::execute()` merges `AbilitySettings::get_options()` into the input). A tool that is disabled, missing, errors or throws is a hard failure. Each returned issue is hard if its `check_key` is set to hard in Tools settings or its severity is `error`/`hard`; otherwise soft. Any hard failure returns 422 `tool_check_failed` with `hard_failures` and `soft_warnings`, and logs `transition_blocked`. Soft warnings alone return HTTP 200 `{ warnings_pending: true, soft_warnings }` with nothing committed; resending with `acknowledge_warnings: true` commits and logs `tool_warnings`. Users in `bypass_tool_check_roles` (default `administrator`) skip tools entirely. Tool types (`meta.type`: `check`, `validator`, `helper`) only group the Tools page; on a transition, every required tool is judged by its `issues`. `transition_eligible` only filters which tools the sequence editor offers.
 
@@ -585,6 +671,23 @@ On every stage change into an AI stage (edge traversal, sequence assignment, or 
 
 The ability's output `status` must be `pass` or `fail`. A `WP_Error`, a thrown exception, an unavailable or disabled ability, or a successful run with any other `status` is the `error` outcome. Routing: the outcome's route if set; otherwise the `error` route if set; otherwise the run fails in place. The exit transition runs through `StatusManager::transition()` with `agent_actor` set, and records `_vip_workflows_agent_last_run`. A failed-in-place run sets the marker to `failed` with the error; the editor offers one action, "go back" to `from_stage` (`POST /workflow/post/{id}/agent-revert`, `StatusManager::revert_failed_agent_stage()`). There is no separate re-run: going back and forward again re-dispatches. A pending marker older than `PENDING_TTL` (15 minutes) is converted to a failure on the next read (`StatusManager::has_pending_agent_job()`).
 
+```mermaid
+stateDiagram-v2
+  [*] --> Pending: post enters an AI stage<br/>(marker written, WP-Cron event scheduled)
+  Pending --> Running: cron runs the event
+  Pending --> FailedInPlace: no run within 15 minutes
+  Pending --> Abandoned: a person moves the post<br/>(after an agent_in_progress warning)
+  Running --> Abandoned: stage changed during the run
+  Running --> Routed: pass, fail or error has a route<br/>(or error route as fallback)
+  Running --> FailedInPlace: no route, publish held,<br/>loop guard (10 hops), co-editing,<br/>exit transition refused
+  Running --> WarningsPending: exit transition raised<br/>soft warnings
+  WarningsPending --> Routed: a person confirms the held move
+  FailedInPlace --> PreviousStage: a person chooses Go back
+  Routed --> [*]: post moves through the normal transition checks
+  PreviousStage --> [*]
+  Abandoned --> [*]: outcome discarded,<br/>content already written stays
+```
+
 Shared helpers for agent authors are in `vip-workflows/includes/abilities/agents/class-stage-agent.php`: `read_post()`, `generate()` (180 s request timeout, no temperature sent), `verdict_token()`/`is_verdict()`, `wrap_untrusted()`, `write_content()`, block-anchored editorial notes. Core ships no concrete stage agent; the agents live in `workflow-*` plugins (see [Included tools and agents](#included-tools-and-agents)).
 
 **Invariants**
@@ -628,6 +731,20 @@ Shared helpers for agent authors are in `vip-workflows/includes/abilities/agents
 - **Agents admin page.** `AssistantRegistry` groups research abilities, stage-capable agents and discovery providers into one card per plugin (`vip_workflows_register_assistant_meta`), with aggregated availability; the `assistants` REST routes require `manage_options` (`vip-workflows/includes/assistants/class-assistant-registry.php`).
 - **Content hierarchy.** A `vip_story` (non-public CPT) groups an ideation project and the posts it leads to, through `wp_vip_story_objects` plus `_vip_story_id` meta (`vip-workflows/includes/story/class-story.php`). Story status moves only where code calls it: `ideation` on project creation, `editorial` on Create draft. Assigning a sequence to a post without a story also creates one at `editorial` (`WorkflowController`). The `Story` module is loaded whether or not the experiment is on.
 - **Idea to draft.** `POST ideation/{id}/create-draft` first checks the active phase sequence's `ideation → editorial` transition (roles, then `required_tools` run with `{project_id}` in context `ideation`), then generates title and body with the configured AI model from the seed, analysis, pinned cards and guidelines, inserts a `post` as a draft authored by the caller, sideloads pinned images, links it to the story and writes `_vip_ideation_project_id` and `vip_draft_ai_context` (`vip-workflows/includes/api/class-ideation-controller.php`). The default phase sequence (`content-lifecycle`) is seeded when the experiment is activated (`Seeder::seed_phase_sequence()`).
+
+```mermaid
+flowchart LR
+  S1["Discovery prompt<br/>(provider seed)"] --> P
+  S2["Seed text from an editor"] --> P
+  P["Ideation project<br/>(vip_ideation; Story at ideation)"] --> SA["Seed Analyst"]
+  SA --> R["Research agents and queries<br/>(cards in vip_ideation_sources)"]
+  R --> PIN["Editor pins cards"]
+  PIN --> G{"Phase gate:<br/>allowed roles, required tools"}
+  G -->|refused| X["403 or tool failure;<br/>no draft"]
+  G -->|passed| AI["Generate title and body<br/>with the configured AI provider"]
+  AI --> DR["Draft post by the editor<br/>(Story moves to editorial)"]
+  DR --> WF["Joins an editorial sequence<br/>when assigned"]
+```
 
 Data: `vip_ideation` posts and `_vip_ideation_*` meta, `vip_ideation_sources` and `vip_ideation_analyses` tables, `vip_story` posts and `vip_story_objects`, `_vip_discovery_prompt` meta, `vip_discovery_*` options and transients, media-library attachments, Action Scheduler actions `vip_workflows_process_source`.
 
