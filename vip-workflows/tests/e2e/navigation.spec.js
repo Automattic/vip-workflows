@@ -21,12 +21,23 @@ test.describe( 'VIP Workflows — navigation', () => {
 		await expect( root ).not.toBeEmpty();
 		// Not the "Coming soon" fallback — the bare slug must route to My Dashboard.
 		await expect( root ).not.toContainText( 'Coming soon' );
-		// The native wp-admin Workflows submenu lists My Dashboard.
-		await expect(
-			page
-				.locator( '#toplevel_page_vip-workflows .wp-submenu' )
-				.getByRole( 'link', { name: 'My Dashboard', exact: true } )
-		).toBeVisible();
+		// The native wp-admin Workflows submenu lists My Dashboard and the
+		// three pages Integrations was split into. Scoped to the Workflows
+		// submenu so labels like "Tools" don't collide with the core wp-admin
+		// top-level menus of the same name.
+		const submenu = page.locator(
+			'#toplevel_page_vip-workflows .wp-submenu'
+		);
+		for ( const name of [
+			'My Dashboard',
+			'Notifications',
+			'Agents',
+			'Tools',
+		] ) {
+			await expect(
+				submenu.getByRole( 'link', { name, exact: true } )
+			).toBeVisible();
+		}
 	} );
 
 	test( 'Notifications divides into Channels and Routing, with one Save', async ( {
@@ -74,27 +85,5 @@ test.describe( 'VIP Workflows — navigation', () => {
 		await expect(
 			page.getByRole( 'button', { name: 'Save', exact: true } )
 		).toHaveCount( 1 );
-	} );
-
-	test( 'Workflows menu shows the four split items', async ( {
-		admin,
-		page,
-	} ) => {
-		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
-
-		// Scope to the Workflows submenu so labels like "Tools" don't collide
-		// with the core wp-admin top-level menus of the same name.
-		const submenu = page.locator(
-			'#toplevel_page_vip-workflows .wp-submenu'
-		);
-		await expect(
-			submenu.getByRole( 'link', { name: 'Notifications', exact: true } )
-		).toBeVisible();
-		await expect(
-			submenu.getByRole( 'link', { name: 'Agents', exact: true } )
-		).toBeVisible();
-		await expect(
-			submenu.getByRole( 'link', { name: 'Tools', exact: true } )
-		).toBeVisible();
 	} );
 } );

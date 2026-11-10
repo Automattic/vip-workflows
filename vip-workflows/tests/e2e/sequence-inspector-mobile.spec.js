@@ -81,7 +81,7 @@ test.describe( 'VIP Workflows — inspector mobile layout', () => {
 		}
 	} );
 
-	test( 'below the breakpoint the panel docks to the bottom, collapsed', async ( {
+	test( 'below the breakpoint the panel docks to the bottom, collapsed, and the canvas controls move to the top left', async ( {
 		admin,
 		page,
 		requestUtils,
@@ -104,6 +104,9 @@ test.describe( 'VIP Workflows — inspector mobile layout', () => {
 		const panel = await page
 			.locator( '.wf-sequence-editor__inspector' )
 			.boundingBox();
+		const controls = await page
+			.locator( '.react-flow__controls' )
+			.boundingBox();
 
 		// Stuck to the bottom edge, not the top.
 		expect(
@@ -113,33 +116,12 @@ test.describe( 'VIP Workflows — inspector mobile layout', () => {
 		expect( panel.width ).toBeGreaterThan( editor.width - 40 );
 		// And short — a collapsed bar, not a sheet over the canvas.
 		expect( panel.height ).toBeLessThan( editor.height / 3 );
-	} );
 
-	test( 'below the breakpoint the canvas controls move to the top left', async ( {
-		admin,
-		page,
-		requestUtils,
-	} ) => {
-		const bp = await createSequence( requestUtils );
-		sequenceId = bp.id;
-
-		await page.setViewportSize( MOBILE );
-		await openEditor( admin, page, bp.name );
-
-		const editor = await page
-			.locator( '.wf-sequence-editor' )
-			.boundingBox();
-		const controls = await page
-			.locator( '.react-flow__controls' )
-			.boundingBox();
-
-		// Top left: near the editor's top edge, and on its left half.
+		// The canvas controls sit top left: near the editor's top edge, and on
+		// its left half…
 		expect( controls.y - editor.y ).toBeLessThan( 40 );
 		expect( controls.x - editor.x ).toBeLessThan( 40 );
-		// Clear of the docked panel, which owns the bottom of the screen.
-		const panel = await page
-			.locator( '.wf-sequence-editor__inspector' )
-			.boundingBox();
+		// …clear of the docked panel, which owns the bottom of the screen.
 		expect( controls.y + controls.height ).toBeLessThan( panel.y );
 	} );
 
