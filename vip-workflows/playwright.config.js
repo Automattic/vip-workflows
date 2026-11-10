@@ -17,6 +17,10 @@ module.exports = {
 	...baseConfig,
 	// VIP standard layout puts e2e specs under tests/e2e/ (not the wp-scripts default ./specs).
 	testDir: path.join( __dirname, 'tests', 'e2e' ),
+	// The real-time collaboration spec needs a websocket server and RTC_E2E=1,
+	// and runs only through its own config (tests/e2e/rtc/playwright.rtc.config.js).
+	// Here it would only ever skip.
+	testIgnore: [ '**/rtc/**' ],
 	// Wraps the wp-scripts global setup with a preflight that fails the run
 	// with the reseed command when the tests env is missing the plugin's
 	// seeded state, instead of letting every spec fail on its own.

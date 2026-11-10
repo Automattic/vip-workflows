@@ -62,6 +62,8 @@ Locally, Playwright's `webServer` (`tools/wp-env-e2e-webserver.sh`) runs `npm ru
 
 Use `npm --prefix vip-workflows run test:e2e:headed` for a visible browser. Failures write traces and screenshots under `vip-workflows/artifacts/`.
 
+The real-time collaboration spec in `tests/e2e/rtc/` is excluded from this run. It needs a websocket server and runs only through its own config; see `tests/e2e/rtc/README.md`.
+
 Tests should arrange fixtures over REST, exercise behavior through the UI, assert both UI and persisted state where useful, and delete records they create. Prefer stable class or `data-*` hooks over translated text and DOM structure.
 
 ### Seeded fixtures
