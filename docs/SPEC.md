@@ -2,7 +2,10 @@
 
 VIP Workflows lets an editorial team model its process as a sequence of stages in WordPress, then enforces that process where people already work: the block editor, the admin, the command palette and MCP. Any stage can be owned by a person or by an AI agent. Transitions between stages carry the team's rules: who may move the post, which checks must pass, and who hears about it.
 
-Two promises hold across the product. Workflows is **Jetpack-independent**: it never requires Jetpack. And its AI is **configurable and transparent**: every AI step is a tool, agent or assistant that an admin can see and tune, using the site's own provider keys.
+Two promises hold across the product:
+
+- **Abilities first.** Anything a person can do in wp-admin, an agent can do too. Every operation is a WordPress Ability, reachable from the admin UI, the command palette, REST and MCP, with the same permission checks on every path.
+- **Transparent.** People can see what happened and why. Every AI step is a tool, agent or assistant that an admin can see and tune, using the site's own provider keys. Every move, refusal and configuration change, by a person, an agent or MCP, is recorded in the post's history and the Audit Log.
 
 ## How to use this document
 
