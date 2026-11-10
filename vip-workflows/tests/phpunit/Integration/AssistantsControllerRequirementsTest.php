@@ -368,6 +368,47 @@ class AssistantsControllerRequirementsTest extends TestCase
         );
     }
 
+    public function test_every_list_entry_preserves_the_availability_contract(): void
+    {
+        $entries = $this->list_entries();
+        $this->assertNotEmpty( $entries );
+
+        // The schema validates fields when present, but does not require them
+        // or enforce relationships between fields. Keep these checks at the
+        // REST boundary, including for agents supplied by extensions.
+        $invalid = array();
+        foreach ( $entries as $entry ) {
+            $checks = array(
+                'groups must be an array' => is_array( $entry['availability']['groups'] ?? null ),
+                'availability flags must agree' => isset( $entry['available'], $entry['availability']['available'] )
+                    && $entry['available'] === $entry['availability']['available'],
+                'availability_state must be recognized' => in_array(
+                    $entry['availability_state'] ?? null,
+                    array( 'available', 'partial', 'unavailable' ),
+                    true
+                ),
+                'availability_sources must be an array' => is_array( $entry['availability_sources'] ?? null ),
+                'origin must be recognized' => in_array(
+                    $entry['origin'] ?? null,
+                    array( 'built-in', 'plugin' ),
+                    true
+                ),
+                'available agents must have no unmet groups' => empty( $entry['available'] )
+                    || array() === ( $entry['availability']['groups'] ?? null ),
+            );
+
+            // Aggregate failures so assertion counts do not depend on which
+            // other tests have registered agents in the process-wide registry.
+            foreach ( $checks as $message => $valid ) {
+                if ( ! $valid ) {
+                    $invalid[ (string) ( $entry['slug'] ?? '(no slug)' ) ][] = $message;
+                }
+            }
+        }
+
+        $this->assertSame( array(), $invalid, 'Every listed agent must preserve the availability contract.' );
+    }
+
     public function test_response_validates_against_the_registered_item_schema(): void
     {
         $schema = ( new AssistantsController() )->get_public_item_schema();
