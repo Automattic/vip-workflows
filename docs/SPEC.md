@@ -12,13 +12,13 @@ This is the one spec for the plugin and its extensions in this repo. It describe
 - **Writing a PR:** update the parts of this file your change affects, in the same PR. A change to behavior, stored data, routes, permissions, background jobs, outbound calls or extension points always needs an update here.
 - File paths are relative to the repo root. `P/` means `vip-workflows/includes/`.
 
-Contents: [User stories](#user-stories) · [Platform surface](#platform-surface) · [Features](#features) · [Known gaps](#known-gaps) · [Proposed](#proposed)
+Contents: [User stories](#user-stories) · [Platform surface](#platform-surface) · [Features](#features) · [Proposed](#proposed)
 
 ## User stories
 
 Workflows does nothing to a post until an admin creates a sequence for its post type and the post joins it. From then on, the stories below describe what people do with it. They are grouped by who turns it on. A PR that breaks one of them is a regression even if every test passes.
 
-Each story ends with what must hold for it to stay true. Where the code doesn't fully keep that promise today, the gap is listed under [Known gaps](#known-gaps).
+Each story ends with what must hold for it to stay true.
 
 ### Newsroom
 
@@ -146,8 +146,8 @@ Retention: `P/maintenance/class-cleanup.php` runs nightly via Action Scheduler (
 **Activation, deactivation and uninstall** (`vip-workflows/vip-workflows.php`, `vip-workflows/uninstall.php`).
 
 - Activation runs `Schema::install()` and `Seeder::seed()`, which seeds roles and the Editorial Review sequence. It flushes rewrite rules except on VIP (`WPCOM_IS_VIP_ENV`).
-- Deactivation unschedules `vip_workflows_check_sla_breaches` and flushes rewrites except on VIP. It does **not** unschedule `vip_workflows_cleanup`: Cleanup listens for `vip_workflows_deactivated`, which nothing fires.
-- Uninstall drops the ten owned tables and deletes `vip_workflows_db_version`. It **keeps** every other option, all post meta, `vip_ideation`/`vip_story` posts, attachments, hourly-limit rows and scheduled actions. It runs for the current site only, with no multisite loop.
+- Deactivation flushes rewrites except on VIP.
+- Uninstall drops the owned tables and deletes `vip_workflows_db_version`.
 
 **Schema versioning.** `Schema::VERSION` (currently `2.27.0`) is compared with the `vip_workflows_db_version` option by `maybe_upgrade_schema()` on `init` priority 1, on every request type (REST, cron, CLI, front end). `install()` re-runs `dbDelta` for all tables, then `run_migrations()` runs every `get_migrations()` entry newer than the stored version, then stores the new version. There is no lock, so two requests can migrate at once. A migration can throw `MigrationDeferred` (`P/database/class-migration-deferred.php`) to resume on a later request without bumping the version, which 2.27.0's time-boxed, leased backfill does. Any other failure is logged and retried on the next request.
 
@@ -239,13 +239,6 @@ What bounds these loops:
 - The Parse.ly warmers are bounded by batch size, the queue cap and `wp_next_scheduled()` dedupe.
 - There are no other retries.
 
-Reviewer notes:
-
-- `Cleanup::run()` deletes with no `LIMIT`. On a large table the first run is one long `DELETE`.
-- `vip_workflows_activated` and `vip_workflows_deactivated` are never fired. As a result, cleanup is scheduled only by an admin page load and is never unscheduled when the plugin is deactivated.
-- The plugin's `deactivate()` unschedules `vip_workflows_check_sla_breaches`, which nothing schedules.
-- The Parse.ly poll runs whether or not the `ideation` experiment is enabled.
-
 ### Outbound calls
 
 **AI provider calls.** Every generation call goes through WordPress core's PHP AI Client (`\WordPress\AiClient\AiClient::prompt()`). The supported providers are OpenAI, Anthropic and Google. Workflows registers the vendored OpenAI provider itself, because core ships no concrete providers.
@@ -267,12 +260,6 @@ The provider is the stored `vip_workflows_ai_provider` setting, or is derived fr
 | Video analysis | An editor pins a video card. The call runs only when AI is configured. | The YouTube transcript | `vip-workflows/includes/api/class-ideation-controller.php` |
 
 Every AI call above starts from one of three places: a sequence an administrator configured, a tool or assistant an editor ran, or an upload. No AI call runs on a timer. The Parse.ly poll calls Parse.ly, not an LLM.
-
-Footgun: `AiClient::setEventDispatcher()` replaces core's AI event dispatcher **site-wide**. As a result:
-
-- Every AI call made by any plugin fires `vip_workflows_ai_before_generate` and `vip_workflows_ai_after_generate`.
-- Every call also writes a one-hour transient holding the full prompt messages, which nothing reads back.
-- Provider authentication is set on core's shared registry, so other plugins can use Workflows' keys.
 
 **Other HTTP calls.**
 
@@ -333,7 +320,7 @@ Rows marked **[ext]** are used by a shipped `workflow-*` extension. Renaming one
 | `vip_workflows_agent_assigned`, `vip_workflows_assignment_{created,completed,expired,removed,notify}`, filter `vip_workflows_assignee_types` | assignment lifecycle | see source | `vip-workflows/includes/workflow/class-assignment-manager.php` |
 | filter `vip_workflows_sequences_for_post` | resolving which sequences apply to a post | see source | `vip-workflows/includes/workflow/class-post-type-manager.php` |
 | `vip_workflows_event_emitted` | action, on each audit event | see source | `vip-workflows/includes/automation/class-event-bus.php` |
-| `vip_workflows_ai_before_generate` and `vip_workflows_ai_after_generate` | action, around **every** core AI Client call site-wide | `$log_data, $event` | `vip-workflows/includes/ai/class-event-dispatcher.php` |
+| `vip_workflows_ai_before_generate` and `vip_workflows_ai_after_generate` | action, around AI Client calls | `$log_data, $event` | `vip-workflows/includes/ai/class-event-dispatcher.php` |
 | `vip_workflows_source_processed` | action, after source processing | `$project_id, $source_id, $result` | `vip-workflows/includes/ideation/research/class-source-processing-job.php` |
 | `vip_workflows_experiment_enabled` and `vip_workflows_experiment_disabled` | action, on toggle | `$experiment_id` | `vip-workflows/includes/experiments/class-experiment-registry.php` |
 | filters `vip_workflows_notification_events`, `vip_workflows_notification_rate_limit_ttl` (60 s), `vip_workflows_channel_settings` | notifications | see source | `vip-workflows/includes/notifications/class-notification-dispatcher.php`, `vip-workflows/includes/api/class-notifications-controller.php` |
@@ -386,11 +373,6 @@ The kanban, calendar and my_queue gates are in `vip-workflows/includes/admin/cla
 - Existing phase sequences remain.
 - Sources left in `pending` are stranded until the experiment is re-enabled and the source is reprocessed.
 
-Two things a reviewer should check:
-
-- Ideation's `activate()` and `deactivate()` call `flush_rewrite_rules()` with no `WPCOM_IS_VIP_ENV` guard. The plugin's own activation hook does have that guard.
-- Discovery polling in `workflow-parsely` is not gated by this experiment.
-
 ## Features
 
 Each feature has three parts: **Behavior** (what it does now), **Invariants** (what a PR must keep true) and **Footguns** (known sharp edges).
@@ -432,15 +414,13 @@ The phase sequence (`type: 'phase'`) holds one transition, Ideation → Editoria
 
 **Footguns**
 
-- Sequence updates are in place. Removing or renaming a stage key strands posts sitting at it: `transition()` fails, and `crosses_publish_boundary()` fails closed, so non-bypass users cannot change those posts' status at all. The server does not refuse a save that orphans posts. The way out is "Remove from workflow".
-- Deleting a sequence (`SequenceRepository::delete()`) leaves every post's sequence meta in place. Those posts read as "in a deleted workflow" and are vetoed the same way.
 - `get_sequence_for_post()` does not check the sequence's status, so posts in a `draft` or `archived` sequence keep transitioning normally.
 - Metadata meta keys embed the sequence ID. An imported copy gets new keys, and a post moved to another sequence does not see its old values.
 - Metadata fields are registered only for active sequences, at `init`. A field on a draft sequence is not writable over REST.
 - Import does not run `build_config()`. Labels, `allowed_roles`, `notifications` and `required_tools` on transitions are stored as given in the file, subject only to the write gate. It is `manage_options`-only.
 - Required metadata does not hold a core-driven status change. A scheduled post going live or a Quick Edit to Published reseats with required fields still empty.
 - Workflow enforcement for new posts is editor-only. Posts created over REST, WP-CLI or Quick Draft have no workflow until assigned.
-- Phase transitions: configured `notifications` are stored but never sent; `bypass_workflow_roles` and `bypass_tool_check_roles` are not consulted; unacknowledged soft warnings return a 422 `tool_check_warnings` error rather than the 200 `warnings_pending` body that workflow transitions use.
+- Phase transitions: `bypass_workflow_roles` and `bypass_tool_check_roles` are not consulted; unacknowledged soft warnings return a 422 `tool_check_warnings` error rather than the 200 `warnings_pending` body that workflow transitions use.
 - Story status changes only on create (`ideation` or `editorial`) and on Create Draft (`ideation` → `editorial`). Nothing moves a Story to `published`, `monitoring` or `refresh`.
 
 ### Publish boundary
@@ -469,8 +449,6 @@ A post leaves its workflow through `StatusManager::remove_sequence()` (REST `DEL
 **Footguns**
 
 - Stages do not lock editing. Anyone with `edit_post` can change content and meta at any stage, including while an AI stage is running. The only lock is that a person cannot start an AI stage while the post is co-edited (`CoEditing::is_shared()`).
-- `private` is not on the publish boundary. A non-bypass user with `publish_posts` can set a draft-region workflow post to Private through core, and the workflow reseats it. `publish` → `private` is vetoed because it leaves publish.
-- `wp_publish_post()` and direct SQL writes skip `wp_insert_post_data`, so a plugin calling them publishes a workflow post with no veto. The stage still reseats through `transition_post_status`.
 - On Quick Edit and Bulk Edit a vetoed change looks like success: core reports the save, the status silently reverts, and the queued notice is not shown on those screens.
 - Bypass is role-based (`Settings::can_user_bypass_workflow()`), not capability-based. Adding a role to `bypass_workflow_roles` lets its members publish any workflow post directly, subject only to core caps.
 - A userless write (WP-CLI without `--user`, importers, seeders) is never vetoed.
@@ -505,7 +483,6 @@ Tool settings are declared in `meta.settings_schema` and edited on the Tools pag
 
 - The MCP `transition-post` ability accepts no `input_data`, so it cannot take a transition with a required assignment.
 - A sequence may name any ability ID in `required_tools`; nothing checks that it exists or is `transition_eligible` until it runs, and then it hard-fails every move on that edge.
-- Role-denied and capability-denied moves are not written to the audit log; only tool and metadata blocks are (`transition_blocked`).
 - Disabling a tool site-wide locks every transition that requires it, for everyone except tool-check bypass roles.
 - Required tools run synchronously inside the transition request, once per press and again on acknowledgement.
 
@@ -532,8 +509,6 @@ Claims still exist in code. `POST /workflow/post/{id}/claim` and `DELETE /workfl
 
 - Claim endpoints check only `edit_post`. `Sequence::can_user_claim()` (`reviewer_roles`) only sets the UI's `can_claim` flag, and nothing checks that the post is in a workflow.
 - A claim survives stage changes and is cleared only by unclaim or removal from the workflow. It keeps the post out of other users' My Queue indefinitely.
-- Role assignments are not indexed, so they do not put a post in role members' My Work, even though the access warning implies they would.
-- `on_assign.notify` fires `vip_workflows_assignment_notify`, which nothing in the plugin handles. Assignees are not notified by default.
 
 ### Notifications
 
@@ -555,7 +530,7 @@ Delivery failure never blocks a move: notifications fire after the status and st
 
 - Per-transition sends are synchronous. Each Slack destination can add up to 15 seconds to the transition request.
 - A custom channel whose `send()` throws breaks the request after the move has committed.
-- Email's "notify author" never reaches the author: the notification data carries `author_name` but not `author_id`. With no email settings saved, the channel reports configured but has no recipients. "Notify admins" emails every administrator, one `wp_mail()` call each.
+- With no email settings saved, the channel reports configured but has no recipients. "Notify admins" emails every administrator, one `wp_mail()` call each.
 - Two moves of the same post within 60 seconds to the same channel and event send one message.
 
 ### Audit and history
@@ -579,7 +554,6 @@ Per-post history (`GET /workflow/post/{id}/history`) returns only `status_transi
 
 - Per-post history is visible to anyone who can edit the post, including other people's and agents' moves, regardless of audit roles.
 - `transition_blocked` and `tool_warnings` rows are always `actor_type: 'user'`, even when an agent was blocked (actor ID 0).
-- Sequence edits made in the Sequences editor (REST) write no audit row; only MCP-made edits do.
 - History older than one year is deleted.
 
 ### Admin surfaces
@@ -637,7 +611,6 @@ Shared helpers for agent authors are in `vip-workflows/includes/abilities/agents
 - Concurrent-edit detection is not atomic with the write: a save landing between the check and `wp_update_post()` is overwritten.
 - Co-editing protection is silently absent on sites without VIP Real-Time Collaboration.
 - Verdicts are not reproducible (no temperature), so a rerun is not evidence about a previous run.
-- An agent that rewrites content can return `pass` without a nonce match. `workflow-agent-copy-edit` treats any reply that is neither its token nor `REJECT` as the new body, writes it, and passes; only `is_implausibly_short()` and the concurrent-edit check stand between an injected reply and the post.
 - Cron must actually run. With `DISABLE_WP_CRON` and no system cron, every AI stage sits pending for 15 minutes and then reports "Agent run timed out."
 - `PENDING_TTL` (15 minutes) must stay above the longest real run; `StageAgent::REQUEST_TIMEOUT` is 180 s per model call.
 - Some user-facing strings say "Re-run", but there is no re-run action; the only retry is go back and forward.
@@ -671,13 +644,11 @@ Outbound calls: the configured AI provider through the WordPress AI Client (seed
 
 **Footguns**
 
-- `vip_draft_ai_context` records `provider: 'openai'` and `temperature: 0.7` as literals, and `model` from an undefined `$model_name` (so `null`, with a PHP warning). The draft's AI audit record does not describe the call that was actually made.
 - Hourly limits apply only to image generation (30 per account, 20 per project), uncached discovery searches, and non-cron stage-agent calls (uncapped by default). `run-assistant`, `query`, `mentor`, `summarize` and `create-draft` have no limit.
 - The research cache key is agent + seed + query, not project or user: two projects with the same seed share cached cards for an hour.
 - `get_recommendations()` swallows a provider exception and simply omits that provider, with no log.
 - Research agents run via `$ability->execute()` directly, not `AbilityExecutor`, so global ability options are not merged into their input.
 - Discovery provider config is stored in `vip_discovery_provider_{slug}` options with autoload on; a provider that keeps an API key there keeps it in an autoloaded option.
-- Audio/video transcription calls OpenAI directly with the OpenAI key regardless of the selected AI provider.
 - Story statuses `published`, `monitoring`, `refresh` and `archived` are registered but nothing moves a story into them.
 
 ### Parse.ly integration
@@ -699,7 +670,6 @@ Outbound calls go to Parse.ly's Content API (`/analytics/posts`, `/related`, plu
 
 **Footguns**
 
-- The poller runs every `recommend` provider on the site, not only Parse.ly's, and runs whether or not the ideation experiment is on.
 - Missing scores are silent on the ideation screen: with Parse.ly unconfigured, `PromptScorer` returns prompts unchanged.
 - A cold performance comparison takes tens of seconds; a transition always gets a pass-with-soft-warning, so the tier is advisory by construction.
 - Parse.ly `url`/`link` fields carry an `itm_source=parsely-api` parameter that must be stripped before storing or showing.
@@ -727,45 +697,6 @@ Core abilities are in `vip-workflows/includes/abilities/tools/` and `vip-workflo
 | `workflow-parsely/performance-check` | check (transition-eligible) | Past-performance tier as a soft warning | Parse.ly Content API |
 | `workflow-parsely/smart-linking-check` | stage agent (also transition-eligible) | Leaves block notes for linkable phrases | Parse.ly Suggestions API |
 | `parsely-trending` | discovery provider | Trending site content as story prompts | Parse.ly Content API |
-
-## Known gaps
-
-Places where the code doesn't fully keep a promise this file makes. A PR that fixes one removes it from this list. A PR that adds one adds it here. Feature-level sharp edges stay in each feature's Footguns.
-
-**Configurable, transparent AI (A1)**
-
-- `AiClient::setEventDispatcher()` replaces core's AI event dispatcher for the whole site. Every plugin's AI call fires Workflows hooks and writes a one-hour transient with the full prompt, and Workflows' provider keys are set on core's shared registry, where other plugins can use them. See [Outbound calls](#outbound-calls).
-- Audio and video transcription always sends the raw file to OpenAI with the OpenAI key, whichever provider the admin selected (`P/integrations/class-media-processor.php`).
-- Create Draft writes a `vip_draft_ai_context` record with a hard-coded provider and temperature and a null model, so the draft's AI record doesn't describe the call that was made (`P/api/class-ideation-controller.php`).
-
-**Publish boundary (N2, M1–M3)**
-
-- `private` is not on the publish boundary. A non-bypass user with `publish_posts` can make a draft-side workflow post private through core.
-- `wp_publish_post()` and direct SQL writes skip the save-layer guard, so a plugin calling them publishes a workflow post with no veto.
-- Removing a stage key or deleting a sequence strands posts at it, and the guard then fails closed on every status change for non-bypass users.
-
-**Experiments (N9, A3)**
-
-- Turning Ideation on or off calls `flush_rewrite_rules()` with no `WPCOM_IS_VIP_ENV` guard.
-- The `workflow-parsely` discovery poll runs every discovery provider every 15 minutes, whether or not Ideation is on.
-
-**Assignments and notifications (N7, M4)**
-
-- Role assignments aren't indexed, so they don't put a post in role members' My Work.
-- `on_assign.notify` fires a hook nothing handles, so assignees aren't notified.
-- Email "notify author" never reaches the author.
-- Phase-transition notifications are stored but never sent.
-
-**History (N8)**
-
-- Sequence edits made in the sequence editor (REST) write no audit row. Only MCP-made edits do.
-- Role-denied and capability-denied moves aren't logged.
-
-**Lifecycle and data**
-
-- `vip_workflows_cleanup` is scheduled on an admin page load and never unscheduled, because the activation and deactivation hooks it listens for are never fired. Deactivation unschedules `vip_workflows_check_sla_breaches`, which nothing schedules.
-- Uninstall drops the tables and the schema-version option only. Other options, post meta, ideation and story posts, and scheduled actions stay. It doesn't loop over a multisite network.
-- The `vip_workflows_desks`, `vip_workflows_user_desks` and `vip_workflows_notifications` tables are created but never used, and `vip_workflows_roles` is seeded but never read.
 
 ## Proposed
 
