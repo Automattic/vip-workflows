@@ -14,9 +14,9 @@
  *
  * jsdom has no layout and does not apply stylesheets, so the unit suite cannot
  * see this at all — the shrink behaviour and the computed floor are both real
- * browser facts. Hence e2e. Unlike wpds-cascade-audit.spec.js, which is an
- * informational detector, this one fails: it guards a rule that is already
- * correct.
+ * browser facts. Hence e2e. wpds-cascade-audit.spec.js scans for layered
+ * styles that wp-admin overrides; this one guards a single rule, the fieldset
+ * floor, that the audit does not look at.
  *
  * @package
  */
