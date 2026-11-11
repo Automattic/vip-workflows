@@ -339,7 +339,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 					path: `/vip-workflows/v1/ideation/${ state.project_id }`,
 				} );
 				onStateChange( finalState );
-			} catch ( e ) {
+			} catch {
 				/* ignore */
 			}
 		};

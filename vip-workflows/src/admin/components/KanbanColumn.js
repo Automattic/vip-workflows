@@ -27,6 +27,8 @@ import './KanbanColumn.css';
  * @param {boolean}     props.isDropDisabled Whether the dragged card cannot legally move here.
  * @return {JSX.Element} Kanban column.
  */
+// The inner name is what React DevTools shows for the memoized component.
+// eslint-disable-next-line no-shadow
 export const KanbanColumn = memo( function KanbanColumn( {
 	column,
 	onHide,

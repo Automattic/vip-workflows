@@ -534,7 +534,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 				setSequenceJson( json );
 				setName( uniqueImportName( json.name || '', allSequences ) );
 				setError( null );
-			} catch ( err ) {
+			} catch {
 				reject( __( 'Invalid JSON file.', 'vip-workflows' ) );
 			}
 		};

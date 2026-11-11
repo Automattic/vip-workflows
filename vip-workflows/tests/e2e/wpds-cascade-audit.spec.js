@@ -54,6 +54,8 @@ test.describe( 'WPDS ↔ wp-admin cascade audit', () => {
 			const auditScreen = async () => {
 				await admin.visitAdminPage( 'admin.php', screen.query );
 				// Let the React app render (DS styles inject on first paint).
+				// Best-effort settle before reading computed styles; a timeout is ignored.
+				// eslint-disable-next-line playwright/no-networkidle
 				await page.waitForLoadState( 'networkidle' ).catch( () => {} );
 
 				await expect(
@@ -121,6 +123,8 @@ test.describe( 'WPDS ↔ wp-admin cascade audit', () => {
 	for ( const modal of MODALS ) {
 		test( modal.name, async ( { admin, page } ) => {
 			await admin.visitAdminPage( 'admin.php', modal.query );
+			// Best-effort settle before reading computed styles; a timeout is ignored.
+			// eslint-disable-next-line playwright/no-networkidle
 			await page.waitForLoadState( 'networkidle' ).catch( () => {} );
 
 			const trigger = page.getByRole( 'button', { name: modal.open } );

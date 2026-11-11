@@ -99,7 +99,7 @@ test.describe( 'VIP Workflows — editorial metadata (REST contract)', () => {
 					path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 					method: 'DELETE',
 				} );
-			} catch ( e ) {
+			} catch {
 				// Leave the throwaway sequence behind rather than fail the run.
 			}
 			sequenceId = null;
@@ -267,7 +267,7 @@ test.describe( 'VIP Workflows — editorial metadata (UI)', () => {
 					path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 					method: 'DELETE',
 				} );
-			} catch ( e ) {
+			} catch {
 				// Best-effort cleanup.
 			}
 			sequenceId = null;
