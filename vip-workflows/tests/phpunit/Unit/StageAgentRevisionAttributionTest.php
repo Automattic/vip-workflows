@@ -49,9 +49,10 @@ class StageAgentRevisionAttributionTest extends TestCase
     {
         $this->set_acting_ability( 'vip-workflows/copy-edit' );
 
-        Functions\expect( 'update_post_meta' )
+        Functions\expect( 'update_post_meta' )->never();
+        Functions\expect( 'update_metadata' )
             ->once()
-            ->with( 4242, StageAgentRunner::AGENT_REVISION_META, 'vip-workflows/copy-edit' );
+            ->with( 'post', 4242, StageAgentRunner::AGENT_REVISION_META, 'vip-workflows/copy-edit' );
 
         ( new StageAgentRunner() )->stamp_agent_revision( 4242 );
     }
@@ -64,6 +65,7 @@ class StageAgentRevisionAttributionTest extends TestCase
         $this->set_acting_ability( '' );
 
         Functions\expect( 'update_post_meta' )->never();
+        Functions\expect( 'update_metadata' )->never();
 
         ( new StageAgentRunner() )->stamp_agent_revision( 4242 );
     }

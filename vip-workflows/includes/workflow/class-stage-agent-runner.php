@@ -772,7 +772,10 @@ class StageAgentRunner implements ModuleInterface {
 			return;
 		}
 
-		update_post_meta( $revision_id, self::AGENT_REVISION_META, self::$acting_ability_id );
+		// update_metadata(), not update_post_meta(): the latter silently redirects a
+		// revision ID to its parent post, so the tag would land on the post and the
+		// revision would never be labelled.
+		update_metadata( 'post', $revision_id, self::AGENT_REVISION_META, self::$acting_ability_id );
 	}
 
 	/**
