@@ -300,7 +300,10 @@ class StageQuery {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- write guard; must read live rows. $from holds only table names and a %s placeholder list built via array_fill, with matching values spread in from $params.
 		$total = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT p.ID) {$from}", ...$params ) );
 
-		if ( null === $total && '' !== $wpdb->last_error ) {
+		// Checked through last_error, not the return value: on an SQL error
+		// get_var() answers null and get_results() answers an empty array, both
+		// of which also mean "nothing found".
+		if ( '' !== (string) $wpdb->last_error ) {
 			throw new \RuntimeException(
 				esc_html( sprintf( 'Could not check which posts hold sequence %d: %s', $sequence_id, $wpdb->last_error ) )
 			);
@@ -317,7 +320,7 @@ class StageQuery {
 				)
 			);
 
-			if ( null === $rows ) {
+			if ( null === $rows || '' !== (string) $wpdb->last_error ) {
 				throw new \RuntimeException(
 					esc_html( sprintf( 'Could not list the posts holding sequence %d: %s', $sequence_id, $wpdb->last_error ) )
 				);
@@ -343,7 +346,7 @@ class StageQuery {
 				$wpdb->prepare( "SELECT stage.meta_value AS stage, COUNT(DISTINCT p.ID) AS cnt {$from} GROUP BY stage.meta_value", ...$params )
 			);
 
-			if ( null === $stage_rows ) {
+			if ( null === $stage_rows || '' !== (string) $wpdb->last_error ) {
 				throw new \RuntimeException(
 					esc_html( sprintf( 'Could not count the stages holding sequence %d: %s', $sequence_id, $wpdb->last_error ) )
 				);

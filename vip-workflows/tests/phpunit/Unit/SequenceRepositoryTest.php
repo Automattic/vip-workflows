@@ -571,6 +571,46 @@ class SequenceRepositoryTest extends TestCase
     }
 
     /**
+     * update() refuses, writing nothing, when the per-stage count query fails.
+     *
+     * On an SQL error get_results() answers an empty array, so the failure is
+     * only visible in last_error. It must not pass as "no stage is occupied".
+     */
+    public function test_update_throws_when_the_stage_count_query_fails(): void
+    {
+        $row = $this->create_db_row(
+            array( 'config' => '{"statuses":[{"key":"writing","label":"Writing"},{"key":"legal","label":"Legal"}]}' )
+        );
+
+        $wpdb  = $this->wpdb;
+        $calls = 0;
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'prepared_query' );
+        $this->wpdb->shouldReceive( 'get_row' )->once()->andReturn( $row );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '1' );
+        $this->wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+            function () use ( $wpdb, &$calls ) {
+                ++$calls;
+                if ( 1 === $calls ) {
+                    // The capped post list succeeds.
+                    return array( (object) array( 'id' => 7, 'title' => 'T', 'status' => 'draft', 'stage' => 'legal' ) );
+                }
+                // The per-stage count fails.
+                $wpdb->last_error = 'Lost connection';
+                return array();
+            }
+        );
+        $this->wpdb->shouldNotReceive( 'update' );
+
+        $this->expectException( \RuntimeException::class );
+
+        $this->repository->update(
+            1,
+            array( 'config' => array( 'statuses' => array( array( 'key' => 'writing', 'label' => 'Writing' ) ) ) )
+        );
+    }
+
+    /**
      * update() rejects an invalid stage graph before touching the database.
      */
     public function test_update_throws_on_invalid_config(): void

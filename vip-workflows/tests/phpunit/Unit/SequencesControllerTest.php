@@ -521,6 +521,34 @@ class SequencesControllerTest extends TestCase
         $this->assertSame( 'rest_sequence_strand_check_failed', $response->get_error_code() );
     }
 
+    /**
+     * Test delete_item refuses when the post-list query fails.
+     *
+     * On an SQL error get_results() answers an empty array, not null, so the
+     * failure is only visible in last_error.
+     */
+    public function test_delete_item_refuses_when_the_post_list_query_fails(): void
+    {
+        $row  = $this->create_sequence_row( array( 'id' => 3 ) );
+        $wpdb = $this->wpdb;
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '1' );
+        $this->wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+            function () use ( $wpdb ) {
+                $wpdb->last_error = 'Lost connection';
+                return array();
+            }
+        );
+        $this->wpdb->shouldNotReceive( 'delete' );
+
+        $response = $this->controller->delete_item( $this->create_mock_request( array( 'id' => 3 ) ) );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_strand_check_failed', $response->get_error_code() );
+    }
+
     // =========================================================================
     // POST /sequences Tests
     // =========================================================================
