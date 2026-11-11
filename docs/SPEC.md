@@ -9,10 +9,10 @@ Two promises hold across the product:
 
 ## How to use this document
 
-This is the one spec for the plugin and its extensions in this repo. It describes what the code does on `main`today. Where it and the code disagree, the code is true, and the spec needs updating.
+This is the one spec for the plugin and its extensions in this repo. It describes what the code does on `main` today. Where it and the code disagree, the code is true, and the spec needs updating.
 
 - **Reviewing a PR:** read the stories the PR touches, then check the change against the [platform surface](#platform-surface) and the feature's **Always true** list. Each feature section lists its own footguns.
-- **Writing a PR:** update the parts of this file your change affects, in the same PR. A change to behavior, stored data, routes, permissions, background jobs, outbound calls or extension points always needs an update here.
+- **Writing a PR:** update the parts of this file your change affects, in the same PR, and name them under **Spec changes** in the PR description. A change to behavior, stored data, routes, permissions, background jobs, outbound calls or extension points always needs an update here. A PR that changes none of them says why and carries the `no-spec-change` label; so does a fix for a bug this file never mentioned, since the spec already describes the intended behavior. See `AGENTS.md` for the full rule and the Spec check.
 - File paths are relative to the repo root.
 
 Contents: [Glossary](#glossary) · [User stories](#user-stories) · [Platform surface](#platform-surface) · [Features](#features) · [Proposed](#proposed)

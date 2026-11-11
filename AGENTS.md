@@ -6,7 +6,7 @@ VIP Workflows is a monorepo containing the core WordPress plugin in `vip-workflo
 
 Start with:
 
-- `docs/SPEC.md` for what the product does: user stories, the platform surface, and each feature's invariants and footguns. A PR that changes behavior, stored data, routes, permissions, background jobs, outbound calls or extension points updates it in the same PR.
+- `docs/SPEC.md` for what the product does: user stories, the platform surface, and each feature's invariants and footguns. Keep it current; see [Keeping SPEC.md current](#keeping-specmd-current).
 - `docs/README.md` for the documentation map.
 - `docs/AI_CONTEXT.md` and `docs/reference/` for architecture and subsystem references.
 - `docs/guides/extending-vip-workflows.md` for extension patterns.
@@ -33,6 +33,29 @@ npm run test:e2e
 vendor/bin/phpcbf <file>
 ```
 
+## Keeping SPEC.md current
+
+Platform reviewers check PRs against `docs/SPEC.md`, so it has to describe `main`. A PR that changes any of these updates the matching section of SPEC.md in the same PR:
+
+- behavior a user story or a feature's **Always true** list describes,
+- stored data: tables, post meta, options, transients, uninstall, migrations,
+- REST routes, Abilities and their permission checks,
+- capabilities, roles and the bypass lists,
+- background work: WP-Cron events and Action Scheduler jobs,
+- outbound calls, and what data leaves the site,
+- extension points: hooks, filters and registries,
+- experiment flags.
+
+**Updating the spec usually means changing it, not adding to it.** Most PRs should edit lines that are already there: correct a claim, tighten a rule, or replace an old sentence with a new one. Some should delete: a removed feature, a footgun that's now fixed, a sentence the change makes redundant. Add a new section only for a new feature or a new piece of platform surface, and look for something to cut when you do. The spec is only useful if a reviewer can read the parts they need in a few minutes.
+
+- Edit the existing sentence rather than adding a new one next to it.
+- Add a footgun when the change leaves a sharp edge, and remove it when a later change fixes it.
+- Describe what the code does now, not how it got there. History belongs in the PR, never in SPEC.md.
+- A fix for a bug SPEC.md never mentioned needs no spec change: the spec already describes the intended behavior, and "this used to be broken" is history. Use the `no-spec-change` label. If the bug was written up as a footgun, remove that footgun instead.
+- Leave out detail a reviewer doesn't need to judge a PR. Point to the code, or to `docs/reference/`, instead.
+
+In the PR description, the **Spec changes** section names the SPEC.md sections the PR changes. If it changes nothing SPEC.md describes, such as a refactor, a test, a style fix, or a fix for a bug SPEC.md doesn't mention, write "None:" and the reason, and add the `no-spec-change` label. The **Spec check** workflow (`.github/workflows/spec-check.yml`, logic in `tools/spec-check/`) flags a PR that changes plugin code under `vip-workflows/includes/`, `vip-workflows/src/` or a `workflow-*` extension without touching SPEC.md or carrying that label. It checks paths only; the reviewer checks the content.
+
 ## Pull request previews
 
 Every pull request from a branch in this repository gets a **Preview in WordPress Playground** button in its description. CI builds the core plugin from the PR, so reviewers do not need a local build. Fork pull requests are built but not published.
@@ -51,8 +74,9 @@ When opening a PR:
    ```
 
    If the build passed but the button is missing or stale after a few minutes, check `gh run list --workflow pr-preview-publish.yml --limit 5`. CI only checks that the blueprint is valid JSON with known tokens; it does not boot it, so open the preview once yourself before asking for review.
-2. In **How to test**, tell the reviewer where to click in the preview and what they should see. Editing the description outside the `wp-playground-preview` block keeps the button; replacing the whole body re-runs the build, which restores it.
-3. If the change needs specific data to reproduce, add it to `.playground/blueprint.json` or the WXR fixture in the same PR. The preview uses the PR's own blueprint. Posts by `editor`, `author`, or `contributor` (`dc:creator`) are assigned to those users. `{{ARTIFACT_URL:<name>}}` is filled in at publish time and must name a zip listed in `ARTIFACTS` in `build-preview.sh` and in the build workflow's `artifacts`. The blueprint cannot contain `#` or `%`, because the Preview button's `data:` URL breaks on them.
+2. Fill in **Spec changes** (see [Keeping SPEC.md current](#keeping-specmd-current)). If the Spec check warns, update SPEC.md or add the `no-spec-change` label with a reason.
+3. In **How to test**, tell the reviewer where to click in the preview and what they should see. Editing the description outside the `wp-playground-preview` block keeps the button; replacing the whole body re-runs the build, which restores it.
+4. If the change needs specific data to reproduce, add it to `.playground/blueprint.json` or the WXR fixture in the same PR. The preview uses the PR's own blueprint. Posts by `editor`, `author`, or `contributor` (`dc:creator`) are assigned to those users. `{{ARTIFACT_URL:<name>}}` is filled in at publish time and must name a zip listed in `ARTIFACTS` in `build-preview.sh` and in the build workflow's `artifacts`. The blueprint cannot contain `#` or `%`, because the Preview button's `data:` URL breaks on them.
 
 To check blueprint changes locally, run `npm run test:tools` and boot the preview with `tools/playground/serve-preview.sh` (see `PLAYGROUND.md`).
 

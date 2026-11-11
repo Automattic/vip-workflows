@@ -1,0 +1,44 @@
+name: Spec check
+
+# A PR that changes plugin code should update docs/SPEC.md, or carry the
+# `no-spec-change` label. Path filtering only; see tools/spec-check/.
+#
+# Starts as a warning. To make it fail the PR, set SPEC_CHECK_STRICT to
+# 'true' below and mark "Spec check / SPEC.md updated" as required.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  spec-check:
+    name: SPEC.md updated
+    # Release PRs only bump the version.
+    if: ${{ !startsWith(github.head_ref, 'release/') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Check for a spec change
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
+          SPEC_CHECK_STRICT: 'false'
+        run: git diff --name-only "$BASE_SHA...$HEAD_SHA" | node tools/spec-check/spec-check.mjs

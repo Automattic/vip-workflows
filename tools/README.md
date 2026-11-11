@@ -12,6 +12,7 @@ Repository tooling and local-development helpers:
 - `code-quality/` discovers packages and runs the appropriate lint and unit-test commands.
 - `docs-check/` counts the Markdown files and lines and reports relative links and anchors that don't resolve, and checks that `docs/SPEC.md` stays within one line per 90 lines of plugin code. The docs cleanup (`docs/maintenance/docs-cleanup.md`) runs it before and after.
 - `playground/` builds the pull request preview (`build-preview.sh`), validates its blueprint (`build-preview-blueprint.mjs`), boots it locally (`serve-preview.sh`), and shifts demo-content dates for both the preview and wp-env (`shift-wxr-dates.php`).
+- `spec-check/` is the Spec check CI step: it flags a pull request that changes plugin code without updating `docs/SPEC.md` or carrying the `no-spec-change` label (`.github/workflows/spec-check.yml`).
 - `wp-env/` contains regression tests for the wp-env image patcher and demo dependencies.
 
 Packaging takes the version to stamp into the archives, and writes them to `dist/`:
