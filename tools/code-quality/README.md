@@ -265,8 +265,8 @@ A directive without a rule id or a reason, or a blanket form, is itself a
 
 **Rewriting the gate's rules isn't silent.** Any change under
 `tools/code-quality/`, to `loupe.config.json` or anything under `.loupe/`, a
-`.phpcs.xml.dist`, or an eslint/stylelint config prints `⚠ gate rules modified —
-human review required`. A change to loupe's config or `.loupe/` also runs loupe
+`.phpcs.xml.dist`, an eslint/stylelint config, or a `jest.config.*` or
+`vitest.config.*` prints `⚠ gate rules modified — human review required`. A change to loupe's config or `.loupe/` also runs loupe
 over the whole repo.
 
 ---

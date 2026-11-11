@@ -21,6 +21,7 @@ Each override lifts a dev or build tool's transitive dependency to a patched rel
 
 | Package | Override | Clears | Parent | Checked with |
 | --- | --- | --- | --- | --- |
+| root | `adm-zip` ^0.6.1 | adm-zip advisory | `@wordpress/env` | Predates this record; wp-env still downloads and unpacks sources |
 | root | `@wp-playground/storage` › `isomorphic-git` ^1.44.12 | isomorphic-git path traversal advisories | `@wordpress/env` › `@wp-playground/cli` | wp-env boots and runs the integration suites |
 | root | `express` › `qs` ^6.17.1 | qs denial-of-service advisories | `@wordpress/env` › `@wp-playground/cli` | wp-env boots; express parses query strings |
 | root | `rimraf@^5` › `glob` ^14.0.4 | glob advisory | `@wordpress/env` › `rimraf` | wp-env's `rimraf( path )` calls delete as before |
