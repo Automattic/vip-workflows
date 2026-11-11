@@ -18,6 +18,7 @@ declare( strict_types=1 );
 namespace VIPWorkflows\Workflow;
 
 use VIPWorkflows\Sequences\Sequence;
+use VIPWorkflows\Sequences\StrandCheckFailedException;
 
 /**
  * Builds WP_Query arguments that select posts by their workflow stage.
@@ -271,7 +272,7 @@ class StageQuery {
 	 * @return array{total: int, posts: array<int, array{id: int, title: string, status: string, stage: string}>, stages: array<string, int>}
 	 *               `stages` maps each occupied requested stage key to its post
 	 *               count; it is empty when no stage keys were given.
-	 * @throws \RuntimeException When the query fails. The caller is guarding a
+	 * @throws StrandCheckFailedException When a query fails. The caller is guarding a
 	 *                           write, so an unreadable answer must not pass as
 	 *                           "nobody is affected".
 	 */
@@ -304,7 +305,7 @@ class StageQuery {
 		// get_var() answers null and get_results() answers an empty array, both
 		// of which also mean "nothing found".
 		if ( '' !== (string) $wpdb->last_error ) {
-			throw new \RuntimeException(
+			throw new StrandCheckFailedException(
 				esc_html( sprintf( 'Could not check which posts hold sequence %d: %s', $sequence_id, $wpdb->last_error ) )
 			);
 		}
@@ -321,7 +322,7 @@ class StageQuery {
 			);
 
 			if ( null === $rows || '' !== (string) $wpdb->last_error ) {
-				throw new \RuntimeException(
+				throw new StrandCheckFailedException(
 					esc_html( sprintf( 'Could not list the posts holding sequence %d: %s', $sequence_id, $wpdb->last_error ) )
 				);
 			}
@@ -347,7 +348,7 @@ class StageQuery {
 			);
 
 			if ( null === $stage_rows || '' !== (string) $wpdb->last_error ) {
-				throw new \RuntimeException(
+				throw new StrandCheckFailedException(
 					esc_html( sprintf( 'Could not count the stages holding sequence %d: %s', $sequence_id, $wpdb->last_error ) )
 				);
 			}

@@ -24,6 +24,7 @@ use VIPWorkflows\Workflow\StatusManager;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/helpers.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/update-sequence.php';
+require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/validate-sequence.php';
 
 /**
  * Covers the strand refusal on update and delete.
@@ -380,6 +381,81 @@ class SequenceStrandGuardTest extends TestCase
         $this->assertWPError( $result );
         $this->assertSame( 'rest_sequence_would_strand_posts', $result->get_error_code() );
         $this->assertSame( array( 'writing', 'Legal' ), $this->stored_keys( $legacy ) );
+    }
+
+    // -------------------------------------------------------------------------
+    // validate-sequence dry run
+    // -------------------------------------------------------------------------
+
+    public function test_validate_with_update_of_reports_the_posts_an_update_would_strand(): void
+    {
+        $sequence = $this->create_sequence();
+        $this->seat_post( $sequence, 'legal' );
+        $this->seat_post( $sequence, 'legal' );
+
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'config'    => array(
+                    'post_types' => array( 'post' ),
+                    'statuses'   => $this->statuses_without_legal(),
+                ),
+                'update_of' => $sequence->id,
+            )
+        );
+
+        $this->assertIsArray( $result );
+        $this->assertTrue( $result['valid'], 'The config itself is valid; the update is refused for the posts.' );
+        $this->assertSame( 2, $result['would_strand']['total'] );
+        $this->assertSame(
+            array( array( 'key' => 'legal', 'label' => 'Legal', 'posts' => 2 ) ),
+            $result['would_strand']['stages']
+        );
+    }
+
+    public function test_validate_with_update_of_reports_nothing_when_no_occupied_stage_is_removed(): void
+    {
+        $sequence = $this->create_sequence();
+        $this->seat_post( $sequence, 'writing' );
+
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'config'    => array(
+                    'post_types' => array( 'post' ),
+                    'statuses'   => $this->statuses_without_legal(),
+                ),
+                'update_of' => $sequence->id,
+            )
+        );
+
+        $this->assertSame( 0, $result['would_strand']['total'] );
+        $this->assertSame( array(), $result['would_strand']['stages'] );
+    }
+
+    public function test_validate_without_a_target_leaves_would_strand_null(): void
+    {
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'config' => array(
+                    'post_types' => array( 'post' ),
+                    'statuses'   => $this->statuses_without_legal(),
+                ),
+            )
+        );
+
+        $this->assertNull( $result['would_strand'] );
+    }
+
+    public function test_validate_with_an_unknown_update_of_is_an_error(): void
+    {
+        $result = \VIPWorkflows\Abilities\Tools\execute_validate_sequence(
+            array(
+                'config'    => array( 'statuses' => $this->statuses() ),
+                'update_of' => 999999,
+            )
+        );
+
+        $this->assertWPError( $result );
+        $this->assertSame( 'sequence_not_found', $result->get_error_code() );
     }
 
     // -------------------------------------------------------------------------

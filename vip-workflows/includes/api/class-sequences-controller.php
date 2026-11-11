@@ -11,6 +11,7 @@ namespace VIPWorkflows\API;
 
 use VIPWorkflows\Sequences\Sequence;
 use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Sequences\StrandCheckFailedException;
 use VIPWorkflows\Sequences\StrandedPostsException;
 use VIPWorkflows\Plugin;
 use VIPWorkflows\Workflow\StagePalette;
@@ -523,7 +524,7 @@ class SequencesController extends WP_REST_Controller {
 			$deleted = $this->repository->delete( $id );
 		} catch ( StrandedPostsException $e ) {
 			return $e->to_wp_error();
-		} catch ( \RuntimeException $e ) {
+		} catch ( StrandCheckFailedException $e ) {
 			return $this->strand_check_failed( $e );
 		}
 
@@ -549,10 +550,10 @@ class SequencesController extends WP_REST_Controller {
 	 * The check guards against stranding posts, so a failed read refuses the
 	 * write rather than letting it through unchecked.
 	 *
-	 * @param  \RuntimeException $e The failure.
+	 * @param  StrandCheckFailedException $e The failure.
 	 * @return WP_Error
 	 */
-	private function strand_check_failed( \RuntimeException $e ): WP_Error {
+	private function strand_check_failed( StrandCheckFailedException $e ): WP_Error {
 		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		error_log( '[VIP Workflows] ' . $e->getMessage() );
 
@@ -947,7 +948,7 @@ class SequencesController extends WP_REST_Controller {
 			$new_id = $this->repository->update( $id, $update_data );
 		} catch ( StrandedPostsException $e ) {
 			return $e->to_wp_error();
-		} catch ( \RuntimeException $e ) {
+		} catch ( StrandCheckFailedException $e ) {
 			return $this->strand_check_failed( $e );
 		} catch ( \InvalidArgumentException $e ) {
 			return new WP_Error(
