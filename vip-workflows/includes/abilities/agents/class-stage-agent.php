@@ -389,6 +389,7 @@ class StageAgent {
 			'links_added'          => 0,
 			'links_removed'        => 0,
 			'words_original'       => 0,
+			'changed'              => 0,
 			'share'                => null,
 			'blocks'               => array(),
 		);
@@ -414,8 +415,8 @@ class StageAgent {
 				 * markup check has already failed the edit; the block is then
 				 * compared whole, only to size it.
 				 */
-				$runs_before = self::text_runs( $chunk );
-				$runs_after  = self::text_runs( $edited_shape['chunks'][ $i ] ?? '' );
+				$runs_before = self::scan_tags( $chunk )['runs'];
+				$runs_after  = self::scan_tags( $edited_shape['chunks'][ $i ] ?? '' )['runs'];
 				if ( count( $runs_before ) !== count( $runs_after ) ) {
 					$runs_before = array( implode( ' ', $runs_before ) );
 					$runs_after  = array( implode( ' ', $runs_after ) );
@@ -443,12 +444,14 @@ class StageAgent {
 				$report['blocks'][]        = array(
 					'words'       => $words_block,
 					'words_after' => $words_after,
+					'changed'     => $delta,
 					'share'       => self::share( $delta, $words_block, $words_after ),
 				);
 			}
 
 			// With an empty original, every changed word is an added one.
-			$report['share'] = self::share( $changed, $report['words_original'], $changed );
+			$report['changed'] = $changed;
+			$report['share']   = self::share( $changed, $report['words_original'], $changed );
 			return $report;
 		}
 
@@ -482,7 +485,7 @@ class StageAgent {
 
 		$violations = array();
 
-		if ( null !== $report['share'] && $report['share'] * 100 > $max_percent ) {
+		if ( null !== $report['share'] && self::exceeds( (int) ( $report['changed'] ?? 0 ), (int) $report['words_original'], $max_percent ) ) {
 			$violations[] = 'share';
 		}
 
@@ -537,8 +540,9 @@ class StageAgent {
 			$clauses[] = sprintf(
 				/* translators: 1: percentage of words changed. 2: the configured limit. */
 				__( 'changed %1$d%% of the words (limit %2$d%%)', 'vip-workflows' ),
-				// Rounded up, so the printed figure is always above the printed limit.
-				(int) ceil( (float) $report['share'] * 100 ),
+				// Rounded up from the integer counts, so the printed figure is
+				// always above the printed limit whenever the limit was exceeded.
+				self::percent_up( (int) ( $report['changed'] ?? 0 ), (int) $report['words_original'] ),
 				$max_percent
 			);
 		}
@@ -600,7 +604,7 @@ class StageAgent {
 		$over = 0;
 		foreach ( $report['blocks'] as $block ) {
 			// Short before and after: a short block that grew is measured.
-			if ( max( $block['words'], $block['words_after'] ?? 0 ) >= $min_words && $block['share'] * 100 > $block_percent ) {
+			if ( max( $block['words'], $block['words_after'] ?? 0 ) >= $min_words && self::exceeds( (int) ( $block['changed'] ?? 0 ), (int) $block['words'], $block_percent ) ) {
 				++$over;
 			}
 		}
@@ -616,17 +620,19 @@ class StageAgent {
 	 * attribute's string value is part of the value.
 	 *
 	 * `links` is every URL-bearing attribute value (each `srcset` candidate
-	 * separately) and every URL in the text, entity-decoded, tagged with the
-	 * attribute it came from, in document order. Compared in order, not as a
-	 * set, so that linking a URL the text already mentions, adding a second link
-	 * to an existing target, and swapping two links' destinations all count.
-	 * `markup` is every opening tag with its attributes (names lowercased,
-	 * values entity-decoded, sorted by name), in document order. Wrapping text
-	 * in `<span hidden>` or `style="display:none"` changes no word, link or
-	 * block, so the tags themselves must hold still too. Bare `<em>`,
-	 * `<strong>`, `<i>` and `<b>` are left out, because adding or removing
-	 * emphasis is a copy edit, and so is a bare `<p>`, because paragraphs are
-	 * counted separately and models often wrap classic paragraphs in one.
+	 * separately) and every URL in the text, entity-decoded and tagged with the
+	 * attribute it came from. Elements stay in document order, and attributes
+	 * within one element are sorted by name. Compared in order, not as a set, so
+	 * that linking a URL the text already mentions, adding a second link to an
+	 * existing target, and swapping two links' destinations all count.
+	 *
+	 * `markup` is every tag, opening tags with their attributes (names
+	 * lowercased, values entity-decoded, sorted by name), in document order.
+	 * Wrapping text in `<span hidden>` or `style="display:none"` changes no
+	 * word, link or block, so the tags themselves must hold still too. A bare
+	 * `<em>`, `<strong>`, `<i>`, `<b>` or `<p>`, and its matching closing tag,
+	 * is left out: adding or removing emphasis is a copy edit, and paragraphs
+	 * are counted separately. See scan_tags().
 	 *
 	 * `chunks` is the text between block
 	 * delimiters (or the classic paragraphs), aligned one-to-one whenever two
@@ -651,21 +657,9 @@ class StageAgent {
 			$structure = array( 'paragraphs' => count( $chunks ) );
 		}
 
-		$links = array();
-		if ( preg_match_all( '/\b(' . self::URL_ATTRIBUTES . ')\s*=\s*(["\'])(.*?)\2/is', $content, $attrs, PREG_SET_ORDER ) ) {
-			foreach ( $attrs as $attr ) {
-				$name  = strtolower( $attr[1] );
-				$value = html_entity_decode( $attr[3], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-				// Each srcset candidate is "URL [descriptor]", comma-separated. The
-				// descriptor stays with its URL: swapping descriptors changes which
-				// image a browser picks without moving any URL.
-				$urls = 'srcset' === $name ? array_map( array( self::class, 'srcset_candidate' ), explode( ',', $value ) ) : array( $value );
-				foreach ( $urls as $url ) {
-					$links[] = $name . ':' . trim( $url );
-				}
-			}
-		}
-		$text = html_entity_decode( wp_strip_all_tags( $content ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$tags  = self::scan_tags( $content );
+		$links = $tags['links'];
+		$text  = html_entity_decode( wp_strip_all_tags( $content ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
 		if ( preg_match_all( '/https?:\/\/[^\s<>"\']+/i', $text, $urls ) ) {
 			foreach ( $urls[0] as $url ) {
 				$links[] = 'text:' . rtrim( $url, '.,;:!?)' );
@@ -676,68 +670,119 @@ class StageAgent {
 		return array(
 			'structure' => $structure,
 			'links'     => $links,
-			'markup'    => self::markup_skeleton( $content ),
+			'markup'    => $tags['skeleton'],
 			'chunks'    => array_map( 'strval', (array) $chunks ),
 		);
 	}
 
 	/**
-	 * Every opening tag with its attributes, normalized, in document order.
+	 * One pass over a fragment's tags: the markup skeleton, the URL-bearing
+	 * attributes, and the text runs between tags.
+	 *
+	 * The free tags (`em`, `strong`, `i`, `b`, `p`) are left out of all three
+	 * only when their opening tag is bare, and a closing tag is left out only
+	 * when its matching opening tag was. An attributed `<strong hidden>` and
+	 * its closing tag are kept, so moving that closing tag over the article
+	 * still splits the runs and shows up as changed words.
+	 *
+	 * URL attributes are collected per element, sorted by attribute name (the
+	 * order of attributes inside a tag has no effect), with elements kept in
+	 * document order and each `srcset` candidate kept in its own order.
 	 *
 	 * @param  string $content HTML.
-	 * @return string[] e.g. `span[class=x,hidden=]`.
+	 * @return array{skeleton: string[], links: string[], runs: string[]}
 	 */
-	private static function markup_skeleton( string $content ): array {
-		$skeleton = array();
-		if ( ! preg_match_all( self::TAG_PATTERN, $content, $tags, PREG_SET_ORDER ) ) {
-			return $skeleton;
-		}
+	private static function scan_tags( string $content ): array {
+		$result = array(
+			'skeleton' => array(),
+			'links'    => array(),
+			'runs'     => array(),
+		);
 
+		preg_match_all( self::TAG_PATTERN, $content, $tags, PREG_SET_ORDER | PREG_OFFSET_CAPTURE );
+
+		$stacks = array();
+		$run    = '';
+		$offset = 0;
 		foreach ( $tags as $tag ) {
-			$name = strtolower( $tag[2] );
-			if ( in_array( $name, self::FREE_TAGS, true ) && ( '/' === $tag[1] || '' === trim( $tag[3] ?? '' ) ) ) {
-				continue;
+			$run   .= substr( $content, $offset, $tag[0][1] - $offset );
+			$offset = $tag[0][1] + strlen( $tag[0][0] );
+
+			$name    = strtolower( $tag[2][0] );
+			$closing = '/' === $tag[1][0];
+			$attrs   = $closing ? array() : self::tag_attributes( (string) ( $tag[3][0] ?? '' ) );
+			$free    = in_array( $name, self::FREE_TAGS, true );
+
+			if ( $free && ! $closing ) {
+				$stacks[ $name ][] = array() === $attrs;
 			}
-			if ( '/' === $tag[1] ) {
-				$skeleton[] = '/' . $name;
+			if ( $free && $closing ) {
+				// An unmatched closing tag has nothing attributed to close.
+				$opened_bare = array() === ( $stacks[ $name ] ?? array() ) ? true : array_pop( $stacks[ $name ] );
+				$keep        = ! $opened_bare;
+			} else {
+				$keep = ! $free || array() !== $attrs;
+			}
+
+			if ( ! $keep ) {
+				$run .= ' ';
 				continue;
 			}
 
-			$attrs = array();
-			if ( isset( $tag[3] ) && preg_match_all( '/([^\s=\/"\'<>]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'>]+)))?/', $tag[3], $pairs, PREG_SET_ORDER ) ) {
-				foreach ( $pairs as $pair ) {
-					$value = ( $pair[2] ?? '' ) . ( $pair[3] ?? '' ) . ( $pair[4] ?? '' );
-					$key   = strtolower( $pair[1] );
-					$value = html_entity_decode( $value, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-					if ( 'srcset' === $key ) {
-						$value = implode( ', ', array_map( array( self::class, 'srcset_candidate' ), explode( ',', $value ) ) );
-					} elseif ( 'style' === $key ) {
-						$value = self::style_declarations( $value );
-					}
-					$attrs[ $key ] = $value;
-				}
+			$result['runs'][] = $run;
+			$run              = '';
+
+			if ( $closing ) {
+				$result['skeleton'][] = '/' . $name;
+				continue;
 			}
 
 			ksort( $attrs );
 			// JSON, not a joined string: a value must never be able to read as another attribute.
-			$skeleton[] = (string) wp_json_encode( array( $name, $attrs ) );
-		}
+			$result['skeleton'][] = (string) wp_json_encode( array( $name, $attrs ) );
 
-		return $skeleton;
+			foreach ( $attrs as $key => $value ) {
+				if ( 1 !== preg_match( '/^(?:' . self::URL_ATTRIBUTES . ')$/', $key ) ) {
+					continue;
+				}
+				// Each srcset candidate is "URL descriptor"; the descriptor stays with
+				// its URL, since swapping descriptors changes which image is shown.
+				foreach ( 'srcset' === $key ? explode( ', ', $value ) : array( $value ) as $url ) {
+					if ( '' !== trim( $url ) ) {
+						$result['links'][] = $key . ':' . trim( $url );
+					}
+				}
+			}
+		}
+		$result['runs'][] = $run . substr( $content, $offset );
+
+		return $result;
 	}
 
 	/**
-	 * The text between tags, in order.
+	 * A tag's attributes, names lowercased and values decoded and normalized.
 	 *
-	 * The free tags (bare emphasis and paragraphs) are dropped first, so adding
-	 * or removing them doesn't split or merge runs.
-	 *
-	 * @param  string $content HTML.
-	 * @return string[]
+	 * @param  string $attributes The attribute part of a tag.
+	 * @return array<string, string>
 	 */
-	private static function text_runs( string $content ): array {
-		$content = (string) preg_replace( '/<\/?(?:' . implode( '|', self::FREE_TAGS ) . ')\s*>/i', ' ', $content );
-		return preg_split( self::TAG_PATTERN, $content );
+	private static function tag_attributes( string $attributes ): array {
+		$attrs = array();
+		if ( ! preg_match_all( '/([^\s=\/"\'<>]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'>]+)))?/', $attributes, $pairs, PREG_SET_ORDER ) ) {
+			return $attrs;
+		}
+
+		foreach ( $pairs as $pair ) {
+			$key   = strtolower( $pair[1] );
+			$value = html_entity_decode( ( $pair[2] ?? '' ) . ( $pair[3] ?? '' ) . ( $pair[4] ?? '' ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+			if ( 'srcset' === $key ) {
+				$value = implode( ', ', array_map( array( self::class, 'srcset_candidate' ), explode( ',', $value ) ) );
+			} elseif ( 'style' === $key ) {
+				$value = self::style_declarations( $value );
+			}
+			$attrs[ $key ] = $value;
+		}
+
+		return $attrs;
 	}
 
 	/**
@@ -827,23 +872,30 @@ class StageAgent {
 	 * @return int|null
 	 */
 	private static function lcs_length( array $a, array $b, int &$budget ): ?int {
-		$common = 0;
-		while ( array() !== $a && array() !== $b && $a[0] === $b[0] ) {
-			array_shift( $a );
-			array_shift( $b );
-			++$common;
+		// Trim the common prefix and suffix by index, then slice once:
+		// array_shift() renumbers the array on every call, which made this
+		// quadratic in the prefix length and ran outside the cell budget.
+		$a     = array_values( $a );
+		$b     = array_values( $b );
+		$start = 0;
+		$end_a = count( $a );
+		$end_b = count( $b );
+		while ( $start < $end_a && $start < $end_b && $a[ $start ] === $b[ $start ] ) {
+			++$start;
 		}
-		while ( array() !== $a && array() !== $b && end( $a ) === end( $b ) ) {
-			array_pop( $a );
-			array_pop( $b );
-			++$common;
+		while ( $end_a > $start && $end_b > $start && $a[ $end_a - 1 ] === $b[ $end_b - 1 ] ) {
+			--$end_a;
+			--$end_b;
 		}
+		$common = $start + ( count( $a ) - $end_a );
 
-		$n = count( $a );
-		$m = count( $b );
+		$n = $end_a - $start;
+		$m = $end_b - $start;
 		if ( 0 === $n || 0 === $m ) {
 			return $common;
 		}
+		$a = array_slice( $a, $start, $n );
+		$b = array_slice( $b, $start, $m );
 
 		if ( $n * $m > $budget ) {
 			return null;
@@ -863,6 +915,38 @@ class StageAgent {
 		}
 
 		return $common + $previous[ $m ];
+	}
+
+	/**
+	 * Whether $changed of $original words is more than $percent percent.
+	 *
+	 * Compared in integers: 0.07 * 100 is slightly more than 7 in floating
+	 * point, which would refuse an edit sitting exactly at its limit.
+	 *
+	 * @param  int $changed  Words changed.
+	 * @param  int $original Words before.
+	 * @param  int $percent  Limit.
+	 * @return bool An empty original exceeds any limit once anything changed.
+	 */
+	private static function exceeds( int $changed, int $original, int $percent ): bool {
+		if ( 0 === $original ) {
+			return $changed > 0;
+		}
+		return $changed * 100 > $percent * $original;
+	}
+
+	/**
+	 * $changed of $original words as a whole percentage, rounded up.
+	 *
+	 * @param  int $changed  Words changed.
+	 * @param  int $original Words before.
+	 * @return int
+	 */
+	private static function percent_up( int $changed, int $original ): int {
+		if ( 0 === $original ) {
+			return $changed > 0 ? 100 : 0;
+		}
+		return intdiv( $changed * 100 + $original - 1, $original );
 	}
 
 	/**

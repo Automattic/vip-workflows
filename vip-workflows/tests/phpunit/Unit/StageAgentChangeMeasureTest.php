@@ -445,6 +445,89 @@ class StageAgentChangeMeasureTest extends TestCase
         $this->assertSame( array( 'unpreservable_markup' ), StageAgent::copy_edit_violations( $report, 15 ) );
     }
 
+    /**
+     * @dataProvider free_tag_names
+     */
+    public function test_extending_an_attributed_free_tag_over_the_article_fails( string $tag ): void
+    {
+        $original = "<!-- wp:paragraph --><p><{$tag} hidden>Internal note.</{$tag}> The board approved the proposal after reviewing the detailed report.</p><!-- /wp:paragraph -->";
+        $edited   = "<!-- wp:paragraph --><p><{$tag} hidden>Internal note. The board approved the proposal after reviewing the detailed report.</{$tag}></p><!-- /wp:paragraph -->";
+
+        $report = StageAgent::measure_rewrite( $original, $edited );
+
+        $this->assertNotSame( array(), StageAgent::copy_edit_violations( $report, 15 ), (string) wp_json_encode( $report ) );
+        $this->assertGreaterThan( 1.0, $report['share'] );
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function free_tag_names(): array
+    {
+        return array(
+            'strong' => array( 'strong' ),
+            'em'     => array( 'em' ),
+            'i'      => array( 'i' ),
+            'b'      => array( 'b' ),
+        );
+    }
+
+    public function test_a_bare_tag_nested_in_an_attributed_one_does_not_hide_the_move(): void
+    {
+        $original = '<!-- wp:paragraph --><p><strong hidden><em>Internal</em> note.</strong> The board approved the proposal after reviewing the detailed report.</p><!-- /wp:paragraph -->';
+        $edited   = '<!-- wp:paragraph --><p><strong hidden><em>Internal</em> note. The board approved the proposal after reviewing the detailed report.</strong></p><!-- /wp:paragraph -->';
+
+        $this->assertNotSame( array(), StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $original, $edited ), 15 ) );
+    }
+
+    public function test_an_edit_exactly_at_the_limit_passes_and_one_word_over_fails(): void
+    {
+        $words  = array_map( static fn( int $i ): string => 'word' . $i, range( 1, 100 ) );
+        $before = '<p>' . implode( ' ', $words ) . '</p>';
+        for ( $i = 0; $i < 7; $i++ ) {
+            $words[ $i ] = 'replacement' . $i;
+        }
+        $at_limit = '<p>' . implode( ' ', $words ) . '</p>';
+        $words[7] = 'replacement7';
+        $over     = '<p>' . implode( ' ', $words ) . '</p>';
+
+        $this->assertSame( array(), StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $before, $at_limit ), 7 ) );
+
+        $report     = StageAgent::measure_rewrite( $before, $over );
+        $violations = StageAgent::copy_edit_violations( $report, 7 );
+        $this->assertSame( array( 'share' ), $violations );
+        $this->assertStringContainsString( 'changed 8% of the words (limit 7%)', StageAgent::describe_rewrite( $report, $violations, 7 ) );
+    }
+
+    public function test_reordering_url_attributes_inside_one_tag_is_not_a_link_change(): void
+    {
+        $original = '<!-- wp:html --><video src="https://example.com/a.mp4" poster="https://example.com/a.jpg"></video><!-- /wp:html -->';
+        $edited   = '<!-- wp:html --><video poster="https://example.com/a.jpg" src="https://example.com/a.mp4"></video><!-- /wp:html -->';
+
+        $report = StageAgent::measure_rewrite( $original, $edited );
+
+        $this->assertSame( 0, $report['links_added'] );
+        $this->assertSame( array(), StageAgent::copy_edit_violations( $report, 15 ) );
+    }
+
+    public function test_a_url_inside_an_ordinary_attribute_is_not_a_link(): void
+    {
+        $body = '<!-- wp:paragraph --><p><span title="example href=&quot;https://example.com/a&quot;">The board approved the detailed proposal at the meeting today.</span></p><!-- /wp:paragraph -->';
+
+        $this->assertSame( array(), StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $body, $body ), 15 ) );
+    }
+
+    public function test_a_long_identical_run_is_trimmed_in_linear_time(): void
+    {
+        $body = str_repeat( 'word ', 100000 );
+
+        $start  = microtime( true );
+        $report = StageAgent::measure_rewrite( $body, $body );
+
+        $this->assertLessThan( 1.5, microtime( true ) - $start );
+        $this->assertSame( array(), StageAgent::copy_edit_violations( $report, 15 ) );
+    }
+
     public function test_the_summary_names_each_guard_and_quotes_no_body_text(): void
     {
         $original = self::para( self::words( 40, 'old' ) );

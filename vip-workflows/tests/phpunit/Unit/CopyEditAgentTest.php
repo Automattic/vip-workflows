@@ -321,6 +321,19 @@ class CopyEditAgentTest extends TestCase
         $this->assertStringNotContainsString( 'limit 15%', $result['summary'], 'The whole-body share alone would have let this through.' );
     }
 
+    public function test_an_existing_hidden_element_cannot_swallow_the_article(): void
+    {
+        $original = '<!-- wp:paragraph --><p><strong hidden>Internal note.</strong> The board approved the proposal after reviewing the detailed report.</p><!-- /wp:paragraph -->';
+        $edited   = '<!-- wp:paragraph --><p><strong hidden>Internal note. The board approved the proposal after reviewing the detailed report.</strong></p><!-- /wp:paragraph -->';
+        $this->set_post( $original );
+        Functions\expect( 'wp_update_post' )->never();
+        self::model_replies( self::edited( $edited ) );
+
+        $result = \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
+
+        $this->assertSame( 'fail', $result['status'] );
+    }
+
     public function test_the_prompt_carries_the_token_the_fences_and_the_json_contract(): void
     {
         self::model_replies(
