@@ -188,6 +188,49 @@ class StageAgentChangeMeasureTest extends TestCase
         $this->assertSame( 1, StageAgent::measure_rewrite( $original, $edited )['links_added'] );
     }
 
+    public function test_swapping_two_links_destinations_fails(): void
+    {
+        $original = self::para( 'Read the <a href="https://example.com/official">official report</a> and the <a href="https://example.com/opinion">opinion column</a> before the meeting today.' );
+        $edited   = self::para( 'Read the <a href="https://example.com/opinion">official report</a> and the <a href="https://example.com/official">opinion column</a> before the meeting today.' );
+
+        $report = StageAgent::measure_rewrite( $original, $edited );
+
+        $this->assertSame( 0.0, $report['share'] );
+        $this->assertSame( 1, $report['links_added'] );
+        $this->assertSame( 1, $report['links_removed'] );
+        $this->assertContains( 'links', StageAgent::copy_edit_violations( $report, 15 ) );
+    }
+
+    public function test_a_changed_srcset_candidate_fails(): void
+    {
+        $original = self::para( 'The harbor at dawn appears in this photograph from today. <img src="https://example.com/harbor.jpg" srcset="https://example.com/harbor-large.jpg 2x" alt="Harbor">' );
+        $edited   = self::para( 'The harbor at dawn appears in this photograph from today. <img src="https://example.com/harbor.jpg" srcset="https://evil.example/fake.jpg 2x" alt="Harbor">' );
+
+        $this->assertContains( 'links', StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $original, $edited ), 15 ) );
+    }
+
+    public function test_whitespace_inside_a_block_attribute_string_is_a_structure_change(): void
+    {
+        $original = '<!-- wp:acme/message {"message":"Do  not publish"} /-->' . "\n\n" . self::para( self::words( 20 ) );
+        $edited   = '<!-- wp:acme/message {"message":"Do not publish"} /-->' . "\n\n" . self::para( self::words( 20 ) );
+
+        $report = StageAgent::measure_rewrite( $original, $edited );
+
+        $this->assertTrue( $report['structure_changed'] );
+        $this->assertContains( 'structure', StageAgent::copy_edit_violations( $report, 15 ) );
+    }
+
+    public function test_dash_normalization_is_not_a_word_change(): void
+    {
+        $original = self::para( 'The plan--announced today--will help local families throughout the entire region.' );
+        $edited   = self::para( 'The plan—announced today—will help local families throughout the entire region.' );
+
+        $report = StageAgent::measure_rewrite( $original, $edited );
+
+        $this->assertSame( 0.0, $report['share'] );
+        $this->assertSame( array(), StageAgent::copy_edit_violations( $report, 15 ) );
+    }
+
     public function test_a_changed_link_target_fails(): void
     {
         $original = self::para( 'See <a href="https://example.com/a">the report</a> for details on this.' );

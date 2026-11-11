@@ -73,6 +73,11 @@ class StageAgent {
 	private const MAX_DIFF_CELLS = 16000000;
 
 	/**
+	 * HTML attributes whose values are URLs a copy edit must leave alone.
+	 */
+	private const URL_ATTRIBUTES = 'href|src|srcset|poster|cite|action|formaction|data|background';
+
+	/**
 	 * Read a post's title and content, enforcing edit permission.
 	 *
 	 * `modified` carries post_modified_gmt so a mutating agent can detect a
@@ -365,8 +370,8 @@ class StageAgent {
 			'unpreservable_markup' => $raw_shape['structure'] !== $original_shape['structure'] || $raw_shape['links'] !== $original_shape['links'],
 			'too_large'            => false,
 			'structure_changed'    => $original_shape['structure'] !== $edited_shape['structure'],
-			'links_added'          => self::multiset_excess( $edited_shape['links'], $original_shape['links'] ),
-			'links_removed'        => self::multiset_excess( $original_shape['links'], $edited_shape['links'] ),
+			'links_added'          => 0,
+			'links_removed'        => 0,
 			'words_original'       => 0,
 			'share'                => null,
 			'blocks'               => array(),
@@ -374,6 +379,14 @@ class StageAgent {
 
 		$budget  = self::MAX_DIFF_CELLS;
 		$changed = 0;
+
+		$links_kept = self::lcs_length( $original_shape['links'], $edited_shape['links'], $budget );
+		if ( null === $links_kept ) {
+			$report['too_large'] = true;
+			return $report;
+		}
+		$report['links_added']   = count( $edited_shape['links'] ) - $links_kept;
+		$report['links_removed'] = count( $original_shape['links'] ) - $links_kept;
 
 		if ( ! $report['structure_changed'] ) {
 			foreach ( $original_shape['chunks'] as $i => $chunk ) {
@@ -550,13 +563,17 @@ class StageAgent {
 	/**
 	 * The parts of post content a copy edit must leave alone, plus its text.
 	 *
-	 * `structure` is the ordered list of block delimiters (name plus serialized
-	 * attributes) for block content, or a paragraph count for classic content.
-	 * `links` is every `href`/`src` value and every URL in the text, entity-
-	 * decoded and sorted, each tagged with where it appeared and kept once per
-	 * occurrence. Occurrences, not a set, because content can mention a URL as
-	 * plain text and then ask the model to link it: as a set, nothing would
-	 * look added. `chunks` is the text between block
+	 * `structure` is the ordered list of block delimiters, byte for byte (name
+	 * plus serialized attributes), for block content, or a paragraph count for
+	 * classic content. Not whitespace-folded: a run of spaces inside an
+	 * attribute's string value is part of the value.
+	 *
+	 * `links` is every URL-bearing attribute value (each `srcset` candidate
+	 * separately) and every URL in the text, entity-decoded, tagged with the
+	 * attribute it came from, in document order. Compared in order, not as a
+	 * set, so that linking a URL the text already mentions, adding a second link
+	 * to an existing target, and swapping two links' destinations all count.
+	 * `chunks` is the text between block
 	 * delimiters (or the classic paragraphs), aligned one-to-one whenever two
 	 * contents share a structure.
 	 *
@@ -567,10 +584,7 @@ class StageAgent {
 		$delimiter = '/<!--\s+(?:\/)?wp:[a-z][a-z0-9_-]*(?:\/[a-z][a-z0-9_-]*)?(?:\s+\{.*?\})?\s+\/?-->/s';
 
 		if ( preg_match_all( $delimiter, $content, $matches ) > 0 ) {
-			$structure = array_map(
-				static fn( string $comment ): string => (string) preg_replace( '/\s+/', ' ', $comment ),
-				$matches[0]
-			);
+			$structure = $matches[0];
 			$chunks    = preg_split( $delimiter, $content );
 		} else {
 			$chunks    = array_values(
@@ -583,9 +597,15 @@ class StageAgent {
 		}
 
 		$links = array();
-		if ( preg_match_all( '/\b(?:href|src)\s*=\s*(["\'])(.*?)\1/is', $content, $attrs ) ) {
-			foreach ( $attrs[2] as $url ) {
-				$links[] = 'attr:' . trim( html_entity_decode( $url, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+		if ( preg_match_all( '/\b(' . self::URL_ATTRIBUTES . ')\s*=\s*(["\'])(.*?)\2/is', $content, $attrs, PREG_SET_ORDER ) ) {
+			foreach ( $attrs as $attr ) {
+				$name  = strtolower( $attr[1] );
+				$value = html_entity_decode( $attr[3], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+				// Each srcset candidate is "URL [descriptor]", comma-separated.
+				$urls = 'srcset' === $name ? array_map( static fn( string $candidate ): string => (string) strtok( trim( $candidate ), " \t\n" ), explode( ',', $value ) ) : array( $value );
+				foreach ( $urls as $url ) {
+					$links[] = $name . ':' . trim( $url );
+				}
 			}
 		}
 		$text = html_entity_decode( wp_strip_all_tags( $content ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
@@ -594,8 +614,7 @@ class StageAgent {
 				$links[] = 'text:' . rtrim( $url, '.,;:!?)' );
 			}
 		}
-		$links = array_values( array_filter( $links, static fn( string $link ): bool => ! in_array( $link, array( 'attr:', 'text:' ), true ) ) );
-		sort( $links );
+		$links = array_values( array_filter( $links, static fn( string $link ): bool => ! str_ends_with( $link, ':' ) ) );
 
 		return array(
 			'structure' => $structure,
@@ -605,27 +624,15 @@ class StageAgent {
 	}
 
 	/**
-	 * How many occurrences in $a are not matched by one in $b.
-	 *
-	 * @param  string[] $a Occurrences on one side.
-	 * @param  string[] $b Occurrences on the other.
-	 * @return int
-	 */
-	private static function multiset_excess( array $a, array $b ): int {
-		$excess    = 0;
-		$available = array_count_values( $b );
-		foreach ( array_count_values( $a ) as $value => $count ) {
-			$excess += max( 0, $count - ( $available[ $value ] ?? 0 ) );
-		}
-		return $excess;
-	}
-
-	/**
 	 * Split text into comparable words.
 	 *
 	 * Tags stripped, entities decoded, typographic quotes folded to straight
-	 * ones, surrounding punctuation trimmed, lowercased — so markup, entity and
+	 * ones, dashes (em, en, or a double hyphen) treated as word breaks,
+	 * surrounding punctuation trimmed, lowercased — so markup, entity and
 	 * punctuation differences never count as changed words.
+	 *
+	 * Signs are punctuation here too, so "-5" and "5" are the same word. This
+	 * is a size check, not a fact check.
 	 *
 	 * @param  string $text HTML or plain text.
 	 * @return string[]
@@ -641,6 +648,7 @@ class StageAgent {
 				"\u{201D}" => '"',
 			)
 		);
+		$text = (string) preg_replace( '/\x{2014}|\x{2013}|--/u', ' ', $text );
 
 		$words = array();
 		foreach ( preg_split( '/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY ) as $word ) {
