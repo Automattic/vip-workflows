@@ -495,7 +495,9 @@ class SequencesController extends WP_REST_Controller {
 		$keys = array();
 
 		if ( Sequence::TYPE_WORKFLOW === $sequence->type ) {
-			$keys = array_values( array_filter( array_map( fn( $s ) => (string) ( $s['key'] ?? '' ), $sequence->config['statuses'] ?? array() ) ) );
+			// Filtered on '' only: '0' is a valid stage key, and a bare
+			// array_filter() would drop it.
+			$keys = array_values( array_filter( array_map( fn( $s ) => (string) ( $s['key'] ?? '' ), $sequence->config['statuses'] ?? array() ), fn( $k ) => '' !== $k ) );
 		}
 
 		try {
