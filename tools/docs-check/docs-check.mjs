@@ -28,10 +28,15 @@ import { fileURLToPath } from 'node:url';
  * @return {string} Anchor slug.
  */
 export function slugify(heading) {
-	return heading
-		.trim()
-		.toLowerCase()
-		.replace(/<[^>]+>/g, '')
+	// Strip HTML tags until none are left, so nested ones like `<<a>b>` go too.
+	let text = heading.trim().toLowerCase();
+	let previous;
+	do {
+		previous = text;
+		text = text.replace(/<[^<>]*>/g, '');
+	} while (text !== previous);
+
+	return text
 		.replace(/[`*_~]/g, '')
 		.replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
 		.replace(/[^\p{L}\p{N}\s-]/gu, '')

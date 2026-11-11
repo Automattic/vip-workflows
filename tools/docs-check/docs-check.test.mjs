@@ -29,6 +29,8 @@ test('slugify matches GitHub anchors', () => {
 		'statusmanagertransition',
 	);
 	assert.equal(slugify('REST and Abilities'), 'rest-and-abilities');
+	assert.equal(slugify('<a name="x"></a>Footguns'), 'footguns');
+	assert.equal(slugify('A <<b>script>c'), 'a-c');
 });
 
 test('anchorsFor numbers duplicate headings and skips code blocks', () => {
