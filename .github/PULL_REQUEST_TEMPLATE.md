@@ -13,6 +13,16 @@ larger effort, say so and link the siblings. -->
 <!-- Link the issue(s) it resolves; use one line per issue: -->
 Closes #000
 
+## Spec changes
+
+<!-- Which sections of `docs/SPEC.md` this PR changes and what a reviewer
+should check in them, for example: "Publish boundary: Always true gains a line
+for private posts." Reviewers read the SPEC.md diff alongside the code.
+
+If the PR changes no behavior SPEC.md describes, write "None:" and the reason
+(for example, "None: refactor, no behavior change"), and add the
+`no-spec-change` label so the Spec check passes. -->
+
 ## What was done
 
 <!-- Group the changes under bold sub-headings by theme, not by file. Name the
