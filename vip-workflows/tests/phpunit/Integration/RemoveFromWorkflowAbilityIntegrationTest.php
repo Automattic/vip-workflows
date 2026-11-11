@@ -166,7 +166,12 @@ class RemoveFromWorkflowAbilityIntegrationTest extends TestCase
 	{
 		$post_id = $this->make_workflow_post();
 
-		( new SequenceRepository() )->delete( $this->sequence_id );
+		// The repository now refuses to delete a sequence posts still hold, so the
+		// dangling state is produced the way it exists on older sites: the row is
+		// gone and the post's meta is not.
+		global $wpdb;
+		$wpdb->delete( \VIPWorkflows\Database\Schema::get_table_name( 'sequences' ), array( 'id' => $this->sequence_id ), array( '%d' ) );
+		wp_cache_flush();
 
 		$result = \VIPWorkflows\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
 

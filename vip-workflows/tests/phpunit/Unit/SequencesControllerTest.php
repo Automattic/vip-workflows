@@ -44,8 +44,11 @@ class SequencesControllerTest extends TestCase
         // Mock global $wpdb.
         global $wpdb;
         $this->wpdb         = Mockery::mock( 'wpdb' );
-        $this->wpdb->prefix = 'wp_';
-        $wpdb               = $this->wpdb;
+        $this->wpdb->prefix     = 'wp_';
+        $this->wpdb->posts      = 'wp_posts';
+        $this->wpdb->postmeta   = 'wp_postmeta';
+        $this->wpdb->last_error = '';
+        $wpdb                   = $this->wpdb;
 
         $this->controller = new SequencesController();
     }
@@ -413,6 +416,8 @@ class SequencesControllerTest extends TestCase
         $row = $this->create_sequence_row( array( 'id' => 3 ) );
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        // Nobody holds the sequence, so the strand check lets the write through.
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
         $this->wpdb->shouldReceive( 'delete' )->once()->andReturn( 1 );
 
@@ -449,6 +454,8 @@ class SequencesControllerTest extends TestCase
         $row = $this->create_sequence_row();
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        // Nobody holds the sequence, so the strand check lets the write through.
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
         $this->wpdb->shouldReceive( 'delete' )->once()->andReturn( false );
 
@@ -457,6 +464,61 @@ class SequencesControllerTest extends TestCase
 
         $this->assertInstanceOf( 'WP_Error', $response );
         $this->assertSame( 'rest_sequence_delete_failed', $response->get_error_code() );
+    }
+
+    /**
+     * Test delete_item refuses with a 409 while posts still hold the sequence.
+     */
+    public function test_delete_item_refuses_while_posts_hold_the_sequence(): void
+    {
+        $row = $this->create_sequence_row( array( 'id' => 3 ) );
+
+        Functions\when( '_n' )->alias( fn( $single, $plural, $n ) => 1 === $n ? $single : $plural );
+        Functions\when( 'get_edit_post_link' )->alias( fn( $id ) => 'https://example.test/wp-admin/post.php?post=' . $id . '&action=edit' );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '2' );
+        $this->wpdb->shouldReceive( 'get_results' )->andReturn(
+            array(
+                (object) array( 'id' => 11, 'title' => 'First', 'status' => 'draft', 'stage' => 'review' ),
+                (object) array( 'id' => 12, 'title' => 'Second', 'status' => 'trash', 'stage' => 'draft' ),
+            )
+        );
+        $this->wpdb->shouldNotReceive( 'delete' );
+
+        $request  = $this->create_mock_request( array( 'id' => 3 ) );
+        $response = $this->controller->delete_item( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_would_strand_posts', $response->get_error_code() );
+
+        $data = $response->get_error_data();
+        $this->assertSame( 409, $data['status'] );
+        $this->assertSame( 2, $data['total'] );
+        $this->assertSame( array(), $data['stages'] );
+        $this->assertSame( array( 11, 12 ), array_column( $data['posts'], 'id' ) );
+        $this->assertStringContainsString( 'post=11', $data['posts'][0]['edit_link'] );
+    }
+
+    /**
+     * Test delete_item refuses, writing nothing, when the strand check cannot read posts.
+     */
+    public function test_delete_item_refuses_when_the_strand_check_fails(): void
+    {
+        $row = $this->create_sequence_row( array( 'id' => 3 ) );
+
+        $this->wpdb->last_error = 'Lost connection';
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( null );
+        $this->wpdb->shouldNotReceive( 'delete' );
+
+        $request  = $this->create_mock_request( array( 'id' => 3 ) );
+        $response = $this->controller->delete_item( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_strand_check_failed', $response->get_error_code() );
     }
 
     // =========================================================================
@@ -965,6 +1027,8 @@ class SequencesControllerTest extends TestCase
         );
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        // Nobody holds the sequence, so the strand check lets the write through.
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
         // First call finds existing, second call returns updated.
         $this->wpdb->shouldReceive( 'get_row' )
             ->andReturn( $existing_row, $updated_row );
@@ -996,6 +1060,8 @@ class SequencesControllerTest extends TestCase
         $existing_row = $this->create_sequence_row();
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        // Nobody holds the sequence, so the strand check lets the write through.
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturn( $existing_row );
         $this->wpdb->shouldReceive( 'update' )->once()->andReturn( false );
 

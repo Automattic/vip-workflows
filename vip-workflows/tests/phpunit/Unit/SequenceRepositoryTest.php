@@ -42,7 +42,10 @@ class SequenceRepositoryTest extends TestCase
 
         // Create mock wpdb with required properties.
         $this->wpdb         = Mockery::mock( 'wpdb' );
-        $this->wpdb->prefix = 'wp_';
+        $this->wpdb->prefix     = 'wp_';
+        $this->wpdb->posts      = 'wp_posts';
+        $this->wpdb->postmeta   = 'wp_postmeta';
+        $this->wpdb->last_error = '';
 
         // Replace global $wpdb with our mock.
         global $wpdb;
@@ -674,6 +677,9 @@ class SequenceRepositoryTest extends TestCase
      */
     public function test_delete(): void
     {
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        // Nobody holds the sequence, so the strand check lets the delete through.
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
         $this->wpdb->shouldReceive( 'delete' )
             ->once()
             ->with(

@@ -11,6 +11,7 @@ namespace VIPWorkflows\API;
 
 use VIPWorkflows\Sequences\Sequence;
 use VIPWorkflows\Sequences\SequenceRepository;
+use VIPWorkflows\Sequences\StrandedPostsException;
 use VIPWorkflows\Plugin;
 use VIPWorkflows\Workflow\StagePalette;
 use WP_REST_Controller;
@@ -518,7 +519,13 @@ class SequencesController extends WP_REST_Controller {
 			);
 		}
 
-		$deleted = $this->repository->delete( $id );
+		try {
+			$deleted = $this->repository->delete( $id );
+		} catch ( StrandedPostsException $e ) {
+			return $e->to_wp_error();
+		} catch ( \RuntimeException $e ) {
+			return $this->strand_check_failed( $e );
+		}
 
 		if ( ! $deleted ) {
 			return new WP_Error(
@@ -533,6 +540,26 @@ class SequencesController extends WP_REST_Controller {
 				'deleted' => true,
 				'id'      => $id,
 			)
+		);
+	}
+
+	/**
+	 * The error for a write refused because its strand check could not run.
+	 *
+	 * The check guards against stranding posts, so a failed read refuses the
+	 * write rather than letting it through unchecked.
+	 *
+	 * @param  \RuntimeException $e The failure.
+	 * @return WP_Error
+	 */
+	private function strand_check_failed( \RuntimeException $e ): WP_Error {
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( '[VIP Workflows] ' . $e->getMessage() );
+
+		return new WP_Error(
+			'rest_sequence_strand_check_failed',
+			__( 'Could not check which posts are in this sequence, so nothing was changed. Try again.', 'vip-workflows' ),
+			array( 'status' => 500 )
 		);
 	}
 
@@ -918,6 +945,10 @@ class SequencesController extends WP_REST_Controller {
 			}
 
 			$new_id = $this->repository->update( $id, $update_data );
+		} catch ( StrandedPostsException $e ) {
+			return $e->to_wp_error();
+		} catch ( \RuntimeException $e ) {
+			return $this->strand_check_failed( $e );
 		} catch ( \InvalidArgumentException $e ) {
 			return new WP_Error(
 				'rest_sequence_invalid_config',
