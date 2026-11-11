@@ -491,6 +491,31 @@ class SequenceStrandGuardTest extends TestCase
         $this->assertSame( array(), (array) $response->get_data()['stage_post_counts'] );
     }
 
+    public function test_a_stage_keyed_zero_is_counted(): void
+    {
+        $id = $this->repository->create(
+            'Zero Flow',
+            'zero-flow-' . wp_generate_password( 6, false ),
+            '',
+            array(
+                'post_types' => array( 'post' ),
+                'statuses'   => array(
+                    array( 'key' => '0', 'label' => 'Zero', 'status' => 'draft' ),
+                    array( 'key' => 'legal', 'label' => 'Legal', 'status' => 'pending' ),
+                ),
+            ),
+            $this->admin_id
+        );
+        $sequence = $this->repository->find( $id );
+        $this->seat_post( $sequence, '0' );
+
+        $response = rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $id ) );
+
+        // '0' is falsy in PHP; a bare array_filter() over the keys dropped it.
+        $this->assertSame( array( '0' => 1 ), (array) $response->get_data()['stage_post_counts'] );
+        $this->assertSame( 1, $response->get_data()['post_count'] );
+    }
+
     public function test_get_of_an_unused_sequence_reports_no_counts(): void
     {
         $sequence = $this->create_sequence();

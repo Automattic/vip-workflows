@@ -126,6 +126,10 @@ import EdgeAnchors from './EdgeAnchors';
 import { revealNodeIds, revealViewport } from './canvas-reveal';
 import { regionLabel, stageRegion } from './regions';
 
+// The default for `stagePostCount`: one stable function, so the graph memo
+// that depends on it isn't rebuilt on every render.
+const NO_POSTS = () => 0;
+
 // Note: React Flow's base stylesheet (`@xyflow/react/dist/style.css`) is imported
 // from the admin entry (`src/admin/index.js`), not here. Its filename matches
 // wp-scripts' special `style.css` split-chunk cacheGroup, and this canvas lives
@@ -382,7 +386,7 @@ function Flow( {
 	onDeleteEdge,
 	// ( key ) => number of posts at that stored stage; a stage with any can't
 	// be deleted (see `stagePostCounts` in SequenceGraphEditor).
-	stagePostCount = () => 0,
+	stagePostCount = NO_POSTS,
 	onAddStage,
 	// The hand-offs a phase sequence owes, from `/sequences/options`. Read
 	// through the same `isRequiredHandOff` the delete handler is guarded with,
@@ -429,8 +433,14 @@ function Flow( {
 	// anything the canvas *draws* changes — a label being typed in the
 	// inspector, a colour, a stage count.
 	const graph = useMemo(
-		() => buildGraph( stages, { isPhase, regions, allowAgentPublish } ),
-		[ stages, isPhase, regions, allowAgentPublish ]
+		() =>
+			buildGraph( stages, {
+				isPhase,
+				regions,
+				allowAgentPublish,
+				isStageLocked: ( key ) => stagePostCount( key ) > 0,
+			} ),
+		[ stages, isPhase, regions, allowAgentPublish, stagePostCount ]
 	);
 
 	// What the dagre pass actually reads out of that projection: which nodes
