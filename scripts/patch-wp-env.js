@@ -12,6 +12,10 @@
  *
  * This script patches the templates after npm install so the fixes persist. It
  * is idempotent — safe to run multiple times.
+ *
+ * Known side effect: wp-env's missing-image error only suggests checking
+ * "mariadbVersion" for images named `mariadb:*`, so with the mirror prefix an
+ * unpublished MariaDB version fails without that hint.
  */
 
 const fs = require( 'fs' );

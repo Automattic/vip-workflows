@@ -172,35 +172,74 @@ test( 'patch-wp-env is idempotent', () => {
 	}
 } );
 
+/**
+ * Assert a failed run left every wp-env file exactly as it was.
+ *
+ * @param {string}                 fixture Fixture root.
+ * @param {Record<string, string>} files   The files the fixture was built with.
+ */
+function assertUntouched( fixture, files ) {
+	for ( const [ file, content ] of Object.entries( files ) ) {
+		assert.equal( read( fixture, file ), content, `${ file } was modified` );
+	}
+}
+
 test( 'patch-wp-env fails when the Debian anchor moves', () => {
 	// The @wordpress/env 11 layout: no bullseye block before the host user.
-	const fixture = makeFixture( {
+	const files = {
 		...CURRENT_FILES,
 		[ DOCKER_CONFIG ]: DOCKER_CONFIG_12.replace(
 			/\n# bullseye[\s\S]*?bullseye-updates\/d' \/etc\/apt\/sources\.list\n/,
 			''
 		),
-	} );
+	};
+	const fixture = makeFixture( files );
 
 	try {
 		const result = runPatch( fixture );
 		assert.equal( result.status, 1 );
 		assert.match( result.stderr, /expected Debian setup was not found/ );
+		assertUntouched( fixture, files );
 	} finally {
 		rmSync( fixture, { recursive: true, force: true } );
 	}
 } );
 
 test( 'patch-wp-env fails when the MariaDB image template moves', () => {
-	const fixture = makeFixture( {
+	const files = {
 		...CURRENT_FILES,
 		[ DB_ENV ]: DB_ENV_12.replace( 'return `mariadb:', 'return `maria:' ),
-	} );
+	};
+	const fixture = makeFixture( files );
 
 	try {
 		const result = runPatch( fixture );
 		assert.equal( result.status, 1 );
 		assert.match( result.stderr, /not found in db-env\.js/ );
+		assertUntouched( fixture, files );
+	} finally {
+		rmSync( fixture, { recursive: true, force: true } );
+	}
+} );
+
+test( 'patch-wp-env fails when the phpMyAdmin image reference moves', () => {
+	const files = {
+		...CURRENT_FILES,
+		[ COMPOSE_CONFIG ]: COMPOSE_CONFIG_12.replaceAll(
+			"image: 'phpmyadmin'",
+			"image: 'phpmyadmin:latest'"
+		),
+	};
+	const fixture = makeFixture( files );
+
+	try {
+		const result = runPatch( fixture );
+		assert.equal( result.status, 1 );
+		assert.match(
+			result.stderr,
+			/not found in build-docker-compose-config\.js/
+		);
+		assertUntouched( fixture, files );
 	} finally {
 		rmSync( fixture, { recursive: true, force: true } );
 	}
