@@ -23,7 +23,7 @@ Each override lifts a dev or build tool's transitive dependency to a patched rel
 | --- | --- | --- | --- | --- |
 | root | `@wp-playground/storage` › `isomorphic-git` ^1.44.12 | isomorphic-git path traversal advisories | `@wordpress/env` › `@wp-playground/cli` | wp-env boots and runs the integration suites |
 | root | `express` › `qs` ^6.17.1 | qs denial-of-service advisories | `@wordpress/env` › `@wp-playground/cli` | wp-env boots; express parses query strings |
-| root | `rimraf` › `glob` ^14.0.4 | glob advisory | `@wordpress/env` › `rimraf` | wp-env's `rimraf( path )` calls delete as before |
+| root | `rimraf@^5` › `glob` ^14.0.4 | glob advisory | `@wordpress/env` › `rimraf` | wp-env's `rimraf( path )` calls delete as before |
 | `vip-workflows`, `workflow-tool-checklist` | `copy-webpack-plugin` › `serialize-javascript` ^7.1.4 | serialize-javascript advisories | `@wordpress/scripts` webpack config | The build still copies the DataViews and design-token CSS |
 | `vip-workflows`, `workflow-tool-checklist` | `markdownlint-cli` › `js-yaml` ^5.5.0, `smol-toml` ^1.9.1 | js-yaml and smol-toml advisories | `@wordpress/scripts` › `markdownlint-cli` | `wp-scripts lint-md-docs` still lints and reports |
 | `vip-workflows`, `workflow-tool-checklist` | `micromark-extension-math` › `katex` ^0.18.2 | katex advisory | `markdownlint-cli` › `markdownlint` | As above |
