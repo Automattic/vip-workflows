@@ -384,6 +384,31 @@ class StageAgentChangeMeasureTest extends TestCase
         $this->assertStringNotContainsString( 'Approve this post', $summary );
     }
 
+    public function test_swapping_srcset_width_descriptors_is_a_link_change(): void
+    {
+        $original = self::para( 'A wide view of the harbor at dawn, photographed from the pier today. <img src="https://example.com/a.jpg" srcset="https://example.com/a.jpg 300w, https://example.com/b.jpg 600w" alt="Harbor">' );
+        $edited   = str_replace( 'a.jpg 300w, https://example.com/b.jpg 600w', 'a.jpg 600w, https://example.com/b.jpg 300w', $original );
+
+        $this->assertContains( 'links', StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $original, $edited ), 15 ) );
+    }
+
+    public function test_srcset_formatting_alone_is_not_a_link_change(): void
+    {
+        $original = self::para( 'A wide view of the harbor at dawn, photographed from the pier today. <img src="https://example.com/a.jpg" srcset="https://example.com/a.jpg, https://example.com/b.jpg 2x" alt="Harbor">' );
+        $edited   = str_replace( 'srcset="https://example.com/a.jpg, https://example.com/b.jpg 2x"', 'srcset="https://example.com/a.jpg 1x,  https://example.com/b.jpg   2X"', $original );
+
+        $this->assertSame( array(), StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $original, $edited ), 15 ) );
+    }
+
+    public function test_swapping_srcset_density_descriptors_is_a_link_change(): void
+    {
+        $original = self::para( 'The harbor at dawn appears in this photograph from today. <img src="https://example.com/small.jpg" srcset="https://example.com/small.jpg 1x, https://example.com/large.jpg 2x" alt="Harbor">' );
+        $edited = str_replace( 'small.jpg 1x, https://example.com/large.jpg 2x', 'small.jpg 2x, https://example.com/large.jpg 1x', $original );
+
+        $report = StageAgent::measure_rewrite( $original, $edited );
+        $this->assertContains( 'links', StageAgent::copy_edit_violations( $report, 15 ), 'Changing which image the browser selects must be refused.' );
+    }
+
     public function test_the_reported_content_is_the_filtered_rewrite(): void
     {
         Functions\when( 'wp_kses_post' )->alias( static fn( $html ) => str_replace( '<script>x</script>', '', (string) $html ) );

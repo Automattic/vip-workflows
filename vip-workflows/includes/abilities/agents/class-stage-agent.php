@@ -601,8 +601,10 @@ class StageAgent {
 			foreach ( $attrs as $attr ) {
 				$name  = strtolower( $attr[1] );
 				$value = html_entity_decode( $attr[3], ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-				// Each srcset candidate is "URL [descriptor]", comma-separated.
-				$urls = 'srcset' === $name ? array_map( static fn( string $candidate ): string => (string) strtok( trim( $candidate ), " \t\n" ), explode( ',', $value ) ) : array( $value );
+				// Each srcset candidate is "URL [descriptor]", comma-separated. The
+				// descriptor stays with its URL: swapping descriptors changes which
+				// image a browser picks without moving any URL.
+				$urls = 'srcset' === $name ? array_map( array( self::class, 'srcset_candidate' ), explode( ',', $value ) ) : array( $value );
 				foreach ( $urls as $url ) {
 					$links[] = $name . ':' . trim( $url );
 				}
@@ -621,6 +623,21 @@ class StageAgent {
 			'links'     => $links,
 			'chunks'    => array_map( 'strval', (array) $chunks ),
 		);
+	}
+
+	/**
+	 * One `srcset` candidate as "URL descriptor", with the default descriptor
+	 * made explicit and whitespace normalized, so only a real change differs.
+	 *
+	 * @param  string $candidate Raw candidate, e.g. " https://x/a.jpg  2x".
+	 * @return string
+	 */
+	private static function srcset_candidate( string $candidate ): string {
+		$parts = preg_split( '/\s+/', trim( $candidate ), -1, PREG_SPLIT_NO_EMPTY );
+		if ( array() === $parts ) {
+			return '';
+		}
+		return $parts[0] . ' ' . strtolower( $parts[1] ?? '1x' );
 	}
 
 	/**
