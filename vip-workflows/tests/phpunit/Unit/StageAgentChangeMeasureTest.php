@@ -469,6 +469,7 @@ class StageAgentChangeMeasureTest extends TestCase
             'em'     => array( 'em' ),
             'i'      => array( 'i' ),
             'b'      => array( 'b' ),
+            'p'      => array( 'p' ),
         );
     }
 
@@ -524,7 +525,11 @@ class StageAgentChangeMeasureTest extends TestCase
         $start  = microtime( true );
         $report = StageAgent::measure_rewrite( $body, $body );
 
-        $this->assertLessThan( 1.5, microtime( true ) - $start );
+        // The quadratic trim this guards against took minutes; 10 seconds still
+        // catches it without failing on a loaded CI runner.
+        $this->assertLessThan( 10.0, microtime( true ) - $start, 'A common prefix must be trimmed in linear time.' );
+        $this->assertSame( 0.0, $report['share'] );
+        $this->assertSame( 100000, $report['words_original'] );
         $this->assertSame( array(), StageAgent::copy_edit_violations( $report, 15 ) );
     }
 

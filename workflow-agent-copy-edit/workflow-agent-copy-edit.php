@@ -37,23 +37,12 @@ const DEFAULT_MAX_CHANGE_PERCENT = 15;
 const MAX_CHANGE_PERCENT_CEILING = 50;
 
 /**
- * Default for the largest share of one paragraph's words, in percent, a copy
- * edit may change.
- */
-const DEFAULT_PARAGRAPH_CHANGE_PERCENT = 50;
-
-/**
  * The most a stage may raise the per-paragraph limit to.
  *
  * Above this a whole paragraph can be swapped for different prose, which is
  * the edit the per-paragraph limit exists to stop.
  */
 const PARAGRAPH_CHANGE_PERCENT_CEILING = 75;
-
-/**
- * Default for the shortest paragraph, in words, the per-paragraph limit applies to.
- */
-const DEFAULT_MIN_PARAGRAPH_WORDS = 8;
 
 /**
  * The most a stage may raise that minimum to.
@@ -152,7 +141,7 @@ function register(): void {
 					),
 					'max_paragraph_change_percent' => array(
 						'type'        => 'integer',
-						'default'     => DEFAULT_PARAGRAPH_CHANGE_PERCENT,
+						'default'     => StageAgent::BLOCK_CHANGE_PERCENT,
 						'minimum'     => 1,
 						'maximum'     => PARAGRAPH_CHANGE_PERCENT_CEILING,
 						'label'       => __( 'Largest change to one paragraph (% of its words)', 'workflow-agent-copy-edit' ),
@@ -160,7 +149,7 @@ function register(): void {
 					),
 					'min_paragraph_words'          => array(
 						'type'        => 'integer',
-						'default'     => DEFAULT_MIN_PARAGRAPH_WORDS,
+						'default'     => StageAgent::BLOCK_CHANGE_MIN_WORDS,
 						'minimum'     => 1,
 						'maximum'     => MIN_PARAGRAPH_WORDS_CEILING,
 						'label'       => __( 'Shortest paragraph checked (words)', 'workflow-agent-copy-edit' ),
@@ -324,11 +313,15 @@ function max_change_percent( array $input ): int {
 /**
  * The stage's per-paragraph word-change limit, in percent.
  *
+ * Defaults to StageAgent::BLOCK_CHANGE_PERCENT, read at run time rather than
+ * copied into a constant here, so the two can't drift and this file doesn't
+ * need core loaded to be included.
+ *
  * @param array $input Ability input.
  * @return int 1 to PARAGRAPH_CHANGE_PERCENT_CEILING.
  */
 function paragraph_change_percent( array $input ): int {
-	return setting_in_range( $input, 'max_paragraph_change_percent', DEFAULT_PARAGRAPH_CHANGE_PERCENT, PARAGRAPH_CHANGE_PERCENT_CEILING );
+	return setting_in_range( $input, 'max_paragraph_change_percent', StageAgent::BLOCK_CHANGE_PERCENT, PARAGRAPH_CHANGE_PERCENT_CEILING );
 }
 
 /**
@@ -338,7 +331,7 @@ function paragraph_change_percent( array $input ): int {
  * @return int 1 to MIN_PARAGRAPH_WORDS_CEILING.
  */
 function min_paragraph_words( array $input ): int {
-	return setting_in_range( $input, 'min_paragraph_words', DEFAULT_MIN_PARAGRAPH_WORDS, MIN_PARAGRAPH_WORDS_CEILING );
+	return setting_in_range( $input, 'min_paragraph_words', StageAgent::BLOCK_CHANGE_MIN_WORDS, MIN_PARAGRAPH_WORDS_CEILING );
 }
 
 /**

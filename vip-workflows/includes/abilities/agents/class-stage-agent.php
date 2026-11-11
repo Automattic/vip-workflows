@@ -368,7 +368,7 @@ class StageAgent {
 	 *
 	 * @param  string $original Current post content.
 	 * @param  string $edited   Agent-generated replacement.
-	 * @return array{content: string, unpreservable_markup: bool, too_large: bool, structure_changed: bool, markup_changed: bool, links_added: int, links_removed: int, words_original: int, share: ?float, blocks: array<int, array{words: int, words_after: int, share: float}>}
+	 * @return array{content: string, unpreservable_markup: bool, too_large: bool, structure_changed: bool, markup_changed: bool, links_added: int, links_removed: int, words_original: int, changed: int, share: ?float, blocks: array<int, array{words: int, words_after: int, changed: int, share: float}>}
 	 */
 	public static function measure_rewrite( string $original, string $edited ): array {
 		$original_filtered = wp_kses_post( $original );
@@ -415,8 +415,8 @@ class StageAgent {
 				 * markup check has already failed the edit; the block is then
 				 * compared whole, only to size it.
 				 */
-				$runs_before = self::scan_tags( $chunk )['runs'];
-				$runs_after  = self::scan_tags( $edited_shape['chunks'][ $i ] ?? '' )['runs'];
+				$runs_before = self::scan_tags( $chunk, true )['runs'];
+				$runs_after  = self::scan_tags( $edited_shape['chunks'][ $i ] ?? '', true )['runs'];
 				if ( count( $runs_before ) !== count( $runs_after ) ) {
 					$runs_before = array( implode( ' ', $runs_before ) );
 					$runs_after  = array( implode( ' ', $runs_after ) );
@@ -485,7 +485,7 @@ class StageAgent {
 
 		$violations = array();
 
-		if ( null !== $report['share'] && self::exceeds( (int) ( $report['changed'] ?? 0 ), (int) $report['words_original'], $max_percent ) ) {
+		if ( null !== $report['share'] && self::exceeds( $report['changed'], $report['words_original'], $max_percent ) ) {
 			$violations[] = 'share';
 		}
 
@@ -542,7 +542,7 @@ class StageAgent {
 				__( 'changed %1$d%% of the words (limit %2$d%%)', 'vip-workflows' ),
 				// Rounded up from the integer counts, so the printed figure is
 				// always above the printed limit whenever the limit was exceeded.
-				self::percent_up( (int) ( $report['changed'] ?? 0 ), (int) $report['words_original'] ),
+				self::percent_up( $report['changed'], $report['words_original'] ),
 				$max_percent
 			);
 		}
@@ -604,7 +604,7 @@ class StageAgent {
 		$over = 0;
 		foreach ( $report['blocks'] as $block ) {
 			// Short before and after: a short block that grew is measured.
-			if ( max( $block['words'], $block['words_after'] ?? 0 ) >= $min_words && self::exceeds( (int) ( $block['changed'] ?? 0 ), (int) $block['words'], $block_percent ) ) {
+			if ( max( $block['words'], $block['words_after'] ) >= $min_words && self::exceeds( $block['changed'], $block['words'], $block_percent ) ) {
 				++$over;
 			}
 		}
@@ -689,10 +689,11 @@ class StageAgent {
 	 * order of attributes inside a tag has no effect), with elements kept in
 	 * document order and each `srcset` candidate kept in its own order.
 	 *
-	 * @param  string $content HTML.
+	 * @param  string $content   HTML.
+	 * @param  bool   $runs_only Build only the text runs; skeleton and links stay empty.
 	 * @return array{skeleton: string[], links: string[], runs: string[]}
 	 */
-	private static function scan_tags( string $content ): array {
+	private static function scan_tags( string $content, bool $runs_only = false ): array {
 		$result = array(
 			'skeleton' => array(),
 			'links'    => array(),
@@ -731,6 +732,10 @@ class StageAgent {
 
 			$result['runs'][] = $run;
 			$run              = '';
+
+			if ( $runs_only ) {
+				continue;
+			}
 
 			if ( $closing ) {
 				$result['skeleton'][] = '/' . $name;

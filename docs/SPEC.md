@@ -1086,7 +1086,7 @@ stateDiagram-v2
 - **A post with `srcset` can't be copy-edited by an agent.** WordPress's kses strips `srcset`, so the agent's write would remove it, and the edit fails as unpreservable markup. The same goes for any attribute kses removes.
 - **A copy edit can't touch an attribute.** Fixing a typo in an image's `alt` text changes markup, so it fails like any other markup change.
 - **The copy-edit agent's size settings are clamped, not validated.** A stored `max_change_percent` above 50 behaves as 50, and an unset one as 15. `max_paragraph_change_percent` is 50 when unset, at most 75. `min_paragraph_words` is 8 when unset, at most 20. Settings are stored unchecked and the `settings_schema` default and maximum are applied only by the editor UI, so the copy-edit agent clamps in code. The `input_schema` deliberately has no range, or an out-of-range stored value would fail every run.
-- **A steered edit under both limits is still written.** Scattered sentence-level changes up to the whole-body limit, and up to half of any one paragraph, pass if they leave links and blocks alone. The check measures size, not facts: punctuation and signs don't count as words, so "-5 percent" becoming "5 percent" scores 0. The revision is attributed, so a person can see and revert it.
+- **A steered edit under both limits is still written.** Scattered sentence-level changes up to the whole-body limit, and up to the stage's per-paragraph limit (`max_paragraph_change_percent`, default 50%, at most 75%), pass if they leave links and blocks alone. The check measures size, not facts: punctuation and signs don't count as words, so "-5 percent" becoming "5 percent" scores 0. The revision is attributed, so a person can see and revert it.
 
 **Code**
 
