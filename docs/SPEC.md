@@ -1044,7 +1044,7 @@ stateDiagram-v2
   Abandoned --> [*]: outcome discarded,<br/>content already written stays
 ```
 
-**Writing an agent.** Core ships shared helpers for agent authors (reading the post, calling the model with a 180-second request timeout and no temperature, verdict tokens, wrapping untrusted content, writing content back, and editorial notes anchored to blocks), but no concrete stage agent. The agents live in `workflow-*` plugins (see [Included tools and agents](#included-tools-and-agents)).
+**Writing an agent.** Core ships shared helpers for agent authors (reading the post, calling the model with a 180-second request timeout and no temperature, asking for a structured JSON reply, verdict tokens, wrapping untrusted content, checking that a rewrite is no larger than a copy edit, writing content back, and editorial notes anchored to blocks), but no concrete stage agent. The agents live in `workflow-*` plugins (see [Included tools and agents](#included-tools-and-agents)).
 
 **Always true**
 
@@ -1066,6 +1066,8 @@ stateDiagram-v2
 - A person can't move a post into an AI stage while others are co-editing it, and a run fails in place (`co_editing`) if co-editing is going on when it starts. The editor count comes only from VIP Real-Time Collaboration's `RoomPresence`; without it, the count is 0. → `CoEditing::is_shared()`
 - An agent's write is refused (`concurrent_edit`) if the post changed since the agent read it, and agent-generated content is filtered through kses. → `StageAgent::write_content()`, `post_modified_gmt`
 - Post content is trusted less than the agent's instructions. Agents that ask a model for a verdict must wrap the content with `wrap_untrusted()` and match a pass only against a per-run `verdict_token()`. Anything that doesn't match is never a pass. → `docs/reference/stage-agent-verdict-threat-model.md`
+- A content-rewriting agent's reply is validated in PHP, whatever schema the provider was sent: the three keys `verdict`, `token` and `body` must be strings, the verdict must be `clean`, `edited` or `reject`, and the token must match. A reply that fails any of these is an error and writes nothing. Extra keys are ignored. → `StageAgent::generate_json()`, `parse_rewrite_reply()`
+- A rewrite larger than a copy edit is never written. Before writing, both bodies go through kses and are compared: the share of words changed in the whole body and in each block (blocks under 8 words exempt), every link occurrence, and the exact block delimiters (paragraph count for classic content). The agent fails with a summary built from counts and fixed phrases only, never text or URLs from either body. → `StageAgent::measure_rewrite()`, `copy_edit_violations()`, `describe_rewrite()`
 - Server logs carry identifiers only (`log_token()`). Free-form error text goes on the job marker for the editor to see, never to `error_log`.
 - Stage-agent model calls skip the per-user hourly AI limit only when running under cron. → `StageAgent::check_rate_limit()`
 
@@ -1080,19 +1082,22 @@ stateDiagram-v2
 - **Cron has to actually run.** With `DISABLE_WP_CRON` set and no system cron, every AI stage sits pending for 15 minutes and then reports "Agent run timed out."
 - **The 15-minute pending timeout must stay longer than the longest real run.** Each model call can take up to 180 seconds (`StageAgent::REQUEST_TIMEOUT`), and `PENDING_TTL` is the 15-minute limit.
 - **Some screens say "Re-run," but there is no re-run action.** The only retry is going back and forward again.
+- **A post with markup kses strips can't be copy-edited by an agent.** If kses alone would change the post's links or blocks (an iframe saved by an `unfiltered_html` user, say), every copy edit fails with "markup that WordPress strips". The edit would otherwise have deleted that markup silently.
+- **A stored `max_change_percent` above 50 behaves as 50, and an unset one as 15.** Settings are stored unchecked and the `settings_schema` default and maximum are applied only by the editor UI, so the copy-edit agent clamps in code. The `input_schema` deliberately has no range, or an out-of-range stored value would fail every run.
+- **A steered edit under both limits is still written.** Scattered sentence-level changes up to the whole-body limit, and up to half of any one paragraph, pass if they leave links and blocks alone. The revision is attributed, so a person can see and revert it.
 
 **Code**
 
 - `vip-workflows/includes/api/class-sequences-controller.php`: `SequencesController::validate_status_agents()` validates the `agent` config and `meta.stage_eligible`.
 - `vip-workflows/includes/workflow/class-stage-agent-runner.php`: `StageAgentRunner`, with `maybe_dispatch()`, `finish()`, `outcome_from_result()`, `resolve_agent_user()`, `holds_publication()`, `publication_hold()`, `abandon_if_superseded()`, `hold_for_warnings()`, `stamp_agent_revision()`, `label_agent_revision()`, `log_token()`, `fail_summary()`, and the constants `MAX_CHAIN` (10) and `PENDING_TTL` (15 minutes).
 - `vip-workflows/includes/workflow/class-status-manager.php`: `StatusManager::transition()` (takes `agent_actor` and `agent_actor_user`; refuses with `unrouted_agent_exit`), `get_available_transitions()`, `agent_routed_targets()`, `has_pending_agent_job()`, `revert_failed_agent_stage()`.
-- `vip-workflows/includes/abilities/agents/class-stage-agent.php`: `StageAgent` helpers `read_post()`, `generate()`, `verdict_token()`, `is_verdict()`, `wrap_untrusted()`, `write_content()`, block-anchored editorial notes, `check_rate_limit()`, and `REQUEST_TIMEOUT` (180 s).
+- `vip-workflows/includes/abilities/agents/class-stage-agent.php`: `StageAgent` helpers `read_post()`, `generate()`, `generate_json()`, `rewrite_reply_schema()`, `parse_rewrite_reply()`, `measure_rewrite()`, `copy_edit_violations()`, `describe_rewrite()`, `verdict_token()`, `is_verdict()`, `wrap_untrusted()`, `write_content()`, the constant `BLOCK_CHANGE_PERCENT` (50), block-anchored editorial notes, `check_rate_limit()`, and `REQUEST_TIMEOUT` (180 s).
 - `vip-workflows/includes/abilities/class-ability-executor.php`: `AbilityExecutor`, `AbilityExecutor::execute()`. `vip-workflows/includes/abilities/class-ability-settings.php`: `AbilitySettings::get_options()`.
 - `vip-workflows/includes/workflow/class-co-editing.php`: `CoEditing::is_shared()`, reading VIP Real-Time Collaboration's `RoomPresence`.
 - Cron event: `vip_workflows_run_stage_agent`.
 - Post meta: `_vip_workflows_agent_job` (the marker: `pending`, `failed` or `warnings_pending`, with stage, ability, `queued_at`, `cause`, `from_stage`, `started_by`), `_vip_workflows_agent_last_run`, `_vip_workflows_agent_chain`. Revision meta: `_vip_workflows_agent_actor`.
 - REST: `POST /workflow/post/{id}/agent-revert` (go back).
-- Error codes: `no_actor`, `publish_held`, `unrouted_agent_exit`, `agent_in_progress` (soft warning), `co_editing`, `concurrent_edit`.
+- Error codes: `no_actor`, `publish_held`, `unrouted_agent_exit`, `agent_in_progress` (soft warning), `co_editing`, `concurrent_edit`, `malformed_reply`, `verdict_token_mismatch`, `unknown_verdict`.
 - Sequence setting: `settings.allow_agent_publish`. Capabilities checked: `edit_posts`, `edit_post`, `publish_posts`.
 - Threat model: `docs/reference/stage-agent-verdict-threat-model.md`.
 
@@ -1217,7 +1222,7 @@ These are the tools and agents that ship in this repo. Core's are in `vip-workfl
 | `vip-workflows/archive-scout` | research (ideation) | Searches this site's published posts, AI-reranked | AI |
 | `vip-workflows/web-researcher` | research (ideation) | Web search via the selected search provider | Tavily |
 | `vip-workflows/media-scout` | research (ideation) | Images and video; AI image generation | Tavily, YouTube Data API, AI |
-| `workflow-agent-copy-edit/copy-edit` | stage agent | Copy-edits the body and saves it as a revision; `REJECT` fails | AI |
+| `workflow-agent-copy-edit/copy-edit` | stage agent | Copy-edits the body and saves it as a revision. Asks for a JSON reply carrying the run's verdict token; a malformed or tokenless reply is an error. An edit larger than a copy edit (over `max_change_percent` of the words, default 15 and at most 50; over half of any paragraph; or any change to links or blocks) isn't written and fails. `reject` fails | AI |
 | `workflow-agent-tag-sanity-check/tag-sanity-check` | stage agent | Flags questionable tags; fails with no tags | AI |
 | `workflow-tool-checklist/checklist` | check (transition-eligible) | Configurable checklist with hard/soft items and an editor panel | None |
 | `workflow-assistant-wikipedia/wikipedia` | research (ideation) | Wikipedia background search | `en.wikipedia.org` |
