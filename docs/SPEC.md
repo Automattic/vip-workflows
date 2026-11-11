@@ -339,6 +339,7 @@ Audit-log rows are limited to the user's own actions unless their role is in `au
 - "MCP public" means `meta.mcp.public => true`, so MCP adapters expose the ability to agents acting as the user.
 - Abilities that take a `post_id` check `edit_post` inside execution with `require_post_edit_permission()` (`vip-workflows/includes/abilities/tools/helpers.php`).
 - List-type abilities filter each row by `edit_post`.
+- An output schema with `additionalProperties: false` declares every key the callback returns, on every path. Core validates output after the callback runs, so an undeclared key turns work already done into an error.
 
 | Ability id | Does | Permission callback |
 | --- | --- | --- |
