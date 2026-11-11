@@ -441,6 +441,29 @@ class StageAgentChangeMeasureTest extends TestCase
         $this->assertContains( 'links', StageAgent::copy_edit_violations( $report, 15 ), 'Changing which image the browser selects must be refused.' );
     }
 
+    public function test_extending_an_existing_hidden_span_over_the_article_fails(): void
+    {
+        $original = self::para( '<span hidden>Internal note.</span> The board approved the proposal after reviewing the detailed report.' );
+        $edited = self::para( '<span hidden>Internal note. The board approved the proposal after reviewing the detailed report.</span>' );
+
+        // The tags are identical; the text moved across a tag boundary. Words
+        // are compared run by run, so every moved word counts as changed.
+        $report     = StageAgent::measure_rewrite( $original, $edited );
+        $violations = StageAgent::copy_edit_violations( $report, 15 );
+        $this->assertGreaterThan( 1.0, $report['share'] );
+        $this->assertContains( 'share', $violations, 'Moving a closing tag must not let an existing hidden element swallow the article.' );
+    }
+
+    public function test_attribute_value_cannot_impersonate_a_hidden_attribute_in_the_skeleton(): void
+    {
+        $original = self::para( '<span class="x,hidden=">The board approved the proposal after reviewing the detailed report.</span>' );
+        $edited = self::para( '<span class="x" hidden>The board approved the proposal after reviewing the detailed report.</span>' );
+
+        $report = StageAgent::measure_rewrite( $original, $edited );
+        $this->assertSame( 0.0, $report['share'] );
+        $this->assertContains( 'markup', StageAgent::copy_edit_violations( $report, 15 ), 'Attribute values and separate attributes must have distinct representations.' );
+    }
+
     public function test_the_reported_content_is_the_filtered_rewrite(): void
     {
         Functions\when( 'wp_kses_post' )->alias( static fn( $html ) => str_replace( '<script>x</script>', '', (string) $html ) );

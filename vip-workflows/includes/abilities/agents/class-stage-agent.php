@@ -73,6 +73,18 @@ class StageAgent {
 	private const MAX_DIFF_CELLS = 16000000;
 
 	/**
+	 * Opening or closing HTML tag: 1 is the slash, 2 the name, 3 the attributes.
+	 */
+	private const TAG_PATTERN = '/<(\/?)([a-zA-Z][a-zA-Z0-9-]*)(\s[^<>]*?)?\/?>/s';
+
+	/**
+	 * Tags a copy edit may add or remove when they carry no attributes.
+	 *
+	 * @var string[]
+	 */
+	private const FREE_TAGS = array( 'em', 'strong', 'i', 'b', 'p' );
+
+	/**
 	 * HTML attributes whose values are URLs a copy edit must leave alone.
 	 */
 	private const URL_ATTRIBUTES = 'href|src|srcset|poster|cite|action|formaction|data|background';
@@ -391,20 +403,43 @@ class StageAgent {
 
 		if ( ! $report['structure_changed'] ) {
 			foreach ( $original_shape['chunks'] as $i => $chunk ) {
-				$before = self::words( $chunk );
-				$after  = self::words( $edited_shape['chunks'][ $i ] ?? '' );
-				$lcs    = self::lcs_length( $before, $after, $budget );
-				if ( null === $lcs ) {
-					$report['too_large'] = true;
-					return $report;
+				/*
+				 * Words are compared run by run — the text between two tags — so
+				 * text that moves across a tag boundary (into an existing hidden
+				 * span, say) counts as deleted and re-added, even though the tags
+				 * themselves are unchanged. When the runs don't line up, the
+				 * markup check has already failed the edit; the block is then
+				 * compared whole, only to size it.
+				 */
+				$runs_before = self::text_runs( $chunk );
+				$runs_after  = self::text_runs( $edited_shape['chunks'][ $i ] ?? '' );
+				if ( count( $runs_before ) !== count( $runs_after ) ) {
+					$runs_before = array( implode( ' ', $runs_before ) );
+					$runs_after  = array( implode( ' ', $runs_after ) );
 				}
 
-				$delta                     = max( count( $before ), count( $after ) ) - $lcs;
+				$delta       = 0;
+				$words_block = 0;
+				$words_after = 0;
+				foreach ( $runs_before as $r => $run ) {
+					$before = self::words( $run );
+					$after  = self::words( $runs_after[ $r ] );
+					$lcs    = self::lcs_length( $before, $after, $budget );
+					if ( null === $lcs ) {
+						$report['too_large'] = true;
+						return $report;
+					}
+
+					$delta       += max( count( $before ), count( $after ) ) - $lcs;
+					$words_block += count( $before );
+					$words_after += count( $after );
+				}
+
 				$changed                  += $delta;
-				$report['words_original'] += count( $before );
+				$report['words_original'] += $words_block;
 				$report['blocks'][]        = array(
-					'words' => count( $before ),
-					'share' => self::share( $delta, count( $before ), count( $after ) ),
+					'words' => $words_block,
+					'share' => self::share( $delta, $words_block, $words_after ),
 				);
 			}
 
@@ -651,14 +686,23 @@ class StageAgent {
 	 */
 	private static function markup_skeleton( string $content ): array {
 		$skeleton = array();
-		if ( ! preg_match_all( '/<([a-zA-Z][a-zA-Z0-9-]*)(\s[^<>]*?)?\/?>/s', $content, $tags, PREG_SET_ORDER ) ) {
+		if ( ! preg_match_all( self::TAG_PATTERN, $content, $tags, PREG_SET_ORDER ) ) {
 			return $skeleton;
 		}
 
 		foreach ( $tags as $tag ) {
-			$name  = strtolower( $tag[1] );
+			$name = strtolower( $tag[2] );
+			if ( in_array( $name, self::FREE_TAGS, true ) && ( '/' === $tag[1] || '' === trim( $tag[3] ?? '' ) ) ) {
+				continue;
+			}
+			if ( '/' === $tag[1] ) {
+				$skeleton[] = '/' . $name;
+				continue;
+			}
+
 			$attrs = array();
-			if ( isset( $tag[2] ) && preg_match_all( '/([^\s=\/"\'<>]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'>]+)))?/', $tag[2], $pairs, PREG_SET_ORDER ) ) {
+			$attrs = array();
+			if ( isset( $tag[3] ) && preg_match_all( '/([^\s=\/"\'<>]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'>]+)))?/', $tag[3], $pairs, PREG_SET_ORDER ) ) {
 				foreach ( $pairs as $pair ) {
 					$value         = ( $pair[2] ?? '' ) . ( $pair[3] ?? '' ) . ( $pair[4] ?? '' );
 					$key           = strtolower( $pair[1] );
@@ -667,18 +711,26 @@ class StageAgent {
 				}
 			}
 
-			if ( array() === $attrs && in_array( $name, array( 'em', 'strong', 'i', 'b', 'p' ), true ) ) {
-				continue;
-			}
-
 			ksort( $attrs );
-			$skeleton[] = $name . '[' . implode(
-				',',
-				array_map( static fn( string $key, string $value ): string => $key . '=' . $value, array_keys( $attrs ), $attrs )
-			) . ']';
+			// JSON, not a joined string: a value must never be able to read as another attribute.
+			$skeleton[] = (string) wp_json_encode( array( $name, $attrs ) );
 		}
 
 		return $skeleton;
+	}
+
+	/**
+	 * The text between tags, in order.
+	 *
+	 * The free tags (bare emphasis and paragraphs) are dropped first, so adding
+	 * or removing them doesn't split or merge runs.
+	 *
+	 * @param  string $content HTML.
+	 * @return string[]
+	 */
+	private static function text_runs( string $content ): array {
+		$content = (string) preg_replace( '/<\/?(?:' . implode( '|', self::FREE_TAGS ) . ')\s*>/i', ' ', $content );
+		return preg_split( self::TAG_PATTERN, $content );
 	}
 
 	/**
