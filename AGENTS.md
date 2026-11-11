@@ -56,6 +56,13 @@ When opening a PR:
 
 To check blueprint changes locally, run `npm run test:tools` and boot the preview with `tools/playground/serve-preview.sh` (see `PLAYGROUND.md`).
 
+## Maintenance
+
+Regular cleanups, each run by hand and producing one PR with one commit per change:
+
+- **Docs cleanup:** `docs/maintenance/docs-cleanup.md`. About monthly, and after a large feature lands. It removes duplicates, fixes contradictions and drops claims that are no longer true, checked against the code on `main`. `node tools/docs-check/docs-check.mjs` counts the docs and reports broken links.
+- **End-to-end test prune:** the precedent the docs cleanup copies is #181, which cut duplicate and always-skipped Playwright tests and listed what still covers each one.
+
 ## Architecture
 
 - Work items are WordPress posts. Domain objects use custom post types; relationship-heavy data uses dedicated tables.
