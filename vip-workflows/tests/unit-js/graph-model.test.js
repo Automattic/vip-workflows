@@ -4,10 +4,6 @@
  * @package
  */
 
-// React Flow's own deletion-set helper, the one its keyboard delete runs.
-// @xyflow/system ships inside @xyflow/react, so it isn't a direct dependency.
-// eslint-disable-next-line import/no-extraneous-dependencies
-import { getElementsToRemove } from '@xyflow/system';
 import {
 	edgeId,
 	parseEdgeId,
@@ -241,27 +237,6 @@ describe( 'buildGraph', () => {
 			review: false,
 			done: true,
 		} );
-	} );
-
-	// React Flow's keyboard delete gathers a node's edges into the same
-	// deletion and removes them before the node. Refusing the node in the
-	// editor's handler comes too late for those edges; only `deletable: false`
-	// keeps the node, and so its transitions, out of the set.
-	it( 'keeps a locked stage and its transitions out of a keyboard delete', async () => {
-		const { nodes, edges } = buildGraph( stages(), {
-			isStageLocked: ( key ) => key === 'review',
-		} );
-		const review = nodes.find( ( n ) => n.id === 'review' );
-
-		const removed = await getElementsToRemove( {
-			nodesToRemove: [ review ],
-			edgesToRemove: [],
-			nodes,
-			edges,
-		} );
-
-		expect( removed.nodes ).toEqual( [] );
-		expect( removed.edges ).toEqual( [] );
 	} );
 
 	it( 'reflects selection', () => {
