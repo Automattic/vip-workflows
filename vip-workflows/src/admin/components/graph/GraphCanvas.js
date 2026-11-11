@@ -499,6 +499,11 @@ function Flow( {
 				const positioned = laidOut.get( node.id );
 				return {
 					...positioned,
+					// Whether a stage is locked is a projection fact, not a
+					// layout one: `placed` is keyed on `layoutKey`, which a
+					// change in post counts doesn't move, so the laid-out copy
+					// would keep the lock the stage had at the last layout.
+					deletable: node.deletable,
 					// `layout.js` adds to a node's data (a band's slot offsets)
 					// rather than replacing it, so the fresh data goes on top.
 					data: { ...positioned.data, ...node.data },
