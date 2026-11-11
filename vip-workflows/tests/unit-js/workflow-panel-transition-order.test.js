@@ -8,7 +8,7 @@
  * stage inspector is where an author sets it — a sort here would silently
  * override the one control whose effect they can see.
  *
- * Treatment is the transition rail's rule (docs/specs/shipped/transition-rail.md):
+ * Treatment is the transition rail's rule (docs/SPEC.md, "Transitions and tools"):
  * with two or more ways out, every transition is the same ordinary secondary
  * button — no primary for a terminal edge, and none for the first in order
  * either. Authored order does name a primary now (the stage inspector badges

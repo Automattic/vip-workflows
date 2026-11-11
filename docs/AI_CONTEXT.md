@@ -4,6 +4,7 @@ Use the smallest reference that covers the task:
 
 | Reference | Scope |
 | --- | --- |
+| [Specification](SPEC.md) | User stories, platform surface (data, routes, permissions, jobs, outbound calls, extension points), feature invariants and footguns |
 | [Architecture](reference/architecture.md) | Core concepts, modules, sequences, ideation, tools, agents, notifications, experiments, and events |
 | [File structure](reference/file-structure.md) | Directory and subsystem map |
 | [Database schema](reference/database-schema.md) | Custom tables and post-meta keys |

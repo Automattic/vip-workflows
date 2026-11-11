@@ -6,6 +6,7 @@ VIP Workflows is a monorepo containing the core WordPress plugin in `vip-workflo
 
 Start with:
 
+- `docs/SPEC.md` for what the product does: user stories, the platform surface, and each feature's invariants and footguns. A PR that changes behavior, stored data, routes, permissions, background jobs, outbound calls or extension points updates it in the same PR.
 - `docs/README.md` for the documentation map.
 - `docs/AI_CONTEXT.md` and `docs/reference/` for architecture and subsystem references.
 - `docs/guides/extending-vip-workflows.md` for extension patterns.

@@ -247,7 +247,7 @@ There is no separate site-wide "Dashboard" page or `WorkflowDashboard.js`/`Seque
 1. **My Dashboard** - landing page for every role; current user's assignments (also the top-level "Workflows" menu item itself)
 2. **Kanban** - visual board view of work items, shown while the `kanban` experiment is enabled
 3. **Calendar** - calendar view of scheduled/dated work, shown while the `calendar` experiment is enabled
-4. **Ideation** - the story-ideation workspace, shown only while the `ideation` experiment is enabled (see [architecture.md § Experiments](architecture.md) and [`docs/specs/shipped/experiments.md`](../specs/shipped/experiments.md))
+4. **Ideation** - the story-ideation workspace, shown only while the `ideation` experiment is enabled (see [architecture.md § Experiments](architecture.md) and [SPEC.md § Experiments](../SPEC.md#experiments))
 5. **Sequences** - Create/edit workflow and phase sequences (two tabs: "Workflow sequences", "Phase sequences")
 6. **Notifications** - Channels + Routing (see Notifications UI above)
 7. **Agents** - Unified view of research abilities + discovery providers, one card per plugin (see [architecture.md § 5a](architecture.md#5a-unified-assistants-agents-page)). An unavailable card names each unmet requirement from the ability's or provider's `availability_callback` and links to where it can be satisfied — for the built-in services that is core's Settings → Connectors, not this plugin
@@ -264,7 +264,7 @@ There is no "Queue" page and no generic "Dashboard" separate from "My Dashboard"
 - **General** - Workflow enforcement, bypass roles, audit log access
 - **AI services** - Selects the AI provider and model. This is a *preference* only; it holds no API keys.
 - **Prompts** - `PromptsSettings.js`; editable prompt text for AI-driven features
-- **Experiments** - `ExperimentsSettings.js`; toggles registered experiments (`ideation`, `kanban`, `calendar`, and `my_queue`). Enabling/disabling reloads the page, since it changes server-registered menus, REST routes, and dashboard tabs — see [`docs/specs/shipped/experiments.md`](../specs/shipped/experiments.md)
+- **Experiments** - `ExperimentsSettings.js`; toggles registered experiments (`ideation`, `kanban`, `calendar`, and `my_queue`). Enabling/disabling reloads the page, since it changes server-registered menus, REST routes, and dashboard tabs — see [SPEC.md § Experiments](../SPEC.md#experiments)
 
 **Settings Storage**:
 - WordPress options table (`vip_workflows_settings`)
