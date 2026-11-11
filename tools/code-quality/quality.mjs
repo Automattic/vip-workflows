@@ -749,7 +749,7 @@ const loupeMode = scope === 'changed' && files.length ? 'all' : mode;
 
 // Loudly surface any change to the gate's own rules — weakening a linter to pass
 // is legitimate sometimes, but it must never be silent. Not blocking; just seen.
-const RULE_FILES = /^(tools\/code-quality\/|.*\.phpcs\.xml\.dist$|.*\.eslintrc|(.*\/)?eslint\.config\.[cm]?js$|.*\.stylelintrc)/;
+const RULE_FILES = /^(tools\/code-quality\/|.*\.phpcs\.xml\.dist$|.*\.eslintrc|(.*\/)?(eslint|jest|vitest)\.config\.[cm]?js$|.*\.stylelintrc)/;
 const touchedRules = files.filter((f) => [RULE_FILES, LOUPE_CONFIG].some((re) => re.test(f.split('\\').join('/'))));
 if (touchedRules.length) {
 	note('⚠ gate rules modified — human review required:');
