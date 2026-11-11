@@ -268,7 +268,9 @@ class StageQuery {
 	 * @param  int      $sequence_id Sequence ID.
 	 * @param  string[] $stage_keys  Stage keys to narrow to; empty for every stage.
 	 * @param  int      $limit       How many posts to list (the total is always exact).
-	 * @return array{total: int, posts: array<int, array{id: int, title: string, status: string, stage: string}>}
+	 * @return array{total: int, posts: array<int, array{id: int, title: string, status: string, stage: string}>, stages: array<string, int>}
+	 *               `stages` maps each occupied requested stage key to its post
+	 *               count; it is empty when no stage keys were given.
 	 * @throws \RuntimeException When the query fails. The caller is guarding a
 	 *                           write, so an unreadable answer must not pass as
 	 *                           "nobody is affected".
@@ -330,11 +332,33 @@ class StageQuery {
 				);
 			}
 		}
+
+		// Which of the requested stages are occupied, counted over every post, not
+		// just the capped list: a refusal that names only the stages in the first N
+		// posts sends the admin round again for the stage it left out.
+		$stages = array();
+
+		if ( $total > 0 && ! empty( $stage_keys ) ) {
+			$stage_rows = $wpdb->get_results(
+				$wpdb->prepare( "SELECT stage.meta_value AS stage, COUNT(DISTINCT p.ID) AS cnt {$from} GROUP BY stage.meta_value", ...$params )
+			);
+
+			if ( null === $stage_rows ) {
+				throw new \RuntimeException(
+					esc_html( sprintf( 'Could not count the stages holding sequence %d: %s', $sequence_id, $wpdb->last_error ) )
+				);
+			}
+
+			foreach ( $stage_rows as $row ) {
+				$stages[ (string) $row->stage ] = (int) $row->cnt;
+			}
+		}
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
 		return array(
-			'total' => $total,
-			'posts' => $posts,
+			'total'  => $total,
+			'posts'  => $posts,
+			'stages' => $stages,
 		);
 	}
 

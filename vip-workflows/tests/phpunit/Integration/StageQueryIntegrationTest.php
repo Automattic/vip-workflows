@@ -314,12 +314,26 @@ class StageQueryIntegrationTest extends TestCase
 		$this->assertCount( 2, $result['posts'] );
 	}
 
+	public function test_posts_holding_sequence_counts_stages_over_every_post_not_the_capped_list(): void
+	{
+		for ( $i = 0; $i < 3; $i++ ) {
+			$this->make_post( 'review' );
+		}
+		$this->make_post( 'draft' );
+
+		$result = StageQuery::posts_holding_sequence( $this->sequence->id, array( 'review', 'draft', 'publish' ), 2 );
+
+		$this->assertCount( 2, $result['posts'] );
+		$this->assertEquals( array( 'review' => 3, 'draft' => 1 ), $result['stages'] );
+	}
+
 	public function test_posts_holding_sequence_with_nobody_returns_zero_and_no_posts(): void
 	{
 		$this->assertSame(
 			array(
-				'total' => 0,
-				'posts' => array(),
+				'total'  => 0,
+				'posts'  => array(),
+				'stages' => array(),
 			),
 			StageQuery::posts_holding_sequence( $this->sequence->id, array( 'review' ) )
 		);

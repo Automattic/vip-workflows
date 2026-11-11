@@ -714,6 +714,7 @@ flowchart LR
 - **Fields on a draft sequence can't be written over REST.** Metadata fields are registered only for active sequences, at `init`.
 - **Import skips the config builder.** Labels, allowed roles, notifications and required tools on transitions are stored exactly as given in the file, checked only by the write gate. Import needs `manage_options`.
 - **Required metadata doesn't hold back a status change from outside the workflow.** A scheduled post going live, or a Quick Edit to Published, reseats the post with required fields still empty.
+- **MCP callers see only the message when a write would strand posts.** The MCP adapter reduces an ability's `WP_Error` to its message text, so the code and the post list in the 409's data don't reach the client. The message still names the stages and the post count.
 - **Only the editor makes new posts join a workflow.** Posts created over REST, WP-CLI or Quick Draft have no workflow until someone assigns one.
 - **Phase transitions follow different rules from workflow transitions.** They don't consult the bypass list or the tool-check bypass list, and unacknowledged soft warnings return a 422 `tool_check_warnings` error instead of the 200 `warnings_pending` response workflow transitions use.
 - **A Story's status changes only twice.** It is set on create (`ideation` or `editorial`) and on Create Draft (`ideation` → `editorial`). Nothing moves a Story to `published`, `monitoring` or `refresh`.
