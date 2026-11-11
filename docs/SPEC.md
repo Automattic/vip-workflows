@@ -1023,7 +1023,7 @@ flowchart TD
 - **What starts a run.** Any stage change into an AI stage: taking a transition, assigning a sequence, or a reseat driven by WordPress core. The pending marker records the stage, the Ability, when it was queued (`queued_at`), the `cause`, the stage the post came from (`from_stage`), and who started it (`started_by`).
 - **What the agent gets.** The run executes the Ability through the plugin's Ability executor, in the `agent` context, with input `['post_id' => …] + settings`, acting as the post author.
 - **Results.** The Ability's output `status` must be `pass` or `fail`. A `WP_Error`, a thrown exception, an unavailable or disabled Ability, or a successful run with any other `status` counts as `error`.
-- **Routing.** The post takes the route for its result if one is set; otherwise the `error` route if one is set; otherwise the run fails in place. The move out of the stage is a normal workflow transition made on the agent's behalf, and the plugin records the last run on the post.
+- **Routing.** The post takes the route for its result if one is set; otherwise the `error` route if one is set; otherwise the run fails in place. The move out of the stage is a normal workflow transition made on the agent's behalf, and the plugin records the last run on the post. An `error` exit carries the error message as the transition's audit comment, and a `fail` exit carries the agent's `summary`, so the person who picks the post up reads why it arrived.
 - **Failing in place.** The marker changes to `failed`, with the error, and the editor offers one action: go back to the stage the post came from. There is no separate re-run. Going back and then forward again starts a new run.
 - **Timeouts.** A pending marker older than 15 minutes is turned into a failure the next time anything reads it.
 
@@ -1050,6 +1050,7 @@ stateDiagram-v2
 
 - Only `pass` and `fail` are verdicts. Anything else is `error`, never a guessed pass. → `outcome_from_result()`
 - A result with no route never invents a destination. It takes the `error` route or fails in place with a visible message.
+- A `fail` verdict's reason reaches a person. Its `summary`, sanitized to one line of plain text and capped at 500 characters, becomes the exit transition's audit comment, or is appended to the failed-in-place message when the verdict has no route. A `pass` carries no comment. → `fail_summary()`
 - The run acts as the post author and only the author. If the author lacks `edit_posts`, the run fails in place (`no_actor`); it never falls back to another user. → `resolve_agent_user()`
 - Agents get no extra permissions. The exit transition is authorized against the author (`agent_actor_user`), and the transition still checks `user_can( $actor, 'edit_post' )` and the capability for crossing regions, even for agents. Acting as an agent (`agent_actor`) skips only the sequence's own role table, never WordPress capabilities.
 - Who started the run (`started_by`: the person whose move entered the stage, or whoever started the chain when one agent hands to another) is used only to attribute telemetry, never to authorize anything.
@@ -1082,7 +1083,7 @@ stateDiagram-v2
 **Code**
 
 - `vip-workflows/includes/api/class-sequences-controller.php`: `SequencesController::validate_status_agents()` validates the `agent` config and `meta.stage_eligible`.
-- `vip-workflows/includes/workflow/class-stage-agent-runner.php`: `StageAgentRunner`, with `maybe_dispatch()`, `finish()`, `outcome_from_result()`, `resolve_agent_user()`, `holds_publication()`, `publication_hold()`, `abandon_if_superseded()`, `hold_for_warnings()`, `stamp_agent_revision()`, `label_agent_revision()`, `log_token()`, and the constants `MAX_CHAIN` (10) and `PENDING_TTL` (15 minutes).
+- `vip-workflows/includes/workflow/class-stage-agent-runner.php`: `StageAgentRunner`, with `maybe_dispatch()`, `finish()`, `outcome_from_result()`, `resolve_agent_user()`, `holds_publication()`, `publication_hold()`, `abandon_if_superseded()`, `hold_for_warnings()`, `stamp_agent_revision()`, `label_agent_revision()`, `log_token()`, `fail_summary()`, and the constants `MAX_CHAIN` (10) and `PENDING_TTL` (15 minutes).
 - `vip-workflows/includes/workflow/class-status-manager.php`: `StatusManager::transition()` (takes `agent_actor` and `agent_actor_user`; refuses with `unrouted_agent_exit`), `get_available_transitions()`, `agent_routed_targets()`, `has_pending_agent_job()`, `revert_failed_agent_stage()`.
 - `vip-workflows/includes/abilities/agents/class-stage-agent.php`: `StageAgent` helpers `read_post()`, `generate()`, `verdict_token()`, `is_verdict()`, `wrap_untrusted()`, `write_content()`, block-anchored editorial notes, `check_rate_limit()`, and `REQUEST_TIMEOUT` (180 s).
 - `vip-workflows/includes/abilities/class-ability-executor.php`: `AbilityExecutor`, `AbilityExecutor::execute()`. `vip-workflows/includes/abilities/class-ability-settings.php`: `AbilitySettings::get_options()`.

@@ -129,6 +129,16 @@ class StageAgentRunner implements ModuleInterface {
 	private const LOG_TOKEN_MAX = 100;
 
 	/**
+	 * Longest fail summary carried into a transition's audit comment.
+	 *
+	 * A summary is extension-written and may echo model output, so it is
+	 * bounded before it lands in the history every reviewer reads.
+	 *
+	 * @var int
+	 */
+	private const FAIL_SUMMARY_MAX = 500;
+
+	/**
 	 * The ability id currently executing a stage agent, or '' when none is.
 	 *
 	 * Static because the impersonation it shadows (wp_set_current_user) is itself
@@ -563,17 +573,31 @@ class StageAgentRunner implements ModuleInterface {
 		// error: it takes the error route when one exists (see route()) and
 		// otherwise stops here — the post stays put with a visible, actionable
 		// message rather than being moved to a destination nobody configured.
+		// A fail verdict carries its reason to whoever picks the post up next:
+		// as the transition's audit comment when it routes, and inside the
+		// failed marker when it cannot. Without this the reason lived only in
+		// the ability-results table, which no reviewer surface reads.
+		$fail_summary = 'fail' === $outcome ? self::fail_summary( $result ) : '';
+
 		$target = $this->route( $outcome, $routing );
 		if ( null === $target ) {
+			$no_route = sprintf(
+				/* translators: %s: agent outcome key (pass or fail). */
+				__( 'No route for the “%s” outcome. Add one in the sequence editor, or move the post back.', 'vip-workflows' ),
+				$outcome
+			);
 			$this->fail_in_place(
 				$post_id,
 				$stage_key,
 				$ability_id,
-				sprintf(
-					/* translators: %s: agent outcome key (pass or fail). */
-					__( 'No route for the “%s” outcome. Add one in the sequence editor, or move the post back.', 'vip-workflows' ),
-					$outcome
-				),
+				'' !== $fail_summary
+					? sprintf(
+						/* translators: 1: the no-route message. 2: the agent's reason for failing. */
+						__( '%1$s The agent reported: %2$s', 'vip-workflows' ),
+						$no_route,
+						$fail_summary
+					)
+					: $no_route,
 				$from_stage,
 				array_merge( $run, array( 'stop_reason' => 'unrouted_outcome' ) )
 			);
@@ -585,7 +609,31 @@ class StageAgentRunner implements ModuleInterface {
 		// `error`.
 		$run['error_routed'] = empty( $routing[ $outcome ] );
 
-		$this->finish( $post_id, $stage_key, $ability_id, $target, $outcome, $chain, $actor_user, $from_stage, '', $run );
+		$this->finish( $post_id, $stage_key, $ability_id, $target, $outcome, $chain, $actor_user, $from_stage, $fail_summary, $run );
+	}
+
+	/**
+	 * The audit-comment form of a fail verdict's summary.
+	 *
+	 * Plain single-line text, because the history renders a comment as one
+	 * quoted line; bounded, because the summary is extension-written and may
+	 * echo model output.
+	 *
+	 * @param \VIPWorkflows\Abilities\AbilityResult $result Ability result.
+	 * @return string Sanitized summary, or '' when the result carries none.
+	 */
+	private static function fail_summary( $result ): string {
+		$summary = $result->output['summary'] ?? '';
+		if ( ! is_string( $summary ) ) {
+			return '';
+		}
+
+		$summary = sanitize_text_field( $summary );
+		if ( mb_strlen( $summary ) > self::FAIL_SUMMARY_MAX ) {
+			$summary = rtrim( mb_substr( $summary, 0, self::FAIL_SUMMARY_MAX - 1 ) ) . '…';
+		}
+
+		return $summary;
 	}
 
 	/**
