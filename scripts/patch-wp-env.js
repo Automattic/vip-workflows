@@ -25,27 +25,37 @@ const composeConfigPath = path.join(
 	__dirname,
 	'../node_modules/@wordpress/env/lib/runtime/docker/build-docker-compose-config.js'
 );
+const dbEnvPath = path.join(
+	__dirname,
+	'../node_modules/@wordpress/env/lib/config/db-env.js'
+);
 
 if ( ! fs.existsSync( configPath ) ) {
 	console.log( 'patch-wp-env: @wordpress/env not found, skipping.' );
 	process.exit( 0 );
 }
 
-if ( ! fs.existsSync( composeConfigPath ) ) {
-	console.error(
-		'patch-wp-env: expected build-docker-compose-config.js was not found.'
-	);
-	process.exit( 1 );
+for ( const [ filePath, fileName ] of [
+	[ composeConfigPath, 'build-docker-compose-config.js' ],
+	[ dbEnvPath, 'db-env.js' ],
+] ) {
+	if ( ! fs.existsSync( filePath ) ) {
+		console.error( `patch-wp-env: expected ${ fileName } was not found.` );
+		process.exit( 1 );
+	}
 }
 
 let dockerConfig = fs.readFileSync( configPath, 'utf8' );
 let composeConfig = fs.readFileSync( composeConfigPath, 'utf8' );
+let dbEnv = fs.readFileSync( dbEnvPath, 'utf8' );
 
-const TRIXIE_NEEDLE = `RUN sed -i '/buster-updates/d' /etc/apt/sources.list
+// The last of wp-env's per-release Debian archive fixes in the WordPress
+// Dockerfile. The Trixie fix goes after it, before the host user is created.
+const TRIXIE_NEEDLE = `RUN sed -i '/bullseye-updates/d' /etc/apt/sources.list
 
 # Create the host's user`;
 
-const TRIXIE_PATCH = `RUN sed -i '/buster-updates/d' /etc/apt/sources.list
+const TRIXIE_PATCH = `RUN sed -i '/bullseye-updates/d' /etc/apt/sources.list
 
 # trixie: HTTP apt fails inside Docker on macOS — deb.debian.org:80 returns EOF; use HTTPS
 RUN find /etc/apt/sources.list.d/ -name '*.sources' -exec sed -i 's|http://deb.debian.org|https://deb.debian.org|g' {} + 2>/dev/null; sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list 2>/dev/null; true
@@ -103,11 +113,11 @@ dockerConfig = replaceImage(
 	'FROM mirror.gcr.io/library/wordpress:cli${ phpVersion }',
 	'docker-config.js'
 );
-composeConfig = replaceImage(
-	composeConfig,
-	"image: 'mariadb:lts'",
-	"image: 'mirror.gcr.io/library/mariadb:lts'",
-	'build-docker-compose-config.js'
+dbEnv = replaceImage(
+	dbEnv,
+	'return `mariadb:${',
+	'return `mirror.gcr.io/library/mariadb:${',
+	'db-env.js'
 );
 composeConfig = replaceImage(
 	composeConfig,
@@ -118,4 +128,5 @@ composeConfig = replaceImage(
 
 fs.writeFileSync( configPath, dockerConfig );
 fs.writeFileSync( composeConfigPath, composeConfig );
+fs.writeFileSync( dbEnvPath, dbEnv );
 console.log( 'patch-wp-env: patched @wordpress/env Docker templates.' );
