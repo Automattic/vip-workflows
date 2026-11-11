@@ -60,7 +60,7 @@ To check blueprint changes locally, run `npm run test:tools` and boot the previe
 
 Regular cleanups, each run by hand and producing one PR with one commit per change:
 
-- **Docs cleanup:** `docs/maintenance/docs-cleanup.md`. About monthly, and after a large feature lands. It removes duplicates, fixes contradictions and drops claims that are no longer true, checked against the code on `main`. `node tools/docs-check/docs-check.mjs` counts the docs and reports broken links.
+- **Docs cleanup:** `docs/maintenance/docs-cleanup.md`. About monthly, and after a large feature lands. It removes duplicates, fixes contradictions and drops claims that are no longer true, checked against the code on `main`. `node tools/docs-check/docs-check.mjs` counts the docs, reports broken links, and checks that `docs/SPEC.md` stays at no more than one line per 90 lines of plugin code.
 - **End-to-end test prune:** the precedent the docs cleanup copies is #181, which cut duplicate and always-skipped Playwright tests and listed what still covers each one.
 
 ## Architecture

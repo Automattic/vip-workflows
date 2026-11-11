@@ -31,7 +31,8 @@ Leave alone: changelogs, `SECURITY.md`, anything under `node_modules/` or `build
 3. **Duplicates.** A doc restates something SPEC.md or a reference doc already says. Replace the copy with a link to the section that owns it only when the owner covers everything the copy says; keep a short sentence of context if the reader needs it to decide whether to follow the link. If the copy holds detail the owner doesn't, leave it, fix only what's untrue in it, and list it under "Not fixed". Replacing a whole file's worth of content is a reorganization, which this cleanup doesn't do.
 4. **Broken links.** Run `node tools/docs-check/docs-check.mjs`. It reports relative links and in-page anchors that don't resolve, across the whole repo. Fix all of them, including ones that predate this run.
 5. **History notes and version stamps.** Notes such as "removed in 2.16.0", "no longer exists", "moved on 2026-07-09" or "Generated from v2.26.0" describe the past, not `main`. Remove them, unless one stops a reader making a likely mistake (for example, a removed hook that extensions might still call); then rewrite it as a present-tense statement of what to use instead.
-6. **Orphans.** A doc that nothing links to and that no longer serves a reader. Delete it only if everything still true in it is already somewhere else; say where in the table.
+6. **A spec that has outgrown the code.** SPEC.md stays at no more than one line for every 90 lines of plugin code, roughly the ratio it was written at, so it grows only as fast as the code does. docs-check reports the ratio. If SPEC.md is over, cut it back under the limit in this run: remove detail a reviewer doesn't need to judge a PR, merge sentences that say the same thing, and point to `docs/reference/` or the code instead of restating them. Don't cut user stories or **Always true** lines to make room unless they're no longer true. This runs whatever the area.
+7. **Orphans.** A doc that nothing links to and that no longer serves a reader. Delete it only if everything still true in it is already somewhere else; say where in the table.
 
 Don't rewrite prose for style, reorganize files, or add new documentation. If something is missing rather than wrong, list it under "Not fixed" in the PR description instead.
 
@@ -58,7 +59,7 @@ Before the first commit and after the last, run:
 node tools/docs-check/docs-check.mjs
 ```
 
-It prints the number of Markdown files and lines, then any broken links. To check only some files, pass them as arguments; absolute and relative paths both work. Record both runs for the How to test section. The PR is ready when docs-check reports no broken links, or each remaining one is explained under "Not fixed".
+It prints the number of Markdown files and lines, any broken links, and SPEC.md's size against the plugin code. To check only some files, pass them as arguments; absolute and relative paths both work. Record both runs for the How to test section. The PR is ready when docs-check passes: no broken links (or each remaining one is explained under "Not fixed"), and SPEC.md within its limit.
 
 ### The pull request
 
@@ -68,7 +69,7 @@ Title: `docs: cleanup for <Month YYYY>`. Follow `.github/PULL_REQUEST_TEMPLATE.m
 
 **Spec changes.** "None: docs-only cleanup" if SPEC.md is untouched. The Spec check only looks at plugin code, so a docs-only PR doesn't need the `no-spec-change` label. Otherwise list each SPEC.md change, then repeat the detail in the section below.
 
-**What was done.** Group the commits by kind (no longer true, contradictions, duplicates, links, history notes, orphans), one line each.
+**What was done.** Group the commits by kind (no longer true, contradictions, duplicates, links, history notes, spec trims, orphans), one line each.
 
 **For the SPEC.md reviewer.** Only if SPEC.md changed. Address it to the person who reviews SPEC.md changes. For each change: the section, the old claim, the new claim, and the code that shows the new one is right. End with: "Each of these is its own commit; revert one to undo it."
 
@@ -79,13 +80,13 @@ Title: `docs: cleanup for <Month YYYY>`. Follow `.github/PULL_REQUEST_TEMPLATE.m
 | `docs/reference/example.md` | The `vip_workflows_example_filter` section | No longer true: nothing applies the filter | `git grep vip_workflows_example_filter` on `main` finds only this doc |
 | `docs/guides/example.md` | The stage and status region table | Duplicate | [SPEC.md, Sequences and stages](../SPEC.md#sequences-and-stages) |
 
-"Why" is one of: no longer true, contradiction, duplicate, broken link, history note, orphan, public-repo hygiene. "Evidence" is a code reference on `main`, or the SPEC.md or reference section that now owns the content.
+"Why" is one of: no longer true, contradiction, duplicate, broken link, history note, spec size, orphan, public-repo hygiene. "Evidence" is a code reference on `main`, or the SPEC.md or reference section that now owns the content.
 
 **Not fixed.** Things found but left alone, with why: not sure (and what you checked), missing rather than wrong, or out of scope.
 
 **How to test.**
 
-1. The before and after counts: Markdown files and lines, and broken links.
+1. The before and after counts: Markdown files and lines, broken links, and SPEC.md's lines against plugin code.
 2. `node tools/docs-check/docs-check.mjs` passes, or each remaining broken link is listed under Not fixed.
 3. Spot-check three rows of the table against the evidence they cite.
 

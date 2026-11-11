@@ -8,7 +8,12 @@
  *   node tools/docs-check/docs-check.mjs            # every tracked .md file
  *   node tools/docs-check/docs-check.mjs a.md b.md  # just these
  *
- * Exits 1 if any link is broken.
+ * A full run (no arguments) also compares docs/SPEC.md with the plugin code
+ * it describes. The spec should stay at no more than one line for every
+ * SPEC_RATIO_FLOOR lines of code, the ratio when it was written, so it grows
+ * only as fast as the code does.
+ *
+ * Exits 1 if any link is broken or SPEC.md is over that size.
  */
 
 import { execFileSync } from 'node:child_process';
@@ -149,6 +154,62 @@ export function toRepoPath(root, cwd, arg) {
 	return path.relative(root, path.resolve(cwd, arg)).split(path.sep).join('/');
 }
 
+export const SPEC_FILE = 'docs/SPEC.md';
+
+// Lines of plugin code per line of SPEC.md when the spec was written
+// (111,835 to 1,232 in November 2026, about 91). Lower it only on purpose.
+export const SPEC_RATIO_FLOOR = 90;
+
+/**
+ * Whether a file is plugin code SPEC.md describes: PHP and JavaScript in the
+ * core plugin's includes/ and src/, its main and uninstall files, and every
+ * workflow-* extension, minus tests, vendored code and build output.
+ *
+ * @param {string} file Repository-relative path.
+ * @return {boolean} Whether it counts toward the code side of the ratio.
+ */
+export function isPluginCode(file) {
+	return (
+		/^(vip-workflows\/(includes|src)\/|vip-workflows\/(vip-workflows|uninstall)\.php$|workflow-[^/]+\/)/.test(
+			file,
+		) &&
+		/\.(php|jsx?|tsx?)$/.test(file) &&
+		!/(^|\/)(tests?|__tests__|vendor|node_modules|build)\//.test(file) &&
+		!/\.test\./.test(file)
+	);
+}
+
+/**
+ * @param {string} text File contents.
+ * @return {number} Line count, as `wc -l` would give for a final newline.
+ */
+export function countLines(text) {
+	if (text === '') {
+		return 0;
+	}
+	return text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
+}
+
+/**
+ * @param {number} codeLines Lines of plugin code.
+ * @param {number} specLines Lines of SPEC.md.
+ * @return {{ ratio: number, maxSpecLines: number, ok: boolean }} Comparison.
+ */
+export function specRatio(codeLines, specLines) {
+	const ratio = specLines === 0 ? Infinity : codeLines / specLines;
+	return {
+		ratio,
+		maxSpecLines: Math.floor(codeLines / SPEC_RATIO_FLOOR),
+		ok: ratio >= SPEC_RATIO_FLOOR,
+	};
+}
+
+function trackedFiles(root) {
+	return execFileSync('git', ['ls-files'], { cwd: root, encoding: 'utf8' })
+		.split('\n')
+		.filter(Boolean);
+}
+
 function trackedMarkdown(root) {
 	return execFileSync('git', ['ls-files', '*.md'], {
 		cwd: root,
@@ -173,13 +234,41 @@ function main() {
 	console.log(`${report.files} Markdown files, ${report.lines} lines.`);
 	if (report.broken.length === 0) {
 		console.log('Every relative link and anchor resolves.');
+	} else {
+		console.log(`${report.broken.length} broken links:`);
+		for (const { file, target, reason } of report.broken) {
+			console.log(`- ${file}: ${target} (${reason})`);
+		}
+		process.exitCode = 1;
+	}
+
+	if (args.length > 0) {
 		return;
 	}
-	console.log(`${report.broken.length} broken links:`);
-	for (const { file, target, reason } of report.broken) {
-		console.log(`- ${file}: ${target} (${reason})`);
+	const read = (file) => readFileSync(path.join(root, file), 'utf8');
+	const codeLines = trackedFiles(root)
+		.filter(isPluginCode)
+		.reduce((sum, file) => sum + countLines(read(file)), 0);
+	const specLines = countLines(read(SPEC_FILE));
+	const { ratio, maxSpecLines, ok } = specRatio(codeLines, specLines);
+	const fmt = (n) => n.toLocaleString('en-US');
+	console.log(
+		`${SPEC_FILE}: ${fmt(specLines)} lines for ${fmt(
+			codeLines,
+		)} lines of plugin code, one per ${ratio.toFixed(
+			0,
+		)} (keep at ${SPEC_RATIO_FLOOR} or more, so at most ${fmt(
+			maxSpecLines,
+		)} lines).`,
+	);
+	if (!ok) {
+		console.log(
+			`${SPEC_FILE} is ${fmt(
+				specLines - maxSpecLines,
+			)} lines over. Trim it as part of this run.`,
+		);
+		process.exitCode = 1;
 	}
-	process.exitCode = 1;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

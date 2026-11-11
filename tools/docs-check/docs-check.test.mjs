@@ -7,8 +7,11 @@ import test from 'node:test';
 import {
 	anchorsFor,
 	check,
+	countLines,
+	isPluginCode,
 	localLinks,
 	slugify,
+	specRatio,
 	toRepoPath,
 } from './docs-check.mjs';
 
@@ -90,4 +93,43 @@ test('toRepoPath accepts absolute and folder-relative paths', () => {
 		toRepoPath('/repo', '/elsewhere', '/repo/docs/a.md'),
 		'docs/a.md',
 	);
+});
+
+test('isPluginCode matches the code SPEC.md describes', () => {
+	for (const file of [
+		'vip-workflows/includes/workflow/class-status-manager.php',
+		'vip-workflows/src/editor/co-editing.js',
+		'vip-workflows/vip-workflows.php',
+		'workflow-parsely/includes/class-provider.php',
+	]) {
+		assert.ok(isPluginCode(file), file);
+	}
+	for (const file of [
+		'vip-workflows/tests/phpunit/Unit/A.php',
+		'workflow-parsely/tests/Unit/A.php',
+		'vip-workflows/src/a.test.js',
+		'vip-workflows/src/style.scss',
+		'vip-workflows/build/index.js',
+		'workflow-parsely/vendor/autoload.php',
+		'tools/docs-check/docs-check.mjs',
+		'vip-workflows/webpack.config.js',
+	]) {
+		assert.ok(!isPluginCode(file), file);
+	}
+});
+
+test('countLines matches wc -l', () => {
+	assert.equal(countLines(''), 0);
+	assert.equal(countLines('a\n'), 1);
+	assert.equal(countLines('a\nb'), 2);
+});
+
+test('specRatio flags a spec that outgrows the code', () => {
+	assert.deepEqual(specRatio(9000, 100), {
+		ratio: 90,
+		maxSpecLines: 100,
+		ok: true,
+	});
+	assert.equal(specRatio(9000, 101).ok, false);
+	assert.equal(specRatio(9000, 101).maxSpecLines, 100);
 });
