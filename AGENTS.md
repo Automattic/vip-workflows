@@ -46,7 +46,12 @@ Platform reviewers check PRs against `docs/SPEC.md`, so it has to describe `main
 - extension points: hooks, filters and registries,
 - experiment flags.
 
-Add a footgun when the change leaves a sharp edge, and remove one when it fixes it. Describe what the code does now, not how it got there; history belongs in the PR.
+**Updating the spec usually means changing it, not adding to it.** Most PRs should edit lines that are already there: correct a claim, tighten a rule, or replace an old sentence with a new one. Some should delete: a removed feature, a footgun that's now fixed, a sentence the change makes redundant. Add a new section only for a new feature or a new piece of platform surface, and look for something to cut when you do. The spec is only useful if a reviewer can read the parts they need in a few minutes.
+
+- Edit the existing sentence rather than adding a new one next to it.
+- Add a footgun when the change leaves a sharp edge, and remove it when a later change fixes it.
+- Describe what the code does now, not how it got there. History belongs in the PR, never in SPEC.md.
+- Leave out detail a reviewer doesn't need to judge a PR. Point to the code, or to `docs/reference/`, instead.
 
 In the PR description, the **Spec changes** section names the SPEC.md sections the PR changes. If it changes nothing SPEC.md describes, such as a refactor, a test or a style fix, write "None:" and the reason, and add the `no-spec-change` label. The **Spec check** workflow (`.github/workflows/spec-check.yml`, logic in `tools/spec-check/`) flags a PR that changes plugin code under `vip-workflows/includes/`, `vip-workflows/src/` or a `workflow-*` extension without touching SPEC.md or carrying that label. It checks paths only; the reviewer checks the content.
 

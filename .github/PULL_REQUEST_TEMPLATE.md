@@ -16,8 +16,11 @@ Closes #000
 ## Spec changes
 
 <!-- Which sections of `docs/SPEC.md` this PR changes and what a reviewer
-should check in them, for example: "Publish boundary: Always true gains a line
-for private posts." Reviewers read the SPEC.md diff alongside the code.
+should check in them, for example: "Publish boundary: the Always true line on
+private posts now says they count as published." Reviewers read the SPEC.md
+diff alongside the code.
+
+Prefer changing or removing existing lines to adding new ones.
 
 If the PR changes no behavior SPEC.md describes, write "None:" and the reason
 (for example, "None: refactor, no behavior change"), and add the
