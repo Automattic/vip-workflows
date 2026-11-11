@@ -474,10 +474,14 @@ describe( 'WorkflowPanel transition input popover', () => {
 			fireEvent.focus( combobox );
 			fireEvent.change( combobox, { target: { value: 'Jane' } } );
 		} );
+		// Find the option outside act(): findByRole polls with the act
+		// environment switched off, so an update landing mid-poll inside an
+		// act() logs "not configured to support act" and fails the test.
+		const option = await screen.findByRole( 'option', {
+			name: 'Jane Doe',
+		} );
 		await act( async () => {
-			fireEvent.click(
-				await screen.findByRole( 'option', { name: 'Jane Doe' } )
-			);
+			fireEvent.click( option );
 		} );
 
 		// The notes step follows the selection, headed by its own label. Role
