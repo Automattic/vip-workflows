@@ -367,7 +367,11 @@ class CopyEditAgentTest extends TestCase
     public function test_a_raised_threshold_lets_a_larger_edit_through(): void
     {
         $writes = $this->capture_writes();
-        self::model_replies( self::edited( self::quarter_edit() ) );
+
+        // Two runs, two replies: queued explicitly rather than relying on the
+        // stub reusing its last reply.
+        $reply                   = wp_json_encode( self::edited( self::quarter_edit() ) );
+        AiClient::$responseQueue = array( $reply, $reply );
 
         $default = \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
         $raised  = \WorkflowAgentCopyEdit\execute(

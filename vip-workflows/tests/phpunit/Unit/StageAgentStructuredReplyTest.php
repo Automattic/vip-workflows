@@ -182,6 +182,43 @@ class StageAgentStructuredReplyTest extends TestCase
     }
 
     /**
+     * A verdict in another case, or padded, is normalized to its canonical form.
+     *
+     * @dataProvider differently_cased_verdicts
+     */
+    public function test_a_verdict_is_case_and_whitespace_normalized( string $verdict, string $body, string $expected_verdict, string $expected_body ): void
+    {
+        $parsed = StageAgent::parse_rewrite_reply(
+            array(
+                'verdict' => $verdict,
+                'token'   => self::TOKEN,
+                'body'    => $body,
+            ),
+            self::TOKEN
+        );
+
+        $this->assertSame(
+            array(
+                'verdict' => $expected_verdict,
+                'body'    => $expected_body,
+            ),
+            $parsed
+        );
+    }
+
+    /**
+     * @return array<string, array{string, string, string, string}>
+     */
+    public static function differently_cased_verdicts(): array
+    {
+        return array(
+            'uppercase CLEAN'  => array( 'CLEAN', '', 'clean', '' ),
+            'uppercase EDITED' => array( 'EDITED', '<p>Fixed.</p>', 'edited', '<p>Fixed.</p>' ),
+            'padded Reject'    => array( ' Reject ', '', 'reject', '' ),
+        );
+    }
+
+    /**
      * A token decorated the way models decorate short tokens still matches,
      * exactly as is_verdict() tolerates it.
      */
