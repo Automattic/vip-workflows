@@ -51,9 +51,10 @@ Platform reviewers check PRs against `docs/SPEC.md`, so it has to describe `main
 - Edit the existing sentence rather than adding a new one next to it.
 - Add a footgun when the change leaves a sharp edge, and remove it when a later change fixes it.
 - Describe what the code does now, not how it got there. History belongs in the PR, never in SPEC.md.
+- A fix for a bug SPEC.md never mentioned needs no spec change: the spec already describes the intended behavior, and "this used to be broken" is history. Use the `no-spec-change` label. If the bug was written up as a footgun, remove that footgun instead.
 - Leave out detail a reviewer doesn't need to judge a PR. Point to the code, or to `docs/reference/`, instead.
 
-In the PR description, the **Spec changes** section names the SPEC.md sections the PR changes. If it changes nothing SPEC.md describes, such as a refactor, a test or a style fix, write "None:" and the reason, and add the `no-spec-change` label. The **Spec check** workflow (`.github/workflows/spec-check.yml`, logic in `tools/spec-check/`) flags a PR that changes plugin code under `vip-workflows/includes/`, `vip-workflows/src/` or a `workflow-*` extension without touching SPEC.md or carrying that label. It checks paths only; the reviewer checks the content.
+In the PR description, the **Spec changes** section names the SPEC.md sections the PR changes. If it changes nothing SPEC.md describes, such as a refactor, a test, a style fix, or a fix for a bug SPEC.md doesn't mention, write "None:" and the reason, and add the `no-spec-change` label. The **Spec check** workflow (`.github/workflows/spec-check.yml`, logic in `tools/spec-check/`) flags a PR that changes plugin code under `vip-workflows/includes/`, `vip-workflows/src/` or a `workflow-*` extension without touching SPEC.md or carrying that label. It checks paths only; the reviewer checks the content.
 
 ## Pull request previews
 

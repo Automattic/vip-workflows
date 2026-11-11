@@ -24,7 +24,10 @@ Prefer changing or removing existing lines to adding new ones.
 
 If the PR changes no behavior SPEC.md describes, write "None:" and the reason
 (for example, "None: refactor, no behavior change"), and add the
-`no-spec-change` label so the Spec check passes. -->
+`no-spec-change` label so the Spec check passes. A fix for a bug SPEC.md never
+mentioned counts as no change ("None: fixes a bug the spec doesn't mention");
+don't record that it used to be broken. If the spec lists the bug as a footgun,
+remove the footgun. -->
 
 ## What was done
 
