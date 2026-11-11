@@ -22,6 +22,7 @@
 - [Quick reference](reference/quick-reference.md)
 - [Sequence schema](reference/sequence-schema.md) — the field-by-field reference for authoring a workflow config.
 - [Stage-agent verdict threat model](reference/stage-agent-verdict-threat-model.md)
+- [Dependency audit](reference/dependency-audit.md) — accepted npm audit advisories and the overrides that clear the rest.
 
 ## Guides
 
