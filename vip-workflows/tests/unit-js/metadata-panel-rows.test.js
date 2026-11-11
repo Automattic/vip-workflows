@@ -319,7 +319,7 @@ describe( 'MetadataPanel rows', () => {
 		expect( latestMeta.vw_headline ).toBe( 'Hello' );
 	} );
 
-	it( 'required: the trigger accessible name and popover header both spell out the signal', () => {
+	it( 'required: the trigger accessible name and popover header both spell out the signal', async () => {
 		renderPanel( [ FIELDS[ 0 ] ] );
 
 		// The visible asterisk stays on the row label…
@@ -333,9 +333,10 @@ describe( 'MetadataPanel rows', () => {
 
 		// The popover announces as a dialog named for the field — the
 		// explicit role, since Popover's own div is role-less and a bare
-		// aria-label there is ARIA assistive tech ignores.
+		// aria-label there is ARIA assistive tech ignores. Awaited, so the
+		// popover's async positioning settles inside this test.
 		expect(
-			screen.getByRole( 'dialog', { name: 'Headline' } )
+			await screen.findByRole( 'dialog', { name: 'Headline' } )
 		).toBeInTheDocument();
 
 		// The popover header title carries it too.

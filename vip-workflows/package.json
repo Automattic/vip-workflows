@@ -12,22 +12,28 @@
 		"format": "wp-scripts format",
 		"test": "composer test",
 		"test:php": "composer test",
-		"test:unit:js": "wp-scripts test-unit-js",
+		"test:unit:js": "wp-scripts test-unit-jest",
 		"test:e2e": "wp-scripts test-playwright --config playwright.config.js",
 		"test:e2e:headed": "wp-scripts test-playwright --config playwright.config.js --headed",
 		"package": "../tools/package-plugin.sh"
 	},
 	"devDependencies": {
+		"@babel/core": "^7.29.13",
 		"@playwright/test": "^1.61.0",
 		"@testing-library/dom": "^10.4.1",
 		"@testing-library/jest-dom": "^6.9.1",
 		"@testing-library/react": "^16.3.2",
-		"@wordpress/e2e-test-utils-playwright": "^1.43.0",
+		"@wordpress/babel-preset-default": "^10.1.0",
+		"@wordpress/e2e-test-utils-playwright": "^3.2.0",
+		"@wordpress/jest-preset-default": "^14.2.0",
 		"@wordpress/postcss-plugins-preset": "^5.43.0",
-		"@wordpress/scripts": "^31.7.0",
-		"@wordpress/theme": "^1.2.0",
+		"@wordpress/scripts": "^37.1.0",
+		"@wordpress/theme": "^3.0.0",
+		"babel-jest": "^30.5.2",
 		"copy-webpack-plugin": "^10.2.4",
-		"cssnano": "^6.1.2"
+		"cssnano": "^6.1.2",
+		"jest": "^30.5.2",
+		"jest-environment-jsdom": "^30.5.2"
 	},
 	"dependencies": {
 		"@base-ui/react": "^1.2.0",
