@@ -27,7 +27,7 @@ Contents: [Glossary](#glossary) · [User stories](#user-stories) · [Platform su
 - **Reseat.** What the workflow does when something outside it, such as the Publish button, Quick Edit, REST, WP-CLI, cron or untrash, changes a post's status: it moves the post to the region entry stage of the new region and records the change with `cause: 'core'`. The overlay statuses `future` and `trash` never reseat.
 - **Region entry stage.** The one stage per used region marked `region_entry`. It is where a reseat lands a post and where a post is seated when it is first assigned to a sequence.
 - **Bypass list.** The `bypass_workflow_roles` setting (default `administrator`). Members see every transition, skip transition role limits and required metadata, and are not stopped by the publish boundary, but still need core capabilities. The separate **tool-check bypass list**, `bypass_tool_check_roles` (default `administrator`), only lets members skip required tool checks on a transition.
-- **Stage agent.** An ability set on a stage through the stage's `agent` config, which makes that stage AI-owned. When a post enters the stage, the agent runs in the background on WP-Cron as the post's author, returns `pass` or `fail`, and the sequence's routes decide where the post goes next.
+- **Stage agent.** An ability set on a stage through the stage's `agent` config, which makes that stage AI-owned. When a post enters the stage, the agent runs in the background on WP-Cron as the person who moved the post in (or as the post's author when nobody did), returns `pass` or `fail`, and the sequence's routes decide where the post goes next.
 - **Tool.** An ability that a transition can require or that people run from the command palette or MCP. Its `meta.type` (`check`, `validator` or `helper`) only groups it on the Tools page: checks such as `seo-check` report issues that can block a move, and helpers such as `smart-linking` and `headline-suggestions` make suggestions. On a transition, every required tool is judged by the issues it returns, whatever its type.
 - **Ability.** A unit of work registered through the WordPress Abilities API. Every Workflows operation is one, so the admin UI, command palette, REST and MCP all reach it with the same permission checks; extensions add their own with `vip_workflows_register_ability()`.
 - **Experiment.** An unfinished feature (`ideation`, `kanban`, `calendar`, `my_queue`) that is off by default and switched on per site. Turning one off removes its UI and stops its background work without deleting data.
@@ -49,8 +49,8 @@ Each story ends with what is always true while the story holds.
 **N3. A transition enforces the desk's rules.** Moving a story from Editing to Ready runs the tools the transition requires: an SEO check, a checklist, a Parse.ly performance check. Hard failures stop the move, and soft warnings must be acknowledged before it goes through. Transitions can be limited to roles and can notify email or Slack when they fire.
 *Always true:* every move, from every surface (editor, Kanban drag, My Queue, MCP), goes through `StatusManager::transition()`, and its checks run on the server. A tool's configurable settings must also be declared in its input schema, or every run is rejected. → [Transitions and tools](#transitions-and-tools)
 
-**N4. An AI agent owns a stage, and the sequence decides where the post goes next.** A commerce desk sets an AI agent on its "Affiliate Linking" stage. When a post arrives, the agent runs in the background as the post's author, inserts the links it can verify, and leaves a note on anything ambiguous (two catalog matches for one product) instead of guessing. It then returns pass or fail, and the routes the sequence author set send the post on. Fail can send it to a human review stage.
-*Always true:* an agent returns only `pass` or `fail`, and anything else is treated as an error. An agent's content changes are saved as its own attributed revision. An agent can't publish or make a post private unless the sequence allows agent publishing and the post's author holds `publish_posts`. Agent-to-agent hops stop after 10 in a row. → [Stage agents](#stage-agents)
+**N4. An AI agent owns a stage, and the sequence decides where the post goes next.** A commerce desk sets an AI agent on its "Affiliate Linking" stage. When a post arrives, the agent runs in the background as the person who moved it there, inserts the links it can verify, and leaves a note on anything ambiguous (two catalog matches for one product) instead of guessing. It then returns pass or fail, and the routes the sequence author set send the post on. Fail can send it to a human review stage.
+*Always true:* an agent returns only `pass` or `fail`, and anything else is treated as an error. An agent's content changes are saved as its own attributed revision. An agent can't publish or make a post private unless the sequence allows agent publishing and the person it runs as holds `publish_posts`. Agent-to-agent hops stop after 10 in a row. → [Stage agents](#stage-agents)
 
 **N5. A person and an agent don't overwrite each other.** A person can't start an AI stage while others are co-editing the post. An agent's write is abandoned if the post changed after the agent read it, and the editor asks before saving over an agent's newer write.
 *Always true:* an agent never silently replaces a newer human save. → [Stage agents](#stage-agents)
@@ -261,7 +261,7 @@ Routes are grouped by controller below. Paths are under `/vip-workflows/v1` unle
 | Route | Methods | Permission |
 | --- | --- | --- |
 | `/workflow/post/{id}/status`, `/workflow/post/{id}/history`, `/workflow/post/{id}/ideation` | GET | `edit_post` on `{id}` |
-| `/workflow/post/{id}/transition`, `/workflow/post/{id}/agent-revert`, `/workflow/post/{id}/claim` | POST | `edit_post` on `{id}`, then the sequence's transition rules |
+| `/workflow/post/{id}/transition`, `/workflow/post/{id}/agent-revert`, `/workflow/post/{id}/agent-rerun`, `/workflow/post/{id}/claim` | POST | `edit_post` on `{id}`, then the sequence's transition rules |
 | `/workflow/post/{id}/sequence` | POST (assign), DELETE (remove) | `edit_post` on `{id}`, then the sequence's transition rules |
 | `/workflow/post/{id}/unclaim` | DELETE | `edit_post` on `{id}`, then the sequence's transition rules |
 | `/workflow/my-work` | GET | `edit_posts`; rows filtered per post by `edit_post` |
@@ -358,7 +358,7 @@ Where the abilities live:
 - Research assistants: `vip-workflows/includes/ideation/assistants/class-*.php`.
 - Extension abilities: each extension's main file or its `includes/` directory.
 
-Stage agents run in the background (WP-Cron; see [Background work](#background-work)) and call `wp_set_current_user()` to act as the post's author (`vip-workflows/includes/workflow/class-stage-agent-runner.php`). If the author cannot edit the post, the run stops in place. Agent edits are therefore authored by that user and pass that user's capability checks.
+Stage agents run in the background (WP-Cron; see [Background work](#background-work)) and call `wp_set_current_user()` to act as the person who started the run, if they can still edit the post, and otherwise as the post's author (`vip-workflows/includes/workflow/class-stage-agent-runner.php`). If neither can, the run stops in place. Agent edits are therefore authored by that user and pass that user's capability checks.
 
 **Footguns**
 
@@ -1017,14 +1017,14 @@ flowchart TD
 
 **What it's for.** A stage agent lets an AI step own a stage: when a post arrives there, the agent does its job (a copy edit, a tag check, a link review) and then moves the post on by itself, to a destination the sequence set for each result. It lets a team put routine review into the workflow without anyone having to remember to run it, while keeping the AI's moves inside the same rules a person's moves follow.
 
-**How it works.** A stage becomes AI-owned when its sequence config names an agent: an Ability, plus where to send the post on each result, plus optional settings. Every time a post enters that stage, the plugin writes a "pending" marker on the post and schedules a single WP-Cron event. When cron runs it, the agent's Ability runs as the post's author, and its result decides where the post goes next.
+**How it works.** A stage becomes AI-owned when its sequence config names an agent: an Ability, plus where to send the post on each result, plus optional settings. Every time a post enters that stage, the plugin writes a "pending" marker on the post and schedules a single WP-Cron event. When cron runs it, the agent's Ability runs as the person who started the run, and its result decides where the post goes next.
 
 - **Configuring it.** The config is `agent: { ability_id, routing: { pass?, fail?, error? }, settings? }`. The Ability must be registered with `meta.stage_eligible = true`. Saving the sequence rejects an unknown or non-eligible Ability, any routing key other than `pass`, `fail` or `error`, and any routing target that isn't the destination (`to`) of one of that stage's own transitions. The settings are stored exactly as given and are not checked against the Ability's `settings_schema`.
 - **What starts a run.** Any stage change into an AI stage: taking a transition, assigning a sequence, or a reseat driven by WordPress core. The pending marker records the stage, the Ability, when it was queued (`queued_at`), the `cause`, the stage the post came from (`from_stage`), and who started it (`started_by`).
-- **What the agent gets.** The run executes the Ability through the plugin's Ability executor, in the `agent` context, with input `['post_id' => …] + settings`, acting as the post author.
+- **What the agent gets.** The run executes the Ability through the plugin's Ability executor, in the `agent` context, with input `['post_id' => …] + settings`. It acts as the person who started the run if they can edit the post when it runs, and otherwise as the post author.
 - **Results.** The Ability's output `status` must be `pass` or `fail`. A `WP_Error`, a thrown exception, an unavailable or disabled Ability, or a successful run with any other `status` counts as `error`.
 - **Routing.** The post takes the route for its result if one is set; otherwise the `error` route if one is set; otherwise the run fails in place. The move out of the stage is a normal workflow transition made on the agent's behalf, and the plugin records the last run on the post.
-- **Failing in place.** The marker changes to `failed`, with the error, and the editor offers one action: go back to the stage the post came from. There is no separate re-run. Going back and then forward again starts a new run.
+- **Failing in place.** The marker changes to `failed`, with the error. The editor leads with Run again, which starts a fresh run at the same stage started by whoever pressed it, and offers Go back to the stage the post came from beside it. Run again replaces the failed marker by compare-and-swap, so of two concurrent presses, or Run again racing Go back, one is refused (409 `agent_rerun_conflict`).
 - **Timeouts.** A pending marker older than 15 minutes is turned into a failure the next time anything reads it.
 
 ```mermaid
@@ -1038,6 +1038,7 @@ stateDiagram-v2
   Running --> FailedInPlace: no route, publish held,<br/>loop guard (10 hops), co-editing,<br/>exit transition refused
   Running --> WarningsPending: exit transition raised<br/>soft warnings
   WarningsPending --> Routed: a person confirms the held move
+  FailedInPlace --> Pending: a person chooses Run again<br/>(runs as them)
   FailedInPlace --> PreviousStage: a person chooses Go back
   Routed --> [*]: post moves through the normal transition checks
   PreviousStage --> [*]
@@ -1050,13 +1051,12 @@ stateDiagram-v2
 
 - Only `pass` and `fail` are verdicts. Anything else is `error`, never a guessed pass. → `outcome_from_result()`
 - A result with no route never invents a destination. It takes the `error` route or fails in place with a visible message.
-- The run acts as the post author and only the author. If the author lacks `edit_posts`, the run fails in place (`no_actor`); it never falls back to another user. → `resolve_agent_user()`
-- Agents get no extra permissions. The exit transition is authorized against the author (`agent_actor_user`), and the transition still checks `user_can( $actor, 'edit_post' )` and the capability for crossing regions, even for agents. Acting as an agent (`agent_actor`) skips only the sequence's own role table, never WordPress capabilities.
-- Who started the run (`started_by`: the person whose move entered the stage, or whoever started the chain when one agent hands to another) is used only to attribute telemetry, never to authorize anything.
-- An agent can't publish by default. An agent move from outside `publish`/`private` into either one is held and fails in place (`publish_held`), even through an `error` route, unless the sequence sets `settings.allow_agent_publish === true` (a real boolean). Even then, the author must hold `publish_posts`. While the agent owns the stage, people aren't offered a held route either. → `holds_publication()`, `publication_hold()`, `StatusManager::agent_routed_targets()`
+- The run acts as who started it (`started_by`: the person whose move entered the stage, whoever started the chain when one agent hands to another, or whoever pressed Run again), re-checked for `edit_post` when it runs. A run nobody started (cron, a scheduled publish, a reseat with no one logged in) acts as the post author, only if the author has `edit_posts`. Otherwise the run fails in place (`no_actor`); it never borrows anyone else. → `resolve_run_as_user()`, `resolve_agent_user()`
+- Agents get no extra permissions. The exit transition is authorized against the user the run acts as (`agent_actor_user`), and the transition still checks `user_can( $actor, 'edit_post' )` and the capability for crossing regions, even for agents. Acting as an agent (`agent_actor`) skips only the sequence's own role table, never WordPress capabilities.
+- An agent can't publish by default. An agent move from outside `publish`/`private` into either one is held and fails in place (`publish_held`), even through an `error` route, unless the sequence sets `settings.allow_agent_publish === true` (a real boolean). Even then, the user the run acts as must hold `publish_posts`. While the agent owns the stage, people aren't offered a held route either. → `holds_publication()`, `publication_hold()`, `StatusManager::agent_routed_targets()`
 - From an AI stage, people can take only the routed destinations; any other move is refused (`unrouted_agent_exit`). While a run is pending, or has failed and is offering go-back, no transitions are offered at all.
 - A person who moves the post while a run is pending gets an `agent_in_progress` soft warning to confirm. If they confirm, the run is abandoned: its outcome is discarded, but any content it already wrote stays.
-- A loop guard stops agents bouncing a post between them forever. The chain counter goes up once per run, right before the exit transition, and a run that doesn't move the post never writes it. Past 10 hops the run fails in place and never takes the `error` route. The counter resets when the post enters the AI stage from a stage with no agent, and on go-back. → `_vip_workflows_agent_chain`, `finish()`, `MAX_CHAIN`
+- A loop guard stops agents bouncing a post between them forever. The chain counter goes up once per run, right before the exit transition, and a run that doesn't move the post never writes it. Past 10 hops the run fails in place and never takes the `error` route. The counter resets when the post enters the AI stage from a stage with no agent, on Run again, and on go-back. → `_vip_workflows_agent_chain`, `finish()`, `MAX_CHAIN`
 - A run whose stage changed under it (the post moved away, or left and came back with a newer marker) is abandoned without recording a failure. Deleting a marker is compare-and-delete, so it only clears a marker that belongs to the same stage. → `abandon_if_superseded()`
 - Agent moves never auto-acknowledge soft warnings. If the exit transition raises warnings, the marker becomes `warnings_pending` and a person confirms that exact held move. → `hold_for_warnings()`
 - A refused exit transition, a run that couldn't be scheduled, and the loop guard always fail in place, never through the `error` route.
@@ -1077,20 +1077,19 @@ stateDiagram-v2
 - **Verdicts aren't reproducible.** No temperature is sent, so a second run tells you nothing about an earlier one.
 - **Cron has to actually run.** With `DISABLE_WP_CRON` set and no system cron, every AI stage sits pending for 15 minutes and then reports "Agent run timed out."
 - **The 15-minute pending timeout must stay longer than the longest real run.** Each model call can take up to 180 seconds (`StageAgent::REQUEST_TIMEOUT`), and `PENDING_TTL` is the 15-minute limit.
-- **Some screens say "Re-run," but there is no re-run action.** The only retry is going back and forward again.
 
 **Code**
 
 - `vip-workflows/includes/api/class-sequences-controller.php`: `SequencesController::validate_status_agents()` validates the `agent` config and `meta.stage_eligible`.
-- `vip-workflows/includes/workflow/class-stage-agent-runner.php`: `StageAgentRunner`, with `maybe_dispatch()`, `finish()`, `outcome_from_result()`, `resolve_agent_user()`, `holds_publication()`, `publication_hold()`, `abandon_if_superseded()`, `hold_for_warnings()`, `stamp_agent_revision()`, `label_agent_revision()`, `log_token()`, and the constants `MAX_CHAIN` (10) and `PENDING_TTL` (15 minutes).
+- `vip-workflows/includes/workflow/class-stage-agent-runner.php`: `StageAgentRunner`, with `maybe_dispatch()`, `rerun()`, `finish()`, `outcome_from_result()`, `resolve_run_as_user()`, `resolve_agent_user()`, `holds_publication()`, `publication_hold()`, `abandon_if_superseded()`, `hold_for_warnings()`, `stamp_agent_revision()`, `label_agent_revision()`, `log_token()`, and the constants `MAX_CHAIN` (10) and `PENDING_TTL` (15 minutes).
 - `vip-workflows/includes/workflow/class-status-manager.php`: `StatusManager::transition()` (takes `agent_actor` and `agent_actor_user`; refuses with `unrouted_agent_exit`), `get_available_transitions()`, `agent_routed_targets()`, `has_pending_agent_job()`, `revert_failed_agent_stage()`.
 - `vip-workflows/includes/abilities/agents/class-stage-agent.php`: `StageAgent` helpers `read_post()`, `generate()`, `verdict_token()`, `is_verdict()`, `wrap_untrusted()`, `write_content()`, block-anchored editorial notes, `check_rate_limit()`, and `REQUEST_TIMEOUT` (180 s).
 - `vip-workflows/includes/abilities/class-ability-executor.php`: `AbilityExecutor`, `AbilityExecutor::execute()`. `vip-workflows/includes/abilities/class-ability-settings.php`: `AbilitySettings::get_options()`.
 - `vip-workflows/includes/workflow/class-co-editing.php`: `CoEditing::is_shared()`, reading VIP Real-Time Collaboration's `RoomPresence`.
 - Cron event: `vip_workflows_run_stage_agent`.
 - Post meta: `_vip_workflows_agent_job` (the marker: `pending`, `failed` or `warnings_pending`, with stage, ability, `queued_at`, `cause`, `from_stage`, `started_by`), `_vip_workflows_agent_last_run`, `_vip_workflows_agent_chain`. Revision meta: `_vip_workflows_agent_actor`.
-- REST: `POST /workflow/post/{id}/agent-revert` (go back).
-- Error codes: `no_actor`, `publish_held`, `unrouted_agent_exit`, `agent_in_progress` (soft warning), `co_editing`, `concurrent_edit`.
+- REST: `POST /workflow/post/{id}/agent-rerun` (Run again; the failed job's `can_rerun` says when it's offered) and `POST /workflow/post/{id}/agent-revert` (go back).
+- Error codes: `no_actor`, `no_agent_rerun`, `agent_rerun_conflict`, `publish_held`, `unrouted_agent_exit`, `agent_in_progress` (soft warning), `co_editing`, `concurrent_edit`.
 - Sequence setting: `settings.allow_agent_publish`. Capabilities checked: `edit_posts`, `edit_post`, `publish_posts`.
 - Threat model: `docs/reference/stage-agent-verdict-threat-model.md`.
 
