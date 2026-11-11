@@ -485,7 +485,7 @@ Every AI call above starts from one of three places: a sequence an administrator
 | Any user-supplied URL | Adding a URL source, the URL preview utility route, analyzing or sideloading an image card | Plain GET. `SsrfGuard` blocks private IPs and sets redirects to 0 |
 | `en.wikipedia.org/w/api.php` | The Wikipedia research assistant runs | The search query |
 | Parse.ly Content API and Suggestions API, through wp-parsely's service classes | Smart links, headline suggestions, performance tools, the poll and the warmers | **Post content** (smart links, title suggestions), headlines and URLs |
-| VIP Telemetry library (Pendo and Tracks), only when `Automattic\VIP\Telemetry\Telemetry` exists | Tool runs, agent runs, transition gates, rate-limit hits | Counts, outcomes and durations. No content |
+| VIP Telemetry library (Pendo and Tracks), only when `Automattic\VIP\Telemetry\Telemetry` exists | Tool runs, agent runs, transition gates, rate-limit hits, experiment toggles. From the browser: sequence editing, My Work filters and grouping, and editor workflow actions | Counts, outcomes, durations, IDs and option values. No content |
 
 Parse.ly calls require the wp-parsely plugin and its `apikey`/`api_secret` option.
 
@@ -499,11 +499,12 @@ Parse.ly calls require the wp-parsely plugin and its `apikey`/`api_secret` optio
 | User-supplied URLs | 10 s for metadata, 30 s for downloads | `vip-workflows/includes/integrations/class-url-meta-extractor.php`, `vip-workflows/includes/integrations/class-ssrf-guard.php`, `vip-workflows/includes/api/class-ideation-controller.php` |
 | Wikipedia | 5 s through `vip_safe_wp_remote_get` | `workflow-assistant-wikipedia/workflow-assistant-wikipedia.php` |
 | Parse.ly | Set by wp-parsely | `workflow-parsely/includes/class-parsely-client.php` |
-| VIP Telemetry | Errors are swallowed | `vip-workflows/includes/telemetry/class-tracker.php` |
+| VIP Telemetry | Errors are swallowed. The browser sends nothing where the library isn't loaded or `vip_env` is `local` | `vip-workflows/includes/telemetry/class-tracker.php`, `vip-workflows/src/common/tracks.js` |
 
 Other outbound behavior:
 
 - The browser embeds YouTube and Vimeo iframes for video cards (`vip-workflows/src/admin/components/ideation/cards/ImageCard.js`).
+- Browser telemetry queues events on `window._tkq` and loads `stats.wp.com/w.js` on the first event, not before.
 - `ContentExtractor` (`vip-workflows/includes/integrations/class-content-extractor.php`) has no callers.
 - **Jetpack:** no PHP, JS or Composer reference anywhere in the core plugin or the extensions. Parse.ly goes through wp-parsely, not Jetpack.
 
