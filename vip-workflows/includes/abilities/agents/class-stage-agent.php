@@ -66,9 +66,9 @@ class StageAgent {
 	/**
 	 * Most word-comparison cells measure_rewrite() will spend on one rewrite.
 	 *
-	 * Comparing block by block keeps a normal article far below this; it bounds
-	 * the single-pass diff a changed structure or a huge classic post needs, so
-	 * the check fails closed rather than running past the request's time limit.
+	 * Comparing run by run keeps a normal article far below this; it bounds a
+	 * huge classic post with few paragraph breaks, so the check fails closed
+	 * rather than running past the request's time limit.
 	 */
 	private const MAX_DIFF_CELLS = 16000000;
 
@@ -356,9 +356,9 @@ class StageAgent {
 	 * lowercased words: share = (max(original, edited) − LCS) / original, so
 	 * substituting, inserting or deleting k words in an n-word body each score
 	 * about k/n. When the block structure matches, words are compared block by
-	 * block, which both bounds the work and yields a per-block share; the whole
-	 * body is diffed in one pass only when the structure differs, and only
-	 * within a fixed work budget.
+	 * block, which both bounds the work and yields a per-block share, within a
+	 * fixed work budget. When the structure differs the edit is refused anyway,
+	 * so no share is computed and `share` is null.
 	 *
 	 * The report carries the filtered rewrite as `content`. Write that — with
 	 * `write_content( …, false )` — so what was measured is what gets stored.
@@ -367,7 +367,7 @@ class StageAgent {
 	 *
 	 * @param  string $original Current post content.
 	 * @param  string $edited   Agent-generated replacement.
-	 * @return array{content: string, unpreservable_markup: bool, too_large: bool, structure_changed: bool, markup_changed: bool, links_added: int, links_removed: int, words_original: int, share: ?float, blocks: array<int, array{words: int, share: float}>}
+	 * @return array{content: string, unpreservable_markup: bool, too_large: bool, structure_changed: bool, markup_changed: bool, links_added: int, links_removed: int, words_original: int, share: ?float, blocks: array<int, array{words: int, words_after: int, share: float}>}
 	 */
 	public static function measure_rewrite( string $original, string $edited ): array {
 		$original_filtered = wp_kses_post( $original );
@@ -379,7 +379,9 @@ class StageAgent {
 
 		$report = array(
 			'content'              => $edited_filtered,
-			'unpreservable_markup' => $raw_shape['structure'] !== $original_shape['structure'] || $raw_shape['links'] !== $original_shape['links'],
+			'unpreservable_markup' => $raw_shape['structure'] !== $original_shape['structure']
+				|| $raw_shape['links'] !== $original_shape['links']
+				|| $raw_shape['markup'] !== $original_shape['markup'],
 			'too_large'            => false,
 			'structure_changed'    => $original_shape['structure'] !== $edited_shape['structure'],
 			'markup_changed'       => $original_shape['markup'] !== $edited_shape['markup'],
@@ -438,8 +440,9 @@ class StageAgent {
 				$changed                  += $delta;
 				$report['words_original'] += $words_block;
 				$report['blocks'][]        = array(
-					'words' => $words_block,
-					'share' => self::share( $delta, $words_block, $words_after ),
+					'words'       => $words_block,
+					'words_after' => $words_after,
+					'share'       => self::share( $delta, $words_block, $words_after ),
 				);
 			}
 
@@ -448,16 +451,9 @@ class StageAgent {
 			return $report;
 		}
 
-		$before                   = self::words( implode( ' ', $original_shape['chunks'] ) );
-		$after                    = self::words( implode( ' ', $edited_shape['chunks'] ) );
-		$report['words_original'] = count( $before );
-		$lcs                      = self::lcs_length( $before, $after, $budget );
-		if ( null === $lcs ) {
-			$report['too_large'] = true;
-			return $report;
-		}
-
-		$report['share'] = self::share( max( count( $before ), count( $after ) ) - $lcs, count( $before ), count( $after ) );
+		// A changed structure is refused whatever the share, so no diff is
+		// spent on a number that cannot change the outcome; `share` stays null.
+		$report['words_original'] = count( self::words( implode( ' ', $original_shape['chunks'] ) ) );
 		return $report;
 	}
 
@@ -538,7 +534,8 @@ class StageAgent {
 			$clauses[] = sprintf(
 				/* translators: 1: percentage of words changed. 2: the configured limit. */
 				__( 'changed %1$d%% of the words (limit %2$d%%)', 'vip-workflows' ),
-				(int) round( (float) $report['share'] * 100 ),
+				// Rounded up, so the printed figure is always above the printed limit.
+				(int) ceil( (float) $report['share'] * 100 ),
 				$max_percent
 			);
 		}
@@ -587,8 +584,9 @@ class StageAgent {
 	/**
 	 * How many blocks a rewrite changed by more than the per-block limit.
 	 *
-	 * Blocks under BLOCK_CHANGE_MIN_WORDS are skipped: one word in a two-word
-	 * line is already half of it.
+	 * Blocks under BLOCK_CHANGE_MIN_WORDS both before and after the edit are
+	 * skipped: one word in a two-word line is already half of it. A short block
+	 * that grew past the floor is measured, or it could absorb any insertion.
 	 *
 	 * @param  array $report        From measure_rewrite().
 	 * @param  int   $block_percent Per-block limit.
@@ -597,7 +595,8 @@ class StageAgent {
 	private static function blocks_over( array $report, int $block_percent ): int {
 		$over = 0;
 		foreach ( $report['blocks'] as $block ) {
-			if ( $block['words'] >= self::BLOCK_CHANGE_MIN_WORDS && $block['share'] * 100 > $block_percent ) {
+			// Short before and after: a short block that grew is measured.
+			if ( max( $block['words'], $block['words_after'] ?? 0 ) >= self::BLOCK_CHANGE_MIN_WORDS && $block['share'] * 100 > $block_percent ) {
 				++$over;
 			}
 		}
@@ -701,13 +700,17 @@ class StageAgent {
 			}
 
 			$attrs = array();
-			$attrs = array();
 			if ( isset( $tag[3] ) && preg_match_all( '/([^\s=\/"\'<>]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'>]+)))?/', $tag[3], $pairs, PREG_SET_ORDER ) ) {
 				foreach ( $pairs as $pair ) {
-					$value         = ( $pair[2] ?? '' ) . ( $pair[3] ?? '' ) . ( $pair[4] ?? '' );
-					$key           = strtolower( $pair[1] );
-					$value         = html_entity_decode( $value, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
-					$attrs[ $key ] = 'srcset' === $key ? implode( ', ', array_map( array( self::class, 'srcset_candidate' ), explode( ',', $value ) ) ) : $value;
+					$value = ( $pair[2] ?? '' ) . ( $pair[3] ?? '' ) . ( $pair[4] ?? '' );
+					$key   = strtolower( $pair[1] );
+					$value = html_entity_decode( $value, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+					if ( 'srcset' === $key ) {
+						$value = implode( ', ', array_map( array( self::class, 'srcset_candidate' ), explode( ',', $value ) ) );
+					} elseif ( 'style' === $key ) {
+						$value = self::style_declarations( $value );
+					}
+					$attrs[ $key ] = $value;
 				}
 			}
 
@@ -731,6 +734,27 @@ class StageAgent {
 	private static function text_runs( string $content ): array {
 		$content = (string) preg_replace( '/<\/?(?:' . implode( '|', self::FREE_TAGS ) . ')\s*>/i', ' ', $content );
 		return preg_split( self::TAG_PATTERN, $content );
+	}
+
+	/**
+	 * A `style` value as normalized declarations.
+	 *
+	 * The kses CSS filter rewrites what it keeps (it drops a trailing semicolon,
+	 * for one), so only a declaration added, removed or changed may count.
+	 *
+	 * @param  string $style Raw `style` value.
+	 * @return string e.g. `color:#cf2e2e;font-weight:bold`.
+	 */
+	private static function style_declarations( string $style ): string {
+		$declarations = array();
+		foreach ( explode( ';', $style ) as $declaration ) {
+			$parts = explode( ':', $declaration, 2 );
+			if ( 2 !== count( $parts ) || '' === trim( $parts[0] ) ) {
+				continue;
+			}
+			$declarations[] = strtolower( trim( $parts[0] ) ) . ':' . (string) preg_replace( '/\s+/', ' ', trim( $parts[1] ) );
+		}
+		return implode( ';', $declarations );
 	}
 
 	/**

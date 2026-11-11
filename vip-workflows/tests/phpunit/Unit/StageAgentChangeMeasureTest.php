@@ -398,6 +398,42 @@ class StageAgentChangeMeasureTest extends TestCase
         $this->assertContains( 'markup', StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $original, $edited ), 15 ) );
     }
 
+    public function test_a_short_block_that_grows_is_measured(): void
+    {
+        $original = self::para( 'Breaking news' ) . "\n\n" . self::para( self::words( 300 ) );
+        $edited   = self::para( 'Breaking news. ' . self::words( 30, 'promo' ) ) . "\n\n" . self::para( self::words( 300 ) );
+
+        $report     = StageAgent::measure_rewrite( $original, $edited );
+        $violations = StageAgent::copy_edit_violations( $report, 15 );
+
+        $this->assertLessThan( 0.15, $report['share'], 'The whole-body share alone would let this through.' );
+        $this->assertContains( 'block_share', $violations );
+    }
+
+    public function test_the_printed_share_is_never_at_or_below_the_printed_limit(): void
+    {
+        // 154 of 1,000 words changed: 15.4% against a 15% limit.
+        $original = self::para( self::words( 1000 ) );
+        $edited   = self::para( self::words( 846 ) . ' ' . self::words( 154, 'new' ) );
+
+        $report     = StageAgent::measure_rewrite( $original, $edited );
+        $violations = StageAgent::copy_edit_violations( $report, 15 );
+
+        $this->assertEqualsWithDelta( 0.154, $report['share'], 0.0001 );
+        $this->assertStringContainsString( 'changed 16% of the words (limit 15%)', StageAgent::describe_rewrite( $report, $violations, 15 ) );
+    }
+
+    public function test_markup_kses_strips_from_the_original_is_unpreservable(): void
+    {
+        // kses drops <script> elements and leaves their text behind.
+        Functions\when( 'wp_kses_post' )->alias( static fn( $html ) => preg_replace( '/<\/?script\b[^>]*>/i', '', (string) $html ) );
+
+        $original = self::para( self::words( 40 ) . ' <script>trackReader()</script>' );
+        $report   = StageAgent::measure_rewrite( $original, $original );
+
+        $this->assertSame( array( 'unpreservable_markup' ), StageAgent::copy_edit_violations( $report, 15 ) );
+    }
+
     public function test_the_summary_names_each_guard_and_quotes_no_body_text(): void
     {
         $original = self::para( self::words( 40, 'old' ) );
@@ -408,7 +444,9 @@ class StageAgentChangeMeasureTest extends TestCase
         $violations = StageAgent::copy_edit_violations( $report, 15 );
         $summary    = StageAgent::describe_rewrite( $report, $violations, 15 );
 
-        $this->assertStringContainsString( 'limit 15%', $summary );
+        // The structure changed, so the edit is refused without computing a share.
+        $this->assertNull( $report['share'] );
+        $this->assertStringNotContainsString( 'limit 15%', $summary );
         $this->assertStringContainsString( 'added 1 link', $summary );
         $this->assertStringContainsString( 'changed the post’s blocks or paragraphs', $summary );
         $this->assertStringContainsString( 'Nothing was written', $summary );
