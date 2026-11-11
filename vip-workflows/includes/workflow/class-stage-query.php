@@ -248,6 +248,97 @@ class StageQuery {
 	}
 
 	/**
+	 * Every post that holds a sequence, optionally narrowed to some of its stages.
+	 *
+	 * This answers "would this sequence write strand anybody?", so it is
+	 * deliberately wider than every other query here:
+	 *
+	 * - No post type filter. A post whose type was later dropped from the
+	 *   sequence, or whose type is no longer registered at all, still carries
+	 *   the meta and would still be stranded.
+	 * - Every status except `inherit`. Trash counts, because a restored post
+	 *   comes back carrying its meta. Auto-drafts count, because the
+	 *   workflow-required modal seats a brand-new post in a sequence before its
+	 *   first save. Only revisions are excluded, and they never carry this meta.
+	 *
+	 * That is why this is raw SQL rather than a WP_Query builder: WP_Query's
+	 * `'any'` post type and status both silently skip anything registered with
+	 * `exclude_from_search`, and an unregistered type cannot be named at all.
+	 *
+	 * @param  int      $sequence_id Sequence ID.
+	 * @param  string[] $stage_keys  Stage keys to narrow to; empty for every stage.
+	 * @param  int      $limit       How many posts to list (the total is always exact).
+	 * @return array{total: int, posts: array<int, array{id: int, title: string, status: string, stage: string}>}
+	 * @throws \RuntimeException When the query fails. The caller is guarding a
+	 *                           write, so an unreadable answer must not pass as
+	 *                           "nobody is affected".
+	 */
+	public static function posts_holding_sequence( int $sequence_id, array $stage_keys = array(), int $limit = 20 ): array {
+		global $wpdb;
+
+		$stage_keys   = array_values( array_unique( array_map( 'strval', $stage_keys ) ) );
+		$stage_clause = '';
+		$params       = array( StatusManager::SEQUENCE_META_KEY, $sequence_id, StatusManager::STAGE_META_KEY );
+
+		if ( ! empty( $stage_keys ) ) {
+			$stage_clause = ' AND stage.meta_value IN (' . implode( ',', array_fill( 0, count( $stage_keys ), '%s' ) ) . ')';
+			$params       = array_merge( $params, $stage_keys );
+		}
+
+		// A post with the sequence meta but no stage meta is still held by the
+		// sequence (deleting it would strand the post), so the stage join is a
+		// LEFT JOIN unless the caller narrowed to stages.
+		$stage_join = empty( $stage_keys ) ? 'LEFT JOIN' : 'INNER JOIN';
+
+		$from = "FROM {$wpdb->posts} p
+			INNER JOIN {$wpdb->postmeta} seq ON seq.post_id = p.ID AND seq.meta_key = %s AND seq.meta_value = %d
+			{$stage_join} {$wpdb->postmeta} stage ON stage.post_id = p.ID AND stage.meta_key = %s
+			WHERE p.post_status <> 'inherit'{$stage_clause}";
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- write guard; must read live rows. $from holds only table names and a %s placeholder list built via array_fill, with matching values spread in from $params.
+		$total = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT p.ID) {$from}", ...$params ) );
+
+		if ( null === $total && '' !== $wpdb->last_error ) {
+			throw new \RuntimeException(
+				esc_html( sprintf( 'Could not check which posts hold sequence %d: %s', $sequence_id, $wpdb->last_error ) )
+			);
+		}
+
+		$total = (int) $total;
+		$posts = array();
+
+		if ( $total > 0 && $limit > 0 ) {
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					"SELECT p.ID AS id, p.post_title AS title, p.post_status AS status, MAX(stage.meta_value) AS stage {$from} GROUP BY p.ID ORDER BY p.ID ASC LIMIT %d",
+					...array_merge( $params, array( $limit ) )
+				)
+			);
+
+			if ( null === $rows ) {
+				throw new \RuntimeException(
+					esc_html( sprintf( 'Could not list the posts holding sequence %d: %s', $sequence_id, $wpdb->last_error ) )
+				);
+			}
+
+			foreach ( $rows as $row ) {
+				$posts[] = array(
+					'id'     => (int) $row->id,
+					'title'  => (string) $row->title,
+					'status' => (string) $row->status,
+					'stage'  => (string) ( $row->stage ?? '' ),
+				);
+			}
+		}
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
+
+		return array(
+			'total' => $total,
+			'posts' => $posts,
+		);
+	}
+
+	/**
 	 * Merge stage + sequence meta selection into a set of WP_Query args.
 	 *
 	 * @param  array    $args      Base args.
