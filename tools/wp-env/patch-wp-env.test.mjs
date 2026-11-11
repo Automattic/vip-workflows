@@ -245,6 +245,23 @@ test( 'patch-wp-env fails when the phpMyAdmin image reference moves', () => {
 	}
 } );
 
+test( 'patch-wp-env fails when build-docker-compose-config.js is missing', () => {
+	const { [ COMPOSE_CONFIG ]: _compose, ...files } = CURRENT_FILES;
+	const fixture = makeFixture( files );
+
+	try {
+		const result = runPatch( fixture );
+		assert.equal( result.status, 1 );
+		assert.match(
+			result.stderr,
+			/expected build-docker-compose-config\.js was not found/
+		);
+		assertUntouched( fixture, files );
+	} finally {
+		rmSync( fixture, { recursive: true, force: true } );
+	}
+} );
+
 test( 'patch-wp-env fails when db-env.js is missing', () => {
 	const { [ DB_ENV ]: _dbEnv, ...withoutDbEnv } = CURRENT_FILES;
 	const fixture = makeFixture( withoutDbEnv );
