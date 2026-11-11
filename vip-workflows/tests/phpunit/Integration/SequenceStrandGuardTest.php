@@ -475,6 +475,20 @@ class SequenceStrandGuardTest extends TestCase
         $this->assertSame( 200, $response->get_status() );
         // Trash counts, as it does for the refusal. An empty stage is left out.
         $this->assertSame( array( 'legal' => 2, 'writing' => 1 ), $this->sorted( $counts ) );
+        $this->assertSame( 3, $response->get_data()['post_count'] );
+    }
+
+    public function test_post_count_includes_posts_at_a_stage_the_sequence_no_longer_defines(): void
+    {
+        $sequence = $this->create_sequence();
+        $this->seat_post( $sequence, 'gone' );
+
+        $response = rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $sequence->id ) );
+
+        // The delete check counts it, so the editor's lock must too. No stage
+        // the config defines holds it, so no stage is locked.
+        $this->assertSame( 1, $response->get_data()['post_count'] );
+        $this->assertSame( array(), (array) $response->get_data()['stage_post_counts'] );
     }
 
     public function test_get_of_an_unused_sequence_reports_no_counts(): void
@@ -484,6 +498,7 @@ class SequenceStrandGuardTest extends TestCase
         $response = rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $sequence->id ) );
 
         $this->assertSame( array(), (array) $response->get_data()['stage_post_counts'] );
+        $this->assertSame( 0, $response->get_data()['post_count'] );
     }
 
     public function test_a_save_returns_fresh_counts(): void
@@ -498,6 +513,7 @@ class SequenceStrandGuardTest extends TestCase
 
         $this->assertSame( 200, $response->get_status() );
         $this->assertSame( array( 'legal' => 1 ), (array) $response->get_data()['stage_post_counts'] );
+        $this->assertSame( 1, $response->get_data()['post_count'] );
     }
 
     public function test_the_sequence_list_does_not_count_posts(): void
@@ -508,6 +524,7 @@ class SequenceStrandGuardTest extends TestCase
 
         foreach ( $response->get_data() as $row ) {
             $this->assertArrayNotHasKey( 'stage_post_counts', $row );
+            $this->assertArrayNotHasKey( 'post_count', $row );
         }
     }
 
