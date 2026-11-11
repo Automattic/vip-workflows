@@ -33,6 +33,10 @@
 - [WPDS usage audit patterns](guides/wpds-usage-audit-patterns.md)
 - [Security review rubric](guides/security-sweep-rubric.md)
 
+## Maintenance
+
+- [Docs cleanup](maintenance/docs-cleanup.md) — the regular pass that removes duplicates and claims that are no longer true.
+
 ## Feature references and demos
 
 - [Proposed design specs](specs/README.md) — such as the [error-state pattern](specs/planned/error-state-pattern.md).
