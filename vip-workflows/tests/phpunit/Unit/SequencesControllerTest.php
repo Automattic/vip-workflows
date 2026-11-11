@@ -1081,6 +1081,78 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
+     * Send an update that drops the default row's `review` stage, with the
+     * strand check's queries answered by the given callbacks.
+     *
+     * @param callable $get_var     Answers the count query.
+     * @param callable $get_results Answers the post-list query.
+     * @return mixed The controller's response.
+     */
+    private function update_dropping_review( callable $get_var, callable $get_results )
+    {
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row( array( 'id' => 5 ) ) );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturnUsing( $get_var );
+        $this->wpdb->shouldReceive( 'get_results' )->andReturnUsing( $get_results );
+        $this->wpdb->shouldNotReceive( 'update' );
+
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'sanitize_hex_color' )->alias( fn( $v ) => $v );
+
+        return $this->controller->update_item(
+            $this->create_mock_request(
+                array(
+                    'id'       => 5,
+                    'name'     => 'Updated Name',
+                    'statuses' => array( array( 'key' => 'draft', 'label' => 'Draft' ) ),
+                )
+            )
+        );
+    }
+
+    /**
+     * Test update_item refuses, writing nothing, when the strand count query fails.
+     */
+    public function test_update_item_refuses_when_the_strand_count_query_fails(): void
+    {
+        $wpdb = $this->wpdb;
+
+        $response = $this->update_dropping_review(
+            function () use ( $wpdb ) {
+                $wpdb->last_error = 'Lost connection';
+                return null;
+            },
+            fn() => array()
+        );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_strand_check_failed', $response->get_error_code() );
+        $this->assertSame( 500, $response->get_error_data()['status'] );
+    }
+
+    /**
+     * Test update_item refuses, writing nothing, when the post-list query fails.
+     *
+     * On an SQL error get_results() answers an empty array, not null.
+     */
+    public function test_update_item_refuses_when_the_post_list_query_fails(): void
+    {
+        $wpdb = $this->wpdb;
+
+        $response = $this->update_dropping_review(
+            fn() => '1',
+            function () use ( $wpdb ) {
+                $wpdb->last_error = 'Lost connection';
+                return array();
+            }
+        );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_strand_check_failed', $response->get_error_code() );
+        $this->assertSame( 500, $response->get_error_data()['status'] );
+    }
+
+    /**
      * Test update_item handles failure.
      */
     public function test_update_item_handles_failure(): void

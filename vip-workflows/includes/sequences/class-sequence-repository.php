@@ -441,15 +441,18 @@ class SequenceRepository {
 	 * refused before anything is written: those posts would point at a stage
 	 * that no longer exists, and the publish boundary would then refuse every
 	 * status change for them. The check lives here, not in a REST controller,
-	 * because every writer passes through this method — REST, abilities, the
-	 * region repair, and extension installers alike.
+	 * so every writer that goes through the repository gets it — REST,
+	 * abilities, the region repair, and extension installers alike. The one
+	 * writer that does not, the upgrade's stored-config replay, writes with
+	 * direct SQL and applies the same rule itself (see
+	 * Schema::stage_keys_with_posts_the_write_would_drop()).
 	 *
 	 * @param  int   $id   Sequence ID.
 	 * @param  array $data Data to update.
 	 * @return int|false Sequence ID or false on failure.
 	 * @throws \InvalidArgumentException When the config fails the write gate.
 	 * @throws StrandedPostsException    When the config removes a stage posts sit at.
-	 * @throws \RuntimeException         When the affected posts cannot be checked.
+	 * @throws StrandCheckFailedException When the affected posts cannot be checked.
 	 */
 	public function update( int $id, array $data ): int|false {
 		global $wpdb;
@@ -576,7 +579,7 @@ class SequenceRepository {
 			// Normalizing a legacy row can re-key a stage posts sit at. That is a
 			// refusal, not a malformed config, so it keeps its own 409.
 			return $e->to_wp_error();
-		} catch ( \RuntimeException $e ) {
+		} catch ( StrandCheckFailedException $e ) {
 			// The strand check could not read the posts. Refuse rather than write
 			// unchecked.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -689,8 +692,8 @@ class SequenceRepository {
 	 *
 	 * Refused while any post still holds the sequence, in any status including
 	 * Trash: the post would keep pointing at a sequence that no longer exists.
-	 * A \RuntimeException from the check (the posts could not be read) is left
-	 * to propagate, so an unreadable answer never lets the delete through.
+	 * A StrandCheckFailedException from the check (the posts could not be read)
+	 * is left to propagate, so an unreadable answer never lets the delete through.
 	 *
 	 * @param  int $id Sequence ID.
 	 * @return bool
