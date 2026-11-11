@@ -39,7 +39,6 @@ export function isSafeUrl( url ) {
 
 	// Control characters are stripped by browsers before scheme matching, so
 	// `java\0script:` and `java\nscript:` would slip a naive test.
-	// eslint-disable-next-line no-control-regex
 	const normalized = trimmed.replace( /[\s\u0000-\u001f\u007f-\u009f]/g, '' );
 
 	return SAFE_SCHEME.test( normalized );

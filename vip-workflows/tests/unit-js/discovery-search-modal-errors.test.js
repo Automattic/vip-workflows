@@ -19,7 +19,6 @@ import apiFetch from '@wordpress/api-fetch';
 
 jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 
-// eslint-disable-next-line import/first
 import DiscoverySearchModal from '../../src/admin/components/ideation/DiscoverySearchModal';
 
 const REFUSAL =

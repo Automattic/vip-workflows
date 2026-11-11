@@ -62,9 +62,7 @@ jest.mock( '@wordpress/dataviews/wp', () => {
 	};
 } );
 
-/* eslint-disable import/first */
 import { MyQueuePage } from '../../src/admin/pages/MyQueuePage';
-/* eslint-enable import/first */
 
 const DEFAULTS = getSettings();
 const TOKYO = {

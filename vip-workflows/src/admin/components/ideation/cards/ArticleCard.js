@@ -98,7 +98,7 @@ export default function ArticleCard( {
 								{ isArchive
 									? __( 'Archive', 'vip-workflows' )
 									: card.domain ||
-									  __( 'Web', 'vip-workflows' ) }
+										__( 'Web', 'vip-workflows' ) }
 							</Badge>
 							{ hasSummary && (
 								<Stack
@@ -201,7 +201,7 @@ export default function ArticleCard( {
 									{ isArchive
 										? __( 'Archive', 'vip-workflows' )
 										: card.domain ||
-										  __( 'Web', 'vip-workflows' ) }
+											__( 'Web', 'vip-workflows' ) }
 								</Badge>
 							) }
 							{ card.author && (
@@ -301,7 +301,7 @@ export default function ArticleCard( {
 										: __(
 												'Generate AI summary',
 												'vip-workflows'
-										  ) }
+											) }
 								</Button>
 							) }
 						</>

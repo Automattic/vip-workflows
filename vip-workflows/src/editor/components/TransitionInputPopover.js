@@ -322,7 +322,7 @@ export function TransitionAssignmentPopover( {
 								: __(
 										'Select a role (optional)',
 										'vip-workflows'
-								  ) }
+									) }
 						</Text>
 						<Stack
 							className="vip-workflows-transition-popover__roles"

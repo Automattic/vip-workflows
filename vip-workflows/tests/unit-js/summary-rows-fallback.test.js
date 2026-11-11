@@ -23,7 +23,6 @@ jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
-// eslint-disable-next-line import/first
 import { createReduxStore, dispatch, register } from '@wordpress/data';
 
 register(
@@ -66,9 +65,7 @@ register(
 	} )
 );
 
-// eslint-disable-next-line import/first
 import { seedEditorStore } from './helpers/editor-store';
-// eslint-disable-next-line import/first
 import {
 	SummaryRowsFallback,
 	SummaryRowsFill,

@@ -277,7 +277,7 @@ const serializeSequence = ( isPhase, fields ) =>
 					description: fields.description,
 					isActive: fields.isActive,
 					stages: fields.stages,
-			  }
+				}
 			: {
 					name: fields.name,
 					description: fields.description,
@@ -286,7 +286,7 @@ const serializeSequence = ( isPhase, fields ) =>
 					selectedPostTypes: fields.selectedPostTypes,
 					settings: fields.settings,
 					metadataFields: fields.metadataFields,
-			  }
+				}
 	);
 
 /**
@@ -601,11 +601,11 @@ export default function SequenceGraphEditor( {
 							? __(
 									'Could not load the phases this sequence can connect. Reload the page to try again.',
 									'vip-workflows'
-							  )
+								)
 							: __(
 									'Could not load the list of post types. Reload the page to try again.',
 									'vip-workflows'
-							  ) )
+								) )
 				);
 				setReadFailed( true );
 				// A new sequence has its canvas up while this read is still
@@ -1089,7 +1089,7 @@ export default function SequenceGraphEditor( {
 				: visibleRegions(
 						stages,
 						keptRegions( savedStages, addedRegions, removedRegions )
-				  ),
+					),
 		[ isPhase, stages, savedStages, addedRegions, removedRegions ]
 	);
 	// The statuses the server allows that aren't drawn yet — what "Add post
@@ -1860,7 +1860,7 @@ export default function SequenceGraphEditor( {
 							slug
 						),
 					} ) ),
-		  ];
+			];
 
 	const sequenceSettings = {
 		name,
@@ -1952,7 +1952,7 @@ export default function SequenceGraphEditor( {
 														),
 													variant: 'primary',
 												},
-										  ]
+											]
 										: undefined
 								}
 							>
@@ -1990,11 +1990,11 @@ export default function SequenceGraphEditor( {
 											? __(
 													'Assigning…',
 													'vip-workflows'
-											  )
+												)
 											: __(
 													'Assign default status',
 													'vip-workflows'
-											  ),
+												),
 										onClick: repairRegions,
 										disabled: repairing,
 										variant: 'primary',
@@ -2028,7 +2028,7 @@ export default function SequenceGraphEditor( {
 										selection.from,
 										selection.to,
 										selection.outcome || null
-								  )
+									)
 								: null
 						}
 						selectedRegion={

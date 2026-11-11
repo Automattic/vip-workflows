@@ -292,7 +292,7 @@ const withPromote = () => [
 					...s,
 					is_terminal: false,
 					transitions: [ { to: 'promote', label: 'Promote' } ],
-			  }
+				}
 			: s
 	),
 	{
@@ -397,7 +397,7 @@ describe( 'a transition may target any stage, in any region', () => {
 							ability_id: 'test/reviewer',
 							routing: {},
 						},
-				  }
+					}
 				: s
 		);
 		const next = routeOutcome( input, 'review', 'pass', 'promote' );

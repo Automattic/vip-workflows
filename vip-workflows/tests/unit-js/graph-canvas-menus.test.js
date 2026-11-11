@@ -221,7 +221,6 @@ async function renderCanvas( {
 // React Flow measures and lays out across a few ticks.
 async function settle() {
 	for ( let i = 0; i < 5; i++ ) {
-		// eslint-disable-next-line no-await-in-loop
 		await act( async () => {
 			await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 		} );

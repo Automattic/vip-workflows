@@ -489,11 +489,11 @@ export default function EdgeAnchors( {
 					? __(
 							'Drag to move where this transition starts',
 							'vip-workflows'
-					  )
+						)
 					: __(
 							'Drag to move where this transition goes',
 							'vip-workflows'
-					  ) }
+						) }
 			</title>
 			<circle className="wf-edge-anchors__grab" r={ grabs[ end ] } />
 			<circle className="wf-edge-anchors__ring" r={ RING_RADIUS } />

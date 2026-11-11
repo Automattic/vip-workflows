@@ -88,7 +88,7 @@ export default function InspectorShell( { eyebrow, title, children } ) {
 							? [
 									eyebrow && `${ headingId }-eyebrow`,
 									title && `${ headingId }-title`,
-							  ]
+								]
 									.filter( Boolean )
 									.join( ' ' ) || undefined
 							: undefined

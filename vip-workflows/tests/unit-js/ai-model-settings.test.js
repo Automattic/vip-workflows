@@ -198,10 +198,10 @@ describe( 'a provider derived from the only connected credential', () => {
 			Promise.resolve(
 				method === 'POST'
 					? // The provider was stored; the model was rejected.
-					  payload( {
+						payload( {
 							ai_provider_selected: true,
 							ai_model: '',
-					  } )
+						} )
 					: payload()
 			)
 		);

@@ -75,9 +75,9 @@ jest.mock( '@wordpress/dataviews/wp', () => {
 											field.getValue ??
 											( ( { item: row } ) =>
 												row[ field.id ] )
-									  )( {
+										)( {
 											item,
-									  } )
+										} )
 							)
 						)
 				)
@@ -106,7 +106,6 @@ jest.mock( '@wordpress/dataviews/wp', () => {
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
-// eslint-disable-next-line import/first
 import { createReduxStore, register } from '@wordpress/data';
 
 register(
@@ -147,11 +146,8 @@ register(
  * The real editor store, seeded per test: the panel reads its workflow state
  * from it rather than holding a copy, so a stand-in would test the stand-in.
  */
-// eslint-disable-next-line import/first
 import { seedEditorStore } from './helpers/editor-store';
-// eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
-// eslint-disable-next-line import/first
 import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';

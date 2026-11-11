@@ -26,7 +26,6 @@ jest.mock( '../../src/admin/components/ideation/RecentProjects', () =>
 	jest.fn( () => null )
 );
 
-// eslint-disable-next-line import/first
 import Ideation from '../../src/admin/pages/Ideation';
 
 describe( 'Ideation landing', () => {

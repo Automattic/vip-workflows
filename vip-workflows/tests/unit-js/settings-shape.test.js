@@ -49,7 +49,6 @@ jest.mock( '@wordpress/components', () => {
 	};
 } );
 
-// eslint-disable-next-line import/first
 import Settings from '../../src/admin/pages/Settings';
 
 const successNotices = [];

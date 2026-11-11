@@ -35,9 +35,7 @@ jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
-// eslint-disable-next-line import/first
 import { createReduxStore, register } from '@wordpress/data';
-// eslint-disable-next-line import/first
 import { SlotFillProvider } from '@wordpress/components';
 
 // The committed post status, settable per test: the confirm keys off what is
@@ -85,11 +83,8 @@ register(
  * The real editor store, seeded per test: the panel reads its workflow state
  * from it rather than holding a copy, so a stand-in would test the stand-in.
  */
-// eslint-disable-next-line import/first
 import { seedEditorStore } from './helpers/editor-store';
-// eslint-disable-next-line import/first
 import { WorkflowPanel } from '../../src/editor/components/WorkflowPanel';
-// eslint-disable-next-line import/first
 import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';

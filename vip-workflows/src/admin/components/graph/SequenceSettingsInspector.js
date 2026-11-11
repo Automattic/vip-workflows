@@ -77,7 +77,7 @@ export default function SequenceSettingsInspector( {
 				/* translators: %d: number of metadata fields. */
 				_n( '%d field', '%d fields', fieldCount, 'vip-workflows' ),
 				fieldCount
-		  )
+			)
 		: __( 'None', 'vip-workflows' );
 
 	const stageCount = ( stages || [] ).length;
@@ -86,7 +86,7 @@ export default function SequenceSettingsInspector( {
 				/* translators: %d: number of stages. */
 				_n( '%d stage', '%d stages', stageCount, 'vip-workflows' ),
 				stageCount
-		  )
+			)
 		: __( 'None', 'vip-workflows' );
 
 	const regionCount = ( regions || [] ).length;
@@ -95,7 +95,7 @@ export default function SequenceSettingsInspector( {
 				/* translators: %d: number of post statuses. */
 				_n( '%d status', '%d statuses', regionCount, 'vip-workflows' ),
 				regionCount
-		  )
+			)
 		: __( 'None', 'vip-workflows' );
 
 	// InspectorFieldList calls onChange with the whole array for both remove

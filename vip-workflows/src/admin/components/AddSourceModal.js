@@ -196,7 +196,7 @@ export default function AddSourceModal( { onClose, onAdd } ) {
 								: __(
 										'Article title or description',
 										'vip-workflows'
-								  )
+									)
 						}
 						__nextHasNoMarginBottom
 						__next40pxDefaultSize

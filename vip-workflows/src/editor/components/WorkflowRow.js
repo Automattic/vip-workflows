@@ -142,7 +142,7 @@ export function WorkflowRow( {
 				/* translators: %s: the workflow the post is currently in. */
 				__( 'Change workflow: %s', 'vip-workflows' ),
 				valueLabel
-		  )
+			)
 		: __( 'Select a workflow', 'vip-workflows' );
 
 	return (

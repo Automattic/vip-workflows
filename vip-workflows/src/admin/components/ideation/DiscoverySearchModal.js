@@ -160,7 +160,7 @@ export default function DiscoverySearchModal( {
 				providerMeta?.label
 					? `${ __( 'Search', 'vip-workflows' ) } ${
 							providerMeta.label
-					  }`
+						}`
 					: __( 'Search stories', 'vip-workflows' )
 			}
 			onRequestClose={ onClose }

@@ -27,7 +27,7 @@ function renderInspector(
 						from: stage.key,
 						to: 'published',
 						outcome: 'pass',
-				  },
+					},
 		isPhase: false,
 		stages: [
 			stage,

@@ -215,7 +215,6 @@ function Editor( { initialStages = STAGES, omitBlockers = false } ) {
 // React Flow measures and lays out across a few ticks.
 async function settle() {
 	for ( let i = 0; i < 5; i++ ) {
-		// eslint-disable-next-line no-await-in-loop
 		await act( async () => {
 			await new Promise( ( resolve ) => setTimeout( resolve, 0 ) );
 		} );
@@ -444,7 +443,6 @@ describe( 'GraphCanvas Reset layout', () => {
 		// Sample the 200ms animation as it runs, one frame of React at a time.
 		const frames = [];
 		for ( let i = 0; i < 30; i++ ) {
-			// eslint-disable-next-line no-await-in-loop
 			await act( async () => {
 				await new Promise( ( resolve ) => setTimeout( resolve, 10 ) );
 			} );

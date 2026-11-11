@@ -61,13 +61,11 @@ jest.mock( '@wordpress/dataviews/wp', () => {
 	};
 } );
 
-/* eslint-disable import/first */
 import { DataViews } from '@wordpress/dataviews/wp';
 import { MyWorkPage } from '../../src/admin/pages/MyWorkPage';
 import { MyQueuePage } from '../../src/admin/pages/MyQueuePage';
 import { MyIdeationPage } from '../../src/admin/pages/MyIdeationPage';
 import { adminGlobals } from './helpers/admin-globals';
-/* eslint-enable import/first */
 
 const WORKFLOW_ROW = {
 	post_id: 1,

@@ -372,7 +372,7 @@ export function buildGraph( stages, options = {} ) {
 									? routing[ outcome ]
 									: null,
 							] )
-					  )
+						)
 					: null,
 				isTerminal: ! isPhase && Boolean( stage.is_terminal ),
 				// The node's "published" badge marks stages living in the
@@ -1003,7 +1003,7 @@ export function addTransition( stages, from, to, extra = {} ) {
 			? {
 					...stage,
 					transitions: [ ...( stage.transitions || [] ), transition ],
-			  }
+				}
 			: stage
 	);
 }
@@ -1053,7 +1053,7 @@ export function rewireTransition( stages, from, oldTo, newTo ) {
 					transitions: ( stage.transitions || [] ).map( ( t ) =>
 						t.to === oldTo ? { ...t, to: newTo } : t
 					),
-			  }
+				}
 			: stage
 	);
 }
@@ -1075,7 +1075,7 @@ export function updateTransition( stages, from, to, changes ) {
 					transitions: ( stage.transitions || [] ).map( ( t ) =>
 						t.to === to ? { ...t, ...changes } : t
 					),
-			  }
+				}
 			: stage
 	);
 }
@@ -1100,7 +1100,7 @@ export function removeTransition( stages, from, to ) {
 					transitions: ( stage.transitions || [] ).filter(
 						( t ) => t.to !== to
 					),
-			  }
+				}
 			: stage
 	);
 }
@@ -2137,7 +2137,7 @@ export function reconnectEdgeToNewStage( stages, from, to, options = {} ) {
 		from === START_ID
 			? entryStageKey( moved.stages ) === key
 			: Boolean( findTransition( moved.stages, from, key ) ) &&
-			  ! isTransitionDisabled( source, key, moved.stages, true );
+				! isTransitionDisabled( source, key, moved.stages, true );
 	if ( ! reached ) {
 		return { stages, key: null };
 	}
@@ -2623,11 +2623,11 @@ export function validateSequence( {
 					? __(
 							'The agent has no outcome routed anywhere. Use an outcome’s Route button in the Stage panel, or drag its handle.',
 							'vip-workflows'
-					  )
+						)
 					: __(
 							'Stage has no outgoing transition and is not marked final — content cannot leave it.',
 							'vip-workflows'
-					  )
+						)
 			);
 		}
 
@@ -2831,11 +2831,11 @@ export function validateSequence( {
 									: __( 'an unnamed stage', 'vip-workflows' );
 							} )
 							.join( ', ' )
-				  )
+					)
 				: __(
 						'Nothing ends this sequence. On the last stage, choose Add exit, then End of workflow, or drag it to the End node.',
 						'vip-workflows'
-				  );
+					);
 		const message = pointsAtAgent
 			? sprintf(
 					/* translators: 1: the "nothing ends this sequence" message, 2: how an AI stage is made final. */
@@ -2845,7 +2845,7 @@ export function validateSequence( {
 						'An AI stage cannot end the flow while it has an agent: clear the Agent field in its Stage panel first.',
 						'vip-workflows'
 					)
-			  )
+				)
 			: nothingEnds;
 		addError( message );
 		// The End node is where this is fixed — every remedy ends in a route to

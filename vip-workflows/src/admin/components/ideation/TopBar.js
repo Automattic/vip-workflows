@@ -352,7 +352,7 @@ export default function TopBar( {
 								{ creatingDraft
 									? __( 'Creating…', 'vip-workflows' )
 									: phaseTransitions.editorial.label ||
-									  __( 'Create draft', 'vip-workflows' ) }
+										__( 'Create draft', 'vip-workflows' ) }
 							</Button>
 						) }
 				</Stack>

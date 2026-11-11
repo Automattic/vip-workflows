@@ -143,7 +143,7 @@ export function ExperimentsSettings( { onDirtyChange, registerSave } ) {
 							: __(
 									'Unavailable in this environment.',
 									'vip-workflows'
-							  )
+								)
 					}
 					checked={ drafts[ experiment.id ] }
 					disabled={ ! experiment.available }

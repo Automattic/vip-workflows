@@ -249,11 +249,11 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 			? __(
 					'No models found. The default model will be used.',
 					'vip-workflows'
-			  )
+				)
 			: __(
 					'No models found. Check Settings → Connectors.',
 					'vip-workflows'
-			  );
+				);
 	} )();
 
 	return (

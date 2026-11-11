@@ -79,25 +79,25 @@ export function MetadataRow( {
 					),
 					fieldLabel,
 					displayLabel
-			  )
+				)
 			: sprintf(
 					/* translators: %1$s: metadata field label, %2$s: its current value. */
 					__( 'Change %1$s: %2$s', 'vip-workflows' ),
 					fieldLabel,
 					displayLabel
-			  );
+				);
 	} else {
 		accessibleName = required
 			? sprintf(
 					/* translators: %s: metadata field label. */
 					__( 'Set %s (required to publish)', 'vip-workflows' ),
 					fieldLabel
-			  )
+				)
 			: sprintf(
 					/* translators: %s: metadata field label. */
 					__( 'Set %s', 'vip-workflows' ),
 					fieldLabel
-			  );
+				);
 	}
 
 	const headerTitle = required
@@ -105,7 +105,7 @@ export function MetadataRow( {
 				/* translators: %s: metadata field label. */
 				__( '%s (required to publish)', 'vip-workflows' ),
 				fieldLabel
-		  )
+			)
 		: fieldLabel;
 
 	return (

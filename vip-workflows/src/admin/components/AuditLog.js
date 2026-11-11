@@ -130,7 +130,6 @@ export function AuditLog() {
 				);
 			} )
 			.catch( ( err ) => {
-				// eslint-disable-next-line no-console
 				console.error( 'Failed to load filter options:', err );
 			} );
 	}, [] );
@@ -158,7 +157,6 @@ export function AuditLog() {
 				if ( cancelled ) {
 					return;
 				}
-				// eslint-disable-next-line no-console
 				console.error( 'Failed to load audit log:', err );
 				setIsLoading( false );
 			} );

@@ -144,11 +144,11 @@ export function CheckResultsModal( {
 								? __(
 										'These results are for the published version. Save the post to publish your edits, then run the check again.',
 										'vip-workflows'
-								  )
+									)
 								: __(
 										'These results are for the last saved version. Save the post, then run the check again to include your edits.',
 										'vip-workflows'
-								  ) }
+									) }
 						</Notice>
 					) }
 					<Stack direction="row" align="center" gap="lg">
@@ -251,11 +251,11 @@ export function CheckResultsModal( {
 															? __(
 																	'Passed',
 																	'vip-workflows'
-															  )
+																)
 															: __(
 																	'Failed',
 																	'vip-workflows'
-															  ) }
+																) }
 													</Badge>
 												</Stack>
 												{ explanation && (

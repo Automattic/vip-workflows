@@ -21,9 +21,7 @@ jest.mock( '@wordpress/core-data', () => ( {
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
 jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 
-// eslint-disable-next-line import/first
 import { createReduxStore, dispatch, register, select } from '@wordpress/data';
-// eslint-disable-next-line import/first
 import { SlotFillProvider, Slot } from '@wordpress/components';
 
 const PANEL = 'vip-workflows/workflow';
@@ -100,9 +98,7 @@ register(
 	} )
 );
 
-// eslint-disable-next-line import/first
 import { seedEditorStore, STORE_NAME } from './helpers/editor-store';
-// eslint-disable-next-line import/first
 import {
 	WorkflowPanelBody,
 	WorkflowPanelRecovery,

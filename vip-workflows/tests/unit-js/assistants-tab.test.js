@@ -34,7 +34,6 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 // needs the store's key to dispatch its success snackbar.
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 
-// eslint-disable-next-line import/first
 import Agents from '../../src/admin/pages/Agents';
 
 const ASSISTANTS_PATH = '/vip-workflows/v1/assistants';

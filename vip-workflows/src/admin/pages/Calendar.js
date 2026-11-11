@@ -504,11 +504,11 @@ function YearView( { date, events, onSelectDay } ) {
 												hasEvents
 													? `${
 															dayEvents.length
-													  } post${
+														} post${
 															dayEvents.length > 1
 																? 's'
 																: ''
-													  }`
+														}`
 													: ''
 											}
 										>
@@ -566,7 +566,7 @@ function RescheduleModal( { event, newDate, type, onConfirm, onCancel } ) {
 							),
 							event.title,
 							formattedDate
-					  )
+						)
 					: sprintf(
 							/* translators: 1: post title, 2: scheduled date and time. */
 							__(
@@ -575,7 +575,7 @@ function RescheduleModal( { event, newDate, type, onConfirm, onCancel } ) {
 							),
 							event.title,
 							formattedDate
-					  ) }
+						) }
 			</Text>
 			<ModalActions>
 				<Button
@@ -808,7 +808,7 @@ export default function Calendar() {
 							post_status: newStatus,
 							is_scheduled: isFuture,
 							is_published: ! isFuture,
-					  }
+						}
 					: e
 			)
 		);
@@ -826,12 +826,12 @@ export default function Calendar() {
 						/* translators: %s: the date and time the post is now scheduled for. */
 						__( 'Scheduled for %s', 'vip-workflows' ),
 						when
-				  )
+					)
 				: sprintf(
 						/* translators: %s: the date and time the post went live. */
 						__( 'Published (%s)', 'vip-workflows' ),
 						when
-				  );
+					);
 			createSuccessNotice( label, { type: 'snackbar' } );
 		} catch ( err ) {
 			setEvents( originalEvents );

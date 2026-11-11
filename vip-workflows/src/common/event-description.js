@@ -201,7 +201,7 @@ export function eventDescription( event ) {
 							'vip-workflows'
 						),
 						eventData.initial_stage_label || eventData.initial_stage
-				  )
+					)
 				: '';
 
 		// The sequence the post left is the Workflow field, and a removal has
@@ -265,7 +265,7 @@ export function eventDescription( event ) {
 						),
 						toStage( eventData ),
 						count
-				  )
+					)
 				: sprintf(
 						/* translators: %s: stage the post moved to. */
 						__(
@@ -273,7 +273,7 @@ export function eventDescription( event ) {
 							'vip-workflows'
 						),
 						toStage( eventData )
-				  );
+					);
 		}
 
 		case 'ability.executed':
@@ -283,12 +283,12 @@ export function eventDescription( event ) {
 						__( 'Ran %1$s (score: %2$s)', 'vip-workflows' ),
 						eventData.ability_id,
 						eventData.output.score
-				  )
+					)
 				: sprintf(
 						/* translators: %s: ability id. */
 						__( 'Ran %s', 'vip-workflows' ),
 						eventData.ability_id
-				  );
+					);
 
 		case 'ability.failed': {
 			const failed = sprintf(
@@ -316,7 +316,7 @@ export function eventDescription( event ) {
 							'vip-workflows'
 						),
 						eventData.statuses_count
-				  );
+					);
 
 		// The direction is the whole fact: activation only ever moves
 		// draft → active, and the payload's `previous_status` /

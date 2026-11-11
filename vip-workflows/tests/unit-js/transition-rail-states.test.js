@@ -14,7 +14,6 @@ import { render, screen, act } from './helpers/render-wp-component';
 
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
-// eslint-disable-next-line import/first
 import { TransitionRail } from '../../src/editor/components/TransitionRail';
 
 /**

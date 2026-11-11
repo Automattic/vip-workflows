@@ -64,7 +64,6 @@ jest.mock( '@dnd-kit/core', () => {
 	};
 } );
 
-// eslint-disable-next-line import/first
 import {
 	KanbanBoard,
 	legalDropTargets,

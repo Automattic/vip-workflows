@@ -357,12 +357,12 @@ function renderPanel( {
 								selectedStage.key,
 								target,
 								outcome
-						  )
+							)
 						: onConnectTransition(
 								selectedStage.key,
 								target,
 								outcome
-						  );
+							);
 				} ) }
 				// An outcome is cleared by name; `disconnectEdge` never reads
 				// the target for one.
@@ -393,11 +393,11 @@ function renderPanel( {
 			? __(
 					'Delete this connection to make the stage non-final.',
 					'vip-workflows'
-			  )
+				)
 			: __(
 					'To make the stage non-final, remove End of workflow from the stage’s exits, or delete this connection.',
 					'vip-workflows'
-			  );
+				);
 		return (
 			<InspectorShell
 				eyebrow={
@@ -420,7 +420,7 @@ function renderPanel( {
 									'vip-workflows'
 								),
 								regionLabel( DEFAULT_REGION )
-						  )
+							)
 						: finalHelp }
 				</Text>
 			</InspectorShell>
@@ -487,7 +487,7 @@ function renderPanel( {
 									key
 								),
 								value: key,
-						  }
+							}
 						: endpointOption( stages, key )
 				);
 		};

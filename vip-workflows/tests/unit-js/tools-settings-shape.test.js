@@ -24,7 +24,6 @@ import { addFilter, removeFilter } from '@wordpress/hooks';
 jest.mock( '@wordpress/api-fetch' );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 
-// eslint-disable-next-line import/first
 import Tools from '../../src/admin/pages/Tools';
 
 const successNotices = [];

@@ -164,7 +164,7 @@ export function borderPointOn( rect, side, toward ) {
 						rect.x + rect.width - BORDER_INSET
 					),
 					y: side === Position.Top ? rect.y : rect.y + rect.height,
-			  }
+				}
 			: {
 					x: side === Position.Left ? rect.x : rect.x + rect.width,
 					y: clamp(
@@ -172,7 +172,7 @@ export function borderPointOn( rect, side, toward ) {
 						rect.y + BORDER_INSET,
 						rect.y + rect.height - BORDER_INSET
 					),
-			  };
+				};
 	return easeOffCorner( point, side, rect );
 }
 
