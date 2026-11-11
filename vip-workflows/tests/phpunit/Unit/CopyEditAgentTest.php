@@ -415,6 +415,80 @@ class CopyEditAgentTest extends TestCase
         $this->assertArrayNotHasKey( 'maximum', $registered['input_schema']['properties']['max_change_percent'] );
         $this->assertSame( 15, $registered['meta']['settings_schema']['max_change_percent']['default'] );
         $this->assertSame( 50, $registered['meta']['settings_schema']['max_change_percent']['maximum'] );
+
+        foreach ( array( 'max_paragraph_change_percent' => array( 50, 75 ), 'min_paragraph_words' => array( 8, 20 ) ) as $key => $bounds ) {
+            $this->assertSame( 'integer', $registered['input_schema']['properties'][ $key ]['type'] );
+            $this->assertArrayNotHasKey( 'maximum', $registered['input_schema']['properties'][ $key ] );
+            $this->assertSame( $bounds[0], $registered['meta']['settings_schema'][ $key ]['default'] );
+            $this->assertSame( $bounds[1], $registered['meta']['settings_schema'][ $key ]['maximum'] );
+        }
+    }
+
+    public function test_paragraph_settings_fall_back_and_clamp(): void
+    {
+        $this->assertSame( 50, \WorkflowAgentCopyEdit\paragraph_change_percent( array() ) );
+        $this->assertSame( 75, \WorkflowAgentCopyEdit\paragraph_change_percent( array( 'max_paragraph_change_percent' => 100 ) ) );
+        $this->assertSame( 1, \WorkflowAgentCopyEdit\paragraph_change_percent( array( 'max_paragraph_change_percent' => 0 ) ) );
+        $this->assertSame( 8, \WorkflowAgentCopyEdit\min_paragraph_words( array( 'min_paragraph_words' => 'many' ) ) );
+        $this->assertSame( 20, \WorkflowAgentCopyEdit\min_paragraph_words( array( 'min_paragraph_words' => 500 ) ) );
+        $this->assertSame( 3, \WorkflowAgentCopyEdit\min_paragraph_words( array( 'min_paragraph_words' => 3 ) ) );
+    }
+
+    public function test_the_paragraph_settings_change_the_outcome(): void
+    {
+        // One paragraph about 40% rewritten: under the default 50% paragraph
+        // limit and the 15% whole-body limit, over a stage's 30% paragraph limit.
+        $edited    = self::PARAGRAPHS;
+        $words     = explode( ' ', $edited[0] );
+        foreach ( $words as $i => $word ) {
+            if ( $i % 5 < 2 ) {
+                $words[ $i ] = 'changed';
+            }
+        }
+        $edited[0] = implode( ' ', $words );
+        $reply     = wp_json_encode( self::edited( self::body( $edited ) ) );
+        AiClient::$responseQueue = array( $reply, $reply );
+        $writes    = $this->capture_writes();
+
+        $default = \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
+        $strict  = \WorkflowAgentCopyEdit\execute(
+            array(
+                'post_id'                      => 5,
+                'max_paragraph_change_percent' => 30,
+            )
+        );
+
+        $this->assertSame( 'pass', $default['status'] );
+        $this->assertSame( 'fail', $strict['status'] );
+        $this->assertStringContainsString( 'rewrote more than 30% of 1 paragraph', $strict['summary'] );
+        $this->assertCount( 1, $writes );
+    }
+
+    public function test_a_raised_minimum_exempts_a_short_paragraph(): void
+    {
+        // A 10-word paragraph fully rewritten: checked at the default minimum
+        // of 8 words, exempt when a stage raises the minimum to 12.
+        $paragraphs   = self::PARAGRAPHS;
+        $paragraphs[] = 'One two three four five six seven eight nine ten.';
+        $this->set_post( self::body( $paragraphs ) );
+
+        $edited    = $paragraphs;
+        $edited[5] = 'Alpha beta gamma delta epsilon zeta eta theta iota kappa.';
+        $reply     = wp_json_encode( self::edited( self::body( $edited ) ) );
+        AiClient::$responseQueue = array( $reply, $reply );
+        $this->capture_writes();
+
+        $default = \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
+        $raised  = \WorkflowAgentCopyEdit\execute(
+            array(
+                'post_id'             => 5,
+                'min_paragraph_words' => 12,
+            )
+        );
+
+        $this->assertSame( 'fail', $default['status'] );
+        $this->assertStringContainsString( 'paragraph', $default['summary'] );
+        $this->assertSame( 'pass', $raised['status'] );
     }
 
     // --- kept defenses ----------------------------------------------------------

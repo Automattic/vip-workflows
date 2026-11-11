@@ -74,6 +74,21 @@ class CopyEditSettingsIntegrationTest extends TestCase
         );
     }
 
+    public function test_stored_paragraph_settings_pass_input_validation_and_are_clamped(): void
+    {
+        $input = array(
+            'post_id'                      => 1,
+            'max_paragraph_change_percent' => 100,
+            'min_paragraph_words'          => 500,
+        );
+
+        $this->assertTrue( rest_validate_value_from_schema( $input, $this->input_schema(), 'input' ) );
+        $this->assertSame( 75, \WorkflowAgentCopyEdit\paragraph_change_percent( $input ) );
+        $this->assertSame( 20, \WorkflowAgentCopyEdit\min_paragraph_words( $input ) );
+        $this->assertSame( 50, \WorkflowAgentCopyEdit\paragraph_change_percent( array( 'post_id' => 1 ) ) );
+        $this->assertSame( 8, \WorkflowAgentCopyEdit\min_paragraph_words( array( 'post_id' => 1 ) ) );
+    }
+
     public function test_a_non_integer_setting_is_rejected_by_the_schema(): void
     {
         $this->assertWPError(

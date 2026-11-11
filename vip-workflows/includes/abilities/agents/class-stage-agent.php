@@ -59,9 +59,10 @@ class StageAgent {
 	public const BLOCK_CHANGE_PERCENT = 50;
 
 	/**
-	 * Blocks shorter than this many words are exempt from the per-block limit.
+	 * Blocks shorter than this many words, before and after the edit, are
+	 * exempt from the per-block limit by default.
 	 */
-	private const BLOCK_CHANGE_MIN_WORDS = 8;
+	public const BLOCK_CHANGE_MIN_WORDS = 8;
 
 	/**
 	 * Most word-comparison cells measure_rewrite() will spend on one rewrite.
@@ -465,11 +466,12 @@ class StageAgent {
 	 * @param  array $report        From measure_rewrite().
 	 * @param  int   $max_percent   Largest whole-body share of words a copy edit may change.
 	 * @param  int   $block_percent Largest share of any one block's words a copy edit may change.
+	 * @param  int   $min_words     Blocks shorter than this, before and after, skip the per-block limit.
 	 * @return string[] Violation codes; empty when the rewrite is a copy edit. One of
 	 *                  `unpreservable_markup` or `too_large` stands alone; otherwise any of
 	 *                  `share`, `block_share`, `links`, `structure`, `markup`.
 	 */
-	public static function copy_edit_violations( array $report, int $max_percent, int $block_percent = self::BLOCK_CHANGE_PERCENT ): array {
+	public static function copy_edit_violations( array $report, int $max_percent, int $block_percent = self::BLOCK_CHANGE_PERCENT, int $min_words = self::BLOCK_CHANGE_MIN_WORDS ): array {
 		if ( $report['unpreservable_markup'] ) {
 			return array( 'unpreservable_markup' );
 		}
@@ -484,7 +486,7 @@ class StageAgent {
 			$violations[] = 'share';
 		}
 
-		if ( self::blocks_over( $report, $block_percent ) > 0 ) {
+		if ( self::blocks_over( $report, $block_percent, $min_words ) > 0 ) {
 			$violations[] = 'block_share';
 		}
 
@@ -517,9 +519,10 @@ class StageAgent {
 	 * @param  string[] $violations    From copy_edit_violations().
 	 * @param  int      $max_percent   The whole-body limit that was applied.
 	 * @param  int      $block_percent The per-block limit that was applied.
+	 * @param  int      $min_words     The per-block minimum length that was applied.
 	 * @return string One or two sentences.
 	 */
-	public static function describe_rewrite( array $report, array $violations, int $max_percent, int $block_percent = self::BLOCK_CHANGE_PERCENT ): string {
+	public static function describe_rewrite( array $report, array $violations, int $max_percent, int $block_percent = self::BLOCK_CHANGE_PERCENT, int $min_words = self::BLOCK_CHANGE_MIN_WORDS ): string {
 		if ( in_array( 'unpreservable_markup', $violations, true ) ) {
 			return __( 'This post contains markup that WordPress strips when an agent saves, so the edit was not written. Copy-edit it by hand.', 'vip-workflows' );
 		}
@@ -541,7 +544,7 @@ class StageAgent {
 		}
 
 		if ( in_array( 'block_share', $violations, true ) ) {
-			$over      = self::blocks_over( $report, $block_percent );
+			$over      = self::blocks_over( $report, $block_percent, $min_words );
 			$clauses[] = sprintf(
 				/* translators: 1: number of paragraphs or blocks. 2: the per-block limit, as a percentage. */
 				_n( 'rewrote more than %2$d%% of %1$d paragraph', 'rewrote more than %2$d%% of %1$d paragraphs', $over, 'vip-workflows' ),
@@ -584,19 +587,20 @@ class StageAgent {
 	/**
 	 * How many blocks a rewrite changed by more than the per-block limit.
 	 *
-	 * Blocks under BLOCK_CHANGE_MIN_WORDS both before and after the edit are
+	 * Blocks under $min_words both before and after the edit are
 	 * skipped: one word in a two-word line is already half of it. A short block
 	 * that grew past the floor is measured, or it could absorb any insertion.
 	 *
 	 * @param  array $report        From measure_rewrite().
 	 * @param  int   $block_percent Per-block limit.
+	 * @param  int   $min_words     Minimum block length the limit applies to.
 	 * @return int
 	 */
-	private static function blocks_over( array $report, int $block_percent ): int {
+	private static function blocks_over( array $report, int $block_percent, int $min_words ): int {
 		$over = 0;
 		foreach ( $report['blocks'] as $block ) {
 			// Short before and after: a short block that grew is measured.
-			if ( max( $block['words'], $block['words_after'] ?? 0 ) >= self::BLOCK_CHANGE_MIN_WORDS && $block['share'] * 100 > $block_percent ) {
+			if ( max( $block['words'], $block['words_after'] ?? 0 ) >= $min_words && $block['share'] * 100 > $block_percent ) {
 				++$over;
 			}
 		}

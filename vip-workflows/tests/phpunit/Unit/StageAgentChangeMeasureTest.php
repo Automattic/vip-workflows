@@ -154,6 +154,17 @@ class StageAgentChangeMeasureTest extends TestCase
         $this->assertNotContains( 'block_share', StageAgent::copy_edit_violations( $report, 15 ) );
     }
 
+    public function test_the_minimum_block_length_is_a_parameter(): void
+    {
+        $original = self::para( 'One two three four five six seven eight nine ten.' ) . "\n\n" . self::para( self::words( 300 ) );
+        $edited   = self::para( 'Alpha beta gamma delta epsilon zeta eta theta iota kappa.' ) . "\n\n" . self::para( self::words( 300 ) );
+
+        $report = StageAgent::measure_rewrite( $original, $edited );
+
+        $this->assertContains( 'block_share', StageAgent::copy_edit_violations( $report, 15 ) );
+        $this->assertNotContains( 'block_share', StageAgent::copy_edit_violations( $report, 15, 50, 12 ) );
+    }
+
     public function test_one_added_sentence_with_a_link_fails_on_links(): void
     {
         $original = self::para( self::words( 200 ) );

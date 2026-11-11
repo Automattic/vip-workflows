@@ -36,6 +36,32 @@ const DEFAULT_MAX_CHANGE_PERCENT = 15;
  */
 const MAX_CHANGE_PERCENT_CEILING = 50;
 
+/**
+ * Default for the largest share of one paragraph's words, in percent, a copy
+ * edit may change.
+ */
+const DEFAULT_PARAGRAPH_CHANGE_PERCENT = 50;
+
+/**
+ * The most a stage may raise the per-paragraph limit to.
+ *
+ * Above this a whole paragraph can be swapped for different prose, which is
+ * the edit the per-paragraph limit exists to stop.
+ */
+const PARAGRAPH_CHANGE_PERCENT_CEILING = 75;
+
+/**
+ * Default for the shortest paragraph, in words, the per-paragraph limit applies to.
+ */
+const DEFAULT_MIN_PARAGRAPH_WORDS = 8;
+
+/**
+ * The most a stage may raise that minimum to.
+ *
+ * Above this most real paragraphs would be exempt from the per-paragraph limit.
+ */
+const MIN_PARAGRAPH_WORDS_CEILING = 20;
+
 add_action( 'vip_workflows_register_abilities', __NAMESPACE__ . '\register' );
 add_action( 'vip_workflows_register_assistant_meta', __NAMESPACE__ . '\register_agent_meta' );
 
@@ -60,20 +86,28 @@ function register(): void {
 				'additionalProperties' => false,
 				'required'             => array( 'post_id' ),
 				'properties'           => array(
-					'post_id'            => array(
+					'post_id'                      => array(
 						'type'        => 'integer',
 						'description' => __( 'The post ID to copy-edit.', 'workflow-agent-copy-edit' ),
 					),
-					'style'              => array(
+					'style'                        => array(
 						'type'        => 'string',
 						'description' => __( 'Description of the target house style.', 'workflow-agent-copy-edit' ),
 					),
-					// No minimum or maximum here: settings are stored unchecked, and a
-					// stored value outside a range would fail input validation on
-					// every run. max_change_percent() clamps instead.
-					'max_change_percent' => array(
+					// No minimum or maximum on these: settings are stored unchecked, and a
+					// stored value outside a range would fail input validation on every
+					// run. setting_in_range() clamps instead.
+					'max_change_percent'           => array(
 						'type'        => 'integer',
 						'description' => __( 'Largest share of the words, in percent, a copy edit may change before the agent refuses to write it.', 'workflow-agent-copy-edit' ),
+					),
+					'max_paragraph_change_percent' => array(
+						'type'        => 'integer',
+						'description' => __( 'Largest share of any one paragraph\'s words, in percent, a copy edit may change.', 'workflow-agent-copy-edit' ),
+					),
+					'min_paragraph_words'          => array(
+						'type'        => 'integer',
+						'description' => __( 'Paragraphs shorter than this many words, before and after the edit, skip the per-paragraph limit.', 'workflow-agent-copy-edit' ),
 					),
 				),
 			),
@@ -102,19 +136,35 @@ function register(): void {
 				'supports'              => array( 'workflow', 'stage' ),
 				'stage_eligible'        => true,
 				'settings_schema'       => array(
-					'style'              => array(
+					'style'                        => array(
 						'type'        => 'string',
 						'default'     => '',
 						'label'       => __( 'House style', 'workflow-agent-copy-edit' ),
 						'description' => __( 'Describe the copy style the agent should enforce.', 'workflow-agent-copy-edit' ),
 					),
-					'max_change_percent' => array(
+					'max_change_percent'           => array(
 						'type'        => 'integer',
 						'default'     => DEFAULT_MAX_CHANGE_PERCENT,
 						'minimum'     => 1,
 						'maximum'     => MAX_CHANGE_PERCENT_CEILING,
 						'label'       => __( 'Largest copy edit (% of words)', 'workflow-agent-copy-edit' ),
 						'description' => __( 'Larger edits, or edits to links or blocks, aren’t saved. The post goes to a person instead.', 'workflow-agent-copy-edit' ),
+					),
+					'max_paragraph_change_percent' => array(
+						'type'        => 'integer',
+						'default'     => DEFAULT_PARAGRAPH_CHANGE_PERCENT,
+						'minimum'     => 1,
+						'maximum'     => PARAGRAPH_CHANGE_PERCENT_CEILING,
+						'label'       => __( 'Largest change to one paragraph (% of its words)', 'workflow-agent-copy-edit' ),
+						'description' => __( 'An edit that rewrites more of any one paragraph than this isn’t saved.', 'workflow-agent-copy-edit' ),
+					),
+					'min_paragraph_words'          => array(
+						'type'        => 'integer',
+						'default'     => DEFAULT_MIN_PARAGRAPH_WORDS,
+						'minimum'     => 1,
+						'maximum'     => MIN_PARAGRAPH_WORDS_CEILING,
+						'label'       => __( 'Shortest paragraph checked (words)', 'workflow-agent-copy-edit' ),
+						'description' => __( 'Shorter lines, like headings and captions, skip the paragraph limit.', 'workflow-agent-copy-edit' ),
 					),
 				),
 				'annotations'           => array(
@@ -215,11 +265,13 @@ function execute( ?array $input = null ) {
 	 * article. Anything larger than a copy edit is not written, and the post
 	 * goes to a person with a description of what the edit changed.
 	 */
-	$max_percent = max_change_percent( $input );
-	$report      = StageAgent::measure_rewrite( $post['content'], $parsed['body'] );
-	$violations  = StageAgent::copy_edit_violations( $report, $max_percent );
+	$max_percent       = max_change_percent( $input );
+	$paragraph_percent = paragraph_change_percent( $input );
+	$min_words         = min_paragraph_words( $input );
+	$report            = StageAgent::measure_rewrite( $post['content'], $parsed['body'] );
+	$violations        = StageAgent::copy_edit_violations( $report, $max_percent, $paragraph_percent, $min_words );
 	if ( array() !== $violations ) {
-		return StageAgent::result( 'fail', StageAgent::describe_rewrite( $report, $violations, $max_percent ) );
+		return StageAgent::result( 'fail', StageAgent::describe_rewrite( $report, $violations, $max_percent, $paragraph_percent, $min_words ) );
 	}
 
 	// The report's content is already kses-filtered: write exactly what was measured.
@@ -239,21 +291,54 @@ function execute( ?array $input = null ) {
 }
 
 /**
- * The stage's word-change limit, clamped to what a copy edit can mean.
+ * A numeric stage setting, with its default and clamped to its range.
  *
  * Settings are stored exactly as given and a `settings_schema` default is
  * applied only by the editor UI, so the fallback and the bounds live here.
  *
- * @param array $input Ability input.
- * @return int Percent, 1 to MAX_CHANGE_PERCENT_CEILING.
+ * @param array  $input    Ability input.
+ * @param string $key      Setting key.
+ * @param int    $fallback Value when the setting is absent or not a number.
+ * @param int    $ceiling  Largest value the setting may take.
+ * @return int 1 to $ceiling.
  */
-function max_change_percent( array $input ): int {
-	$value = $input['max_change_percent'] ?? null;
+function setting_in_range( array $input, string $key, int $fallback, int $ceiling ): int {
+	$value = $input[ $key ] ?? null;
 	if ( ! is_numeric( $value ) ) {
-		return DEFAULT_MAX_CHANGE_PERCENT;
+		return $fallback;
 	}
 
-	return max( 1, min( MAX_CHANGE_PERCENT_CEILING, (int) $value ) );
+	return max( 1, min( $ceiling, (int) $value ) );
+}
+
+/**
+ * The stage's whole-body word-change limit, in percent.
+ *
+ * @param array $input Ability input.
+ * @return int 1 to MAX_CHANGE_PERCENT_CEILING.
+ */
+function max_change_percent( array $input ): int {
+	return setting_in_range( $input, 'max_change_percent', DEFAULT_MAX_CHANGE_PERCENT, MAX_CHANGE_PERCENT_CEILING );
+}
+
+/**
+ * The stage's per-paragraph word-change limit, in percent.
+ *
+ * @param array $input Ability input.
+ * @return int 1 to PARAGRAPH_CHANGE_PERCENT_CEILING.
+ */
+function paragraph_change_percent( array $input ): int {
+	return setting_in_range( $input, 'max_paragraph_change_percent', DEFAULT_PARAGRAPH_CHANGE_PERCENT, PARAGRAPH_CHANGE_PERCENT_CEILING );
+}
+
+/**
+ * The shortest paragraph, in words, the per-paragraph limit applies to.
+ *
+ * @param array $input Ability input.
+ * @return int 1 to MIN_PARAGRAPH_WORDS_CEILING.
+ */
+function min_paragraph_words( array $input ): int {
+	return setting_in_range( $input, 'min_paragraph_words', DEFAULT_MIN_PARAGRAPH_WORDS, MIN_PARAGRAPH_WORDS_CEILING );
 }
 
 /**
