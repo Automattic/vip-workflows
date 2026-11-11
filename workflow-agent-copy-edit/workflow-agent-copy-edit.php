@@ -23,6 +23,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Default for the largest share of words, in percent, a copy edit may change.
+ */
+const DEFAULT_MAX_CHANGE_PERCENT = 15;
+
+/**
+ * The most a stage may raise that limit to.
+ *
+ * Above this the word-share check stops meaning "copy edit" at all, so a
+ * stage configurer cannot switch the guard off.
+ */
+const MAX_CHANGE_PERCENT_CEILING = 50;
+
 add_action( 'vip_workflows_register_abilities', __NAMESPACE__ . '\register' );
 add_action( 'vip_workflows_register_assistant_meta', __NAMESPACE__ . '\register_agent_meta' );
 
@@ -47,13 +60,20 @@ function register(): void {
 				'additionalProperties' => false,
 				'required'             => array( 'post_id' ),
 				'properties'           => array(
-					'post_id' => array(
+					'post_id'            => array(
 						'type'        => 'integer',
 						'description' => __( 'The post ID to copy-edit.', 'workflow-agent-copy-edit' ),
 					),
-					'style'   => array(
+					'style'              => array(
 						'type'        => 'string',
 						'description' => __( 'Description of the target house style.', 'workflow-agent-copy-edit' ),
+					),
+					// No minimum or maximum here: settings are stored unchecked, and a
+					// stored value outside a range would fail input validation on
+					// every run. max_change_percent() clamps instead.
+					'max_change_percent' => array(
+						'type'        => 'integer',
+						'description' => __( 'Largest share of the words, in percent, a copy edit may change before the agent refuses to write it.', 'workflow-agent-copy-edit' ),
 					),
 				),
 			),
@@ -82,11 +102,19 @@ function register(): void {
 				'supports'              => array( 'workflow', 'stage' ),
 				'stage_eligible'        => true,
 				'settings_schema'       => array(
-					'style' => array(
+					'style'              => array(
 						'type'        => 'string',
 						'default'     => '',
 						'label'       => __( 'House style', 'workflow-agent-copy-edit' ),
 						'description' => __( 'Describe the copy style the agent should enforce.', 'workflow-agent-copy-edit' ),
+					),
+					'max_change_percent' => array(
+						'type'        => 'integer',
+						'default'     => DEFAULT_MAX_CHANGE_PERCENT,
+						'minimum'     => 1,
+						'maximum'     => MAX_CHANGE_PERCENT_CEILING,
+						'label'       => __( 'Largest copy edit (% of words)', 'workflow-agent-copy-edit' ),
+						'description' => __( 'Larger edits, or edits to links or blocks, aren’t saved. The post goes to a person instead.', 'workflow-agent-copy-edit' ),
 					),
 				),
 				'annotations'           => array(
@@ -143,53 +171,107 @@ function execute( ?array $input = null ) {
 	$token = StageAgent::verdict_token();
 
 	$prompt = sprintf(
-		"You are a professional copy editor. Copy-edit an article body for grammar, spelling, punctuation, and style: %s.\n\n" .
-		"ARTICLE TITLE: %s\n\nARTICLE BODY:\n%s\n\n" .
-		"Rules:\n" .
-		"- If the copy is already clean and needs no edits, reply with exactly: %s\n" .
-		"- If the copy is not publishable and needs a human rewrite, reply with exactly: REJECT\n" .
-		'- Otherwise reply with ONLY the copy-edited article body (no preamble). Preserve all facts, quotes, and meaning.',
+		"You are a professional copy editor. Copy-edit an article for grammar, spelling, punctuation, and style: %s.\n\n" .
+		"ARTICLE TITLE:\n%s\n\nARTICLE BODY:\n%s\n\n" .
+		"A copy edit fixes grammar, spelling, punctuation, and style only. Preserve every fact, quote, and meaning. Keep every link, every block comment (<!-- wp:… -->), and every paragraph exactly where it is. Do not add or remove sentences, paragraphs, or links.\n\n" .
+		"Reply with one JSON object and nothing else, with exactly these keys:\n" .
+		"- \"verdict\": \"clean\" if the copy needs no edits, \"reject\" if it is not publishable and needs a human rewrite, or \"edited\" if you copy-edited it.\n" .
+		"- \"token\": exactly %s\n" .
+		'- "body": for "edited", the full copy-edited article body; otherwise an empty string.',
 		$style,
-		$post['title'],
+		StageAgent::wrap_untrusted( $post['title'], 'article title' ),
 		StageAgent::wrap_untrusted( $post['content'], 'post body' ),
 		$token
 	);
 
-	/*
-	 * This agent replies with the whole article body, so the ceiling has to cover
-	 * the body twice over in effect: the reasoning that precedes it plus every token
-	 * of the rewrite. Measured on a 4,397-character body (~1,190 tokens) against
-	 * claude-sonnet-5: reasoning ~3,980 tokens, rewrite ~1,190, 5,177 in total — so
-	 * the previous 2,000 could not have fitted the reasoning alone, let alone the
-	 * body it is required to reproduce in full. 12,000 is ~2.3x the measured run,
-	 * which keeps a body around 2.5x this one's length inside the ceiling.
-	 */
-	$response = StageAgent::generate( $prompt, 12000 );
-	if ( is_wp_error( $response ) ) {
-		return $response;
+	$reply = StageAgent::generate_json( $prompt, StageAgent::rewrite_reply_schema(), max_tokens_for( $post['content'] ) );
+	if ( is_wp_error( $reply ) ) {
+		return $reply;
 	}
 
-	if ( StageAgent::is_verdict( $response, $token ) ) {
+	$parsed = StageAgent::parse_rewrite_reply( $reply, $token );
+	if ( is_wp_error( $parsed ) ) {
+		return $parsed;
+	}
+
+	if ( 'clean' === $parsed['verdict'] ) {
 		return StageAgent::result( 'pass', __( 'Copy is already clean; no edits needed.', 'workflow-agent-copy-edit' ) );
 	}
 
-	if ( StageAgent::is_sentinel( $response, 'REJECT' ) ) {
+	if ( 'reject' === $parsed['verdict'] ) {
 		return StageAgent::result( 'fail', __( 'The copy needs a human rewrite before it can proceed.', 'workflow-agent-copy-edit' ) );
 	}
 
-	if ( StageAgent::is_implausibly_short( $post['content'], $response ) ) {
+	if ( StageAgent::is_implausibly_short( $post['content'], $parsed['body'] ) ) {
 		return new \WP_Error(
 			'implausible_rewrite',
 			__( 'The agent returned copy far shorter than the original; refusing to overwrite the post.', 'workflow-agent-copy-edit' )
 		);
 	}
 
-	$written = StageAgent::write_content( $post_id, $response, $post['modified'] );
+	/*
+	 * A reply can be well-formed, carry the token, and still not be a copy
+	 * edit: content addressed to the model can steer it into rewriting the
+	 * article. Anything larger than a copy edit is not written, and the post
+	 * goes to a person with a description of what the edit changed.
+	 */
+	$max_percent = max_change_percent( $input );
+	$report      = StageAgent::measure_rewrite( $post['content'], $parsed['body'] );
+	$violations  = StageAgent::copy_edit_violations( $report, $max_percent );
+	if ( array() !== $violations ) {
+		return StageAgent::result( 'fail', StageAgent::describe_rewrite( $report, $violations, $max_percent ) );
+	}
+
+	// The report's content is already kses-filtered: write exactly what was measured.
+	$written = StageAgent::write_content( $post_id, $report['content'], $post['modified'], false );
 	if ( is_wp_error( $written ) ) {
 		return $written;
 	}
 
-	return StageAgent::result( 'pass', __( 'Applied copy edits.', 'workflow-agent-copy-edit' ) );
+	return StageAgent::result(
+		'pass',
+		sprintf(
+			/* translators: %d: percentage of the words the copy edit changed. */
+			__( 'Applied copy edits (%d%% of the words changed).', 'workflow-agent-copy-edit' ),
+			(int) round( (float) $report['share'] * 100 )
+		)
+	);
+}
+
+/**
+ * The stage's word-change limit, clamped to what a copy edit can mean.
+ *
+ * Settings are stored exactly as given and a `settings_schema` default is
+ * applied only by the editor UI, so the fallback and the bounds live here.
+ *
+ * @param array $input Ability input.
+ * @return int Percent, 1 to MAX_CHANGE_PERCENT_CEILING.
+ */
+function max_change_percent( array $input ): int {
+	$value = $input['max_change_percent'] ?? null;
+	if ( ! is_numeric( $value ) ) {
+		return DEFAULT_MAX_CHANGE_PERCENT;
+	}
+
+	return max( 1, min( MAX_CHANGE_PERCENT_CEILING, (int) $value ) );
+}
+
+/**
+ * Token ceiling for a copy edit of this body.
+ *
+ * The reply reproduces the whole body inside a JSON string, where every quote
+ * and newline is escaped, on top of the model's reasoning. Measured on a
+ * 4,397-character body against claude-sonnet-5: reasoning ~3,980 tokens,
+ * rewrite ~1,190. A body costs roughly a token per four characters before
+ * escaping; budgeting one per 2.5 leaves room for the escaping and for
+ * longer reasoning on longer bodies. Never below the 12,000 the free-text
+ * reply used. StageAgent::generate_json() bounds the result to the model's cap.
+ *
+ * @param string $content Post content.
+ * @return int
+ */
+function max_tokens_for( string $content ): int {
+	return max( 12000, \VIPWorkflows\Integrations\LlmTextGenerator::THINKING_FLOOR + (int) ceil( strlen( $content ) / 2.5 ) );
 }
 
 /**

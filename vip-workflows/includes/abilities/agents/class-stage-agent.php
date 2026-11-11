@@ -17,6 +17,7 @@ namespace VIPWorkflows\Abilities\Agents;
 
 use VIPWorkflows\AI\AiInference;
 use VIPWorkflows\Integrations\HourlyLimit;
+use VIPWorkflows\Integrations\LlmJsonGenerator;
 use VIPWorkflows\Integrations\LlmTextGenerator;
 use WordPress\AiClient\Providers\Http\DTO\RequestOptions;
 
@@ -40,6 +41,36 @@ class StageAgent {
 	 * reclaimed as a stale pending job rather than sitting forever.
 	 */
 	private const REQUEST_TIMEOUT = 180;
+
+	/**
+	 * The verdicts a content-rewriting agent may reply with.
+	 *
+	 * @var string[]
+	 */
+	private const REWRITE_VERDICTS = array( 'clean', 'edited', 'reject' );
+
+	/**
+	 * Largest share of one block's words a copy edit may change, in percent.
+	 *
+	 * The whole-body limit alone lets steered prose through in proportion to
+	 * the article's length — a whole paragraph swapped in a long post barely
+	 * moves the total. Copy edits rarely rewrite half a paragraph.
+	 */
+	public const BLOCK_CHANGE_PERCENT = 50;
+
+	/**
+	 * Blocks shorter than this many words are exempt from the per-block limit.
+	 */
+	private const BLOCK_CHANGE_MIN_WORDS = 8;
+
+	/**
+	 * Most word-comparison cells measure_rewrite() will spend on one rewrite.
+	 *
+	 * Comparing block by block keeps a normal article far below this; it bounds
+	 * the single-pass diff a changed structure or a huge classic post needs, so
+	 * the check fails closed rather than running past the request's time limit.
+	 */
+	private const MAX_DIFF_CELLS = 16000000;
 
 	/**
 	 * Read a post's title and content, enforcing edit permission.
@@ -111,9 +142,6 @@ class StageAgent {
 			return $rate_limited;
 		}
 
-		$request_options = new RequestOptions();
-		$request_options->setTimeout( self::REQUEST_TIMEOUT );
-
 		/*
 		 * Bound once and reuse, so a cutoff names the ceiling the request actually
 		 * carried. Reporting the agent's requested figure after the model's cap had
@@ -124,10 +152,7 @@ class StageAgent {
 
 		try {
 			$text = LlmTextGenerator::generate(
-				\WordPress\AiClient\AiClient::prompt( $prompt )
-					->usingModel( AiInference::get_instance()->model() )
-					->usingMaxTokens( $bounded_max_tokens )
-					->usingRequestOptions( $request_options ),
+				self::prompt_builder( $prompt, $bounded_max_tokens ),
 				__( 'AI agent', 'vip-workflows' ),
 				$bounded_max_tokens
 			);
@@ -149,6 +174,549 @@ class StageAgent {
 		}
 
 		return $response;
+	}
+
+	/**
+	 * Run a prompt that must answer with a JSON object, and decode it.
+	 *
+	 * The structured sibling of generate(): same model, request timeout, rate
+	 * limit and bounded ceiling, but the reply goes through `LlmJsonGenerator`,
+	 * the one path allowed to reach the JSON parser, which reads the finish
+	 * reason first so a cutoff is reported as a cutoff rather than as bad JSON.
+	 *
+	 * The schema is a hint, not a guarantee. The model is pinned with
+	 * `usingModel()`, so the AI Client runs no capability check, and a provider
+	 * that does not support structured output ignores the schema silently. The
+	 * parser is tolerant, too: it will pull the first `{…}` out of surrounding
+	 * prose. Callers must validate the decoded shape themselves — for a rewrite,
+	 * parse_rewrite_reply() does.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param  string $prompt     Full prompt text.
+	 * @param  array  $schema     JSON schema for the reply object.
+	 * @param  int    $max_tokens Token cap for the model's reasoning plus its response.
+	 * @return array|\WP_Error Decoded reply, or WP_Error on a cutoff, refusal or undecodable reply.
+	 */
+	public static function generate_json( string $prompt, array $schema, int $max_tokens = 6000 ) {
+		$rate_limited = self::check_rate_limit();
+		if ( is_wp_error( $rate_limited ) ) {
+			return $rate_limited;
+		}
+
+		$bounded_max_tokens = LlmTextGenerator::bounded_max_tokens( $max_tokens );
+
+		try {
+			return LlmJsonGenerator::generate(
+				self::prompt_builder( $prompt, $bounded_max_tokens )->asJsonResponse( $schema ),
+				__( 'AI agent reply', 'vip-workflows' ),
+				$bounded_max_tokens
+			);
+		} catch ( \Throwable $e ) {
+			return new \WP_Error( 'ai_error', $e->getMessage() );
+		}
+	}
+
+	/**
+	 * The prompt builder every stage-agent model call starts from.
+	 *
+	 * @param  string $prompt             Full prompt text.
+	 * @param  int    $bounded_max_tokens Ceiling already passed through bounded_max_tokens().
+	 * @return object AI Client prompt builder, ready for its terminal call.
+	 */
+	private static function prompt_builder( string $prompt, int $bounded_max_tokens ): object {
+		$request_options = new RequestOptions();
+		$request_options->setTimeout( self::REQUEST_TIMEOUT );
+
+		return \WordPress\AiClient\AiClient::prompt( $prompt )
+			->usingModel( AiInference::get_instance()->model() )
+			->usingMaxTokens( $bounded_max_tokens )
+			->usingRequestOptions( $request_options );
+	}
+
+	/**
+	 * JSON schema for a content-rewriting agent's reply.
+	 *
+	 * Every key is required and nothing else is allowed, because OpenAI only
+	 * enforces a schema in strict mode, and strict mode rejects optional
+	 * properties. `body` is therefore always present: the full rewritten body for
+	 * `edited`, an empty string for `clean` and `reject`.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return array
+	 */
+	public static function rewrite_reply_schema(): array {
+		return array(
+			'type'                 => 'object',
+			'additionalProperties' => false,
+			'required'             => array( 'verdict', 'token', 'body' ),
+			'properties'           => array(
+				'verdict' => array(
+					'type' => 'string',
+					'enum' => self::REWRITE_VERDICTS,
+				),
+				'token'   => array( 'type' => 'string' ),
+				'body'    => array( 'type' => 'string' ),
+			),
+		);
+	}
+
+	/**
+	 * Validate a content-rewriting agent's decoded reply.
+	 *
+	 * The only way to a non-error result is a positive match on this run's
+	 * verdict token, so content that steers the model into a confident-looking
+	 * reply without the token gets an error, never a pass or a write. The three
+	 * required keys must be present as strings; any other key is ignored,
+	 * because providers that disregard the schema often add one (`notes`,
+	 * `reason`) and the token and verdict are what carry the guarantee.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param  mixed  $reply Decoded reply from generate_json().
+	 * @param  string $token The token minted for this run via verdict_token().
+	 * @return array{verdict: string, body: string}|\WP_Error `body` is '' unless the verdict is `edited`.
+	 */
+	public static function parse_rewrite_reply( $reply, string $token ) {
+		$malformed = new \WP_Error(
+			'malformed_reply',
+			__( 'The agent’s reply was not in the required format, so nothing was written. Re-running it may succeed.', 'vip-workflows' )
+		);
+
+		if ( ! is_array( $reply ) || ( array() !== $reply && array_is_list( $reply ) ) ) {
+			return $malformed;
+		}
+
+		foreach ( array( 'verdict', 'token', 'body' ) as $key ) {
+			if ( ! isset( $reply[ $key ] ) || ! is_string( $reply[ $key ] ) ) {
+				return $malformed;
+			}
+		}
+
+		if ( ! self::is_verdict( $reply['token'], $token ) ) {
+			return new \WP_Error(
+				'verdict_token_mismatch',
+				__( 'The agent’s reply did not carry this run’s verdict token, so it was not trusted and nothing was written. If this keeps happening, check the post for text addressed to the AI.', 'vip-workflows' )
+			);
+		}
+
+		$verdict = strtolower( trim( $reply['verdict'] ) );
+		if ( ! in_array( $verdict, self::REWRITE_VERDICTS, true ) ) {
+			return new \WP_Error(
+				'unknown_verdict',
+				__( 'The agent replied with a verdict it was not offered, so nothing was written. Re-running it may succeed.', 'vip-workflows' )
+			);
+		}
+
+		if ( 'edited' !== $verdict ) {
+			return array(
+				'verdict' => $verdict,
+				'body'    => '',
+			);
+		}
+
+		if ( '' === trim( $reply['body'] ) ) {
+			return $malformed;
+		}
+
+		return array(
+			'verdict' => 'edited',
+			'body'    => $reply['body'],
+		);
+	}
+
+	/**
+	 * Measure how far a rewrite departs from the content it replaces.
+	 *
+	 * Both sides go through the same kses filter `write_content()` applies, so
+	 * kses's own normalization (entity-encoding `&`, stripping an iframe) is
+	 * never mistaken for a change the model made. When kses alone would change
+	 * the original's structure, the post carries markup no agent write can
+	 * preserve, and the report says so instead of blaming the edit.
+	 *
+	 * Word changes are counted on tag-free, entity-decoded, punctuation-trimmed,
+	 * lowercased words: share = (max(original, edited) − LCS) / original, so
+	 * substituting, inserting or deleting k words in an n-word body each score
+	 * about k/n. When the block structure matches, words are compared block by
+	 * block, which both bounds the work and yields a per-block share; the whole
+	 * body is diffed in one pass only when the structure differs, and only
+	 * within a fixed work budget.
+	 *
+	 * The report carries the filtered rewrite as `content`. Write that — with
+	 * `write_content( …, false )` — so what was measured is what gets stored.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param  string $original Current post content.
+	 * @param  string $edited   Agent-generated replacement.
+	 * @return array{content: string, unpreservable_markup: bool, too_large: bool, structure_changed: bool, links_added: int, links_removed: int, words_original: int, share: ?float, blocks: array<int, array{words: int, share: float}>}
+	 */
+	public static function measure_rewrite( string $original, string $edited ): array {
+		$original_filtered = wp_kses_post( $original );
+		$edited_filtered   = wp_kses_post( $edited );
+
+		$raw_shape      = self::content_shape( $original );
+		$original_shape = self::content_shape( $original_filtered );
+		$edited_shape   = self::content_shape( $edited_filtered );
+
+		$report = array(
+			'content'              => $edited_filtered,
+			'unpreservable_markup' => $raw_shape['structure'] !== $original_shape['structure'] || $raw_shape['links'] !== $original_shape['links'],
+			'too_large'            => false,
+			'structure_changed'    => $original_shape['structure'] !== $edited_shape['structure'],
+			'links_added'          => self::multiset_excess( $edited_shape['links'], $original_shape['links'] ),
+			'links_removed'        => self::multiset_excess( $original_shape['links'], $edited_shape['links'] ),
+			'words_original'       => 0,
+			'share'                => null,
+			'blocks'               => array(),
+		);
+
+		$budget  = self::MAX_DIFF_CELLS;
+		$changed = 0;
+
+		if ( ! $report['structure_changed'] ) {
+			foreach ( $original_shape['chunks'] as $i => $chunk ) {
+				$before = self::words( $chunk );
+				$after  = self::words( $edited_shape['chunks'][ $i ] ?? '' );
+				$lcs    = self::lcs_length( $before, $after, $budget );
+				if ( null === $lcs ) {
+					$report['too_large'] = true;
+					return $report;
+				}
+
+				$delta                     = max( count( $before ), count( $after ) ) - $lcs;
+				$changed                  += $delta;
+				$report['words_original'] += count( $before );
+				$report['blocks'][]        = array(
+					'words' => count( $before ),
+					'share' => self::share( $delta, count( $before ), count( $after ) ),
+				);
+			}
+
+			// With an empty original, every changed word is an added one.
+			$report['share'] = self::share( $changed, $report['words_original'], $changed );
+			return $report;
+		}
+
+		$before                   = self::words( implode( ' ', $original_shape['chunks'] ) );
+		$after                    = self::words( implode( ' ', $edited_shape['chunks'] ) );
+		$report['words_original'] = count( $before );
+		$lcs                      = self::lcs_length( $before, $after, $budget );
+		if ( null === $lcs ) {
+			$report['too_large'] = true;
+			return $report;
+		}
+
+		$report['share'] = self::share( max( count( $before ), count( $after ) ) - $lcs, count( $before ), count( $after ) );
+		return $report;
+	}
+
+	/**
+	 * Why a measured rewrite is not a copy edit.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param  array $report        From measure_rewrite().
+	 * @param  int   $max_percent   Largest whole-body share of words a copy edit may change.
+	 * @param  int   $block_percent Largest share of any one block's words a copy edit may change.
+	 * @return string[] Violation codes; empty when the rewrite is a copy edit. One of
+	 *                  `unpreservable_markup` or `too_large` stands alone; otherwise any of
+	 *                  `share`, `block_share`, `links`, `structure`.
+	 */
+	public static function copy_edit_violations( array $report, int $max_percent, int $block_percent = self::BLOCK_CHANGE_PERCENT ): array {
+		if ( $report['unpreservable_markup'] ) {
+			return array( 'unpreservable_markup' );
+		}
+
+		if ( $report['too_large'] ) {
+			return array( 'too_large' );
+		}
+
+		$violations = array();
+
+		if ( null !== $report['share'] && $report['share'] * 100 > $max_percent ) {
+			$violations[] = 'share';
+		}
+
+		if ( self::blocks_over( $report, $block_percent ) > 0 ) {
+			$violations[] = 'block_share';
+		}
+
+		if ( $report['links_added'] > 0 || $report['links_removed'] > 0 ) {
+			$violations[] = 'links';
+		}
+
+		if ( $report['structure_changed'] ) {
+			$violations[] = 'structure';
+		}
+
+		return $violations;
+	}
+
+	/**
+	 * Describe a rejected rewrite for the person who will pick the post up.
+	 *
+	 * Counts, percentages and fixed phrases only. Nothing from either body —
+	 * no URL, no sentence — is quoted, because this text lands in the audit
+	 * history and injected content must not get a trusted-looking channel to
+	 * the reviewer.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param  array    $report        From measure_rewrite().
+	 * @param  string[] $violations    From copy_edit_violations().
+	 * @param  int      $max_percent   The whole-body limit that was applied.
+	 * @param  int      $block_percent The per-block limit that was applied.
+	 * @return string One or two sentences.
+	 */
+	public static function describe_rewrite( array $report, array $violations, int $max_percent, int $block_percent = self::BLOCK_CHANGE_PERCENT ): string {
+		if ( in_array( 'unpreservable_markup', $violations, true ) ) {
+			return __( 'This post contains markup that WordPress strips when an agent saves, so the edit was not written. Copy-edit it by hand.', 'vip-workflows' );
+		}
+
+		if ( in_array( 'too_large', $violations, true ) ) {
+			return __( 'This post is too long to check as a copy edit, so the edit was not written. Copy-edit it by hand.', 'vip-workflows' );
+		}
+
+		$clauses = array();
+
+		if ( in_array( 'share', $violations, true ) ) {
+			$clauses[] = sprintf(
+				/* translators: 1: percentage of words changed. 2: the configured limit. */
+				__( 'changed %1$d%% of the words (limit %2$d%%)', 'vip-workflows' ),
+				(int) round( (float) $report['share'] * 100 ),
+				$max_percent
+			);
+		}
+
+		if ( in_array( 'block_share', $violations, true ) ) {
+			$over      = self::blocks_over( $report, $block_percent );
+			$clauses[] = sprintf(
+				/* translators: 1: number of paragraphs or blocks. 2: the per-block limit, as a percentage. */
+				_n( 'rewrote more than %2$d%% of %1$d paragraph', 'rewrote more than %2$d%% of %1$d paragraphs', $over, 'vip-workflows' ),
+				$over,
+				$block_percent
+			);
+		}
+
+		if ( $report['links_added'] > 0 ) {
+			$clauses[] = sprintf(
+				/* translators: %d: number of links. */
+				_n( 'added %d link', 'added %d links', $report['links_added'], 'vip-workflows' ),
+				$report['links_added']
+			);
+		}
+
+		if ( $report['links_removed'] > 0 ) {
+			$clauses[] = sprintf(
+				/* translators: %d: number of links. */
+				_n( 'removed or changed %d link', 'removed or changed %d links', $report['links_removed'], 'vip-workflows' ),
+				$report['links_removed']
+			);
+		}
+
+		if ( in_array( 'structure', $violations, true ) ) {
+			$clauses[] = __( 'changed the post’s blocks or paragraphs', 'vip-workflows' );
+		}
+
+		return sprintf(
+			/* translators: %s: a list of what the edit changed, e.g. "changed 42% of the words (limit 15%), added 1 link". */
+			__( 'The edit was larger than a copy edit: it %s. Nothing was written; review the post and copy-edit it by hand.', 'vip-workflows' ),
+			implode( ', ', $clauses )
+		);
+	}
+
+	/**
+	 * How many blocks a rewrite changed by more than the per-block limit.
+	 *
+	 * Blocks under BLOCK_CHANGE_MIN_WORDS are skipped: one word in a two-word
+	 * line is already half of it.
+	 *
+	 * @param  array $report        From measure_rewrite().
+	 * @param  int   $block_percent Per-block limit.
+	 * @return int
+	 */
+	private static function blocks_over( array $report, int $block_percent ): int {
+		$over = 0;
+		foreach ( $report['blocks'] as $block ) {
+			if ( $block['words'] >= self::BLOCK_CHANGE_MIN_WORDS && $block['share'] * 100 > $block_percent ) {
+				++$over;
+			}
+		}
+		return $over;
+	}
+
+	/**
+	 * The parts of post content a copy edit must leave alone, plus its text.
+	 *
+	 * `structure` is the ordered list of block delimiters (name plus serialized
+	 * attributes) for block content, or a paragraph count for classic content.
+	 * `links` is every `href`/`src` value and every URL in the text, entity-
+	 * decoded and sorted, each tagged with where it appeared and kept once per
+	 * occurrence. Occurrences, not a set, because content can mention a URL as
+	 * plain text and then ask the model to link it: as a set, nothing would
+	 * look added. `chunks` is the text between block
+	 * delimiters (or the classic paragraphs), aligned one-to-one whenever two
+	 * contents share a structure.
+	 *
+	 * @param  string $content Post content.
+	 * @return array{structure: array, links: string[], chunks: string[]}
+	 */
+	private static function content_shape( string $content ): array {
+		$delimiter = '/<!--\s+(?:\/)?wp:[a-z][a-z0-9_-]*(?:\/[a-z][a-z0-9_-]*)?(?:\s+\{.*?\})?\s+\/?-->/s';
+
+		if ( preg_match_all( $delimiter, $content, $matches ) > 0 ) {
+			$structure = array_map(
+				static fn( string $comment ): string => (string) preg_replace( '/\s+/', ' ', $comment ),
+				$matches[0]
+			);
+			$chunks    = preg_split( $delimiter, $content );
+		} else {
+			$chunks    = array_values(
+				array_filter(
+					preg_split( '/<\/?p\b[^>]*>|\R[ \t]*\R/i', $content ),
+					static fn( string $chunk ): bool => '' !== trim( wp_strip_all_tags( $chunk ) )
+				)
+			);
+			$structure = array( 'paragraphs' => count( $chunks ) );
+		}
+
+		$links = array();
+		if ( preg_match_all( '/\b(?:href|src)\s*=\s*(["\'])(.*?)\1/is', $content, $attrs ) ) {
+			foreach ( $attrs[2] as $url ) {
+				$links[] = 'attr:' . trim( html_entity_decode( $url, ENT_QUOTES | ENT_HTML5, 'UTF-8' ) );
+			}
+		}
+		$text = html_entity_decode( wp_strip_all_tags( $content ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		if ( preg_match_all( '/https?:\/\/[^\s<>"\']+/i', $text, $urls ) ) {
+			foreach ( $urls[0] as $url ) {
+				$links[] = 'text:' . rtrim( $url, '.,;:!?)' );
+			}
+		}
+		$links = array_values( array_filter( $links, static fn( string $link ): bool => ! in_array( $link, array( 'attr:', 'text:' ), true ) ) );
+		sort( $links );
+
+		return array(
+			'structure' => $structure,
+			'links'     => $links,
+			'chunks'    => array_map( 'strval', (array) $chunks ),
+		);
+	}
+
+	/**
+	 * How many occurrences in $a are not matched by one in $b.
+	 *
+	 * @param  string[] $a Occurrences on one side.
+	 * @param  string[] $b Occurrences on the other.
+	 * @return int
+	 */
+	private static function multiset_excess( array $a, array $b ): int {
+		$excess    = 0;
+		$available = array_count_values( $b );
+		foreach ( array_count_values( $a ) as $value => $count ) {
+			$excess += max( 0, $count - ( $available[ $value ] ?? 0 ) );
+		}
+		return $excess;
+	}
+
+	/**
+	 * Split text into comparable words.
+	 *
+	 * Tags stripped, entities decoded, typographic quotes folded to straight
+	 * ones, surrounding punctuation trimmed, lowercased — so markup, entity and
+	 * punctuation differences never count as changed words.
+	 *
+	 * @param  string $text HTML or plain text.
+	 * @return string[]
+	 */
+	private static function words( string $text ): array {
+		$text = html_entity_decode( wp_strip_all_tags( $text ), ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+		$text = strtr(
+			$text,
+			array(
+				"\u{2018}" => "'",
+				"\u{2019}" => "'",
+				"\u{201C}" => '"',
+				"\u{201D}" => '"',
+			)
+		);
+
+		$words = array();
+		foreach ( preg_split( '/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY ) as $word ) {
+			$word = (string) preg_replace( '/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/u', '', $word );
+			if ( '' !== $word ) {
+				$words[] = mb_strtolower( $word );
+			}
+		}
+
+		return $words;
+	}
+
+	/**
+	 * Length of the longest common subsequence of two word lists.
+	 *
+	 * The common prefix and suffix are trimmed first; the rest is a two-row
+	 * dynamic program, so memory stays linear. Each call spends its cell count
+	 * from a shared budget and returns null when the budget cannot cover it.
+	 *
+	 * @param  string[] $a      Words before.
+	 * @param  string[] $b      Words after.
+	 * @param  int      $budget Remaining cell budget, decremented in place.
+	 * @return int|null
+	 */
+	private static function lcs_length( array $a, array $b, int &$budget ): ?int {
+		$common = 0;
+		while ( array() !== $a && array() !== $b && $a[0] === $b[0] ) {
+			array_shift( $a );
+			array_shift( $b );
+			++$common;
+		}
+		while ( array() !== $a && array() !== $b && end( $a ) === end( $b ) ) {
+			array_pop( $a );
+			array_pop( $b );
+			++$common;
+		}
+
+		$n = count( $a );
+		$m = count( $b );
+		if ( 0 === $n || 0 === $m ) {
+			return $common;
+		}
+
+		if ( $n * $m > $budget ) {
+			return null;
+		}
+		$budget -= $n * $m;
+
+		$previous = array_fill( 0, $m + 1, 0 );
+		for ( $i = 1; $i <= $n; $i++ ) {
+			$current = array( 0 );
+			$word    = $a[ $i - 1 ];
+			for ( $j = 1; $j <= $m; $j++ ) {
+				$current[ $j ] = $word === $b[ $j - 1 ]
+					? $previous[ $j - 1 ] + 1
+					: max( $previous[ $j ], $current[ $j - 1 ] );
+			}
+			$previous = $current;
+		}
+
+		return $common + $previous[ $m ];
+	}
+
+	/**
+	 * Changed words as a share of the original.
+	 *
+	 * @param  int $changed  Words changed (max(before, after) − LCS).
+	 * @param  int $original Words before.
+	 * @param  int $edited   Words after.
+	 * @return float 0.0 to 1.0 or more; an empty original scores 1.0 if anything was added.
+	 */
+	private static function share( int $changed, int $original, int $edited ): float {
+		if ( 0 === $original ) {
+			return $edited > 0 ? 1.0 : 0.0;
+		}
+		return $changed / $original;
 	}
 
 	/**
