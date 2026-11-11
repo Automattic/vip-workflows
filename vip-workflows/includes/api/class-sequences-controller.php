@@ -14,6 +14,7 @@ use VIPWorkflows\Sequences\SequenceRepository;
 use VIPWorkflows\Sequences\StrandCheckFailedException;
 use VIPWorkflows\Sequences\StrandedPostsException;
 use VIPWorkflows\Plugin;
+use VIPWorkflows\Workflow\StageQuery;
 use VIPWorkflows\Workflow\StagePalette;
 use WP_REST_Controller;
 use WP_REST_Server;
@@ -419,7 +420,7 @@ class SequencesController extends WP_REST_Controller {
 			);
 		}
 
-		return new WP_REST_Response( $this->prepare_sequence_response( $sequence ) );
+		return new WP_REST_Response( $this->with_stage_post_counts( $this->prepare_sequence_response( $sequence ), $sequence ) );
 	}
 
 	/**
@@ -468,6 +469,44 @@ class SequencesController extends WP_REST_Controller {
 		// read of those stages throws, so the editor surfaces the repair affordance
 		// instead of letting the author meet a fatal with no way forward.
 		$data['stages_missing_region'] = $sequence->get_stages_missing_region();
+
+		return $data;
+	}
+
+	/**
+	 * Add how many posts sit at each stage, so the editor can lock the stages
+	 * a save would refuse to remove or re-key (see SequenceRepository::update()).
+	 *
+	 * Only on single-sequence responses: the list would pay a query per row for
+	 * a number it never shows. A stage with no posts is left out of the map.
+	 * Null when the count can't be taken; the editor then locks nothing and the
+	 * repository's own check still refuses the save.
+	 *
+	 * @param  array                            $data     Prepared response.
+	 * @param  \VIPWorkflows\Sequences\Sequence $sequence Sequence.
+	 * @return array
+	 */
+	private function with_stage_post_counts( array $data, $sequence ): array {
+		$data['stage_post_counts'] = (object) array();
+
+		if ( Sequence::TYPE_WORKFLOW !== $sequence->type ) {
+			return $data;
+		}
+
+		$keys = array_values( array_filter( array_map( fn( $s ) => (string) ( $s['key'] ?? '' ), $sequence->config['statuses'] ?? array() ) ) );
+
+		if ( empty( $keys ) ) {
+			return $data;
+		}
+
+		try {
+			$held = StageQuery::posts_holding_sequence( (int) $sequence->id, $keys, 0 );
+		} catch ( StrandCheckFailedException $e ) {
+			$data['stage_post_counts'] = null;
+			return $data;
+		}
+
+		$data['stage_post_counts'] = (object) $held['stages'];
 
 		return $data;
 	}
@@ -968,7 +1007,7 @@ class SequencesController extends WP_REST_Controller {
 
 		$sequence = $this->repository->find( $new_id );
 
-		return new WP_REST_Response( $this->prepare_sequence_response( $sequence ) );
+		return new WP_REST_Response( $this->with_stage_post_counts( $this->prepare_sequence_response( $sequence ), $sequence ) );
 	}
 
 	/**

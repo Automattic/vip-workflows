@@ -65,6 +65,8 @@ export default function SequenceSettingsInspector( {
 	stages,
 	onStagesChange,
 	onRemoveStage,
+	// ( key ) => posts at that stored stage; those stages can't be removed.
+	stagePostCount = () => 0,
 	regions,
 	addableRegions,
 	onAddRegion,
@@ -199,6 +201,9 @@ export default function SequenceSettingsInspector( {
 								'Remove stage',
 								'vip-workflows'
 							) }
+							canRemove={ ( stage ) =>
+								stagePostCount( stage.key ) === 0
+							}
 							emptyLabel={ __(
 								'No stages yet. Add one to start.',
 								'vip-workflows'

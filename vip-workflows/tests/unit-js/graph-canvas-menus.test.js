@@ -161,16 +161,18 @@ const PHASES = [
 /**
  * Render the canvas with spies for every callback it hands back up.
  *
- * @param {Object}  options          Options.
- * @param {Array}   options.stages   Stages to draw.
- * @param {boolean} options.isPhase  Whether the sequence is a phase sequence.
- * @param {Array}   options.required Hand-offs a phase sequence owes.
+ * @param {Object}  options            Options.
+ * @param {Array}   options.stages     Stages to draw.
+ * @param {boolean} options.isPhase    Whether the sequence is a phase sequence.
+ * @param {Array}   options.required   Hand-offs a phase sequence owes.
+ * @param {Object}  options.postCounts Posts at each stage, by key.
  * @return {Object} The spies, and the render's container.
  */
 async function renderCanvas( {
 	stages = STAGES,
 	isPhase = false,
 	required = [],
+	postCounts = {},
 } = {} ) {
 	const spies = {
 		onConnectTransition: jest.fn(),
@@ -204,6 +206,7 @@ async function renderCanvas( {
 			selectedRegion={ null }
 			requiredTransitions={ required }
 			isValidConnection={ () => true }
+			stagePostCount={ ( key ) => postCounts[ key ] || 0 }
 			{ ...spies }
 		/>
 	);
@@ -333,6 +336,21 @@ describe( 'Stage context menu', () => {
 		await choose( menu, 'Delete stage' );
 
 		expect( onDeleteNode ).toHaveBeenCalledWith( 'writing' );
+	} );
+
+	it( 'will not delete a stage posts sit at, and says how many', async () => {
+		const { container, onDeleteNode } = await renderCanvas( {
+			postCounts: { writing: 3 },
+		} );
+
+		const menu = await openContextMenu( stageCard( container, 'writing' ) );
+		const remove = within( menu ).getByRole( 'menuitem', {
+			name: 'Delete stage (3 posts here)',
+		} );
+
+		expect( remove ).toBeDisabled();
+		fireEvent.click( remove );
+		expect( onDeleteNode ).not.toHaveBeenCalled();
 	} );
 
 	it( 'will not delete the last stage', async () => {
