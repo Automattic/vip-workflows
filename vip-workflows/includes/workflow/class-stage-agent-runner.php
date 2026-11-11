@@ -1049,7 +1049,10 @@ class StageAgentRunner implements ModuleInterface {
 	 * @param int    $actor_user User the run acts for; the transition's capability
 	 *                           checks are evaluated against them.
 	 * @param string $from_stage Stage the post entered from, kept for a fail-in-place fallback.
-	 * @param string $comment    Audit comment for the exit transition — the error message on an error-routed run, '' otherwise.
+	 * @param string $comment    Audit comment for the exit transition: the error message on an error-routed run,
+	 *                           the sanitized summary on a `fail` verdict (see fail_summary()), '' otherwise.
+	 *                           The publication hold below takes only the error register; a held, refused or
+	 *                           abandoned exit fails in place with its own message and drops a fail summary.
 	 * @param array  $run        Telemetry details for the run. See run_stage_agent().
 	 * @param string $error_code Machine-readable cause on an error-routed run, '' otherwise.
 	 */
@@ -1103,9 +1106,9 @@ class StageAgentRunner implements ModuleInterface {
 			'telemetry_user'   => (int) ( $run['started_by'] ?? 0 ),
 		);
 
-		// An error-routed exit carries its error as the transition's audit
-		// comment — the destination's reviewer reads WHY the post arrived from
-		// the same history entry that says it did.
+		// An error-routed exit carries its error, and a fail verdict its summary,
+		// as the transition's audit comment — the destination's reviewer reads
+		// WHY the post arrived from the same history entry that says it did.
 		if ( '' !== $comment ) {
 			$options['comment'] = $comment;
 		}
@@ -1177,7 +1180,8 @@ class StageAgentRunner implements ModuleInterface {
 	 * @param string $target      Destination status key.
 	 * @param string $outcome     Outcome (pass|fail|error) for the held action.
 	 * @param array  $transitioned Warning payload from StatusManager::transition().
-	 * @param string $comment     Audit comment to preserve for the human transition.
+	 * @param string $comment     Audit comment to preserve for the human transition: an error-routed run's
+	 *                            error, a `fail` verdict's summary, or ''.
 	 * @param array  $run         Telemetry details for the run. See run_stage_agent().
 	 */
 	private function hold_for_warnings( int $post_id, string $stage_key, string $ability_id, string $target, string $outcome, array $transitioned, string $comment, array $run = array() ): void {
