@@ -352,6 +352,7 @@ class SequencesControllerTest extends TestCase
         $this->assertSame( 5, $data['id'] );
         $this->assertSame( 'Test Sequence', $data['name'] );
         $this->assertSame( array(), (array) $data['stage_post_counts'] );
+        $this->assertSame( 0, $data['post_count'] );
     }
 
     /**
@@ -375,6 +376,7 @@ class SequencesControllerTest extends TestCase
 
         $this->assertInstanceOf( 'WP_REST_Response', $response );
         $this->assertNull( $response->get_data()['stage_post_counts'] );
+        $this->assertNull( $response->get_data()['post_count'] );
     }
 
     /**

@@ -478,6 +478,10 @@ export default function SequenceGraphEditor( {
 	// locked) for a new sequence, a phase sequence, or when the count failed;
 	// the server's own check still holds in every case.
 	const [ stagePostCounts, setStagePostCounts ] = useState( {} );
+	// Every post holding the sequence, the set the server refuses a delete
+	// over. Null until read, and when the count failed: nothing is locked
+	// then, and the server's own check still holds.
+	const [ postCount, setPostCount ] = useState( null );
 	const stagePostCount = useCallback(
 		( key ) => Number( stagePostCounts?.[ key ] ) || 0,
 		[ stagePostCounts ]
@@ -757,6 +761,7 @@ export default function SequenceGraphEditor( {
 				const fields = seedFromSequence( response );
 				setSavedStages( fields.stages );
 				setStagePostCounts( response.stage_post_counts || {} );
+				setPostCount( response.post_count ?? null );
 
 				if ( isPhase ) {
 					setSavedSnapshot( serializeSequence( isPhase, fields ) );
@@ -1734,6 +1739,7 @@ export default function SequenceGraphEditor( {
 			setSavedStages( fields.stages );
 			if ( response.stage_post_counts !== undefined ) {
 				setStagePostCounts( response.stage_post_counts || {} );
+				setPostCount( response.post_count ?? null );
 			}
 			// A removal only means something while the stored stages use the
 			// group. One made before the write went out, of a group the stored
@@ -1756,6 +1762,11 @@ export default function SequenceGraphEditor( {
 	};
 
 	const handleDelete = async () => {
+		// The button is disabled for a sequence posts hold; this covers any
+		// other way in.
+		if ( postCount > 0 ) {
+			return;
+		}
 		if (
 			! ( await confirm(
 				__(
@@ -1926,6 +1937,7 @@ export default function SequenceGraphEditor( {
 		// moment it is first saved.
 		isNew: ! savedId,
 		onDelete: handleDelete,
+		postCount,
 		deleting,
 	};
 

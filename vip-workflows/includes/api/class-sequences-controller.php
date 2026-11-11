@@ -474,39 +474,43 @@ class SequencesController extends WP_REST_Controller {
 	}
 
 	/**
-	 * Add how many posts sit at each stage, so the editor can lock the stages
-	 * a save would refuse to remove or re-key (see SequenceRepository::update()).
+	 * Add how many posts hold the sequence, in all and at each stage, so the
+	 * editor can lock what a write would refuse: deleting the sequence (see
+	 * SequenceRepository::delete()) and removing or re-keying an occupied stage
+	 * (see SequenceRepository::update()).
 	 *
-	 * Only on single-sequence responses: the list would pay a query per row for
-	 * a number it never shows. A stage with no posts is left out of the map.
-	 * Null when the count can't be taken; the editor then locks nothing and the
-	 * repository's own check still refuses the save.
+	 * `post_count` is the same set the delete check counts, including posts at a
+	 * stage the config no longer defines. `stage_post_counts` leaves out empty
+	 * stages and is empty for a phase sequence, whose stages are fixed.
+	 *
+	 * Only on single-sequence responses: the list would pay queries per row for
+	 * numbers it never shows. Both are null when the count can't be taken; the
+	 * editor then locks nothing and the repository's own check still refuses.
 	 *
 	 * @param  array                            $data     Prepared response.
 	 * @param  \VIPWorkflows\Sequences\Sequence $sequence Sequence.
 	 * @return array
 	 */
 	private function with_stage_post_counts( array $data, $sequence ): array {
-		$data['stage_post_counts'] = (object) array();
+		$keys = array();
 
-		if ( Sequence::TYPE_WORKFLOW !== $sequence->type ) {
-			return $data;
-		}
-
-		$keys = array_values( array_filter( array_map( fn( $s ) => (string) ( $s['key'] ?? '' ), $sequence->config['statuses'] ?? array() ) ) );
-
-		if ( empty( $keys ) ) {
-			return $data;
+		if ( Sequence::TYPE_WORKFLOW === $sequence->type ) {
+			$keys = array_values( array_filter( array_map( fn( $s ) => (string) ( $s['key'] ?? '' ), $sequence->config['statuses'] ?? array() ) ) );
 		}
 
 		try {
-			$held = StageQuery::posts_holding_sequence( (int) $sequence->id, $keys, 0 );
+			$all    = StageQuery::posts_holding_sequence( (int) $sequence->id, array(), 0 );
+			$stages = ( $all['total'] > 0 && ! empty( $keys ) )
+				? StageQuery::posts_holding_sequence( (int) $sequence->id, $keys, 0 )['stages']
+				: array();
 		} catch ( StrandCheckFailedException $e ) {
+			$data['post_count']        = null;
 			$data['stage_post_counts'] = null;
 			return $data;
 		}
 
-		$data['stage_post_counts'] = (object) $held['stages'];
+		$data['post_count']        = (int) $all['total'];
+		$data['stage_post_counts'] = (object) $stages;
 
 		return $data;
 	}
