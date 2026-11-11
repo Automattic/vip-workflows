@@ -1074,6 +1074,35 @@ describe( 'StageInspector panel structure', () => {
 		).toBeInTheDocument();
 	} );
 
+	it( 'locks delete on a stage posts sit at, and says why', () => {
+		const onDelete = jest.fn();
+		renderInspector( stage(), jest.fn(), { onDelete, postCount: 2 } );
+
+		expect( deleteButton() ).toHaveAttribute( 'aria-disabled', 'true' );
+		expect(
+			screen.getByText(
+				'2 posts are in this stage. Move them to another stage first.'
+			)
+		).toBeInTheDocument();
+		fireEvent.click( deleteButton() );
+		expect( onDelete ).not.toHaveBeenCalled();
+	} );
+
+	it( 'makes the key read-only on a stage posts sit at', () => {
+		const onChange = jest.fn();
+		renderInspector( stage(), onChange, { postCount: 1 } );
+
+		fireEvent.click( screen.getByRole( 'button', { name: /Advanced/i } ) );
+		const key = screen.getByRole( 'textbox', { name: 'Key' } );
+
+		expect( key ).toHaveAttribute( 'readonly' );
+		expect(
+			screen.getByText(
+				'1 post is filed under this key, so it can’t change.'
+			)
+		).toBeInTheDocument();
+	} );
+
 	it( 'keeps the stage key behind Advanced, out of the collapsed row', () => {
 		renderInspector( stage() );
 

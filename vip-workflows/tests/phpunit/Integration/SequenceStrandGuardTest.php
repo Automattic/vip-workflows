@@ -459,6 +459,69 @@ class SequenceStrandGuardTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // Per-stage post counts (what the editor locks stages with)
+    // -------------------------------------------------------------------------
+
+    public function test_get_reports_how_many_posts_sit_at_each_stage(): void
+    {
+        $sequence = $this->create_sequence();
+        $this->seat_post( $sequence, 'legal', 'pending' );
+        $this->seat_post( $sequence, 'legal', 'trash' );
+        $this->seat_post( $sequence, 'writing' );
+
+        $response = rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $sequence->id ) );
+        $counts   = (array) $response->get_data()['stage_post_counts'];
+
+        $this->assertSame( 200, $response->get_status() );
+        // Trash counts, as it does for the refusal. An empty stage is left out.
+        $this->assertSame( array( 'legal' => 2, 'writing' => 1 ), $this->sorted( $counts ) );
+    }
+
+    public function test_get_of_an_unused_sequence_reports_no_counts(): void
+    {
+        $sequence = $this->create_sequence();
+
+        $response = rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $sequence->id ) );
+
+        $this->assertSame( array(), (array) $response->get_data()['stage_post_counts'] );
+    }
+
+    public function test_a_save_returns_fresh_counts(): void
+    {
+        $sequence = $this->create_sequence();
+        $this->seat_post( $sequence, 'legal', 'pending' );
+
+        $relabelled             = $this->statuses();
+        $relabelled[1]['label'] = 'Legal sign-off';
+
+        $response = $this->rest_update( $sequence, $relabelled );
+
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( array( 'legal' => 1 ), (array) $response->get_data()['stage_post_counts'] );
+    }
+
+    public function test_the_sequence_list_does_not_count_posts(): void
+    {
+        $this->create_sequence();
+
+        $response = rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences' ) );
+
+        foreach ( $response->get_data() as $row ) {
+            $this->assertArrayNotHasKey( 'stage_post_counts', $row );
+        }
+    }
+
+    /**
+     * @param array<string, int> $counts Counts by stage key.
+     * @return array<string, int>
+     */
+    private function sorted( array $counts ): array
+    {
+        ksort( $counts );
+        return $counts;
+    }
+
+    // -------------------------------------------------------------------------
     // Delete
     // -------------------------------------------------------------------------
 

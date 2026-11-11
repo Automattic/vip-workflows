@@ -340,6 +340,8 @@ class SequencesControllerTest extends TestCase
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        // The per-stage post count: none here.
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
 
         $request  = $this->create_mock_request( array( 'id' => 5 ) );
         $response = $this->controller->get_item( $request );
@@ -349,6 +351,30 @@ class SequencesControllerTest extends TestCase
         $data = $response->get_data();
         $this->assertSame( 5, $data['id'] );
         $this->assertSame( 'Test Sequence', $data['name'] );
+        $this->assertSame( array(), (array) $data['stage_post_counts'] );
+    }
+
+    /**
+     * A failed count leaves stage_post_counts null rather than failing the read:
+     * the editor then locks nothing, and the save's own check still holds.
+     */
+    public function test_get_item_still_answers_when_the_post_count_fails(): void
+    {
+        $row = $this->create_sequence_row( array( 'id' => 5 ) );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturnUsing(
+            function () {
+                $this->wpdb->last_error = 'Lost connection';
+                return null;
+            }
+        );
+
+        $response = $this->controller->get_item( $this->create_mock_request( array( 'id' => 5 ) ) );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertNull( $response->get_data()['stage_post_counts'] );
     }
 
     /**

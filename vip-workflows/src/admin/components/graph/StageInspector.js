@@ -89,7 +89,7 @@ import {
 } from '@wordpress/components';
 import { chevronDown, trash } from '@wordpress/icons';
 import { Stack, Text } from '@wordpress/ui';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import { paletteOptions } from '../../utils/stage-palette';
 import { AgentRequirements } from '../../../common/AgentRequirements';
 import { Fact, InfoTip } from './InspectorFacts';
@@ -325,6 +325,10 @@ export default function StageInspector( {
 	regions = [],
 	exitProblems = {},
 	canDelete,
+	// Posts sitting at this stage. Non-zero locks its key and its delete: the
+	// server refuses a save that would leave those posts at a stage that no
+	// longer exists.
+	postCount = 0,
 	isKeyInUse,
 	availableAgents = [],
 	resolveStageLabel,
@@ -1119,13 +1123,26 @@ export default function StageInspector( {
 						label={ __( 'Key', 'vip-workflows' ) }
 						value={ keyDraft }
 						onChange={ handleKeyChange }
+						readOnly={ postCount > 0 }
 						className={
 							keyCollides
 								? 'wf-stage-inspector__key--collides'
 								: ''
 						}
 						help={
-							keyCollides
+							// eslint-disable-next-line no-nested-ternary
+							postCount > 0
+								? sprintf(
+										/* translators: %d: number of posts at this stage. */
+										_n(
+											'%d post is filed under this key, so it can’t change.',
+											'%d posts are filed under this key, so it can’t change.',
+											postCount,
+											'vip-workflows'
+										),
+										postCount
+								  )
+								: keyCollides
 								? __(
 										'This key is already used by another stage.',
 										'vip-workflows'
@@ -1141,9 +1158,21 @@ export default function StageInspector( {
 				<InspectorDangerZone
 					label={ __( 'Delete stage', 'vip-workflows' ) }
 					onClick={ onDelete }
-					disabled={ ! canDelete }
+					disabled={ ! canDelete || postCount > 0 }
 					description={
-						canDelete
+						// eslint-disable-next-line no-nested-ternary
+						postCount > 0
+							? sprintf(
+									/* translators: %d: number of posts at this stage. */
+									_n(
+										'%d post is in this stage. Move it to another stage first.',
+										'%d posts are in this stage. Move them to another stage first.',
+										postCount,
+										'vip-workflows'
+									),
+									postCount
+							  )
+							: canDelete
 							? undefined
 							: __(
 									'A sequence needs at least one stage.',
