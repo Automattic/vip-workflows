@@ -13,8 +13,8 @@
 		"test": "composer test",
 		"test:php": "composer test",
 		"test:unit:js": "wp-scripts test-unit-jest",
-		"test:e2e": "wp-scripts test-playwright --config playwright.config.js",
-		"test:e2e:headed": "wp-scripts test-playwright --config playwright.config.js --headed",
+		"test:e2e": "wp-scripts test-playwright --config playwright.config.js --wp-env-config=../.wp-env.tests.json",
+		"test:e2e:headed": "wp-scripts test-playwright --config playwright.config.js --wp-env-config=../.wp-env.tests.json --headed",
 		"package": "../tools/package-plugin.sh"
 	},
 	"devDependencies": {
