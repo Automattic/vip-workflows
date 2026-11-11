@@ -641,17 +641,18 @@ class SequenceRepository {
 			return;
 		}
 
-		// Name only the removed stages that actually hold posts.
-		$occupied = array();
-		foreach ( $holding['posts'] as $post ) {
-			if ( isset( $removed[ $post['stage'] ] ) ) {
-				$occupied[ $post['stage'] ] = $removed[ $post['stage'] ];
-			}
+		// Name every removed stage that holds posts, and only those. The counts
+		// come from all affected posts, not the capped list.
+		$occupied = array_intersect_key( $removed, $holding['stages'] );
+		if ( empty( $occupied ) ) {
+			// Cannot happen when the count is above zero, but an empty list would
+			// read as a delete refusal, so fall back to every removed stage.
+			$occupied = $removed;
 		}
 
 		throw new StrandedPostsException(
 			(int) $existing->id,
-			empty( $occupied ) ? $removed : $occupied,
+			$occupied,
 			$holding['total'],
 			$holding['posts']
 		);

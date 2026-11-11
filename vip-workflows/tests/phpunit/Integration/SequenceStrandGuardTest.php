@@ -310,6 +310,37 @@ class SequenceStrandGuardTest extends TestCase
         $this->assertCount( SequenceRepository::STRANDED_POSTS_LIMIT, $data['posts'] );
     }
 
+    public function test_every_occupied_removed_stage_is_named_even_past_the_cap(): void
+    {
+        $sequence = $this->create_sequence();
+        // The capped list fills with Legal posts; the Writing post sorts after it.
+        for ( $i = 0; $i < SequenceRepository::STRANDED_POSTS_LIMIT; $i++ ) {
+            $this->seat_post( $sequence, 'legal' );
+        }
+        $this->seat_post( $sequence, 'writing' );
+
+        $only_live = array( array( 'key' => 'live', 'label' => 'Live', 'status' => 'publish' ) );
+        $response  = $this->rest_update( $sequence, $only_live );
+
+        $this->assertSame( 409, $response->get_status() );
+        $data = $response->get_data();
+        $this->assertSame( SequenceRepository::STRANDED_POSTS_LIMIT + 1, $data['data']['total'] );
+        $this->assertEqualsCanonicalizing( array( 'writing', 'legal' ), array_column( $data['data']['stages'], 'key' ) );
+        $this->assertStringContainsString( '“Writing”', $data['message'] );
+        $this->assertStringContainsString( '“Legal”', $data['message'] );
+    }
+
+    public function test_an_empty_removed_stage_is_not_named(): void
+    {
+        $sequence = $this->create_sequence();
+        $this->seat_post( $sequence, 'legal' );
+
+        $only_live = array( array( 'key' => 'live', 'label' => 'Live', 'status' => 'publish' ) );
+        $data      = $this->rest_update( $sequence, $only_live )->get_data();
+
+        $this->assertSame( array( 'legal' ), array_column( $data['data']['stages'], 'key' ) );
+    }
+
     public function test_repair_route_refuses_to_re_key_a_legacy_stage_posts_sit_at(): void
     {
         global $wpdb;
