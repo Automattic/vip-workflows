@@ -10,6 +10,7 @@ Repository tooling and local-development helpers:
 - `wp-env-e2e-webserver.sh` is the Playwright `webServer` command for local e2e runs: it starts and seeds the tests environment, then reports ready.
 - `create-test-authors.py` and `create-test-content.py` create optional local fixtures through the WordPress REST API.
 - `code-quality/` discovers packages and runs the appropriate lint and unit-test commands.
+- `docs-check/` counts the Markdown files and lines and reports relative links and anchors that don't resolve. The docs cleanup (`docs/maintenance/docs-cleanup.md`) runs it before and after.
 - `playground/` builds the pull request preview (`build-preview.sh`), validates its blueprint (`build-preview-blueprint.mjs`), boots it locally (`serve-preview.sh`), and shifts demo-content dates for both the preview and wp-env (`shift-wxr-dates.php`).
 - `wp-env/` contains regression tests for the wp-env image patcher and demo dependencies.
 
