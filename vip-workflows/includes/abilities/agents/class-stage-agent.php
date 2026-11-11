@@ -355,7 +355,7 @@ class StageAgent {
 	 *
 	 * @param  string $original Current post content.
 	 * @param  string $edited   Agent-generated replacement.
-	 * @return array{content: string, unpreservable_markup: bool, too_large: bool, structure_changed: bool, links_added: int, links_removed: int, words_original: int, share: ?float, blocks: array<int, array{words: int, share: float}>}
+	 * @return array{content: string, unpreservable_markup: bool, too_large: bool, structure_changed: bool, markup_changed: bool, links_added: int, links_removed: int, words_original: int, share: ?float, blocks: array<int, array{words: int, share: float}>}
 	 */
 	public static function measure_rewrite( string $original, string $edited ): array {
 		$original_filtered = wp_kses_post( $original );
@@ -370,6 +370,7 @@ class StageAgent {
 			'unpreservable_markup' => $raw_shape['structure'] !== $original_shape['structure'] || $raw_shape['links'] !== $original_shape['links'],
 			'too_large'            => false,
 			'structure_changed'    => $original_shape['structure'] !== $edited_shape['structure'],
+			'markup_changed'       => $original_shape['markup'] !== $edited_shape['markup'],
 			'links_added'          => 0,
 			'links_removed'        => 0,
 			'words_original'       => 0,
@@ -435,7 +436,7 @@ class StageAgent {
 	 * @param  int   $block_percent Largest share of any one block's words a copy edit may change.
 	 * @return string[] Violation codes; empty when the rewrite is a copy edit. One of
 	 *                  `unpreservable_markup` or `too_large` stands alone; otherwise any of
-	 *                  `share`, `block_share`, `links`, `structure`.
+	 *                  `share`, `block_share`, `links`, `structure`, `markup`.
 	 */
 	public static function copy_edit_violations( array $report, int $max_percent, int $block_percent = self::BLOCK_CHANGE_PERCENT ): array {
 		if ( $report['unpreservable_markup'] ) {
@@ -462,6 +463,10 @@ class StageAgent {
 
 		if ( $report['structure_changed'] ) {
 			$violations[] = 'structure';
+		}
+
+		if ( ! empty( $report['markup_changed'] ) ) {
+			$violations[] = 'markup';
 		}
 
 		return $violations;
@@ -533,6 +538,10 @@ class StageAgent {
 			$clauses[] = __( 'changed the post’s blocks or paragraphs', 'vip-workflows' );
 		}
 
+		if ( in_array( 'markup', $violations, true ) ) {
+			$clauses[] = __( 'changed the post’s formatting or HTML', 'vip-workflows' );
+		}
+
 		return sprintf(
 			/* translators: %s: a list of what the edit changed, e.g. "changed 42% of the words (limit 15%), added 1 link". */
 			__( 'The edit was larger than a copy edit: it %s. Nothing was written; review the post and copy-edit it by hand.', 'vip-workflows' ),
@@ -573,12 +582,20 @@ class StageAgent {
 	 * attribute it came from, in document order. Compared in order, not as a
 	 * set, so that linking a URL the text already mentions, adding a second link
 	 * to an existing target, and swapping two links' destinations all count.
+	 * `markup` is every opening tag with its attributes (names lowercased,
+	 * values entity-decoded, sorted by name), in document order. Wrapping text
+	 * in `<span hidden>` or `style="display:none"` changes no word, link or
+	 * block, so the tags themselves must hold still too. Bare `<em>`,
+	 * `<strong>`, `<i>` and `<b>` are left out, because adding or removing
+	 * emphasis is a copy edit, and so is a bare `<p>`, because paragraphs are
+	 * counted separately and models often wrap classic paragraphs in one.
+	 *
 	 * `chunks` is the text between block
 	 * delimiters (or the classic paragraphs), aligned one-to-one whenever two
 	 * contents share a structure.
 	 *
 	 * @param  string $content Post content.
-	 * @return array{structure: array, links: string[], chunks: string[]}
+	 * @return array{structure: array, links: string[], markup: string[], chunks: string[]}
 	 */
 	private static function content_shape( string $content ): array {
 		$delimiter = '/<!--\s+(?:\/)?wp:[a-z][a-z0-9_-]*(?:\/[a-z][a-z0-9_-]*)?(?:\s+\{.*?\})?\s+\/?-->/s';
@@ -621,8 +638,47 @@ class StageAgent {
 		return array(
 			'structure' => $structure,
 			'links'     => $links,
+			'markup'    => self::markup_skeleton( $content ),
 			'chunks'    => array_map( 'strval', (array) $chunks ),
 		);
+	}
+
+	/**
+	 * Every opening tag with its attributes, normalized, in document order.
+	 *
+	 * @param  string $content HTML.
+	 * @return string[] e.g. `span[class=x,hidden=]`.
+	 */
+	private static function markup_skeleton( string $content ): array {
+		$skeleton = array();
+		if ( ! preg_match_all( '/<([a-zA-Z][a-zA-Z0-9-]*)(\s[^<>]*?)?\/?>/s', $content, $tags, PREG_SET_ORDER ) ) {
+			return $skeleton;
+		}
+
+		foreach ( $tags as $tag ) {
+			$name  = strtolower( $tag[1] );
+			$attrs = array();
+			if ( isset( $tag[2] ) && preg_match_all( '/([^\s=\/"\'<>]+)(?:\s*=\s*(?:"([^"]*)"|\'([^\']*)\'|([^\s"\'>]+)))?/', $tag[2], $pairs, PREG_SET_ORDER ) ) {
+				foreach ( $pairs as $pair ) {
+					$value         = ( $pair[2] ?? '' ) . ( $pair[3] ?? '' ) . ( $pair[4] ?? '' );
+					$key           = strtolower( $pair[1] );
+					$value         = html_entity_decode( $value, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+					$attrs[ $key ] = 'srcset' === $key ? implode( ', ', array_map( array( self::class, 'srcset_candidate' ), explode( ',', $value ) ) ) : $value;
+				}
+			}
+
+			if ( array() === $attrs && in_array( $name, array( 'em', 'strong', 'i', 'b', 'p' ), true ) ) {
+				continue;
+			}
+
+			ksort( $attrs );
+			$skeleton[] = $name . '[' . implode(
+				',',
+				array_map( static fn( string $key, string $value ): string => $key . '=' . $value, array_keys( $attrs ), $attrs )
+			) . ']';
+		}
+
+		return $skeleton;
 	}
 
 	/**

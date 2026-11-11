@@ -37,7 +37,8 @@ This is an LLM-verdict design; injection cannot be *eliminated*. The goal is to 
    - more than the stage's limit of the words changed in the whole body (`max_change_percent`, default 15%, at most 50%);
    - more than half of any one block's words changed (blocks under 8 words exempt), because a whole-body share alone lets steered prose through in proportion to the article's length;
    - any URL added, removed or changed, in a URL-bearing attribute (`href`, `src`, each `srcset` candidate and the like) or in the text. URLs are compared in document order, so linking a URL the text already mentions, adding a second link to an existing target, and swapping two links' destinations all count;
-   - any change to the block delimiters, compared byte for byte with attributes included (or to the paragraph count for classic content), which also catches a swapped embed URL that changes no words.
+   - any change to the block delimiters, compared byte for byte with attributes included (or to the paragraph count for classic content), which also catches a swapped embed URL that changes no words;
+   - any change to the opening tags and their attributes, in order, which catches hiding the article with `<span hidden>` or `style="display:none"`. Real kses keeps `hidden`, `style` and `class`. Only bare `<em>`, `<strong>`, `<i>`, `<b>` and `<p>` may be added or removed.
 
    The fail summary (`describe_rewrite()`) is built from counts and fixed phrases, never text or URLs from either body, because the runner shows a fail summary to the next person as the transition's audit comment and injected content must not get a trusted-looking channel to the reviewer.
 

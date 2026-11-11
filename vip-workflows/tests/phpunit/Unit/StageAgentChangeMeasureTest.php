@@ -163,7 +163,7 @@ class StageAgentChangeMeasureTest extends TestCase
         $violations = StageAgent::copy_edit_violations( $report, 15 );
 
         $this->assertLessThan( 0.15, $report['share'] );
-        $this->assertSame( array( 'links' ), $violations );
+        $this->assertSame( array( 'links', 'markup' ), $violations );
         $this->assertSame( 1, $report['links_added'] );
     }
 
@@ -364,6 +364,38 @@ class StageAgentChangeMeasureTest extends TestCase
         $this->assertTrue( $report['too_large'] );
         $this->assertSame( array( 'too_large' ), $violations );
         $this->assertStringContainsString( 'too long to check', StageAgent::describe_rewrite( $report, $violations, 15 ) );
+    }
+
+    public function test_hiding_the_article_in_an_attribute_fails_on_markup(): void
+    {
+        $original = self::para( 'The board approved the proposal after reviewing the detailed report.' );
+        $hidden   = self::para( '<span hidden>The board approved the proposal after reviewing the detailed report.</span>' );
+        $styled   = self::para( '<span style="display:none">The board approved the proposal after reviewing the detailed report.</span>' );
+
+        foreach ( array( $hidden, $styled ) as $edited ) {
+            $report     = StageAgent::measure_rewrite( $original, $edited );
+            $violations = StageAgent::copy_edit_violations( $report, 15 );
+
+            $this->assertSame( 0.0, $report['share'] );
+            $this->assertSame( array( 'markup' ), $violations );
+            $this->assertStringContainsString( 'formatting or HTML', StageAgent::describe_rewrite( $report, $violations, 15 ) );
+        }
+    }
+
+    public function test_adding_bare_emphasis_is_a_copy_edit(): void
+    {
+        $original = self::para( 'The novel War and Peace was the subject of the evening lecture series.' );
+        $edited   = self::para( 'The novel <em>War and Peace</em> was the subject of the evening lecture series.' );
+
+        $this->assertSame( array(), StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $original, $edited ), 15 ) );
+    }
+
+    public function test_changing_an_attribute_value_fails_on_markup(): void
+    {
+        $original = self::para( 'The harbor at dawn, photographed from the pier this morning. <img src="https://example.com/a.jpg" alt="Harbor at dawn">' );
+        $edited   = str_replace( 'alt="Harbor at dawn"', 'alt="Visit acme dot example"', $original );
+
+        $this->assertContains( 'markup', StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $original, $edited ), 15 ) );
     }
 
     public function test_the_summary_names_each_guard_and_quotes_no_body_text(): void
