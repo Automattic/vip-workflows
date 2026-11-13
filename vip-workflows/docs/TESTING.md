@@ -62,6 +62,16 @@ Locally, Playwright's `webServer` (`tools/wp-env-e2e-webserver.sh`) runs `npm ru
 
 Use `npm --prefix vip-workflows run test:e2e:headed` for a visible browser. Failures write traces and screenshots under `vip-workflows/artifacts/`.
 
+The real-time collaboration spec in `tests/e2e/rtc/` is excluded from this run. It needs a websocket server and runs only through its own config; see `tests/e2e/rtc/README.md`.
+
+### Known gaps
+
+These flows have no end-to-end coverage yet, because each needs a fixture the suite does not provide:
+
+- **A hard tool gate blocks a transition, and a soft gate warns and proceeds.** A missing or disabled tool is skipped, and an exception becomes a soft warning, so a deterministic hard gate needs an enabled ability that returns an issue with severity `error` or `hard`. That means a tests-environment mu-plugin that registers such an ability (plus a soft one), a sequence whose transition requires it, and a non-admin user, because administrators bypass tool checks. Assert REST `tool_check_failed` (422, `hard_failures`) for the hard gate, and `warnings_pending` then acknowledge for the soft one.
+- **Claim and release from the editor and the My Queue screen.** `claim-release.spec.js` covers the REST endpoints. The `.vip-workflows-panel__claim` button and the My Queue screen need a stage with `show_in_queue` and the post added to the claim queue.
+- **Dragging a Kanban card to another column.** The transition itself is covered over REST in `workflow-post-publish-stage.spec.js`; what is missing is a stable HTML5 drag between `.vip-workflows-kanban-column`s.
+
 Tests should arrange fixtures over REST, exercise behavior through the UI, assert both UI and persisted state where useful, and delete records they create. Prefer stable class or `data-*` hooks over translated text and DOM structure.
 
 ### Seeded fixtures

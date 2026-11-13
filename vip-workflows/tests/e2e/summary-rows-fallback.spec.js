@@ -12,6 +12,10 @@
  * The `post-status` panel is removed with `removeEditorPanel()`. Preferences →
  * Panels has no switch for it, and `toggleEditorPanelEnabled( 'post-status' )`
  * changes nothing either Summary reads.
+ *
+ * The DataForm Summary case is not driven here: no supported Gutenberg build
+ * still ships the experiment switch, so it could only skip. The not-mounted
+ * path is covered by tests/unit-js/summary-rows-fallback.test.js.
  */
 
 const { test, expect } = require( '@wordpress/e2e-test-utils-playwright' );
@@ -129,89 +133,6 @@ test.describe( 'VIP Workflows — Summary rows fallback', () => {
 		await expect(
 			page.locator( '.vip-workflows-summary-rows' )
 		).toHaveCount( 1 );
-	} );
-
-	test.describe( 'with the DataForm Summary experiment on', () => {
-		/*
-		 * Whether this environment can turn the experiment on at all. The
-		 * switch exists only in Gutenberg plugin builds that still ship the
-		 * DataForm Summary as an experiment: without the plugin there is no
-		 * experiments page, and after the Summary was stabilized the switch is
-		 * gone. Either way there is no DataForm-without-slot build to drive, so
-		 * the case is skipped and the not-mounted path is covered by
-		 * tests/unit-js/summary-rows-fallback.test.js instead.
-		 */
-		let experimentAvailable = false;
-
-		test.beforeAll( async ( { requestUtils } ) => {
-			const response = await requestUtils.request.get(
-				'/wp-admin/admin.php?page=gutenberg-experiments'
-			);
-			const html = response.ok() ? await response.text() : '';
-			experimentAvailable =
-				html.includes( 'name="_wpnonce"' ) &&
-				html.includes( 'gutenberg-dataform-inspector' );
-
-			if ( experimentAvailable ) {
-				await requestUtils.setGutenbergExperiments( [
-					'gutenberg-dataform-inspector',
-				] );
-			}
-		} );
-
-		test.afterAll( async ( { requestUtils } ) => {
-			if ( experimentAvailable ) {
-				await requestUtils.setGutenbergExperiments( [] );
-			}
-		} );
-
-		/*
-		 * Gutenberg builds differ here. An experimental DataForm Summary that
-		 * draws no slot leaves the rows to the Workflow panel; a build that
-		 * draws the slot (and the stabilized Summary, where the experiment
-		 * switch no longer exists) shows them in the Summary panel. Either way
-		 * the author reaches exactly one copy.
-		 */
-		test( 'the author reaches exactly one copy of the Workflow row', async ( {
-			admin,
-			page,
-			requestUtils,
-		} ) => {
-			test.skip(
-				! experimentAvailable,
-				'This environment has no DataForm Summary experiment switch.'
-			);
-
-			const post = await createDraftPost( requestUtils, {
-				title: 'DataForm Summary e2e',
-			} );
-			postId = post.id;
-
-			await admin.editPost( postId );
-
-			// The document sidebar opens by default; wait for its Summary to
-			// settle before counting what it drew.
-			await page.locator( '.editor-post-summary' ).first().waitFor();
-			const inSummary = await page
-				.locator( '.editor-post-summary .vip-workflows-summary-rows' )
-				.count();
-
-			await openWorkflowDocumentPanel( page );
-			await expect(
-				page.locator( '.vip-workflows-panel' )
-			).toBeVisible();
-
-			const details = panelDetails( page );
-			await expect( details ).toHaveCount( inSummary ? 0 : 1 );
-
-			if ( ! inSummary ) {
-				await expect(
-					details.getByRole( 'button', {
-						name: 'Select a workflow',
-					} )
-				).toBeVisible();
-			}
-		} );
 	} );
 } );
 

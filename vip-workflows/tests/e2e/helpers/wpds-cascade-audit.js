@@ -19,7 +19,7 @@
  *
  * The first clause keys off runtime truth, so non-DS elements (e.g. a bare
  * `.description`) are never flagged. The last clause is what surfaces the gap
- * on surfaces our canvas reset doesn't reach (modals, the slideout portal).
+ * on surfaces our canvas reset doesn't reach (modals).
  *
  * Caveat: co-existence is a guaranteed conflict for *normal* declarations
  * (unlayered always beats layered). `!important` flips that and is NOT modelled
@@ -63,7 +63,7 @@ const TARGET_TAGS = 'p,h1,h2,h3,h4,h5,h6,a,li,dt,dd';
  * @param {import('@playwright/test').Page} page                  Playwright page.
  * @param {Object}                          [opts]
  * @param {string}                          [opts.rootSelector]   Restrict the scan
- *                                                                to a subtree (e.g. '.vip-ai-slideout-panel' for the slideout portal).
+ *                                                                to a subtree (e.g. '.vip-workflows-howto-modal' for a modal).
  * @param {string}                          [opts.targetSelector] Override the
  *                                                                flow-tag selector.
  * @return {Promise<Array>} Findings: { tag, cls, text, path, categories:[...] }.

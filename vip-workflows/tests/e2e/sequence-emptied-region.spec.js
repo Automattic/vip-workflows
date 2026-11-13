@@ -133,7 +133,7 @@ test.describe( 'VIP Workflows — emptied status groups', () => {
 		}
 	} );
 
-	test( 'moving the only stage out keeps its group drawn, and moving it back takes one step', async ( {
+	test( 'an emptied group stays drawn: moving its stage back takes one step, and deleting the stage leaves it until removed', async ( {
 		admin,
 		page,
 		requestUtils,
@@ -172,17 +172,9 @@ test.describe( 'VIP Workflows — emptied status groups', () => {
 		await expect( regionLabel( page, 'publish' ) ).toContainText(
 			'1 stage'
 		);
-	} );
 
-	test( 'deleting the only stage keeps its group drawn until it is removed', async ( {
-		admin,
-		page,
-		requestUtils,
-	} ) => {
-		const bp = await createSequence( requestUtils );
-		sequenceId = bp.id;
-		await openEditor( admin, page, bp.name );
-
+		// Deleting the only stage empties the group the same way, and it stays
+		// drawn until it is taken off the canvas by hand.
 		await nodeNamed( page, 'Published' ).click();
 		await page.getByRole( 'button', { name: 'Delete stage' } ).click();
 
@@ -191,7 +183,6 @@ test.describe( 'VIP Workflows — emptied status groups', () => {
 			'0 stages'
 		);
 
-		// An emptied group can be taken off the canvas by hand.
 		await regionLabel( page, 'publish' ).click();
 		await page
 			.getByRole( 'button', { name: 'Remove this status' } )

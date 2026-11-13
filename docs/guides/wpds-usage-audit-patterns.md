@@ -280,15 +280,17 @@ runtime e2e audit: [`tests/e2e/wpds-cascade-audit.spec.js`](../../vip-workflows/
 npm run test:e2e -- wpds-cascade-audit      # from vip-workflows/
 ```
 
-It visits each DS admin surface (plus the AI slideout portal) and flags every
-element where a `@layer wp-ui-*` declaration co-exists with an unlayered
-wp-admin declaration for the same property and no covering "ours" rule — i.e.
-the exact signature of a needed reset. It's informational by default (known gaps
-are expected); `WPDS_AUDIT_STRICT=1` makes it fail on any finding, for use as a
-regression guard once a surface is clean. Add new screens to the spec's `SCREENS`
-list. The two finding shapes it surfaces map to the recurrence cases above:
+It visits each DS admin surface (plus the how-to modals, which portal outside the
+admin page) and flags every element where a `@layer wp-ui-*` declaration
+co-exists with an unlayered wp-admin declaration for the same property and no
+covering "ours" rule — i.e. the exact signature of a needed reset. Every covered
+surface is clean, so it runs as a regression guard in CI: any finding fails, and
+so does a modal whose trigger button can no longer be found. To explore a new
+surface that is not clean yet, set `WPDS_AUDIT_REPORT_ONLY=1`, which logs findings
+without failing. Add new screens to the spec's `SCREENS` list once they are clean.
+The two finding shapes it surfaces map to the recurrence cases above:
 
-- **Portal surfaces** (the slideout, modals) — a DS element outside
+- **Portal surfaces** (modals) — a DS element outside
   `.vip-workflows-admin-page` that the canvas reset never reaches → give that root
   its own scoped reset.
 - **`.description`-carrying DS elements** — a `<Text>` that also has

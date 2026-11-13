@@ -25,74 +25,88 @@ async function setIdeationExperiment( requestUtils, enabled ) {
 
 test.describe( 'VIP Workflows — Ideation experiment gate', () => {
 	test.describe( 'disabled by default', () => {
-		test( 'Workflows menu has no Ideation item', async ( {
+		// Each check is soft, so one regression does not hide the others.
+		test( 'no Ideation menu item, page, Phase tab; the toggle renders', async ( {
 			admin,
 			page,
 		} ) => {
 			await admin.visitAdminPage( 'admin.php', 'page=vip-workflows' );
-
 			const submenu = page.locator(
 				'#toplevel_page_vip-workflows .wp-submenu'
 			);
-			await expect(
-				submenu.getByRole( 'link', {
-					name: 'My Dashboard',
-					exact: true,
-				} )
-			).toBeVisible();
-			await expect(
-				submenu.getByRole( 'link', { name: 'Ideation', exact: true } )
-			).toHaveCount( 0 );
-		} );
+			await expect
+				.soft(
+					submenu.getByRole( 'link', {
+						name: 'My Dashboard',
+						exact: true,
+					} )
+				)
+				.toBeVisible();
+			await expect
+				.soft(
+					submenu.getByRole( 'link', {
+						name: 'Ideation',
+						exact: true,
+					} )
+				)
+				.toHaveCount( 0 );
 
-		test( 'ideation page slug does not mount the workflow shell', async ( {
-			admin,
-			page,
-		} ) => {
+			// The ideation page slug does not mount the workflow shell.
 			await admin.visitAdminPage(
 				'admin.php',
 				'page=vip-workflows-ideation'
 			);
+			await expect
+				.soft( page.locator( '#vip-workflows-root' ) )
+				.toHaveCount( 0 );
 
-			await expect( page.locator( '#vip-workflows-root' ) ).toHaveCount(
-				0
+			// The Sequences page shows no Phase sequences tab.
+			await admin.visitAdminPage(
+				'admin.php',
+				'page=vip-workflows-sequences'
 			);
+			await expect
+				.soft( page.getByRole( 'tab', { name: /Workflow sequences/ } ) )
+				.toBeVisible();
+			await expect
+				.soft( page.getByRole( 'tab', { name: /Phase sequences/ } ) )
+				.toHaveCount( 0 );
+
+			// Settings → Experiments still offers the Ideation toggle.
+			await admin.visitAdminPage(
+				'admin.php',
+				'page=vip-workflows-settings'
+			);
+			await page.getByRole( 'tab', { name: 'Experiments' } ).click();
+			await expect
+				.soft( page.getByRole( 'checkbox', { name: 'Ideation' } ) )
+				.toBeVisible();
 		} );
 
-		test( 'ideation REST routes are not registered', async ( {
+		test( 'no ideation REST routes, no phase sequences, and none can be created', async ( {
 			requestUtils,
 		} ) => {
-			let error;
+			let routeError;
 			try {
 				await requestUtils.rest( {
 					path: '/vip-workflows/v1/ideation',
 				} );
 			} catch ( e ) {
-				error = e;
+				routeError = e;
 			}
+			expect( routeError ).toBeDefined();
+			expect( routeError.code ).toBe( 'rest_no_route' );
+			expect( routeError.data.status ).toBe( 404 );
 
-			expect( error ).toBeDefined();
-			expect( error.code ).toBe( 'rest_no_route' );
-			expect( error.data.status ).toBe( 404 );
-		} );
-
-		test( 'sequences list contains no phase sequences', async ( {
-			requestUtils,
-		} ) => {
 			const sequences = await requestUtils.rest( {
 				path: '/vip-workflows/v1/sequences',
 			} );
-
 			expect( Array.isArray( sequences ) ).toBe( true );
 			expect(
 				sequences.filter( ( bp ) => bp.type === 'phase' )
 			).toHaveLength( 0 );
-		} );
 
-		test( 'creating a phase sequence is rejected', async ( {
-			requestUtils,
-		} ) => {
-			let error;
+			let createError;
 			try {
 				await requestUtils.rest( {
 					path: '/vip-workflows/v1/sequences',
@@ -107,45 +121,11 @@ test.describe( 'VIP Workflows — Ideation experiment gate', () => {
 					},
 				} );
 			} catch ( e ) {
-				error = e;
+				createError = e;
 			}
-
-			expect( error ).toBeDefined();
-			expect( error.code ).toBe( 'rest_sequence_type_disabled' );
-			expect( error.data.status ).toBe( 403 );
-		} );
-
-		test( 'Sequences page shows no Phase Sequences tab', async ( {
-			admin,
-			page,
-		} ) => {
-			await admin.visitAdminPage(
-				'admin.php',
-				'page=vip-workflows-sequences'
-			);
-
-			await expect(
-				page.getByRole( 'tab', { name: /Workflow sequences/ } )
-			).toBeVisible();
-			await expect(
-				page.getByRole( 'tab', { name: /Phase sequences/ } )
-			).toHaveCount( 0 );
-		} );
-
-		test( 'Settings Experiments tab renders the Ideation toggle', async ( {
-			admin,
-			page,
-		} ) => {
-			await admin.visitAdminPage(
-				'admin.php',
-				'page=vip-workflows-settings'
-			);
-
-			await page.getByRole( 'tab', { name: 'Experiments' } ).click();
-
-			await expect(
-				page.getByRole( 'checkbox', { name: 'Ideation' } )
-			).toBeVisible();
+			expect( createError ).toBeDefined();
+			expect( createError.code ).toBe( 'rest_sequence_type_disabled' );
+			expect( createError.data.status ).toBe( 403 );
 		} );
 	} );
 

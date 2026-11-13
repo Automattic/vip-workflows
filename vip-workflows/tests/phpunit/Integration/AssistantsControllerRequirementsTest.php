@@ -53,6 +53,17 @@ class AssistantsControllerRequirementsTest extends TestCase
     private const WEB_RESEARCHER_ABILITY = 'vip-workflows/web-researcher';
 
     /**
+     * Agents shaped the way an extension plugin registers them: plain
+     * `wp_register_ability()` calls outside the `vip-workflows/` namespace, so
+     * the list serves them with `origin: plugin`. The PHP test bootstrap loads
+     * only the core plugin, so without these the contract test below would see
+     * built-in agents alone.
+     */
+    private const EXTENSION_RESEARCH_ABILITY = 'test-extension/research-agent';
+
+    private const EXTENSION_STAGE_ABILITY = 'test-extension/stage-agent';
+
+    /**
      * Register the two research agents and pin the credential backend.
      *
      * The plugin registers the agents only when the `ideation` experiment is
@@ -90,6 +101,19 @@ class AssistantsControllerRequirementsTest extends TestCase
                 if ( ! in_array( 'vip-workflows/media-scout', $registered, true ) ) {
                     MediaScout::register_ability();
                 }
+                if ( ! in_array( self::EXTENSION_RESEARCH_ABILITY, $registered, true ) ) {
+                    self::register_extension_agent( self::EXTENSION_RESEARCH_ABILITY, 'research', array() );
+                }
+                if ( ! in_array( self::EXTENSION_STAGE_ABILITY, $registered, true ) ) {
+                    self::register_extension_agent(
+                        self::EXTENSION_STAGE_ABILITY,
+                        'vip-workflows',
+                        array(
+                            'supports'       => array( 'stage' ),
+                            'stage_eligible' => true,
+                        )
+                    );
+                }
             }
         );
         do_action( 'wp_abilities_api_init' );
@@ -97,6 +121,30 @@ class AssistantsControllerRequirementsTest extends TestCase
         Credentials::get_instance()->set_backend( new ConnectorsCredentialBackend() );
 
         wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+    }
+
+    /**
+     * Register an agent the way an extension plugin would.
+     *
+     * @param string $name     Ability id, outside the `vip-workflows/` namespace.
+     * @param string $category Ability category.
+     * @param array  $meta     Extra ability meta.
+     */
+    private static function register_extension_agent( string $name, string $category, array $meta ): void
+    {
+        wp_register_ability(
+            $name,
+            array(
+                'label'               => 'Test extension agent',
+                'description'         => 'An agent registered the way an extension registers one.',
+                'category'            => $category,
+                'input_schema'        => array( 'type' => 'object' ),
+                'output_schema'       => array( 'type' => 'object' ),
+                'execute_callback'    => static fn(): array => array(),
+                'permission_callback' => static fn(): bool => current_user_can( 'edit_posts' ),
+                'meta'                => array_merge( array( 'show_in_rest' => true ), $meta ),
+            )
+        );
     }
 
     public function tear_down(): void
@@ -366,6 +414,55 @@ class AssistantsControllerRequirementsTest extends TestCase
             'single read' => array( 'GET', '/vip-workflows/v1/assistants/' . self::WEB_RESEARCHER_SLUG ),
             'settings'    => array( 'POST', '/vip-workflows/v1/assistants/' . self::WEB_RESEARCHER_SLUG . '/settings' ),
         );
+    }
+
+    public function test_every_list_entry_preserves_the_availability_contract(): void
+    {
+        $entries = $this->list_entries();
+        $this->assertNotEmpty( $entries );
+
+        // Both kinds the claim below is about must actually be in the list,
+        // found by slug: other test classes leave their own plugin-origin
+        // agents in the process-wide registry, so a count would not prove
+        // these two registered.
+        $this->assertSame( 'plugin', $this->list_entry( 'test-extension-research-agent' )['origin'] );
+        $this->assertSame( 'plugin', $this->list_entry( 'test-extension-stage-agent' )['origin'] );
+        $this->assertSame( 'built-in', $this->list_entry( self::WEB_RESEARCHER_SLUG )['origin'] );
+
+        // The schema validates fields when present, but does not require them
+        // or enforce relationships between fields. Keep these checks at the
+        // REST boundary, including for agents supplied by extensions.
+        $invalid = array();
+        foreach ( $entries as $entry ) {
+            $checks = array(
+                'groups must be an array' => is_array( $entry['availability']['groups'] ?? null ),
+                'availability flags must agree' => isset( $entry['available'], $entry['availability']['available'] )
+                    && $entry['available'] === $entry['availability']['available'],
+                'availability_state must be recognized' => in_array(
+                    $entry['availability_state'] ?? null,
+                    array( 'available', 'partial', 'unavailable' ),
+                    true
+                ),
+                'availability_sources must be an array' => is_array( $entry['availability_sources'] ?? null ),
+                'origin must be recognized' => in_array(
+                    $entry['origin'] ?? null,
+                    array( 'built-in', 'plugin' ),
+                    true
+                ),
+                'available agents must have no unmet groups' => empty( $entry['available'] )
+                    || array() === ( $entry['availability']['groups'] ?? null ),
+            );
+
+            // Aggregate failures so assertion counts do not depend on which
+            // other tests have registered agents in the process-wide registry.
+            foreach ( $checks as $message => $valid ) {
+                if ( ! $valid ) {
+                    $invalid[ (string) ( $entry['slug'] ?? '(no slug)' ) ][] = $message;
+                }
+            }
+        }
+
+        $this->assertSame( array(), $invalid, 'Every listed agent must preserve the availability contract.' );
     }
 
     public function test_response_validates_against_the_registered_item_schema(): void
