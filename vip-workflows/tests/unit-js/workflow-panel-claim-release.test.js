@@ -11,6 +11,7 @@
 
 import { render, screen, waitFor, act } from './helpers/render-wp-component';
 import apiFetch from '@wordpress/api-fetch';
+import { speak } from '@wordpress/a11y';
 
 jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
@@ -217,5 +218,98 @@ describe( 'WorkflowPanel claim and release', () => {
 		expect(
 			calls.filter( ( c ) => c.path === STATUS_PATH ).length
 		).toBeGreaterThan( 1 );
+	} );
+
+	it( 'keeps Release busy until the re-read lands, then moves focus to Claim', async () => {
+		let claimed = true;
+		let finishRead;
+		apiFetch.mockImplementation( ( request ) => {
+			if ( request.path === STATUS_PATH ) {
+				const payload = status( {
+					claimed_by: claimed
+						? person( 5, 'Riley Reviewer', true )
+						: null,
+					can_claim: ! claimed,
+				} );
+				if ( claimed ) {
+					return Promise.resolve( payload );
+				}
+				// The re-read after Release is slow.
+				return new Promise( ( resolve ) => {
+					finishRead = () => resolve( payload );
+				} );
+			}
+			if ( request.path === UNCLAIM_PATH ) {
+				claimed = false;
+				return Promise.resolve( { success: true } );
+			}
+			if ( request.path.startsWith( '/vip-workflows/v1/abilities' ) ) {
+				return Promise.resolve( [] );
+			}
+			return Promise.resolve( {} );
+		} );
+
+		render( <WorkflowPanel /> );
+		const release = await screen.findByRole( 'button', {
+			name: 'Release',
+		} );
+		release.focus();
+
+		await act( async () => {
+			release.click();
+		} );
+
+		await waitFor( () => expect( finishRead ).toBeDefined() );
+		expect( release ).toBeDisabled();
+
+		await act( async () => {
+			finishRead();
+		} );
+
+		const claim = await screen.findByRole( 'button', { name: 'Claim' } );
+		await waitFor( () => expect( claim ).toHaveFocus() );
+		expect(
+			screen.queryByRole( 'button', { name: 'Release' } )
+		).toBeNull();
+		expect( speak ).toHaveBeenCalledWith( 'Claim released.' );
+	} );
+
+	it( 'moves focus to the panel when Release leaves no Claim to offer', async () => {
+		let claimed = true;
+		apiFetch.mockImplementation( ( request ) => {
+			if ( request.path === STATUS_PATH ) {
+				return Promise.resolve(
+					status( {
+						claimed_by: claimed
+							? person( 5, 'Riley Reviewer', true )
+							: null,
+					} )
+				);
+			}
+			if ( request.path === UNCLAIM_PATH ) {
+				claimed = false;
+				return Promise.resolve( { success: true } );
+			}
+			if ( request.path.startsWith( '/vip-workflows/v1/abilities' ) ) {
+				return Promise.resolve( [] );
+			}
+			return Promise.resolve( {} );
+		} );
+
+		const { container } = render( <WorkflowPanel /> );
+		const release = await screen.findByRole( 'button', {
+			name: 'Release',
+		} );
+		release.focus();
+
+		await act( async () => {
+			release.click();
+		} );
+
+		await waitFor( () =>
+			expect(
+				container.querySelector( '.vip-workflows-panel' )
+			).toHaveFocus()
+		);
 	} );
 } );

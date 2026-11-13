@@ -37,7 +37,13 @@
  * @package
  */
 
-import { useState, useEffect, lazy, Suspense } from '@wordpress/element';
+import {
+	useState,
+	useEffect,
+	useRef,
+	lazy,
+	Suspense,
+} from '@wordpress/element';
 import {
 	Button,
 	Modal,
@@ -48,6 +54,7 @@ import { Stack, Text } from '@wordpress/ui';
 import { useSelect, useDispatch } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
 import apiFetch from '@wordpress/api-fetch';
+import { speak } from '@wordpress/a11y';
 import { __, sprintf } from '@wordpress/i18n';
 import { STORE_NAME } from '../store';
 import { AuthorCell } from '../../common/DataViewCells';
@@ -150,6 +157,27 @@ export function WorkflowPanel() {
 	const [ historyOpen, setHistoryOpen ] = useState( false );
 	const [ actionError, setActionError ] = useState( null ); // every action failure — shown as a Notice, not a browser dialog
 
+	// After Release, focus must not fall to the page when its row goes. Claim
+	// is the natural next step when it's offered; otherwise the panel itself.
+	const panelRef = useRef( null );
+	const claimButtonRef = useRef( null );
+	const [ restoreFocus, setRestoreFocus ] = useState( false );
+	useEffect( () => {
+		if ( ! restoreFocus ) {
+			return;
+		}
+		setRestoreFocus( false );
+		const { activeElement, body } = panelRef.current?.ownerDocument ?? {};
+		if (
+			activeElement &&
+			activeElement !== body &&
+			activeElement.isConnected
+		) {
+			return;
+		}
+		( claimButtonRef.current ?? panelRef.current )?.focus();
+	}, [ restoreFocus ] );
+
 	// Busy while a move or a workflow-level write runs, wherever it was
 	// started: the store's answer, so the header stands down with the panel.
 	const transitioning = useSelect(
@@ -223,10 +251,6 @@ export function WorkflowPanel() {
 			path: `/vip-workflows/v1/workflow/post/${ postId }/claim`,
 			method: 'POST',
 		} )
-			.then( () => {
-				fetchWorkflowStatus();
-				setWorkflowWriting( false );
-			} )
 			.catch( ( err ) => {
 				setActionError(
 					err.message ||
@@ -236,11 +260,13 @@ export function WorkflowPanel() {
 						)
 				);
 				// A refusal is news about the post (someone else claimed it,
-				// or it left the queue): re-read it, so the panel shows the
-				// post rather than the attempt.
-				fetchWorkflowStatus();
-				setWorkflowWriting( false );
-			} );
+				// or it left the queue): re-read it below, so the panel shows
+				// the post rather than the attempt.
+			} )
+			// Busy until the re-read lands, so the button can't be pressed
+			// again against the state the write just changed.
+			.then( () => fetchWorkflowStatus() )
+			.finally( () => setWorkflowWriting( false ) );
 	};
 
 	const handleUnclaim = () => {
@@ -251,8 +277,7 @@ export function WorkflowPanel() {
 			method: 'DELETE',
 		} )
 			.then( () => {
-				fetchWorkflowStatus();
-				setWorkflowWriting( false );
+				speak( __( 'Claim released.', 'vip-workflows' ) );
 			} )
 			.catch( ( err ) => {
 				setActionError(
@@ -263,10 +288,17 @@ export function WorkflowPanel() {
 						)
 				);
 				// The claim may already be gone (another release, or the post
-				// taken out of its workflow): re-read it, so the row and its
-				// Release button match the post rather than the attempt.
-				fetchWorkflowStatus();
+				// taken out of its workflow): re-read it below, so the row and
+				// its Release button match the post rather than the attempt.
+			} )
+			// Busy until the re-read lands: re-enabled any earlier, Release
+			// could be pressed again on a claim that's already gone.
+			.then( () => fetchWorkflowStatus() )
+			.finally( () => {
 				setWorkflowWriting( false );
+				// Either way the re-read can remove the claim row, and with it
+				// the focused Release button.
+				setRestoreFocus( true );
 			} );
 	};
 
@@ -352,7 +384,13 @@ export function WorkflowPanel() {
 	const agentFailed = agentJob?.status === 'failed';
 
 	return (
-		<Stack className="vip-workflows-panel" direction="column" gap="lg">
+		<Stack
+			ref={ panelRef }
+			tabIndex={ -1 }
+			className="vip-workflows-panel"
+			direction="column"
+			gap="lg"
+		>
 			{ /* Who holds the post: its transition assignee and its claimer, in
 			     one group so the two rows line up. They are
 			     stored separately, so each keeps its own row, and Release —
@@ -398,6 +436,7 @@ export function WorkflowPanel() {
 					direction="column"
 				>
 					<Button
+						ref={ claimButtonRef }
 						variant="secondary"
 						size="compact"
 						onClick={ handleClaim }
