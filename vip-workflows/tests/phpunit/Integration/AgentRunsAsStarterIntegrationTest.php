@@ -552,4 +552,29 @@ class AgentRunsAsStarterIntegrationTest extends TestCase
 		$this->assertSame( $failed, get_post_meta( $post_id, StageAgentRunner::JOB_META, true ), 'The failed state is left as it was.' );
 		$this->assertSame( 'ai_desk', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
 	}
+
+	/**
+	 * Go back holds the marker as `reverting` while it moves the post, so a
+	 * late run event firing in that window doesn't run the agent either.
+	 */
+	public function test_a_run_event_during_go_back_does_not_execute(): void
+	{
+		list( $post_id ) = $this->make_post( 'editor' );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ai_desk' );
+		update_post_meta(
+			$post_id,
+			StageAgentRunner::JOB_META,
+			array(
+				'stage_key'  => 'ai_desk',
+				'ability_id' => 'test/desk-agent',
+				'status'     => 'reverting',
+				'from_stage' => 'drafting',
+			)
+		);
+
+		$executor = $this->recording_executor();
+		$this->run_as_cron( $executor, $post_id );
+
+		$this->assertNull( $executor->ran_as );
+	}
 }

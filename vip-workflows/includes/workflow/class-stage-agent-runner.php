@@ -491,18 +491,20 @@ class StageAgentRunner implements ModuleInterface {
 	}
 
 	/**
-	 * Delete the job marker, only where it is still exactly `$expected`.
+	 * Take the job marker, only where it is still exactly `$expected`: replace
+	 * it with `$replacement`, or delete it when that is null.
 	 *
 	 * Go back's half of the compare-and-swap Run again uses
 	 * (replace_job_marker()), so when both race for the same failed marker,
-	 * exactly one of them takes it and the other finds it gone or changed.
+	 * exactly one of them takes it and the other finds it changed.
 	 *
-	 * @param  int   $post_id  Post ID.
-	 * @param  array $expected The marker the caller read and validated.
-	 * @return bool True when this caller deleted it.
+	 * @param  int        $post_id     Post ID.
+	 * @param  array      $expected    The marker the caller read and validated.
+	 * @param  array|null $replacement The marker to write in its place, or null to delete it.
+	 * @return bool True when this caller changed it.
 	 */
-	public static function take_job_marker( int $post_id, array $expected ): bool {
-		return self::swap_job_marker( $post_id, $expected, null );
+	public static function take_job_marker( int $post_id, array $expected, ?array $replacement = null ): bool {
+		return self::swap_job_marker( $post_id, $expected, $replacement );
 	}
 
 	/**
@@ -606,8 +608,8 @@ class StageAgentRunner implements ModuleInterface {
 			return;
 		}
 
-		// A marker for this stage that has already resolved (failed, or held
-		// for warnings) has no run left to serve. Every entry writes a fresh
+		// A marker for this stage that has already resolved (failed, held for
+		// warnings, or being gone back from) has no run left to serve. Every entry writes a fresh
 		// marker and relies on cron to deduplicate the event, but cron only
 		// matches events within about ten minutes of each other, so a late cron
 		// can hold two events for one post and stage. The second must not

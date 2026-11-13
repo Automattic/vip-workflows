@@ -233,7 +233,7 @@ describe( 'WorkflowPanel failed agent actions', () => {
 		).toBeGreaterThan( 1 );
 	} );
 
-	it( 're-reads the post when Go back is refused', async () => {
+	it( 'shows the refusal and re-reads the post when Go back is refused', async () => {
 		const failed = failedStatus( {
 			can_rerun: true,
 			revert_to: { key: 'drafting', label: 'Drafting' },
@@ -286,6 +286,11 @@ describe( 'WorkflowPanel failed agent actions', () => {
 				.click();
 		} );
 
+		expect(
+			await screen.findByText(
+				'This agent run changed while you were going back. Reload the post to see where it is now.'
+			)
+		).toBeInTheDocument();
 		await waitFor( () =>
 			expect(
 				screen.queryByRole( 'button', { name: 'Go back to Drafting' } )
