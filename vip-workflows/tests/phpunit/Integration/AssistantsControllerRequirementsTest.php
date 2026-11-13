@@ -53,6 +53,17 @@ class AssistantsControllerRequirementsTest extends TestCase
     private const WEB_RESEARCHER_ABILITY = 'vip-workflows/web-researcher';
 
     /**
+     * Agents shaped the way an extension plugin registers them: plain
+     * `wp_register_ability()` calls outside the `vip-workflows/` namespace, so
+     * the list serves them with `origin: plugin`. The PHP test bootstrap loads
+     * only the core plugin, so without these the contract test below would see
+     * built-in agents alone.
+     */
+    private const EXTENSION_RESEARCH_ABILITY = 'test-extension/research-agent';
+
+    private const EXTENSION_STAGE_ABILITY = 'test-extension/stage-agent';
+
+    /**
      * Register the two research agents and pin the credential backend.
      *
      * The plugin registers the agents only when the `ideation` experiment is
@@ -90,6 +101,19 @@ class AssistantsControllerRequirementsTest extends TestCase
                 if ( ! in_array( 'vip-workflows/media-scout', $registered, true ) ) {
                     MediaScout::register_ability();
                 }
+                if ( ! in_array( self::EXTENSION_RESEARCH_ABILITY, $registered, true ) ) {
+                    self::register_extension_agent( self::EXTENSION_RESEARCH_ABILITY, 'research', array() );
+                }
+                if ( ! in_array( self::EXTENSION_STAGE_ABILITY, $registered, true ) ) {
+                    self::register_extension_agent(
+                        self::EXTENSION_STAGE_ABILITY,
+                        'vip-workflows',
+                        array(
+                            'supports'       => array( 'stage' ),
+                            'stage_eligible' => true,
+                        )
+                    );
+                }
             }
         );
         do_action( 'wp_abilities_api_init' );
@@ -97,6 +121,30 @@ class AssistantsControllerRequirementsTest extends TestCase
         Credentials::get_instance()->set_backend( new ConnectorsCredentialBackend() );
 
         wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+    }
+
+    /**
+     * Register an agent the way an extension plugin would.
+     *
+     * @param string $name     Ability id, outside the `vip-workflows/` namespace.
+     * @param string $category Ability category.
+     * @param array  $meta     Extra ability meta.
+     */
+    private static function register_extension_agent( string $name, string $category, array $meta ): void
+    {
+        wp_register_ability(
+            $name,
+            array(
+                'label'               => 'Test extension agent',
+                'description'         => 'An agent registered the way an extension registers one.',
+                'category'            => $category,
+                'input_schema'        => array( 'type' => 'object' ),
+                'output_schema'       => array( 'type' => 'object' ),
+                'execute_callback'    => static fn(): array => array(),
+                'permission_callback' => static fn(): bool => current_user_can( 'edit_posts' ),
+                'meta'                => array_merge( array( 'show_in_rest' => true ), $meta ),
+            )
+        );
     }
 
     public function tear_down(): void
@@ -372,6 +420,11 @@ class AssistantsControllerRequirementsTest extends TestCase
     {
         $entries = $this->list_entries();
         $this->assertNotEmpty( $entries );
+
+        // Both kinds the claim below is about must actually be in the list.
+        $origins = array_count_values( array_map( static fn( array $entry ): string => (string) ( $entry['origin'] ?? '' ), $entries ) );
+        $this->assertGreaterThanOrEqual( 2, $origins['plugin'] ?? 0, 'Both extension agents are listed.' );
+        $this->assertGreaterThanOrEqual( 1, $origins['built-in'] ?? 0, 'Built-in agents are listed.' );
 
         // The schema validates fields when present, but does not require them
         // or enforce relationships between fields. Keep these checks at the
