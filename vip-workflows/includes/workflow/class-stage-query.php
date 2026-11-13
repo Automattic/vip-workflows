@@ -26,6 +26,11 @@ use VIPWorkflows\Sequences\StrandCheckFailedException;
 class StageQuery {
 
 	/**
+	 * Object cache group for held_post_counts().
+	 */
+	public const CACHE_GROUP = 'vip_workflows_stage_counts';
+
+	/**
 	 * WP_Query args selecting posts currently at a single stage of a sequence.
 	 *
 	 * @param  Sequence $sequence Sequence.
@@ -212,13 +217,13 @@ class StageQuery {
 			$wpdb->prepare(
 				"SELECT stage.meta_value AS stage_key, COUNT(*) AS cnt
 				FROM {$wpdb->posts} p
-				INNER JOIN {$wpdb->postmeta} bp ON bp.post_id = p.ID AND bp.meta_key = %s AND bp.meta_value = %d
+				INNER JOIN {$wpdb->postmeta} bp ON bp.post_id = p.ID AND bp.meta_key = %s AND bp.meta_value = %s
 				INNER JOIN {$wpdb->postmeta} stage ON stage.post_id = p.ID AND stage.meta_key = %s
 				WHERE p.post_type IN ({$type_placeholders})
 				AND p.post_status NOT IN ( 'trash', 'auto-draft', 'inherit' ){$author_clause}
 				GROUP BY stage.meta_value",
 				...array_merge(
-					array( StatusManager::SEQUENCE_META_KEY, $sequence->id, StatusManager::STAGE_META_KEY ),
+					array( StatusManager::SEQUENCE_META_KEY, (string) $sequence->id, StatusManager::STAGE_META_KEY ),
 					$post_types,
 					null === $author_scope ? array() : array( $author_scope )
 				)
@@ -295,10 +300,7 @@ class StageQuery {
 		// LEFT JOIN unless the caller narrowed to stages.
 		$stage_join = empty( $stage_keys ) ? 'LEFT JOIN' : 'INNER JOIN';
 
-		$from = "FROM {$wpdb->posts} p
-			INNER JOIN {$wpdb->postmeta} seq ON seq.post_id = p.ID AND seq.meta_key = %s AND seq.meta_value = %s
-			{$stage_join} {$wpdb->postmeta} stage ON stage.post_id = p.ID AND stage.meta_key = %s
-			WHERE p.post_status <> 'inherit'{$stage_clause}";
+		$from = self::held_posts_from( $stage_join ) . $stage_clause;
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- write guard; must read live rows. $from holds only table names and a %s placeholder list built via array_fill, with matching values spread in from $params.
 		$total = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(DISTINCT p.ID) {$from}", ...$params ) );
@@ -369,6 +371,28 @@ class StageQuery {
 	}
 
 	/**
+	 * The FROM and WHERE that define "the posts holding a sequence", shared by
+	 * the write guard (posts_holding_sequence()) and the display counts
+	 * (held_post_counts()), so the editor's locks and the refusals they
+	 * predict can't drift apart.
+	 *
+	 * Placeholders, in order: the sequence meta key, the sequence id (as a
+	 * string; meta_value is text, and a numeric comparison can't use its
+	 * index), and the stage meta key.
+	 *
+	 * @param  string $stage_join `LEFT JOIN` to keep posts with no stage meta, or `INNER JOIN`.
+	 * @return string
+	 */
+	private static function held_posts_from( string $stage_join ): string {
+		global $wpdb;
+
+		return "FROM {$wpdb->posts} p
+			INNER JOIN {$wpdb->postmeta} seq ON seq.post_id = p.ID AND seq.meta_key = %s AND seq.meta_value = %s
+			{$stage_join} {$wpdb->postmeta} stage ON stage.post_id = p.ID AND stage.meta_key = %s
+			WHERE p.post_status <> 'inherit'";
+	}
+
+	/**
 	 * How many posts hold a sequence, in all and at each stage, for display.
 	 *
 	 * The read-side counterpart of posts_holding_sequence(), over the same set
@@ -384,28 +408,23 @@ class StageQuery {
 		global $wpdb;
 
 		$cache_key = 'held_post_counts:' . $sequence_id . ':' . wp_cache_get_last_changed( 'posts' );
-		$cached    = wp_cache_get( $cache_key, 'vip-workflows' );
+		$cached    = wp_cache_get( $cache_key, self::CACHE_GROUP );
 		if ( is_array( $cached ) ) {
 			return $cached;
 		}
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one aggregate, cached below against the posts last_changed key, which WordPress bumps on every post and post meta write.
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- one aggregate, cached below against the posts last_changed key, which WordPress bumps on every post and post meta write. held_posts_from() holds only table names and placeholders.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT held.stage AS stage, COUNT(*) AS cnt FROM (
-					SELECT p.ID, MAX(stage.meta_value) AS stage
-					FROM {$wpdb->posts} p
-					INNER JOIN {$wpdb->postmeta} seq ON seq.post_id = p.ID AND seq.meta_key = %s AND seq.meta_value = %s
-					LEFT JOIN {$wpdb->postmeta} stage ON stage.post_id = p.ID AND stage.meta_key = %s
-					WHERE p.post_status <> 'inherit'
-					GROUP BY p.ID
-				) held GROUP BY held.stage",
+				'SELECT held.stage AS stage, COUNT(*) AS cnt FROM (SELECT p.ID, MAX(stage.meta_value) AS stage '
+					. self::held_posts_from( 'LEFT JOIN' )
+					. ' GROUP BY p.ID) held GROUP BY held.stage',
 				StatusManager::SEQUENCE_META_KEY,
 				(string) $sequence_id,
 				StatusManager::STAGE_META_KEY
 			)
 		);
-		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare
 
 		if ( null === $rows || '' !== (string) $wpdb->last_error ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -424,7 +443,7 @@ class StageQuery {
 			}
 		}
 
-		wp_cache_set( $cache_key, $counts, 'vip-workflows' );
+		wp_cache_set( $cache_key, $counts, self::CACHE_GROUP );
 
 		return $counts;
 	}
