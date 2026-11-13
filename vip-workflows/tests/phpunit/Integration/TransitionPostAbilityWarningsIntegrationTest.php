@@ -308,9 +308,7 @@ class TransitionPostAbilityWarningsIntegrationTest extends TestCase
 	{
 		$post_id = $this->make_post_with_held_move();
 
-		// The execute function, as the other tests here call it: the registered
-		// ability's output validation is a separate fix.
-		$result = \VIPWorkflows\Abilities\Tools\execute_transition_post(
+		$result = wp_get_ability( 'vip-workflows/transition-post' )->execute(
 			array(
 				'post_id'              => $post_id,
 				'to_status'            => 'review',
