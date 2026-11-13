@@ -180,27 +180,27 @@
 	justify-content: center;
 }
 
-/* Assignment info. The 6px gap stays here because the gap scale steps 4→8 and
-   neither reads right between the label, the name and the Release button. */
-.vip-workflows-panel__assigned {
+/* Holder rows (assignee, claimer). The 6px gap stays here because the gap scale
+   steps 4→8 and neither reads right between the label, the name and Release. */
+.vip-workflows-panel__holder {
 	gap: 6px;
-	padding: var(--wpds-dimension-padding-sm) var(--wpds-dimension-padding-md);
-	/* wpds-allow R6 -- <Stack> draws nothing; the tinted surface must be set here. */
-	background: var(--wpds-color-background-surface-info-weak);
-	/* wpds-allow R6 -- <Stack> exposes no border-radius prop. */
-	border-radius: var( --wpds-border-radius-md );
+}
+
+/* Assignee and claimer rows, plain like core's own document-sidebar rows, and
+   in one group so they line up. */
+.vip-workflows-panel__holders {
 	/* wpds-allow R6 -- <Stack> exposes no type-scale prop; the label and name spans inherit this. */
 	font: var(--vip-workflows-text-body-md);
 }
 
-.vip-workflows-panel__assigned-label {
+.vip-workflows-panel__holder-label {
 	color: var(--wpds-color-foreground-content-neutral-weak);
 }
 
 /* The shared <AuthorCell>, emphasised. The weight is inherited by the name span
    inside it rather than set on the span directly, because the cell also holds
    the avatar and the trailing "(you)" and they read as one emphasised unit. */
-.vip-workflows-panel__assigned-name {
+.vip-workflows-panel__holder-name {
 	font-weight: var(--wpds-typography-font-weight-emphasis);
 }
 

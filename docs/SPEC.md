@@ -888,7 +888,7 @@ flowchart TD
 - **A move from a stage back to itself writes its slot by compare-and-set,** and returns 409 `assignment_conflict` if it lost a race.
 - **My Work** (on My Dashboard) lists posts the user wrote (modified in the last 60 days), claimed, or has a pending user assignment on, filtered to posts they can read. The assignee shown is the most recent pending assignment, otherwise the claimer.
 - **My Queue** (behind the `my_queue` experiment) lists posts at stages marked to show in the queue, filtered to moves the user's role allows. It skips the user's own posts unless self-review is allowed, and skips posts someone else has claimed. Its quick actions are transitions marked to show in the queue and not locked.
-- **Claims still exist in code.** A user can claim a post and release it, which is logged. Claiming fails with 409 if someone else holds the claim. Only the claimer or a user with `manage_options` can release it.
+- **Claims still exist in code.** A user can claim a post and release it, which is logged. Claiming fails with 409 if someone else holds the claim. Only the claimer or a user with `manage_options` can release it, and releasing deletes only the claim it read, so a release with no claim to clear, or one that lost a race to another release, returns 409 `post_not_claimed` and logs nothing. In the editor, the claim has its own "Claimed by" row with Release beside it; the assignment row offers no Release.
 
 **Always true**
 
@@ -909,7 +909,7 @@ flowchart TD
 - `vip-workflows/includes/workflow/class-agent-runner.php`: `AgentRunner` queues the agent task on `vip_workflows_agent_assigned`.
 - Errors: 422 `required_assignment_missing`, 400 `assignee_cannot_read`, 409 `assignment_conflict`; the role warning comes back as a `warnings` entry.
 - Meta: slot `_vip_workflows_assignment_{meta_key}` with `value`, `type`, `status` (`pending` / `completed` / `expired`), `assigned_at`, `assigned_by`; derived `_vip_workflows_pending_assignee`; claim `_vip_workflows_assigned_to`.
-- `vip-workflows/includes/api/class-workflow-controller.php`: `GET /workflow/my-work` (filtered by `read_post`), `GET /workflow/my-queue` (`my_queue` experiment; uses stage and transition `show_in_queue`), `POST /workflow/post/{id}/claim`, `DELETE /workflow/post/{id}/unclaim`. Logs `post.claimed` and `post.released`.
+- `vip-workflows/includes/api/class-workflow-controller.php`: `GET /workflow/my-work` (filtered by `read_post`), `GET /workflow/my-queue` (`my_queue` experiment; uses stage and transition `show_in_queue`), `POST /workflow/post/{id}/claim`, `DELETE /workflow/post/{id}/unclaim` (409 `post_not_claimed` when there's nothing to release). Logs `post.claimed` and `post.released`.
 - `vip-workflows/includes/sequences/class-sequence.php`: `Sequence::can_user_claim()` reads `reviewer_roles` and sets only `can_claim`.
 - Capabilities: `edit_post`, `manage_options`, `read_post`.
 

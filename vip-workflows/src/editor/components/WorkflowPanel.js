@@ -37,7 +37,13 @@
  * @package
  */
 
-import { useState, useEffect, lazy, Suspense } from '@wordpress/element';
+import {
+	useState,
+	useEffect,
+	useRef,
+	lazy,
+	Suspense,
+} from '@wordpress/element';
 import {
 	Button,
 	Modal,
@@ -48,6 +54,7 @@ import { Stack, Text } from '@wordpress/ui';
 import { useSelect, useDispatch } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
 import apiFetch from '@wordpress/api-fetch';
+import { speak } from '@wordpress/a11y';
 import { __, sprintf } from '@wordpress/i18n';
 import { STORE_NAME } from '../store';
 import { AuthorCell } from '../../common/DataViewCells';
@@ -60,6 +67,47 @@ import { IdeationPanel } from './IdeationPanel';
 // editor entry means the panel costs nothing extra for the readers who never
 // open the trail.
 const WorkflowHistoryModal = lazy( () => import( './WorkflowHistoryModal' ) );
+
+/**
+ * One person who holds the post — its assignee or its claimer — drawn the same
+ * way whichever it is, so the two rows line up and stay alike.
+ *
+ * The person is drawn with the cell the lists use for an author, so the person
+ * waiting on this post looks the same in the panel and in My Queue. "(you)" is
+ * the cell's trailing slot: it is something this reader's context adds about
+ * the person, not part of their name.
+ *
+ * @param {Object} props            Props.
+ * @param {string} props.label      What the row says about them ("Assigned to:").
+ * @param {Object} props.actor      The person, in the shared actor shape.
+ * @param {*}      [props.children] Actions on the row, after the person.
+ */
+function HolderRow( { label, actor, children } ) {
+	return (
+		<Stack
+			className="vip-workflows-panel__holder"
+			direction="row"
+			align="center"
+			wrap="wrap"
+		>
+			<span className="vip-workflows-panel__holder-label">{ label }</span>
+			<AuthorCell
+				actor={ actor }
+				className="vip-workflows-panel__holder-name"
+			>
+				{ actor.is_current && (
+					<Text
+						variant="body-md"
+						className="vip-workflows-panel__you"
+					>
+						{ '(' + __( 'you', 'vip-workflows' ) + ')' }
+					</Text>
+				) }
+			</AuthorCell>
+			{ children }
+		</Stack>
+	);
+}
 
 /**
  * The post's place in its workflow, and everything that moves it.
@@ -108,6 +156,36 @@ export function WorkflowPanel() {
 
 	const [ historyOpen, setHistoryOpen ] = useState( false );
 	const [ actionError, setActionError ] = useState( null ); // every action failure — shown as a Notice, not a browser dialog
+
+	// After Claim or Release, focus must not fall to the page when the button
+	// that had it goes. It lands on whichever of the pair the post now offers
+	// (Release after a claim, Claim after a release, or the same button again
+	// after a refusal), and otherwise on the panel. Every branch's root takes
+	// panelRef, since the re-read can swap branches (the post left its
+	// workflow, or the workflow was deleted).
+	const panelRef = useRef( null );
+	const claimButtonRef = useRef( null );
+	const releaseButtonRef = useRef( null );
+	const [ restoreFocus, setRestoreFocus ] = useState( false );
+	useEffect( () => {
+		if ( ! restoreFocus ) {
+			return;
+		}
+		setRestoreFocus( false );
+		const { activeElement, body } = panelRef.current?.ownerDocument ?? {};
+		if (
+			activeElement &&
+			activeElement !== body &&
+			activeElement.isConnected
+		) {
+			return;
+		}
+		(
+			releaseButtonRef.current ??
+			claimButtonRef.current ??
+			panelRef.current
+		)?.focus();
+	}, [ restoreFocus ] );
 
 	// Busy while a move or a workflow-level write runs, wherever it was
 	// started: the store's answer, so the header stands down with the panel.
@@ -183,8 +261,7 @@ export function WorkflowPanel() {
 			method: 'POST',
 		} )
 			.then( () => {
-				fetchWorkflowStatus();
-				setWorkflowWriting( false );
+				speak( __( 'Post claimed.', 'vip-workflows' ) );
 			} )
 			.catch( ( err ) => {
 				setActionError(
@@ -194,7 +271,18 @@ export function WorkflowPanel() {
 							'vip-workflows'
 						)
 				);
+				// A refusal is news about the post (someone else claimed it,
+				// or it left the queue): re-read it below, so the panel shows
+				// the post rather than the attempt.
+			} )
+			// Busy until the re-read lands, so the button can't be pressed
+			// again against the state the write just changed.
+			.then( () => fetchWorkflowStatus() )
+			.finally( () => {
 				setWorkflowWriting( false );
+				// Claim was disabled while the write ran, so it has already
+				// lost focus, and a successful claim removes it.
+				setRestoreFocus( true );
 			} );
 	};
 
@@ -206,8 +294,7 @@ export function WorkflowPanel() {
 			method: 'DELETE',
 		} )
 			.then( () => {
-				fetchWorkflowStatus();
-				setWorkflowWriting( false );
+				speak( __( 'Claim released.', 'vip-workflows' ) );
 			} )
 			.catch( ( err ) => {
 				setActionError(
@@ -217,7 +304,18 @@ export function WorkflowPanel() {
 							'vip-workflows'
 						)
 				);
+				// The claim may already be gone (another release, or the post
+				// taken out of its workflow): re-read it below, so the row and
+				// its Release button match the post rather than the attempt.
+			} )
+			// Busy until the re-read lands: re-enabled any earlier, Release
+			// could be pressed again on a claim that's already gone.
+			.then( () => fetchWorkflowStatus() )
+			.finally( () => {
 				setWorkflowWriting( false );
+				// Release was disabled while the write ran, so it has already
+				// lost focus, and either way the re-read can remove its row.
+				setRestoreFocus( true );
 			} );
 	};
 
@@ -229,7 +327,13 @@ export function WorkflowPanel() {
 
 	if ( loading ) {
 		return (
-			<Stack className="vip-workflows-panel" direction="column" gap="lg">
+			<Stack
+				ref={ panelRef }
+				tabIndex={ -1 }
+				className="vip-workflows-panel"
+				direction="column"
+				gap="lg"
+			>
 				<Stack
 					className="vip-workflows-loading"
 					direction="row"
@@ -252,7 +356,13 @@ export function WorkflowPanel() {
 	// panel only says why there is nothing to move.
 	if ( workflow?.orphaned ) {
 		return (
-			<Stack className="vip-workflows-panel" direction="column" gap="lg">
+			<Stack
+				ref={ panelRef }
+				tabIndex={ -1 }
+				className="vip-workflows-panel"
+				direction="column"
+				gap="lg"
+			>
 				<Text variant="body-md" className="vip-workflows-panel__empty">
 					{ __(
 						'This post’s workflow was deleted, so its status is locked.',
@@ -270,7 +380,13 @@ export function WorkflowPanel() {
 		const hasSequences = ( workflow?.available_sequences || [] ).length > 0;
 
 		return (
-			<Stack className="vip-workflows-panel" direction="column" gap="lg">
+			<Stack
+				ref={ panelRef }
+				tabIndex={ -1 }
+				className="vip-workflows-panel"
+				direction="column"
+				gap="lg"
+			>
 				<Text variant="body-md" className="vip-workflows-panel__empty">
 					{ hasSequences
 						? __(
@@ -294,6 +410,7 @@ export function WorkflowPanel() {
 		current,
 		all_statuses: allStatuses,
 		assigned_to: assignedTo,
+		claimed_by: claimedBy,
 		can_claim: canClaim,
 		agent_pending: agentPending,
 		agent_job: agentJob,
@@ -302,46 +419,48 @@ export function WorkflowPanel() {
 	const agentFailed = agentJob?.status === 'failed';
 
 	return (
-		<Stack className="vip-workflows-panel" direction="column" gap="lg">
-			{ /* Assignment info */ }
-			{ assignedTo && (
+		<Stack
+			ref={ panelRef }
+			tabIndex={ -1 }
+			className="vip-workflows-panel"
+			direction="column"
+			gap="lg"
+		>
+			{ /* Who holds the post: its transition assignee and its claimer, in
+			     one group so the two rows line up. They are
+			     stored separately, so each keeps its own row, and Release —
+			     which clears the claim (/unclaim) and nothing else — sits on the
+			     claim's row. */ }
+			{ ( assignedTo || claimedBy ) && (
 				<Stack
-					className="vip-workflows-panel__assigned"
-					direction="row"
-					align="center"
-					wrap="wrap"
+					className="vip-workflows-panel__holders"
+					direction="column"
+					gap="xs"
 				>
-					<span className="vip-workflows-panel__assigned-label">
-						{ __( 'Assigned to:', 'vip-workflows' ) }
-					</span>
-					{ /* The same cell the lists draw an author with, so the
-					     person waiting on this post looks like the same person
-					     in the panel and in My Queue. "(you)" is the trailing
-					     slot: it is something this reader's context adds about
-					     the assignee, not part of their name. */ }
-					<AuthorCell
-						actor={ assignedTo }
-						className="vip-workflows-panel__assigned-name"
-					>
-						{ assignedTo.is_current && (
-							<Text
-								variant="body-md"
-								className="vip-workflows-panel__you"
-							>
-								{ '(' + __( 'you', 'vip-workflows' ) + ')' }
-							</Text>
-						) }
-					</AuthorCell>
-					{ assignedTo.is_current && (
-						<Button
-							variant="link"
-							size="small"
-							onClick={ handleUnclaim }
-							disabled={ transitioning }
-							isDestructive
+					{ assignedTo && (
+						<HolderRow
+							label={ __( 'Assigned to:', 'vip-workflows' ) }
+							actor={ assignedTo }
+						/>
+					) }
+					{ claimedBy && (
+						<HolderRow
+							label={ __( 'Claimed by:', 'vip-workflows' ) }
+							actor={ claimedBy }
 						>
-							{ __( 'Release', 'vip-workflows' ) }
-						</Button>
+							{ claimedBy.is_current && (
+								<Button
+									ref={ releaseButtonRef }
+									variant="link"
+									size="small"
+									onClick={ handleUnclaim }
+									disabled={ transitioning }
+									isDestructive
+								>
+									{ __( 'Release', 'vip-workflows' ) }
+								</Button>
+							) }
+						</HolderRow>
 					) }
 				</Stack>
 			) }
@@ -353,6 +472,7 @@ export function WorkflowPanel() {
 					direction="column"
 				>
 					<Button
+						ref={ claimButtonRef }
 						variant="secondary"
 						size="compact"
 						onClick={ handleClaim }
