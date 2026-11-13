@@ -65,4 +65,44 @@ class StageAgentRevisionAttributionIntegrationTest extends TestCase
 
         $this->assertSame( '', get_post_meta( $latest->ID, StageAgentRunner::AGENT_REVISION_META, true ) );
     }
+
+	/**
+	 * The revisions screen reads `author.name`, so the relabelled author must
+	 * still be core's object, as it comes through the screen's own data path.
+	 */
+	public function test_the_revisions_screen_shows_the_agent_as_author(): void
+	{
+		require_once ABSPATH . 'wp-admin/includes/revision.php';
+		// An ability that is never registered, so the name lookup warns and
+		// falls back to the id on every branch. The label's shape is what's
+		// under test.
+		$this->setExpectedIncorrectUsage( 'WP_Abilities_Registry::get_registered' );
+		wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+		$post_id = self::factory()->post->create( array( 'post_content' => '<p>Original copy.</p>' ) );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => '<p>Human edit.</p>',
+			)
+		);
+		$this->set_acting_ability( 'test-extension/unregistered-agent' );
+		wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => '<p>Agent edit.</p>',
+			)
+		);
+		$this->set_acting_ability( '' );
+
+		$revisions = wp_get_post_revisions( $post_id );
+		$agent_rev = (int) reset( $revisions )->ID;
+		$prepared  = wp_prepare_revisions_for_js( get_post( $post_id ), $agent_rev );
+		$by_id     = array_column( $prepared['revisionData'], 'author', 'id' );
+		$latest    = $by_id[ $agent_rev ];
+
+		$this->assertIsArray( $latest );
+		$this->assertArrayHasKey( 'avatar', $latest );
+		$this->assertStringEndsWith( ' (agent)', $latest['name'] );
+	}
 }

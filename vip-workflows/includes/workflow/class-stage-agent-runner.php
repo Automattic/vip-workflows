@@ -783,7 +783,7 @@ class StageAgentRunner implements ModuleInterface {
 	 *
 	 * Hooked on `wp_prepare_revision_for_js` (the data source for the revisions
 	 * browser and the compare-revisions screen). When the revision carries the
-	 * agent tag, its author label is replaced with the agent's name — resolved
+	 * agent tag, its author's name is replaced with the agent's name — resolved
 	 * the same way as the audit trail — marked "(agent)" so it reads distinctly
 	 * from a human author. Untagged revisions are returned unchanged.
 	 *
@@ -804,8 +804,15 @@ class StageAgentRunner implements ModuleInterface {
 			)
 		);
 
-		/* translators: %s: agent name. */
-		$data['author'] = sprintf( __( '%s (agent)', 'vip-workflows' ), $agent_name );
+		// Core serves the author as an object (id, avatar, name) and its
+		// template reads `author.name`, so only the name changes.
+		$author         = is_array( $data['author'] ?? null ) ? $data['author'] : array();
+		$author['name'] = sprintf(
+			/* translators: %s: agent name. */
+			__( '%s (agent)', 'vip-workflows' ),
+			$agent_name
+		);
+		$data['author'] = $author;
 
 		return $data;
 	}

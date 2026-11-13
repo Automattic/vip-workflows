@@ -81,11 +81,20 @@ class StageAgentRevisionAttributionTest extends TestCase
         Functions\when( 'wp_get_ability' )->justReturn( null );
 
         $data = ( new StageAgentRunner() )->label_agent_revision(
-            array( 'author' => 'Ada Lovelace' ),
+            array( 'author' => self::core_author() ),
             (object) array( 'ID' => 4242 )
         );
 
-        $this->assertSame( 'vip-workflows/copy-edit (agent)', $data['author'] );
+        // Core's revisions template reads author.name, so the object stays
+        // and only its name changes.
+        $this->assertSame(
+            array(
+                'id'     => 7,
+                'avatar' => 'https://example.test/avatar.png',
+                'name'   => 'vip-workflows/copy-edit (agent)',
+            ),
+            $data['author']
+        );
     }
 
     /**
@@ -96,10 +105,24 @@ class StageAgentRevisionAttributionTest extends TestCase
         Functions\when( 'get_post_meta' )->justReturn( '' );
 
         $data = ( new StageAgentRunner() )->label_agent_revision(
-            array( 'author' => 'Ada Lovelace' ),
+            array( 'author' => self::core_author() ),
             (object) array( 'ID' => 4242 )
         );
 
-        $this->assertSame( 'Ada Lovelace', $data['author'] );
+        $this->assertSame( self::core_author(), $data['author'] );
+    }
+
+    /**
+     * The author shape wp_prepare_revisions_for_js() serves.
+     *
+     * @return array
+     */
+    private static function core_author(): array
+    {
+        return array(
+            'id'     => 7,
+            'avatar' => 'https://example.test/avatar.png',
+            'name'   => 'Ada Lovelace',
+        );
     }
 }
