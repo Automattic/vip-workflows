@@ -44,16 +44,25 @@
 		"seed:tests": "bash tools/wp-env-seed-tests.sh",
 		"wp-env:stop:tests": "wp-env stop --config .wp-env.tests.json",
 		"wp-env:destroy": "wp-env destroy",
-		"wp-env:clean": "wp-env clean all",
+		"wp-env:clean": "wp-env reset all",
 		"wp-env:logs": "wp-env logs --debug",
 		"setup:composer:vip-workflows": "composer --working-dir=vip-workflows install",
 		"setup:composer:parsely": "composer --working-dir=workflow-parsely install"
 	},
 	"devDependencies": {
-		"@wordpress/env": "^11.0.0",
+		"@wordpress/env": "^12.1.0",
 		"npm-run-all": "^4.1.5"
 	},
 	"overrides": {
-		"adm-zip": "^0.6.1"
+		"adm-zip": "^0.6.1",
+		"@wp-playground/storage": {
+			"isomorphic-git": "^1.44.12"
+		},
+		"express": {
+			"qs": "^6.17.1"
+		},
+		"rimraf@^5.0.0": {
+			"glob": "^14.0.4"
+		}
 	}
 }
