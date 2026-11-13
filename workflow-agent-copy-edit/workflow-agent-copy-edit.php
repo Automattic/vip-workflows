@@ -212,7 +212,7 @@ function execute( ?array $input = null ) {
 	$prompt = sprintf(
 		"You are a professional copy editor. Copy-edit an article for grammar, spelling, punctuation, and style: %s.\n\n" .
 		"ARTICLE TITLE:\n%s\n\nARTICLE BODY:\n%s\n\n" .
-		"A copy edit fixes grammar, spelling, punctuation, and style only. Preserve every fact, quote, and meaning. Keep every link, every block comment (<!-- wp:… -->), and every paragraph exactly where it is. Do not add or remove sentences, paragraphs, or links.\n\n" .
+		"A copy edit fixes grammar, spelling, punctuation, and style only. Preserve every fact, quote, and meaning. Keep every link, every block comment (<!-- wp:… -->), every other HTML comment such as <!--more--> or <!--nextpage-->, every shortcode in square brackets such as [gallery], and every paragraph exactly where it is. Do not add or remove sentences, paragraphs, or links.\n\n" .
 		"Reply with one JSON object and nothing else, with exactly these keys:\n" .
 		"- \"verdict\": \"clean\" if the copy needs no edits, \"reject\" if it is not publishable and needs a human rewrite, or \"edited\" if you copy-edited it.\n" .
 		"- \"token\": exactly %s\n" .

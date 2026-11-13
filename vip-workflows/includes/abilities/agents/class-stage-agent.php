@@ -648,10 +648,10 @@ class StageAgent {
 	 * delimiters (or the classic paragraphs), aligned one-to-one whenever two
 	 * contents share a structure.
 	 *
-	 * @param  string $content Post content.
 	 * `controls` is every page break, More marker and registered shortcode
-	 * (see controls()), tagged with the chunk it sits in.
+	 * (see controls()), tagged with how many blocks or paragraphs precede it.
 	 *
+	 * @param  string $content Post content.
 	 * @return array{structure: array, links: string[], markup: string[], controls: string[], chunks: string[]}
 	 */
 	private static function content_shape( string $content ): array {
@@ -680,22 +680,31 @@ class StageAgent {
 		}
 		$links = array_values( array_filter( $links, static fn( string $link ): bool => ! str_ends_with( $link, ':' ) ) );
 
-		// Each control is placed by how many blocks (or classic paragraphs)
-		// come before it, so moving one to another paragraph counts. Not by
-		// chunk: a marker between classic paragraphs sits in a chunk with no
-		// text, which the paragraph split leaves out.
+		// Each control is placed by how many blocks (or classic paragraphs
+		// with text) end before it, so moving one to another paragraph counts.
+		// Not by chunk: a marker between classic paragraphs sits in a chunk with
+		// no text, which the paragraph split leaves out. The boundaries are
+		// found once, so the cost stays linear in the post's length.
+		$boundaries = array();
+		if ( isset( $structure['paragraphs'] ) ) {
+			foreach ( (array) preg_split( '/<\/?p\b[^>]*>|\R[ \t]*\R/i', $content, -1, PREG_SPLIT_OFFSET_CAPTURE ) as $piece ) {
+				if ( '' !== trim( wp_strip_all_tags( $piece[0] ) ) ) {
+					$boundaries[] = $piece[1] + strlen( $piece[0] );
+				}
+			}
+		} elseif ( preg_match_all( $delimiter, $content, $found, PREG_OFFSET_CAPTURE ) ) {
+			$boundaries = array_column( $found[0], 1 );
+		}
+
 		$controls = array();
 		foreach ( self::controls( $content ) as $control ) {
-			$prefix = substr( $content, 0, $control['offset'] );
-			$before = isset( $structure['paragraphs'] )
-				? count(
-					array_filter(
-						preg_split( '/<\/?p\b[^>]*>|\R[ \t]*\R/i', $prefix ),
-						static fn( string $chunk ): bool => '' !== trim( wp_strip_all_tags( $chunk ) )
-					)
-				)
-				: (int) preg_match_all( $delimiter, $prefix );
-
+			$before = 0;
+			foreach ( $boundaries as $boundary ) {
+				if ( $boundary > $control['offset'] ) {
+					break;
+				}
+				++$before;
+			}
 			$controls[] = $before . ':' . $control['label'];
 		}
 
