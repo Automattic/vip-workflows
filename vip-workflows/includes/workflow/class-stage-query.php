@@ -281,7 +281,9 @@ class StageQuery {
 
 		$stage_keys   = array_values( array_unique( array_map( 'strval', $stage_keys ) ) );
 		$stage_clause = '';
-		$params       = array( StatusManager::SEQUENCE_META_KEY, $sequence_id, StatusManager::STAGE_META_KEY );
+		// The sequence id is compared as a string: meta_value is text, and a
+		// numeric comparison can't use the meta_value index.
+		$params = array( StatusManager::SEQUENCE_META_KEY, (string) $sequence_id, StatusManager::STAGE_META_KEY );
 
 		if ( ! empty( $stage_keys ) ) {
 			$stage_clause = ' AND stage.meta_value IN (' . implode( ',', array_fill( 0, count( $stage_keys ), '%s' ) ) . ')';
@@ -294,7 +296,7 @@ class StageQuery {
 		$stage_join = empty( $stage_keys ) ? 'LEFT JOIN' : 'INNER JOIN';
 
 		$from = "FROM {$wpdb->posts} p
-			INNER JOIN {$wpdb->postmeta} seq ON seq.post_id = p.ID AND seq.meta_key = %s AND seq.meta_value = %d
+			INNER JOIN {$wpdb->postmeta} seq ON seq.post_id = p.ID AND seq.meta_key = %s AND seq.meta_value = %s
 			{$stage_join} {$wpdb->postmeta} stage ON stage.post_id = p.ID AND stage.meta_key = %s
 			WHERE p.post_status <> 'inherit'{$stage_clause}";
 
@@ -364,6 +366,67 @@ class StageQuery {
 			'posts'  => $posts,
 			'stages' => $stages,
 		);
+	}
+
+	/**
+	 * How many posts hold a sequence, in all and at each stage, for display.
+	 *
+	 * The read-side counterpart of posts_holding_sequence(), over the same set
+	 * of posts (every type, every status but `inherit`, with or without a stage
+	 * meta row), in one query, cached until any post or post meta changes.
+	 * Each post counts once, at its stage. Only for showing the numbers: the
+	 * write guards call posts_holding_sequence(), which always reads live rows.
+	 *
+	 * @param  int $sequence_id Sequence ID.
+	 * @return array{total: int, stages: array<string, int>}|null Null when the query fails.
+	 */
+	public static function held_post_counts( int $sequence_id ): ?array {
+		global $wpdb;
+
+		$cache_key = 'held_post_counts:' . $sequence_id . ':' . wp_cache_get_last_changed( 'posts' );
+		$cached    = wp_cache_get( $cache_key, 'vip-workflows' );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- one aggregate, cached below against the posts last_changed key, which WordPress bumps on every post and post meta write.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT held.stage AS stage, COUNT(*) AS cnt FROM (
+					SELECT p.ID, MAX(stage.meta_value) AS stage
+					FROM {$wpdb->posts} p
+					INNER JOIN {$wpdb->postmeta} seq ON seq.post_id = p.ID AND seq.meta_key = %s AND seq.meta_value = %s
+					LEFT JOIN {$wpdb->postmeta} stage ON stage.post_id = p.ID AND stage.meta_key = %s
+					WHERE p.post_status <> 'inherit'
+					GROUP BY p.ID
+				) held GROUP BY held.stage",
+				StatusManager::SEQUENCE_META_KEY,
+				(string) $sequence_id,
+				StatusManager::STAGE_META_KEY
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( null === $rows || '' !== (string) $wpdb->last_error ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Post counts for sequence %d could not be read: %s', $sequence_id, $wpdb->last_error ) );
+			return null;
+		}
+
+		$counts = array(
+			'total'  => 0,
+			'stages' => array(),
+		);
+		foreach ( $rows as $row ) {
+			$counts['total'] += (int) $row->cnt;
+			if ( null !== $row->stage ) {
+				$counts['stages'][ (string) $row->stage ] = (int) $row->cnt;
+			}
+		}
+
+		wp_cache_set( $cache_key, $counts, 'vip-workflows' );
+
+		return $counts;
 	}
 
 	/**
