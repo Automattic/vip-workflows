@@ -475,6 +475,15 @@ class AgentRunsAsStarterIntegrationTest extends TestCase
 		$this->assertSame( 'forbidden_transition', $response->get_data()['code'] );
 		$this->assertSame( 'failed', get_post_meta( $post_id, StageAgentRunner::JOB_META, true )['status'], 'Nothing was dispatched.' );
 
+		// A reseat records the stage the post sat in, with no authored edge from
+		// it into the AI stage: any authored move in decides, so the role rule
+		// still holds rather than shutting everyone out.
+		$sequence = ( new SequenceRepository() )->find( $sequence_id );
+		$this->assertTrue( StageAgentRunner::user_can_rerun( $sequence, 'ai_desk', 'review', $this->editor_id ), 'After a reseat, an editor may run it again.' );
+		$this->assertFalse( StageAgentRunner::user_can_rerun( $sequence, 'ai_desk', 'review', $author_id ), 'After a reseat, a contributor still may not.' );
+		$admin_id = (int) self::factory()->user->create( array( 'role' => 'administrator' ) );
+		$this->assertTrue( StageAgentRunner::user_can_rerun( $sequence, 'ai_desk', 'drafting', $admin_id ), 'The bypass list skips the role rule.' );
+
 		wp_set_current_user( $this->editor_id );
 		$status = rest_do_request( new \WP_REST_Request( 'GET', "/vip-workflows/v1/workflow/post/{$post_id}/status" ) );
 		$this->assertTrue( $status->get_data()['agent_job']['can_rerun'], 'An editor is offered Run again.' );
@@ -515,5 +524,32 @@ class AgentRunsAsStarterIntegrationTest extends TestCase
 		$this->assertSame( 409, $back->get_status() );
 		$this->assertSame( 'ai_desk', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ), 'The post stays at the AI stage.' );
 		$this->assertSame( 'pending', get_post_meta( $post_id, StageAgentRunner::JOB_META, true )['status'], 'With the new run pending.' );
+	}
+
+	/**
+	 * A late cron can hold two run events for one post and stage. The one that
+	 * fires after the first has already failed in place must not execute the
+	 * agent again.
+	 */
+	public function test_a_second_event_does_not_run_against_a_resolved_marker(): void
+	{
+		list( $post_id ) = $this->make_post( 'editor' );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ai_desk' );
+		$failed = array(
+			'stage_key'  => 'ai_desk',
+			'ability_id' => 'test/desk-agent',
+			'status'     => 'failed',
+			'error'      => 'x',
+			'failed_at'  => current_time( 'mysql' ),
+			'from_stage' => 'drafting',
+		);
+		update_post_meta( $post_id, StageAgentRunner::JOB_META, $failed );
+
+		$executor = $this->recording_executor();
+		$this->run_as_cron( $executor, $post_id );
+
+		$this->assertNull( $executor->ran_as, 'The agent does not run again.' );
+		$this->assertSame( $failed, get_post_meta( $post_id, StageAgentRunner::JOB_META, true ), 'The failed state is left as it was.' );
+		$this->assertSame( 'ai_desk', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
 	}
 }

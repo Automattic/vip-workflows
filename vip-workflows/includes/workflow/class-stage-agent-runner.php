@@ -357,11 +357,13 @@ class StageAgentRunner implements ModuleInterface {
 	 * Whether a person may run a failed stage agent again.
 	 *
 	 * Run again starts a run that acts as the person who presses it, so it is
-	 * held to the sequence's role rules for entering the stage: they must be
-	 * allowed to take the move that brought the post in, from the stage the job
-	 * records. A job with no recorded origin (a reseat or a sequence assign
-	 * put the post here) asks instead whether they may take any move into the
-	 * stage. The bypass list applies, as it does to every role rule.
+	 * held to the sequence's role rules for entering the stage. When the post
+	 * came in along an authored transition, they must be allowed to take that
+	 * one. When it didn't (a reseat or a sequence assign put it here, so the
+	 * recorded origin has no edge into the stage, or there is no origin), any
+	 * authored move into the stage they may take will do. A stage no authored
+	 * transition leads into has no role rule for entering it, so nothing is
+	 * held back. The bypass list skips role rules here as everywhere.
 	 *
 	 * Role rules only. Core capabilities are checked separately: the route
 	 * requires `edit_post`, and the run re-checks it when it fires.
@@ -377,9 +379,23 @@ class StageAgentRunner implements ModuleInterface {
 			return false;
 		}
 
-		$origins = ( '' !== $from_stage && null !== $sequence->get_status( $from_stage ) )
-			? array( $from_stage )
-			: array_map( static fn( array $status ): string => (string) $status['key'], $sequence->get_statuses() );
+		if ( \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( $user_id ) ) {
+			return true;
+		}
+
+		$incoming = array();
+		foreach ( $sequence->get_statuses() as $status ) {
+			$key = (string) ( $status['key'] ?? '' );
+			if ( '' !== $key && $sequence->is_transition_allowed( $key, $stage_key ) ) {
+				$incoming[] = $key;
+			}
+		}
+
+		if ( empty( $incoming ) ) {
+			return true;
+		}
+
+		$origins = in_array( $from_stage, $incoming, true ) ? array( $from_stage ) : $incoming;
 
 		foreach ( $origins as $origin ) {
 			foreach ( $sequence->get_role_permitted_transitions( $origin, $user_id ) as $transition ) {
@@ -460,11 +476,10 @@ class StageAgentRunner implements ModuleInterface {
 	/**
 	 * Replace the job marker, only where it is still exactly `$expected`.
 	 *
-	 * One UPDATE whose WHERE names the expected value, so of two concurrent
-	 * callers exactly one changes the row. Not update_post_meta()'s
-	 * `$prev_value`: when the row is missing altogether, core adds it rather than
-	 * failing, and a stale caller — one that read a marker a Go back has since
-	 * deleted — would then queue a run for a stage the post has left.
+	 * Not update_post_meta()'s `$prev_value`: when the row is missing
+	 * altogether, core adds it rather than failing, and a stale caller (one
+	 * that read a marker a Go back has since deleted) would then queue a run
+	 * for a stage the post has left.
 	 *
 	 * @param  int   $post_id  Post ID.
 	 * @param  array $expected The marker the caller read and validated.
@@ -472,69 +487,61 @@ class StageAgentRunner implements ModuleInterface {
 	 * @return bool True when this caller replaced it.
 	 */
 	private function replace_job_marker( int $post_id, array $expected, array $marker ): bool {
-		global $wpdb;
-
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- a compare-and-swap on one post's job marker, found by post_id (indexed); the post's meta cache is cleared below.
-		$updated = $wpdb->update(
-			$wpdb->postmeta,
-			array( 'meta_value' => maybe_serialize( $marker ) ),
-			array(
-				'post_id'    => $post_id,
-				'meta_key'   => self::JOB_META,
-				'meta_value' => maybe_serialize( $expected ),
-			),
-			array( '%s' ),
-			array( '%d', '%s', '%s' )
-		);
-		// phpcs:enable
-
-		wp_cache_delete( $post_id, 'post_meta' );
-
-		// false is a failed query, not a lost race: say so in the log, since
-		// the caller can only report both to the author as a conflict.
-		if ( false === $updated ) {
-			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflows] Agent job marker update failed: post=%d db_error=%s', $post_id, self::log_token( (string) $wpdb->last_error ) ) );
-		}
-
-		return 1 === $updated;
+		return self::swap_job_marker( $post_id, $expected, $marker );
 	}
 
 	/**
 	 * Delete the job marker, only where it is still exactly `$expected`.
 	 *
 	 * Go back's half of the compare-and-swap Run again uses
-	 * (replace_job_marker()): one DELETE whose WHERE names the expected value,
-	 * so when both race for the same failed marker, exactly one of them takes
-	 * it and the other finds it gone or changed.
+	 * (replace_job_marker()), so when both race for the same failed marker,
+	 * exactly one of them takes it and the other finds it gone or changed.
 	 *
 	 * @param  int   $post_id  Post ID.
 	 * @param  array $expected The marker the caller read and validated.
 	 * @return bool True when this caller deleted it.
 	 */
 	public static function take_job_marker( int $post_id, array $expected ): bool {
+		return self::swap_job_marker( $post_id, $expected, null );
+	}
+
+	/**
+	 * Replace or delete the job marker, only where it is still exactly `$expected`.
+	 *
+	 * One UPDATE or DELETE whose WHERE names the expected value, so of two
+	 * concurrent callers exactly one changes the row.
+	 *
+	 * @param  int        $post_id  Post ID.
+	 * @param  array      $expected The marker the caller read and validated.
+	 * @param  array|null $marker   The marker to write in its place, or null to delete it.
+	 * @return bool True when this caller changed the row.
+	 */
+	private static function swap_job_marker( int $post_id, array $expected, ?array $marker ): bool {
 		global $wpdb;
 
-		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- a compare-and-delete on one post's job marker, found by post_id (indexed); the post's meta cache is cleared below.
-		$deleted = $wpdb->delete(
-			$wpdb->postmeta,
-			array(
-				'post_id'    => $post_id,
-				'meta_key'   => self::JOB_META,
-				'meta_value' => maybe_serialize( $expected ),
-			),
-			array( '%d', '%s', '%s' )
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- a compare-and-swap on one post's job marker, found by post_id (indexed); the post's meta cache is cleared below.
+		$where        = array(
+			'post_id'    => $post_id,
+			'meta_key'   => self::JOB_META,
+			'meta_value' => maybe_serialize( $expected ),
 		);
+		$where_format = array( '%d', '%s', '%s' );
+
+		$changed = null === $marker
+			? $wpdb->delete( $wpdb->postmeta, $where, $where_format )
+			: $wpdb->update( $wpdb->postmeta, array( 'meta_value' => maybe_serialize( $marker ) ), $where, array( '%s' ), $where_format );
 		// phpcs:enable
 
 		wp_cache_delete( $post_id, 'post_meta' );
 
-		if ( false === $deleted ) {
+		// false is a failed query, not a lost race: say so in the log, since
+		// the caller can only report both to the author as a conflict.
+		if ( false === $changed ) {
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			error_log( sprintf( '[VIP Workflows] Agent job marker delete failed: post=%d db_error=%s', $post_id, self::log_token( (string) $wpdb->last_error ) ) );
+			error_log( sprintf( '[VIP Workflows] Agent job marker write failed: post=%d db_error=%s', $post_id, self::log_token( (string) $wpdb->last_error ) ) );
 		}
 
-		return 1 === $deleted;
+		return 1 === $changed;
 	}
 
 	/**
@@ -599,12 +606,26 @@ class StageAgentRunner implements ModuleInterface {
 			return;
 		}
 
+		// A marker for this stage that has already resolved (failed, or held
+		// for warnings) has no run left to serve. Every entry writes a fresh
+		// marker and relies on cron to deduplicate the event, but cron only
+		// matches events within about ten minutes of each other, so a late cron
+		// can hold two events for one post and stage. The second must not
+		// execute the agent again against the first one's outcome.
+		$job_at_dispatch = get_post_meta( $post_id, self::JOB_META, true );
+		if (
+			is_array( $job_at_dispatch )
+			&& ( $job_at_dispatch['stage_key'] ?? '' ) === $stage_key
+			&& 'pending' !== ( $job_at_dispatch['status'] ?? '' )
+		) {
+			return;
+		}
+
 		// This run's identity, read before the ability executes: the queued_at of
 		// the marker it is serving. abandon_if_superseded() compares it afterwards
 		// so an A→B→A round trip (which re-enters the SAME stage with a fresh job)
 		// is not mistaken for "nothing moved".
-		$job_at_dispatch = get_post_meta( $post_id, self::JOB_META, true );
-		$run_token       = is_array( $job_at_dispatch ) ? (string) ( $job_at_dispatch['queued_at'] ?? '' ) : '';
+		$run_token = is_array( $job_at_dispatch ) ? (string) ( $job_at_dispatch['queued_at'] ?? '' ) : '';
 
 		// Where the post came from — the failed state's go-back destination.
 		// Carried through every fail-in-place so the marker a human sees still

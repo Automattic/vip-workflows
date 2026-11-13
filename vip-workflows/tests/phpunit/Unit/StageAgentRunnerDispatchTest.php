@@ -34,6 +34,9 @@ class StageAgentRunnerDispatchTest extends TestCase
 
         // The person whose move entered the stage.
         Functions\when( 'get_current_user_id' )->justReturn( 5 );
+
+        // Not on the bypass list.
+        Functions\when( 'get_userdata' )->justReturn( false );
     }
 
     /**
@@ -514,6 +517,8 @@ class StageAgentRunnerDispatchTest extends TestCase
                 'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
             )
         );
+        $sequence->shouldReceive( 'get_statuses' )->andReturn( array( array( 'key' => 'draft' ), array( 'key' => 'ai_desk' ) ) );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturnUsing( static fn( $from, $to ): bool => 'draft' === $from && 'ai_desk' === $to );
         $sequence->shouldReceive( 'get_role_permitted_transitions' )->andReturn( array( array( 'to' => 'ai_desk' ) ) );
 
         $this->assertTrue( $this->runner->rerun( 42, $sequence ) );
@@ -562,6 +567,8 @@ class StageAgentRunnerDispatchTest extends TestCase
                 'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
             )
         );
+        $sequence->shouldReceive( 'get_statuses' )->andReturn( array( array( 'key' => 'draft' ), array( 'key' => 'ai_desk' ) ) );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturnUsing( static fn( $from, $to ): bool => 'draft' === $from && 'ai_desk' === $to );
         $sequence->shouldReceive( 'get_role_permitted_transitions' )->andReturn( array( array( 'to' => 'ai_desk' ) ) );
 
         $result = $this->runner->rerun( 42, $sequence );
@@ -599,6 +606,8 @@ class StageAgentRunnerDispatchTest extends TestCase
                 'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
             )
         );
+        $sequence->shouldReceive( 'get_statuses' )->andReturn( array( array( 'key' => 'draft' ), array( 'key' => 'ai_desk' ) ) );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturnUsing( static fn( $from, $to ): bool => 'draft' === $from && 'ai_desk' === $to );
         $sequence->shouldReceive( 'get_role_permitted_transitions' )
             ->with( 'draft', 5 )
             ->andReturn( array( array( 'to' => 'review' ) ) );
