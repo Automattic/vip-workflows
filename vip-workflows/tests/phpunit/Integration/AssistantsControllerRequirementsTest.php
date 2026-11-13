@@ -421,10 +421,13 @@ class AssistantsControllerRequirementsTest extends TestCase
         $entries = $this->list_entries();
         $this->assertNotEmpty( $entries );
 
-        // Both kinds the claim below is about must actually be in the list.
-        $origins = array_count_values( array_map( static fn( array $entry ): string => (string) ( $entry['origin'] ?? '' ), $entries ) );
-        $this->assertGreaterThanOrEqual( 2, $origins['plugin'] ?? 0, 'Both extension agents are listed.' );
-        $this->assertGreaterThanOrEqual( 1, $origins['built-in'] ?? 0, 'Built-in agents are listed.' );
+        // Both kinds the claim below is about must actually be in the list,
+        // found by slug: other test classes leave their own plugin-origin
+        // agents in the process-wide registry, so a count would not prove
+        // these two registered.
+        $this->assertSame( 'plugin', $this->list_entry( 'test-extension-research-agent' )['origin'] );
+        $this->assertSame( 'plugin', $this->list_entry( 'test-extension-stage-agent' )['origin'] );
+        $this->assertSame( 'built-in', $this->list_entry( self::WEB_RESEARCHER_SLUG )['origin'] );
 
         // The schema validates fields when present, but does not require them
         // or enforce relationships between fields. Keep these checks at the
