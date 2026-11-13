@@ -436,20 +436,35 @@ class StageAgentRunnerDispatchTest extends TestCase
     }
 
     /**
-     * Re-entering the same AI stage while a job is already pending does not
-     * schedule a second job.
+     * Re-entering the same AI stage while an earlier entry's job is still
+     * pending writes a fresh marker for this entry. The abandoned entry's
+     * starter and origin don't carry over; only the cron event is deduplicated.
      */
-    public function test_dispatch_does_not_double_schedule_when_pending(): void
+    public function test_re_entry_over_a_pending_marker_writes_a_fresh_one(): void
     {
         Functions\when( 'get_post_meta' )->justReturn(
             array(
                 'stage_key'  => 'ai_desk',
                 'status'     => 'pending',
                 'ability_id' => 'workflow-agent-reformat-to-template/reformat-to-template',
+                'from_stage' => 'review',
+                'started_by' => 9,
             )
         );
-        Functions\expect( 'update_post_meta' )->never();
-        Functions\expect( 'wp_schedule_single_event' )->never();
+        Functions\when( 'wp_doing_cron' )->justReturn( false );
+        $writes = array();
+        Functions\when( 'update_post_meta' )->alias(
+            function ( $post_id, $key, $value ) use ( &$writes ) {
+                if ( StageAgentRunner::JOB_META === $key ) {
+                    $writes[] = $value;
+                }
+                return true;
+            }
+        );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+        Functions\when( 'wp_schedule_single_event' )->justReturn(
+            new \WP_Error( 'duplicate_event', 'A duplicate event already exists.' )
+        );
 
         $sequence = $this->sequence_with_status(
             array(
@@ -462,7 +477,10 @@ class StageAgentRunnerDispatchTest extends TestCase
         );
         $this->runner->maybe_dispatch( 42, 'ai_desk', 'draft', $sequence );
 
-        $this->addToAssertionCount( 1 );
+        $this->assertCount( 1, $writes );
+        $this->assertSame( 'pending', $writes[0]['status'] );
+        $this->assertSame( 5, $writes[0]['started_by'], 'the person making this entry, not the earlier one' );
+        $this->assertSame( 'draft', $writes[0]['from_stage'], 'Go back leads where this entry came from' );
     }
 
     /**
@@ -496,6 +514,7 @@ class StageAgentRunnerDispatchTest extends TestCase
                 'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
             )
         );
+        $sequence->shouldReceive( 'get_role_permitted_transitions' )->andReturn( array( array( 'to' => 'ai_desk' ) ) );
 
         $this->assertTrue( $this->runner->rerun( 42, $sequence ) );
         $this->assertSame( 'wp_postmeta', $seen['table'] );
@@ -543,12 +562,52 @@ class StageAgentRunnerDispatchTest extends TestCase
                 'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
             )
         );
+        $sequence->shouldReceive( 'get_role_permitted_transitions' )->andReturn( array( array( 'to' => 'ai_desk' ) ) );
 
         $result = $this->runner->rerun( 42, $sequence );
 
         $this->assertInstanceOf( \WP_Error::class, $result );
         $this->assertSame( 'agent_rerun_conflict', $result->get_error_code() );
         $this->assertSame( 409, $result->get_error_data()['status'] );
+    }
+
+    /**
+     * Run again keeps the sequence's role rules: a person whose role can't take
+     * the move into the stage from where the job came is refused, and nothing
+     * is written or scheduled.
+     */
+    public function test_rerun_is_refused_when_the_role_cannot_enter_the_stage(): void
+    {
+        Functions\when( 'get_post_meta' )->alias(
+            static function ( $post_id, $key ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
+                    return 'ai_desk';
+                }
+                if ( StageAgentRunner::JOB_META === $key ) {
+                    return array( 'stage_key' => 'ai_desk', 'status' => 'failed', 'error' => 'x', 'from_stage' => 'draft' );
+                }
+                return '';
+            }
+        );
+        Functions\expect( 'update_post_meta' )->never();
+        Functions\expect( 'wp_schedule_single_event' )->never();
+        Functions\expect( 'delete_post_meta' )->never();
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
+            )
+        );
+        $sequence->shouldReceive( 'get_role_permitted_transitions' )
+            ->with( 'draft', 5 )
+            ->andReturn( array( array( 'to' => 'review' ) ) );
+
+        $result = $this->runner->rerun( 42, $sequence );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'forbidden_transition', $result->get_error_code() );
+        $this->assertSame( 403, $result->get_error_data()['status'] );
     }
 
     /**

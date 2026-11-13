@@ -87,7 +87,12 @@ class AgentRunsAsStarterIntegrationTest extends TestCase
 						'key'         => 'review',
 						'label'       => 'Review',
 						'status'      => 'draft',
-						'transitions' => array(),
+						'transitions' => array(
+							array(
+								'to'    => 'ai_desk',
+								'label' => 'Back to the agent',
+							),
+						),
 					),
 				),
 			),
@@ -358,5 +363,157 @@ class AgentRunsAsStarterIntegrationTest extends TestCase
 		$job = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
 		$this->assertSame( 'pending', $job['status'] );
 		$this->assertSame( $this->editor_id, $job['started_by'], 'The first writer stands.' );
+	}
+
+	/**
+	 * An abandoned entry's identity does not survive a re-entry. An editor moves
+	 * a contributor's post into the AI stage, then confirms a move out before
+	 * the run fires. The contributor moves it back in: the fresh marker, and
+	 * the run, belong to the contributor.
+	 */
+	public function test_re_entry_replaces_an_abandoned_entrys_identity(): void
+	{
+		list( $post_id, $author_id ) = $this->make_post( 'contributor' );
+		$status_manager              = Plugin::get_instance()->get_status_manager();
+
+		$this->assertTrue( $status_manager->transition( $post_id, 'ai_desk' ) );
+		$this->assertTrue(
+			$status_manager->transition( $post_id, 'review', array( 'acknowledge_warnings' => true ) ),
+			'The editor confirms a move out while the run is pending.'
+		);
+		$this->assertSame( $this->editor_id, (int) get_post_meta( $post_id, StageAgentRunner::JOB_META, true )['started_by'], 'The abandoned marker is still there.' );
+
+		wp_set_current_user( $author_id );
+		$this->assertTrue( $status_manager->transition( $post_id, 'ai_desk' ), 'The contributor moves it back in.' );
+
+		$job = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
+		$this->assertSame( 'pending', $job['status'] );
+		$this->assertSame( $author_id, (int) $job['started_by'], 'The re-entry records the contributor, not the editor.' );
+		$this->assertSame( 'review', $job['from_stage'], 'Go back now leads where this entry came from.' );
+
+		$executor = $this->recording_executor();
+		$this->run_as_cron( $executor, $post_id );
+
+		$this->assertSame( $author_id, $executor->ran_as, 'The run acts as the contributor.' );
+	}
+
+	/**
+	 * Run again keeps the sequence's role rules. Only editors may move posts
+	 * into the AI stage; after an editor's run fails, a contributor who can
+	 * edit the post is still refused, and is not offered the button.
+	 */
+	public function test_run_again_keeps_the_entry_moves_role_rules(): void
+	{
+		$sequence_id = (int) ( new SequenceRepository() )->create(
+			'Editors Only Agent Flow',
+			'editors-only-agent-flow',
+			'',
+			array(
+				'post_types' => array( 'post' ),
+				'statuses'   => array(
+					array(
+						'key'         => 'drafting',
+						'label'       => 'Drafting',
+						'status'      => 'draft',
+						'transitions' => array(
+							array(
+								'to'            => 'ai_desk',
+								'label'         => 'Send to agent',
+								'allowed_roles' => array( 'editor' ),
+							),
+						),
+					),
+					array(
+						'key'         => 'ai_desk',
+						'label'       => 'AI Desk',
+						'status'      => 'draft',
+						'agent'       => array(
+							'ability_id' => 'test/desk-agent',
+							'routing'    => array( 'pass' => 'review' ),
+						),
+						'transitions' => array(
+							array(
+								'to'    => 'review',
+								'label' => 'Review',
+							),
+						),
+					),
+					array(
+						'key'         => 'review',
+						'label'       => 'Review',
+						'status'      => 'draft',
+						'transitions' => array(),
+					),
+				),
+			),
+			$this->editor_id
+		);
+
+		list( $post_id, $author_id ) = $this->make_post( 'contributor' );
+		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $sequence_id );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ai_desk' );
+		update_post_meta(
+			$post_id,
+			StageAgentRunner::JOB_META,
+			array(
+				'stage_key'  => 'ai_desk',
+				'ability_id' => 'test/desk-agent',
+				'status'     => 'failed',
+				'error'      => 'x',
+				'failed_at'  => current_time( 'mysql' ),
+				'from_stage' => 'drafting',
+			)
+		);
+
+		wp_set_current_user( $author_id );
+		$status = rest_do_request( new \WP_REST_Request( 'GET', "/vip-workflows/v1/workflow/post/{$post_id}/status" ) );
+		$this->assertSame( 200, $status->get_status() );
+		$this->assertFalse( $status->get_data()['agent_job']['can_rerun'], 'The contributor is not offered Run again.' );
+
+		$response = rest_do_request( new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/agent-rerun" ) );
+		$this->assertSame( 403, $response->get_status() );
+		$this->assertSame( 'forbidden_transition', $response->get_data()['code'] );
+		$this->assertSame( 'failed', get_post_meta( $post_id, StageAgentRunner::JOB_META, true )['status'], 'Nothing was dispatched.' );
+
+		wp_set_current_user( $this->editor_id );
+		$status = rest_do_request( new \WP_REST_Request( 'GET', "/vip-workflows/v1/workflow/post/{$post_id}/status" ) );
+		$this->assertTrue( $status->get_data()['agent_job']['can_rerun'], 'An editor is offered Run again.' );
+		$this->assertSame( 200, rest_do_request( new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/agent-rerun" ) )->get_status() );
+	}
+
+	/**
+	 * Run again wins the race against a Go back that read the same failed
+	 * marker: Go back is refused and the post stays at the AI stage with the
+	 * new run pending, rather than landing at the origin with a run queued for
+	 * the stage it left.
+	 */
+	public function test_go_back_loses_to_a_run_again_that_took_the_marker_first(): void
+	{
+		list( $post_id ) = $this->make_post( 'subscriber' );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'ai_desk' );
+		update_post_meta(
+			$post_id,
+			StageAgentRunner::JOB_META,
+			array(
+				'stage_key'  => 'ai_desk',
+				'ability_id' => 'test/desk-agent',
+				'status'     => 'failed',
+				'error'      => 'x',
+				'failed_at'  => current_time( 'mysql' ),
+				'from_stage' => 'drafting',
+			)
+		);
+		$stale = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
+
+		$this->assertSame( 200, rest_do_request( new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/agent-rerun" ) )->get_status() );
+
+		// Go back's own compare-and-delete, with the marker it read before.
+		$this->assertFalse( StageAgentRunner::take_job_marker( $post_id, $stale ) );
+
+		// And through the route: nothing failed is left to go back from.
+		$back = rest_do_request( new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/agent-revert" ) );
+		$this->assertSame( 409, $back->get_status() );
+		$this->assertSame( 'ai_desk', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ), 'The post stays at the AI stage.' );
+		$this->assertSame( 'pending', get_post_meta( $post_id, StageAgentRunner::JOB_META, true )['status'], 'With the new run pending.' );
 	}
 }

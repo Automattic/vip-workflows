@@ -766,11 +766,13 @@ class WorkflowController extends WP_REST_Controller {
 			$revert_stage   = $status_manager->get_agent_revert_stage( $post_id );
 
 			// Run again in place (rerun_agent_stage()). This method is only
-			// reached for the current stage's job, so the one other condition
-			// StageAgentRunner::rerun() holds is that the stage still has an agent.
+			// reached for the current stage's job, so the other conditions
+			// StageAgentRunner::rerun() holds are that the stage still has an
+			// agent and that the sequence's role rules let this person in.
 			$sequence           = $status_manager->get_sequence_for_post( $post_id );
 			$stage_config       = $sequence ? $sequence->get_status( $stage ) : null;
-			$state['can_rerun'] = ! empty( $stage_config['agent']['ability_id'] );
+			$state['can_rerun'] = ! empty( $stage_config['agent']['ability_id'] )
+				&& \VIPWorkflows\Workflow\StageAgentRunner::user_can_rerun( $sequence, $stage, (string) ( $job['from_stage'] ?? '' ), get_current_user_id() );
 
 			if ( null !== $revert_stage ) {
 				$revert_config = $sequence ? $sequence->get_status( $revert_stage ) : null;

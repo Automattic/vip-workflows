@@ -408,6 +408,12 @@ const actions = {
 
 				dispatch.receiveWorkflowStatus( status );
 				refreshPostEntity( registry, select.getPostType(), postId );
+			} catch ( error ) {
+				// As with Run again: a refusal (someone else ran it again or
+				// took it back first) means the failed state on screen is
+				// stale, so re-read it before the caller reports the error.
+				await dispatch.fetchWorkflowStatus();
+				throw error;
 			} finally {
 				dispatch.setTransitioningTo( null );
 			}

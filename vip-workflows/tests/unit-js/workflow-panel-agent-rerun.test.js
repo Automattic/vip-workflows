@@ -65,6 +65,7 @@ import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 const RERUN_PATH = '/vip-workflows/v1/workflow/post/42/agent-rerun';
+const REVERT_PATH = '/vip-workflows/v1/workflow/post/42/agent-revert';
 
 const failedStatus = ( agentJob ) => ( {
 	has_workflow: true,
@@ -225,6 +226,69 @@ describe( 'WorkflowPanel failed agent actions', () => {
 		await waitFor( () =>
 			expect(
 				screen.queryByRole( 'button', { name: 'Run again' } )
+			).toBeNull()
+		);
+		expect(
+			calls.filter( ( c ) => c.path === STATUS_PATH ).length
+		).toBeGreaterThan( 1 );
+	} );
+
+	it( 're-reads the post when Go back is refused', async () => {
+		const failed = failedStatus( {
+			can_rerun: true,
+			revert_to: { key: 'drafting', label: 'Drafting' },
+		} );
+		let refused = false;
+		const calls = [];
+		apiFetch.mockImplementation( ( request ) => {
+			calls.push( request );
+			if ( request.path === REVERT_PATH ) {
+				refused = true;
+				return Promise.reject( {
+					code: 'agent_revert_conflict',
+					message:
+						'This agent run changed while you were going back. Reload the post to see where it is now.',
+				} );
+			}
+			if ( request.path === STATUS_PATH ) {
+				// Someone else's Run again won; its run is now pending.
+				return Promise.resolve(
+					refused
+						? {
+								...failed,
+								agent_pending: true,
+								agent_job: { status: 'pending', error: '' },
+						  }
+						: failed
+				);
+			}
+			if ( request.path.startsWith( '/vip-workflows/v1/abilities' ) ) {
+				return Promise.resolve( [] );
+			}
+			return Promise.resolve( {} );
+		} );
+
+		render(
+			<>
+				<TransitionFlow />
+				<WorkflowPanel />
+			</>
+		);
+		await waitFor( () =>
+			expect(
+				screen.getByRole( 'button', { name: 'Go back to Drafting' } )
+			).toBeInTheDocument()
+		);
+
+		await act( async () => {
+			screen
+				.getByRole( 'button', { name: 'Go back to Drafting' } )
+				.click();
+		} );
+
+		await waitFor( () =>
+			expect(
+				screen.queryByRole( 'button', { name: 'Go back to Drafting' } )
 			).toBeNull()
 		);
 		expect(

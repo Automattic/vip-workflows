@@ -1213,6 +1213,7 @@ class StatusManagerAgentGatingTest extends TestCase
                 return true;
             }
         );
+        $taken = $this->wpdb_taking( 1 );
 
         $manager = Mockery::mock( StatusManager::class )->makePartial();
         $manager->shouldReceive( 'get_agent_revert_stage' )->with( 42 )->andReturn( 'draft' );
@@ -1224,7 +1225,84 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->assertTrue( $manager->revert_failed_agent_stage( 42 ) );
 
         $this->assertContains( array( StageAgentRunner::CHAIN_META, '' ), $deleted, 'The loop guard resets before the move.' );
-        $this->assertContains( array( StageAgentRunner::JOB_META, $failed_job ), $deleted, 'The failed marker is cleared compare-and-delete.' );
+        $this->assertSame( serialize( $failed_job ), $taken->where['meta_value'], 'The failed marker is taken compare-and-delete, before the move.' );
+    }
+
+    /**
+     * Go back loses to a Run again that already replaced the failed marker:
+     * the compare-and-delete matches nothing, so the post doesn't move.
+     */
+    public function test_revert_failed_agent_stage_refuses_when_the_marker_was_taken(): void
+    {
+        $this->stub_post_in_ai_stage(
+            array(
+                'stage_key'  => 'ai_desk',
+                'status'     => 'failed',
+                'ability_id' => 'x',
+                'error'      => 'boom',
+                'from_stage' => 'draft',
+            )
+        );
+        $this->wpdb_taking( 0 );
+
+        $manager = Mockery::mock( StatusManager::class )->makePartial();
+        $manager->shouldReceive( 'get_agent_revert_stage' )->with( 42 )->andReturn( 'draft' );
+        $manager->shouldReceive( 'transition' )->never();
+
+        $result = $manager->revert_failed_agent_stage( 42 );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'agent_revert_conflict', $result->get_error_code() );
+        $this->assertSame( 409, $result->get_error_data()['status'] );
+    }
+
+    /**
+     * A refused Go back puts the failed state back.
+     */
+    public function test_revert_failed_agent_stage_restores_the_marker_when_the_move_is_refused(): void
+    {
+        $failed_job = array(
+            'stage_key'  => 'ai_desk',
+            'status'     => 'failed',
+            'ability_id' => 'x',
+            'error'      => 'boom',
+            'from_stage' => 'draft',
+        );
+        $this->stub_post_in_ai_stage( $failed_job );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+        $this->wpdb_taking( 1 );
+        Functions\expect( 'add_post_meta' )->once()->with( 42, StageAgentRunner::JOB_META, $failed_job, true )->andReturn( 1 );
+
+        $refusal = new \WP_Error( 'forbidden', 'no' );
+        $manager = Mockery::mock( StatusManager::class )->makePartial();
+        $manager->shouldReceive( 'get_agent_revert_stage' )->with( 42 )->andReturn( 'draft' );
+        $manager->shouldReceive( 'transition' )->once()->andReturn( $refusal );
+
+        $this->assertSame( $refusal, $manager->revert_failed_agent_stage( 42 ) );
+    }
+
+    /**
+     * Mock $wpdb for Go back's compare-and-delete.
+     *
+     * @param  int|false $rows Rows the conditional DELETE reports removed.
+     * @return object Holds the `where` the DELETE was called with.
+     */
+    private function wpdb_taking( $rows ): object
+    {
+        global $wpdb;
+        $seen           = new \stdClass();
+        $seen->where    = null;
+        $wpdb           = Mockery::mock( 'wpdb' );
+        $wpdb->postmeta = 'wp_postmeta';
+        $wpdb->shouldReceive( 'delete' )->andReturnUsing(
+            function ( $table, $where ) use ( $rows, $seen ) {
+                $seen->where = $where;
+                return $rows;
+            }
+        );
+        Functions\when( 'wp_cache_delete' )->justReturn( true );
+        Functions\when( 'maybe_serialize' )->alias( 'serialize' );
+        return $seen;
     }
 
     /**

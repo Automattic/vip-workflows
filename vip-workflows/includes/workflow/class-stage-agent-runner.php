@@ -228,16 +228,13 @@ class StageAgentRunner implements ModuleInterface {
 			return;
 		}
 
-		// Re-entrancy guard: never schedule a second job while one is already
-		// pending for this same post + stage.
-		$existing = get_post_meta( $post_id, self::JOB_META, true );
-		if (
-			is_array( $existing )
-			&& 'pending' === ( $existing['status'] ?? '' )
-			&& ( $existing['stage_key'] ?? '' ) === $new_status
-		) {
-			return;
-		}
+		// Every real entry writes a fresh marker, even when a pending one for this
+		// stage is still there (a person confirmed a move out before the run
+		// fired, and the post has now come back). The marker carries who the run
+		// acts as and where Go back leads, and both belong to this entry, not the
+		// abandoned one. Only the cron event is deduplicated: an identical queued
+		// event serves the new marker (see dispatch()), and a run already in
+		// flight sees the new queued_at and abandons (abandon_if_superseded()).
 
 		// Reset the loop-guard chain when a human (non-agent) stage moved the post
 		// in; only consecutive agent→agent hops accumulate toward MAX_CHAIN.
@@ -323,6 +320,14 @@ class StageAgentRunner implements ModuleInterface {
 			);
 		}
 
+		if ( ! self::user_can_rerun( $sequence, $stage_key, (string) ( $job['from_stage'] ?? '' ), get_current_user_id() ) ) {
+			return new \WP_Error(
+				'forbidden_transition',
+				__( 'Your role cannot move posts into this stage, so you cannot run its agent again.', 'vip-workflows' ),
+				array( 'status' => 403 )
+			);
+		}
+
 		// Replace exactly the failed marker validated above, or nothing. Two
 		// people pressing Run again at once, or Run again racing Go back, must
 		// not both win: the loser finds the marker changed and is refused.
@@ -346,6 +351,45 @@ class StageAgentRunner implements ModuleInterface {
 		delete_post_meta( $post_id, self::CHAIN_META );
 
 		return true;
+	}
+
+	/**
+	 * Whether a person may run a failed stage agent again.
+	 *
+	 * Run again starts a run that acts as the person who presses it, so it is
+	 * held to the sequence's role rules for entering the stage: they must be
+	 * allowed to take the move that brought the post in, from the stage the job
+	 * records. A job with no recorded origin (a reseat or a sequence assign
+	 * put the post here) asks instead whether they may take any move into the
+	 * stage. The bypass list applies, as it does to every role rule.
+	 *
+	 * Role rules only. Core capabilities are checked separately: the route
+	 * requires `edit_post`, and the run re-checks it when it fires.
+	 *
+	 * @param  Sequence $sequence   Sequence for the post.
+	 * @param  string   $stage_key  The failed AI stage.
+	 * @param  string   $from_stage The stage the job records the post entering from.
+	 * @param  int      $user_id    The person asking.
+	 * @return bool
+	 */
+	public static function user_can_rerun( Sequence $sequence, string $stage_key, string $from_stage, int $user_id ): bool {
+		if ( $user_id <= 0 ) {
+			return false;
+		}
+
+		$origins = ( '' !== $from_stage && null !== $sequence->get_status( $from_stage ) )
+			? array( $from_stage )
+			: array_map( static fn( array $status ): string => (string) $status['key'], $sequence->get_statuses() );
+
+		foreach ( $origins as $origin ) {
+			foreach ( $sequence->get_role_permitted_transitions( $origin, $user_id ) as $transition ) {
+				if ( ( $transition['to'] ?? '' ) === $stage_key ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -454,6 +498,43 @@ class StageAgentRunner implements ModuleInterface {
 		}
 
 		return 1 === $updated;
+	}
+
+	/**
+	 * Delete the job marker, only where it is still exactly `$expected`.
+	 *
+	 * Go back's half of the compare-and-swap Run again uses
+	 * (replace_job_marker()): one DELETE whose WHERE names the expected value,
+	 * so when both race for the same failed marker, exactly one of them takes
+	 * it and the other finds it gone or changed.
+	 *
+	 * @param  int   $post_id  Post ID.
+	 * @param  array $expected The marker the caller read and validated.
+	 * @return bool True when this caller deleted it.
+	 */
+	public static function take_job_marker( int $post_id, array $expected ): bool {
+		global $wpdb;
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.SlowDBQuery.slow_db_query_meta_key, WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- a compare-and-delete on one post's job marker, found by post_id (indexed); the post's meta cache is cleared below.
+		$deleted = $wpdb->delete(
+			$wpdb->postmeta,
+			array(
+				'post_id'    => $post_id,
+				'meta_key'   => self::JOB_META,
+				'meta_value' => maybe_serialize( $expected ),
+			),
+			array( '%d', '%s', '%s' )
+		);
+		// phpcs:enable
+
+		wp_cache_delete( $post_id, 'post_meta' );
+
+		if ( false === $deleted ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Agent job marker delete failed: post=%d db_error=%s', $post_id, self::log_token( (string) $wpdb->last_error ) ) );
+		}
+
+		return 1 === $deleted;
 	}
 
 	/**
