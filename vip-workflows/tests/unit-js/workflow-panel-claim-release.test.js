@@ -124,6 +124,7 @@ async function renderPanel( payload ) {
 describe( 'WorkflowPanel claim and release', () => {
 	beforeEach( () => {
 		apiFetch.mockReset();
+		speak.mockClear();
 		seedEditorStore();
 	} );
 
@@ -311,5 +312,126 @@ describe( 'WorkflowPanel claim and release', () => {
 				container.querySelector( '.vip-workflows-panel' )
 			).toHaveFocus()
 		);
+		expect( speak ).toHaveBeenCalledWith( 'Claim released.' );
+	} );
+
+	it( 'moves focus to the panel when the re-read finds the post out of its workflow', async () => {
+		let claimed = true;
+		apiFetch.mockImplementation( ( request ) => {
+			if ( request.path === STATUS_PATH ) {
+				return Promise.resolve(
+					claimed
+						? status( {
+								claimed_by: person( 5, 'Riley Reviewer', true ),
+						  } )
+						: { has_workflow: false, available_sequences: [] }
+				);
+			}
+			if ( request.path === UNCLAIM_PATH ) {
+				claimed = false;
+				return Promise.resolve( { success: true } );
+			}
+			if ( request.path.startsWith( '/vip-workflows/v1/abilities' ) ) {
+				return Promise.resolve( [] );
+			}
+			return Promise.resolve( {} );
+		} );
+
+		const { container } = render( <WorkflowPanel /> );
+		const release = await screen.findByRole( 'button', {
+			name: 'Release',
+		} );
+		release.focus();
+
+		await act( async () => {
+			release.click();
+		} );
+
+		await waitFor( () =>
+			expect(
+				container.querySelector( '.vip-workflows-panel' )
+			).toHaveFocus()
+		);
+	} );
+
+	it( 'keeps focus on Release when the release is refused and the claim stands', async () => {
+		apiFetch.mockImplementation( ( request ) => {
+			if ( request.path === STATUS_PATH ) {
+				return Promise.resolve(
+					status( {
+						claimed_by: person( 5, 'Riley Reviewer', true ),
+					} )
+				);
+			}
+			if ( request.path === UNCLAIM_PATH ) {
+				// As a browser does when the focused button is disabled for
+				// the write.
+				document.activeElement?.blur();
+				return Promise.reject( {
+					code: 'rest_forbidden',
+					message: 'Sorry, you are not allowed to do that.',
+				} );
+			}
+			if ( request.path.startsWith( '/vip-workflows/v1/abilities' ) ) {
+				return Promise.resolve( [] );
+			}
+			return Promise.resolve( {} );
+		} );
+
+		render( <WorkflowPanel /> );
+		const release = await screen.findByRole( 'button', {
+			name: 'Release',
+		} );
+		release.focus();
+
+		await act( async () => {
+			release.click();
+		} );
+
+		await screen.findByText( 'Sorry, you are not allowed to do that.' );
+		await waitFor( () =>
+			expect(
+				screen.getByRole( 'button', { name: 'Release' } )
+			).toHaveFocus()
+		);
+		expect( speak ).not.toHaveBeenCalledWith( 'Claim released.' );
+	} );
+
+	it( 'moves focus to Release after a claim, and announces it', async () => {
+		let claimed = false;
+		apiFetch.mockImplementation( ( request ) => {
+			if ( request.path === STATUS_PATH ) {
+				return Promise.resolve(
+					status( {
+						claimed_by: claimed
+							? person( 5, 'Riley Reviewer', true )
+							: null,
+						can_claim: ! claimed,
+					} )
+				);
+			}
+			if ( request.path === '/vip-workflows/v1/workflow/post/42/claim' ) {
+				claimed = true;
+				return Promise.resolve( { success: true } );
+			}
+			if ( request.path.startsWith( '/vip-workflows/v1/abilities' ) ) {
+				return Promise.resolve( [] );
+			}
+			return Promise.resolve( {} );
+		} );
+
+		render( <WorkflowPanel /> );
+		const claim = await screen.findByRole( 'button', { name: 'Claim' } );
+		claim.focus();
+
+		await act( async () => {
+			claim.click();
+		} );
+
+		const release = await screen.findByRole( 'button', {
+			name: 'Release',
+		} );
+		await waitFor( () => expect( release ).toHaveFocus() );
+		expect( speak ).toHaveBeenCalledWith( 'Post claimed.' );
 	} );
 } );

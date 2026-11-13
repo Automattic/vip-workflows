@@ -157,10 +157,15 @@ export function WorkflowPanel() {
 	const [ historyOpen, setHistoryOpen ] = useState( false );
 	const [ actionError, setActionError ] = useState( null ); // every action failure — shown as a Notice, not a browser dialog
 
-	// After Release, focus must not fall to the page when its row goes. Claim
-	// is the natural next step when it's offered; otherwise the panel itself.
+	// After Claim or Release, focus must not fall to the page when the button
+	// that had it goes. It lands on whichever of the pair the post now offers
+	// (Release after a claim, Claim after a release, or the same button again
+	// after a refusal), and otherwise on the panel. Every branch's root takes
+	// panelRef, since the re-read can swap branches (the post left its
+	// workflow, or the workflow was deleted).
 	const panelRef = useRef( null );
 	const claimButtonRef = useRef( null );
+	const releaseButtonRef = useRef( null );
 	const [ restoreFocus, setRestoreFocus ] = useState( false );
 	useEffect( () => {
 		if ( ! restoreFocus ) {
@@ -175,7 +180,11 @@ export function WorkflowPanel() {
 		) {
 			return;
 		}
-		( claimButtonRef.current ?? panelRef.current )?.focus();
+		(
+			releaseButtonRef.current ??
+			claimButtonRef.current ??
+			panelRef.current
+		)?.focus();
 	}, [ restoreFocus ] );
 
 	// Busy while a move or a workflow-level write runs, wherever it was
@@ -251,6 +260,9 @@ export function WorkflowPanel() {
 			path: `/vip-workflows/v1/workflow/post/${ postId }/claim`,
 			method: 'POST',
 		} )
+			.then( () => {
+				speak( __( 'Post claimed.', 'vip-workflows' ) );
+			} )
 			.catch( ( err ) => {
 				setActionError(
 					err.message ||
@@ -266,7 +278,12 @@ export function WorkflowPanel() {
 			// Busy until the re-read lands, so the button can't be pressed
 			// again against the state the write just changed.
 			.then( () => fetchWorkflowStatus() )
-			.finally( () => setWorkflowWriting( false ) );
+			.finally( () => {
+				setWorkflowWriting( false );
+				// Claim was disabled while the write ran, so it has already
+				// lost focus, and a successful claim removes it.
+				setRestoreFocus( true );
+			} );
 	};
 
 	const handleUnclaim = () => {
@@ -296,8 +313,8 @@ export function WorkflowPanel() {
 			.then( () => fetchWorkflowStatus() )
 			.finally( () => {
 				setWorkflowWriting( false );
-				// Either way the re-read can remove the claim row, and with it
-				// the focused Release button.
+				// Release was disabled while the write ran, so it has already
+				// lost focus, and either way the re-read can remove its row.
 				setRestoreFocus( true );
 			} );
 	};
@@ -310,7 +327,13 @@ export function WorkflowPanel() {
 
 	if ( loading ) {
 		return (
-			<Stack className="vip-workflows-panel" direction="column" gap="lg">
+			<Stack
+				ref={ panelRef }
+				tabIndex={ -1 }
+				className="vip-workflows-panel"
+				direction="column"
+				gap="lg"
+			>
 				<Stack
 					className="vip-workflows-loading"
 					direction="row"
@@ -333,7 +356,13 @@ export function WorkflowPanel() {
 	// panel only says why there is nothing to move.
 	if ( workflow?.orphaned ) {
 		return (
-			<Stack className="vip-workflows-panel" direction="column" gap="lg">
+			<Stack
+				ref={ panelRef }
+				tabIndex={ -1 }
+				className="vip-workflows-panel"
+				direction="column"
+				gap="lg"
+			>
 				<Text variant="body-md" className="vip-workflows-panel__empty">
 					{ __(
 						'This post’s workflow was deleted, so its status is locked.',
@@ -351,7 +380,13 @@ export function WorkflowPanel() {
 		const hasSequences = ( workflow?.available_sequences || [] ).length > 0;
 
 		return (
-			<Stack className="vip-workflows-panel" direction="column" gap="lg">
+			<Stack
+				ref={ panelRef }
+				tabIndex={ -1 }
+				className="vip-workflows-panel"
+				direction="column"
+				gap="lg"
+			>
 				<Text variant="body-md" className="vip-workflows-panel__empty">
 					{ hasSequences
 						? __(
@@ -415,6 +450,7 @@ export function WorkflowPanel() {
 						>
 							{ claimedBy.is_current && (
 								<Button
+									ref={ releaseButtonRef }
 									variant="link"
 									size="small"
 									onClick={ handleUnclaim }
