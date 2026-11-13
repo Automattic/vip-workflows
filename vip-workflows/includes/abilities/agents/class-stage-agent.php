@@ -368,7 +368,7 @@ class StageAgent {
 	 *
 	 * @param  string $original Current post content.
 	 * @param  string $edited   Agent-generated replacement.
-	 * @return array{content: string, unpreservable_markup: bool, too_large: bool, structure_changed: bool, markup_changed: bool, links_added: int, links_removed: int, words_original: int, changed: int, share: ?float, blocks: array<int, array{words: int, words_after: int, changed: int, share: float}>}
+	 * @return array{content: string, unpreservable_markup: bool, too_large: bool, structure_changed: bool, markup_changed: bool, controls_changed: bool, links_added: int, links_removed: int, words_original: int, changed: int, share: ?float, blocks: array<int, array{words: int, words_after: int, changed: int, share: float}>}
 	 */
 	public static function measure_rewrite( string $original, string $edited ): array {
 		$original_filtered = wp_kses_post( $original );
@@ -382,10 +382,12 @@ class StageAgent {
 			'content'              => $edited_filtered,
 			'unpreservable_markup' => $raw_shape['structure'] !== $original_shape['structure']
 				|| $raw_shape['links'] !== $original_shape['links']
-				|| $raw_shape['markup'] !== $original_shape['markup'],
+				|| $raw_shape['markup'] !== $original_shape['markup']
+				|| $raw_shape['controls'] !== $original_shape['controls'],
 			'too_large'            => false,
 			'structure_changed'    => $original_shape['structure'] !== $edited_shape['structure'],
 			'markup_changed'       => $original_shape['markup'] !== $edited_shape['markup'],
+			'controls_changed'     => $original_shape['controls'] !== $edited_shape['controls'],
 			'links_added'          => 0,
 			'links_removed'        => 0,
 			'words_original'       => 0,
@@ -505,6 +507,10 @@ class StageAgent {
 			$violations[] = 'markup';
 		}
 
+		if ( ! empty( $report['controls_changed'] ) ) {
+			$violations[] = 'controls';
+		}
+
 		return $violations;
 	}
 
@@ -581,6 +587,10 @@ class StageAgent {
 			$clauses[] = __( 'changed the post’s formatting or HTML', 'vip-workflows' );
 		}
 
+		if ( in_array( 'controls', $violations, true ) ) {
+			$clauses[] = __( 'added, removed or moved a page break, More tag or shortcode', 'vip-workflows' );
+		}
+
 		return sprintf(
 			/* translators: %s: a list of what the edit changed, e.g. "changed 42% of the words (limit 15%), added 1 link". */
 			__( 'The edit was larger than a copy edit: it %s. Nothing was written; review the post and copy-edit it by hand.', 'vip-workflows' ),
@@ -639,7 +649,10 @@ class StageAgent {
 	 * contents share a structure.
 	 *
 	 * @param  string $content Post content.
-	 * @return array{structure: array, links: string[], markup: string[], chunks: string[]}
+	 * `controls` is every page break, More marker and registered shortcode
+	 * (see controls()), tagged with the chunk it sits in.
+	 *
+	 * @return array{structure: array, links: string[], markup: string[], controls: string[], chunks: string[]}
 	 */
 	private static function content_shape( string $content ): array {
 		$delimiter = '/<!--\s+(?:\/)?wp:[a-z][a-z0-9_-]*(?:\/[a-z][a-z0-9_-]*)?(?:\s+\{.*?\})?\s+\/?-->/s';
@@ -667,12 +680,108 @@ class StageAgent {
 		}
 		$links = array_values( array_filter( $links, static fn( string $link ): bool => ! str_ends_with( $link, ':' ) ) );
 
+		// Each control is placed by how many blocks (or classic paragraphs)
+		// come before it, so moving one to another paragraph counts. Not by
+		// chunk: a marker between classic paragraphs sits in a chunk with no
+		// text, which the paragraph split leaves out.
+		$controls = array();
+		foreach ( self::controls( $content ) as $control ) {
+			$prefix = substr( $content, 0, $control['offset'] );
+			$before = isset( $structure['paragraphs'] )
+				? count(
+					array_filter(
+						preg_split( '/<\/?p\b[^>]*>|\R[ \t]*\R/i', $prefix ),
+						static fn( string $chunk ): bool => '' !== trim( wp_strip_all_tags( $chunk ) )
+					)
+				)
+				: (int) preg_match_all( $delimiter, $prefix );
+
+			$controls[] = $before . ':' . $control['label'];
+		}
+
 		return array(
 			'structure' => $structure,
 			'links'     => $links,
 			'markup'    => $tags['skeleton'],
+			'controls'  => $controls,
 			'chunks'    => array_map( 'strval', (array) $chunks ),
 		);
+	}
+
+	/**
+	 * The WordPress constructs in a fragment that change how a post is paged,
+	 * excerpted or rendered rather than what it says: the `<!--more-->`,
+	 * `<!--nextpage-->` and `<!--noteaser-->` markers, and registered
+	 * shortcodes (each opening tag with its attributes, and its closing tag).
+	 *
+	 * HTML comments and shortcodes are invisible to the tag scan, so without
+	 * this an edit could add a page break or a `[gallery]` and still measure
+	 * as unchanged. An enclosing shortcode's content is scanned too, since it
+	 * can hold others; the content's words are compared like any other text.
+	 * Escaped shortcodes (`[[gallery]]`) print literally and are left out.
+	 *
+	 * @param  string $content HTML.
+	 * @return array<int, array{offset: int, label: string}> In document order, one kind after the other.
+	 */
+	private static function controls( string $content ): array {
+		$controls = array();
+
+		if ( preg_match_all( '/<!--\s*(more|nextpage|noteaser)\b(.*?)-->/is', $content, $markers, PREG_SET_ORDER | PREG_OFFSET_CAPTURE ) ) {
+			foreach ( $markers as $marker ) {
+				$controls[] = array(
+					'offset' => $marker[0][1],
+					'label'  => 'marker:' . strtolower( $marker[1][0] ) . trim( $marker[2][0] ),
+				);
+			}
+		}
+
+		if ( function_exists( 'get_shortcode_regex' ) && ! empty( $GLOBALS['shortcode_tags'] ) ) {
+			$controls = array_merge( $controls, self::shortcodes( $content, 0 ) );
+		}
+
+		return $controls;
+	}
+
+	/**
+	 * Registered shortcodes in a fragment, nested ones included.
+	 *
+	 * @param  string $content HTML.
+	 * @param  int    $base    Offset of `$content` within the whole post.
+	 * @return array<int, array{offset: int, label: string}>
+	 */
+	private static function shortcodes( string $content, int $base ): array {
+		$found = array();
+
+		if ( ! preg_match_all( '/' . get_shortcode_regex() . '/s', $content, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE ) ) {
+			return $found;
+		}
+
+		foreach ( $matches as $match ) {
+			$whole = $match[0][0];
+			$at    = $base + $match[0][1];
+			$tag   = $match[2][0];
+
+			if ( '[' === $match[1][0] && ']' === $match[6][0] ) {
+				continue;
+			}
+
+			$attributes = trim( $match[3][0] );
+			$found[]    = array(
+				'offset' => $at,
+				'label'  => 'shortcode:[' . $tag . ( '' === $attributes ? '' : ' ' . $attributes ) . ( '/' === $match[4][0] ? ' /' : '' ) . ']',
+			);
+			if ( '' !== $match[5][0] ) {
+				$found = array_merge( $found, self::shortcodes( $match[5][0], $base + $match[5][1] ) );
+			}
+			if ( str_ends_with( $whole, '[/' . $tag . ']' ) ) {
+				$found[] = array(
+					'offset' => $at + strlen( $whole ) - strlen( '[/' . $tag . ']' ),
+					'label'  => 'shortcode:[/' . $tag . ']',
+				);
+			}
+		}
+
+		return $found;
 	}
 
 	/**
@@ -837,6 +946,10 @@ class StageAgent {
 	 * Signs are punctuation here too, so "-5" and "5" are the same word. This
 	 * is a size check, not a fact check.
 	 *
+	 * In scripts written without spaces (Han, Hiragana, Katakana, Thai, Lao,
+	 * Khmer, Myanmar), each character is a word, so percentages and the
+	 * per-paragraph minimum read as characters there.
+	 *
 	 * @param  string $text HTML or plain text.
 	 * @return string[]
 	 */
@@ -853,11 +966,20 @@ class StageAgent {
 		);
 		$text = (string) preg_replace( '/\x{2014}|\x{2013}|--/u', ' ', $text );
 
+		// Scripts written without spaces between words (Chinese, Japanese,
+		// Thai and others) count each character as a word. Split on whitespace
+		// alone, a whole paragraph was one word, so a one-character fix read as
+		// changing all of it and a rewritten paragraph could pass as small.
+		$no_space = '\p{Han}\p{Hiragana}\p{Katakana}\p{Thai}\p{Lao}\p{Khmer}\p{Myanmar}';
+
 		$words = array();
-		foreach ( preg_split( '/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY ) as $word ) {
-			$word = (string) preg_replace( '/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/u', '', $word );
-			if ( '' !== $word ) {
-				$words[] = mb_strtolower( $word );
+		foreach ( preg_split( '/\s+/u', $text, -1, PREG_SPLIT_NO_EMPTY ) as $token ) {
+			preg_match_all( '/[' . $no_space . ']|[^' . $no_space . ']+/u', $token, $pieces );
+			foreach ( $pieces[0] as $word ) {
+				$word = (string) preg_replace( '/^[\p{P}\p{S}]+|[\p{P}\p{S}]+$/u', '', $word );
+				if ( '' !== $word ) {
+					$words[] = mb_strtolower( $word );
+				}
 			}
 		}
 
