@@ -95,13 +95,17 @@ class Tracker {
 	 * @return array<string,mixed>|null Null where the VIP Telemetry library isn't loaded.
 	 */
 	public static function get_client_properties(): ?array {
-		$core_properties = '\\Automattic\\VIP\\Telemetry\\Tracks\\get_tracks_core_properties';
-		if ( ! self::is_available() || ! function_exists( $core_properties ) ) {
+		// The two helpers the library builds its own events from: the site and
+		// environment, and the anonymized user.
+		$event_properties = '\\Automattic\\VIP\\Telemetry\\Tracks\\get_base_properties_of_track_event';
+		$user_properties  = '\\Automattic\\VIP\\Telemetry\\Tracks\\get_base_properties_of_track_user';
+		if ( ! self::is_available() || ! function_exists( $event_properties ) || ! function_exists( $user_properties ) ) {
 			return null;
 		}
 
 		return array_merge(
-			$core_properties(),
+			$event_properties(),
+			$user_properties(),
 			array( 'plugin_version' => VIP_WORKFLOWS_VERSION )
 		);
 	}

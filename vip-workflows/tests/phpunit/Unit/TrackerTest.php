@@ -228,7 +228,7 @@ class TrackerTest extends TestCase
 
     public function test_without_the_tracks_helpers_the_browser_gets_no_properties(): void
     {
-        $this->assertFalse( function_exists( '\\Automattic\\VIP\\Telemetry\\Tracks\\get_tracks_core_properties' ), 'This test assumes the mu-plugin library is not loaded.' );
+        $this->assertFalse( function_exists( '\\Automattic\\VIP\\Telemetry\\Tracks\\get_base_properties_of_track_event' ), 'This test assumes the mu-plugin library is not loaded.' );
         Tracker::set_telemetry( $this->telemetry() );
 
         $this->assertNull( Tracker::get_client_properties() );
@@ -245,7 +245,7 @@ class TrackerTest extends TestCase
         if ( ! defined( 'VIP_WORKFLOWS_VERSION' ) ) {
             define( 'VIP_WORKFLOWS_VERSION', '0.0.1' );
         }
-        eval( 'namespace Automattic\\VIP\\Telemetry\\Tracks; function get_tracks_core_properties() { return array( "vip_env" => "production", "vip_org" => 42, "_ui" => "abc", "_ut" => "vip:user_email", "plugin_version" => "stale" ); }' );
+        eval( 'namespace Automattic\\VIP\\Telemetry\\Tracks; function get_base_properties_of_track_event() { return array( "vip_env" => "production", "vip_org" => 42 ); } function get_base_properties_of_track_user() { return array( "_ui" => "abc", "_ut" => "vip:user_email", "plugin_version" => "stale" ); }' );
         Tracker::set_telemetry( $this->telemetry() );
 
         $this->assertSame(
