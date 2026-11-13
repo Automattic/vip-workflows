@@ -484,34 +484,45 @@ class SequencesController extends WP_REST_Controller {
 	 * stages and is empty for a phase sequence, whose stages are fixed.
 	 *
 	 * Only on single-sequence responses: the list would pay queries per row for
-	 * numbers it never shows. Both are null when the count can't be taken; the
-	 * editor then locks nothing and the repository's own check still refuses.
+	 * numbers it never shows. Only for users with `manage_options`, who are the
+	 * ones who can write the sequence; others get neither field. Both are null
+	 * when the count can't be taken; the editor then locks nothing and the
+	 * repository's own check still refuses. Read through
+	 * StageQuery::held_post_counts(), which is cached; the repository's checks
+	 * are not.
 	 *
 	 * @param  array                            $data     Prepared response.
 	 * @param  \VIPWorkflows\Sequences\Sequence $sequence Sequence.
 	 * @return array
 	 */
 	private function with_stage_post_counts( array $data, $sequence ): array {
-		$keys = array();
-
-		if ( Sequence::TYPE_WORKFLOW === $sequence->type ) {
-			// Filtered on '' only: '0' is a valid stage key, and a bare
-			// array_filter() would drop it.
-			$keys = array_values( array_filter( array_map( fn( $s ) => (string) ( $s['key'] ?? '' ), $sequence->config['statuses'] ?? array() ), fn( $k ) => '' !== $k ) );
+		// Only for the people who can change the sequence: the counts span every
+		// author's posts, trash and auto-drafts included, and the route itself
+		// is open to anyone who can edit posts.
+		if ( ! current_user_can( 'manage_options' ) ) {
+			return $data;
 		}
 
-		try {
-			$all    = StageQuery::posts_holding_sequence( (int) $sequence->id, array(), 0 );
-			$stages = ( $all['total'] > 0 && ! empty( $keys ) )
-				? StageQuery::posts_holding_sequence( (int) $sequence->id, $keys, 0 )['stages']
-				: array();
-		} catch ( StrandCheckFailedException $e ) {
+		$counts = StageQuery::held_post_counts( (int) $sequence->id );
+		if ( null === $counts ) {
 			$data['post_count']        = null;
 			$data['stage_post_counts'] = null;
 			return $data;
 		}
 
-		$data['post_count']        = (int) $all['total'];
+		$stages = array();
+		if ( Sequence::TYPE_WORKFLOW === $sequence->type ) {
+			// Only the stages the config defines. Keys compared as strings: '0'
+			// is a valid stage key.
+			foreach ( $sequence->config['statuses'] ?? array() as $status ) {
+				$key = (string) ( $status['key'] ?? '' );
+				if ( '' !== $key && isset( $counts['stages'][ $key ] ) ) {
+					$stages[ $key ] = $counts['stages'][ $key ];
+				}
+			}
+		}
+
+		$data['post_count']        = $counts['total'];
 		$data['stage_post_counts'] = (object) $stages;
 
 		return $data;

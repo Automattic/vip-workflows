@@ -541,6 +541,37 @@ class SequenceStrandGuardTest extends TestCase
         $this->assertSame( 1, $response->get_data()['post_count'] );
     }
 
+    public function test_a_contributor_gets_no_counts(): void
+    {
+        $sequence = $this->create_sequence();
+        $this->seat_post( $sequence, 'legal', 'pending' );
+        $this->seat_post( $sequence, 'legal', 'trash' );
+        $this->seat_post( $sequence, 'legal', 'auto-draft' );
+
+        wp_set_current_user( self::factory()->user->create( array( 'role' => 'contributor' ) ) );
+        $response = rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $sequence->id ) );
+
+        // Other authors' unpublished, trashed and auto-draft posts stay out of
+        // reach of anyone who can't write the sequence.
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertArrayNotHasKey( 'post_count', $response->get_data() );
+        $this->assertArrayNotHasKey( 'stage_post_counts', $response->get_data() );
+    }
+
+    public function test_cached_counts_follow_a_post_moving_stage(): void
+    {
+        $sequence = $this->create_sequence();
+        $post_id  = $this->seat_post( $sequence, 'writing' );
+        $read     = fn() => (array) rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $sequence->id ) )->get_data()['stage_post_counts'];
+
+        $this->assertSame( array( 'writing' => 1 ), $read() );
+
+        update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'legal' );
+
+        // The meta write bumps the posts cache key, so the next read recounts.
+        $this->assertSame( array( 'legal' => 1 ), $read() );
+    }
+
     public function test_the_sequence_list_does_not_count_posts(): void
     {
         $this->create_sequence();

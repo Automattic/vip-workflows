@@ -340,8 +340,7 @@ class SequencesControllerTest extends TestCase
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
-        // The per-stage post count: none here.
-        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
+        $this->allow_held_post_counts( array() );
 
         $request  = $this->create_mock_request( array( 'id' => 5 ) );
         $response = $this->controller->get_item( $request );
@@ -365,18 +364,53 @@ class SequencesControllerTest extends TestCase
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
-        $this->wpdb->shouldReceive( 'get_var' )->andReturnUsing(
-            function () {
-                $this->wpdb->last_error = 'Lost connection';
-                return null;
-            }
-        );
+        $this->allow_held_post_counts( null );
 
         $response = $this->controller->get_item( $this->create_mock_request( array( 'id' => 5 ) ) );
 
         $this->assertInstanceOf( 'WP_REST_Response', $response );
         $this->assertNull( $response->get_data()['stage_post_counts'] );
         $this->assertNull( $response->get_data()['post_count'] );
+    }
+
+    /**
+     * The counts span every author's posts, trash and auto-drafts included, so
+     * only people who can write the sequence get them.
+     */
+    public function test_get_item_leaves_the_counts_out_below_manage_options(): void
+    {
+        $row = $this->create_sequence_row( array( 'id' => 5 ) );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->wpdb->shouldReceive( 'get_results' )->never();
+        Functions\when( 'current_user_can' )->justReturn( false );
+
+        $data = $this->controller->get_item( $this->create_mock_request( array( 'id' => 5 ) ) )->get_data();
+
+        $this->assertArrayNotHasKey( 'post_count', $data );
+        $this->assertArrayNotHasKey( 'stage_post_counts', $data );
+    }
+
+    /**
+     * Let the response read the held-post counts as a user who may see them.
+     *
+     * @param array|null $rows Rows the count query returns, or null for a failed query.
+     */
+    private function allow_held_post_counts( ?array $rows ): void
+    {
+        Functions\when( 'current_user_can' )->justReturn( true );
+        Functions\when( 'wp_cache_get_last_changed' )->justReturn( '1' );
+        Functions\when( 'wp_cache_get' )->justReturn( false );
+        Functions\when( 'wp_cache_set' )->justReturn( true );
+        $this->wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+            function () use ( $rows ) {
+                if ( null === $rows ) {
+                    $this->wpdb->last_error = 'Lost connection';
+                }
+                return $rows;
+            }
+        );
     }
 
     /**
@@ -1085,6 +1119,7 @@ class SequencesControllerTest extends TestCase
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
         // Nobody holds the sequence, so the strand check lets the write through.
         $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
+        $this->allow_held_post_counts( array() );
         // First call finds existing, second call returns updated.
         $this->wpdb->shouldReceive( 'get_row' )
             ->andReturn( $existing_row, $updated_row );
