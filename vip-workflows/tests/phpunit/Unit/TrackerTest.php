@@ -259,4 +259,22 @@ class TrackerTest extends TestCase
             Tracker::get_client_properties()
         );
     }
+
+    /**
+     * A library helper that throws yields no properties rather than breaking
+     * the admin screen it runs on.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_a_throwing_library_helper_gives_the_browser_no_properties(): void
+    {
+        if ( ! defined( 'VIP_WORKFLOWS_VERSION' ) ) {
+            define( 'VIP_WORKFLOWS_VERSION', '0.0.1' );
+        }
+        eval( 'namespace Automattic\\VIP\\Telemetry\\Tracks; function get_base_properties_of_track_event() { throw new \\Error( "Class not found" ); } function get_base_properties_of_track_user() { return array(); }' );
+        Tracker::set_telemetry( $this->telemetry() );
+
+        $this->assertNull( Tracker::get_client_properties() );
+    }
 }

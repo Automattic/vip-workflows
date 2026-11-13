@@ -485,7 +485,7 @@ Every AI call above starts from one of three places: a sequence an administrator
 | Any user-supplied URL | Adding a URL source, the URL preview utility route, analyzing or sideloading an image card | Plain GET. `SsrfGuard` blocks private IPs and sets redirects to 0 |
 | `en.wikipedia.org/w/api.php` | The Wikipedia research assistant runs | The search query |
 | Parse.ly Content API and Suggestions API, through wp-parsely's service classes | Smart links, headline suggestions, performance tools, the poll and the warmers | **Post content** (smart links, title suggestions), headlines and URLs |
-| VIP Telemetry library (Pendo and Tracks), only when `Automattic\VIP\Telemetry\Telemetry` exists | Tool runs, agent runs, transition gates, rate-limit hits, experiment toggles. From the browser: sequence editing, My Work filters and grouping, and editor workflow actions | Counts, outcomes, durations, IDs and option values. No content |
+| VIP Telemetry library (Tracks), only when `Automattic\VIP\Telemetry\Telemetry` exists | Tool runs, agent runs, transition gates, rate-limit hits, experiment toggles. From the browser: sequence editing, My Work filters and grouping, and editor workflow actions | Counts, outcomes, durations, IDs and option values. No content |
 
 Parse.ly calls require the wp-parsely plugin and its `apikey`/`api_secret` option.
 

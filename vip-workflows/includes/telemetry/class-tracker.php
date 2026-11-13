@@ -88,26 +88,34 @@ class Tracker {
 	/**
 	 * Base properties for the events the browser records (src/common/tracks.js).
 	 *
-	 * The same properties the library puts on server events: VIP environment and
-	 * organization, the anonymized user, and the plugin version. The browser
-	 * records nothing when this is null, or when the environment is local.
+	 * The same base properties the library puts on server events, from its own
+	 * two helpers: the site and environment (VIP environment and organization,
+	 * WordPress and mu-plugins versions, hosting provider, and similar), and
+	 * the anonymized user. Plus the plugin version. The browser records nothing
+	 * when this is null, or when the environment is local.
 	 *
-	 * @return array<string,mixed>|null Null where the VIP Telemetry library isn't loaded.
+	 * Called while an admin screen renders, so a helper that throws (the
+	 * library is outside this plugin's control) yields null, the same as no
+	 * library, rather than breaking the screen. record() does the same.
+	 *
+	 * @return array<string,mixed>|null Null where the VIP Telemetry library isn't loaded or fails.
 	 */
 	public static function get_client_properties(): ?array {
-		// The two helpers the library builds its own events from: the site and
-		// environment, and the anonymized user.
 		$event_properties = '\\Automattic\\VIP\\Telemetry\\Tracks\\get_base_properties_of_track_event';
 		$user_properties  = '\\Automattic\\VIP\\Telemetry\\Tracks\\get_base_properties_of_track_user';
 		if ( ! self::is_available() || ! function_exists( $event_properties ) || ! function_exists( $user_properties ) ) {
 			return null;
 		}
 
-		return array_merge(
-			$event_properties(),
-			$user_properties(),
-			array( 'plugin_version' => VIP_WORKFLOWS_VERSION )
-		);
+		try {
+			return array_merge(
+				$event_properties(),
+				$user_properties(),
+				array( 'plugin_version' => VIP_WORKFLOWS_VERSION )
+			);
+		} catch ( \Throwable $e ) {
+			return null;
+		}
 	}
 
 	/**
