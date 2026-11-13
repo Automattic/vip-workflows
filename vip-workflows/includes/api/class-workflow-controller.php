@@ -612,6 +612,15 @@ class WorkflowController extends WP_REST_Controller {
 
 		$status_manager = Plugin::get_instance()->get_status_manager();
 
+		$options = array(
+			'comment'              => $comment,
+			'acknowledge_warnings' => $acknowledge_warnings,
+		);
+
+		if ( ! empty( $input_data ) && is_array( $input_data ) ) {
+			$options['input_data'] = $input_data;
+		}
+
 		// A person can finish a warning-held agent route through this same
 		// endpoint. Capture the exact marker before transition() moves the post so
 		// a successful acknowledgement can resolve the run without mistaking an
@@ -627,22 +636,6 @@ class WorkflowController extends WP_REST_Controller {
 			&& ( $agent_job['to_status'] ?? '' ) === $to_status
 		) {
 			$held_agent_job = $agent_job;
-		}
-
-		// Confirming a held agent move keeps the agent's summary as the move's
-		// comment unless the request brings its own. The editor sends it back,
-		// but another REST client confirming the move need not.
-		if ( null !== $held_agent_job && '' === trim( (string) $comment ) ) {
-			$comment = (string) ( $held_agent_job['comment'] ?? '' );
-		}
-
-		$options = array(
-			'comment'              => $comment,
-			'acknowledge_warnings' => $acknowledge_warnings,
-		);
-
-		if ( ! empty( $input_data ) && is_array( $input_data ) ) {
-			$options['input_data'] = $input_data;
 		}
 
 		$result = $status_manager->transition( $post_id, $to_status, $options );
