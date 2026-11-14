@@ -236,4 +236,104 @@ class TransitionPostAbilityWarningsIntegrationTest extends TestCase
 		$this->assertSame( get_the_title( $post_id ), $moved['post_title'] );
 		$this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
 	}
+
+	/**
+	 * A REST client confirming a warning-held agent move without a comment
+	 * still records the agent's summary as the move's comment. The editor
+	 * sends the summary back; another client need not.
+	 */
+	/**
+	 * A warning-held agent move with this summary.
+	 *
+	 * @return int Post ID.
+	 */
+	private function make_post_with_held_move(): int
+	{
+		$post_id = $this->make_post_with_running_agent();
+		update_post_meta(
+			$post_id,
+			StageAgentRunner::JOB_META,
+			array(
+				'stage_key'     => 'ai_desk',
+				'ability_id'    => 'test/desk-agent',
+				'status'        => 'warnings_pending',
+				'to_status'     => 'review',
+				'outcome'       => 'fail',
+				'soft_warnings' => array(),
+				'comment'       => 'Two quotes are unattributed.',
+			)
+		);
+		return $post_id;
+	}
+
+	/**
+	 * The comment on the post's latest stage change.
+	 *
+	 * @param  int $post_id Post ID.
+	 * @return mixed
+	 */
+	private function last_transition_comment( int $post_id )
+	{
+		global $wpdb;
+		$table = \VIPWorkflows\Database\Schema::get_table_name( 'workflows_events' );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		$event_data = $wpdb->get_var( $wpdb->prepare( "SELECT event_data FROM {$table} WHERE post_id = %d AND event_type = 'status_transition' ORDER BY id DESC LIMIT 1", $post_id ) );
+		$this->assertNotNull( $event_data, 'The move was logged.' );
+		return json_decode( (string) $event_data, true )['comment'] ?? null;
+	}
+
+	/**
+	 * Confirming a warning-held agent move without a comment still records the
+	 * agent's summary as the move's comment, through REST.
+	 */
+	public function test_rest_confirmation_without_a_comment_keeps_the_held_summary(): void
+	{
+		$post_id = $this->make_post_with_held_move();
+
+		$request = new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/transition" );
+		$request->set_param( 'to_status', 'review' );
+		$request->set_param( 'acknowledge_warnings', true );
+		$response = rest_do_request( $request );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
+		$this->assertSame( 'Two quotes are unattributed.', $this->last_transition_comment( $post_id ) );
+	}
+
+	/**
+	 * The same through the transition-post ability, which is how an agent or
+	 * MCP client confirms the move.
+	 */
+	public function test_ability_confirmation_without_a_comment_keeps_the_held_summary(): void
+	{
+		$post_id = $this->make_post_with_held_move();
+
+		$result = wp_get_ability( 'vip-workflows/transition-post' )->execute(
+			array(
+				'post_id'              => $post_id,
+				'to_status'            => 'review',
+				'acknowledge_warnings' => true,
+			)
+		);
+
+		$this->assertNotWPError( $result );
+		$this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
+		$this->assertSame( 'Two quotes are unattributed.', $this->last_transition_comment( $post_id ) );
+	}
+
+	/**
+	 * A person who confirms with a comment of their own keeps it.
+	 */
+	public function test_a_comment_given_with_the_confirmation_is_kept(): void
+	{
+		$post_id = $this->make_post_with_held_move();
+
+		$request = new \WP_REST_Request( 'POST', "/vip-workflows/v1/workflow/post/{$post_id}/transition" );
+		$request->set_param( 'to_status', 'review' );
+		$request->set_param( 'acknowledge_warnings', true );
+		$request->set_param( 'comment', 'Checked both quotes with the reporter.' );
+		$this->assertSame( 200, rest_do_request( $request )->get_status() );
+
+		$this->assertSame( 'Checked both quotes with the reporter.', $this->last_transition_comment( $post_id ) );
+	}
 }

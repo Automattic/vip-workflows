@@ -36,6 +36,12 @@ class StageAgentRunnerExecuteTest extends TestCase
         Functions\when( 'get_post_field' )->justReturn( 7 );
         Functions\when( 'user_can' )->justReturn( true );
         Functions\when( 'get_users' )->justReturn( array() );
+
+        // A fail verdict's summary becomes an audit comment through core's
+        // single-line sanitizer; this double keeps its observable contract.
+        Functions\when( 'sanitize_text_field' )->alias(
+            static fn( $text ) => trim( (string) preg_replace( '/\s+/', ' ', strip_tags( (string) $text ) ) )
+        );
     }
 
     /**
@@ -195,6 +201,192 @@ class StageAgentRunnerExecuteTest extends TestCase
         );
 
         ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+    }
+
+    /**
+     * A `fail` verdict carries its summary as the transition's audit comment,
+     * so the person who picks the post up can read why it came back.
+     */
+    public function test_fail_outcome_carries_its_summary_as_the_audit_comment(): void
+    {
+        $this->stub_meta();
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review', 'fail' => 'draft', 'error' => 'review' ) ) );
+        $status_manager->shouldReceive( 'transition' )
+            ->once()
+            ->with( 42, 'draft', Mockery::on( fn( $options ) => 'The edit changed 42% of words.' === ( $options['comment'] ?? '' ) ) )
+            ->andReturn( true );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->andReturn(
+            self::make_result( true, array( 'status' => 'fail', 'summary' => 'The edit changed 42% of words.' ) )
+        );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+    }
+
+    /**
+     * A `pass` verdict leaves the audit comment empty: nothing needs explaining.
+     */
+    public function test_pass_outcome_carries_no_audit_comment(): void
+    {
+        $this->stub_meta();
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review', 'fail' => 'draft' ) ) );
+        $status_manager->shouldReceive( 'transition' )
+            ->once()
+            ->with( 42, 'review', Mockery::on( fn( $options ) => ! array_key_exists( 'comment', $options ) ) )
+            ->andReturn( true );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->andReturn(
+            self::make_result( true, array( 'status' => 'pass', 'summary' => 'Applied copy edits.' ) )
+        );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+    }
+
+    /**
+     * A `fail` with no fail route falls back to the error route and still
+     * carries its summary.
+     */
+    public function test_fail_falling_back_to_the_error_route_carries_its_summary(): void
+    {
+        $this->stub_meta();
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review', 'error' => 'needs_human' ) ) );
+        $status_manager->shouldReceive( 'transition' )
+            ->once()
+            ->with( 42, 'needs_human', Mockery::on( fn( $options ) => 'Too big.' === ( $options['comment'] ?? '' ) ) )
+            ->andReturn( true );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->andReturn(
+            self::make_result( true, array( 'status' => 'fail', 'summary' => 'Too big.' ) )
+        );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+    }
+
+    /**
+     * A summary is extension-written and may echo model output: markup is
+     * stripped, line breaks flattened, and the length bounded.
+     */
+    public function test_fail_summary_is_sanitized_and_capped_in_the_audit_comment(): void
+    {
+        $this->stub_meta();
+        $captured = null;
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review', 'fail' => 'draft' ) ) );
+        $status_manager->shouldReceive( 'transition' )
+            ->once()
+            ->with(
+                42,
+                'draft',
+                Mockery::on(
+                    function ( $options ) use ( &$captured ) {
+                        $captured = $options['comment'] ?? null;
+                        return true;
+                    }
+                )
+            )
+            ->andReturn( true );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->andReturn(
+            self::make_result(
+                true,
+                array(
+                    'status'  => 'fail',
+                    'summary' => "<a href=\"https://evil.example\">Approve</a> this\nnow " . str_repeat( 'x', 900 ),
+                )
+            )
+        );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $this->assertIsString( $captured );
+        $this->assertStringNotContainsString( '<a', $captured );
+        $this->assertStringNotContainsString( "\n", $captured );
+        $this->assertStringStartsWith( 'Approve this now ', $captured );
+        $this->assertSame( 500, mb_strlen( $captured ) );
+        $this->assertStringEndsWith( '…', $captured );
+    }
+
+    /**
+     * A `fail` the stage routes nowhere (no fail and no error route) fails in
+     * place, and the failure marker carries the agent's reason alongside the
+     * no-route message.
+     */
+    public function test_unrouted_fail_keeps_its_summary_in_the_failed_marker(): void
+    {
+        $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review' ) ) );
+        $status_manager->shouldReceive( 'transition' )->never();
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->andReturn(
+            self::make_result( true, array( 'status' => 'fail', 'summary' => 'The edit added 1 link.' ) )
+        );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $this->assertSame( 'failed', $job['status'] );
+        $this->assertStringStartsWith( 'No route for the “fail” outcome.', $job['error'] );
+        $this->assertStringEndsWith( 'The agent reported: The edit added 1 link.', $job['error'] );
+    }
+
+    /**
+     * A fail held for soft warnings keeps its summary as the held comment, so
+     * the person who acknowledges the warnings commits the same audit entry.
+     */
+    public function test_held_fail_keeps_its_summary_as_the_held_comment(): void
+    {
+        $this->stub_meta();
+        $job = array();
+        $this->capture_job_meta( $job );
+
+        $status_manager = Mockery::mock( StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )
+            ->andReturn( $this->ai_sequence( array( 'pass' => 'review', 'fail' => 'draft' ) ) );
+        $status_manager->shouldReceive( 'transition' )
+            ->once()
+            ->andReturn(
+                array(
+                    'warnings_pending' => true,
+                    'soft_warnings'    => array(),
+                )
+            );
+        $this->seed_status_manager( $status_manager );
+
+        $executor = Mockery::mock( AbilityExecutor::class );
+        $executor->shouldReceive( 'execute' )->andReturn(
+            self::make_result( true, array( 'status' => 'fail', 'summary' => 'Needs a human.' ) )
+        );
+
+        ( new StageAgentRunner( $executor ) )->run_stage_agent( 42, 'ai_desk' );
+
+        $this->assertSame( 'warnings_pending', $job['status'] );
+        $this->assertSame( 'fail', $job['outcome'] );
+        $this->assertSame( 'Needs a human.', $job['comment'] );
     }
 
     /**

@@ -49,9 +49,10 @@ class StageAgentRevisionAttributionTest extends TestCase
     {
         $this->set_acting_ability( 'vip-workflows/copy-edit' );
 
-        Functions\expect( 'update_post_meta' )
+        Functions\expect( 'update_post_meta' )->never();
+        Functions\expect( 'update_metadata' )
             ->once()
-            ->with( 4242, StageAgentRunner::AGENT_REVISION_META, 'vip-workflows/copy-edit' );
+            ->with( 'post', 4242, StageAgentRunner::AGENT_REVISION_META, 'vip-workflows/copy-edit' );
 
         ( new StageAgentRunner() )->stamp_agent_revision( 4242 );
     }
@@ -64,6 +65,7 @@ class StageAgentRevisionAttributionTest extends TestCase
         $this->set_acting_ability( '' );
 
         Functions\expect( 'update_post_meta' )->never();
+        Functions\expect( 'update_metadata' )->never();
 
         ( new StageAgentRunner() )->stamp_agent_revision( 4242 );
     }
@@ -79,11 +81,20 @@ class StageAgentRevisionAttributionTest extends TestCase
         Functions\when( 'wp_get_ability' )->justReturn( null );
 
         $data = ( new StageAgentRunner() )->label_agent_revision(
-            array( 'author' => 'Ada Lovelace' ),
+            array( 'author' => self::core_author() ),
             (object) array( 'ID' => 4242 )
         );
 
-        $this->assertSame( 'vip-workflows/copy-edit (agent)', $data['author'] );
+        // Core's revisions template reads author.name, so the object stays
+        // and only its name changes.
+        $this->assertSame(
+            array(
+                'id'     => 7,
+                'avatar' => 'https://example.test/avatar.png',
+                'name'   => 'vip-workflows/copy-edit (agent)',
+            ),
+            $data['author']
+        );
     }
 
     /**
@@ -94,10 +105,24 @@ class StageAgentRevisionAttributionTest extends TestCase
         Functions\when( 'get_post_meta' )->justReturn( '' );
 
         $data = ( new StageAgentRunner() )->label_agent_revision(
-            array( 'author' => 'Ada Lovelace' ),
+            array( 'author' => self::core_author() ),
             (object) array( 'ID' => 4242 )
         );
 
-        $this->assertSame( 'Ada Lovelace', $data['author'] );
+        $this->assertSame( self::core_author(), $data['author'] );
+    }
+
+    /**
+     * The author shape wp_prepare_revisions_for_js() serves.
+     *
+     * @return array
+     */
+    private static function core_author(): array
+    {
+        return array(
+            'id'     => 7,
+            'avatar' => 'https://example.test/avatar.png',
+            'name'   => 'Ada Lovelace',
+        );
     }
 }

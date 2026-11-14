@@ -652,6 +652,23 @@ class StatusManager {
 		// REST surface forwards it.
 		$is_revert = ! $is_agent_actor && ! empty( $options['agent_revert'] );
 
+		// A person confirming a stage agent's move that was held for soft
+		// warnings keeps the agent's summary as the move's comment unless they
+		// bring their own. Here rather than in one surface, so REST, the
+		// transition-post ability and MCP all keep it.
+		if ( ! $is_agent_actor && ! empty( $options['acknowledge_warnings'] ) && '' === trim( (string) ( $options['comment'] ?? '' ) ) ) {
+			$held = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
+			if (
+				is_array( $held )
+				&& 'warnings_pending' === ( $held['status'] ?? '' )
+				&& ( $held['stage_key'] ?? '' ) === $current_stage
+				&& ( $held['to_status'] ?? '' ) === $to_status
+				&& '' !== (string) ( $held['comment'] ?? '' )
+			) {
+				$options['comment'] = (string) $held['comment'];
+			}
+		}
+
 		// Validate transition is allowed in sequence.
 		if ( ! $is_revert && ! $sequence->is_transition_allowed( $current_stage, $to_status ) ) {
 			return new \WP_Error(
