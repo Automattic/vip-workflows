@@ -220,4 +220,61 @@ class TrackerTest extends TestCase
 
         $this->assertTrue( Tracker::is_available() );
     }
+
+    public function test_without_the_library_the_browser_gets_no_properties(): void
+    {
+        $this->assertNull( Tracker::get_client_properties() );
+    }
+
+    public function test_without_the_tracks_helpers_the_browser_gets_no_properties(): void
+    {
+        $this->assertFalse( function_exists( '\\Automattic\\VIP\\Telemetry\\Tracks\\get_base_properties_of_track_event' ), 'This test assumes the mu-plugin library is not loaded.' );
+        Tracker::set_telemetry( $this->telemetry() );
+
+        $this->assertNull( Tracker::get_client_properties() );
+    }
+
+    /**
+     * In its own process, because the Tracks helper it declares cannot be undone.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_the_browser_gets_the_library_base_properties_and_the_plugin_version(): void
+    {
+        if ( ! defined( 'VIP_WORKFLOWS_VERSION' ) ) {
+            define( 'VIP_WORKFLOWS_VERSION', '0.0.1' );
+        }
+        eval( 'namespace Automattic\\VIP\\Telemetry\\Tracks; function get_base_properties_of_track_event() { return array( "vip_env" => "production", "vip_org" => 42 ); } function get_base_properties_of_track_user() { return array( "_ui" => "abc", "_ut" => "vip:user_email", "plugin_version" => "stale" ); }' );
+        Tracker::set_telemetry( $this->telemetry() );
+
+        $this->assertSame(
+            array(
+                'vip_env'        => 'production',
+                'vip_org'        => 42,
+                '_ui'            => 'abc',
+                '_ut'            => 'vip:user_email',
+                'plugin_version' => VIP_WORKFLOWS_VERSION,
+            ),
+            Tracker::get_client_properties()
+        );
+    }
+
+    /**
+     * A library helper that throws yields no properties rather than breaking
+     * the admin screen it runs on.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_a_throwing_library_helper_gives_the_browser_no_properties(): void
+    {
+        if ( ! defined( 'VIP_WORKFLOWS_VERSION' ) ) {
+            define( 'VIP_WORKFLOWS_VERSION', '0.0.1' );
+        }
+        eval( 'namespace Automattic\\VIP\\Telemetry\\Tracks; function get_base_properties_of_track_event() { throw new \\Error( "Class not found" ); } function get_base_properties_of_track_user() { return array(); }' );
+        Tracker::set_telemetry( $this->telemetry() );
+
+        $this->assertNull( Tracker::get_client_properties() );
+    }
 }

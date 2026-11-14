@@ -23,6 +23,7 @@ import {
 } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
 import { __ } from '@wordpress/i18n';
+import { recordTracksEvent } from '../../../common/tracks';
 import { sanitizeMetadataKey } from '../../utils/metadata-keys';
 import InspectorFieldList, {
 	InspectorFieldListAdd,
@@ -104,7 +105,10 @@ export function MetadataFieldsAdd( { fields, onChange } ) {
 			addOptions={ [
 				{ label: __( 'Field', 'vip-workflows' ), value: 'field' },
 			] }
-			onAdd={ () => onChange( [ ...fields, createField() ] ) }
+			onAdd={ () => {
+				onChange( [ ...fields, createField() ] );
+				recordTracksEvent( 'sequence_metadata_field_added' );
+			} }
 			label={ __( 'Add field', 'vip-workflows' ) }
 		/>
 	);

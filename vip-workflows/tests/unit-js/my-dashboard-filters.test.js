@@ -26,6 +26,9 @@ import { render, waitFor, act, screen } from './helpers/render-wp-component';
 import apiFetch from '@wordpress/api-fetch';
 
 jest.mock( '@wordpress/api-fetch', () => jest.fn() );
+jest.mock( '../../src/common/tracks', () => ( {
+	recordTracksEvent: jest.fn(),
+} ) );
 
 const mockCaptured = { props: null };
 
@@ -66,6 +69,7 @@ import { MyWorkPage } from '../../src/admin/pages/MyWorkPage';
 import { MyQueuePage } from '../../src/admin/pages/MyQueuePage';
 import { MyIdeationPage } from '../../src/admin/pages/MyIdeationPage';
 import { adminGlobals } from './helpers/admin-globals';
+import { recordTracksEvent } from '../../src/common/tracks';
 
 const WORKFLOW_ROW = {
 	post_id: 1,
@@ -517,6 +521,24 @@ describe( 'My Work view persistence', () => {
 		expect( stored.groupBy ).toEqual( { field: 'author' } );
 	} );
 
+	it( 'records a grouping change once it is saved', async () => {
+		await fieldsOf( MyWorkPage, [ WORKFLOW_ROW ] );
+		recordTracksEvent.mockClear();
+
+		act( () => {
+			mockCaptured.props.onChangeView( {
+				...mockCaptured.props.view,
+				groupBy: { field: 'author' },
+			} );
+		} );
+
+		expect( recordTracksEvent ).toHaveBeenCalledTimes( 1 );
+		expect( recordTracksEvent ).toHaveBeenCalledWith(
+			'dashboard_grouping_changed',
+			{ group_by: 'author' }
+		);
+	} );
+
 	it( 'loads a previously persisted view on mount', async () => {
 		window.vipWorkflowsAdmin = adminGlobals();
 		window.localStorage.setItem(
@@ -567,6 +589,7 @@ describe( 'My Work view persistence', () => {
 	it( 'reports failed writes and preserves the saved view', async () => {
 		await fieldsOf( MyWorkPage, [ WORKFLOW_ROW ] );
 		const previousView = mockCaptured.props.view;
+		recordTracksEvent.mockClear();
 		window.localStorage.setItem(
 			'vip_workflows_my_work_view_42',
 			JSON.stringify( previousView )
@@ -589,6 +612,7 @@ describe( 'My Work view persistence', () => {
 				} )
 			).toBeInTheDocument();
 			expect( mockCaptured.props.view ).toEqual( previousView );
+			expect( recordTracksEvent ).not.toHaveBeenCalled();
 			expect(
 				JSON.parse(
 					window.localStorage.getItem(

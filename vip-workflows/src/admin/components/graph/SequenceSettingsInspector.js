@@ -24,6 +24,7 @@
 import { CheckboxControl, Spinner, ToggleControl } from '@wordpress/components';
 import { Stack } from '@wordpress/ui';
 import { __, sprintf, _n } from '@wordpress/i18n';
+import { recordTracksEvent } from '../../../common/tracks';
 import InspectorShell from './InspectorShell';
 import InspectorSection from './InspectorSection';
 import InspectorDangerZone from './InspectorDangerZone';
@@ -289,12 +290,15 @@ export default function SequenceSettingsInspector( {
 							'vip-workflows'
 						) }
 						checked={ settings?.allow_agent_publish === true }
-						onChange={ ( allow ) =>
+						onChange={ ( allow ) => {
 							onSettingsChange( {
 								...settings,
 								allow_agent_publish: allow,
-							} )
-						}
+							} );
+							recordTracksEvent( 'sequence_ai_publish_toggled', {
+								enabled: allow,
+							} );
+						} }
 					/>
 				</InspectorSection>
 

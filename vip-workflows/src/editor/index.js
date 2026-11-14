@@ -15,6 +15,7 @@ import { __ } from '@wordpress/i18n';
 
 import { STORE_NAME } from './store';
 import { refreshPostEntity } from './refresh-post-entity';
+import { usePanelToggleTracking } from './use-panel-toggle-tracking';
 import { WorkflowPanel } from './components/WorkflowPanel';
 import { WorkflowSaveGuard } from './components/WorkflowSaveGuard';
 import { TransitionFlow } from './components/TransitionFlow';
@@ -57,6 +58,8 @@ function WorkflowPlugin() {
 		}, [] );
 
 	const [ showModal, setShowModal ] = useState( showWorkflowModal );
+
+	usePanelToggleTracking();
 
 	const registry = useRegistry();
 	const { fetchWorkflowStatus } = useDispatch( STORE_NAME );

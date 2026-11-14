@@ -90,6 +90,7 @@ import {
 import { chevronDown, trash } from '@wordpress/icons';
 import { Stack, Text } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
+import { recordTracksEvent } from '../../../common/tracks';
 import { paletteOptions } from '../../utils/stage-palette';
 import { AgentRequirements } from '../../../common/AgentRequirements';
 import { Fact, InfoTip } from './InspectorFacts';
@@ -788,9 +789,15 @@ export default function StageInspector( {
 							// Routed through its own field rather than merged into
 							// `agent`: clearing it drops the whole agent, and the
 							// editor's mutation is what knows that.
-							onChange={ ( value ) =>
-								onChange( { agent_ability_id: value || '' } )
-							}
+							onChange={ ( value ) => {
+								onChange( { agent_ability_id: value || '' } );
+								if ( value && value !== abilityId ) {
+									recordTracksEvent(
+										'sequence_stage_agent_selected',
+										{ ability_id: value }
+									);
+								}
+							} }
 						/>
 					</div>
 					{ /* Travels with the picker: it explains the agent that was

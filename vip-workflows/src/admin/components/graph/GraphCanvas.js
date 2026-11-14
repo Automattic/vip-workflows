@@ -89,6 +89,7 @@ import { useInstanceId } from '@wordpress/compose';
 import { Icon, VisuallyHidden } from '@wordpress/ui';
 import { rotateLeft, plus, trash } from '@wordpress/icons';
 import { __, sprintf } from '@wordpress/i18n';
+import { recordTracksEvent } from '../../../common/tracks';
 import StageNode from './StageNode';
 import TerminalNode from './TerminalNode';
 import RegionNode from './RegionNode';
@@ -1825,6 +1826,9 @@ function Flow( {
 				onSelect: () => {
 					const key = onAddStage( menu.site.region );
 					placeDroppedStage( key, menu.site );
+					recordTracksEvent( 'sequence_stage_added', {
+						source: 'canvas_menu',
+					} );
 				},
 			} );
 		}

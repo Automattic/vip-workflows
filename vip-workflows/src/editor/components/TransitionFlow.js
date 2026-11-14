@@ -36,6 +36,7 @@ import { speak } from '@wordpress/a11y';
 import { __, sprintf } from '@wordpress/i18n';
 import { STORE_NAME } from '../store';
 import { useConfirm, CONFIRM_ALTERNATIVE } from '../../common/use-confirm';
+import { recordTracksEvent } from '../../common/tracks';
 import {
 	getAgentInterruptWarning,
 	getCoEditingRefusal,
@@ -806,6 +807,14 @@ export function TransitionFlow() {
 		if ( transition._locked ) {
 			return; // Button should be disabled, but just in case
 		}
+
+		recordTracksEvent( 'editor_transition_clicked', {
+			source: sourceRef.current,
+			to_agent_stage: Boolean(
+				transition.status_info?.agent?.ability_id
+			),
+			has_gate: ( transition.required_tools?.length ?? 0 ) > 0,
+		} );
 
 		consentRef.current = {};
 
