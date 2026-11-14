@@ -20,9 +20,7 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
 
-// eslint-disable-next-line import/first
 import { createReduxStore, register } from '@wordpress/data';
-// eslint-disable-next-line import/first
 import { applyFiltersAsync } from '@wordpress/hooks';
 
 register(
@@ -41,9 +39,7 @@ register(
 	} )
 );
 
-// eslint-disable-next-line import/first
 import { seedEditorStore } from './helpers/editor-store';
-// eslint-disable-next-line import/first
 import { WorkflowSaveGuard } from '../../src/editor/components/WorkflowSaveGuard';
 
 /**

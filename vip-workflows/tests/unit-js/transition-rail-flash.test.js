@@ -16,7 +16,6 @@ import { screen } from '@testing-library/react';
 
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
-// eslint-disable-next-line import/first
 import { TransitionRail } from '../../src/editor/components/TransitionRail';
 
 const AGENT_STAGE = {

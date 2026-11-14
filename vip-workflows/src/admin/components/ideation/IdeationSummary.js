@@ -109,11 +109,11 @@ export default function IdeationSummary( {
 					? __(
 							'No summary yet. Generate one from pinned sources.',
 							'vip-workflows'
-					  )
+						)
 					: __(
 							'Pin some sources first, then generate a summary.',
 							'vip-workflows'
-					  ) }
+						) }
 			</Text>
 		);
 	};

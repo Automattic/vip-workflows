@@ -171,12 +171,12 @@ export function SequencesList() {
 		const stale = hasTypes
 			? item.post_types.filter(
 					( pt ) => ! availablePostTypes.includes( pt )
-			  )
+				)
 			: [];
 		const validCount = hasTypes
 			? item.post_types.filter( ( pt ) =>
 					availablePostTypes.includes( pt )
-			  ).length
+				).length
 			: ( item.post_types || [] ).length;
 		const noValid = validCount === 0 && availablePostTypes.length > 0;
 
@@ -534,7 +534,7 @@ function ImportSequenceModal( { onClose, onSuccess, allSequences } ) {
 				setSequenceJson( json );
 				setName( uniqueImportName( json.name || '', allSequences ) );
 				setError( null );
-			} catch ( err ) {
+			} catch {
 				reject( __( 'Invalid JSON file.', 'vip-workflows' ) );
 			}
 		};

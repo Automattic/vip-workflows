@@ -147,13 +147,13 @@ async function auditCascade( page, opts = {} ) {
 				let href = '';
 				try {
 					href = sheet.href || '';
-				} catch ( e ) {
+				} catch {
 					href = '';
 				}
 				let cssRules;
 				try {
 					cssRules = sheet.cssRules;
-				} catch ( e ) {
+				} catch {
 					continue; // cross-origin sheet — not one of ours anyway
 				}
 				walk( cssRules, '', href );
@@ -211,7 +211,7 @@ async function auditCascade( page, opts = {} ) {
 					let matches = false;
 					try {
 						matches = el.matches( rule.sel );
-					} catch ( e ) {
+					} catch {
 						continue; // selector unsupported by .matches() — skip
 					}
 					if ( ! matches ) {

@@ -360,7 +360,7 @@ export function layoutSequence( nodes, edges, options = {} ) {
 					? {
 							...node,
 							position: { x: placement.x, y: placement.y },
-					  }
+						}
 					: node;
 			} ),
 			bands: {},

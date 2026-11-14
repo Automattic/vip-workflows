@@ -10,7 +10,6 @@
 // V8's own serializer is the same algorithm, so this is the real thing rather
 // than a JSON round-trip that would drop anything non-plain.
 if ( typeof global.structuredClone !== 'function' ) {
-	// eslint-disable-next-line @typescript-eslint/no-var-requires
 	const v8 = require( 'node:v8' );
 	global.structuredClone = ( value ) =>
 		v8.deserialize( v8.serialize( value ) );
@@ -293,7 +292,7 @@ const withPromote = () => [
 					...s,
 					is_terminal: false,
 					transitions: [ { to: 'promote', label: 'Promote' } ],
-			  }
+				}
 			: s
 	),
 	{
@@ -398,7 +397,7 @@ describe( 'a transition may target any stage, in any region', () => {
 							ability_id: 'test/reviewer',
 							routing: {},
 						},
-				  }
+					}
 				: s
 		);
 		const next = routeOutcome( input, 'review', 'pass', 'promote' );

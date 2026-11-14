@@ -94,7 +94,7 @@ function keyProblems( items, keyOf, isStarted ) {
 				? {
 						short: __( 'Needs a key', 'vip-workflows' ),
 						full: __( 'A key is required.', 'vip-workflows' ),
-				  }
+					}
 				: undefined;
 		}
 

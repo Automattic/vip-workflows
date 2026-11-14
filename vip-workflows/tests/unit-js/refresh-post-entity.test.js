@@ -16,7 +16,6 @@
 
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
 
-// eslint-disable-next-line import/first
 import { refreshPostEntity } from '../../src/editor/refresh-post-entity';
 
 /**

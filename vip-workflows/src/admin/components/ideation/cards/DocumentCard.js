@@ -438,11 +438,11 @@ export default function DocumentCard( {
 											? __(
 													'Regenerate',
 													'vip-workflows'
-											  )
+												)
 											: __(
 													'Analyze document',
 													'vip-workflows'
-											  ) }
+												) }
 									</Button>
 								)
 							) }

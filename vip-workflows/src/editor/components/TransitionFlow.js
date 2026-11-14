@@ -286,12 +286,12 @@ export function TransitionFlow() {
 						__( '%1$s finished. Moved to %2$s.', 'vip-workflows' ),
 						prev.current.label || '',
 						current.label || ''
-				  )
+					)
 				: sprintf(
 						/* translators: %s: the new stage's label. */
 						__( 'Moved to %s.', 'vip-workflows' ),
 						current.label || ''
-				  ),
+					),
 			'polite'
 		);
 	}, [ workflow, agentIsPending ] );
@@ -635,11 +635,11 @@ export function TransitionFlow() {
 							? __(
 									'Could not save the post before starting the AI stage. Try again.',
 									'vip-workflows'
-							  )
+								)
 							: __(
 									'Could not save the post before the transition. Try again.',
 									'vip-workflows'
-							  ),
+								),
 					};
 				}
 

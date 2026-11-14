@@ -125,7 +125,7 @@ function useAssignableUser( userId, refreshKey = 0 ) {
 				name: resolved.name,
 				missing: resolved.missing,
 				error: resolved.error,
-		  }
+			}
 		: { name: null, missing: false, error: false };
 }
 

@@ -516,7 +516,7 @@ export function AssistantCard( {
 									disabled={ configDisabled }
 								/>
 							</>
-					  ) }
+						) }
 			</Card.Content>
 		</Card.Root>
 	);

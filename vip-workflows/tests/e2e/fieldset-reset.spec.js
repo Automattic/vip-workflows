@@ -88,6 +88,8 @@ test.describe( 'fieldset shrink reset', () => {
 			'admin.php',
 			'page=vip-workflows-settings'
 		);
+		// Best-effort settle before reading computed styles; a timeout is ignored.
+		// eslint-disable-next-line playwright/no-networkidle
 		await page.waitForLoadState( 'networkidle' ).catch( () => {} );
 		await page
 			.locator( '.vip-workflows-admin-page fieldset' )
@@ -117,6 +119,8 @@ test.describe( 'fieldset shrink reset', () => {
 
 	test( 'portaled modal', async ( { admin, page } ) => {
 		await admin.visitAdminPage( 'admin.php', 'page=vip-workflows-tools' );
+		// Best-effort settle before reading computed styles; a timeout is ignored.
+		// eslint-disable-next-line playwright/no-networkidle
 		await page.waitForLoadState( 'networkidle' ).catch( () => {} );
 
 		const trigger = page.getByRole( 'button', {

@@ -163,7 +163,6 @@ export function evaluateStatusChange( {
  */
 export function getRegionLabel( region ) {
 	if ( ! REGION_ORDER.includes( region ) ) {
-		// eslint-disable-next-line no-console
 		console.error(
 			`VIP Workflows: "${ region }" is not an editorial region (expected draft, pending, private or publish).`
 		);
@@ -317,7 +316,7 @@ export function getTransitionWarningsMessage( warnings ) {
 		: __(
 				'This transition has unresolved warnings. Continue anyway?',
 				'vip-workflows'
-		  );
+			);
 }
 
 /**
@@ -540,11 +539,11 @@ function describeStatusChange( {
 						'vip-workflows'
 					),
 					goLiveStage
-			  )
+				)
 			: __(
 					'Scheduling this post leaves it at its current workflow stage, and it stays there when it goes live.',
 					'vip-workflows'
-			  );
+				);
 	}
 
 	const destination = reseatStageLabel( {
@@ -570,7 +569,7 @@ function describeStatusChange( {
 					),
 					from,
 					to
-			  )
+				)
 			: sprintf(
 					/* translators: 1: current editorial region, e.g. "Draft". 2: target editorial region, e.g. "Published". */
 					__(
@@ -579,7 +578,7 @@ function describeStatusChange( {
 					),
 					from,
 					to
-			  );
+				);
 	}
 
 	return sprintf(
@@ -616,7 +615,6 @@ export function getPublishVetoMessage( { title, workflowName, targetStatus } ) {
 	if ( ! targetStatus ) {
 		// The sentence names the direction of the refused change, and a missing
 		// status names none. Say so rather than quietly pick the generic one.
-		// eslint-disable-next-line no-console
 		console.error(
 			'VIP Workflows: the publish veto copy was asked for without the target status, so it cannot name the direction of the refused change.'
 		);

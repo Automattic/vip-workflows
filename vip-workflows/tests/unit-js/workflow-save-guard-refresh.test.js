@@ -30,9 +30,7 @@ jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
  */
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
 
-// eslint-disable-next-line import/first
 import { createReduxStore, register, dispatch, select } from '@wordpress/data';
-// eslint-disable-next-line import/first
 import { applyFiltersAsync } from '@wordpress/hooks';
 
 register(
@@ -61,9 +59,7 @@ register(
 	} )
 );
 
-// eslint-disable-next-line import/first
 import { seedEditorStore, STORE_NAME } from './helpers/editor-store';
-// eslint-disable-next-line import/first
 import { WorkflowSaveGuard } from '../../src/editor/components/WorkflowSaveGuard';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';

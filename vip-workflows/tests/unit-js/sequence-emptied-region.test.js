@@ -306,7 +306,7 @@ describe( 'moving the only stage out of a status group', () => {
 				? new Promise( ( resolve ) => {
 						respond = () =>
 							resolve( sequence( request.data.statuses ) );
-				  } )
+					} )
 				: defaultImpl( request )
 		);
 
@@ -344,7 +344,7 @@ describe( 'moving the only stage out of a status group', () => {
 				? new Promise( ( resolve ) => {
 						respond = () =>
 							resolve( sequence( request.data.statuses ) );
-				  } )
+					} )
 				: defaultImpl( request )
 		);
 
@@ -468,7 +468,7 @@ describe( 'a status group the author added', () => {
 				? new Promise( ( resolve ) => {
 						respond = () =>
 							resolve( sequence( request.data.statuses ) );
-				  } )
+					} )
 				: defaultImpl( request )
 		);
 		fireEvent.click( saveButton() );

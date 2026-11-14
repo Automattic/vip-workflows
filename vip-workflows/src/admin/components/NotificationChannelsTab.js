@@ -591,7 +591,7 @@ export function useNotificationSettings() {
 			? __(
 					'Delete this channel? The page reloads afterwards, which discards the unsaved changes on it.',
 					'vip-workflows'
-			  )
+				)
 			: __( 'Delete this channel?', 'vip-workflows' );
 
 		if (

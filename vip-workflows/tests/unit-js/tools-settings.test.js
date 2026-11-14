@@ -22,7 +22,6 @@ jest.mock( '@wordpress/api-fetch' );
 // needs the store's key to dispatch its success snackbar.
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 
-// eslint-disable-next-line import/first
 import Tools from '../../src/admin/pages/Tools';
 
 register(

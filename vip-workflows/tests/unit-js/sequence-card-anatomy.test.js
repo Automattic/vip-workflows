@@ -31,10 +31,8 @@ jest.mock( '@wordpress/dataviews/wp', () => require( '@wordpress/dataviews' ) );
 // raises, which nothing below provokes.
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 
-// eslint-disable-next-line import/first
 import { createReduxStore, register } from '@wordpress/data';
 
-// eslint-disable-next-line import/first
 import { SequencesList } from '../../src/admin/components/SequencesList';
 
 register(

@@ -54,7 +54,6 @@ export function useMentor( projectId, state, assistantsSettled ) {
 			} );
 			setMentorResult( result );
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.error( 'Editorial Mentor error:', err );
 			setMentorResult( {
 				status: 'failed',

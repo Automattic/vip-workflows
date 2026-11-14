@@ -34,7 +34,6 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/dataviews/wp', () => require( '@wordpress/dataviews' ) );
 
-// eslint-disable-next-line import/first
 import { SequencesList } from '../../src/admin/components/SequencesList';
 
 register(

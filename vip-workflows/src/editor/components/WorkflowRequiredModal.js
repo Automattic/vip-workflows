@@ -74,11 +74,11 @@ export function WorkflowRequiredModal( { postId, mode, onSelect, onSkip } ) {
 		? __(
 				'Your organization requires a workflow for new posts. Choose one to continue.',
 				'vip-workflows'
-		  )
+			)
 		: __(
 				'Your organization recommends a workflow for new posts. Choose one or skip.',
 				'vip-workflows'
-		  );
+			);
 
 	let body;
 	if ( loading ) {

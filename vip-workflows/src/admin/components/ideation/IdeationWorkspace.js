@@ -266,7 +266,6 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			setSummaryKeyPoints( data.key_points || [] );
 			return data;
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.error( 'Summary generation failed:', err );
 			createErrorNotice(
 				err.message ||
@@ -325,7 +324,6 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 					} ) );
 					onStateChange( freshState );
 				} catch ( err ) {
-					// eslint-disable-next-line no-console
 					console.error( `Assistant ${ assistantId } failed:`, err );
 					setInitialAssistants( ( prev ) => ( {
 						...prev,
@@ -341,7 +339,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 					path: `/vip-workflows/v1/ideation/${ state.project_id }`,
 				} );
 				onStateChange( finalState );
-			} catch ( e ) {
+			} catch {
 				/* ignore */
 			}
 		};
@@ -391,7 +389,6 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 					...prev,
 					[ assistantId ]: 'failed',
 				} ) );
-				// eslint-disable-next-line no-console
 				console.error( `Assistant ${ assistantId } failed:`, err );
 				throw err;
 			}
@@ -431,7 +428,6 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				[ SEED_ANALYST_ID ]: 'failed',
 			} ) );
 			await refreshState();
-			// eslint-disable-next-line no-console
 			console.error( 'Restarting the seed analysis failed:', err );
 			throw err;
 		}
@@ -456,7 +452,6 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 					setTimeout( runMentor, 1000 );
 				}
 			} catch ( err ) {
-				// eslint-disable-next-line no-console
 				console.error( 'Follow-up query failed:', err );
 				createErrorNotice(
 					err.message ||
@@ -494,7 +489,6 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				} );
 				await refreshState();
 			} catch ( err ) {
-				// eslint-disable-next-line no-console
 				console.error( 'Delete failed:', err );
 				createErrorNotice(
 					err.message ||
@@ -514,7 +508,6 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			} );
 			onBack();
 		} catch ( err ) {
-			// eslint-disable-next-line no-console
 			console.error( 'Delete project failed:', err );
 			createErrorNotice(
 				err.message ||
@@ -595,7 +588,6 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				window.location.href = result.edit_url;
 			} catch ( err ) {
 				setCreatingDraft( false );
-				// eslint-disable-next-line no-console
 				console.error( 'Create draft failed:', err );
 				createErrorNotice(
 					err.message ||
@@ -645,7 +637,6 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				} );
 				await refreshState();
 			} catch ( err ) {
-				// eslint-disable-next-line no-console
 				console.error( 'Retry failed:', err );
 				createErrorNotice(
 					err.message || __( 'Retry failed.', 'vip-workflows' ),
@@ -681,7 +672,6 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				} );
 				await refreshState();
 			} catch ( err ) {
-				// eslint-disable-next-line no-console
 				console.error( 'Image generation failed:', err );
 				createErrorNotice(
 					err.message ||

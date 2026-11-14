@@ -26,6 +26,8 @@ import './KanbanCard.css';
  * @param {boolean} props.isTransitioning Whether card is transitioning.
  * @return {JSX.Element} Kanban card.
  */
+// The inner name is what React DevTools shows for the memoized component.
+// eslint-disable-next-line no-shadow
 export const KanbanCard = memo( function KanbanCard( {
 	card,
 	isDragging,

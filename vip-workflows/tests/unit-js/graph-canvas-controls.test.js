@@ -116,7 +116,6 @@ function Canvas() {
 // frame for it.
 async function settle() {
 	for ( let i = 0; i < 3; i++ ) {
-		// eslint-disable-next-line no-await-in-loop
 		await act( async () => {
 			await new Promise( ( resolve ) => setTimeout( resolve, 20 ) );
 		} );

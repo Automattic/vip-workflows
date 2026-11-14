@@ -43,5 +43,5 @@ module.exports = {
 				stdout: 'pipe',
 				// A first boot pulls images and installs WordPress.
 				timeout: 300_000,
-		  },
+			},
 };

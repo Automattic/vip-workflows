@@ -392,11 +392,11 @@ export function WorkflowPanel() {
 						? __(
 								'Not in a workflow. Choose one in the Workflow row.',
 								'vip-workflows'
-						  )
+							)
 						: __(
 								'No workflow available for this post type.',
 								'vip-workflows'
-						  ) }
+							) }
 				</Text>
 				{ ideationSlot }
 			</Stack>

@@ -1120,7 +1120,7 @@ describe( 'endpointMoveVerdict', () => {
 				? {
 						...s,
 						agent: { ability_id: 'x', routing: { pass: 'review' } },
-				  }
+					}
 				: s
 		);
 		const rule = jest.fn( allowAll );
@@ -2308,7 +2308,7 @@ describe( 'copied assignments take a slot of their own', () => {
 							...t,
 							inputs: [ ASSIGNMENT ],
 						} ) ),
-				  }
+					}
 				: s
 		);
 
@@ -2517,7 +2517,7 @@ describe( 'validateSequence for AI stages', () => {
 								...s.transitions,
 								{ to: 'featured' },
 							],
-					  }
+						}
 					: s
 			),
 			{

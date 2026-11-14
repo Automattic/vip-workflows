@@ -29,7 +29,6 @@ jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 jest.mock( '@wordpress/core-data', () => ( { store: 'core' } ) );
 jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
 
-// eslint-disable-next-line import/first
 import {
 	REQUIRED_METADATA_LOCK,
 	getMissingRequiredMetadata,

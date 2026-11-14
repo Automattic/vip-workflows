@@ -61,7 +61,7 @@ export default function IdeationCard( {
 			? () => {
 					const { assistant, query } = buildSimilarQuery( card );
 					onFindSimilar( assistant, query );
-			  }
+				}
 			: undefined;
 
 	const commonProps = {

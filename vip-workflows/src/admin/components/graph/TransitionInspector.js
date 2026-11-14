@@ -291,7 +291,7 @@ export default function TransitionInspector( {
 				: __(
 						'Not set up. See Workflows → Notifications.',
 						'vip-workflows'
-				  ),
+					),
 		} ) );
 
 	const subtitle = `${ sourceLabel } → ${ targetLabel }`;
@@ -363,7 +363,7 @@ export default function TransitionInspector( {
 										'vip-workflows'
 									),
 									targetLabel
-							  )
+								)
 							: sprintf(
 									/* translators: %s: destination stage name. */
 									__(
@@ -371,7 +371,7 @@ export default function TransitionInspector( {
 										'vip-workflows'
 									),
 									targetLabel
-							  ) }
+								) }
 					</Notice>
 				) }
 				{ /* Two of the agent's outcomes leading to one destination are
@@ -554,11 +554,11 @@ export default function TransitionInspector( {
 								? __(
 										'No tools are available for transitions on this site.',
 										'vip-workflows'
-								  )
+									)
 								: __(
 										'No tools yet. Add one to check the post first.',
 										'vip-workflows'
-								  )
+									)
 						}
 					/>
 				</InspectorSection>
@@ -652,7 +652,7 @@ export default function TransitionInspector( {
 														? roles.filter(
 																( r ) =>
 																	r !== slug
-														  )
+															)
 														: [ ...roles, slug ],
 												},
 											} );

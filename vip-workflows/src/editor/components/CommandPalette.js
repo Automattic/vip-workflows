@@ -234,7 +234,7 @@ export function CommandPalette() {
 				registeredCommands.forEach( ( name ) => {
 					try {
 						unregisterCommand( name );
-					} catch ( e ) {
+					} catch {
 						// Ignore errors during cleanup.
 					}
 				} );

@@ -549,7 +549,7 @@ function Flow( {
 			// only ever get wider.
 			setFrozenWidth( ( current ) =>
 				current === null
-					? snapshot.bands[ regions[ 0 ] ]?.contentWidth ?? null
+					? ( snapshot.bands[ regions[ 0 ] ]?.contentWidth ?? null )
 					: current
 			);
 		},
@@ -673,7 +673,7 @@ function Flow( {
 				? {
 						...edge.data,
 						pillDescribedBy: pillDescription( edge ),
-				  }
+					}
 				: edge.data,
 			selected: edge.id === selectedEdgeId,
 			className: [
@@ -1478,7 +1478,7 @@ function Flow( {
 					? document.elementFromPoint(
 							pointer.clientX,
 							pointer.clientY
-					  )
+						)
 					: event.target;
 			const landedOn = target?.closest?.( '.react-flow__node' );
 			if (
@@ -1751,7 +1751,7 @@ function Flow( {
 									onDeleteEdge( stage.key, END_ID, null );
 									onSelectNode( stage.key );
 								},
-						  }
+							}
 						: {
 								id: 'set-terminal',
 								label: __(
@@ -1766,7 +1766,7 @@ function Flow( {
 									);
 									onSelectNode( stage.key );
 								},
-						  }
+							}
 				);
 			}
 
@@ -1794,7 +1794,7 @@ function Flow( {
 							id: 'clear-terminal',
 							label: __( 'Not a final stage', 'vip-workflows' ),
 							onSelect: () => onDeleteEdge( from, END_ID, null ),
-					  }
+						}
 					: {
 							id: 'delete-transition',
 							icon: trash,
@@ -1805,7 +1805,7 @@ function Flow( {
 								? __( 'Remove this route', 'vip-workflows' )
 								: __( 'Delete transition', 'vip-workflows' ),
 							onSelect: () => onDeleteEdge( from, to, outcome ),
-					  },
+						},
 			];
 			return {
 				label: __( 'Transition actions', 'vip-workflows' ),

@@ -492,7 +492,7 @@ function reducer( state = DEFAULT_STATE, action ) {
 					? {
 							...status.sequence,
 							statuses: status.all_statuses || [],
-					  }
+						}
 					: null,
 				currentStatus: status?.current || null,
 				transitions: status?.transitions || [],

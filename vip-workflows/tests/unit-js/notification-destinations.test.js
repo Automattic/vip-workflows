@@ -18,7 +18,6 @@ jest.mock( '@wordpress/api-fetch' );
 // test only needs the store's key to dispatch its success snackbars.
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 
-// eslint-disable-next-line import/first
 import { fetchChannelDestinations } from '../../src/admin/components/NotificationChannelsTab';
 
 const group = {

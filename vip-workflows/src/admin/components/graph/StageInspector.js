@@ -419,7 +419,7 @@ export default function StageInspector( {
 							/* translators: %s: agent name. */
 							__( '%s — setup needed', 'vip-workflows' ),
 							a.label
-					  )
+						)
 					: a.label,
 			value: a.id,
 		} ) );
@@ -530,13 +530,13 @@ export default function StageInspector( {
 					label,
 					value,
 					problem
-			  )
+				)
 			: sprintf(
 					/* translators: 1: the exit's label — the transition and its outcome (e.g. "Move to Published · on pass"), the transition's label, or the bare outcome ("On pass"). 2: where the exit goes, e.g. "Published", "Not routed" or "Published (disabled)". */
 					__( 'Select %1$s: %2$s', 'vip-workflows' ),
 					label,
 					value
-			  );
+				);
 	};
 
 	// A row's value column: where the exit goes, with its state appended rather
@@ -687,7 +687,7 @@ export default function StageInspector( {
 						'vip-workflows'
 					),
 					regionLabel( region )
-			  )
+				)
 			: '',
 	]
 		.filter( Boolean )
@@ -892,7 +892,7 @@ export default function StageInspector( {
 										target && claimedExits.has( target )
 											? transitions[
 													claimedExits.get( target )
-											  ]
+												]
 											: null;
 									const rowLabel = claimed
 										? routedOutcomeLabel(
@@ -901,7 +901,7 @@ export default function StageInspector( {
 													claimed,
 													nameTarget( target )
 												)
-										  )
+											)
 										: agentOutcomeLabel( outcome );
 									const disabled =
 										Boolean( claimed ) &&
@@ -943,7 +943,7 @@ export default function StageInspector( {
 													? selectExit(
 															target,
 															outcome
-													  )
+														)
 													: undefined
 											}
 											selectLabel={ exitSelectLabel(
@@ -1028,7 +1028,7 @@ export default function StageInspector( {
 															'vip-workflows'
 														),
 														label
-												  )
+													)
 												: label,
 											destination,
 											{ problem, disabled }
@@ -1129,11 +1129,11 @@ export default function StageInspector( {
 								? __(
 										'This key is already used by another stage.',
 										'vip-workflows'
-								  )
+									)
 								: __(
 										'Unique identifier for this stage.',
 										'vip-workflows'
-								  )
+									)
 						}
 					/>
 				</InspectorSection>
@@ -1148,7 +1148,7 @@ export default function StageInspector( {
 							: __(
 									'A sequence needs at least one stage.',
 									'vip-workflows'
-							  )
+								)
 					}
 				/>
 			</Stack>

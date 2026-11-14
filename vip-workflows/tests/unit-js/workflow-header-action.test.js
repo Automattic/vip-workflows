@@ -30,9 +30,7 @@ jest.mock( '@wordpress/edit-post', () => ( { store: 'core/edit-post' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
-// eslint-disable-next-line import/first
 import { createReduxStore, dispatch, register, select } from '@wordpress/data';
-// eslint-disable-next-line import/first
 import { SlotFillProvider, Slot } from '@wordpress/components';
 
 const NO_META = {};
@@ -130,7 +128,6 @@ register(
 	} )
 );
 
-/* eslint-disable import/first */
 import {
 	STORE_NAME,
 	seedEditorStore,
@@ -142,7 +139,6 @@ import {
 } from '../../src/editor/components/WorkflowHeaderAction';
 import { TransitionFlow } from '../../src/editor/components/TransitionFlow';
 import { PluginPrePublishPanel } from '@wordpress/editor';
-/* eslint-enable import/first */
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';
 const TRANSITION_PATH = '/vip-workflows/v1/workflow/post/42/transition';
@@ -1355,7 +1351,7 @@ describe( 'WorkflowHeaderAction', () => {
 									],
 									comment: '',
 								},
-						  } )
+							} )
 				)
 			);
 			setCoreEditor( { dirty: true } );

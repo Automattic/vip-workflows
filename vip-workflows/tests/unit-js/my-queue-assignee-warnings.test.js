@@ -35,9 +35,7 @@ jest.mock( '@wordpress/dataviews/wp', () => ( {
 	} ),
 } ) );
 
-/* eslint-disable import/first */
 import { MyQueuePage } from '../../src/admin/pages/MyQueuePage';
-/* eslint-enable import/first */
 
 const ROW = {
 	post_id: 5,

@@ -208,11 +208,11 @@ export default function StoryDiscovery( { onSelect, onNavigate } ) {
 																		? __(
 																				'Key event',
 																				'vip-workflows'
-																		  )
+																			)
 																		: __(
 																				'Top story',
 																				'vip-workflows'
-																		  ) }
+																			) }
 																</Badge>
 															) }
 													</Stack>

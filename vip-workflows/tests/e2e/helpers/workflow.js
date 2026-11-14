@@ -437,7 +437,7 @@ async function deleteSequence( requestUtils, sequenceId ) {
 			path: `/vip-workflows/v1/sequences/${ sequenceId }`,
 			method: 'DELETE',
 		} );
-	} catch ( e ) {
+	} catch {
 		// Leave the throwaway sequence behind rather than fail the run.
 	}
 }

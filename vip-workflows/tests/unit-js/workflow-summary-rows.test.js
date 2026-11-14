@@ -49,7 +49,6 @@ jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 jest.mock( '@wordpress/a11y', () => ( { speak: jest.fn() } ) );
 
-// eslint-disable-next-line import/first
 import { createReduxStore, dispatch, register, select } from '@wordpress/data';
 
 register(
@@ -82,9 +81,7 @@ register(
 	} )
 );
 
-// eslint-disable-next-line import/first
 import { STORE_NAME, seedEditorStore } from './helpers/editor-store';
-// eslint-disable-next-line import/first
 import { WorkflowSummaryRows } from '../../src/editor/components/WorkflowSummaryRows';
 
 const STATUS_PATH = '/vip-workflows/v1/workflow/post/42/status';

@@ -254,10 +254,10 @@ export function SchemaSettings( {
 															? parseInt(
 																	val,
 																	10
-															  ) || 0
+																) || 0
 															: parseFloat(
 																	val
-															  ) || 0
+																) || 0
 													)
 												}
 												min={ field.minimum }

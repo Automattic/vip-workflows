@@ -140,7 +140,6 @@ export function WorkflowSaveGuard() {
 				// but a failed request cannot tell us whether this even IS one —
 				// so let the save through and rely on the server-side veto,
 				// which is the authority either way.
-				// eslint-disable-next-line no-console
 				console.error(
 					'VIP Workflows: could not read the workflow status before saving; the server-side guard remains in force.'
 				);
@@ -163,7 +162,6 @@ export function WorkflowSaveGuard() {
 				// object. Its absence is a data-integrity condition, so say so
 				// loudly — and then fail CLOSED by evaluating with no region,
 				// the same answer the server predicate gives on corrupt data.
-				// eslint-disable-next-line no-console
 				console.error(
 					'VIP Workflows: the post status endpoint returned no guard payload for a workflow-managed post.'
 				);
@@ -206,7 +204,7 @@ export function WorkflowSaveGuard() {
 							title,
 							workflowName,
 							targetStatus: edits.status,
-					  } );
+						} );
 
 				restoreEditorStatus();
 

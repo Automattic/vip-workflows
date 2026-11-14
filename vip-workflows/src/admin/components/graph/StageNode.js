@@ -112,7 +112,7 @@ function StageNodeComponent( { id, data, selected } ) {
 					/* translators: %s: a fault that stops the sequence from saving. */
 					__( 'Blocks Save: %s', 'vip-workflows' ),
 					message
-			  )
+				)
 			: message
 	);
 	const flagTitle = flagLines.join( '\n' );
@@ -226,7 +226,7 @@ function StageNodeComponent( { id, data, selected } ) {
 											),
 											outcomeLabel,
 											target
-									  )
+										)
 									: sprintf(
 											/* translators: %s: outcome label (e.g. On pass) */
 											__(
@@ -234,7 +234,7 @@ function StageNodeComponent( { id, data, selected } ) {
 												'vip-workflows'
 											),
 											outcomeLabel
-									  )
+										)
 							}
 							className={ [
 								'wf-stage-node__handle',

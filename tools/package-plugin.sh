@@ -72,6 +72,8 @@ FORBIDDEN_OUTSIDE_VENDOR="
 /composer\\.json
 /composer\\.lock
 /\\.eslintrc
+/eslint\\.config\\.
+/jest\\.config\\.
 /\\.phpcs
 "
 

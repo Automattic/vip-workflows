@@ -134,7 +134,7 @@ test.describe( 'VIP Workflows — Ideation experiment gate', () => {
 			// Best-effort restore of the default (disabled) state for other specs.
 			try {
 				await setIdeationExperiment( requestUtils, false );
-			} catch ( e ) {
+			} catch {
 				// Ignore — nothing to restore if the toggle never flipped.
 			}
 		} );

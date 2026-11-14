@@ -457,8 +457,10 @@ function recordBaseline() {
 }
 
 // ── test (fast unit suites only) ───────────────────────────────────────────────
-function runUnit(label, bin, args, cwd) {
-	if (!existsSync(bin)) {
+// `probe` is the installed file whose absence means setup has not run; it
+// defaults to `bin`, and differs when the suite runs through a package script.
+function runUnit(label, bin, args, cwd, probe = bin) {
+	if (!existsSync(probe)) {
 		note(`⚠ test(${label}): dependencies missing — run \`npm run setup\`; skipped.`);
 		return true;
 	}
@@ -477,7 +479,8 @@ function runUnit(label, bin, args, cwd) {
  * Capability-probe a plugin's available unit suites. Config-driven so wiring up
  * an extension's tests never requires editing this file: PHP needs a
  * phpunit.xml.dist + installed phpunit (run via its `unit` suite); JS needs a
- * `test:unit:js` package script + installed wp-scripts.
+ * `test:unit:js` package script + installed wp-scripts, and runs that script,
+ * so the package decides which runner (Jest or Vitest) its suite uses.
  * @param want  {php, js} — which file types changed (so we only run relevant suites).
  */
 function pluginUnitSuites(plugin, want) {
@@ -488,7 +491,13 @@ function pluginUnitSuites(plugin, want) {
 		suites.push({ label: `${plugin} php`, bin: phpunit, args: ['--testsuite', 'unit'], cwd: dir });
 	}
 	if (want.js && jsonHasScript(join(dir, 'package.json'), 'test:unit:js') && existsSync(wpScripts(plugin))) {
-		suites.push({ label: `${plugin} js`, bin: wpScripts(plugin), args: ['test-unit-js'], cwd: dir });
+		suites.push({
+			label: `${plugin} js`,
+			bin: 'npm',
+			args: ['run', '--silent', 'test:unit:js'],
+			cwd: dir,
+			probe: wpScripts(plugin),
+		});
 	}
 	return suites;
 }
@@ -527,7 +536,7 @@ function test(mode, files) {
 		}
 		for (const s of suites) {
 			ranAny = true;
-			ok = runUnit(s.label, s.bin, s.args, s.cwd) && ok;
+			ok = runUnit(s.label, s.bin, s.args, s.cwd, s.probe) && ok;
 		}
 	}
 	if (ok && !ranAny) out('✓ test: nothing to run.');
@@ -740,7 +749,7 @@ const loupeMode = scope === 'changed' && files.length ? 'all' : mode;
 
 // Loudly surface any change to the gate's own rules — weakening a linter to pass
 // is legitimate sometimes, but it must never be silent. Not blocking; just seen.
-const RULE_FILES = /^(tools\/code-quality\/|.*\.phpcs\.xml\.dist$|.*\.eslintrc|.*\.stylelintrc)/;
+const RULE_FILES = /^(tools\/code-quality\/|.*\.phpcs\.xml\.dist$|.*\.eslintrc|(.*\/)?(eslint|jest|vitest)\.config\.[cm]?js$|.*\.stylelintrc)/;
 const touchedRules = files.filter((f) => [RULE_FILES, LOUPE_CONFIG].some((re) => re.test(f.split('\\').join('/'))));
 if (touchedRules.length) {
 	note('⚠ gate rules modified — human review required:');
