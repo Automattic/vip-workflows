@@ -27,7 +27,6 @@ jest.mock( '@wordpress/api-fetch', () =>
  */
 jest.mock( '@wordpress/notices', () => ( { store: 'core/notices' } ) );
 
-// eslint-disable-next-line import/first
 import { createReduxStore, register } from '@wordpress/data';
 
 const NOTICES = [
@@ -64,7 +63,6 @@ register(
 	} )
 );
 
-// eslint-disable-next-line import/first
 import AppShell from '../../src/admin/components/AppShell';
 
 describe( 'AppShell notice region', () => {
