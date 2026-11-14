@@ -1895,7 +1895,7 @@ export default function SequenceGraphEditor( {
 					recordTracksEvent( 'sequence_stage_added', {
 						source: 'stage_list',
 					} );
-			  },
+				},
 		stages,
 		onStagesChange: setStages,
 		onRemoveStage: handleDeleteStage,
