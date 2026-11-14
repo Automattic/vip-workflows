@@ -41,6 +41,10 @@ namespace WordPress\AiClient {
             public static ?string $lastSystemInstruction = null;
             /** @var float|null Timeout from the last usingRequestOptions() call, or null when unset. */
             public static ?float $lastRequestTimeout = null;
+            /** @var bool Whether the last chain called asJsonResponse(). */
+            public static bool $lastJsonResponse = false;
+            /** @var array|null Schema from the last asJsonResponse() call, or null when none was passed. */
+            public static ?array $lastJsonSchema = null;
 
             public static function isConfigured( string $provider ): bool
             {
@@ -56,6 +60,8 @@ namespace WordPress\AiClient {
                 self::$lastTemperature       = null;
                 self::$lastSystemInstruction = null;
                 self::$lastRequestTimeout    = null;
+                self::$lastJsonResponse      = false;
+                self::$lastJsonSchema        = null;
 
                 return new self();
             }
@@ -96,8 +102,10 @@ namespace WordPress\AiClient {
                 return $this;
             }
 
-            public function asJsonResponse(): self
+            public function asJsonResponse( ?array $schema = null ): self
             {
+                self::$lastJsonResponse = true;
+                self::$lastJsonSchema   = $schema;
                 return $this;
             }
 

@@ -1,6 +1,9 @@
 <?php
 /**
- * Unit tests for copy-edit and tag-sanity-check stage agent plugins.
+ * Unit tests for the tag-sanity-check stage agent plugin.
+ *
+ * Copy-edit's own tests moved to CopyEditAgentTest when it adopted the
+ * structured reply and the change guard.
  *
  * Originally covered Fact Check too, alongside its own note-annotation
  * scaffolding (block-comment notes: writing, resolving, re-anchoring,
@@ -23,7 +26,7 @@ use WordPress\AiClient\AiClient;
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/agents/class-stage-agent.php';
 
 /**
- * Covers WorkflowAgentCopyEdit\execute() and WorkflowAgentTagSanityCheck\execute().
+ * Covers WorkflowAgentTagSanityCheck\execute().
  */
 class StageAgentsBatchTest extends TestCase
 {
@@ -34,7 +37,6 @@ class StageAgentsBatchTest extends TestCase
         // generate() applies a per-user AI rate ceiling; cron context is exempt.
         Functions\when( 'wp_doing_cron' )->justReturn( true );
 
-        require_once dirname( __DIR__, 4 ) . '/workflow-agent-copy-edit/workflow-agent-copy-edit.php';
         require_once dirname( __DIR__, 4 ) . '/workflow-agent-tag-sanity-check/workflow-agent-tag-sanity-check.php';
 
         Functions\when( 'current_user_can' )->justReturn( true );
@@ -75,75 +77,6 @@ class StageAgentsBatchTest extends TestCase
     {
         AiClient::$throwMessage = null;
         parent::tearDown();
-    }
-
-    // --- copy-edit -----------------------------------------------------------
-
-    public function test_copy_edit_clean_passes_without_write(): void
-    {
-        AiClient::$generatedText = 'stage-pass-token';
-        Functions\expect( 'wp_update_post' )->never();
-
-        $result = \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
-
-        $this->assertSame( 'pass', $result['status'] );
-    }
-
-    public function test_copy_edit_writes_edited_body(): void
-    {
-        AiClient::$generatedText = '<p>Edited body.</p>';
-        $captured = null;
-        Functions\expect( 'wp_update_post' )
-            ->once()
-            ->andReturnUsing(
-                function ( $postarr ) use ( &$captured ) {
-                    $captured = $postarr;
-                    return 5;
-                }
-            );
-
-        $result = \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
-
-        $this->assertSame( 'pass', $result['status'] );
-        $this->assertSame( '<p>Edited body.</p>', $captured['post_content'] );
-    }
-
-    public function test_copy_edit_reject_fails(): void
-    {
-        AiClient::$generatedText = 'REJECT';
-        Functions\expect( 'wp_update_post' )->never();
-
-        $result = \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
-
-        $this->assertSame( 'fail', $result['status'] );
-    }
-
-    public function test_copy_edit_decorated_clean_sentinel_passes_without_write(): void
-    {
-        AiClient::$generatedText = 'stage-pass-token.';
-        Functions\expect( 'wp_update_post' )->never();
-
-        $result = \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
-
-        $this->assertSame( 'pass', $result['status'] );
-    }
-
-    public function test_copy_edit_implausibly_short_rewrite_errors_without_write(): void
-    {
-        Functions\when( 'get_post' )->justReturn(
-            (object) array(
-                'ID'           => 5,
-                'post_title'   => 'A Story',
-                'post_content' => '<p>' . str_repeat( 'A long substantial paragraph. ', 40 ) . '</p>',
-            )
-        );
-        AiClient::$generatedText = '<p>Nearly the whole article was truncated away.</p>';
-        Functions\expect( 'wp_update_post' )->never();
-
-        $result = \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
-
-        $this->assertInstanceOf( 'WP_Error', $result );
-        $this->assertSame( 'implausible_rewrite', $result->get_error_code() );
     }
 
     // --- tag sanity check --------------------------------------------------
