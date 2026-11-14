@@ -240,7 +240,7 @@
    the shared <ToolFailuresModal>. */
 
 /* Failure notice. A plain surface, not a Stack: its title, error line and
-   Go back button sit at three different distances. */
+   actions (Run again, Go back) sit at three different distances. */
 .vip-workflows-panel__agent-failed {
 	padding: var(--wpds-dimension-padding-md);
 	/* wpds-allow R3 -- sets this notice apart from the panel rows above and below, on top of the panel Stack's uniform gap. */
@@ -258,7 +258,7 @@
 }
 
 .vip-workflows-panel__agent-failed-error {
-	/* wpds-allow R3 -- distance to the Go back button below; the notice is a plain surface, not a Stack (see above). */
+	/* wpds-allow R3 -- distance to the actions below; the notice is a plain surface, not a Stack (see above). */
 	margin: 0 0 0.5rem;
 	/* The <Text variant="body-sm"> on this element cannot deliver its own size
 	   here: the editor bundle has no counterpart to the `revert-layer` reset in

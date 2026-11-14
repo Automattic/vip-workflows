@@ -475,6 +475,218 @@ describe( 'WorkflowHeaderAction', () => {
 		).toBeInTheDocument();
 	} );
 
+	/**
+	 * When the failed run can run again, that is the header's action: the post
+	 * stays at its stage and a fresh run starts, instead of a trip back.
+	 */
+	it( 'offers Run again when the failed stage agent can run again', async () => {
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				can_rerun: true,
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		await renderHeader( failed );
+
+		apiFetch.mockImplementation( ( { path } ) =>
+			Promise.resolve(
+				path.endsWith( '/agent-rerun' )
+					? statusResponse( {
+							transitions: [],
+							agent_pending: true,
+							agent_job: { status: 'pending', error: '' },
+						} )
+					: failed
+			)
+		);
+
+		expect(
+			screen.queryByRole( 'button', { name: 'Go back to Draft' } )
+		).toBeNull();
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Run again' } )
+			).click();
+		} );
+
+		expect( apiFetch ).toHaveBeenCalledWith( {
+			path: '/vip-workflows/v1/workflow/post/42/agent-rerun',
+			method: 'POST',
+		} );
+		expect( apiFetch ).not.toHaveBeenCalledWith(
+			expect.objectContaining( {
+				path: expect.stringMatching( /agent-revert$/ ),
+			} )
+		);
+
+		// The run is now pending. The header keeps its button, busy, rather
+		// than dropping it until the outcome arrives.
+		const working = await screen.findByRole( 'button', {
+			name: 'Agent working',
+		} );
+		expect( working ).toHaveClass( 'is-busy' );
+		expect( working ).toHaveAttribute( 'aria-disabled', 'true' );
+	} );
+
+	/**
+	 * Run again refused (another person ran it first): the header reports the
+	 * server's reason, and re-reads the post so it shows what the post is
+	 * doing now rather than a Run again that can no longer succeed.
+	 */
+	it( 'reports a refused Run again and re-reads the post', async () => {
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				can_rerun: true,
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		const runningNow = statusResponse( {
+			transitions: [],
+			agent_pending: true,
+			agent_job: { status: 'pending', error: '' },
+		} );
+		await renderHeader( failed );
+
+		let refused = false;
+		apiFetch.mockImplementation( ( { path } ) => {
+			if ( path.endsWith( '/agent-rerun' ) ) {
+				refused = true;
+				return Promise.reject( {
+					code: 'agent_rerun_conflict',
+					message:
+						'This agent run changed while you were starting it. Reload the post to see where it is now.',
+				} );
+			}
+			return Promise.resolve(
+				path === STATUS_PATH && refused ? runningNow : failed
+			);
+		} );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Run again' } )
+			).click();
+		} );
+
+		await waitFor( () =>
+			expect( createErrorNotice ).toHaveBeenCalledWith(
+				'This agent run changed while you were starting it. Reload the post to see where it is now.',
+				expect.anything()
+			)
+		);
+		expect(
+			await screen.findByRole( 'button', { name: 'Agent working' } )
+		).toBeInTheDocument();
+	} );
+
+	/**
+	 * The agent reads the stored post, so Run again saves the author's
+	 * unsaved edits first — as a move into an AI stage does — and only then
+	 * asks the server to run it.
+	 */
+	it( 'saves unsaved edits before running the agent again', async () => {
+		setCoreEditor( { dirty: true } );
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				can_rerun: true,
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		await renderHeader( failed );
+
+		const order = [];
+		savePost.mockImplementationOnce( () => ( { dispatch: editor } ) => {
+			order.push( 'save' );
+			editor.setCoreEditor( { dirty: false } );
+		} );
+		apiFetch.mockImplementation( ( { path } ) => {
+			if ( path.endsWith( '/agent-rerun' ) ) {
+				order.push( 'rerun' );
+				return Promise.resolve(
+					statusResponse( {
+						transitions: [],
+						agent_pending: true,
+						agent_job: { status: 'pending', error: '' },
+					} )
+				);
+			}
+			return Promise.resolve( failed );
+		} );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Run again' } )
+			).click();
+		} );
+
+		await waitFor( () => expect( order ).toEqual( [ 'save', 'rerun' ] ) );
+	} );
+
+	it( 'does not run the agent again when the save fails', async () => {
+		setCoreEditor( { dirty: true } );
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				can_rerun: true,
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		await renderHeader( failed );
+
+		savePost.mockImplementationOnce( () => ( { dispatch: editor } ) => {
+			editor.setCoreEditor( { saveFailed: true } );
+		} );
+		const reruns = [];
+		apiFetch.mockImplementation( ( { path } ) => {
+			if ( path.endsWith( '/agent-rerun' ) ) {
+				reruns.push( path );
+			}
+			return Promise.resolve( failed );
+		} );
+
+		await act( async () => {
+			(
+				await screen.findByRole( 'button', { name: 'Run again' } )
+			).click();
+		} );
+
+		await waitFor( () =>
+			expect( createErrorNotice ).toHaveBeenCalledWith(
+				'Could not save the post before running the agent again. Try again.',
+				expect.anything()
+			)
+		);
+		expect( reruns ).toHaveLength( 0 );
+	} );
+
+	it( 'stays on screen, busy, while a stage agent runs', async () => {
+		await renderHeader(
+			statusResponse( {
+				transitions: [],
+				agent_pending: true,
+				agent_job: { status: 'pending', error: '' },
+			} )
+		);
+
+		const working = await screen.findByRole( 'button', {
+			name: 'Agent working',
+		} );
+		expect( working ).toHaveClass( 'is-busy' );
+		expect( working ).toHaveAttribute( 'aria-disabled', 'true' );
+	} );
+
 	it( 'asks before a primary transition that publishes', async () => {
 		await renderHeader(
 			statusResponse( { transitions: [ TO_LIVE, TO_REVIEW ] } )

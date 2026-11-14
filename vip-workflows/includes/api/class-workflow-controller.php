@@ -147,6 +147,27 @@ class WorkflowController extends WP_REST_Controller {
 			)
 		);
 
+		// POST /workflow/post/{id}/agent-rerun - Run a post's failed stage agent
+		// again, in place, as the person asking.
+		register_rest_route(
+			$this->namespace,
+			'/' . $this->rest_base . '/post/(?P<id>[\d]+)/agent-rerun',
+			array(
+				array(
+					'methods'             => WP_REST_Server::CREATABLE,
+					'callback'            => array( $this, 'rerun_agent_stage' ),
+					'permission_callback' => array( $this, 'transition_permissions_check' ),
+					'args'                => array(
+						'id' => array(
+							'description' => 'Post ID.',
+							'type'        => 'integer',
+							'required'    => true,
+						),
+					),
+				),
+			)
+		);
+
 		// GET /workflow/post/{id}/history - Get transition history.
 		//
 		// Gated on `edit_post` for this post (get_post_status_permissions_check),
@@ -744,8 +765,16 @@ class WorkflowController extends WP_REST_Controller {
 			$status_manager = Plugin::get_instance()->get_status_manager();
 			$revert_stage   = $status_manager->get_agent_revert_stage( $post_id );
 
+			// Run again in place (rerun_agent_stage()). This method is only
+			// reached for the current stage's job, so the other conditions
+			// StageAgentRunner::rerun() holds are that the stage still has an
+			// agent and that the sequence's role rules let this person in.
+			$sequence           = $status_manager->get_sequence_for_post( $post_id );
+			$stage_config       = $sequence ? $sequence->get_status( $stage ) : null;
+			$state['can_rerun'] = ! empty( $stage_config['agent']['ability_id'] )
+				&& \VIPWorkflows\Workflow\StageAgentRunner::user_can_rerun( $sequence, $stage, (string) ( $job['from_stage'] ?? '' ), get_current_user_id() );
+
 			if ( null !== $revert_stage ) {
-				$sequence      = $status_manager->get_sequence_for_post( $post_id );
 				$revert_config = $sequence ? $sequence->get_status( $revert_stage ) : null;
 
 				$state['revert_to'] = array(
@@ -788,9 +817,8 @@ class WorkflowController extends WP_REST_Controller {
 	/**
 	 * Return a post whose stage agent failed in place to the stage it came from.
 	 *
-	 * The failed state's one action. Going forward again through the AI stage is
-	 * how a run is retried — entry re-dispatches the agent — so there is no
-	 * separate re-run.
+	 * The way out of a failed AI stage when the agent should not simply run
+	 * again. Retrying in place is rerun_agent_stage().
 	 *
 	 * @param  WP_REST_Request $request Request object.
 	 * @return WP_REST_Response|WP_Error
@@ -815,6 +843,37 @@ class WorkflowController extends WP_REST_Controller {
 		$response->set_data( $data );
 
 		return $response;
+	}
+
+	/**
+	 * Run a post's failed stage agent again, in place.
+	 *
+	 * The run is started by the person asking, so it acts as them when they can
+	 * edit the post (StageAgentRunner::resolve_run_as_user()). That is what lets
+	 * a re-run fix a failure the previous identity could not get past.
+	 *
+	 * @param  WP_REST_Request $request Request object.
+	 * @return WP_REST_Response|WP_Error
+	 */
+	public function rerun_agent_stage( $request ) {
+		$post_id = (int) $request->get_param( 'id' );
+
+		$sequence = Plugin::get_instance()->get_status_manager()->get_sequence_for_post( $post_id );
+		$runner   = Plugin::get_instance()->get_module( 'stage-agent-runner' );
+		if ( ! $sequence || ! $runner instanceof \VIPWorkflows\Workflow\StageAgentRunner ) {
+			return new WP_Error(
+				'no_agent_rerun',
+				__( 'This post has no failed AI agent to run again.', 'vip-workflows' ),
+				array( 'status' => 409 )
+			);
+		}
+
+		$result = $runner->rerun( $post_id, $sequence );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		return $this->get_post_status( $request );
 	}
 
 	/**

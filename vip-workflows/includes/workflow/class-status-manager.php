@@ -250,9 +250,10 @@ class StatusManager {
 	 *
 	 * Human intervention resets the agent-loop guard, exactly as a human
 	 * transition into an AI stage does — going back and forward again IS the
-	 * re-run. The failed marker is cleared compare-and-delete after the move, so
-	 * a job the origin stage's own dispatch just queued (the origin can itself
-	 * be an AI stage) is never touched.
+	 * re-run. The failed marker is taken by compare-and-swap before the move, so
+	 * Go back and Run again can't both win, and a job the origin stage's own
+	 * dispatch queues during the move (the origin can itself be an AI stage) is
+	 * never touched.
 	 *
 	 * @param  int $post_id Post ID.
 	 * @return bool|array|\WP_Error True on success, transition()'s warnings array
@@ -268,18 +269,41 @@ class StatusManager {
 			);
 		}
 
+		// Take the failed marker before moving anything, by swapping it for a
+		// `reverting` one. Run again replaces the same failed marker by
+		// compare-and-swap, so of the two racing, exactly one wins and the
+		// other is refused: a Go back that loses must not move the post, or it
+		// would leave it at the origin with a pending run queued for the stage
+		// it just left. Swapped rather than deleted, so a late run event that
+		// fires during the move still finds a resolved marker and doesn't run.
 		$failed_job = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
+		$reverting  = is_array( $failed_job ) ? array_merge( $failed_job, array( 'status' => 'reverting' ) ) : array();
+		if (
+			! is_array( $failed_job )
+			|| 'failed' !== ( $failed_job['status'] ?? '' )
+			|| ! StageAgentRunner::take_job_marker( $post_id, $failed_job, $reverting )
+		) {
+			return new \WP_Error(
+				'agent_revert_conflict',
+				__( 'This agent run changed while you were going back. Reload the post to see where it is now.', 'vip-workflows' ),
+				array( 'status' => 409 )
+			);
+		}
 
 		delete_post_meta( $post_id, StageAgentRunner::CHAIN_META );
 
 		$result = $this->transition( $post_id, $revert_to, array( 'agent_revert' => true ) );
 		if ( true !== $result ) {
+			// The move didn't happen (refused, or held for soft warnings), so
+			// put the failed state back, unless something else has written a
+			// marker since.
+			StageAgentRunner::take_job_marker( $post_id, $reverting, $failed_job );
 			return $result;
 		}
 
-		if ( is_array( $failed_job ) ) {
-			delete_post_meta( $post_id, StageAgentRunner::JOB_META, $failed_job );
-		}
+		// Clear it, unless the move's own dispatch (the origin can itself be an
+		// AI stage) has already written a new marker over it.
+		StageAgentRunner::take_job_marker( $post_id, $reverting );
 
 		return true;
 	}
