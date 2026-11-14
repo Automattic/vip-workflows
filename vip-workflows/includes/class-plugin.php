@@ -13,6 +13,7 @@ use VIPWorkflows\API\RestController;
 use VIPWorkflows\Automation\EventBus;
 use VIPWorkflows\Automation\EventRegistry;
 use VIPWorkflows\Admin\Admin;
+use VIPWorkflows\AiWorkspace\AIWorkspace;
 use VIPWorkflows\Editor\EditorIntegration;
 use VIPWorkflows\Workflow\AgentRunner;
 use VIPWorkflows\Workflow\StageAgentRunner;
@@ -204,6 +205,7 @@ final class Plugin {
 		$this->register_module( new AgentRunner() );
 		$this->register_module( new StageAgentRunner() );
 		$this->register_module( new NotificationDispatcher() );
+		$this->register_module( new AIWorkspace() );
 
 		if ( is_admin() ) {
 			$this->register_module( new Admin() );

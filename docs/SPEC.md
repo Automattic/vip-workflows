@@ -84,7 +84,7 @@ For these teams, Workflows is about approvals. The question each story answers i
 **M4. A research blog replaces custom statuses and email chains.** A team whose process was Draft → Design Review → Editorial Approval → Author Sign-off → Scheduled models it one stage per step. Transitions send email or Slack messages to configured recipients, and everyone can see live status in WordPress instead of in a separate tracker.
 *Always true:* notifications are sent after a move commits. A failing channel never blocks or rolls back a move. → [Notifications](#notifications)
 
-**M5. A team sets up a workflow by describing it.** Someone connected over MCP describes their process in plain language (for example, an eight-stage approval flow), and an agent creates the sequence through the `create-sequence` ability. The sequence is active by default, or saved as a draft for review when the caller asks.
+**M5. A team sets up a workflow by describing it.** Someone connected over MCP describes their process in plain language (for example, an eight-stage approval flow), and an agent creates the sequence through the `create-sequence` ability. The sequence is active by default, or saved as a draft for review when the caller asks. In the WordPress AI plugin's AI Workspace, the agent can only propose the sequence: the person sees its stages on an approval card, and approving creates it as a draft.
 *Always true:* sequences created over MCP or REST go through the same validation as the sequence editor. The sequence schema is the contract. → [Sequences and stages](#sequences-and-stages), [REST and Abilities](#rest-and-abilities)
 
 ### Admins and developers
@@ -344,6 +344,7 @@ Audit-log rows are limited to the user's own actions unless their role is in `au
 | Ability id | Does | Permission callback |
 | --- | --- | --- |
 | `vip-workflows/create-sequence`, `import-sequence`, `update-sequence`, `activate-sequence`, `validate-sequence` | Author and activate sequences (import creates a draft; update is a full replace) | `manage_options`; MCP public |
+| `vip-workflows/propose-sequence` | Store a proposed sequence on an AI Workspace approval card; approval creates it as a draft. Registered only while the WordPress AI plugin's `Proposal_Kind` interface exists, and refused outside an AI Workspace turn | `manage_options`, re-checked at approval; not in REST or MCP |
 | `vip-workflows/transition-post` | Move a post along its sequence, through the same gate as REST | `edit_posts`, then `edit_post` in execute; MCP public |
 | `vip-workflows/remove-from-workflow` | Clear a post's sequence (audited), leaving its status | `edit_posts`, then `edit_post`; MCP public |
 | `vip-workflows/update-post-fields` | Change title, excerpt, date or author (an author change needs `edit_others_posts`) | `edit_posts`, then `edit_post`; MCP public |
@@ -714,6 +715,8 @@ flowchart LR
 - **Required metadata doesn't hold back a status change from outside the workflow.** A scheduled post going live, or a Quick Edit to Published, reseats the post with required fields still empty.
 - **Only the editor makes new posts join a workflow.** Posts created over REST, WP-CLI or Quick Draft have no workflow until someone assigns one.
 - **Phase transitions follow different rules from workflow transitions.** They don't consult the bypass list or the tool-check bypass list, and unacknowledged soft warnings return a 422 `tool_check_warnings` error instead of the 200 `warnings_pending` response workflow transitions use.
+- **A sequence created as a draft is active for a moment.** `create_item()` inserts the row as `active` and then sets `draft` in a second write, so a failure between the two leaves an active sequence. This covers `create-sequence` with `status: draft` and AI Workspace approvals.
+- **The AI Workspace proposal kind follows an internal interface.** The WordPress AI plugin marks `Proposal_Kind` internal, so a change there can break `SequenceProposal` without notice. The module checks the interface exists, not its shape.
 - **A Story's status changes only twice.** It is set on create (`ideation` or `editorial`) and on Create Draft (`ideation` → `editorial`). Nothing moves a Story to `published`, `monitoring` or `refresh`.
 
 **Code**
@@ -728,6 +731,7 @@ flowchart LR
 - `vip-workflows/includes/class-plugin.php`: `Plugin::register_metadata_fields()` registers `config.metadata_fields` (types `text`, `textarea`, `select`, `date`, `user`) as `wf_meta_{sequence_id}_{key}`, `show_in_rest`, `auth_callback` = `edit_post`; `required` fields.
 - `vip-workflows/includes/api/class-sequences-controller.php`: `SequencesController::create_item()` and `update_item()`, which run `validate_metadata_fields()`, `validate_status_agents()`, `validate_assignment_keys()` and `build_config()`. Routes `GET /sequences/{id}/export` (returns `name`, `type`, `description`, `config`) and `POST /sequences/import`.
 - `vip-workflows/includes/abilities/tools/`: abilities `create-sequence`, `update-sequence`, `import-sequence` (build a `WP_REST_Request`), `activate-sequence`, `validate-sequence`.
+- `vip-workflows/includes/ai-workspace/`: the AI Workspace integration. `AIWorkspace` adds the `workflow` kind on the AI plugin's `wpai_workspace_proposal_kinds` filter. `SequenceProposal` validates through `validate-sequence` and creates through `create-sequence`. `ProposeSequence` registers `vip-workflows/propose-sequence`.
 - Phase sequence (`type: 'phase'`): transition fields `label`, `required_tools`, `allowed_roles`, `notifications`; seeded as `content-lifecycle` by `IdeationExperiment::activate()` (`vip-workflows/includes/experiments/class-ideation-experiment.php`) → `Seeder::seed_phase_sequence()` (`vip-workflows/includes/database/class-seeder.php`); checked in `IdeationController::create_draft()` and `check_phase_transition()` (`vip-workflows/includes/api/class-ideation-controller.php`).
 - Settings not consulted by phase transitions: `bypass_workflow_roles`, `bypass_tool_check_roles`. Phase error `tool_check_warnings`.
 - Sequence statuses mentioned: `draft`, `archived`. Story statuses: `ideation`, `editorial`, `published`, `monitoring`, `refresh`.

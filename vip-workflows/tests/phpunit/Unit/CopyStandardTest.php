@@ -56,6 +56,10 @@ class CopyStandardTest extends PHPUnitTestCase
         'Override get_settings_schema() to define fields',
         // `_doing_it_wrong()` notices, written for the plugin developer.
         'The permission_callback for ability',
+        // The AI Workspace propose ability and kind, written for the model.
+        'Records one proposed editorial workflow',
+        'Nothing has been created. The person now sees',
+        'When the person asks you to design or set up',
         // REST schema descriptions, read by API clients.
         'Serialized availability.',
         'Inputs collected when this transition is taken.',
