@@ -693,11 +693,11 @@ export function TransitionFlow() {
 				? __(
 						'Could not save the post before starting the AI stage. Try again.',
 						'vip-workflows'
-				  )
+					)
 				: __(
 						'Could not save the post before the transition. Try again.',
 						'vip-workflows'
-				  )
+					)
 		)
 			.then( () => {
 				return apiFetch( {

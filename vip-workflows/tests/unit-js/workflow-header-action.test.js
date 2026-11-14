@@ -498,7 +498,7 @@ describe( 'WorkflowHeaderAction', () => {
 							transitions: [],
 							agent_pending: true,
 							agent_job: { status: 'pending', error: '' },
-					  } )
+						} )
 					: failed
 			)
 		);
