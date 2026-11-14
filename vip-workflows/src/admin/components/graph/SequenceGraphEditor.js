@@ -471,6 +471,21 @@ export default function SequenceGraphEditor( {
 	// status again by hand. Saving makes what was stored the new reference,
 	// which is when an emptied group stops being drawn (see `keptRegions`).
 	const [ savedStages, setSavedStages ] = useState( blank.stages );
+	// How many posts sit at each stored stage, keyed by stage key, from the
+	// load and each save. The server refuses a save that removes or re-keys an
+	// occupied stage, so the editor locks those stages up front rather than
+	// letting the author build a save that will be refused. Empty (nothing
+	// locked) for a new sequence, a phase sequence, or when the count failed;
+	// the server's own check still holds in every case.
+	const [ stagePostCounts, setStagePostCounts ] = useState( {} );
+	// Every post holding the sequence, the set the server refuses a delete
+	// over. Null until read, and when the count failed: nothing is locked
+	// then, and the server's own check still holds.
+	const [ postCount, setPostCount ] = useState( null );
+	const stagePostCount = useCallback(
+		( key ) => Number( stagePostCounts?.[ key ] ) || 0,
+		[ stagePostCounts ]
+	);
 	// Status-region groups the author added from the canvas. Kept for the rest
 	// of this editing session, saves included, until removed: an empty group
 	// is editing state, not sequence data, so it isn't saved, and reopening
@@ -745,6 +760,8 @@ export default function SequenceGraphEditor( {
 			.then( ( response ) => {
 				const fields = seedFromSequence( response );
 				setSavedStages( fields.stages );
+				setStagePostCounts( response.stage_post_counts || {} );
+				setPostCount( response.post_count ?? null );
 
 				if ( isPhase ) {
 					setSavedSnapshot( serializeSequence( isPhase, fields ) );
@@ -1293,6 +1310,16 @@ export default function SequenceGraphEditor( {
 		if ( agentAbilityId !== undefined ) {
 			next = setStageAgent( next, key, agentAbilityId );
 		}
+		// A stage posts sit at keeps its key: the posts are filed under it,
+		// and the save would be refused. The Key field is read-only for such
+		// a stage; this covers any other path.
+		if (
+			rest.key !== undefined &&
+			rest.key !== key &&
+			stagePostCount( key ) > 0
+		) {
+			delete rest.key;
+		}
 		if ( Object.keys( rest ).length > 0 ) {
 			const merged = updateStage( next, key, rest );
 			if ( merged === next && rest.key !== undefined ) {
@@ -1315,6 +1342,12 @@ export default function SequenceGraphEditor( {
 		// Phase stages are fixed — the lifecycle needs both of them (see
 		// PhaseStageInspector) — so nothing may delete them.
 		if ( isPhase ) {
+			return;
+		}
+		// Nor a stage posts sit at: the save would be refused. The inspector,
+		// the canvas menu and the Stages list all disable their delete for
+		// one, but React Flow's keyboard delete reaches here regardless.
+		if ( stagePostCount( key ) > 0 ) {
 			return;
 		}
 		// A sequence needs at least one stage. The inspector's Delete button is
@@ -1704,6 +1737,10 @@ export default function SequenceGraphEditor( {
 			// and one emptied while the write was out is still drawn because
 			// the stored stages still use it.
 			setSavedStages( fields.stages );
+			if ( response.stage_post_counts !== undefined ) {
+				setStagePostCounts( response.stage_post_counts || {} );
+				setPostCount( response.post_count ?? null );
+			}
 			// A removal only means something while the stored stages use the
 			// group. One made before the write went out, of a group the stored
 			// stages use again, was undone by refilling it, so it is dropped
@@ -1725,6 +1762,11 @@ export default function SequenceGraphEditor( {
 	};
 
 	const handleDelete = async () => {
+		// The button is disabled for a sequence posts hold; this covers any
+		// other way in.
+		if ( postCount > 0 ) {
+			return;
+		}
 		if (
 			! ( await confirm(
 				__(
@@ -1884,6 +1926,7 @@ export default function SequenceGraphEditor( {
 		stages,
 		onStagesChange: setStages,
 		onRemoveStage: handleDeleteStage,
+		stagePostCount,
 		regions,
 		addableRegions,
 		onAddRegion: handleAddRegion,
@@ -1894,6 +1937,7 @@ export default function SequenceGraphEditor( {
 		// moment it is first saved.
 		isNew: ! savedId,
 		onDelete: handleDelete,
+		postCount,
 		deleting,
 	};
 
@@ -2049,6 +2093,7 @@ export default function SequenceGraphEditor( {
 						onClearSelection={ clearSelection }
 						onDeleteNode={ handleDeleteStage }
 						onDeleteEdge={ handleDeleteTransition }
+						stagePostCount={ stagePostCount }
 						onAddStage={ isPhase ? undefined : handleAddStage }
 						requiredTransitions={ requiredPhaseTransitions }
 						onAddStageFromNode={
@@ -2090,6 +2135,7 @@ export default function SequenceGraphEditor( {
 						availableChannels={ availableChannels }
 						onUpdateStage={ handleUpdateStage }
 						onDeleteStage={ handleDeleteStage }
+						stagePostCount={ stagePostCount }
 						onUpdateTransition={ handleUpdateTransition }
 						onDeleteTransition={ handleDeleteTransition }
 						onConnectTransition={ handleConnect }

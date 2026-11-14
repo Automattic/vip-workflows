@@ -88,7 +88,7 @@ import {
 import { useInstanceId } from '@wordpress/compose';
 import { Icon, VisuallyHidden } from '@wordpress/ui';
 import { rotateLeft, plus, trash } from '@wordpress/icons';
-import { __, sprintf } from '@wordpress/i18n';
+import { __, _n, sprintf } from '@wordpress/i18n';
 import StageNode from './StageNode';
 import TerminalNode from './TerminalNode';
 import RegionNode from './RegionNode';
@@ -125,6 +125,10 @@ import EdgeOverlay from './EdgeOverlay';
 import EdgeAnchors from './EdgeAnchors';
 import { revealNodeIds, revealViewport } from './canvas-reveal';
 import { regionLabel, stageRegion } from './regions';
+
+// The default for `stagePostCount`: one stable function, so the graph memo
+// that depends on it isn't rebuilt on every render.
+const NO_POSTS = () => 0;
 
 // Note: React Flow's base stylesheet (`@xyflow/react/dist/style.css`) is imported
 // from the admin entry (`src/admin/index.js`), not here. Its filename matches
@@ -380,6 +384,9 @@ function Flow( {
 	onClearSelection,
 	onDeleteNode,
 	onDeleteEdge,
+	// ( key ) => number of posts at that stored stage; a stage with any can't
+	// be deleted (see `stagePostCounts` in SequenceGraphEditor).
+	stagePostCount = NO_POSTS,
 	onAddStage,
 	// The hand-offs a phase sequence owes, from `/sequences/options`. Read
 	// through the same `isRequiredHandOff` the delete handler is guarded with,
@@ -426,8 +433,14 @@ function Flow( {
 	// anything the canvas *draws* changes — a label being typed in the
 	// inspector, a colour, a stage count.
 	const graph = useMemo(
-		() => buildGraph( stages, { isPhase, regions, allowAgentPublish } ),
-		[ stages, isPhase, regions, allowAgentPublish ]
+		() =>
+			buildGraph( stages, {
+				isPhase,
+				regions,
+				allowAgentPublish,
+				isStageLocked: ( key ) => stagePostCount( key ) > 0,
+			} ),
+		[ stages, isPhase, regions, allowAgentPublish, stagePostCount ]
 	);
 
 	// What the dagre pass actually reads out of that projection: which nodes
@@ -486,6 +499,11 @@ function Flow( {
 				const positioned = laidOut.get( node.id );
 				return {
 					...positioned,
+					// Whether a stage is locked is a projection fact, not a
+					// layout one: `placed` is keyed on `layoutKey`, which a
+					// change in post counts doesn't move, so the laid-out copy
+					// would keep the lock the stage had at the last layout.
+					deletable: node.deletable,
 					// `layout.js` adds to a node's data (a band's slot offsets)
 					// rather than replacing it, so the fresh data goes on top.
 					data: { ...positioned.data, ...node.data },
@@ -1770,13 +1788,27 @@ function Flow( {
 				);
 			}
 
+			const postCount = stagePostCount( stage.key );
 			items.push( {
 				id: 'delete-stage',
 				icon: trash,
-				label: __( 'Delete stage', 'vip-workflows' ),
-				// The same floor the inspector's delete keeps: a sequence needs
-				// somewhere for content to be.
-				disabled: stages.length <= 1,
+				// A menu item has nowhere to put a reason, so an occupied
+				// stage says it in the label; the inspector says the rest.
+				label: postCount
+					? sprintf(
+							/* translators: %d: number of posts at this stage. */
+							_n(
+								'Delete stage (%d post here)',
+								'Delete stage (%d posts here)',
+								postCount,
+								'vip-workflows'
+							),
+							postCount
+						)
+					: __( 'Delete stage', 'vip-workflows' ),
+				// The same floors the inspector's delete keeps: a sequence needs
+				// somewhere for content to be, and posts need their stage.
+				disabled: stages.length <= 1 || postCount > 0,
 				onSelect: () => onDeleteNode( stage.key ),
 			} );
 
@@ -1867,6 +1899,7 @@ function Flow( {
 		onDeleteEdge,
 		onDeleteNode,
 		onSelectNode,
+		stagePostCount,
 	] );
 
 	return (

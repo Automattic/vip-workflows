@@ -60,10 +60,15 @@ export default function SequenceSettingsInspector( {
 	isNew,
 	onDelete,
 	deleting,
+	// Posts holding the sequence; any at all lock its delete (the server
+	// refuses it). Null when unknown, which locks nothing.
+	postCount = null,
 	onAddStage,
 	stages,
 	onStagesChange,
 	onRemoveStage,
+	// ( key ) => posts at that stored stage; those stages can't be removed.
+	stagePostCount = () => 0,
 	regions,
 	addableRegions,
 	onAddRegion,
@@ -198,6 +203,9 @@ export default function SequenceSettingsInspector( {
 								'Remove stage',
 								'vip-workflows'
 							) }
+							canRemove={ ( stage ) =>
+								stagePostCount( stage.key ) === 0
+							}
 							emptyLabel={ __(
 								'No stages yet. Add one to start.',
 								'vip-workflows'
@@ -325,6 +333,21 @@ export default function SequenceSettingsInspector( {
 						label={ __( 'Delete sequence', 'vip-workflows' ) }
 						onClick={ onDelete }
 						busy={ deleting }
+						disabled={ postCount > 0 }
+						description={
+							postCount > 0
+								? sprintf(
+										/* translators: %d: number of posts in this sequence. */
+										_n(
+											'%d post is in this sequence. Remove it from the workflow first.',
+											'%d posts are in this sequence. Remove them from the workflow first.',
+											postCount,
+											'vip-workflows'
+										),
+										postCount
+									)
+								: undefined
+						}
 					/>
 				) }
 			</Stack>

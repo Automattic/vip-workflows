@@ -161,16 +161,18 @@ const PHASES = [
 /**
  * Render the canvas with spies for every callback it hands back up.
  *
- * @param {Object}  options          Options.
- * @param {Array}   options.stages   Stages to draw.
- * @param {boolean} options.isPhase  Whether the sequence is a phase sequence.
- * @param {Array}   options.required Hand-offs a phase sequence owes.
+ * @param {Object}  options            Options.
+ * @param {Array}   options.stages     Stages to draw.
+ * @param {boolean} options.isPhase    Whether the sequence is a phase sequence.
+ * @param {Array}   options.required   Hand-offs a phase sequence owes.
+ * @param {Object}  options.postCounts Posts at each stage, by key.
  * @return {Object} The spies, and the render's container.
  */
 async function renderCanvas( {
 	stages = STAGES,
 	isPhase = false,
 	required = [],
+	postCounts = {},
 } = {} ) {
 	const spies = {
 		onConnectTransition: jest.fn(),
@@ -192,21 +194,24 @@ async function renderCanvas( {
 	const addableRegions = REGION_ORDER.filter(
 		( region ) => ! regions.includes( region )
 	);
-	const { container } = render(
+	const canvas = ( counts, selectedNodeKey = null ) => (
 		<GraphCanvas
 			stages={ stages }
 			isPhase={ isPhase }
 			warnings={ {} }
 			regions={ regions }
 			addableRegions={ addableRegions }
-			selectedNodeKey={ null }
+			selectedNodeKey={ selectedNodeKey }
 			selectedEdgeId={ null }
 			selectedRegion={ null }
 			requiredTransitions={ required }
 			isValidConnection={ () => true }
+			stagePostCount={ ( key ) => counts[ key ] || 0 }
 			{ ...spies }
 		/>
 	);
+	const view = render( canvas( postCounts ) );
+	const { container } = view;
 	await settle();
 	// The canvas centers itself on the next frame, and a viewport move closes
 	// the menu. Let that frame pass first, or a menu opened before it is
@@ -215,7 +220,13 @@ async function renderCanvas( {
 		await new Promise( ( resolve ) => requestAnimationFrame( resolve ) );
 	} );
 	await settle();
-	return { ...spies, container };
+	// New counts with the same stages, as a save's response delivers them:
+	// nothing structural changes, so the canvas keeps its cached layout.
+	const recount = async ( counts, selectedNodeKey ) => {
+		view.rerender( canvas( counts, selectedNodeKey ) );
+		await settle();
+	};
+	return { ...spies, container, recount };
 }
 
 // React Flow measures and lays out across a few ticks.
@@ -333,6 +344,47 @@ describe( 'Stage context menu', () => {
 		await choose( menu, 'Delete stage' );
 
 		expect( onDeleteNode ).toHaveBeenCalledWith( 'writing' );
+	} );
+
+	it( 'will not delete a stage posts sit at, and says how many', async () => {
+		const { container, onDeleteNode } = await renderCanvas( {
+			postCounts: { writing: 3 },
+		} );
+
+		const menu = await openContextMenu( stageCard( container, 'writing' ) );
+		const remove = within( menu ).getByRole( 'menuitem', {
+			name: 'Delete stage (3 posts here)',
+		} );
+
+		expect( remove ).toBeDisabled();
+		fireEvent.click( remove );
+		expect( onDeleteNode ).not.toHaveBeenCalled();
+	} );
+
+	describe( 'keyboard delete after the counts change', () => {
+		// The control: with no posts, Backspace on the selected stage deletes
+		// it, so the next test's silence isn't the harness doing nothing.
+		it( 'deletes an empty selected stage', async () => {
+			const { onDeleteNode, recount } = await renderCanvas();
+			await recount( {}, 'writing' );
+
+			fireEvent.keyDown( document.body, { key: 'Backspace' } );
+			await settle();
+
+			expect( onDeleteNode ).toHaveBeenCalledWith( 'writing' );
+		} );
+
+		it( 'leaves a stage that gained posts, and its transitions, alone', async () => {
+			const { onDeleteNode, onDeleteEdge, recount } =
+				await renderCanvas();
+			await recount( { writing: 2 }, 'writing' );
+
+			fireEvent.keyDown( document.body, { key: 'Backspace' } );
+			await settle();
+
+			expect( onDeleteNode ).not.toHaveBeenCalled();
+			expect( onDeleteEdge ).not.toHaveBeenCalled();
+		} );
 	} );
 
 	it( 'will not delete the last stage', async () => {
