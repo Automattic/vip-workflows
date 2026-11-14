@@ -1141,16 +1141,16 @@ export default function StageInspector( {
 											'vip-workflows'
 										),
 										postCount
-								  )
+									)
 								: keyCollides
-								? __(
-										'This key is already used by another stage.',
-										'vip-workflows'
-									)
-								: __(
-										'Unique identifier for this stage.',
-										'vip-workflows'
-									)
+									? __(
+											'This key is already used by another stage.',
+											'vip-workflows'
+										)
+									: __(
+											'Unique identifier for this stage.',
+											'vip-workflows'
+										)
 						}
 					/>
 				</InspectorSection>
@@ -1171,13 +1171,13 @@ export default function StageInspector( {
 										'vip-workflows'
 									),
 									postCount
-							  )
-							: canDelete
-							? undefined
-							: __(
-									'A sequence needs at least one stage.',
-									'vip-workflows'
 								)
+							: canDelete
+								? undefined
+								: __(
+										'A sequence needs at least one stage.',
+										'vip-workflows'
+									)
 					}
 				/>
 			</Stack>

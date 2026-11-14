@@ -1804,7 +1804,7 @@ function Flow( {
 								'vip-workflows'
 							),
 							postCount
-					  )
+						)
 					: __( 'Delete stage', 'vip-workflows' ),
 				// The same floors the inspector's delete keeps: a sequence needs
 				// somewhere for content to be, and posts need their stage.

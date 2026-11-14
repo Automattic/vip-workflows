@@ -345,7 +345,7 @@ export default function SequenceSettingsInspector( {
 											'vip-workflows'
 										),
 										postCount
-								  )
+									)
 								: undefined
 						}
 					/>
