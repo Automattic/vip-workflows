@@ -44,8 +44,11 @@ class SequencesControllerTest extends TestCase
         // Mock global $wpdb.
         global $wpdb;
         $this->wpdb         = Mockery::mock( 'wpdb' );
-        $this->wpdb->prefix = 'wp_';
-        $wpdb               = $this->wpdb;
+        $this->wpdb->prefix     = 'wp_';
+        $this->wpdb->posts      = 'wp_posts';
+        $this->wpdb->postmeta   = 'wp_postmeta';
+        $this->wpdb->last_error = '';
+        $wpdb                   = $this->wpdb;
 
         $this->controller = new SequencesController();
     }
@@ -337,6 +340,7 @@ class SequencesControllerTest extends TestCase
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->allow_held_post_counts( array() );
 
         $request  = $this->create_mock_request( array( 'id' => 5 ) );
         $response = $this->controller->get_item( $request );
@@ -346,6 +350,67 @@ class SequencesControllerTest extends TestCase
         $data = $response->get_data();
         $this->assertSame( 5, $data['id'] );
         $this->assertSame( 'Test Sequence', $data['name'] );
+        $this->assertSame( array(), (array) $data['stage_post_counts'] );
+        $this->assertSame( 0, $data['post_count'] );
+    }
+
+    /**
+     * A failed count leaves stage_post_counts null rather than failing the read:
+     * the editor then locks nothing, and the save's own check still holds.
+     */
+    public function test_get_item_still_answers_when_the_post_count_fails(): void
+    {
+        $row = $this->create_sequence_row( array( 'id' => 5 ) );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->allow_held_post_counts( null );
+
+        $response = $this->controller->get_item( $this->create_mock_request( array( 'id' => 5 ) ) );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertNull( $response->get_data()['stage_post_counts'] );
+        $this->assertNull( $response->get_data()['post_count'] );
+    }
+
+    /**
+     * The counts span every author's posts, trash and auto-drafts included, so
+     * only people who can write the sequence get them.
+     */
+    public function test_get_item_leaves_the_counts_out_below_manage_options(): void
+    {
+        $row = $this->create_sequence_row( array( 'id' => 5 ) );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->wpdb->shouldReceive( 'get_results' )->never();
+        Functions\when( 'current_user_can' )->justReturn( false );
+
+        $data = $this->controller->get_item( $this->create_mock_request( array( 'id' => 5 ) ) )->get_data();
+
+        $this->assertArrayNotHasKey( 'post_count', $data );
+        $this->assertArrayNotHasKey( 'stage_post_counts', $data );
+    }
+
+    /**
+     * Let the response read the held-post counts as a user who may see them.
+     *
+     * @param array|null $rows Rows the count query returns, or null for a failed query.
+     */
+    private function allow_held_post_counts( ?array $rows ): void
+    {
+        Functions\when( 'current_user_can' )->justReturn( true );
+        Functions\when( 'wp_cache_get_last_changed' )->justReturn( '1' );
+        Functions\when( 'wp_cache_get' )->justReturn( false );
+        Functions\when( 'wp_cache_set' )->justReturn( true );
+        $this->wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+            function () use ( $rows ) {
+                if ( null === $rows ) {
+                    $this->wpdb->last_error = 'Lost connection';
+                }
+                return $rows;
+            }
+        );
     }
 
     /**
@@ -413,6 +478,8 @@ class SequencesControllerTest extends TestCase
         $row = $this->create_sequence_row( array( 'id' => 3 ) );
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        // Nobody holds the sequence, so the strand check lets the write through.
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
         $this->wpdb->shouldReceive( 'delete' )->once()->andReturn( 1 );
 
@@ -449,6 +516,8 @@ class SequencesControllerTest extends TestCase
         $row = $this->create_sequence_row();
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        // Nobody holds the sequence, so the strand check lets the write through.
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
         $this->wpdb->shouldReceive( 'delete' )->once()->andReturn( false );
 
@@ -457,6 +526,89 @@ class SequencesControllerTest extends TestCase
 
         $this->assertInstanceOf( 'WP_Error', $response );
         $this->assertSame( 'rest_sequence_delete_failed', $response->get_error_code() );
+    }
+
+    /**
+     * Test delete_item refuses with a 409 while posts still hold the sequence.
+     */
+    public function test_delete_item_refuses_while_posts_hold_the_sequence(): void
+    {
+        $row = $this->create_sequence_row( array( 'id' => 3 ) );
+
+        Functions\when( '_n' )->alias( fn( $single, $plural, $n ) => 1 === $n ? $single : $plural );
+        Functions\when( 'get_edit_post_link' )->alias( fn( $id ) => 'https://example.test/wp-admin/post.php?post=' . $id . '&action=edit' );
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '2' );
+        $this->wpdb->shouldReceive( 'get_results' )->andReturn(
+            array(
+                (object) array( 'id' => 11, 'title' => 'First', 'status' => 'draft', 'stage' => 'review' ),
+                (object) array( 'id' => 12, 'title' => 'Second', 'status' => 'trash', 'stage' => 'draft' ),
+            )
+        );
+        $this->wpdb->shouldNotReceive( 'delete' );
+
+        $request  = $this->create_mock_request( array( 'id' => 3 ) );
+        $response = $this->controller->delete_item( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_would_strand_posts', $response->get_error_code() );
+
+        $data = $response->get_error_data();
+        $this->assertSame( 409, $data['status'] );
+        $this->assertSame( 2, $data['total'] );
+        $this->assertSame( array(), $data['stages'] );
+        $this->assertSame( array( 11, 12 ), array_column( $data['posts'], 'id' ) );
+        $this->assertStringContainsString( 'post=11', $data['posts'][0]['edit_link'] );
+    }
+
+    /**
+     * Test delete_item refuses, writing nothing, when the strand check cannot read posts.
+     */
+    public function test_delete_item_refuses_when_the_strand_check_fails(): void
+    {
+        $row = $this->create_sequence_row( array( 'id' => 3 ) );
+
+        $this->wpdb->last_error = 'Lost connection';
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( null );
+        $this->wpdb->shouldNotReceive( 'delete' );
+
+        $request  = $this->create_mock_request( array( 'id' => 3 ) );
+        $response = $this->controller->delete_item( $request );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_strand_check_failed', $response->get_error_code() );
+    }
+
+    /**
+     * Test delete_item refuses when the post-list query fails.
+     *
+     * On an SQL error get_results() answers an empty array, not null, so the
+     * failure is only visible in last_error.
+     */
+    public function test_delete_item_refuses_when_the_post_list_query_fails(): void
+    {
+        $row  = $this->create_sequence_row( array( 'id' => 3 ) );
+        $wpdb = $this->wpdb;
+
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $row );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '1' );
+        $this->wpdb->shouldReceive( 'get_results' )->andReturnUsing(
+            function () use ( $wpdb ) {
+                $wpdb->last_error = 'Lost connection';
+                return array();
+            }
+        );
+        $this->wpdb->shouldNotReceive( 'delete' );
+
+        $response = $this->controller->delete_item( $this->create_mock_request( array( 'id' => 3 ) ) );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_strand_check_failed', $response->get_error_code() );
     }
 
     // =========================================================================
@@ -965,6 +1117,9 @@ class SequencesControllerTest extends TestCase
         );
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        // Nobody holds the sequence, so the strand check lets the write through.
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
+        $this->allow_held_post_counts( array() );
         // First call finds existing, second call returns updated.
         $this->wpdb->shouldReceive( 'get_row' )
             ->andReturn( $existing_row, $updated_row );
@@ -989,6 +1144,78 @@ class SequencesControllerTest extends TestCase
     }
 
     /**
+     * Send an update that drops the default row's `review` stage, with the
+     * strand check's queries answered by the given callbacks.
+     *
+     * @param callable $get_var     Answers the count query.
+     * @param callable $get_results Answers the post-list query.
+     * @return mixed The controller's response.
+     */
+    private function update_dropping_review( callable $get_var, callable $get_results )
+    {
+        $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        $this->wpdb->shouldReceive( 'get_row' )->andReturn( $this->create_sequence_row( array( 'id' => 5 ) ) );
+        $this->wpdb->shouldReceive( 'get_var' )->andReturnUsing( $get_var );
+        $this->wpdb->shouldReceive( 'get_results' )->andReturnUsing( $get_results );
+        $this->wpdb->shouldNotReceive( 'update' );
+
+        Functions\when( 'sanitize_textarea_field' )->alias( fn( $v ) => $v );
+        Functions\when( 'sanitize_hex_color' )->alias( fn( $v ) => $v );
+
+        return $this->controller->update_item(
+            $this->create_mock_request(
+                array(
+                    'id'       => 5,
+                    'name'     => 'Updated Name',
+                    'statuses' => array( array( 'key' => 'draft', 'label' => 'Draft' ) ),
+                )
+            )
+        );
+    }
+
+    /**
+     * Test update_item refuses, writing nothing, when the strand count query fails.
+     */
+    public function test_update_item_refuses_when_the_strand_count_query_fails(): void
+    {
+        $wpdb = $this->wpdb;
+
+        $response = $this->update_dropping_review(
+            function () use ( $wpdb ) {
+                $wpdb->last_error = 'Lost connection';
+                return null;
+            },
+            fn() => array()
+        );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_strand_check_failed', $response->get_error_code() );
+        $this->assertSame( 500, $response->get_error_data()['status'] );
+    }
+
+    /**
+     * Test update_item refuses, writing nothing, when the post-list query fails.
+     *
+     * On an SQL error get_results() answers an empty array, not null.
+     */
+    public function test_update_item_refuses_when_the_post_list_query_fails(): void
+    {
+        $wpdb = $this->wpdb;
+
+        $response = $this->update_dropping_review(
+            fn() => '1',
+            function () use ( $wpdb ) {
+                $wpdb->last_error = 'Lost connection';
+                return array();
+            }
+        );
+
+        $this->assertInstanceOf( 'WP_Error', $response );
+        $this->assertSame( 'rest_sequence_strand_check_failed', $response->get_error_code() );
+        $this->assertSame( 500, $response->get_error_data()['status'] );
+    }
+
+    /**
      * Test update_item handles failure.
      */
     public function test_update_item_handles_failure(): void
@@ -996,6 +1223,8 @@ class SequencesControllerTest extends TestCase
         $existing_row = $this->create_sequence_row();
 
         $this->wpdb->shouldReceive( 'prepare' )->andReturn( 'query' );
+        // Nobody holds the sequence, so the strand check lets the write through.
+        $this->wpdb->shouldReceive( 'get_var' )->andReturn( '0' );
         $this->wpdb->shouldReceive( 'get_row' )->andReturn( $existing_row );
         $this->wpdb->shouldReceive( 'update' )->once()->andReturn( false );
 

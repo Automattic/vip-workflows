@@ -242,4 +242,100 @@ class StageQueryIntegrationTest extends TestCase
 
 		$this->assertSame( 1, $counts['review'], 'Trashed workflow posts are not counted.' );
 	}
+
+	public function test_posts_holding_sequence_narrows_to_the_given_stages(): void
+	{
+		$first  = $this->make_post( 'review' );
+		$second = $this->make_post( 'review' );
+		$third  = $this->make_post( 'review' );
+		$this->make_post( 'draft' );
+
+		$result = StageQuery::posts_holding_sequence( $this->sequence->id, array( 'review' ) );
+
+		$this->assertSame( 3, $result['total'] );
+		$this->assertSame( array( $first, $second, $third ), array_column( $result['posts'], 'id' ) );
+		$this->assertSame( array( 'review' ), array_values( array_unique( array_column( $result['posts'], 'stage' ) ) ) );
+	}
+
+	public function test_posts_holding_sequence_without_stages_counts_every_stage(): void
+	{
+		$this->make_post( 'draft' );
+		$this->make_post( 'review' );
+		$this->make_post( 'publish', 'publish' );
+
+		$this->assertSame( 3, StageQuery::posts_holding_sequence( $this->sequence->id )['total'] );
+	}
+
+	public function test_posts_holding_sequence_counts_every_status_but_revisions(): void
+	{
+		$this->make_post( 'review', 'draft' );
+		$this->make_post( 'review', 'pending' );
+		$this->make_post( 'review', 'auto-draft' );
+		wp_trash_post( $this->make_post( 'review' ) );
+
+		$this->assertSame( 4, StageQuery::posts_holding_sequence( $this->sequence->id, array( 'review' ) )['total'] );
+	}
+
+	public function test_posts_holding_sequence_ignores_post_type_registration(): void
+	{
+		register_post_type( 'hidden_story', array( 'exclude_from_search' => true ) );
+		register_post_type( 'gone_type' );
+
+		foreach ( array( 'page', 'hidden_story', 'gone_type' ) as $type ) {
+			$post_id = self::factory()->post->create( array( 'post_type' => $type ) );
+			update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->sequence->id );
+			update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'review' );
+		}
+
+		unregister_post_type( 'gone_type' );
+		unregister_post_type( 'hidden_story' );
+
+		$this->assertSame( 3, StageQuery::posts_holding_sequence( $this->sequence->id, array( 'review' ) )['total'] );
+	}
+
+	public function test_posts_holding_sequence_ignores_other_sequences(): void
+	{
+		$post_id = self::factory()->post->create();
+		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->sequence->id + 1000 );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'review' );
+
+		$this->assertSame( 0, StageQuery::posts_holding_sequence( $this->sequence->id, array( 'review' ) )['total'] );
+	}
+
+	public function test_posts_holding_sequence_caps_the_list_but_not_the_total(): void
+	{
+		for ( $i = 0; $i < 5; $i++ ) {
+			$this->make_post( 'review' );
+		}
+
+		$result = StageQuery::posts_holding_sequence( $this->sequence->id, array( 'review' ), 2 );
+
+		$this->assertSame( 5, $result['total'] );
+		$this->assertCount( 2, $result['posts'] );
+	}
+
+	public function test_posts_holding_sequence_counts_stages_over_every_post_not_the_capped_list(): void
+	{
+		for ( $i = 0; $i < 3; $i++ ) {
+			$this->make_post( 'review' );
+		}
+		$this->make_post( 'draft' );
+
+		$result = StageQuery::posts_holding_sequence( $this->sequence->id, array( 'review', 'draft', 'publish' ), 2 );
+
+		$this->assertCount( 2, $result['posts'] );
+		$this->assertEquals( array( 'review' => 3, 'draft' => 1 ), $result['stages'] );
+	}
+
+	public function test_posts_holding_sequence_with_nobody_returns_zero_and_no_posts(): void
+	{
+		$this->assertSame(
+			array(
+				'total'  => 0,
+				'posts'  => array(),
+				'stages' => array(),
+			),
+			StageQuery::posts_holding_sequence( $this->sequence->id, array( 'review' ) )
+		);
+	}
 }
