@@ -34,6 +34,7 @@ import { __ } from '@wordpress/i18n';
 
 import { STORE_NAME } from '../store';
 import { useConfirm } from '../../common/use-confirm';
+import { recordTracksEvent } from '../../common/tracks';
 import {
 	getOrphanedWorkflowRemoveConfirmation,
 	getRemoveFromWorkflowConfirmation,
@@ -132,6 +133,9 @@ export function WorkflowSummaryRows( { grouped = true } = {} ) {
 
 		try {
 			await assignSequence( sequenceId );
+			recordTracksEvent( 'editor_workflow_selected', {
+				source: 'summary_row',
+			} );
 		} catch ( err ) {
 			setActionError(
 				err.message ||
@@ -171,6 +175,7 @@ export function WorkflowSummaryRows( { grouped = true } = {} ) {
 
 		try {
 			await removeWorkflow();
+			recordTracksEvent( 'editor_workflow_removed' );
 		} catch ( err ) {
 			setActionError(
 				err.message ||
