@@ -222,6 +222,23 @@ describe( 'buildGraph', () => {
 			.forEach( ( n ) => expect( n.deletable ).toBe( true ) );
 	} );
 
+	it( 'marks a stage posts sit at non-deletable, and only that one', () => {
+		const { nodes } = buildGraph( stages(), {
+			isStageLocked: ( key ) => key === 'review',
+		} );
+		const deletable = Object.fromEntries(
+			nodes
+				.filter( ( n ) => n.type === NODE_TYPE )
+				.map( ( n ) => [ n.id, n.deletable ] )
+		);
+
+		expect( deletable ).toEqual( {
+			draft: true,
+			review: false,
+			done: true,
+		} );
+	} );
+
 	it( 'reflects selection', () => {
 		const { nodes, edges } = buildGraph( stages(), {
 			selectedNodeKey: 'review',

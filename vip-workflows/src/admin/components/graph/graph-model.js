@@ -298,6 +298,7 @@ export function parseEdgeId( id ) {
  *                                               (see `visibleRegions`). Empty (the
  *                                               default) draws no groups.
  * @param {boolean}  [options.allowAgentPublish] The sequence's `allow_agent_publish`.
+ * @param {Function} [options.isStageLocked]     ( key ) => true for a stage posts sit at.
  * @return {{ nodes: Array, edges: Array }} React Flow graph.
  */
 export function buildGraph( stages, options = {} ) {
@@ -308,6 +309,7 @@ export function buildGraph( stages, options = {} ) {
 		isPhase = false,
 		regions = [],
 		allowAgentPublish = false,
+		isStageLocked = () => false,
 	} = options;
 
 	const keys = new Set( stages.map( ( s ) => s.key ) );
@@ -344,8 +346,11 @@ export function buildGraph( stages, options = {} ) {
 			width: STAGE_WIDTH,
 			height: STAGE_HEIGHT,
 			// Phase stages are fixed (the lifecycle needs both of them), so the
-			// keyboard-delete path must not remove them.
-			deletable: ! isPhase,
+			// keyboard-delete path must not remove them. Nor a stage posts sit
+			// at: React Flow gathers a deleted node's edges into the same
+			// deletion and removes them first, so refusing the node later in
+			// the handler would still strip its transitions.
+			deletable: ! isPhase && ! isStageLocked( stage.key ),
 			selected: stage.key === selectedNodeKey,
 			// Above the region band it sits in, and above the edges.
 			zIndex: STAGE_Z,

@@ -187,6 +187,9 @@ function renderPanel( {
 	regions = [],
 	onUpdateStage,
 	onDeleteStage,
+	// ( key ) => number of posts at that stored stage. See `stagePostCounts`
+	// in SequenceGraphEditor.
+	stagePostCount = () => 0,
 	onUpdateTransition,
 	onDeleteTransition,
 	onConnectTransition,
@@ -373,6 +376,7 @@ function renderPanel( {
 				// those same edge ids.
 				exitProblems={ exitProblems }
 				canDelete={ stages.length > 1 }
+				postCount={ stagePostCount( selectedStage.key ) }
 			/>
 		);
 	}

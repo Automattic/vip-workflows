@@ -27,6 +27,7 @@ namespace VIPWorkflows\Tests\Integration;
 use VIPWorkflows\Sequences\Sequence;
 use VIPWorkflows\Sequences\SequenceRepository;
 use VIPWorkflows\Database\Schema;
+use VIPWorkflows\Workflow\StatusManager;
 
 /**
  * Real-WordPress tests for the stored-config replay migration.
@@ -732,6 +733,55 @@ class SequenceConfigMigrationTest extends TestCase
 	 * an operator most needed to hear about was the one the notice never mentioned —
 	 * and it stays region-less, so every read that touches its regions throws.
 	 */
+	public function test_migration_leaves_a_row_whose_rekeyed_stage_holds_posts(): void
+	{
+		delete_option( Schema::REGION_REVIEW_OPTION );
+
+		$stored = array(
+			'post_types' => array( 'post' ),
+			'statuses'   => array(
+				array( 'key' => 'writing', 'label' => 'Writing' ),
+				// The gate sanitizes this to "legal"; posts sit at "Legal".
+				array( 'key' => 'Legal', 'label' => 'Legal' ),
+			),
+		);
+		$id     = $this->insert_unnormalized( 'legacy-occupied-rekey', $stored );
+
+		$post_id = self::factory()->post->create();
+		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $id );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'Legal' );
+
+		$this->run_normalization_migration();
+
+		$this->assertSame(
+			array( 'writing', 'Legal' ),
+			array_column( $this->stored_config( $id )['statuses'], 'key' ),
+			'The row is left as stored, so the post still points at a stage that exists.'
+		);
+
+		$recorded = array_column( (array) get_option( Schema::REGION_REVIEW_OPTION, array() ), null, 'id' );
+		$this->assertArrayHasKey( $id, $recorded, 'The skipped row reaches the admin notice.' );
+		$this->assertStringContainsString( 'Legal', (string) $recorded[ $id ]['error'] );
+	}
+
+	public function test_migration_still_rekeys_a_stage_nobody_is_in(): void
+	{
+		$id = $this->insert_unnormalized(
+			'legacy-empty-rekey',
+			array(
+				'post_types' => array( 'post' ),
+				'statuses'   => array(
+					array( 'key' => 'writing', 'label' => 'Writing' ),
+					array( 'key' => 'Legal', 'label' => 'Legal' ),
+				),
+			)
+		);
+
+		$this->run_normalization_migration();
+
+		$this->assertSame( array( 'writing', 'legal' ), array_column( $this->stored_config( $id )['statuses'], 'key' ) );
+	}
+
 	public function test_migration_records_a_row_it_could_not_normalize(): void
 	{
 		delete_option( Schema::REGION_REVIEW_OPTION );
