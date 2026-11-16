@@ -567,8 +567,9 @@ class AgentRunsAsStarterIntegrationTest extends TestCase
 			array(
 				'stage_key'  => 'ai_desk',
 				'ability_id' => 'test/desk-agent',
-				'status'     => 'reverting',
-				'from_stage' => 'drafting',
+				'status'       => 'reverting',
+				'from_stage'   => 'drafting',
+				'reverting_at' => time(),
 			)
 		);
 

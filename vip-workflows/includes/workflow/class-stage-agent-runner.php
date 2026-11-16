@@ -81,6 +81,18 @@ class StageAgentRunner implements ModuleInterface {
 	public const PENDING_TTL = 15 * 60;
 
 	/**
+	 * How long a Go back may hold the marker as `reverting` (seconds).
+	 *
+	 * Go back holds it only for the length of one request. A `reverting`
+	 * marker older than this belongs to a request that died before it could
+	 * put the failed state back (a fatal in a hooked callback, a timeout), so
+	 * read_job_marker() reads it as the failure it was.
+	 *
+	 * @var int
+	 */
+	public const REVERTING_TTL = 5 * 60;
+
+	/**
 	 * Post meta recording the last agent run that resolved and moved the post:
 	 * the stage it ran in, which of pass/fail/error fired, the stage it routed
 	 * to, and when.
@@ -305,7 +317,7 @@ class StageAgentRunner implements ModuleInterface {
 	public function rerun( int $post_id, Sequence $sequence ): true|\WP_Error {
 		$stage_key = (string) get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true );
 		$status    = $sequence->get_status( $stage_key );
-		$job       = get_post_meta( $post_id, self::JOB_META, true );
+		$job       = self::read_job_marker( $post_id );
 
 		if (
 			empty( $status['agent']['ability_id'] )
@@ -505,6 +517,49 @@ class StageAgentRunner implements ModuleInterface {
 	 */
 	public static function take_job_marker( int $post_id, array $expected, ?array $replacement = null ): bool {
 		return self::swap_job_marker( $post_id, $expected, $replacement );
+	}
+
+	/**
+	 * Read the job marker, putting a Go back that never finished back to failed.
+	 *
+	 * Go back swaps the failed marker for a `reverting` one while it moves the
+	 * post, and swaps it back if the move doesn't happen. A request that dies
+	 * in between leaves `reverting` behind, and nothing else clears it: Run
+	 * again and Go back both need `failed`, and only `pending` times out. Once
+	 * it is older than REVERTING_TTL, this swaps it back to the failed marker
+	 * by compare-and-swap, so a Go back still in flight is never overwritten
+	 * by a stale reader.
+	 *
+	 * Every reader that decides whether a failed run can be retried or
+	 * reverted goes through here.
+	 *
+	 * @param  int $post_id Post ID.
+	 * @return mixed The JOB_META value, as get_post_meta() returns it.
+	 */
+	public static function read_job_marker( int $post_id ): mixed {
+		$job = get_post_meta( $post_id, self::JOB_META, true );
+		if ( ! is_array( $job ) || 'reverting' !== ( $job['status'] ?? '' ) ) {
+			return $job;
+		}
+
+		$since = (int) ( $job['reverting_at'] ?? 0 );
+		if ( $since > 0 && ( time() - $since ) <= self::REVERTING_TTL ) {
+			return $job;
+		}
+
+		$failed = $job;
+		unset( $failed['reverting_at'] );
+		$failed['status'] = 'failed';
+
+		if ( ! self::swap_job_marker( $post_id, $job, $failed ) ) {
+			// Someone else changed it first; read what they wrote.
+			return get_post_meta( $post_id, self::JOB_META, true );
+		}
+
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( sprintf( '[VIP Workflows] Go back never finished; failed state restored: post=%d stage=%s', $post_id, self::log_token( (string) ( $job['stage_key'] ?? '' ) ) ) );
+
+		return $failed;
 	}
 
 	/**

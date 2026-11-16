@@ -664,7 +664,64 @@ class StageAgentRunnerDispatchTest extends TestCase
             'still pending'         => array( array( 'stage_key' => 'ai_desk', 'status' => 'pending' ) ),
             'held for a person'     => array( array( 'stage_key' => 'ai_desk', 'status' => 'warnings_pending' ) ),
             'failed at other stage' => array( array( 'stage_key' => 'other', 'status' => 'failed' ) ),
+            'Go back in flight'     => array( array( 'stage_key' => 'ai_desk', 'status' => 'reverting', 'reverting_at' => time() ) ),
         );
+    }
+
+    /**
+     * A Go back whose request died leaves the marker `reverting`. Once that is
+     * older than REVERTING_TTL it is put back to the failure it was, and Run
+     * again goes ahead against that failed marker.
+     */
+    public function test_rerun_goes_ahead_after_an_abandoned_go_back(): void
+    {
+        $failed    = array( 'stage_key' => 'ai_desk', 'status' => 'failed', 'error' => 'x', 'from_stage' => 'draft' );
+        $abandoned = array_merge(
+            $failed,
+            array(
+                'status'       => 'reverting',
+                'reverting_at' => time() - StageAgentRunner::REVERTING_TTL - 1,
+            )
+        );
+        Functions\when( 'get_post_meta' )->alias(
+            static function ( $post_id, $key ) use ( $abandoned ) {
+                if ( '_vip_workflows_current_stage_key' === $key ) {
+                    return 'ai_desk';
+                }
+                return StageAgentRunner::JOB_META === $key ? $abandoned : '';
+            }
+        );
+        Functions\expect( 'delete_post_meta' )->once()->with( 42, StageAgentRunner::CHAIN_META );
+        Functions\expect( 'wp_schedule_single_event' )->once()->andReturn( true );
+
+        global $wpdb;
+        $updates        = array();
+        $wpdb           = Mockery::mock( 'wpdb' );
+        $wpdb->postmeta = 'wp_postmeta';
+        $wpdb->shouldReceive( 'update' )->andReturnUsing(
+            function ( $table, $data, $where ) use ( &$updates ) {
+                $updates[] = array( unserialize( $where['meta_value'] ), unserialize( $data['meta_value'] ) );
+                return 1;
+            }
+        );
+        Functions\when( 'wp_cache_delete' )->justReturn( true );
+        Functions\when( 'maybe_serialize' )->alias( 'serialize' );
+
+        $sequence = $this->sequence_with_status(
+            array(
+                'key'   => 'ai_desk',
+                'agent' => array( 'ability_id' => 'test/agent', 'routing' => array() ),
+            )
+        );
+        $sequence->shouldReceive( 'get_statuses' )->andReturn( array( array( 'key' => 'draft' ), array( 'key' => 'ai_desk' ) ) );
+        $sequence->shouldReceive( 'is_transition_allowed' )->andReturnUsing( static fn( $from, $to ): bool => 'draft' === $from && 'ai_desk' === $to );
+        $sequence->shouldReceive( 'get_role_permitted_transitions' )->andReturn( array( array( 'to' => 'ai_desk' ) ) );
+
+        $this->assertTrue( $this->runner->rerun( 42, $sequence ) );
+        $this->assertCount( 2, $updates );
+        $this->assertSame( array( $abandoned, $failed ), $updates[0], 'the abandoned marker is put back to the failed one first' );
+        $this->assertSame( $failed, $updates[1][0], 'Run again then replaces that failed marker' );
+        $this->assertSame( 'pending', $updates[1][1]['status'] );
     }
 
     /**

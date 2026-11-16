@@ -740,7 +740,7 @@ class WorkflowController extends WP_REST_Controller {
 	 * @return array|null
 	 */
 	private function get_agent_job_state( int $post_id, string $stage ): ?array {
-		$job = get_post_meta( $post_id, \VIPWorkflows\Workflow\StageAgentRunner::JOB_META, true );
+		$job = \VIPWorkflows\Workflow\StageAgentRunner::read_job_marker( $post_id );
 		if ( ! is_array( $job ) || ( $job['stage_key'] ?? '' ) !== $stage ) {
 			return null;
 		}

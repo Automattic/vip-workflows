@@ -222,7 +222,7 @@ class StatusManager {
 			return null;
 		}
 
-		$job = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
+		$job = StageAgentRunner::read_job_marker( $post_id );
 		if (
 			! is_array( $job )
 			|| 'failed' !== ( $job['status'] ?? '' )
@@ -258,6 +258,7 @@ class StatusManager {
 	 * @param  int $post_id Post ID.
 	 * @return bool|array|\WP_Error True on success, transition()'s warnings array
 	 *                              if one surfaces, WP_Error otherwise.
+	 * @throws \Throwable Whatever transition() throws, once the failed state is back.
 	 */
 	public function revert_failed_agent_stage( int $post_id ): bool|array|\WP_Error {
 		$revert_to = $this->get_agent_revert_stage( $post_id );
@@ -276,8 +277,18 @@ class StatusManager {
 		// would leave it at the origin with a pending run queued for the stage
 		// it just left. Swapped rather than deleted, so a late run event that
 		// fires during the move still finds a resolved marker and doesn't run.
+		// Stamped, so a request that dies before putting it back leaves a
+		// marker read_job_marker() can tell has been abandoned.
 		$failed_job = get_post_meta( $post_id, StageAgentRunner::JOB_META, true );
-		$reverting  = is_array( $failed_job ) ? array_merge( $failed_job, array( 'status' => 'reverting' ) ) : array();
+		$reverting  = is_array( $failed_job )
+			? array_merge(
+				$failed_job,
+				array(
+					'status'       => 'reverting',
+					'reverting_at' => time(),
+				)
+			)
+			: array();
 		if (
 			! is_array( $failed_job )
 			|| 'failed' !== ( $failed_job['status'] ?? '' )
@@ -292,7 +303,16 @@ class StatusManager {
 
 		delete_post_meta( $post_id, StageAgentRunner::CHAIN_META );
 
-		$result = $this->transition( $post_id, $revert_to, array( 'agent_revert' => true ) );
+		try {
+			$result = $this->transition( $post_id, $revert_to, array( 'agent_revert' => true ) );
+		} catch ( \Throwable $e ) {
+			// The move threw, so it didn't finish: put the failed state back
+			// before letting the error through, or Run again and Go back would
+			// both refuse until read_job_marker() times the marker out.
+			StageAgentRunner::take_job_marker( $post_id, $reverting, $failed_job );
+			throw $e;
+		}
+
 		if ( true !== $result ) {
 			// The move didn't happen (refused, or held for soft warnings), so
 			// put the failed state back, unless something else has written a

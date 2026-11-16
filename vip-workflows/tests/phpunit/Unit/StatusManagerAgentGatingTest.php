@@ -1219,7 +1219,7 @@ class StatusManagerAgentGatingTest extends TestCase
         $this->assertTrue( $manager->revert_failed_agent_stage( 42 ) );
 
         $this->assertContains( array( StageAgentRunner::CHAIN_META, '' ), $deleted, 'The loop guard resets before the move.' );
-        $reverting = array_merge( $failed_job, array( 'status' => 'reverting' ) );
+        $reverting = $this->reverting_marker_written( $calls, $failed_job );
         $this->assertSame(
             array(
                 array( 'update', serialize( $failed_job ), serialize( $reverting ) ),
@@ -1271,8 +1271,109 @@ class StatusManagerAgentGatingTest extends TestCase
 
         $this->assertSame( $outcome, $manager->revert_failed_agent_stage( 42 ) );
 
-        $reverting = array_merge( $failed_job, array( 'status' => 'reverting' ) );
+        $reverting = $this->reverting_marker_written( $calls, $failed_job );
         $this->assertSame( array( 'update', serialize( $reverting ), serialize( $failed_job ) ), end( $calls->log ) );
+    }
+
+    /**
+     * A Go back whose move throws puts the failed state back before the error
+     * goes on, so Run again and Go back are still on offer afterwards.
+     */
+    public function test_revert_failed_agent_stage_restores_the_marker_when_the_move_throws(): void
+    {
+        $failed_job = $this->failed_job();
+        $this->stub_post_in_ai_stage( $failed_job );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+        $calls = $this->wpdb_taking( 1 );
+
+        $manager = Mockery::mock( StatusManager::class )->makePartial();
+        $manager->shouldReceive( 'get_agent_revert_stage' )->with( 42 )->andReturn( 'draft' );
+        $manager->shouldReceive( 'transition' )->once()->andThrow( new \RuntimeException( 'a hooked callback blew up' ) );
+
+        try {
+            $manager->revert_failed_agent_stage( 42 );
+            $this->fail( 'The exception should reach the caller.' );
+        } catch ( \RuntimeException $e ) {
+            $this->assertSame( 'a hooked callback blew up', $e->getMessage() );
+        }
+
+        $reverting = $this->reverting_marker_written( $calls, $failed_job );
+        $this->assertSame( array( 'update', serialize( $reverting ), serialize( $failed_job ) ), end( $calls->log ) );
+    }
+
+    /**
+     * A `reverting` marker left by a Go back whose request died reads as the
+     * failure it was once it is old enough, so Go back is offered again.
+     *
+     * @dataProvider provide_abandoned_reverting_markers
+     *
+     * @param array $extra Fields the abandoned marker carries beyond the failed one.
+     */
+    public function test_get_agent_revert_stage_recovers_an_abandoned_go_back( array $extra ): void
+    {
+        $failed_job = $this->failed_job();
+        $abandoned  = array_merge( $failed_job, array( 'status' => 'reverting' ), $extra );
+        $this->stub_post_in_ai_stage( $abandoned );
+        $calls = $this->wpdb_taking( 1 );
+
+        $manager = $this->gated_status_manager( $this->sequence_with_unrouted_edge() );
+
+        $this->assertSame( 'draft', $manager->get_agent_revert_stage( 42 ) );
+        $this->assertSame(
+            array( array( 'update', serialize( $abandoned ), serialize( $failed_job ) ) ),
+            $calls->log,
+            'The abandoned marker is swapped back to the failed one, by compare-and-swap.'
+        );
+    }
+
+    /**
+     * @return array<string, array{0: array}>
+     */
+    public function provide_abandoned_reverting_markers(): array
+    {
+        return array(
+            'stamped long ago' => array( array( 'reverting_at' => time() - StageAgentRunner::REVERTING_TTL - 1 ) ),
+            'never stamped'    => array( array() ),
+        );
+    }
+
+    /**
+     * A fresh `reverting` marker is a Go back still in flight: nothing is
+     * offered and nothing is written over it.
+     */
+    public function test_get_agent_revert_stage_leaves_a_go_back_in_flight_alone(): void
+    {
+        $this->stub_post_in_ai_stage( array_merge( $this->failed_job(), array( 'status' => 'reverting', 'reverting_at' => time() ) ) );
+        $calls = $this->wpdb_taking( 1 );
+
+        $manager = $this->gated_status_manager( $this->sequence_with_unrouted_edge() );
+
+        $this->assertNull( $manager->get_agent_revert_stage( 42 ) );
+        $this->assertSame( array(), $calls->log );
+    }
+
+    /**
+     * The reverting marker Go back wrote: the failed one, marked reverting and
+     * stamped with when.
+     *
+     * @param  object $calls      The wpdb call log.
+     * @param  array  $failed_job The failed marker it replaced.
+     * @return array
+     */
+    private function reverting_marker_written( object $calls, array $failed_job ): array
+    {
+        $this->assertSame( 'update', $calls->log[0][0] );
+        $this->assertSame( serialize( $failed_job ), $calls->log[0][1] );
+
+        $reverting = unserialize( $calls->log[0][2] );
+        $this->assertIsInt( $reverting['reverting_at'] ?? null );
+        $this->assertEqualsWithDelta( time(), $reverting['reverting_at'], 5 );
+        $this->assertSame(
+            array_merge( $failed_job, array( 'status' => 'reverting', 'reverting_at' => $reverting['reverting_at'] ) ),
+            $reverting
+        );
+
+        return $reverting;
     }
 
     /**
