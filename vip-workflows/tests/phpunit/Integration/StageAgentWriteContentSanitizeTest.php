@@ -86,4 +86,70 @@ class StageAgentWriteContentSanitizeTest extends TestCase
         $this->assertStringContainsString( 'height="1024"/>', $saved );
         $this->assertStringNotContainsString( 'height="1024" />', $saved );
     }
+
+    /**
+     * A code block with backslashes in its text, as a Windows path or a regex
+     * would have, beside a paragraph a copy edit can fix.
+     */
+    private function backslash_markup(): string
+    {
+        return "<!-- wp:code -->\n"
+            . '<pre class="wp-block-code"><code>C:\Users\tom\harbor.txt</code></pre>' . "\n"
+            . "<!-- /wp:code -->\n\n"
+            . "<!-- wp:paragraph -->\n"
+            . '<p>The board approved the proposal after reviewing the detailed report from the harbor committee, and the plan takes effect next month.</p>' . "\n"
+            . '<!-- /wp:paragraph -->';
+    }
+
+    /**
+     * @return array<string, array{0: bool}>
+     */
+    public function provide_sanitize_modes(): array
+    {
+        return array(
+            'sanitized' => array( true ),
+            'verbatim'  => array( false ),
+        );
+    }
+
+    /**
+     * wp_update_post() unslashes its input, so an unslashed write drops every
+     * backslash in the text: `C:\Users\tom` was stored as `C:Userstom`. What
+     * is stored must be exactly what the write was handed (after kses, when
+     * sanitizing).
+     *
+     * @dataProvider provide_sanitize_modes
+     *
+     * @param bool $sanitize Whether the write runs kses.
+     */
+    public function test_backslashes_survive_the_write( bool $sanitize ): void
+    {
+        $post_id = self::factory()->post->create( array( 'post_content' => 'Original.' ) );
+        $markup  = $this->backslash_markup();
+
+        $this->assertTrue( StageAgent::write_content( $post_id, $markup, null, $sanitize ) );
+
+        $saved = (string) get_post_field( 'post_content', $post_id );
+        $this->assertSame( $sanitize ? wp_kses_post( $markup ) : $markup, $saved );
+        $this->assertStringContainsString( 'C:\Users\tom\harbor.txt', $saved );
+    }
+
+    /**
+     * The copy-edit path end to end: a small edit to text beside a code
+     * sample passes the guard, and what's stored is the edit, backslashes
+     * intact.
+     */
+    public function test_a_measured_copy_edit_keeps_backslashes(): void
+    {
+        $before  = str_replace( 'approved the proposal', 'aproved the proposal', $this->backslash_markup() );
+        $after   = $this->backslash_markup();
+        $post_id = self::factory()->post->create( array( 'post_content' => wp_slash( $before ) ) );
+        $this->assertSame( $before, (string) get_post_field( 'post_content', $post_id ), 'The fixture is stored as written.' );
+
+        $report = StageAgent::measure_rewrite( $before, $after );
+        $this->assertSame( array(), StageAgent::copy_edit_violations( $report, 15 ) );
+
+        $this->assertTrue( StageAgent::write_content( $post_id, $report['content'], null, false ) );
+        $this->assertSame( $after, (string) get_post_field( 'post_content', $post_id ) );
+    }
 }

@@ -1458,10 +1458,13 @@ class StageAgent {
 			}
 		}
 
+		// wp_update_post() unslashes what it's given, so slash it first.
+		// Unslashed, every backslash in the post's text is lost: a code
+		// sample's `C:\Users\tom` is saved as `C:Userstom`.
 		$result = wp_update_post(
 			array(
 				'ID'           => $post_id,
-				'post_content' => $sanitize ? wp_kses_post( $new_content ) : $new_content,
+				'post_content' => wp_slash( $sanitize ? wp_kses_post( $new_content ) : $new_content ),
 			),
 			true
 		);
