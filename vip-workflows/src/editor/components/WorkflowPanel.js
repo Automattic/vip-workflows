@@ -58,6 +58,7 @@ import { speak } from '@wordpress/a11y';
 import { __, sprintf } from '@wordpress/i18n';
 import { STORE_NAME } from '../store';
 import { AuthorCell } from '../../common/DataViewCells';
+import { recordTracksEvent } from '../../common/tracks';
 import { useRequiredMetadataGate } from '../required-metadata';
 import { TransitionRail } from './TransitionRail';
 import { IdeationPanel } from './IdeationPanel';
@@ -586,7 +587,10 @@ export function WorkflowPanel() {
 			>
 				<Button
 					variant="secondary"
-					onClick={ () => setHistoryOpen( true ) }
+					onClick={ () => {
+						setHistoryOpen( true );
+						recordTracksEvent( 'editor_history_opened' );
+					} }
 				>
 					{ __( 'Show history', 'vip-workflows' ) }
 				</Button>
