@@ -61,6 +61,9 @@ class AiCallSiteGatingTest extends TestCase
         'class-media-processor.php::summarize_text'  => 'MediaProcessor::process_file',
         'class-seed-analyst.php::analyze_seed'       => 'SeedAnalyst::run',
         'class-editorial-mentor.php::evaluate'       => 'EditorialMentor::run',
+        // Reached only from generate() and generate_json(), which wrap the call
+        // in catch ( \Throwable ); see the GATES note above.
+        'class-stage-agent.php::prompt_builder'      => 'StageAgent::generate, StageAgent::generate_json',
     );
 
     /**

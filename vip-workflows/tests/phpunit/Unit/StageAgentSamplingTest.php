@@ -132,14 +132,20 @@ class StageAgentSamplingTest extends TestCase
         // Model reports the article already conforms — no write, but generation
         // still ran, so the options it requested are observable.
         //
-        // That reply is this run's verdict nonce, not a static word: the verdict
-        // became a per-run token so post content cannot force a pass by naming it,
-        // and a static sentinel no longer counts. Echoing anything else takes the
-        // write branch instead, which is not what this test is about.
-        AiClient::$generatedText = self::VERDICT_TOKEN;
+        // The reply carries this run's verdict nonce, not a static word: the
+        // verdict is a per-run token so post content cannot force a pass by naming
+        // it. Anything else is an error, which is not what this test is about.
+        AiClient::$generatedText = wp_json_encode(
+            array(
+                'verdict' => 'clean',
+                'token'   => self::VERDICT_TOKEN,
+                'body'    => '',
+            )
+        );
 
-        \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
+        $result = \WorkflowAgentCopyEdit\execute( array( 'post_id' => 5 ) );
 
+        $this->assertSame( 'pass', $result['status'] );
         $this->assertNull( AiClient::$lastTemperature );
     }
 }
