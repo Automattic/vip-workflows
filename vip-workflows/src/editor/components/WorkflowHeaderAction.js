@@ -100,8 +100,12 @@ export function WorkflowHeaderAction() {
 		};
 	}, [] );
 	const { transitions } = useRequiredMetadataGate();
-	const { fetchWorkflowStatus, requestTransition, revertAgentStage } =
-		useDispatch( STORE_NAME );
+	const {
+		fetchWorkflowStatus,
+		requestTransition,
+		revertAgentStage,
+		requestRerun,
+	} = useDispatch( STORE_NAME );
 	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
 
 	// The header is on screen from the first paint, whether or not the
@@ -132,18 +136,24 @@ export function WorkflowHeaderAction() {
 	const primary = getPrimaryTransition( transitions );
 
 	// A stage whose agent failed withholds its exits, so it has no primary
-	// transition: its one way out is back where the post came from. The
-	// server names that stage exactly when it will honor the move.
-	const revertTo =
-		! workflow?.agent_pending && 'failed' === workflow?.agent_job?.status
-			? workflow.agent_job.revert_to
-			: null;
+	// transition. Its action is to run the agent again, in place, when the
+	// server says it can; otherwise to go back where the post came from, which
+	// the server names exactly when it will honor the move.
+	const agentFailed =
+		! workflow?.agent_pending && 'failed' === workflow?.agent_job?.status;
+	const canRerun = agentFailed && !! workflow.agent_job.can_rerun;
+	const revertTo = agentFailed ? workflow.agent_job.revert_to : null;
+
+	// While a stage agent runs, the stage withholds its exits too, so there is
+	// no move to offer. The button stays, busy, for the whole run, rather than
+	// vanishing between the press that started it and the outcome.
+	const agentWorking = !! workflow?.agent_pending && ! primary;
 
 	const shown =
 		onWorkflowPost &&
 		!! workflow?.has_workflow &&
 		! workflow.orphaned &&
-		( !! primary || !! revertTo );
+		( !! primary || agentWorking || canRerun || !! revertTo );
 	const replaces =
 		shown && replacesCorePublish( workflow, transitions, coreButtonSaves );
 	const hideCorePublish = replaces && mounted;
@@ -163,6 +173,11 @@ export function WorkflowHeaderAction() {
 	}
 
 	const locked = !! primary?._locked;
+
+	const runAgain = () => {
+		removeNotice( HEADER_NOTICE_ID );
+		requestRerun( 'header' );
+	};
 
 	const goBack = async () => {
 		removeNotice( HEADER_NOTICE_ID );
@@ -185,39 +200,76 @@ export function WorkflowHeaderAction() {
 	// down to secondary so the two never compete.
 	const variant = replaces ? 'primary' : 'secondary';
 
-	const main = primary ? (
-		<Button
-			ref={ setMain }
-			variant={ variant }
-			size="compact"
-			className="vip-workflows-header-action__main"
-			onClick={ () =>
-				requestTransition( primary, mainRef.current, 'header' )
-			}
-			isBusy={ transitioningTo === primary.to }
-			disabled={ locked || transitioning }
-			accessibleWhenDisabled
-		>
-			{ primary.label }
-		</Button>
-	) : (
-		<Button
-			ref={ setMain }
-			variant={ variant }
-			size="compact"
-			className="vip-workflows-header-action__main"
-			onClick={ goBack }
-			isBusy={ transitioningTo === revertTo.key }
-			disabled={ transitioning }
-			accessibleWhenDisabled
-		>
-			{ sprintf(
-				/* translators: %s: the stage the post is returned to. */
-				__( 'Go back to %s', 'vip-workflows' ),
-				revertTo.label
-			) }
-		</Button>
-	);
+	// The main half: the primary move; while a stage agent runs, a busy
+	// stand-in; on a failed AI stage, Run again when the server offers it and
+	// Go back otherwise.
+	let main;
+	if ( primary ) {
+		main = (
+			<Button
+				ref={ setMain }
+				variant={ variant }
+				size="compact"
+				className="vip-workflows-header-action__main"
+				onClick={ () =>
+					requestTransition( primary, mainRef.current, 'header' )
+				}
+				isBusy={ transitioningTo === primary.to }
+				disabled={ locked || transitioning }
+				accessibleWhenDisabled
+			>
+				{ primary.label }
+			</Button>
+		);
+	} else if ( agentWorking ) {
+		main = (
+			<Button
+				ref={ setMain }
+				variant={ variant }
+				size="compact"
+				className="vip-workflows-header-action__main"
+				isBusy
+				disabled
+				accessibleWhenDisabled
+			>
+				{ __( 'Agent working', 'vip-workflows' ) }
+			</Button>
+		);
+	} else if ( canRerun ) {
+		main = (
+			<Button
+				ref={ setMain }
+				variant={ variant }
+				size="compact"
+				className="vip-workflows-header-action__main"
+				onClick={ runAgain }
+				isBusy={ transitioningTo === workflow.current?.key }
+				disabled={ transitioning }
+				accessibleWhenDisabled
+			>
+				{ __( 'Run again', 'vip-workflows' ) }
+			</Button>
+		);
+	} else {
+		main = (
+			<Button
+				ref={ setMain }
+				variant={ variant }
+				size="compact"
+				className="vip-workflows-header-action__main"
+				onClick={ goBack }
+				isBusy={ transitioningTo === revertTo.key }
+				disabled={ transitioning }
+				accessibleWhenDisabled
+			>
+				{ sprintf(
+					/* translators: %s: the stage the post is returned to. */
+					__( 'Go back to %s', 'vip-workflows' ),
+					revertTo.label
+				) }
+			</Button>
+		);
+	}
 
 	return (
 		<Fill name="PinnedItems/core">

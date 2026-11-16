@@ -99,6 +99,7 @@ class ExperimentsControllerTest extends TestCase
 
         $registry = Mockery::mock( ExperimentRegistry::class );
         $registry->shouldReceive( 'get' )->with( 'ideation' )->andReturn( $experiment );
+        $registry->shouldReceive( 'is_enabled' )->with( 'ideation' )->andReturn( false );
         $registry->shouldReceive( 'enable' )->once()->with( 'ideation' )->andReturn( true );
         $registry->shouldReceive( 'to_array' )->andReturn( array() );
         $this->seed_plugin_with_registry( $registry );
@@ -116,6 +117,7 @@ class ExperimentsControllerTest extends TestCase
 
         $registry = Mockery::mock( ExperimentRegistry::class );
         $registry->shouldReceive( 'get' )->with( 'ideation' )->andReturn( $experiment );
+        $registry->shouldReceive( 'is_enabled' )->with( 'ideation' )->andReturn( true );
         $registry->shouldReceive( 'disable' )->once()->with( 'ideation' )->andReturn( true );
         $registry->shouldReceive( 'to_array' )->andReturn( array() );
         $this->seed_plugin_with_registry( $registry );
@@ -124,6 +126,95 @@ class ExperimentsControllerTest extends TestCase
         $response = $this->controller->toggle_experiment( $request );
 
         $this->assertInstanceOf( 'WP_REST_Response', $response );
+    }
+
+    public function test_a_toggle_that_changes_the_experiment_is_recorded(): void
+    {
+        $telemetry = $this->recording_telemetry();
+        $this->seed_toggleable_registry( false, true );
+
+        $this->controller->toggle_experiment( $this->create_mock_request( array( 'id' => 'ideation', 'enabled' => true ) ) );
+
+        $this->assertSame(
+            array(
+                array(
+                    'event'      => 'settings_experiment_toggled',
+                    'properties' => array(
+                        'experiment_id' => 'ideation',
+                        'enabled'       => true,
+                    ),
+                ),
+            ),
+            $telemetry->calls
+        );
+    }
+
+    public function test_a_toggle_that_changes_nothing_is_not_recorded(): void
+    {
+        $telemetry = $this->recording_telemetry();
+        $this->seed_toggleable_registry( true, true );
+
+        $this->controller->toggle_experiment( $this->create_mock_request( array( 'id' => 'ideation', 'enabled' => true ) ) );
+
+        $this->assertSame( array(), $telemetry->calls );
+    }
+
+    public function test_a_toggle_overridden_by_the_experiments_filter_is_not_recorded(): void
+    {
+        $telemetry = $this->recording_telemetry();
+        // Pinned on by the filter: disabling it leaves it enabled.
+        $this->seed_toggleable_registry( true, true );
+
+        $this->controller->toggle_experiment( $this->create_mock_request( array( 'id' => 'ideation', 'enabled' => false ) ) );
+
+        $this->assertSame( array(), $telemetry->calls );
+    }
+
+    /**
+     * Seed a registry whose ideation experiment is available, enabled or not
+     * before the toggle and after it.
+     *
+     * @param bool $before Whether the experiment is enabled before the toggle.
+     * @param bool $after  Whether it is enabled after.
+     */
+    private function seed_toggleable_registry( bool $before, bool $after ): void
+    {
+        $experiment = Mockery::mock( Experiment::class );
+        $experiment->shouldReceive( 'is_available' )->andReturn( true );
+
+        $registry = Mockery::mock( ExperimentRegistry::class );
+        $registry->shouldReceive( 'get' )->with( 'ideation' )->andReturn( $experiment );
+        $registry->shouldReceive( 'is_enabled' )->with( 'ideation' )->andReturn( $before, $after );
+        $registry->shouldReceive( 'enable', 'disable' )->andReturn( true );
+        $registry->shouldReceive( 'to_array' )->andReturn( array() );
+        $this->seed_plugin_with_registry( $registry );
+    }
+
+    /**
+     * Install a Telemetry double that records what it is sent, as a logged-in user.
+     *
+     * @return object
+     */
+    private function recording_telemetry(): object
+    {
+        \Brain\Monkey\Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
+        $telemetry = new class() {
+            /** @var array<int, array{event: string, properties: array}> */
+            public array $calls = array();
+
+            public function record_event( string $event, array $properties = array() ): bool
+            {
+                $this->calls[] = array(
+                    'event'      => $event,
+                    'properties' => $properties,
+                );
+                return true;
+            }
+        };
+        \VIPWorkflows\Telemetry\Tracker::set_telemetry( $telemetry );
+
+        return $telemetry;
     }
 
     /**
