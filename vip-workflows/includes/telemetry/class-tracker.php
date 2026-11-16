@@ -9,6 +9,9 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Telemetry;
 
+use function Automattic\VIP\Telemetry\Tracks\get_base_properties_of_track_event;
+use function Automattic\VIP\Telemetry\Tracks\get_base_properties_of_track_user;
+
 /**
  * Records product-usage events through the VIP Telemetry library.
  *
@@ -101,16 +104,18 @@ class Tracker {
 	 * @return array<string,mixed>|null Null where the VIP Telemetry library isn't loaded or fails.
 	 */
 	public static function get_client_properties(): ?array {
-		$event_properties = '\\Automattic\\VIP\\Telemetry\\Tracks\\get_base_properties_of_track_event';
-		$user_properties  = '\\Automattic\\VIP\\Telemetry\\Tracks\\get_base_properties_of_track_user';
-		if ( ! self::is_available() || ! function_exists( $event_properties ) || ! function_exists( $user_properties ) ) {
+		if (
+			! self::is_available()
+			|| ! function_exists( '\\Automattic\\VIP\\Telemetry\\Tracks\\get_base_properties_of_track_event' )
+			|| ! function_exists( '\\Automattic\\VIP\\Telemetry\\Tracks\\get_base_properties_of_track_user' )
+		) {
 			return null;
 		}
 
 		try {
 			return array_merge(
-				$event_properties(),
-				$user_properties(),
+				get_base_properties_of_track_event(),
+				get_base_properties_of_track_user(),
 				array( 'plugin_version' => VIP_WORKFLOWS_VERSION )
 			);
 		} catch ( \Throwable $e ) {
