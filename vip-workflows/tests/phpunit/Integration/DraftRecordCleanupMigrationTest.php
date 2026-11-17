@@ -115,20 +115,21 @@ class DraftRecordCleanupMigrationTest extends TestCase {
 		$page   = $this->set_limit( 'draft_record_cleanup_page_size', 1 );
 		$budget = $this->set_limit( 'draft_record_cleanup_budget', 0.0 );
 		try {
-			$this->cleanup();
-			$this->fail( 'A cleanup out of time did not defer.' );
-		} catch ( MigrationDeferred $e ) {
-			$this->assertStringContainsString( 'time budget', $e->getMessage() );
-		} finally {
+			try {
+				$this->cleanup();
+				$this->fail( 'A cleanup out of time did not defer.' );
+			} catch ( MigrationDeferred $e ) {
+				$this->assertStringContainsString( 'time budget', $e->getMessage() );
+			}
 			$this->set_limit( 'draft_record_cleanup_budget', $budget );
-		}
 
-		$this->assertSame( 2, $this->rows_left(), 'Exactly one page was deleted before deferring.' );
+			$this->assertSame( 2, $this->rows_left(), 'Exactly one page was deleted before deferring.' );
 
-		try {
 			$this->cleanup();
 		} finally {
+			// Both limits go back on every path, a failed assertion included.
 			$this->set_limit( 'draft_record_cleanup_page_size', $page );
+			$this->set_limit( 'draft_record_cleanup_budget', $budget );
 		}
 
 		$this->assertSame( 0, $this->rows_left() );
