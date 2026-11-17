@@ -14,6 +14,8 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Tests\Unit;
 
+use VIPWorkflows\AI\CredentialBackend;
+use VIPWorkflows\AI\Credentials;
 use VIPWorkflows\Integrations\MediaProcessor;
 use WP_Error;
 
@@ -135,6 +137,47 @@ class MediaProcessorTest extends TestCase
         } finally {
             @unlink( $tmp_path );
         }
+    }
+
+    /**
+     * @test
+     * Transcription is available whenever an OpenAI key resolves, even when it
+     * comes only from the `VIP_WORKFLOWS_OPENAI_KEY` constant and the backend
+     * holds nothing. The unit bootstrap defines that constant, so the keyless
+     * case is covered by the integration suite, where it is not defined.
+     */
+    public function transcription_is_available_with_only_the_openai_constant(): void
+    {
+        $this->assertTrue( defined( 'VIP_WORKFLOWS_OPENAI_KEY' ) );
+
+        Credentials::get_instance()->set_backend(
+            new class() implements CredentialBackend {
+                public function get_api_key( string $service ): string
+                {
+                    return '';
+                }
+            }
+        );
+
+        try {
+            $this->assertTrue( MediaProcessor::transcription_available() );
+        } finally {
+            Credentials::get_instance()->set_backend( null );
+        }
+    }
+
+    /**
+     * @test
+     * One sentence for the upload refusal, the job failure and the drop zone.
+     * It says what is needed and who can fix it, and stays inside the copy
+     * standard's ceiling.
+     */
+    public function transcription_unavailable_message_names_the_key_and_who_can_add_it(): void
+    {
+        $this->assertSame(
+            'Audio and video need an OpenAI key for transcription. Ask an administrator to add one.',
+            MediaProcessor::transcription_unavailable_message()
+        );
     }
 
     /**

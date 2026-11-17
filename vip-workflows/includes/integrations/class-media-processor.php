@@ -32,6 +32,39 @@ class MediaProcessor {
 
 
 	/**
+	 * Whether audio and video can be transcribed on this site.
+	 *
+	 * Transcription always goes to OpenAI, whichever provider the site selected,
+	 * so the only question is whether an OpenAI key resolves — from Connectors,
+	 * the `VIP_WORKFLOWS_OPENAI_KEY` constant or the legacy option store. That is
+	 * the same check `call_whisper_api()` makes. It deliberately does not ask
+	 * whether the AI Client has OpenAI registered: the request below posts to
+	 * OpenAI directly and does not need it.
+	 *
+	 * The upload guard, the Ideation screen's localized data and the job all
+	 * read this, so they cannot disagree about whether a file will be accepted.
+	 *
+	 * @return bool True when an OpenAI key is configured.
+	 */
+	public static function transcription_available(): bool {
+		return Credentials::get_instance()->has_key( 'openai' );
+	}
+
+	/**
+	 * The message shown when audio or video cannot be transcribed for lack of a key.
+	 *
+	 * One sentence for the upload refusal, the job failure and the Ideation
+	 * drop zone, so a person sees the same words wherever they hit it. It names
+	 * who can fix it rather than a screen, because installs on the legacy
+	 * credential backend or a constant-only key have no Connectors screen.
+	 *
+	 * @return string Translated message.
+	 */
+	public static function transcription_unavailable_message(): string {
+		return __( 'Audio and video need an OpenAI key for transcription. Ask an administrator to add one.', 'vip-workflows' );
+	}
+
+	/**
 	 * Check if AI is configured.
 	 *
 	 * Asks about the admin-selected provider, which is what three of this class's
@@ -243,14 +276,19 @@ class MediaProcessor {
 	/**
 	 * Call the OpenAI Whisper API for transcription.
 	 *
+	 * Sends the raw file to OpenAI whatever provider the site selected. The
+	 * upload route refuses audio and video up front when no OpenAI key is set
+	 * (see `transcription_available()`); this check stays for files that reach
+	 * the job anyway, such as a retry after the key was removed.
+	 *
 	 * @param string $file_path Full path to the audio/video file.
 	 * @return string|WP_Error Transcript text or error.
 	 */
 	private function call_whisper_api( string $file_path ): string|WP_Error {
-		$api_key = Credentials::get_instance()->api_key( 'openai' );
-		if ( ! $api_key ) {
-			return new WP_Error( 'no_api_key', __( 'OpenAI API key not configured.', 'vip-workflows' ) );
+		if ( ! self::transcription_available() ) {
+			return new WP_Error( 'no_api_key', self::transcription_unavailable_message() );
 		}
+		$api_key = Credentials::get_instance()->api_key( 'openai' );
 
 		$boundary = wp_generate_password( 24, false );
 

@@ -12,6 +12,7 @@ namespace VIPWorkflows\API;
 use VIPWorkflows\Ideation\Assistants\IdeationOrchestrator;
 use VIPWorkflows\Ideation\Research\IdeationAnalyzer;
 use VIPWorkflows\Ideation\Research\IdeationPostTypes;
+use VIPWorkflows\Integrations\MediaProcessor;
 use VIPWorkflows\Integrations\SafeUrl;
 use VIPWorkflows\Integrations\UrlMetaExtractor;
 use WP_Error;
@@ -382,6 +383,66 @@ class IdeationSourcesController extends WP_REST_Controller {
 	}
 
 	/**
+	 * Refuse an audio or video upload that could never be transcribed.
+	 *
+	 * Audio and video are transcribed by OpenAI whatever provider the site
+	 * selected. Without an OpenAI key the file would be stored, queued and then
+	 * failed by the job, so it is refused here instead: no attachment, no row,
+	 * no job. Images, PDFs and documents are not affected.
+	 *
+	 * The type is the one the attachment would be stored with: what WordPress
+	 * resolves from the file's name and contents, the same question
+	 * `media_handle_upload()` asks next. For most users a file WordPress cannot
+	 * resolve is left to `media_handle_upload()`, which refuses it with its own
+	 * message. A user with `unfiltered_upload` is the exception: core stores
+	 * such a file under the type the client sent, so that type is checked too.
+	 *
+	 * A file that did not arrive intact is left to `media_handle_upload()` as
+	 * well, so the person sees the upload error rather than a key message.
+	 *
+	 * @param array $file A get_file_params() entry.
+	 * @return WP_Error|null The refusal, or null when the upload may proceed.
+	 */
+	private static function transcription_refusal( array $file ): ?WP_Error {
+		if ( MediaProcessor::transcription_available() ) {
+			return null;
+		}
+
+		// Only the error values core itself refuses (see _wp_handle_upload());
+		// anything else would still be stored, so it is still checked.
+		$error = $file['error'] ?? 0;
+		if ( is_numeric( $error ) ? $error > 0 : (bool) $error ) {
+			return null;
+		}
+
+		$checked = wp_check_filetype_and_ext(
+			(string) ( $file['tmp_name'] ?? '' ),
+			(string) ( $file['name'] ?? '' )
+		);
+		$type    = is_string( $checked['type'] ) ? $checked['type'] : '';
+
+		// Mirrors _wp_handle_upload(): only these users get past an unresolved
+		// type, and core then stores the client's type.
+		if ( '' === $type && current_user_can( 'unfiltered_upload' ) ) {
+			$type = (string) ( $file['type'] ?? '' );
+		}
+
+		// Attachment storage passes the type through sanitize_mime_type(), so a
+		// type such as "vi deo/mp4" is stored as video/mp4. Ask about that.
+		$type = sanitize_mime_type( $type );
+
+		if ( ! str_starts_with( $type, 'audio/' ) && ! str_starts_with( $type, 'video/' ) ) {
+			return null;
+		}
+
+		return new WP_Error(
+			'rest_transcription_unavailable',
+			MediaProcessor::transcription_unavailable_message(),
+			array( 'status' => 422 )
+		);
+	}
+
+	/**
 	 * Upload source.
 	 *
 	 * @param WP_REST_Request $request REST request.
@@ -404,6 +465,11 @@ class IdeationSourcesController extends WP_REST_Controller {
 		include_once ABSPATH . 'wp-admin/includes/image.php';
 		include_once ABSPATH . 'wp-admin/includes/file.php';
 		include_once ABSPATH . 'wp-admin/includes/media.php';
+
+		$transcription_error = self::transcription_refusal( $files['file'] );
+		if ( null !== $transcription_error ) {
+			return $transcription_error;
+		}
 
 		$attachment_id = media_handle_upload( 'file', $project_id );
 
