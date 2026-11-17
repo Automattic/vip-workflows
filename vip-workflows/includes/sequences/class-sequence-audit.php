@@ -150,7 +150,8 @@ final class SequenceAudit {
 	 * without their values. A stage change no list itemizes (start stage, region
 	 * checkpoint, a flag, order, a transition label, an assignment input, an
 	 * agent's settings) is named as `stages` in `fields_changed`, so no change
-	 * goes unrecorded.
+	 * goes unrecorded, including in a save that also changed something a list
+	 * names. Each change is counted once: in a list, or in `stages`.
 	 *
 	 * @param Sequence $before              The sequence before the write.
 	 * @param Sequence $after               The sequence after the write.
@@ -302,15 +303,13 @@ final class SequenceAudit {
 			);
 		}
 
-		$itemized = false;
-		foreach ( $lists as $list ) {
-			if ( ! empty( $list ) ) {
-				$itemized = true;
-				break;
-			}
-		}
+		// Whatever the lists name is left out of this comparison, so a change
+		// they named isn't counted twice, and one they didn't is still counted
+		// when they named something else in the same save.
+		$unitemized_before = self::unitemized( $before, $before_stages, $after_stages, $is_phase, $dropped_transitions );
+		$unitemized_after  = self::unitemized( $after, $after_stages, $before_stages, $is_phase );
 
-		if ( ! $itemized && self::stages( $before ) !== self::stages( $after ) ) {
+		if ( $unitemized_before !== $unitemized_after ) {
 			$fields[] = 'stages';
 		}
 
@@ -375,6 +374,165 @@ final class SequenceAudit {
 		}
 
 		return $by_key;
+	}
+
+	/**
+	 * The part of one side's stages that no change list names.
+	 *
+	 * Built for both sides by change_summary(), which names `stages` when the two
+	 * differ. Left out, because a list names them: stages only one side holds; on
+	 * a stage both hold, its label and, for a workflow, its region and its agent's
+	 * presence, ability and routing; transitions only one side holds; on a
+	 * transition both hold, its roles and tools; and the duplicates a region
+	 * repair dropped. A field is left out only when its list reads the stored
+	 * value whole (see without_read()). Everything else stays, in order: the
+	 * shared stages, their flags, their shared transitions with labels and inputs,
+	 * an agent's settings, and stored entries no list can read (a stage without a
+	 * key, a transition without a target, a duplicate).
+	 *
+	 * @param Sequence             $sequence The side to read.
+	 * @param array<string, array> $own      Its stages, keyed by key.
+	 * @param array<string, array> $other    The other side's stages, keyed by key.
+	 * @param bool                 $is_phase Whether this is a phase sequence, whose
+	 *                                       regions and agents no list names.
+	 * @param array                $dropped  Duplicates a region repair removed from
+	 *                                       this side, each `{from, to}`.
+	 * @return array
+	 */
+	private static function unitemized( Sequence $sequence, array $own, array $other, bool $is_phase, array $dropped = array() ): array {
+		$unkeyed = array();
+		$seen    = array();
+
+		foreach ( self::stages( $sequence ) as $stage ) {
+			$key = is_array( $stage ) ? self::text( $stage['key'] ?? '' ) : '';
+			if ( '' === $key || isset( $seen[ $key ] ) ) {
+				$unkeyed[] = $stage;
+				continue;
+			}
+			$seen[ $key ] = true;
+		}
+
+		$drops = array();
+		foreach ( $dropped as $drop ) {
+			$pair           = self::text( $drop['from'] ?? '' ) . "\0" . self::text( $drop['to'] ?? '' );
+			$drops[ $pair ] = ( $drops[ $pair ] ?? 0 ) + 1;
+		}
+
+		$other_pairs = self::transitions_by_pair( $other );
+		$shared      = array();
+
+		foreach ( $own as $key => $stage ) {
+			$key = (string) $key;
+			if ( ! isset( $other[ $key ] ) ) {
+				continue;
+			}
+
+			$stage = self::without_read( $stage, 'label', 'is_string' );
+
+			if ( ! $is_phase ) {
+				$stage = self::without_read( $stage, 'status', 'is_string' );
+
+				$mine   = self::has_agent( $stage['agent'] ?? null );
+				$theirs = self::has_agent( $other[ $key ]['agent'] ?? null );
+
+				if ( $mine && $theirs ) {
+					$stage['agent'] = self::without_read( $stage['agent'], 'ability_id', 'is_string' );
+					$stage['agent'] = self::without_read( $stage['agent'], 'routing', array( self::class, 'is_routing' ) );
+				} elseif ( $mine || $theirs ) {
+					// agents_changed names the agent arriving or leaving, settings and all.
+					unset( $stage['agent'] );
+				}
+			}
+
+			if ( isset( $stage['transitions'] ) && is_array( $stage['transitions'] ) ) {
+				$paired   = array();
+				$unpaired = array();
+				$taken    = array();
+
+				foreach ( $stage['transitions'] as $transition ) {
+					$to = is_array( $transition ) ? self::text( $transition['to'] ?? '' ) : '';
+					if ( '' === $to ) {
+						$unpaired[] = $transition;
+						continue;
+					}
+
+					$pair = $key . "\0" . $to;
+					if ( isset( $taken[ $pair ] ) ) {
+						if ( ! empty( $drops[ $pair ] ) ) {
+							--$drops[ $pair ];
+						} else {
+							$unpaired[] = $transition;
+						}
+						continue;
+					}
+					$taken[ $pair ] = true;
+
+					if ( isset( $other_pairs[ $pair ] ) ) {
+						$transition = self::without_read( $transition, 'allowed_roles', array( self::class, 'is_string_list' ) );
+						$transition = self::without_read( $transition, 'required_tools', array( self::class, 'is_string_list' ) );
+						$paired[]   = $transition;
+					}
+				}
+
+				$stage['transitions'] = array( $paired, $unpaired );
+			}
+
+			$shared[ $key ] = $stage;
+		}
+
+		return array( $shared, $unkeyed );
+	}
+
+	/**
+	 * An entry without one field a change list reads, when the list reads it whole.
+	 *
+	 * A stored value the list can only read in part (a null, a scalar where a list
+	 * belongs, a role list holding a non-string) stays, so changing it is still a
+	 * change even though the list sees none.
+	 *
+	 * @param array    $entry    Stage, agent or transition config.
+	 * @param string   $field    Field a change list reads.
+	 * @param callable $readable Whether the list reads a value whole.
+	 * @return array
+	 */
+	private static function without_read( array $entry, string $field, callable $readable ): array {
+		if ( array_key_exists( $field, $entry ) && ! $readable( $entry[ $field ] ) ) {
+			return $entry;
+		}
+
+		unset( $entry[ $field ] );
+
+		return $entry;
+	}
+
+	/**
+	 * Whether a stored role or tool list is one list_diff() reads whole.
+	 *
+	 * @param mixed $value Stored value.
+	 * @return bool
+	 */
+	private static function is_string_list( $value ): bool {
+		return is_array( $value ) && self::string_list( $value ) === $value;
+	}
+
+	/**
+	 * Whether stored agent routing is a map agent_change() reads whole.
+	 *
+	 * @param mixed $value Stored value.
+	 * @return bool
+	 */
+	private static function is_routing( $value ): bool {
+		return is_array( $value ) && array_filter( $value, 'is_string' ) === $value;
+	}
+
+	/**
+	 * Whether a stored agent config is an agent, as agent_change() reads it.
+	 *
+	 * @param mixed $agent Agent config, if any.
+	 * @return bool
+	 */
+	private static function has_agent( $agent ): bool {
+		return is_array( $agent ) && ! empty( $agent );
 	}
 
 	/**
@@ -552,8 +710,8 @@ final class SequenceAudit {
 	 * @return array|null
 	 */
 	private static function agent_change( $before, $after ): ?array {
-		$had = is_array( $before ) && ! empty( $before );
-		$has = is_array( $after ) && ! empty( $after );
+		$had = self::has_agent( $before );
+		$has = self::has_agent( $after );
 
 		if ( ! $had && ! $has ) {
 			return null;

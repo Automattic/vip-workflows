@@ -338,6 +338,149 @@ class SequenceAuditChangeSummaryTest extends TestCase
         $this->assertSame( array( 'fields_changed' => array( 'stages' ) ), $summary );
     }
 
+    /**
+     * @return array<string, array{0: callable, 1: string}>
+     */
+    public function data_mixed_saves(): array
+    {
+        return array(
+            'stage renamed, transition relabeled' => array(
+                function ( array $stages ): array {
+                    $stages[1]['label']                   = 'Copy desk';
+                    $stages[0]['transitions'][0]['label'] = 'Send to desk';
+                    return $stages;
+                },
+                'stages_renamed',
+            ),
+            'region changed, start stage moved'   => array(
+                function ( array $stages ): array {
+                    $stages[2]['status'] = 'private';
+                    unset( $stages[0]['is_initial'] );
+                    $stages[1]['is_initial'] = true;
+                    return $stages;
+                },
+                'regions_changed',
+            ),
+            'stage renamed, stages reordered'     => array(
+                function ( array $stages ): array {
+                    $stages[3]['label'] = 'Published';
+                    return array( $stages[1], $stages[0], $stages[2], $stages[3] );
+                },
+                'stages_renamed',
+            ),
+            'roles changed, transition relabeled' => array(
+                function ( array $stages ): array {
+                    $stages[1]['transitions'][0]['allowed_roles'] = array();
+                    $stages[1]['transitions'][0]['label']         = 'Sign off';
+                    return $stages;
+                },
+                'transitions_changed',
+            ),
+            'stage added, agent settings changed' => array(
+                function ( array $stages ): array {
+                    $stages[1]['agent']['settings'] = array( 'tone' => 'lenient' );
+                    $stages[]                       = array( 'key' => 'legal', 'label' => 'Legal', 'status' => 'pending' );
+                    return $stages;
+                },
+                'stages_added',
+            ),
+        );
+    }
+
+    /**
+     * A save that changes something a list names and something none names
+     * records both, each once.
+     *
+     * @dataProvider data_mixed_saves
+     *
+     * @param callable $edit Edit to the stages.
+     * @param string   $list The one list the edit itemizes.
+     */
+    public function test_a_mixed_save_records_the_unitemized_part_too( callable $edit, string $list ): void
+    {
+        $base             = $this->stages();
+        $base[1]['agent'] = array(
+            'ability_id' => 'vip-workflows/some-agent',
+            'routing'    => array( 'pass' => 'ready' ),
+            'settings'   => array( 'tone' => 'strict' ),
+        );
+
+        $summary = SequenceAudit::change_summary(
+            $this->sequence( $this->config( $base ) ),
+            $this->sequence( $this->config( $edit( $base ) ) )
+        );
+
+        $this->assertSame( array( 'fields_changed', $list ), array_keys( $summary ) );
+        $this->assertSame( array( 'stages' ), $summary['fields_changed'] );
+        $this->assertCount( 1, $summary[ $list ] );
+    }
+
+    /**
+     * @return array<string, array{0: callable}>
+     */
+    public function data_itemized_only_saves(): array
+    {
+        return array(
+            'agent added with settings'   => array(
+                function ( array $stages ): array {
+                    $stages[1]['agent'] = array(
+                        'ability_id' => 'vip-workflows/some-agent',
+                        'routing'    => array( 'pass' => 'ready' ),
+                        'settings'   => array( 'tone' => 'strict' ),
+                    );
+                    return $stages;
+                },
+            ),
+            'transition retargeted'       => array(
+                function ( array $stages ): array {
+                    $stages[1]['transitions'][0]['to'] = 'live';
+                    return $stages;
+                },
+            ),
+            'stage and transition added'  => array(
+                function ( array $stages ): array {
+                    $stages[]                   = array( 'key' => 'legal', 'label' => 'Legal', 'status' => 'pending' );
+                    $stages[0]['transitions'][] = array( 'to' => 'legal', 'label' => 'To legal' );
+                    return $stages;
+                },
+            ),
+        );
+    }
+
+    /**
+     * What a list names is not counted again under `stages`.
+     *
+     * @dataProvider data_itemized_only_saves
+     *
+     * @param callable $edit Edit to the stages.
+     */
+    public function test_an_itemized_change_is_not_also_named_as_stages( callable $edit ): void
+    {
+        $summary = $this->summary_after( $edit );
+
+        $this->assertNotEmpty( $summary );
+        $this->assertArrayNotHasKey( 'fields_changed', $summary );
+    }
+
+    public function test_a_dropped_duplicate_is_counted_once(): void
+    {
+        $legacy = $this->stages();
+        foreach ( $legacy as &$stage ) {
+            unset( $stage['status'] );
+        }
+        unset( $stage );
+        $legacy[0]['transitions'][] = array( 'to' => 'review', 'label' => 'Submit again' );
+
+        $summary = SequenceAudit::change_summary(
+            $this->sequence( $this->config( $legacy ) ),
+            $this->sequence( $this->config( $this->stages() ) ),
+            array( array( 'from' => 'writing', 'to' => 'review' ) )
+        );
+
+        $this->assertSame( array( 'regions_changed', 'transitions_removed' ), array_keys( $summary ) );
+        $this->assertCount( 1, $summary['transitions_removed'] );
+    }
+
     public function test_a_long_list_is_capped_and_counts_what_it_dropped(): void
     {
         $summary = $this->summary_after(
