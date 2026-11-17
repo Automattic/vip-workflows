@@ -184,6 +184,77 @@ class DraftRecordCleanupMigrationTest extends TestCase {
 	}
 
 	/**
+	 * A row written after a short page was read, but before it was deleted,
+	 * is found by the next read rather than left behind.
+	 */
+	public function test_a_row_written_mid_run_is_deleted(): void {
+		global $wpdb;
+		$post_id = self::factory()->post->create();
+		$this->add_record( $post_id );
+
+		$inserted   = false;
+		$interleave = static function ( string $query ) use ( $wpdb, $post_id, &$inserted ): string {
+			if ( ! $inserted && str_starts_with( $query, 'DELETE FROM' ) && str_contains( $query, self::KEY ) ) {
+				$inserted = true;
+				$wpdb->insert(
+					$wpdb->postmeta,
+					array(
+						'post_id'    => $post_id,
+						'meta_key'   => self::KEY,
+						'meta_value' => 'late',
+					)
+				);
+			}
+			return $query;
+		};
+
+		update_option( self::VERSION_OPTION, '2.27.0' );
+		add_filter( 'query', $interleave );
+		try {
+			( new Schema() )->install();
+		} finally {
+			remove_filter( 'query', $interleave );
+		}
+
+		$this->assertTrue( $inserted, 'The row was written between the read and the delete.' );
+		$this->assertSame( Schema::VERSION, get_option( self::VERSION_OPTION ) );
+		$this->assertSame( 0, $this->rows_left() );
+		$this->assertSame( array(), get_post_meta( $post_id, self::KEY ) );
+	}
+
+	/**
+	 * Another run deleting the same rows first, and an earlier unrelated
+	 * database error, neither make the cleanup fail.
+	 */
+	public function test_an_overlapping_run_and_a_stale_error_are_harmless(): void {
+		global $wpdb;
+		$post_id = self::factory()->post->create();
+		$this->add_record( $post_id );
+		get_post_meta( $post_id );
+
+		$deleted    = false;
+		$interleave = static function ( string $query ) use ( $wpdb, &$deleted ): string {
+			if ( ! $deleted && str_starts_with( $query, 'DELETE FROM' ) && str_contains( $query, self::KEY ) ) {
+				$deleted = true;
+				$wpdb->query( $query );
+			}
+			return $query;
+		};
+
+		$wpdb->last_error = 'stale earlier error';
+		add_filter( 'query', $interleave );
+		try {
+			$this->cleanup();
+		} finally {
+			remove_filter( 'query', $interleave );
+		}
+
+		$this->assertTrue( $deleted, 'The rows were deleted by the overlapping run first.' );
+		$this->assertSame( 0, $this->rows_left() );
+		$this->assertSame( array(), get_post_meta( $post_id, self::KEY ) );
+	}
+
+	/**
 	 * Upgrading from the previous release runs the migration and records the
 	 * new version.
 	 */

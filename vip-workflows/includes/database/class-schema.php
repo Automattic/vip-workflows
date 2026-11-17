@@ -708,7 +708,9 @@ class Schema {
 				}
 			}
 
-			$done = count( $rows ) < $page_size;
+			// Only an empty read ends the run, not a short page, so a row
+			// written between this page's read and its delete is still found.
+			$done = ! $rows;
 		} while ( ! $done && microtime( true ) < $deadline );
 
 		if ( ! $done ) {
