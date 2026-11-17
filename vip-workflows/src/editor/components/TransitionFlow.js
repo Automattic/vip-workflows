@@ -681,6 +681,7 @@ export function TransitionFlow() {
 	 */
 	const handleRevert = ( acknowledgeWarnings = false ) => {
 		clearErrors();
+		setToolFailures( null );
 
 		revertAgentStage( { acknowledgeWarnings } )
 			.then( ( response ) => {
@@ -710,6 +711,26 @@ export function TransitionFlow() {
 			} )
 			.catch( ( err ) => {
 				setWarningsModal( null );
+
+				// A required tool on the edge back refused: the same
+				// "Transition blocked" dialog a blocked transition opens,
+				// listing which check failed. Without that list there is
+				// nothing for the dialog to add, so the notice says it.
+				const hardFailures = err?.data?.hard_failures;
+				if (
+					err?.code === 'tool_check_failed' &&
+					Array.isArray( hardFailures ) &&
+					hardFailures.length > 0
+				) {
+					setToolFailures( {
+						code: err.code,
+						message: err.message,
+						hardFailures,
+						softWarnings: err.data.soft_warnings || [],
+					} );
+					return;
+				}
+
 				reportError(
 					err?.message ||
 						__(

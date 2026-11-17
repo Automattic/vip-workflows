@@ -597,6 +597,90 @@ describe( 'WorkflowHeaderAction', () => {
 		);
 	} );
 
+	describe( 'Go back blocked by a required tool', () => {
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+
+		/**
+		 * Render the header, have the server refuse Go back with `refusal`,
+		 * and press Go back.
+		 *
+		 * @param {Object} refusal The rejected apiFetch error.
+		 */
+		async function pressBlockedGoBack( refusal ) {
+			await renderHeader( failed );
+			apiFetch.mockImplementation( ( { path } ) =>
+				path.endsWith( '/agent-revert' )
+					? Promise.reject( refusal )
+					: Promise.resolve( failed )
+			);
+
+			const goBack = await screen.findByRole( 'button', {
+				name: 'Go back to Draft',
+			} );
+			await act( async () => {
+				goBack.click();
+			} );
+		}
+
+		it( 'lists the failed checks in the Transition blocked dialog', async () => {
+			await pressBlockedGoBack( {
+				code: 'tool_check_failed',
+				message: 'Transition blocked by required checks.',
+				data: {
+					status: 422,
+					hard_failures: [
+						{
+							tool: 'acme/fact-check',
+							key: 'execution_error',
+							message: 'The fact check service is unreachable.',
+							severity: 'hard',
+						},
+					],
+					soft_warnings: [],
+				},
+			} );
+
+			expect(
+				await screen.findByText( 'Transition blocked' )
+			).toBeInTheDocument();
+			expect(
+				screen.getByText( 'The fact check service is unreachable.' )
+			).toBeInTheDocument();
+			expect(
+				screen.getByText( 'acme/fact-check:' )
+			).toBeInTheDocument();
+			expect( createErrorNotice ).not.toHaveBeenCalledWith(
+				'Transition blocked by required checks.',
+				expect.anything()
+			);
+		} );
+
+		it( 'falls back to the editor notice when the refusal lists no checks', async () => {
+			await pressBlockedGoBack( {
+				code: 'tool_check_failed',
+				message: 'Transition blocked by required checks.',
+				data: { status: 422 },
+			} );
+
+			await waitFor( () =>
+				expect( createErrorNotice ).toHaveBeenCalledWith(
+					'Transition blocked by required checks.',
+					expect.objectContaining( {
+						id: 'vip-workflows-transition-refused',
+					} )
+				)
+			);
+			expect( screen.queryByText( 'Transition blocked' ) ).toBeNull();
+		} );
+	} );
+
 	/**
 	 * When the failed run can run again, that is the header's action: the post
 	 * stays at its stage and a fresh run starts, instead of a trip back.

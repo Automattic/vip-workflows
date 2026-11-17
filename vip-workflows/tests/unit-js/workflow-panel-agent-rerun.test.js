@@ -297,6 +297,89 @@ describe( 'WorkflowPanel failed agent actions', () => {
 		).toBeGreaterThan( 1 );
 	} );
 
+	describe( 'Go back blocked by a required tool', () => {
+		const failed = failedStatus( {
+			can_rerun: true,
+			revert_to: { key: 'drafting', label: 'Drafting' },
+		} );
+
+		/**
+		 * Render the panel, have the server refuse Go back with `refusal`,
+		 * and press Go back.
+		 *
+		 * @param {Object} refusal The rejected apiFetch error.
+		 */
+		async function pressBlockedGoBack( refusal ) {
+			apiFetch.mockImplementation( ( request ) => {
+				if ( request.path === REVERT_PATH ) {
+					return Promise.reject( refusal );
+				}
+				if ( request.path === STATUS_PATH ) {
+					return Promise.resolve( failed );
+				}
+				return Promise.resolve( [] );
+			} );
+
+			render(
+				<>
+					<TransitionFlow />
+					<WorkflowPanel />
+				</>
+			);
+			const goBack = await screen.findByRole( 'button', {
+				name: 'Go back to Drafting',
+			} );
+			await act( async () => {
+				goBack.click();
+			} );
+		}
+
+		it( 'lists the failed checks in the Transition blocked dialog', async () => {
+			await pressBlockedGoBack( {
+				code: 'tool_check_failed',
+				message: 'Transition blocked by required checks.',
+				data: {
+					status: 422,
+					hard_failures: [
+						{
+							tool: 'acme/fact-check',
+							key: 'execution_error',
+							message: 'The fact check service is unreachable.',
+							severity: 'hard',
+						},
+					],
+					soft_warnings: [],
+				},
+			} );
+
+			expect(
+				await screen.findByText( 'Transition blocked' )
+			).toBeInTheDocument();
+			expect(
+				screen.getByText( 'The fact check service is unreachable.' )
+			).toBeInTheDocument();
+			expect(
+				screen.getByText( 'acme/fact-check:' )
+			).toBeInTheDocument();
+			expect( screen.queryByText( 'Warnings detected' ) ).toBeNull();
+		} );
+
+		it( 'falls back to the notice when the refusal lists no checks', async () => {
+			await pressBlockedGoBack( {
+				code: 'tool_check_failed',
+				message: 'Transition blocked by required checks.',
+				data: { status: 422, hard_failures: [], soft_warnings: [] },
+			} );
+
+			expect(
+				await screen.findByText(
+					'Transition blocked by required checks.'
+				)
+			).toBeInTheDocument();
+			expect( screen.queryByText( 'Transition blocked' ) ).toBeNull();
+		} );
+	} );
+
 	describe( 'Go back held for soft warnings', () => {
 		const held = {
 			warnings_pending: true,
