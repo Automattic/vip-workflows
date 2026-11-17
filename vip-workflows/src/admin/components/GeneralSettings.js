@@ -209,11 +209,15 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 				{ settings.workflow_enforcement && (
 					<RadioControl
 						label={ __( 'Enforcement mode', 'vip-workflows' ) }
+						help={ __(
+							'Drafts can always be saved, and Workflow override roles can publish without a workflow.',
+							'vip-workflows'
+						) }
 						selected={ settings.workflow_enforcement_mode }
 						options={ [
 							{
 								label: __(
-									'Require — users must select a workflow to continue',
+									'Require — users must choose a workflow, and posts can’t be published without one',
 									'vip-workflows'
 								),
 								value: 'require',
