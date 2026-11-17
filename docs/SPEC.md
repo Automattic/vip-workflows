@@ -155,7 +155,7 @@ Retention: `vip-workflows/includes/maintenance/class-cleanup.php` runs nightly t
 
 | Key | Purpose | Owner |
 | --- | --- | --- |
-| `_vip_workflows_sequence_id` | The sequence managing the post; zeroing it removes the post from the workflow. Registered with `show_in_rest => false` | `vip-workflows/includes/workflow/class-status-manager.php`, registered in `vip-workflows/includes/class-plugin.php` |
+| `_vip_workflows_sequence_id` | The sequence managing the post; it changes only through assignment and removal. Registered with `show_in_rest => false` and an `auth_callback` that grants no meta capability, so no site role, administrators included, can add, edit or delete it as a custom field (REST, XML-RPC, the Custom Fields box); multisite super admins keep core's protected-meta exception | `vip-workflows/includes/workflow/class-status-manager.php`, registered in `vip-workflows/includes/class-plugin.php` |
 | `_vip_workflows_current_stage_key` | The current stage. The only authority for stage, never inferred from `post_status` | `vip-workflows/includes/workflow/class-status-manager.php` |
 | `_vip_workflows_transition_data` | Per-stage transition data | `vip-workflows/includes/workflow/class-status-manager.php` |
 | `_vip_workflows_assignment_{slot}` | One assignment slot | `vip-workflows/includes/workflow/class-assignment-manager.php` |
