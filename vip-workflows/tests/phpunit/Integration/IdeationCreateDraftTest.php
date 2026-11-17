@@ -92,15 +92,112 @@ class IdeationCreateDraftTest extends TestCase
     {
         remove_filter( 'pre_http_request', array( $this, 'answer_provider' ), 10 );
 
-        if ( null !== $this->previous_auth ) {
-            \WordPress\AiClient\AiClient::defaultRegistry()->setProviderRequestAuthentication( 'openai', $this->previous_auth );
-        }
+        $this->restore_provider_auth();
 
         Credentials::get_instance()->set_backend( null );
         delete_option( 'vip_workflows_ai_provider' );
         delete_option( 'vip_workflows_ai_models' );
 
         parent::tear_down();
+    }
+
+    /**
+     * Put the OpenAI provider's authentication back as this test found it.
+     *
+     * When there was none, the registry has no setter for "none", so its
+     * entry is removed and the key is cleared from the provider objects it
+     * was forwarded to. Those objects are kept rather than rebuilt, so they
+     * keep the HTTP transporter the registry gave them at registration.
+     */
+    private function restore_provider_auth(): void
+    {
+        $registry = \WordPress\AiClient\AiClient::defaultRegistry();
+
+        if ( null !== $this->previous_auth ) {
+            $registry->setProviderRequestAuthentication( 'openai', $this->previous_auth );
+        } else {
+            $class_name = $registry->getProviderClassName( 'openai' );
+
+            $instances = new \ReflectionProperty( $registry, 'providerAuthenticationInstances' );
+            $map       = $instances->getValue( $registry );
+            unset( $map[ $class_name ] );
+            $instances->setValue( $registry, $map );
+
+            foreach ( $this->provider_objects_holding_auth( $class_name ) as $holder ) {
+                $this->clear_request_authentication( $holder );
+            }
+        }
+
+        $this->assertSame( $this->previous_auth, $registry->getProviderRequestAuthentication( 'openai' ) );
+
+        $class_name = $registry->getProviderClassName( 'openai' );
+        foreach ( $this->provider_objects_holding_auth( $class_name ) as $holder ) {
+            $this->assertSame( $this->previous_auth, $this->read_property( $holder, 'requestAuthentication' ) );
+            $this->assertSame( $registry->getHttpTransporter(), $this->read_property( $holder, 'httpTransporter' ) );
+        }
+    }
+
+    /**
+     * The provider's model directory, and the one its availability check
+     * wraps, when they take request authentication.
+     *
+     * @param  string $class_name Provider class.
+     * @return object[]
+     */
+    private function provider_objects_holding_auth( string $class_name ): array
+    {
+        $candidates   = array( $class_name::modelMetadataDirectory() );
+        $availability = $class_name::availability();
+        if ( $this->find_property( $availability, 'modelMetadataDirectory' ) ) {
+            $candidates[] = $this->read_property( $availability, 'modelMetadataDirectory' );
+        }
+
+        $holders = array();
+        foreach ( $candidates as $candidate ) {
+            if ( $candidate instanceof \WordPress\AiClient\Providers\Http\Contracts\WithRequestAuthenticationInterface && ! in_array( $candidate, $holders, true ) ) {
+                $holders[] = $candidate;
+            }
+        }
+        return $holders;
+    }
+
+    /**
+     * Unset an object's request authentication, which has no public unsetter.
+     *
+     * @param object $holder Object using the request authentication trait.
+     */
+    private function clear_request_authentication( object $holder ): void
+    {
+        $this->find_property( $holder, 'requestAuthentication' )->setValue( $holder, null );
+    }
+
+    /**
+     * Read a property declared anywhere in an object's class hierarchy.
+     *
+     * @param  object $holder Object.
+     * @param  string $name   Property name.
+     * @return mixed
+     */
+    private function read_property( object $holder, string $name )
+    {
+        return $this->find_property( $holder, $name )->getValue( $holder );
+    }
+
+    /**
+     * Find a property declared anywhere in an object's class hierarchy.
+     *
+     * @param  object $holder Object.
+     * @param  string $name   Property name.
+     * @return \ReflectionProperty|null
+     */
+    private function find_property( object $holder, string $name ): ?\ReflectionProperty
+    {
+        for ( $class = new \ReflectionClass( $holder ); $class; $class = $class->getParentClass() ) {
+            if ( $class->hasProperty( $name ) && $class->getProperty( $name )->getDeclaringClass()->getName() === $class->getName() ) {
+                return $class->getProperty( $name );
+            }
+        }
+        return null;
     }
 
     /**
