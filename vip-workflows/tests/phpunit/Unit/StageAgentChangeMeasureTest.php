@@ -610,4 +610,204 @@ class StageAgentChangeMeasureTest extends TestCase
 
         $this->assertStringNotContainsString( '<script>', StageAgent::measure_rewrite( $original, $edited )['content'] );
     }
+
+    /**
+     * Edits to shortcode-shaped tokens whose tags aren't registered, which is
+     * every tag here: the unit environment registers none, as on a cron run
+     * before a theme's front-end hooks.
+     *
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public function provide_unregistered_shortcode_changes(): array
+    {
+        $first  = 'The board approved the proposal after reviewing the detailed report.';
+        $second = 'The vote was unanimous and the plan takes effect next month.';
+        $third  = 'Members will meet again in the spring to review progress.';
+
+        return array(
+            'an attribute edited'                => array(
+                self::para( $first ) . self::para( '[promo_box id="7"] ' . $second ),
+                self::para( $first ) . self::para( '[promo_box id="8"] ' . $second ),
+            ),
+            'a hyphenated name added'            => array(
+                self::para( $first ) . self::para( $second ),
+                self::para( $first ) . self::para( $second . ' [newsletter-signup]' ),
+            ),
+            'an underscored name added'          => array(
+                self::para( $first ) . self::para( $second ),
+                self::para( $first ) . self::para( $second . ' [my_widget]' ),
+            ),
+            'an enclosing pair removed'          => array(
+                self::para( $first ) . self::para( '[pullquote]' . $second . '[/pullquote]' ),
+                self::para( $first ) . self::para( $second ),
+            ),
+            'a token moved to another paragraph' => array(
+                self::para( $first ) . self::para( '[promo_box id="7"] ' . $second ) . self::para( $third ),
+                self::para( $first ) . self::para( $second ) . self::para( '[promo_box id="7"] ' . $third ),
+            ),
+            'a self-closing token added'         => array(
+                self::para( $first ) . self::para( $second ),
+                self::para( $first ) . self::para( $second . ' [divider /]' ),
+            ),
+            'a shortcode nested in a pair added' => array(
+                self::para( '[pullquote]' . $first . '[/pullquote]' ),
+                self::para( '[pullquote]' . $first . ' [promo_box id="7"][/pullquote]' ),
+            ),
+        );
+    }
+
+    /**
+     * @dataProvider provide_unregistered_shortcode_changes
+     *
+     * @param string $before Original content.
+     * @param string $after  Edited content.
+     */
+    public function test_an_unregistered_shortcode_change_is_refused( string $before, string $after ): void
+    {
+        $this->assertEmpty( $GLOBALS['shortcode_tags'] ?? array(), 'No tag may be registered here.' );
+
+        $report     = StageAgent::measure_rewrite( $before, $after );
+        $violations = StageAgent::copy_edit_violations( $report, 15 );
+
+        $this->assertTrue( $report['controls_changed'] );
+        $this->assertContains( 'controls', $violations );
+        $this->assertStringContainsString( 'page break, More tag or shortcode', StageAgent::describe_rewrite( $report, $violations, 15 ) );
+    }
+
+    /**
+     * Bracketed text that doesn't look like a shortcode.
+     *
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public function provide_bracketed_prose(): array
+    {
+        return array(
+            '[sic] removed'               => array(
+                self::para( 'The mayor said the budget was "to large [sic] to pass" this year.' ),
+                self::para( 'The mayor said the budget was "to large to pass" this year.' ),
+            ),
+            '[1] added'                   => array(
+                self::para( 'Turnout was the highest the county has recorded in a decade.' ),
+                self::para( 'Turnout was the highest the county has recorded in a decade.[1]' ),
+            ),
+            '[Ed.] kept, sentence edited' => array(
+                self::para( 'The council [Ed.] voted to aprove the new library on Tuesday night.' ),
+                self::para( 'The council [Ed.] voted to approve the new library on Tuesday evening.' ),
+            ),
+            '[citation needed] added'     => array(
+                self::para( 'Most residents support the new library plan in the survey.' ),
+                self::para( 'Most residents support the new library plan [citation needed] in the survey.' ),
+            ),
+            '[Update: 3pm] added'         => array(
+                self::para( 'The road reopened after crews cleared the fallen tree this afternoon.' ),
+                self::para( '[Update: 3pm] The road reopened after crews cleared the fallen tree this afternoon.' ),
+            ),
+            'a stray [/sic] added'        => array(
+                self::para( 'The mayor said the budget was too large to pass this year.' ),
+                self::para( 'The mayor said the budget was too large to pass [/sic] this year.' ),
+            ),
+            'an escaped shortcode added'  => array(
+                self::para( 'Type the tag below to add a promotion box to any post.' ),
+                self::para( 'Type the tag [[promo_box id="7"]] to add a promotion box to any post.' ),
+            ),
+            'an escaped pair added'       => array(
+                self::para( 'Wrap a quote in the tags to set it apart from the text.' ),
+                self::para( 'Wrap a quote in [[pullquote]a [my_widget] quote[/pullquote]] to set it apart.' ),
+            ),
+        );
+    }
+
+    /**
+     * @dataProvider provide_bracketed_prose
+     *
+     * @param string $before Original content.
+     * @param string $after  Edited content.
+     */
+    public function test_bracketed_prose_is_text( string $before, string $after ): void
+    {
+        $report = StageAgent::measure_rewrite( $before, $after );
+
+        $this->assertFalse( $report['controls_changed'] );
+        $this->assertNotContains( 'controls', StageAgent::copy_edit_violations( $report, 15 ) );
+    }
+
+    public function test_a_copy_edit_beside_an_unchanged_unregistered_shortcode_passes(): void
+    {
+        $before = self::para( 'The board aproved the proposal after reviewing the detailed report from the committee.' ) . self::para( '[promo_box id="7"]' );
+        $after  = self::para( 'The board approved the proposal after reviewing the detailed report from the committee.' ) . self::para( '[promo_box id="7"]' );
+
+        $report = StageAgent::measure_rewrite( $before, $after );
+
+        $this->assertFalse( $report['controls_changed'] );
+        $this->assertSame( array(), StageAgent::copy_edit_violations( $report, 15 ) );
+    }
+
+    public function test_each_nested_same_name_pair_keeps_its_own_closer(): void
+    {
+        $body = self::para( 'The board approved the proposal after reviewing the detailed report from the committee.' );
+
+        $report = StageAgent::measure_rewrite( $body . '[box][box]Text[/box][/box]', $body . '[box][box]Text[/box]' );
+
+        $this->assertTrue( $report['controls_changed'] );
+    }
+
+    public function test_tokens_inside_an_escaped_pair_are_text(): void
+    {
+        $body   = self::para( 'The board approved the proposal after reviewing the detailed report from the committee.' );
+        $before = $body . self::para( '[[box] [promo_box id=7] [/box]]' );
+
+        $this->assertFalse( StageAgent::measure_rewrite( $before, str_replace( 'id=7', 'id=8', $before ) )['controls_changed'] );
+    }
+
+    public function test_a_bare_ampersand_kses_encodes_in_an_unchanged_shortcode_passes(): void
+    {
+        Functions\when( 'wp_kses_post' )->alias( static fn( $html ) => preg_replace( '/&(?!amp;)/', '&amp;', (string) $html ) );
+
+        $before = self::para( 'The board aproved the proposal after reviewing the detailed report from the committee.' ) . self::para( '[promo title="A & B"]' );
+        $after  = str_replace( 'aproved', 'approved', $before );
+
+        $this->assertSame( array(), StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $before, $after ), 15 ) );
+    }
+
+    public function test_kses_decoding_a_named_entity_in_a_shortcode_is_unpreservable(): void
+    {
+        Functions\when( 'wp_kses_post' )->alias( static fn( $html ) => str_replace( '&copy;', '©', (string) $html ) );
+
+        $before = self::para( 'The board aproved the proposal after reviewing the detailed report from the committee.' ) . self::para( '[promo id="&copy;"]' );
+
+        $this->assertTrue( StageAgent::measure_rewrite( $before, str_replace( 'aproved', 'approved', $before ) )['unpreservable_markup'] );
+    }
+
+    /**
+     * A megabyte of bracket text, escaped pairs or slashes is scanned in
+     * linear time and never makes the scan give up. The bound is loose; a
+     * per-opener search for a closer took minutes on the same input.
+     *
+     * @return array<string, array{0: string, 1: int}>
+     */
+    public function provide_pathological_fragments(): array
+    {
+        $fill = static fn( string $unit ): string => substr( str_repeat( $unit, (int) ceil( 1048576 / strlen( $unit ) ) ), 0, 1048576 );
+
+        return array(
+            'bare openers'      => array( $fill( '[box]' ), 0 ),
+            'escaped pairs'     => array( $fill( '[[box]x[/box]]' ), 0 ),
+            'unclosed openers'  => array( $fill( '[box a=' ), 0 ),
+            'a slash attribute' => array( '[promo id=7][promo title="' . str_repeat( '/', 1048500 ) . '"]', 2 ),
+        );
+    }
+
+    /**
+     * @dataProvider provide_pathological_fragments
+     */
+    public function test_a_pathological_fragment_is_scanned_quickly( string $content, int $expected ): void
+    {
+        $controls = new \ReflectionMethod( StageAgent::class, 'controls' );
+
+        $start = microtime( true );
+        $found = $controls->invoke( null, $content );
+
+        $this->assertLessThan( 5.0, microtime( true ) - $start );
+        $this->assertCount( $expected, $found );
+    }
 }

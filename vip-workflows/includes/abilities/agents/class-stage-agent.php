@@ -648,8 +648,9 @@ class StageAgent {
 	 * delimiters (or the classic paragraphs), aligned one-to-one whenever two
 	 * contents share a structure.
 	 *
-	 * `controls` is every page break, More marker and registered shortcode
-	 * (see controls()), tagged with how many blocks or paragraphs precede it.
+	 * `controls` is every page break, More marker and shortcode, registered
+	 * or shortcode-shaped (see controls()), tagged with how many blocks or
+	 * paragraphs precede it.
 	 *
 	 * @param  string $content Post content.
 	 * @return array{structure: array, links: string[], markup: string[], controls: string[], chunks: string[]}
@@ -720,8 +721,8 @@ class StageAgent {
 	/**
 	 * The WordPress constructs in a fragment that change how a post is paged,
 	 * excerpted or rendered rather than what it says: the `<!--more-->`,
-	 * `<!--nextpage-->` and `<!--noteaser-->` markers, and registered
-	 * shortcodes (each opening tag with its attributes, and its closing tag).
+	 * `<!--nextpage-->` and `<!--noteaser-->` markers, and shortcodes (each
+	 * opening tag with its attributes, and its closing tag).
 	 *
 	 * HTML comments and shortcodes are invisible to the tag scan, so without
 	 * this an edit could add a page break or a `[gallery]` and still measure
@@ -729,8 +730,13 @@ class StageAgent {
 	 * can hold others; the content's words are compared like any other text.
 	 * Escaped shortcodes (`[[gallery]]`) print literally and are left out.
 	 *
+	 * Stage agents run under WP-Cron or REST, before front-end hooks fire, so
+	 * a shortcode a theme registers on `template_redirect` isn't registered
+	 * here. Unregistered tokens with unmistakable shortcode syntax are counted
+	 * too; see unregistered_shortcodes().
+	 *
 	 * @param  string $content HTML.
-	 * @return array<int, array{offset: int, label: string}> In document order, one kind after the other.
+	 * @return array<int, array{offset: int, label: string}> In document order, markers first, then shortcodes.
 	 */
 	private static function controls( string $content ): array {
 		$controls = array();
@@ -744,11 +750,249 @@ class StageAgent {
 			}
 		}
 
+		$scan       = self::unregistered_shortcodes( $content );
+		$shortcodes = $scan['shortcodes'];
 		if ( function_exists( 'get_shortcode_regex' ) && ! empty( $GLOBALS['shortcode_tags'] ) ) {
-			$controls = array_merge( $controls, self::shortcodes( $content, 0 ) );
+			$shortcodes = array_merge( self::outside( self::shortcodes( $content, 0 ), $scan['escaped'] ), $shortcodes );
+		}
+		usort( $shortcodes, static fn( array $a, array $b ): int => $a['offset'] <=> $b['offset'] );
+
+		return array_merge( $controls, $shortcodes );
+	}
+
+	/**
+	 * Unregistered tokens in a fragment that have unmistakable shortcode
+	 * syntax, nested ones included, and the ranges of every escaped token.
+	 *
+	 * A token follows WordPress's shortcode grammar (`[name]`, `[name attrs]`,
+	 * `[name /]` or `[/name]`, the name starting with a letter and going on
+	 * with letters, digits, `_` or `-`) and counts when its name isn't
+	 * registered and it has at least one of: a `name=value` attribute, a
+	 * self-closing `/]`, a matching `[/name]` later in the fragment, or `_` or
+	 * `-` in its name. A bare `[word]` stays text, so bracketed prose such as
+	 * `[sic]`, `[1]`, `[Ed.]` or `[citation needed]` isn't structure. Closing
+	 * tags pair with the nearest open opener of the same name, so nested
+	 * same-name pairs each keep their own closer. A closing tag counts when it
+	 * closes a counted opener or its own name has `_` or `-`.
+	 *
+	 * Escaped tokens (`[[name]]`, or `[[name]…[/name]]`) and everything inside
+	 * an escaped pair print literally and are left out, whether or not the
+	 * name is registered. Their ranges are returned so the registered pass can
+	 * leave them out too.
+	 *
+	 * The scan is linear in the fragment's length and runs no regular
+	 * expression over it, so a long or malformed post can't make it fail or
+	 * stall. Labels match shortcodes(), so a moved or edited token is told
+	 * apart the same way whether or not its tag is registered.
+	 *
+	 * @param  string $content HTML.
+	 * @return array{shortcodes: array<int, array{offset: int, label: string}>, escaped: array<int, array{0: int, 1: int}>} Shortcodes in no set order; escaped `[start, end)` ranges in document order.
+	 */
+	private static function unregistered_shortcodes( string $content ): array {
+		$registered = isset( $GLOBALS['shortcode_tags'] ) && is_array( $GLOBALS['shortcode_tags'] ) ? $GLOBALS['shortcode_tags'] : array();
+		$length     = strlen( $content );
+		$found      = array();
+		$escaped    = array();
+		$skip_until = 0;
+
+		// Every closing tag's offset, by name, for finding an opener's escape.
+		$closer_at = array();
+		foreach ( self::shortcode_tokens( $content ) as $token ) {
+			if ( $token['closing'] ) {
+				$closer_at[ $token['name'] ][] = $token['at'];
+			}
+		}
+		$cursor = array();
+
+		// Open openers by name: offsets (negative when already counted) and labels.
+		$open_at    = array();
+		$open_label = array();
+
+		foreach ( self::shortcode_tokens( $content ) as $token ) {
+			$at   = $token['at'];
+			$name = $token['name'];
+			if ( $at < $skip_until ) {
+				continue;
+			}
+
+			$hyphenated = strlen( $name ) !== strcspn( $name, '_-' );
+
+			if ( $token['closing'] ) {
+				if ( isset( $registered[ $name ] ) ) {
+					continue;
+				}
+				$label = 'shortcode:[/' . $name . ']';
+				if ( ! empty( $open_at[ $name ] ) ) {
+					$opener       = array_pop( $open_at[ $name ] );
+					$opener_label = array_pop( $open_label[ $name ] );
+					if ( $opener >= 0 ) {
+						$found[] = array(
+							'offset' => $opener,
+							'label'  => $opener_label,
+						);
+					}
+					$found[] = array(
+						'offset' => $at,
+						'label'  => $label,
+					);
+				} elseif ( $hyphenated && ! ( $length > $token['end'] && ']' === $content[ $token['end'] ] ) ) {
+					$found[] = array(
+						'offset' => $at,
+						'label'  => $label,
+					);
+				}
+				continue;
+			}
+
+			$end = $token['end'];
+			if ( $at > 0 && '[' === $content[ $at - 1 ] ) {
+				$construct = null;
+				if ( ! $token['self_closing'] && isset( $closer_at[ $name ] ) ) {
+					$i = $cursor[ $name ] ?? 0;
+					while ( isset( $closer_at[ $name ][ $i ] ) && $closer_at[ $name ][ $i ] < $end ) {
+						++$i;
+					}
+					$cursor[ $name ] = $i;
+					if ( isset( $closer_at[ $name ][ $i ] ) ) {
+						$after = $closer_at[ $name ][ $i ] + strlen( '[/' . $name . ']' );
+						if ( $length > $after && ']' === $content[ $after ] ) {
+							$construct = $after + 1;
+						}
+					}
+				}
+				if ( null === $construct && $length > $end && ']' === $content[ $end ] ) {
+					$construct = $end + 1;
+				}
+				if ( null !== $construct ) {
+					$escaped[]  = array( $at - 1, $construct );
+					$skip_until = $construct;
+					continue;
+				}
+			}
+
+			if ( isset( $registered[ $name ] ) ) {
+				continue;
+			}
+
+			$label = self::shortcode_label( $name, $token['attributes'], $token['self_closing'] );
+			if ( $token['self_closing'] ) {
+				$found[] = array(
+					'offset' => $at,
+					'label'  => $label,
+				);
+				continue;
+			}
+
+			$counted = $hyphenated || 1 === preg_match( '/[A-Za-z0-9_-]+\s*=/', $token['attributes'] );
+			if ( $counted ) {
+				$found[] = array(
+					'offset' => $at,
+					'label'  => $label,
+				);
+			}
+			$open_at[ $name ][]    = $counted ? -1 - $at : $at;
+			$open_label[ $name ][] = $label;
 		}
 
-		return $controls;
+		return array(
+			'shortcodes' => $found,
+			'escaped'    => $escaped,
+		);
+	}
+
+	/**
+	 * Every shortcode-shaped token in a fragment, in document order: a `[`,
+	 * an optional `/`, a name (a letter, then letters, digits, `_` or `-`),
+	 * and, for an opener, whitespace, `/` or `]` and then anything up to the
+	 * next `]`. A token's attributes can't hold a `]`, as in WordPress's own
+	 * shortcode grammar, and scanning resumes after each token's `]`.
+	 *
+	 * @param  string $content HTML.
+	 * @return \Generator<int, array{at: int, end: int, closing: bool, name: string, attributes: string, self_closing: bool}>
+	 */
+	private static function shortcode_tokens( string $content ): \Generator {
+		$length = strlen( $content );
+		$name   = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-';
+		$pos    = 0;
+		$close  = -1;
+
+		while ( false !== ( $at = strpos( $content, '[', $pos ) ) ) { // phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.FoundInWhileCondition
+			$pos = $at + 1;
+			if ( $close < $at ) {
+				$close = strpos( $content, ']', $at );
+				if ( false === $close ) {
+					return;
+				}
+			}
+
+			$closing = $length > $pos && '/' === $content[ $pos ];
+			$start   = $closing ? $pos + 1 : $pos;
+			if ( $start >= $length || ! ctype_alpha( $content[ $start ] ) ) {
+				continue;
+			}
+			$after = $start + strspn( $content, $name, $start );
+			$next  = $content[ $after ] ?? '';
+
+			if ( $closing ? ']' !== $next : ( ']' !== $next && '/' !== $next && ! ctype_space( $next ) ) ) {
+				continue;
+			}
+
+			$self_closing = ! $closing && '/' === $content[ $close - 1 ];
+			$attributes   = $closing ? '' : trim( substr( $content, $after, $close - $after - ( $self_closing ? 1 : 0 ) ) );
+			$pos          = $close + 1;
+
+			yield array(
+				'at'           => $at,
+				'end'          => $close + 1,
+				'closing'      => $closing,
+				'name'         => substr( $content, $start, $after - $start ),
+				'attributes'   => $attributes,
+				'self_closing' => $self_closing,
+			);
+		}
+	}
+
+	/**
+	 * A shortcode opener's control label. `&amp;` reads as `&`, so kses
+	 * encoding a bare ampersand in an unchanged shortcode doesn't read as an
+	 * edit. Every other entity keeps its spelling, since a shortcode's
+	 * callback receives its attributes literally.
+	 *
+	 * @param  string $name         Tag name.
+	 * @param  string $attributes   Trimmed attribute text.
+	 * @param  bool   $self_closing Whether the tag ends `/]`.
+	 * @return string
+	 */
+	private static function shortcode_label( string $name, string $attributes, bool $self_closing ): string {
+		$attributes = str_replace( '&amp;', '&', $attributes );
+
+		return 'shortcode:[' . $name . ( '' === $attributes ? '' : ' ' . $attributes ) . ( $self_closing ? ' /' : '' ) . ']';
+	}
+
+	/**
+	 * The controls that lie outside every given range.
+	 *
+	 * @param  array<int, array{offset: int, label: string}> $controls Controls in document order.
+	 * @param  array<int, array{0: int, 1: int}>             $ranges   `[start, end)` ranges in document order.
+	 * @return array<int, array{offset: int, label: string}>
+	 */
+	private static function outside( array $controls, array $ranges ): array {
+		if ( empty( $ranges ) ) {
+			return $controls;
+		}
+
+		$kept = array();
+		$i    = 0;
+		foreach ( $controls as $control ) {
+			while ( isset( $ranges[ $i ] ) && $ranges[ $i ][1] <= $control['offset'] ) {
+				++$i;
+			}
+			if ( ! isset( $ranges[ $i ] ) || $control['offset'] < $ranges[ $i ][0] ) {
+				$kept[] = $control;
+			}
+		}
+
+		return $kept;
 	}
 
 	/**
@@ -774,10 +1018,9 @@ class StageAgent {
 				continue;
 			}
 
-			$attributes = trim( $match[3][0] );
-			$found[]    = array(
+			$found[] = array(
 				'offset' => $at,
-				'label'  => 'shortcode:[' . $tag . ( '' === $attributes ? '' : ' ' . $attributes ) . ( '/' === $match[4][0] ? ' /' : '' ) . ']',
+				'label'  => self::shortcode_label( $tag, trim( $match[3][0] ), '/' === $match[4][0] ),
 			);
 			if ( '' !== $match[5][0] ) {
 				$found = array_merge( $found, self::shortcodes( $match[5][0], $base + $match[5][1] ) );
