@@ -106,7 +106,10 @@ which work whether or not the sidebar or the panel is open.
   Workflow row → metadata rows. The Workflow row's popover holds the sequence
   list and, below it, Remove from workflow (withheld when the workflow is
   enforced). A post whose sequence was deleted is drawn as the same row in its
-  invalid state, whose popover offers only removal. The slot is a render-prop
+  invalid state, whose popover offers only removal. For a post that has a
+  workflow (or a deleted one), a user outside the workflow override roles
+  (`guard.can_bypass` false) gets neither the list nor removal: the popover
+  says which roles can remove or change the workflow. The slot is a render-prop
   slot, so the rows take nothing from React context around the fill; they read
   through `wp.data` and `useEntityProp`. The whole run is behind
   `! isEditorPanelRemoved( 'post-status' )`, and some experimental DataForm
