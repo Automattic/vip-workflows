@@ -154,6 +154,43 @@ class IdeationCreateDraftSuccessTest extends TestCase
         $this->assertContains( 'POST https://api.openai.com/v1/responses', $this->calls, 'The draft came from the canned provider reply.' );
     }
 
+    /** The real REST route stores the provider's decoded JSON exactly once. */
+    public function test_rest_do_request_preserves_title_and_block_attribute_escapes(): void
+    {
+        $title = 'C:\Users\tom "quoted"';
+        $attrs = array( 'metadata' => array( 'name' => 'C:\Users\tom "quoted" <tag>' ) );
+        $body = '<!-- wp:paragraph ' . wp_json_encode( $attrs, JSON_HEX_TAG ) . ' -->' . "\n"
+            . '<p title="C:\Users\tom">C:\Users\tom and it\'s "quoted"</p>' . "\n<!-- /wp:paragraph -->";
+        $this->reply_with( $title, $body );
+        $request = new WP_REST_Request( 'POST', sprintf( self::ROUTE, $this->project() ) );
+        $request->set_header( 'Content-Type', 'application/json' );
+        $request->set_body( wp_json_encode( array( 'word_count' => 500 ) ) );
+        $post = $this->created_post( rest_do_request( $request ) );
+        $expected = DraftBuilder::markdown_to_blocks( $body );
+        $this->assertSame( $title, $post->post_title );
+        $this->assertSame( $expected, $post->post_content );
+        $this->assertSame( parse_blocks( $expected )[0]['attrs'], parse_blocks( $post->post_content )[0]['attrs'] );
+        $this->assertSame( 'C:\Users\tom "quoted" <tag>', parse_blocks( $post->post_content )[0]['attrs']['metadata']['name'] );
+    }
+
+    public function test_author_create_draft_uses_core_kses_slashing_contract(): void
+    {
+        wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
+        kses_init();
+        $this->assertFalse( current_user_can( 'unfiltered_html' ) );
+        $title = 'C:\Users\tom "quoted"';
+        $body = '<!-- wp:paragraph -->' . "\n" . '<p title="C:\Users\tom">C:\Users\tom and it\'s "quoted"</p>' . "\n<!-- /wp:paragraph -->";
+        $this->reply_with( $title, $body );
+        $request = new WP_REST_Request( 'POST', sprintf( self::ROUTE, $this->project() ) );
+        $request->set_header( 'Content-Type', 'application/json' );
+        $request->set_body( wp_json_encode( array( 'word_count' => 500 ) ) );
+        $post = $this->created_post( rest_do_request( $request ) );
+        $expected = DraftBuilder::markdown_to_blocks( $body );
+        $this->assertSame( $title, $post->post_title );
+        $this->assertSame( $expected, $post->post_content );
+        $this->assertSame( get_current_user_id(), (int) $post->post_author );
+    }
+
     /* ---------------------------------------------------------------------
      * Fixtures
      * ------------------------------------------------------------------ */
