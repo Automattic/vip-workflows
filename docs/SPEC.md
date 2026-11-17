@@ -323,7 +323,7 @@ Audit-log rows are limited to the user's own actions unless their role is in `au
 | `/ideation` (list), `/ideation/seed` (POST) — `class-ideation-controller.php` | GET/POST | `edit_posts` |
 | `/ideation/{id}` (GET/DELETE) and `/ideation/{id}/pin`, `/unpin`, `/dismiss`, `/restore`, `/run-assistant`, `/restart-analysis`, `/query`, `/mentor`, `/generate-image`, `/create-draft`, `/check-phase-transition`, `/summarize`, `/summary` — `class-ideation-controller.php` | GET/POST/DELETE | `edit_posts` and (project author or `edit_others_posts`) |
 | `/ideation/{id}/sources`, `/ideation/{id}/sources/{source_id}` (PUT/PATCH/DELETE), `/ideation/{id}/sources/{source_id}/summarize`, `/ideation/{id}/sources/{source_id}/retry` — `class-ideation-sources-controller.php` | POST/PUT/DELETE | The same author-or-`edit_others_posts` gate, plus a post type check |
-| `/ideation/{id}/sources/upload` — `class-ideation-sources-controller.php` | POST | `upload_files` and the author-or-`edit_others_posts` gate |
+| `/ideation/{id}/sources/upload` — `class-ideation-sources-controller.php` | POST | `upload_files` and the author-or-`edit_others_posts` gate. Without an OpenAI key, audio and video (by the type the attachment would be stored with: what `wp_check_filetype_and_ext()` resolves, or for `unfiltered_upload` users the client type core falls back to) get a 422 `rest_transcription_unavailable` before any attachment is created |
 | `/discovery/providers`, `/discovery/recommend`, `/discovery/search`, `/discovery/filters`; `/discovery/select` (POST) — `class-discovery-controller.php` | GET/POST | `edit_posts` |
 | `/vip-ideation` (core posts controller for the CPT) — `vip-workflows/includes/ideation/research/class-ideation-post-types.php` | core | CPT custom caps; see [Capabilities and roles](#capabilities-and-roles) |
 
@@ -460,7 +460,7 @@ The provider is the stored `vip_workflows_ai_provider` setting, or is derived fr
 | --- | --- | --- |
 | Stage agents (copy edit, tag sanity, smart linking) | A post enters an AI stage that the sequence author configured (WP-Cron, see [Background work](#background-work)) | Post title, body and tags, wrapped as untrusted input. Copy edit writes a revision back to the post |
 | Source processing | An ideation source is uploaded or reprocessed (Action Scheduler) | Image bytes (vision), extracted PDF text, and summaries of transcripts |
-| Whisper transcription | Audio or video source, 25 MB maximum, 120 s timeout | **The raw media file** (see footguns) |
+| Whisper transcription | Audio or video source, whatever provider is selected. Needs an OpenAI key (`MediaProcessor::transcription_available()`); 25 MB maximum, 120 s timeout | **The raw media file**, to OpenAI (see footguns) |
 | Ideation assistants (seed analyst, editorial mentor, archive search, draft generation, source and project summaries, AI images) | An editor acts in the Ideation UI (REST) | Seed text, source content, project context and site search results |
 | Video analysis | An editor pins a video card. Runs only when AI is configured | The YouTube transcript |
 
@@ -510,7 +510,7 @@ Other outbound behavior:
 
 **Footguns**
 
-- **Whisper always uses the OpenAI key.** The raw media file is sent directly with `wp_remote_post` to `api.openai.com/v1/audio/transcriptions`, whichever provider is selected.
+- **Whisper always uses the OpenAI key.** The raw media file is sent directly with `wp_remote_post` to `api.openai.com/v1/audio/transcriptions`, whichever provider is selected. The AI model settings and the Ideation upload surfaces say so, and without an OpenAI key the UI and the upload route refuse audio and video up front; `call_whisper_api()` keeps its own key check for files that reach the job anyway, such as a retry.
 - **Video transcripts depend on an undocumented endpoint.** The YouTube player call uses an undocumented YouTube endpoint and a spoofed browser user agent.
 - **Parse.ly receives post content.** Smart links and title suggestions send the post body to Parse.ly.
 - **Telemetry briefly switches the current user.** `Tracker::record()` calls `wp_set_current_user()` to attribute events that cron starts.
@@ -1134,7 +1134,7 @@ flowchart LR
   DR --> WF["Joins an editorial sequence<br/>when assigned"]
 ```
 
-**Outside services it calls.** The configured AI provider through the WordPress AI Client (seed analysis, the mentor, archive reranking, source and image analysis, draft generation, AI image generation); Tavily at `api.tavily.com` (web, image and video search); the YouTube Data API at `www.googleapis.com/youtube/v3`, and the YouTube player endpoint for transcripts; OpenAI at `api.openai.com/v1/audio/transcriptions` for uploaded audio and video; any URL a user supplies, for content extraction and image download, through the SSRF guard; and whatever each discovery provider or research extension calls.
+**Outside services it calls.** The configured AI provider through the WordPress AI Client (seed analysis, the mentor, archive reranking, source and image analysis, draft generation); OpenAI through the WordPress AI Client for AI image generation, which needs an OpenAI key whatever provider is selected; Tavily at `api.tavily.com` (web, image and video search); the YouTube Data API at `www.googleapis.com/youtube/v3`, and the YouTube player endpoint for transcripts; OpenAI at `api.openai.com/v1/audio/transcriptions` for uploaded audio and video, whatever provider is selected; any URL a user supplies, for content extraction and image download, through the SSRF guard; and whatever each discovery provider or research extension calls.
 
 **Always true**
 
