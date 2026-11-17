@@ -285,6 +285,30 @@ class WorkflowMetaCustomFieldsTest extends TestCase
 	}
 
 	/**
+	 * Each key is refused the way core refuses every protected key: the meta
+	 * capability maps to itself, never to `do_not_allow`. That is what leaves
+	 * a multisite super admin able to write it, since `WP_User::has_cap()`
+	 * grants a super admin everything but `do_not_allow`. The suite runs
+	 * single-site, where `has_cap()` never takes its super-admin path, so this
+	 * pins the mapping that path reads instead.
+	 *
+	 * @dataProvider data_workflow_meta_keys
+	 *
+	 * @param string $meta_key Meta key.
+	 */
+	public function test_meta_capabilities_map_like_any_protected_key( string $meta_key ): void
+	{
+		foreach ( array( 'add_post_meta', 'edit_post_meta', 'delete_post_meta' ) as $capability ) {
+			$caps     = map_meta_cap( $capability, $this->admin_id, $this->post_id, $meta_key );
+			$baseline = map_meta_cap( $capability, $this->admin_id, $this->post_id, '_an_unregistered_protected_key' );
+
+			$this->assertSame( $baseline, $caps, "{$capability} on {$meta_key} maps like an unregistered protected key" );
+			$this->assertContains( $capability, $caps, "{$capability} on {$meta_key} requires itself" );
+			$this->assertNotContains( 'do_not_allow', $caps, "{$capability} on {$meta_key} is not do_not_allow" );
+		}
+	}
+
+	/**
 	 * Deleting the sequence id by meta id, in the same call that publishes,
 	 * leaves the post in its workflow, and the publish guard keeps it a draft.
 	 */
