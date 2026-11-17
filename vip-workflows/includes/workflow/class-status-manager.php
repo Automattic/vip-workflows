@@ -1819,12 +1819,19 @@ class StatusManager {
 	}
 
 	/**
-	 * Remove a post from its workflow — the escape hatch behind the publish veto.
+	 * Remove a post from its workflow.
 	 *
 	 * Deletes the workflow identity (sequence + stage meta) and writes NO
 	 * post_status: removal takes the post out of the workflow and leaves it
-	 * exactly where core has it, so the user can then publish normally,
-	 * unguarded, because the post is no longer workflow-managed.
+	 * exactly where core has it, after which the publish veto no longer applies
+	 * because the post is no longer workflow-managed.
+	 *
+	 * That is why removal is limited to the workflow override roles: for anyone
+	 * else, leaving the workflow would be a way to publish without it. A
+	 * logged-in user outside those roles gets a 403 naming who to ask
+	 * (workflow_change_refusal()), and nothing is written or audited. A write
+	 * with no logged-in user is a trusted system actor and proceeds, the same
+	 * rule PublishBoundaryGuard::resolve_veto() applies.
 	 *
 	 * Any in-flight stage-agent job is cancelled by the SAME mechanism a
 	 * checkpoint reseat uses, not a second one: StageAgentRunner re-checks the
@@ -1838,7 +1845,7 @@ class StatusManager {
 	 * ordinary assign flow and seats the post at the region's checkpoint.
 	 *
 	 * @param  int $post_id Post ID.
-	 * @return bool|\WP_Error True on success; WP_Error when the post does not exist or is not in a workflow.
+	 * @return bool|\WP_Error True on success; WP_Error when the post does not exist, is not in a workflow, or the user is not in an override role.
 	 */
 	public function remove_sequence( int $post_id ): bool|\WP_Error {
 		$post = get_post( $post_id );
@@ -1855,6 +1862,11 @@ class StatusManager {
 				__( 'No workflow sequence for this post.', 'vip-workflows' ),
 				array( 'status' => 409 )
 			);
+		}
+
+		$refusal = $this->workflow_change_refusal( $post_id, 'remove' );
+		if ( $refusal ) {
+			return $refusal;
 		}
 
 		$removed_stage = (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
@@ -1896,6 +1908,72 @@ class StatusManager {
 		);
 
 		return true;
+	}
+
+	/**
+	 * Refuse removing or replacing a post's workflow for a user outside the override roles.
+	 *
+	 * The one rule behind both remove_sequence() and a replacing
+	 * assign_sequence(): every surface (REST, the remove-from-workflow
+	 * ability and so MCP, the editor, any extension) reaches those two
+	 * methods, so the limit lives here rather than in each caller.
+	 *
+	 * A write with no logged-in user is a trusted system actor (cron, a
+	 * seeder, `wp` without `--user`) and is never refused. WP-CLI run with
+	 * `--user` is checked as that user.
+	 *
+	 * A refusal changes nothing, so it is logged rather than audited: the
+	 * audit log records what happened to a post.
+	 *
+	 * @param  int    $post_id Post ID.
+	 * @param  string $action  `remove` or `replace`, for the log line.
+	 * @return \WP_Error|null A 403 naming who to ask, or null when allowed.
+	 */
+	private function workflow_change_refusal( int $post_id, string $action ): ?\WP_Error {
+		$user_id = get_current_user_id();
+		if ( ! $user_id || \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( $user_id ) ) {
+			return null;
+		}
+
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( sprintf( '[VIP Workflows] Refused to %s the workflow of post %d for user %d: only the workflow override roles can.', $action, $post_id, $user_id ) );
+
+		return new \WP_Error(
+			'vip_workflows_removal_restricted',
+			self::workflow_change_restricted_message( \VIPWorkflows\Admin\Settings::get_override_role_names() ),
+			array( 'status' => 403 )
+		);
+	}
+
+	/**
+	 * The sentence for a refused removal or replacement: who can do it.
+	 *
+	 * The editor shows the same sentence in place of the controls it hides
+	 * (getWorkflowChangeRestrictedMessage() in
+	 * src/common/confirm-workflow-side-effect.js). The two MUST stay identical
+	 * to the character; change them together.
+	 *
+	 * @param  string[] $role_names Override role display names (Settings::get_override_role_names()).
+	 * @return string
+	 */
+	public static function workflow_change_restricted_message( array $role_names ): string {
+		if ( empty( $role_names ) ) {
+			return __( 'You can’t remove a post from its workflow or change its workflow.', 'vip-workflows' );
+		}
+
+		if ( 1 === count( $role_names ) ) {
+			return sprintf(
+				/* translators: %s: role name, e.g. "Administrator". */
+				__( 'Only someone with the %s role can remove a post from its workflow or change its workflow.', 'vip-workflows' ),
+				$role_names[0]
+			);
+		}
+
+		return sprintf(
+			/* translators: %s: comma-separated role names, e.g. "Editor, Administrator". */
+			__( 'Only someone with one of these roles can remove a post from its workflow or change its workflow: %s.', 'vip-workflows' ),
+			implode( ', ', $role_names )
+		);
 	}
 
 	/**
@@ -2360,9 +2438,16 @@ class StatusManager {
 	 * for itself. The author changes the status, or picks a sequence that covers
 	 * it.
 	 *
+	 * Giving an unassigned post its first workflow is open to anyone who can
+	 * edit it. Replacing a post's workflow, or re-seating it in the same one,
+	 * is limited to the workflow override roles like removal is: otherwise it
+	 * would move a post to a looser workflow, or back to its entry stage, by
+	 * another name. A post whose sequence row was deleted still carries a
+	 * sequence id, so it counts as assigned.
+	 *
 	 * @param  int $post_id      Post ID.
 	 * @param  int $sequence_id Sequence ID.
-	 * @return bool|\WP_Error True on success, WP_Error when the sequence models no stage in the post's status region, false on error.
+	 * @return bool|\WP_Error True on success, WP_Error when the sequence models no stage in the post's status region or the user may not replace the post's workflow, false on error.
 	 */
 	public function assign_sequence( int $post_id, int $sequence_id ) {
 		$sequence = $this->sequence_repository->find( $sequence_id );
@@ -2424,7 +2509,20 @@ class StatusManager {
 		// workflow; the previous stage, if any, is the stage being exited).
 		$previous_status   = (string) get_post_status( $post_id );
 		$previous_stage    = (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
-		$previous_sequence = (int) get_post_meta( $post_id, self::SEQUENCE_META_KEY, true );
+		$stored_sequence   = get_post_meta( $post_id, self::SEQUENCE_META_KEY, true );
+		$previous_sequence = (int) $stored_sequence;
+
+		// Replacing or re-seating an existing workflow is limited to the
+		// override roles; a first assignment is not. A dangling sequence id
+		// (its row deleted) still counts as an existing workflow, and so does
+		// a stored value that is not a number: presence is read from the raw
+		// value, the same test remove_sequence() uses, never from the cast.
+		if ( $stored_sequence ) {
+			$refusal = $this->workflow_change_refusal( $post_id, 'replace' );
+			if ( $refusal ) {
+				return $refusal;
+			}
+		}
 
 		// The seat is inside the post's own region by construction — the entry
 		// stage is selected from that region's stages — so no post_status write

@@ -27,6 +27,13 @@
  * what holds every status change), and its popover offers the one way out —
  * removal — instead of a list: re-assigning on top of a dangling identity would
  * bury the broken state rather than clear it.
+ *
+ * Only the workflow override roles can remove a post from its workflow or
+ * change the workflow it is in; the server refuses anyone else. For them the
+ * caller passes `restrictedMessage`, and the popover of an enrolled or orphaned
+ * post says who can instead of offering controls the server would refuse. A
+ * post in no workflow is unaffected: anyone who can edit it can choose its
+ * first workflow.
  */
 
 import { Button, ComboboxControl } from '@wordpress/components';
@@ -61,6 +68,12 @@ const workflowLabel = () => __( 'Workflow', 'vip-workflows' );
  *                                            workflow is enforced.
  * @param {boolean}  root0.orphaned           Whether the post's sequence was
  *                                            deleted out from under it.
+ * @param {string}   root0.restrictedMessage  Optional. For a post that has a
+ *                                            workflow (or a deleted one), the
+ *                                            sentence saying who can remove or
+ *                                            change it. When set, the popover
+ *                                            shows it in place of the list and
+ *                                            the Remove button.
  */
 export function WorkflowRow( {
 	sequence,
@@ -69,8 +82,16 @@ export function WorkflowRow( {
 	onSelect,
 	onRemove,
 	orphaned = false,
+	restrictedMessage,
 } ) {
 	const label = workflowLabel();
+
+	// Who can remove or change the workflow, where this user can't.
+	const renderRestricted = () => (
+		<Text variant="body-md" render={ <p /> }>
+			{ restrictedMessage }
+		</Text>
+	);
 
 	// Closed first: the caller answers with a confirm dialog, and a modal
 	// opened over a popover that still holds focus fights it for the focus.
@@ -105,20 +126,45 @@ export function WorkflowRow( {
 					'This post’s workflow was deleted, so its status is locked.',
 					'vip-workflows'
 				) }
-				renderContent={ ( { onClose } ) => (
-					<>
-						<Text variant="body-md" render={ <p /> }>
-							{ __(
-								'Remove it from the workflow to change its status.',
-								'vip-workflows'
-							) }
-						</Text>
-						{ renderRemove( onClose ) }
-					</>
-				) }
+				renderContent={ ( { onClose } ) =>
+					restrictedMessage ? (
+						renderRestricted()
+					) : (
+						<>
+							<Text variant="body-md" render={ <p /> }>
+								{ __(
+									'Remove it from the workflow to change its status.',
+									'vip-workflows'
+								) }
+							</Text>
+							{ renderRemove( onClose ) }
+						</>
+					)
+				}
 			/>
 		);
 	}
+
+	// An enrolled post this user can't move out of its workflow: the row still
+	// names the workflow, and its popover says who can change it.
+	if ( sequence && restrictedMessage ) {
+		return (
+			<SidebarRow
+				label={ label }
+				popoverLabel={ label }
+				accessibleName={ sprintf(
+					/* translators: %s: the workflow the post is currently in. */
+					__( 'Workflow: %s', 'vip-workflows' ),
+					sequence.name || ''
+				) }
+				valueLabel={ sequence.name || '' }
+				emptyLabel={ __( 'Select a workflow', 'vip-workflows' ) }
+				disabled={ disabled }
+				renderContent={ renderRestricted }
+			/>
+		);
+	}
+
 	const currentId = sequence?.id ? String( sequence.id ) : '';
 	const valueLabel = sequence?.name || '';
 

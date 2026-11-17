@@ -29,9 +29,11 @@ use VIPWorkflows\Admin\Settings;
  * - `admin_notices` surfaces the same message on the classic editor (post.php).
  *   Quick Edit and Bulk Edit cannot render it — see render_veto_notice().
  *
- * The veto changes capabilities in no way: it gates one action and always offers
- * a first-class, audited way through (StatusManager::remove_sequence(), or
- * moving the post through the workflow to a published stage).
+ * The veto changes capabilities in no way: it gates one action, and its message
+ * names the way through — moving the post through the workflow to a published
+ * stage — and who to ask otherwise: the workflow override roles, the only users
+ * it never applies to and the only ones who can remove a post from its
+ * workflow (StatusManager::remove_sequence()).
  */
 class PublishBoundaryGuard {
 
@@ -377,17 +379,23 @@ class PublishBoundaryGuard {
 	}
 
 	/**
-	 * Build the veto message: the change can't be made directly, and the way through.
+	 * Build the veto message: the change can't be made directly, the way through, and who to ask.
 	 *
 	 * The way through is the workflow. Removing the post from its workflow is
-	 * not offered: the refusal is the most common thing a person sees here (it
-	 * is what a habitual Publish click produces), and a refusal that suggests
-	 * leaving the workflow teaches people to leave it. Removal stays a
-	 * deliberate act in the sidebar.
+	 * not offered: only the override roles can, and the person reading this is
+	 * never one of them (the veto does not apply to them). Instead a second
+	 * sentence names those roles (Settings::get_override_role_names()) as the
+	 * people to ask (ask_sentence()). With no override role configured there is
+	 * no one to name, and the message is the first sentence alone.
 	 *
-	 * The veto refuses a crossing in either direction, so the sentence follows
+	 * The veto refuses a crossing in either direction, so the sentences follow
 	 * the target: publishing names a published stage, and anything else
 	 * (unpublishing, making private) says the status can't be changed directly.
+	 *
+	 * The client builds the same message (getPublishVetoMessage() and
+	 * getOrphanedWorkflowMessage() in src/common/confirm-workflow-side-effect.js)
+	 * from the same role names, served as `guard.override_roles`. The two MUST
+	 * stay identical to the character; change them together.
 	 *
 	 * @param  int    $post_id       Post ID.
 	 * @param  string $post_title    Post title.
@@ -396,22 +404,28 @@ class PublishBoundaryGuard {
 	 */
 	private function veto_message( int $post_id, string $post_title, string $target_status ): string {
 		$sequence = $this->status_manager->get_sequence_for_post( $post_id );
+		$roles    = Settings::get_override_role_names();
 
 		if ( ! $sequence ) {
 			// crosses_publish_boundary() reported a crossing, so the post carries
 			// sequence meta; a sequence that will not resolve from it is a
 			// data-integrity bug. The veto stands (fail closed). There is no
-			// workflow to move the post through, so removal is the only way out
-			// and is named. This is the orphaned post the client calls a deleted
-			// workflow, so it gets the client's sentence word for word
-			// (getOrphanedWorkflowMessage()): one string for one situation.
+			// workflow to move the post through, so removal is the only way out,
+			// and only the override roles can take it. This is the orphaned post
+			// the client calls a deleted workflow, so it gets the client's
+			// sentences word for word (getOrphanedWorkflowMessage()): one message
+			// for one situation.
 			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			error_log( sprintf( '[VIP Workflows] Post %d is workflow-managed but its sequence could not be resolved while building the publish-veto message.', $post_id ) );
 
-			return sprintf(
-				/* translators: %s: post title. */
-				__( '“%s” is in a deleted workflow. Remove it from the workflow to change its status.', 'vip-workflows' ),
-				$post_title
+			return self::with_ask_sentence(
+				sprintf(
+					/* translators: %s: post title. */
+					__( '“%s” is in a deleted workflow, so its status can’t be changed.', 'vip-workflows' ),
+					$post_title
+				),
+				'remove',
+				$roles
 			);
 		}
 
@@ -423,20 +437,75 @@ class PublishBoundaryGuard {
 		}
 
 		if ( 'publish' === $this->status_manager->status_to_region( $target_status ) ) {
-			return sprintf(
-				/* translators: 1: post title, 2: workflow (sequence) name. */
-				__( '“%1$s” is in the “%2$s” workflow, so it can’t be published directly. Move it through the workflow to a published stage.', 'vip-workflows' ),
-				$post_title,
-				$sequence->name
+			return self::with_ask_sentence(
+				sprintf(
+					/* translators: 1: post title, 2: workflow (sequence) name. */
+					__( '“%1$s” is in the “%2$s” workflow, so it can’t be published directly. Move it through the workflow to a published stage.', 'vip-workflows' ),
+					$post_title,
+					$sequence->name
+				),
+				'publish',
+				$roles
 			);
 		}
 
-		return sprintf(
-			/* translators: 1: post title, 2: workflow (sequence) name. */
-			__( '“%1$s” is in the “%2$s” workflow, so its status can’t be changed directly. Move it through the workflow instead.', 'vip-workflows' ),
-			$post_title,
-			$sequence->name
+		return self::with_ask_sentence(
+			sprintf(
+				/* translators: 1: post title, 2: workflow (sequence) name. */
+				__( '“%1$s” is in the “%2$s” workflow, so its status can’t be changed directly. Move it through the workflow instead.', 'vip-workflows' ),
+				$post_title,
+				$sequence->name
+			),
+			'change',
+			$roles
 		);
+	}
+
+	/**
+	 * Append the sentence naming who to ask, when there is anyone to name.
+	 *
+	 * A separate sentence, not a clause of the first, so each translatable
+	 * string is a whole sentence and the message stays readable when no role
+	 * holds the override.
+	 *
+	 * @param  string   $message First sentence of the veto message.
+	 * @param  string   $action  What to ask for: `publish`, `change` or `remove`.
+	 * @param  string[] $roles   Override role display names.
+	 * @return string
+	 */
+	private static function with_ask_sentence( string $message, string $action, array $roles ): string {
+		if ( empty( $roles ) ) {
+			return $message;
+		}
+
+		$list = implode( ', ', $roles );
+		$one  = 1 === count( $roles );
+
+		switch ( $action ) {
+			case 'publish':
+				$ask = $one
+					/* translators: %s: role name, e.g. "Administrator". */
+					? sprintf( __( 'Ask someone with the %s role to publish it.', 'vip-workflows' ), $list )
+					/* translators: %s: comma-separated role names, e.g. "Editor, Administrator". */
+					: sprintf( __( 'Ask someone with one of these roles to publish it: %s.', 'vip-workflows' ), $list );
+				break;
+			case 'remove':
+				$ask = $one
+					/* translators: %s: role name, e.g. "Administrator". */
+					? sprintf( __( 'Ask someone with the %s role to remove it from the workflow.', 'vip-workflows' ), $list )
+					/* translators: %s: comma-separated role names, e.g. "Editor, Administrator". */
+					: sprintf( __( 'Ask someone with one of these roles to remove it from the workflow: %s.', 'vip-workflows' ), $list );
+				break;
+			default:
+				$ask = $one
+					/* translators: %s: role name, e.g. "Administrator". */
+					? sprintf( __( 'Ask someone with the %s role to change it.', 'vip-workflows' ), $list )
+					/* translators: %s: comma-separated role names, e.g. "Editor, Administrator". */
+					: sprintf( __( 'Ask someone with one of these roles to change it: %s.', 'vip-workflows' ), $list );
+				break;
+		}
+
+		return $message . ' ' . $ask;
 	}
 
 	/**

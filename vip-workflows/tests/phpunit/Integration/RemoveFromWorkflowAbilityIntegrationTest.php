@@ -182,6 +182,28 @@ class RemoveFromWorkflowAbilityIntegrationTest extends TestCase
 	}
 
 	/**
+	 * Edit access is not enough: only the workflow override roles can remove a
+	 * post from its workflow. An editor outside them gets an error naming who
+	 * to ask, and the post keeps its workflow and its claim.
+	 */
+	public function test_removal_is_limited_to_the_override_roles(): void
+	{
+		$post_id = $this->make_workflow_post();
+
+		wp_set_current_user( (int) self::factory()->user->create( array( 'role' => 'editor' ) ) );
+		$this->assertTrue( current_user_can( 'edit_post', $post_id ), 'Precondition: the editor can edit the post.' );
+
+		$result = \VIPWorkflows\Abilities\Tools\execute_remove_from_workflow( array( 'post_id' => $post_id ) );
+
+		$this->assertInstanceOf( 'WP_Error', $result );
+		$this->assertSame( 'vip_workflows_removal_restricted', $result->get_error_code() );
+		$this->assertSame( array( 'status' => 403 ), $result->get_error_data() );
+		$this->assertStringContainsString( 'Administrator', $result->get_error_message() );
+		$this->assertSame( (string) $this->sequence_id, (string) get_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, true ) );
+		$this->assertSame( (string) $this->admin_id, (string) get_post_meta( $post_id, '_vip_workflows_assigned_to', true ) );
+	}
+
+	/**
 	 * Edit access is required — removal is a workflow-state change, not a read.
 	 */
 	public function test_removal_requires_edit_access(): void

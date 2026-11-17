@@ -104,6 +104,22 @@ const AVAILABLE = [
 ];
 
 /**
+ * The guard payload the status endpoint serves a workflow-managed post: here
+ * for a user in the override roles, who may remove and switch the workflow.
+ *
+ * @param {boolean} canBypass Whether the reader holds an override role.
+ * @return {Object} Guard payload.
+ */
+function overrideGuard( canBypass = true ) {
+	return {
+		current_region: 'draft',
+		can_bypass: canBypass,
+		agent_pending: false,
+		override_roles: [ 'Editor', 'Administrator' ],
+	};
+}
+
+/**
  * A status payload for a post enrolled in Weekend Magazine.
  *
  * @return {Object} Status endpoint response.
@@ -125,6 +141,7 @@ function assignedStatus() {
 		transitions: [],
 		all_statuses: [],
 		available_sequences: AVAILABLE,
+		guard: overrideGuard(),
 	};
 }
 
@@ -142,6 +159,7 @@ function orphanedStatus() {
 		transitions: [],
 		all_statuses: [],
 		available_sequences: [],
+		guard: { ...overrideGuard(), current_region: null },
 	};
 }
 
@@ -630,6 +648,102 @@ describe( 'WorkflowSummaryRows', () => {
 		expect(
 			screen.queryByRole( 'button', { name: 'Remove from workflow' } )
 		).not.toBeInTheDocument();
+	} );
+
+	// Only the workflow override roles can remove a post from its workflow or
+	// change the workflow it is in; the server refuses anyone else. The row
+	// doesn't offer them what it would refuse: it still names the workflow,
+	// and its popover says who can change it.
+	describe( 'for a user outside the override roles', () => {
+		const RESTRICTED =
+			'Only someone with one of these roles can remove a post from its workflow or change its workflow: Editor, Administrator.';
+
+		it( 'names the workflow, and says who can change it instead of offering the picker or removal', async () => {
+			await renderRows( {
+				...assignedStatus(),
+				guard: overrideGuard( false ),
+			} );
+
+			// Still a row naming the post's workflow, but not one that
+			// promises a change.
+			expect(
+				screen.queryByRole( 'button', {
+					name: 'Change workflow: Weekend Magazine',
+				} )
+			).not.toBeInTheDocument();
+			const dialog = await openRow( 'Workflow: Weekend Magazine' );
+
+			expect(
+				within( dialog ).getByText( RESTRICTED )
+			).toBeInTheDocument();
+			expect( screen.queryByRole( 'combobox' ) ).not.toBeInTheDocument();
+			expect(
+				screen.queryByRole( 'button', { name: 'Remove from workflow' } )
+			).not.toBeInTheDocument();
+			expect( assignPosts() ).toHaveLength( 0 );
+			expect( removeDeletes() ).toHaveLength( 0 );
+		} );
+
+		it( 'hides the controls when the guard payload is missing, too', async () => {
+			const { guard, ...withoutGuard } = assignedStatus();
+			expect( guard ).toBeDefined();
+			await renderRows( withoutGuard );
+
+			const dialog = await openRow( 'Workflow: Weekend Magazine' );
+
+			expect(
+				within( dialog ).getByText(
+					'You can’t remove a post from its workflow or change its workflow.'
+				)
+			).toBeInTheDocument();
+			expect( screen.queryByRole( 'combobox' ) ).not.toBeInTheDocument();
+		} );
+
+		it( 'says who can free an orphaned post instead of offering removal', async () => {
+			await renderRows( {
+				...orphanedStatus(),
+				guard: { ...overrideGuard( false ), current_region: null },
+			} );
+
+			const dialog = await openRow( 'Workflow no longer exists' );
+
+			expect(
+				within( dialog ).getByText( RESTRICTED )
+			).toBeInTheDocument();
+			expect(
+				screen.queryByRole( 'button', { name: 'Remove from workflow' } )
+			).not.toBeInTheDocument();
+			// The row still says what is wrong with the post.
+			expect(
+				screen.getByText(
+					'This post’s workflow was deleted, so its status is locked.'
+				)
+			).toBeInTheDocument();
+		} );
+
+		it( 'still lets them give an unassigned post its first workflow', async () => {
+			await renderRows( unassignedStatus(), {
+				onAssign: {
+					...assignedStatus(),
+					guard: overrideGuard( false ),
+				},
+			} );
+
+			await pickWorkflow( 'Select a workflow', 'Weekend Magazine' );
+
+			expect( assignPosts() ).toHaveLength( 1 );
+			expect( assignPosts()[ 0 ][ 0 ].data ).toEqual( {
+				sequence_id: 7,
+			} );
+			// Once it is in one, the row stops offering a change.
+			await waitFor( () =>
+				expect(
+					screen.getByRole( 'button', {
+						name: 'Workflow: Weekend Magazine',
+					} )
+				).toBeInTheDocument()
+			);
+		} );
 	} );
 
 	it( 'offers no removal before the post is in a workflow', async () => {
