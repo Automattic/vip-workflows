@@ -1109,6 +1109,24 @@ class CoreStatusChangeRulesTest extends TestCase
 		$this->assertSame( array(), $admin->get_data()['guard']['refused_regions'] );
 	}
 
+	public function test_available_transitions_guard_lists_the_refused_regions_for_the_user(): void
+	{
+		$post_id = $this->make_post( $this->create_sequence(), 'draft_a' );
+		$ability = wp_get_ability( 'vip-workflows/get-available-transitions' );
+		$this->assertNotNull( $ability );
+
+		wp_set_current_user( $this->contributor_id );
+		$contributor = $ability->execute( array( 'post_id' => $post_id ) );
+
+		wp_set_current_user( $this->admin_id );
+		$admin = $ability->execute( array( 'post_id' => $post_id ) );
+
+		$this->assertNotInstanceOf( \WP_Error::class, $contributor );
+		$this->assertSame( array( 'pending' ), $contributor['guard']['refused_regions'] );
+		$this->assertNotInstanceOf( \WP_Error::class, $admin );
+		$this->assertSame( array(), $admin['guard']['refused_regions'] );
+	}
+
 	public function test_region_prediction_reuses_primed_reads_and_logs_nothing_for_one_hundred_rows(): void
 	{
 		global $wpdb;

@@ -1043,10 +1043,11 @@ class PublishBoundaryGuardTest extends TestCase
     }
 
     /**
-     * The default restore (to `draft`) and a restore the user can make go ahead
-     * untouched.
+     * The default restore (to `draft`) goes ahead untouched, even when the
+     * reseat it causes (Approval -> Draft, no edge) is one the user couldn't
+     * take.
      */
-    public function test_check_untrash_lets_an_allowed_restore_through(): void
+    public function test_check_untrash_lets_the_default_draft_restore_through(): void
     {
         $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
         $this->stub_workflow_post( 'approval', 'trash' );
@@ -1054,6 +1055,34 @@ class PublishBoundaryGuardTest extends TestCase
         $post = $this->create_mock_post( array( 'ID' => self::POST_ID, 'post_status' => 'trash' ) );
 
         $this->assertNull( $this->guard->check_untrash( null, $post, 'pending' ) );
+        $this->assertSame( array(), $this->transients );
+    }
+
+    /**
+     * A restore to a non-draft status goes ahead untouched when the user's
+     * role may take the transition it causes (Review -> Approval, limited to
+     * authors).
+     */
+    public function test_check_untrash_lets_a_restore_the_user_can_make_through(): void
+    {
+        $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
+        $this->stub_workflow_post( 'review', 'trash' );
+        $this->stub_current_user_roles( array( 'author' ) );
+        $asked = 0;
+        Functions\when( 'apply_filters' )->alias(
+            function ( $tag, $value ) use ( &$asked ) {
+                if ( 'wp_untrash_post_status' !== $tag ) {
+                    return $value;
+                }
+                ++$asked;
+                return 'pending';
+            }
+        );
+
+        $post = $this->create_mock_post( array( 'ID' => self::POST_ID, 'post_status' => 'trash' ) );
+
+        $this->assertNull( $this->guard->check_untrash( null, $post, 'pending' ) );
+        $this->assertSame( 1, $asked, 'the restore status was worked out as pending, not the draft default' );
         $this->assertSame( array(), $this->transients );
     }
 
