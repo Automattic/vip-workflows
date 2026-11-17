@@ -572,13 +572,18 @@ class PostsColumns {
 		}
 	}
 
-	// The shared module's input for one row and target.
+	// The shared module's input for one row and target. The committed status
+	// goes with it because a trashed post is judged differently: leaving the
+	// Trash for draft is never refused, and leaving it for another
+	// non-publish status skips the boundary check and follows only the
+	// transition rules, as on the server.
 	function guardInputFor(data, targetStatus) {
 		return {
 			currentRegion: data.dataset.stageRegion,
 			targetStatus: targetStatus,
 			canBypass: guard.canBypass,
-			refusedRegions: refusedRegionsFor(data)
+			refusedRegions: refusedRegionsFor(data),
+			currentStatus: data.dataset.postStatus || undefined
 		};
 	}
 
@@ -601,7 +606,12 @@ class PostsColumns {
 		// would block the one person able to fix the sequence, and in Bulk Edit
 		// one broken row would cancel the apply for every healthy one. They fall
 		// through to the shared table, which warns on an unresolved region.
-		if (!region && !guard.canBypass) {
+		//
+		// A post leaving the Trash for a non-publish status is the exception: the
+		// server never reads its region for that change, so neither does this.
+		var leavingTrash = data.dataset.postStatus === 'trash' &&
+			api.statusToRegion(targetStatus) !== 'publish';
+		if (!region && !guard.canBypass && !leavingTrash) {
 			console.error('[VIP Workflows] A workflow row carries no stage region; refusing the status change.');
 			return null;
 		}

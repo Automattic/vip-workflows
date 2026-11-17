@@ -427,6 +427,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
 
         $this->assertStringContainsString( 'data.dataset.refusedRegions', $script );
         $this->assertStringContainsString( 'refusedRegions: refusedRegionsFor(data)', $script );
+        $this->assertStringContainsString( 'currentStatus: data.dataset.postStatus || undefined', $script, 'a trashed row is judged as the server judges it' );
         $this->assertStringContainsString( 'api.evaluateStatusChange(guardInputFor(data, targetStatus))', $script );
         $this->assertStringContainsString( 'api.isTransitionRulesRefusal(guardInputFor(data, targetStatus))', $script );
         $this->assertStringContainsString( 'api.getStatusChangeRefusedMessage({', $script );
