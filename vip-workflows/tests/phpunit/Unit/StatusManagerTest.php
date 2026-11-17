@@ -1449,6 +1449,9 @@ class StatusManagerTest extends TestCase
      */
     public function test_assign_sequence_invalid_sequence(): void
     {
+        Functions\when( 'get_post' )->justReturn( $this->create_mock_post( array( 'ID' => 1 ) ) );
+        $this->stub_meta( array() );
+
         $this->sequence_repository
             ->shouldReceive( 'find' )
             ->once()
@@ -1465,11 +1468,9 @@ class StatusManagerTest extends TestCase
      */
     public function test_assign_sequence_invalid_post(): void
     {
-        $this->sequence_repository
-            ->shouldReceive( 'find' )
-            ->once()
-            ->with( 1 )
-            ->andReturn( $this->sequence );
+        // The post is resolved first; a missing post never reaches the
+        // sequence lookup.
+        $this->sequence_repository->shouldNotReceive( 'find' );
 
         Functions\expect( 'get_post' )
             ->once()
@@ -1503,6 +1504,7 @@ class StatusManagerTest extends TestCase
             ->once()
             ->with( 1 )
             ->andReturn( $post );
+        $this->stub_meta( array() );
 
         $this->post_type_manager
             ->shouldReceive( 'get_sequences_for_post' )
@@ -1739,6 +1741,7 @@ class StatusManagerTest extends TestCase
             ->with( 2 )
             ->andReturn( $no_pending );
         Functions\when( 'get_post' )->justReturn( $post );
+        $this->stub_meta( array() );
         $this->post_type_manager
             ->shouldReceive( 'get_sequences_for_post' )
             ->with( $post )
@@ -1797,6 +1800,7 @@ class StatusManagerTest extends TestCase
             ->with( 3 )
             ->andReturn( $draft_only );
         Functions\when( 'get_post' )->justReturn( $post );
+        $this->stub_meta( array() );
         $this->post_type_manager
             ->shouldReceive( 'get_sequences_for_post' )
             ->with( $post )

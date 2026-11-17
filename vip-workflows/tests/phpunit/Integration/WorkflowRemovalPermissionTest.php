@@ -708,6 +708,100 @@ class WorkflowRemovalPermissionTest extends TestCase
 		$this->assert_workflow_intact( $post_id, $this->sequence_id );
 	}
 
+	// =========================================================================
+	// The limit is checked before the target sequence's stages
+	// =========================================================================
+
+	/**
+	 * A post in Pending Review, which neither test sequence has a stage for,
+	 * so seating it anywhere fails the stage check with a 400.
+	 *
+	 * @param  bool $enrolled Whether the post already has a workflow.
+	 * @return int Post ID.
+	 */
+	private function make_pending_post( bool $enrolled ): int
+	{
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_status' => 'pending',
+				'post_author' => $this->author_id,
+			)
+		);
+
+		if ( $enrolled ) {
+			update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->sequence_id );
+			update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'review' );
+		}
+
+		return $post_id;
+	}
+
+	/**
+	 * An author replacing an enrolled post's workflow with one that has no
+	 * stage for the post gets the 403 naming who to ask, not the 400 about
+	 * the stage: fixing the stage would only lead to the same refusal.
+	 */
+	public function test_an_author_replacing_with_an_unseatable_sequence_gets_the_403(): void
+	{
+		$post_id = $this->make_pending_post( true );
+		wp_set_current_user( $this->author_id );
+
+		$response = $this->dispatch( 'POST', $post_id, $this->other_sequence_id );
+
+		$this->assertSame( 403, $response->get_status() );
+		$this->assertSame( 'vip_workflows_removal_restricted', $response->get_data()['code'] );
+		$this->assertSame( self::REFUSAL, $response->get_data()['message'] );
+		$this->assertSame( (string) $this->sequence_id, (string) get_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, true ) );
+		$this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
+	}
+
+	/**
+	 * The same request from an override user gets past the limit and is
+	 * refused by the stage check, which is the answer that helps them.
+	 */
+	public function test_an_override_user_replacing_with_an_unseatable_sequence_gets_the_400(): void
+	{
+		$post_id = $this->make_pending_post( true );
+
+		$response = $this->dispatch( 'POST', $post_id, $this->other_sequence_id );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'unmodeled_post_status', $response->get_data()['code'] );
+		$this->assertSame( (string) $this->sequence_id, (string) get_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, true ) );
+		$this->assertSame( 0, $this->count_events( $post_id, 'workflow.assigned' ) );
+	}
+
+	/**
+	 * A first assignment is not limited, so an author giving an unassigned
+	 * post a sequence with no stage for it still gets the stage check's 400.
+	 */
+	public function test_a_first_assignment_of_an_unseatable_sequence_gets_the_400(): void
+	{
+		$post_id = $this->make_pending_post( false );
+		wp_set_current_user( $this->author_id );
+
+		$response = $this->dispatch( 'POST', $post_id, $this->sequence_id );
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'unmodeled_post_status', $response->get_data()['code'] );
+		$this->assertSame( '', get_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, true ) );
+	}
+
+	/**
+	 * An author naming a sequence that does not exist, for an enrolled post,
+	 * also gets the 403 rather than the generic 400.
+	 */
+	public function test_an_author_replacing_with_a_missing_sequence_gets_the_403(): void
+	{
+		$post_id = $this->make_workflow_post();
+		wp_set_current_user( $this->author_id );
+
+		$response = $this->dispatch( 'POST', $post_id, 999999 );
+
+		$this->assertSame( 403, $response->get_status() );
+		$this->assert_workflow_intact( $post_id, $this->sequence_id );
+	}
+
 	/** A numeric identity whose sequence row is missing cannot be replaced. */
 	public function test_an_author_cannot_replace_a_deleted_workflow(): void
 	{

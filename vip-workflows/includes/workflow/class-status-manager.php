@@ -2443,20 +2443,42 @@ class StatusManager {
 	 * is limited to the workflow override roles like removal is: otherwise it
 	 * would move a post to a looser workflow, or back to its entry stage, by
 	 * another name. A post whose sequence row was deleted still carries a
-	 * sequence id, so it counts as assigned.
+	 * sequence id, so it counts as assigned. That limit is checked before the
+	 * target sequence or its stages, so a user outside the override roles is
+	 * told who to ask rather than what is wrong with a sequence they could not
+	 * apply anyway.
 	 *
 	 * @param  int $post_id      Post ID.
 	 * @param  int $sequence_id Sequence ID.
 	 * @return bool|\WP_Error True on success, WP_Error when the sequence models no stage in the post's status region or the user may not replace the post's workflow, false on error.
 	 */
 	public function assign_sequence( int $post_id, int $sequence_id ) {
-		$sequence = $this->sequence_repository->find( $sequence_id );
-		if ( ! $sequence ) {
+		$post = get_post( $post_id );
+		if ( ! $post ) {
 			return false;
 		}
 
-		$post = get_post( $post_id );
-		if ( ! $post ) {
+		// Replacing or re-seating an existing workflow is limited to the
+		// override roles; a first assignment is not. A dangling sequence id
+		// (its row deleted) still counts as an existing workflow, and so does
+		// a stored value that is not a number: presence is read from the raw
+		// value, the same test remove_sequence() uses, never from the cast.
+		//
+		// This runs before anything about the target sequence or stage is
+		// checked. A user who may not change this post's workflow gets the
+		// one answer that helps them, the 403 naming who to ask, rather than
+		// a 400 about a stage or region they could fix only to be refused
+		// anyway.
+		$stored_sequence = get_post_meta( $post_id, self::SEQUENCE_META_KEY, true );
+		if ( $stored_sequence ) {
+			$refusal = $this->workflow_change_refusal( $post_id, 'replace' );
+			if ( $refusal ) {
+				return $refusal;
+			}
+		}
+
+		$sequence = $this->sequence_repository->find( $sequence_id );
+		if ( ! $sequence ) {
 			return false;
 		}
 
@@ -2509,20 +2531,7 @@ class StatusManager {
 		// workflow; the previous stage, if any, is the stage being exited).
 		$previous_status   = (string) get_post_status( $post_id );
 		$previous_stage    = (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
-		$stored_sequence   = get_post_meta( $post_id, self::SEQUENCE_META_KEY, true );
 		$previous_sequence = (int) $stored_sequence;
-
-		// Replacing or re-seating an existing workflow is limited to the
-		// override roles; a first assignment is not. A dangling sequence id
-		// (its row deleted) still counts as an existing workflow, and so does
-		// a stored value that is not a number: presence is read from the raw
-		// value, the same test remove_sequence() uses, never from the cast.
-		if ( $stored_sequence ) {
-			$refusal = $this->workflow_change_refusal( $post_id, 'replace' );
-			if ( $refusal ) {
-				return $refusal;
-			}
-		}
 
 		// The seat is inside the post's own region by construction — the entry
 		// stage is selected from that region's stages — so no post_status write

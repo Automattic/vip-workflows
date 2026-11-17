@@ -703,7 +703,7 @@ flowchart LR
 - The stage meta is the authority for a post's stage. No code may work out the stage from the post's status.
 - The stage write in a transition is a compare-and-swap against the stage the transition was checked from. A lost race returns an error and puts back the previous status if one was written.
 - The workflow reconciles status changes made outside it and never refuses them. The publish guard is the only exception (see Publish boundary). Scheduled and trash never reseat.
-- Assigning a sequence never writes a status and seats the post only at a region entry stage. Replacing or re-seating a post's existing sequence is limited to the bypass list; a first assignment is not.
+- Assigning a sequence never writes a status and seats the post only at a region entry stage. Replacing or re-seating a post's existing sequence is limited to the bypass list; a first assignment is not. That limit is checked before the target sequence and its stages, so a user outside the list gets the 403 naming who to ask, not a 400 about a stage.
 - Every config write (REST, MCP, import, activation, migration replay) passes through the one gate. A new validation rule there needs a schema migration that replays stored rows. → `Sequence::prepare_config_for_write()`
 - A sequence's type never changes.
 - A repository update that removes a stage, or a repository delete, is refused while posts hold that stage or sequence at the time of the check. The check runs in the repository, so REST, MCP, the region repair and extensions all get it; the migration replay, which writes with direct SQL, applies it itself. → `SequenceRepository::update()`, `delete()`, `Schema::stage_keys_with_posts_the_write_would_drop()`
