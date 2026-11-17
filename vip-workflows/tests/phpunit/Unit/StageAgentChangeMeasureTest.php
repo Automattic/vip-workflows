@@ -653,6 +653,30 @@ class StageAgentChangeMeasureTest extends TestCase
                 self::para( '[pullquote]' . $first . '[/pullquote]' ),
                 self::para( '[pullquote]' . $first . ' [promo_box id="7"][/pullquote]' ),
             ),
+            'a hyphenated pair removed'          => array(
+                self::para( $first ) . self::para( '[pull-quote]' . $second . '[/pull-quote]' ),
+                self::para( $first ) . self::para( $second ),
+            ),
+            'an underscored pair removed'        => array(
+                self::para( $first ) . self::para( '[my_box]' . $second . '[/my_box]' ),
+                self::para( $first ) . self::para( $second ),
+            ),
+            'an attributed pair removed'         => array(
+                self::para( $first ) . self::para( '[promo_box id="7"]' . $second . '[/promo_box]' ),
+                self::para( $first ) . self::para( $second ),
+            ),
+            'a hyphenated pair\'s closer removed' => array(
+                self::para( $first ) . self::para( '[pull-quote]' . $second . '[/pull-quote]' ),
+                self::para( $first ) . self::para( '[pull-quote]' . $second ),
+            ),
+            'a stray hyphenated closer added'    => array(
+                self::para( $first ) . self::para( $second ),
+                self::para( $first ) . self::para( $second . ' [/pull-quote]' ),
+            ),
+            'a stray underscored closer added'   => array(
+                self::para( $first ) . self::para( $second ),
+                self::para( $first ) . self::para( $second . ' [/my_box]' ),
+            ),
         );
     }
 
@@ -749,6 +773,58 @@ class StageAgentChangeMeasureTest extends TestCase
         $report = StageAgent::measure_rewrite( $body . '[box][box]Text[/box][/box]', $body . '[box][box]Text[/box]' );
 
         $this->assertTrue( $report['controls_changed'] );
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public function provide_hyphenated_and_underscored_names(): array
+    {
+        return array(
+            'hyphenated'  => array( 'pull-quote' ),
+            'underscored' => array( 'my_box' ),
+        );
+    }
+
+    /**
+     * An opener whose name has `_` or `-` is counted as soon as it is seen,
+     * unlike a bare name, which waits for its closer. Pairing it must still
+     * record each opener once, in document order, and give each nested
+     * opener its own closer.
+     *
+     * @dataProvider provide_hyphenated_and_underscored_names
+     */
+    public function test_a_counted_opener_pairs_with_its_closer_once( string $name ): void
+    {
+        $controls = new \ReflectionMethod( StageAgent::class, 'controls' );
+        $open     = '[' . $name . ']';
+        $close    = '[/' . $name . ']';
+        $content  = $open . $open . 'Text' . $close . $close;
+
+        $found = $controls->invoke( null, $content );
+
+        $this->assertSame(
+            array( 0, strlen( $open ), 2 * strlen( $open ) + 4, 2 * strlen( $open ) + 4 + strlen( $close ) ),
+            array_column( $found, 'offset' )
+        );
+        $this->assertSame( array( 'shortcode:' . $open, 'shortcode:' . $open, 'shortcode:' . $close, 'shortcode:' . $close ), array_column( $found, 'label' ) );
+
+        $body = self::para( 'The board approved the proposal after reviewing the detailed report from the committee.' );
+        $this->assertTrue( StageAgent::measure_rewrite( $body . $content, $body . $open . $open . 'Text' . $close )['controls_changed'] );
+    }
+
+    /**
+     * @dataProvider provide_hyphenated_and_underscored_names
+     */
+    public function test_a_copy_edit_inside_an_unchanged_counted_pair_passes( string $name ): void
+    {
+        $before = self::para( '[' . $name . ']The board aproved the proposal after reviewing the detailed report from the committee.[/' . $name . ']' );
+        $after  = str_replace( 'aproved', 'approved', $before );
+
+        $report = StageAgent::measure_rewrite( $before, $after );
+
+        $this->assertFalse( $report['controls_changed'] );
+        $this->assertSame( array(), StageAgent::copy_edit_violations( $report, 15 ) );
     }
 
     public function test_tokens_inside_an_escaped_pair_are_text(): void
