@@ -2324,9 +2324,12 @@ class StatusManager {
 			'ability.failed'       => __( 'Tool failed', 'vip-workflows' ),
 			// Configuration events. These carry no post, which the response shape
 			// already allows (`post_id` is a nullable column and `post` is null here).
+			'sequence.created'     => __( 'Sequence created', 'vip-workflows' ),
+			'sequence.imported'    => __( 'Sequence imported', 'vip-workflows' ),
 			'sequence.updated'     => __( 'Sequence updated', 'vip-workflows' ),
 			'sequence.activated'   => __( 'Sequence activated', 'vip-workflows' ),
 			'sequence.deactivated' => __( 'Sequence deactivated', 'vip-workflows' ),
+			'sequence.deleted'     => __( 'Sequence deleted', 'vip-workflows' ),
 			// Maintenance. Carries no post and no actor: the nightly prune runs
 			// on cron and belongs to no one.
 			'maintenance.cleanup'  => __( 'Cleanup run', 'vip-workflows' ),

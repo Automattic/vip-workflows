@@ -21,6 +21,8 @@ use VIPWorkflows\Database\Schema;
 
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/helpers.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/update-sequence.php';
+require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/create-sequence.php';
+require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/import-sequence.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/activate-sequence.php';
 require_once dirname( __DIR__, 3 ) . '/includes/abilities/tools/validate-sequence.php';
 
@@ -535,6 +537,7 @@ class SequenceWriteAbilitiesTest extends TestCase
         $this->assertWPError( $result );
         $this->assertSame( 'sequence_invalid', $result->get_error_code() );
         $this->assertStringContainsString( 'status region', $result->get_error_message() );
+        $this->assertSame( array(), $this->get_configuration_events( $sequence->id ), 'A refused activation is not audited.' );
     }
 
     /**
@@ -1078,5 +1081,118 @@ class SequenceWriteAbilitiesTest extends TestCase
         $this->assertSame( 'Sequence activated', $event['event_type_label'] );
         $this->assertSame( 'agent', $event['actor']['type'] );
         $this->assertSame( 'Activate sequence', $event['actor']['display_name'] );
+    }
+
+    /**
+     * Every sequence ability is recorded once, by the controller, as the ability
+     * plus the user who authorized it.
+     *
+     * @param array  $event       Row from get_configuration_events().
+     * @param string $ability_id  Expected ability.
+     * @param string $label       Expected display name.
+     */
+    private function assert_ability_row( $event, string $ability_id, string $label ): void
+    {
+        $data = json_decode( $event->event_data, true );
+
+        $this->assertNull( $event->post_id );
+        $this->assertSame( 'agent', $event->actor_type );
+        $this->assertSame( $this->admin_id, (int) $event->actor_id );
+        $this->assertSame( $ability_id, $data['agent_actor'] );
+        $this->assertSame( 'ability', $data['via'] );
+        $this->assertSame(
+            $label,
+            \VIPWorkflows\Workflow\Actor::name_for(
+                array(
+                    'actor_id'    => (int) $event->actor_id,
+                    'actor_type'  => $event->actor_type,
+                    'agent_actor' => $data['agent_actor'],
+                )
+            )
+        );
+    }
+
+    public function test_create_ability_records_one_created_row(): void
+    {
+        $result = \VIPWorkflows\Abilities\Tools\execute_create_sequence(
+            array(
+                'name'       => 'Agent Flow',
+                'post_types' => array( 'post' ),
+                'statuses'   => $this->valid_statuses(),
+            )
+        );
+
+        $this->assertIsArray( $result );
+        $events = $this->get_configuration_events( $result['sequence_id'] );
+        $this->assertCount( 1, $events );
+        $this->assertSame( 'sequence.created', $events[0]->event_type );
+        $this->assert_ability_row( $events[0], 'vip-workflows/create-sequence', wp_get_ability( 'vip-workflows/create-sequence' )->get_label() );
+    }
+
+    public function test_import_ability_records_one_imported_row(): void
+    {
+        $result = \VIPWorkflows\Abilities\Tools\execute_import_sequence(
+            array(
+                'sequence_json' => array(
+                    'type'   => 'workflow',
+                    'name'   => 'Imported Agent Flow',
+                    'config' => array(
+                        'post_types' => array( 'post' ),
+                        'statuses'   => $this->valid_statuses(),
+                    ),
+                ),
+            )
+        );
+
+        $this->assertIsArray( $result );
+        $events = $this->get_configuration_events( $result['sequence_id'] );
+        $this->assertCount( 1, $events );
+        $this->assertSame( 'sequence.imported', $events[0]->event_type );
+        $this->assert_ability_row( $events[0], 'vip-workflows/import-sequence', 'Import sequence' );
+        $this->assertArrayNotHasKey( 'source_name', json_decode( $events[0]->event_data, true ) );
+    }
+
+    public function test_update_ability_records_one_row_with_the_change_summary(): void
+    {
+        $sequence = $this->create_sequence( $this->valid_statuses() );
+        $statuses = $this->valid_statuses();
+        $statuses[0]['label'] = 'Drafting';
+
+        \VIPWorkflows\Abilities\Tools\execute_update_sequence(
+            array(
+                'sequence_id' => $sequence->id,
+                'name'        => $sequence->name,
+                'description' => (string) $sequence->description,
+                'post_types'  => array( 'post' ),
+                'statuses'    => $statuses,
+            )
+        );
+
+        $events = $this->get_configuration_events( $sequence->id );
+        $this->assertCount( 1, $events );
+        $this->assertSame( 'sequence.updated', $events[0]->event_type );
+        $this->assert_ability_row( $events[0], 'vip-workflows/update-sequence', 'Update sequence' );
+
+        $data = json_decode( $events[0]->event_data, true );
+        $this->assertSame(
+            array( array( 'key' => 'writing', 'from' => 'Writing', 'to' => 'Drafting' ) ),
+            $data['changes']['stages_renamed']
+        );
+    }
+
+    public function test_activate_ability_rows_are_recorded_by_the_controller_once_each(): void
+    {
+        $sequence = $this->create_sequence( $this->valid_statuses(), 'draft' );
+
+        \VIPWorkflows\Abilities\Tools\execute_activate_sequence( array( 'sequence_id' => $sequence->id, 'active' => true ) );
+        \VIPWorkflows\Abilities\Tools\execute_activate_sequence( array( 'sequence_id' => $sequence->id, 'active' => true ) );
+        \VIPWorkflows\Abilities\Tools\execute_activate_sequence( array( 'sequence_id' => $sequence->id, 'active' => false ) );
+
+        $events = $this->get_configuration_events( $sequence->id );
+        $this->assertSame( array( 'sequence.deactivated', 'sequence.activated' ), array_column( $events, 'event_type' ) );
+
+        foreach ( $events as $event ) {
+            $this->assert_ability_row( $event, 'vip-workflows/activate-sequence', 'Activate sequence' );
+        }
     }
 }
