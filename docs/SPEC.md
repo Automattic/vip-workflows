@@ -24,9 +24,9 @@ Contents: [Glossary](#glossary) · [User stories](#user-stories) · [Platform su
 - **Status region (region).** The core post status a stage belongs to: `draft`, `pending`, `private` or `publish`. Several stages can share a region, and `post_status` only changes when a post moves to a stage in a different region. Scheduled `future` counts as the publish side.
 - **Transition.** A move a sequence allows from one stage to another, defined on the source stage with its role limits, required tools, inputs and notifications. Every transition, from every surface, runs through `StatusManager::transition()`.
 - **Crossing.** A transition whose two stages sit in different regions. It is the only kind of move that writes `post_status`, and crossing into or out of the publish side is guarded by the publish boundary.
-- **Reseat.** What the workflow does when something outside it, such as the Publish button, Quick Edit, REST, WP-CLI, cron or untrash, changes a post's status: it moves the post to the region entry stage of the new region and records the change with `cause: 'core'`. The overlay statuses `future` and `trash` never reseat.
+- **Reseat.** What the workflow does when something outside it, such as the Publish button, Quick Edit, REST, WP-CLI, cron or untrash, changes a post's status: it moves the post to the region entry stage of the new region and records the change with `cause: 'core'`. A person outside the bypass list may cause a reseat only if they could take the transition from the current stage to that entry stage. Leaving the Trash for `draft` is the exception. The overlay statuses `future` and `trash` never reseat.
 - **Region entry stage.** The one stage per used region marked `region_entry`. It is where a reseat lands a post and where a post is seated when it is first assigned to a sequence.
-- **Bypass list.** The `bypass_workflow_roles` setting (default `administrator`). Members see every transition, skip transition role limits and required metadata, and are not stopped by the publish boundary, but still need core capabilities. The separate **tool-check bypass list**, `bypass_tool_check_roles` (default `administrator`), only lets members skip required tool checks on a transition.
+- **Bypass list.** The `bypass_workflow_roles` setting (default `administrator`). Members see every transition, skip transition role limits and required metadata, and are not stopped by the publish boundary or by the transition rules on a status change, but still need core capabilities. The separate **tool-check bypass list**, `bypass_tool_check_roles` (default `administrator`), only lets members skip required tool checks on a transition.
 - **Stage agent.** An ability set on a stage through the stage's `agent` config, which makes that stage AI-owned. When a post enters the stage, the agent runs in the background on WP-Cron as the person who moved the post in (or as the post's author when nobody did), returns `pass` or `fail`, and the sequence's routes decide where the post goes next.
 - **Tool.** An ability that a transition can require or that people run from the command palette or MCP. Its `meta.type` (`check`, `validator` or `helper`) only groups it on the Tools page: checks such as `seo-check` report issues that can block a move, and helpers such as `smart-linking` and `headline-suggestions` make suggestions. On a transition, every required tool is judged by the issues it returns, whatever its type.
 - **Ability.** A unit of work registered through the WordPress Abilities API. Every Workflows operation is one, so the admin UI, command palette, REST and MCP all reach it with the same permission checks; extensions add their own with `vip_workflows_register_ability()`.
@@ -43,7 +43,7 @@ Each story ends with what is always true while the story holds.
 **N1. An editorial team puts its whole process inside WordPress.** A publisher with writers, editors, copy chiefs, SEO and legal review runs that process partly in other tools today, with the CMS as one stop among several. An admin builds a sequence with one stage per step (Drafting, Editing, Copy, Legal, Ready), and each stage sits in the WordPress status region it belongs to. Several review stages can all be `pending` to WordPress. Writers and editors then work only in the block editor: the workflow panel shows the current stage and the moves available from it.
 *Always true:* a stage's region decides the post status. Moving between stages in the same region never changes `post_status`. → [Sequences and stages](#sequences-and-stages)
 
-**N2. An editor can't publish around the process.** A post in a sequence can't cross into or out of the publish side (`publish`, and scheduled `future`) except through a transition that leads there. The rule holds whether the editor uses the block editor's Publish button, Quick Edit, Bulk Edit, REST, or WP-CLI run as a user. In the block editor they see an error explaining why. Removing a post from its sequence is the audited way out. Roles in the bypass list (administrators by default) are exempt.
+**N2. An editor can't publish around the process.** A post in a sequence can't cross into or out of the publish side (`publish`, and scheduled `future`) except through a transition that leads there. The rule holds whether the editor uses the block editor's Publish button, Quick Edit, Bulk Edit, REST, or WP-CLI run as a user. In the block editor they see an error explaining why. A status change that would move the post to another stage needs the same rights as that transition. Removing a post from its sequence is the audited way out. Roles in the bypass list (administrators by default) are exempt.
 *Always true:* the save-layer guard covers every write path a person can use. A new write path is a footgun until it is covered. → [Publish boundary](#publish-boundary)
 
 **N3. A transition enforces the desk's rules.** Moving a story from Editing to Ready runs the tools the transition requires: an SEO check, a checklist, a Parse.ly performance check. Hard failures stop the move, and soft warnings must be acknowledged before it goes through. Transitions can be limited to roles and can notify email or Slack when they fire.
@@ -391,10 +391,11 @@ Who may do what, and where the check lives. When reviewing, check that a change 
 - `PublishBoundaryGuard` (`vip-workflows/includes/workflow/class-publish-boundary-guard.php`) skips its veto for them, and the client shows a confirmation instead.
 - A separate list, `bypass_tool_check_roles` (default `['administrator']`, `can_user_bypass_tool_checks()`), lets users skip required tool checks on a transition.
 
-**The publish boundary guard.** It vetoes a non-bypass user's `post_status` change across the publish boundary on a workflow-managed post.
+**The publish boundary guard.** It vetoes a non-bypass user's `post_status` change across the publish boundary on a workflow-managed post, and one that would reseat the stage through a transition the user can't take.
 
 - It hooks `wp_insert_post_data`, where it reverts the status silently, and `rest_pre_insert_{post_type}`, where it returns a `WP_Error`.
-- Leaving Trash for a non-publish status is exempt; restoring straight to `publish` is not.
+- Leaving Trash for `draft` is exempt from both rules. Any other status out of the Trash is held to the rules: a non-publish one to the transition rules, a publish-side one to both.
+- It hooks `pre_untrash_post` too, so `wp_untrash_post()` is refused before it changes anything when the status it would restore to is refused.
 - The audited way through is `DELETE /workflow/post/{id}/sequence` or the `remove-from-workflow` ability.
 
 **Footguns**
@@ -668,7 +669,7 @@ Each feature section has the same parts: **What it's for**, **How it works**, **
 - **What a stage holds:** a key, a label, a color, a region (draft by default), optional flags (initial stage, region entry, terminal, dead end, in progress, creates post, show in queue), an optional agent block, and its transitions.
 - **Moves inside a region change only the stage.** The post's status is not touched.
 - **Moves across regions change the status first.** The workflow writes the target region's status through WordPress, accepts whatever WordPress commits (for example, publish becomes scheduled for a future-dated post), and then compare-and-swaps the stage meta. A transition may target any stage in any region; there is no rule that a crossing must land on a particular stage.
-- **Status changes from outside the workflow are reconciled, not refused.** When the Publish button, Quick Edit, REST, WP-CLI, cron or an untrash moves a post into another region, the workflow reseats it at that region's entry stage and fires the stage events with `cause: 'core'`. Each used region has exactly one entry stage. Scheduled and trash are overlays and never reseat. A region the sequence doesn't model leaves the stage where it was and logs it.
+- **Status changes from outside the workflow are reconciled, and held to the transition's rules.** When the Publish button, Quick Edit, REST, WP-CLI, cron or an untrash moves a post into another region, the workflow reseats it at that region's entry stage and fires the stage events with `cause: 'core'`. For a person outside the bypass list the change must also pass the rules of the transition from the current stage to that entry stage, or the publish guard refuses it (see Publish boundary). Each used region has exactly one entry stage. Scheduled and trash are overlays and never reseat. A region the sequence doesn't model leaves the stage where it was and logs it.
 - **Posts join a sequence only when someone assigns one.** The post is seated at the entry stage of the region its current status maps to, never at the initial stage, and no status is written. Assignment is refused for a trashed post, for a sequence not mapped to the post's type, and with `unmodeled_post_status` when the sequence has no stage in the post's region. Assigning over REST also creates a Story for the post if it has none.
 - **Which sequences apply to a post type** comes from each active workflow sequence's list of post types, and a filter can change it. The "require or recommend a workflow" setting is enforced only by a modal in the editor.
 - **Editorial metadata fields** (text, textarea, select, date, user) are registered as post meta on the sequence's post types, readable over REST, and editable by anyone who can edit the post. Only active sequences register their fields. A required field is enforced only on a transition that crosses into the publish region (see Transitions and tools).
@@ -701,7 +702,7 @@ flowchart LR
 - The workflow writes a post's status in one place only, and only when a transition's two stages are in different regions. A move inside a region never changes the status. → `StatusManager::commit_post_status()`
 - The stage meta is the authority for a post's stage. No code may work out the stage from the post's status.
 - The stage write in a transition is a compare-and-swap against the stage the transition was checked from. A lost race returns an error and puts back the previous status if one was written.
-- The workflow reconciles status changes made outside it and never refuses them. The publish guard is the only exception (see Publish boundary). Scheduled and trash never reseat.
+- The workflow reconciles status changes made outside it. Only the publish guard refuses one: a crossing of the publish boundary, or a reseat the user couldn't take as a transition (see Publish boundary). Scheduled and trash never reseat.
 - Assigning a sequence never writes a status and seats the post only at a region entry stage.
 - Every config write (REST, MCP, import, activation, migration replay) passes through the one gate. A new validation rule there needs a schema migration that replays stored rows. → `Sequence::prepare_config_for_write()`
 - A sequence's type never changes.
@@ -742,11 +743,12 @@ flowchart LR
 
 **What it's for.** Once a post is in a workflow, publishing it has to go through the workflow. The publish guard stops anyone outside the bypass list from publishing, scheduling or unpublishing a workflow post by any other route, such as the Publish button, Quick Edit or a REST call. It's what makes the approval stories true: if Legal owns the transition into Published, nobody else can publish the post around Legal.
 
-**How it works.** Every time WordPress saves a status change on a post that's in a workflow, the guard asks one question: does this change cross between the unpublished side (draft and pending regions) and the published side (published, and scheduled, which counts as published)? If it does, and the change didn't come through a workflow transition, the guard refuses it.
+**How it works.** Every time WordPress saves a status change on a post that's in a workflow, the guard asks two questions. First, does this change cross between the unpublished side (draft and pending regions) and the published side (published, and scheduled, which counts as published)? If it does, and the change didn't come through a workflow transition, the guard refuses it. Second, would it move the post to another stage? If so, the user must be able to take the transition from the current stage to that stage: the edge exists, an AI stage routes to it, their role is allowed, and it requires no tools (unless they're on the tool-check bypass list) and no assignment. Otherwise the guard refuses it and points them to the workflow panel. A region the sequence doesn't model moves no stage, so nothing is checked.
 
 - **What the person sees:** in the block editor, an error explaining why. On the classic editor, an admin notice. The rest of their save (title, content, meta) still goes through. Only the status, slug and dates are put back to what was stored.
 - **Both directions count.** Unpublishing a workflow post outside the workflow is refused too.
-- **Some changes are always allowed:** WordPress publishing a scheduled post on time, cron and other writes with no logged-in user, autosaves and revisions, the workflow's own status writes during a transition, moves to Trash, restoring a post from Trash to a draft-side status, and anyone in the bypass list (administrators by default).
+- **The editor and the posts list refuse up front.** The status payload's `guard.refused_regions` lists the regions the second rule refuses for this user (never `draft` for a trashed post), so the block editor, Quick Edit and Bulk Edit refuse before saving.
+- **Some changes are always allowed:** WordPress publishing a scheduled post on time, cron and other writes with no logged-in user, autosaves and revisions, the workflow's own status writes during a transition, moves to Trash, a post leaving the Trash for `draft` (the default restore), and anyone in the bypass list (administrators by default).
 - **Broken workflow state is refused, not waved through.** If a post points at a sequence or stage that no longer exists, the guard treats every status change as a crossing.
 
 ```mermaid
@@ -755,13 +757,19 @@ flowchart TD
   B -->|no| OK["Allowed"]
   B -->|yes| C{"System context?<br/>cron, autosave or revision,<br/>workflow commit in progress,<br/>no current user"}
   C -->|yes| OK
-  C -->|no| D{"Exempt change?<br/>status unchanged, scheduled going live,<br/>restore from Trash to a draft-side status"}
+  C -->|no| D{"Exempt change?<br/>status unchanged, scheduled going live,<br/>leaving Trash for draft"}
   D -->|yes| OK
   D -->|no| E{"User in the bypass list?<br/>(administrators by default)"}
   E -->|yes| OK
-  E -->|no| F{"Crosses between unpublished<br/>and published or scheduled?<br/>(broken workflow state counts as yes)"}
-  F -->|no| OK
+  E -->|no| T{"Leaving Trash for<br/>pending or private?"}
+  T -->|yes| G
+  T -->|no| F{"Crosses between unpublished<br/>and published or scheduled?<br/>(broken workflow state counts as yes)"}
   F -->|yes| V["Refused: the editor shows why,<br/>the stored status is kept"]
+  F -->|no| G{"Moves the post to another stage?"}
+  G -->|no| OK
+  G -->|yes| H{"Could the user take that transition?<br/>edge, routing, role, no required<br/>assignment, no required tools<br/>unless on the tool-check list"}
+  H -->|yes| OK
+  H -->|no| V2["Refused: use the workflow panel,<br/>the stored status is kept"]
   OK --> RS["The workflow moves the post to the<br/>matching stage if the region changed"]
 ```
 
@@ -774,20 +782,22 @@ flowchart TD
 - There is one definition of "crosses the boundary," and the editor's warnings, the posts list and the server all use it. If they drift, the editor warns where the server allows, or stays silent where it refuses. → `StatusManager::crosses_publish_boundary()`, `boundary_region()`
 - REST saves and every other save are guarded for the same posts. → the REST check is registered on every REST post type, not only those with a workflow.
 - Broken workflow state is refused, never allowed.
-- A trashed post can't be restored straight into the published side. Only restores to a draft-side status are exempt.
+- Leaving the Trash for `draft` is never refused, so the default restore always works; it reseats like any move to `draft`. Any other status out of the Trash, written by any save or by `wp_untrash_post()`, is held to the rules: a publish-side target goes through the publish boundary, and a non-publish one through the transition rules.
+- A refused `wp_untrash_post()` leaves the post as it was: status, stage, history and Trash records. (Like any read of the transition rules, the check may settle an expired AI-stage job record as failed, the same recovery a workflow panel read performs.) `wp_untrash_post()` deletes its Trash bookkeeping before it writes the status, so the guard asks first, on `pre_untrash_post`: it works out the status the restore would write (through `wp_untrash_post_status`, with core's arguments) and returns false if the guard would refuse it. The post stays in the Trash with its bookkeeping, and wp-admin reports that the restore failed. Core's "restore the previous status" behavior is kept, not forced to `draft`.
+- A status change that moves the stage is held to the rules of the transition between the two stages, checked by the same `Sequence` and `AssignmentManager` methods `transition()` uses. Required metadata isn't checked there: it applies only on the way into publish, which the first rule already refuses. → `StatusManager::core_status_change_refusal()`
 
 **Footguns**
 
 - **Stages don't lock editing.** Anyone who can edit the post can change its content at any stage, including while an AI agent owns the stage. The guard protects the status, not the content. The only lock: a person can't start an AI stage while others are co-editing the post.
-- **On Quick Edit and Bulk Edit, a refused change looks like it worked.** WordPress reports the save and the status quietly reverts, because those screens can't show the guard's message.
+- **On Quick Edit, Bulk Edit and XML-RPC, a refused change the client didn't catch looks like it worked.** WordPress reports the save and the status quietly reverts, because those paths can't show the guard's message.
 - **The bypass list is a list of role names, not a capability.** Adding a role to it lets every member publish any workflow post directly, limited only by their normal WordPress capabilities.
 - **Writes with no logged-in user are never refused:** WP-CLI without `--user`, importers and seeders.
 
 **Code**
 
-- `vip-workflows/includes/workflow/class-publish-boundary-guard.php`: `PublishBoundaryGuard`, with `resolve_veto()` and `is_system_context()`.
-- Hooks: `wp_insert_post_data` for every save that goes through `wp_insert_post()` or `wp_update_post()` (block and classic editor, Quick Edit, Bulk Edit, REST, XML-RPC, WP-CLI with `--user`), restoring the stored `post_status`, `post_name`, `post_date` and `post_date_gmt`; `rest_pre_insert_{post_type}`, registered at `rest_api_init` on every `show_in_rest` post type, which returns 409 `vip_workflows_publish_boundary`. Targets `trash` and `inherit` never cross. The classic-editor (`post.php`) notice is a 60-second transient shown on `admin_notices`. A workflow commit in progress is detected with `StatusManager::is_transition_in_progress()`.
-- `vip-workflows/includes/workflow/class-status-manager.php`: `StatusManager::crosses_publish_boundary()`, `boundary_region()`, and `status_to_region()`, which maps `future` to `publish` and `auto-draft` to `draft`.
+- `vip-workflows/includes/workflow/class-publish-boundary-guard.php`: `PublishBoundaryGuard`, with `resolve_veto()`, `check_untrash()` and `is_system_context()`.
+- Hooks: `wp_insert_post_data` for every save that goes through `wp_insert_post()` or `wp_update_post()` (block and classic editor, Quick Edit, Bulk Edit, REST, XML-RPC, WP-CLI with `--user`), restoring the stored `post_status`, `post_name`, `post_date` and `post_date_gmt`; `rest_pre_insert_{post_type}`, registered at `rest_api_init` on every `show_in_rest` post type, which returns 409 `vip_workflows_publish_boundary` for a crossing and 403 `vip_workflows_status_change_rules` for a reseat the user can't take. Targets `trash` and `inherit` never cross. `pre_untrash_post`, hooked last, returns false for a refused restore and leaves another callback's answer alone. The classic-editor (`post.php`) notice is a 60-second transient shown on `admin_notices`. A workflow commit in progress is detected with `StatusManager::is_transition_in_progress()`.
+- `vip-workflows/includes/workflow/class-status-manager.php`: `StatusManager::crosses_publish_boundary()`, `boundary_region()`, and `status_to_region()`, which maps `future` to `publish` and `auto-draft` to `draft`; `core_status_change_refusal()`, which starts from the same `resolve_reseat_stage()` the reseat uses, and `refused_status_regions()`, which fills `guard.refused_regions` in the status route, the `get-available-transitions` ability and the posts list row data.
 - Ways through: `StatusManager::remove_sequence()`, REST `DELETE /vip-workflows/v1/workflow/post/{id}/sequence`, ability `vip-workflows/remove-from-workflow`; logs `workflow.removed`.
 - Bypass: `Settings::can_user_bypass_workflow()` (`vip-workflows/includes/admin/class-settings.php`) and the `bypass_workflow_roles` setting.
 
