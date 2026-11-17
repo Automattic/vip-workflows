@@ -33,6 +33,11 @@ import { useCardActions } from './use-card-actions';
 import { useMentor } from './use-mentor';
 import { useDropZone } from './use-drop-zone';
 import { ToolFailuresModal } from '../../../common/ToolFailuresModal';
+import {
+	isTranscriptionAvailable,
+	needsTranscription,
+	transcriptionUnavailableMessage,
+} from './transcription';
 
 import './IdeationWorkspace.css';
 
@@ -640,7 +645,9 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				console.error( 'Retry failed:', err );
 				createErrorNotice(
 					err.message || __( 'Retry failed.', 'vip-workflows' ),
-					{ type: 'snackbar' }
+					{
+						type: 'snackbar',
+					}
 				);
 			}
 		},
@@ -697,8 +704,24 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			setUploadQueue( queue );
 
 			const errors = [];
+			const transcriptionAvailable = isTranscriptionAvailable();
 			for ( let i = 0; i < files.length; i++ ) {
 				const file = files[ i ];
+
+				// Audio and video go to OpenAI for transcription. Without its
+				// key the upload route refuses them, so don't send them at all.
+				if ( ! transcriptionAvailable && needsTranscription( file ) ) {
+					errors.push(
+						`${ file.name }: ${ transcriptionUnavailableMessage() }`
+					);
+					setUploadQueue( ( prev ) =>
+						prev.map( ( item, idx ) =>
+							idx === i ? { ...item, status: 'error' } : item
+						)
+					);
+					continue;
+				}
+
 				const formData = new FormData();
 				formData.append( 'file', file );
 
@@ -775,10 +798,15 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 						</Text>
 						{ /* wpds-allow R7 -- muted hint text (body-md token + fg-weak color; no Text color prop) */ }
 						<span className="vip-workflows-ideation-workspace__drop-hint">
-							{ __(
-								'Images, videos, PDFs, and documents',
-								'vip-workflows'
-							) }
+							{ isTranscriptionAvailable()
+								? __(
+										'Images, audio, video, PDFs and documents. OpenAI transcribes audio and video.',
+										'vip-workflows'
+									)
+								: __(
+										'Images, PDFs and documents',
+										'vip-workflows'
+									) }
 						</span>
 					</Stack>
 				</div>

@@ -19,6 +19,7 @@ import { Stack, Text } from '@wordpress/ui';
 import apiFetch from '@wordpress/api-fetch';
 
 import { ModalActions } from '../../../common/ModalActions';
+import { isTranscriptionAvailable } from './transcription';
 
 import './AddSourceModal.css';
 
@@ -45,6 +46,13 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 	const [ sourceType, setSourceType ] = useState( 'article' );
 	const [ uploading, setUploading ] = useState( false );
 	const [ error, setError ] = useState( null );
+
+	// Audio and video go to OpenAI for transcription, so without its key the
+	// picker doesn't offer them; the upload route would refuse them anyway.
+	const transcriptionAvailable = isTranscriptionAvailable();
+	const accept = transcriptionAvailable
+		? 'image/*,audio/*,video/*,.pdf,.doc,.docx,.txt'
+		: 'image/*,.pdf,.doc,.docx,.txt';
 
 	const handleUrlSubmit = useCallback( async () => {
 		if ( ! url.trim() ) {
@@ -175,12 +183,34 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 						/>
 					</Stack>
 				) : (
-					<Text variant="body-sm" render={ <p /> }>
-						{ __(
-							'Upload images, PDFs, or documents.',
-							'vip-workflows'
+					<Stack direction="column" gap="sm">
+						<Text variant="body-sm" render={ <p /> }>
+							{ transcriptionAvailable
+								? __(
+										'Upload images, PDFs, documents, audio or video.',
+										'vip-workflows'
+									)
+								: __(
+										'Upload images, PDFs or documents.',
+										'vip-workflows'
+									) }
+						</Text>
+						{ transcriptionAvailable ? (
+							<Text variant="body-sm" render={ <p /> }>
+								{ __(
+									'Audio and video files are sent to OpenAI to be transcribed.',
+									'vip-workflows'
+								) }
+							</Text>
+						) : (
+							<Notice status="info" isDismissible={ false }>
+								{ __(
+									'Audio and video need an OpenAI key, which is used for transcription.',
+									'vip-workflows'
+								) }
+							</Notice>
 						) }
-					</Text>
+					</Stack>
 				) }
 			</Stack>
 
@@ -203,7 +233,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 					</Button>
 				) : (
 					<FormFileUpload
-						accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt"
+						accept={ accept }
 						onChange={ handleFileUpload }
 						variant="primary"
 						isBusy={ uploading }

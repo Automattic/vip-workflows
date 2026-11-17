@@ -234,3 +234,191 @@ describe( 'ideation workspace — the first-load batch', () => {
 		expect( assistantsRun() ).not.toContain( OFF_ABILITY );
 	} );
 } );
+
+/*
+ * Audio and video are transcribed by OpenAI whatever provider the site chose.
+ * Without an OpenAI key the upload route refuses them, so the drop zone skips
+ * them up front and says why, and still uploads everything else.
+ */
+describe( 'ideation workspace — dropping audio and video', () => {
+	const UPLOAD_SUFFIX = '/sources/upload';
+
+	beforeEach( () => {
+		localStorage.setItem( 'vip_workflows_mentor_auto', '0' );
+
+		apiFetch.mockReset();
+		apiFetch.mockImplementation( ( { path } ) => {
+			if ( path === ABILITIES_PATH ) {
+				return Promise.resolve( ABILITIES );
+			}
+			if ( path.endsWith( '/summary' ) ) {
+				return Promise.reject( new Error( 'no summary yet' ) );
+			}
+			if ( path.endsWith( UPLOAD_SUFFIX ) ) {
+				return Promise.resolve( {} );
+			}
+			return Promise.resolve( stateWith( {} ) );
+		} );
+	} );
+
+	afterEach( () => {
+		delete window.vipWorkflowsIdeation;
+	} );
+
+	/**
+	 * The names of the files the workspace sent to the upload route.
+	 *
+	 * @return {string[]} File names.
+	 */
+	function uploadedNames() {
+		return apiFetch.mock.calls
+			.filter( ( [ options ] ) =>
+				options?.path?.endsWith( UPLOAD_SUFFIX )
+			)
+			.map( ( [ options ] ) => options.body.get( 'file' ).name );
+	}
+
+	/**
+	 * Fire a document-level event carrying files, as the browser does.
+	 *
+	 * @param {string} type  Event type.
+	 * @param {File[]} files Files to carry.
+	 */
+	async function fireFileEvent( type, files ) {
+		const event = new Event( type, { bubbles: true, cancelable: true } );
+		Object.defineProperty( event, 'dataTransfer', {
+			value: { files, types: [ 'Files' ] },
+		} );
+		await act( async () => {
+			document.dispatchEvent( event );
+		} );
+	}
+
+	/**
+	 * The per-file upload errors the workspace shows.
+	 *
+	 * Read from the snackbars themselves: they also announce their text in the
+	 * global `a11y-speak` region, which outlives each test, so a document-wide
+	 * text query would double-match and see the previous test's message.
+	 *
+	 * @param {HTMLElement} container Render container.
+	 * @return {string[]} Error texts.
+	 */
+	const uploadErrors = ( container ) =>
+		Array.from(
+			container.querySelectorAll(
+				'.vip-workflows-ideation-workspace__upload-error'
+			)
+		).map( ( node ) => node.textContent );
+
+	const mp3 = () => new File( [ 'x' ], 'song.mp3', { type: 'audio/mpeg' } );
+	const mp4 = () => new File( [ 'x' ], 'clip.mp4', { type: 'video/mp4' } );
+	const png = () => new File( [ 'x' ], 'photo.png', { type: 'image/png' } );
+	const pdf = () =>
+		new File( [ 'x' ], 'report.pdf', { type: 'application/pdf' } );
+
+	const SKIP_MESSAGE =
+		'Audio and video need an OpenAI key for transcription. Ask an administrator to add one.';
+
+	it( 'without a key, uploads only the image and names the skipped file', async () => {
+		window.vipWorkflowsIdeation = { transcriptionAvailable: false };
+		const { container } = await mountWorkspace( stateWith( {} ) );
+
+		await fireFileEvent( 'drop', [ mp3(), png() ] );
+
+		await waitFor( () =>
+			expect( uploadErrors( container ) ).toEqual( [
+				`song.mp3: ${ SKIP_MESSAGE }`,
+			] )
+		);
+		expect( uploadedNames() ).toEqual( [ 'photo.png' ] );
+	} );
+
+	it( 'without a key, still uploads images and PDFs as before', async () => {
+		window.vipWorkflowsIdeation = { transcriptionAvailable: false };
+		const { container } = await mountWorkspace( stateWith( {} ) );
+
+		await fireFileEvent( 'drop', [ png(), pdf() ] );
+
+		await waitFor( () =>
+			expect( uploadedNames() ).toEqual( [ 'photo.png', 'report.pdf' ] )
+		);
+		expect( uploadErrors( container ) ).toEqual( [] );
+	} );
+
+	it( 'treats a missing localized value as no key', async () => {
+		window.vipWorkflowsIdeation = {};
+		const { container } = await mountWorkspace( stateWith( {} ) );
+
+		await fireFileEvent( 'drop', [ mp4() ] );
+
+		await waitFor( () =>
+			expect( uploadErrors( container ) ).toEqual( [
+				`clip.mp4: ${ SKIP_MESSAGE }`,
+			] )
+		);
+		expect( uploadedNames() ).toEqual( [] );
+	} );
+
+	it( 'with a key, uploads audio as before', async () => {
+		window.vipWorkflowsIdeation = { transcriptionAvailable: true };
+		const { container } = await mountWorkspace( stateWith( {} ) );
+
+		await fireFileEvent( 'drop', [ mp3() ] );
+
+		await waitFor( () =>
+			expect( uploadedNames() ).toEqual( [ 'song.mp3' ] )
+		);
+		expect( uploadErrors( container ) ).toEqual( [] );
+	} );
+
+	it( 'with a key, shows the server’s refusal per file', async () => {
+		window.vipWorkflowsIdeation = { transcriptionAvailable: true };
+		apiFetch.mockImplementation( ( { path } ) => {
+			if ( path === ABILITIES_PATH ) {
+				return Promise.resolve( ABILITIES );
+			}
+			if ( path.endsWith( '/summary' ) ) {
+				return Promise.reject( new Error( 'no summary yet' ) );
+			}
+			if ( path.endsWith( UPLOAD_SUFFIX ) ) {
+				return Promise.reject( new Error( SKIP_MESSAGE ) );
+			}
+			return Promise.resolve( stateWith( {} ) );
+		} );
+		const { container } = await mountWorkspace( stateWith( {} ) );
+
+		await fireFileEvent( 'drop', [ mp3() ] );
+
+		await waitFor( () =>
+			expect( uploadErrors( container ) ).toEqual( [
+				`song.mp3: ${ SKIP_MESSAGE }`,
+			] )
+		);
+		expect( uploadedNames() ).toEqual( [ 'song.mp3' ] );
+	} );
+
+	it( 'names OpenAI in the drop hint when a key is set', async () => {
+		window.vipWorkflowsIdeation = { transcriptionAvailable: true };
+		await mountWorkspace( stateWith( {} ) );
+
+		await fireFileEvent( 'dragenter', [] );
+
+		expect(
+			screen.getByText(
+				'Images, audio, video, PDFs and documents. OpenAI transcribes audio and video.'
+			)
+		).toBeInTheDocument();
+	} );
+
+	it( 'leaves audio and video out of the drop hint without a key', async () => {
+		window.vipWorkflowsIdeation = { transcriptionAvailable: false };
+		await mountWorkspace( stateWith( {} ) );
+
+		await fireFileEvent( 'dragenter', [] );
+
+		expect(
+			screen.getByText( 'Images, PDFs and documents' )
+		).toBeInTheDocument();
+	} );
+} );
