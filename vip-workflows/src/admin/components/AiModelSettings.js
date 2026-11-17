@@ -303,15 +303,21 @@ export function AiModelSettings( { onDirtyChange, registerSave } ) {
 						options={ providerOptions }
 						onChange={ onProviderChange }
 						help={
-							<Link
-								href="/wp-admin/options-connectors.php"
-								openInNewTab
-							>
+							<>
 								{ __(
-									'Add providers in Settings → Connectors',
+									'Audio and video are always transcribed by OpenAI, whichever provider is chosen.',
 									'vip-workflows'
-								) }
-							</Link>
+								) }{ ' ' }
+								<Link
+									href="/wp-admin/options-connectors.php"
+									openInNewTab
+								>
+									{ __(
+										'Add providers in Settings → Connectors',
+										'vip-workflows'
+									) }
+								</Link>
+							</>
 						}
 					/>
 					<SelectControl

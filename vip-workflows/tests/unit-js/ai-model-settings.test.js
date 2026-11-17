@@ -374,6 +374,51 @@ describe( 'a stored model no longer in its provider catalog', () => {
 	} );
 } );
 
+/**
+ * Transcription doesn't follow the provider: audio and video always go to
+ * OpenAI. The provider select is where an administrator decides where the
+ * site's AI calls go, so it is where that exception has to be visible.
+ */
+describe( 'the provider select’s help', () => {
+	it( 'says audio and video go to OpenAI, and keeps the Connectors link', async () => {
+		await renderPanel(
+			payload( {
+				ai_provider_selected: true,
+				ai_model: 'claude-sonnet-5',
+			} )
+		);
+
+		expect( providerSelect() ).toHaveValue( 'anthropic' );
+		expect(
+			within( panel ).getByText(
+				/Audio and video are always transcribed by OpenAI, whichever provider is chosen\./
+			)
+		).toBeInTheDocument();
+		expect(
+			within( panel ).getByRole( 'link', {
+				name: /Add providers in Settings → Connectors/,
+			} )
+		).toBeInTheDocument();
+	} );
+
+	it( 'is not shown when no provider is connected', async () => {
+		await renderPanel(
+			payload( {
+				ai_provider: '',
+				ai_providers: [],
+				ai_models: {},
+			} )
+		);
+
+		expect(
+			within( panel ).getByText( /No AI provider connected/ )
+		).toBeInTheDocument();
+		expect(
+			within( panel ).queryByText( /always transcribed by OpenAI/ )
+		).not.toBeInTheDocument();
+	} );
+} );
+
 describe( 'no connected provider', () => {
 	it( 'points at Connectors and offers no controls to fill in', async () => {
 		await renderPanel(
