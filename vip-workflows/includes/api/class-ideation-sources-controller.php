@@ -431,7 +431,7 @@ class IdeationSourcesController extends WP_REST_Controller {
 		// type such as "vi deo/mp4" is stored as video/mp4. Ask about that.
 		$type = sanitize_mime_type( $type );
 
-		if ( ! str_starts_with( $type, 'audio/' ) && ! str_starts_with( $type, 'video/' ) ) {
+		if ( ! MediaProcessor::needs_transcription( $type ) ) {
 			return null;
 		}
 

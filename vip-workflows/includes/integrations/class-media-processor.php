@@ -17,6 +17,9 @@ use VIPWorkflows\AI\PromptRegistry;
 use VIPWorkflows\AI\Credentials;
 use VIPWorkflows\AI\AiInference;
 use VIPWorkflows\Abilities\AiAvailability;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\Abilities\RequirementFactory;
+use VIPWorkflows\API\AvailabilitySerializer;
 use WP_Error;
 
 /**
@@ -51,17 +54,47 @@ class MediaProcessor {
 	}
 
 	/**
+	 * Whether a file of this type is sent for transcription.
+	 *
+	 * The upload guard and `process_file()` both ask this, so the route refuses
+	 * exactly the files the job would transcribe. The Ideation screens keep a
+	 * client-side mirror in `transcription.js`, which is only a pre-filter.
+	 *
+	 * @param string $mime_type File MIME type.
+	 * @return bool True for audio and video.
+	 */
+	public static function needs_transcription( string $mime_type ): bool {
+		return str_starts_with( $mime_type, 'audio/' ) || str_starts_with( $mime_type, 'video/' );
+	}
+
+	/**
 	 * The message shown when audio or video cannot be transcribed for lack of a key.
 	 *
-	 * One sentence for the upload refusal, the job failure and the Ideation
-	 * drop zone, so a person sees the same words wherever they hit it. It names
-	 * who can fix it rather than a screen, because installs on the legacy
-	 * credential backend or a constant-only key have no Connectors screen.
+	 * Used by the upload refusal, the job failure and the Ideation drop zone
+	 * (through the screen's localized data). It says that OpenAI transcribes
+	 * audio and video, then lets `RequirementFactory::missing_credential()` say
+	 * where the key goes, exactly as the other credential gates do: Settings →
+	 * Connectors on that backend, the `wp-config.php` constant on an install
+	 * with no credential screen, and "ask an administrator" for a reader who
+	 * cannot reach either.
 	 *
+	 * Which of those a reader gets is the message register. Request-bound
+	 * callers can leave it to the current user; the job runs with nobody behind
+	 * it, so it names its register itself.
+	 *
+	 * @param string|null $register Requirement::REGISTER_ADMIN or ::REGISTER_USER;
+	 *                              null to choose for the current user.
 	 * @return string Translated message.
 	 */
-	public static function transcription_unavailable_message(): string {
-		return __( 'Audio and video need an OpenAI key for transcription. Ask an administrator to add one.', 'vip-workflows' );
+	public static function transcription_unavailable_message( ?string $register = null ): string {
+		$requirement = RequirementFactory::missing_credential( 'openai', 'OpenAI' );
+		$register  ??= AvailabilitySerializer::register_for_current_user();
+
+		$detail = Requirement::REGISTER_ADMIN === $register
+			? $requirement->get_admin_text()
+			: $requirement->get_user_message();
+
+		return __( 'OpenAI transcribes audio and video.', 'vip-workflows' ) . ' ' . $detail;
 	}
 
 	/**
@@ -116,7 +149,7 @@ class MediaProcessor {
 			return $this->analyze_image( $file_path, $mime_type );
 		}
 
-		if ( str_starts_with( $mime_type, 'audio/' ) || str_starts_with( $mime_type, 'video/' ) ) {
+		if ( self::needs_transcription( $mime_type ) ) {
 			return $this->transcribe_audio_video( $file_path );
 		}
 
@@ -281,12 +314,16 @@ class MediaProcessor {
 	 * (see `transcription_available()`); this check stays for files that reach
 	 * the job anyway, such as a retry after the key was removed.
 	 *
+	 * The job's failure is stored on the source row, which editors read as well
+	 * as administrators, and the job has no current user to ask, so it uses the
+	 * user register.
+	 *
 	 * @param string $file_path Full path to the audio/video file.
 	 * @return string|WP_Error Transcript text or error.
 	 */
 	private function call_whisper_api( string $file_path ): string|WP_Error {
 		if ( ! self::transcription_available() ) {
-			return new WP_Error( 'no_api_key', self::transcription_unavailable_message() );
+			return new WP_Error( 'no_api_key', self::transcription_unavailable_message( Requirement::REGISTER_USER ) );
 		}
 		$api_key = Credentials::get_instance()->api_key( 'openai' );
 

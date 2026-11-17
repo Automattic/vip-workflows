@@ -9,7 +9,12 @@
  * @package
  */
 
-import { render, fireEvent, within, waitFor } from './helpers/render-wp-component';
+import {
+	render,
+	fireEvent,
+	within,
+	waitFor,
+} from './helpers/render-wp-component';
 
 jest.mock( '@wordpress/api-fetch', () => jest.fn() );
 
@@ -152,7 +157,7 @@ describe( 'add source — upload mode with no localized value', () => {
 it( 'shows the server refusal when a key is removed after page load', async () => {
 	window.vipWorkflowsIdeation = { transcriptionAvailable: '1' };
 	const message =
-		'Audio and video need an OpenAI key for transcription. Ask an administrator to add one.';
+		'OpenAI transcribes audio and video. OpenAI is not connected. Ask an administrator to connect it.';
 	apiFetch.mockRejectedValueOnce( {
 		code: 'rest_transcription_unavailable',
 		message,
@@ -161,7 +166,9 @@ it( 'shows the server refusal when a key is removed after page load', async () =
 	const dialog = openUploadMode();
 	fireEvent.change( dialog.querySelector( 'input[type="file"]' ), {
 		target: {
-			files: [ new File( [ 'ID3' ], 'song.mp3', { type: 'audio/mpeg' } ) ],
+			files: [
+				new File( [ 'ID3' ], 'song.mp3', { type: 'audio/mpeg' } ),
+			],
 		},
 	} );
 	await waitFor( () =>

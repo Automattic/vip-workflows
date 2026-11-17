@@ -42,7 +42,17 @@ require_once dirname( __DIR__ ) . '/fixtures/transcription-upload.php';
  */
 class IdeationSourcesTranscriptionGuardTest extends TestCase
 {
-    private const MESSAGE = 'Audio and video need an OpenAI key for transcription. Ask an administrator to add one.';
+    /**
+     * What an editor is told. They cannot reach a credential screen, so the
+     * message names who can fix it rather than where.
+     */
+    private const MESSAGE = 'OpenAI transcribes audio and video. OpenAI is not connected. Ask an administrator to connect it.';
+
+    /**
+     * What an administrator is told on an install with no credential screen,
+     * which is what the test backend here is.
+     */
+    private const ADMIN_MESSAGE = 'OpenAI transcribes audio and video. OpenAI is not connected. Set the VIP_WORKFLOWS_OPENAI_KEY constant in wp-config.php.';
 
     private const PNG_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
@@ -86,15 +96,12 @@ class IdeationSourcesTranscriptionGuardTest extends TestCase
         /*
          * The files here were never really uploaded, so core's
          * is_uploaded_file() test and move_uploaded_file() would refuse them.
-         * The test adapter selects a custom action, using is_readable()
-         * for the first, and this filter copies instead of moving; every other check
-         * media_handle_upload() makes still runs. The adapter never overrides MIME
-         * detection or the route's refusal.
+         * The test adapter (fixtures/transcription-upload.php) selects a custom
+         * action, so core uses is_readable() for the first, and this filter
+         * copies instead of moving; every other check media_handle_upload()
+         * makes still runs. Neither overrides MIME detection or the route's
+         * refusal.
          */
-        add_filter(
-            'vip_transcription_fixture_overrides',
-            static fn( $overrides ) => array_merge( (array) $overrides, array( 'test_form' => false ) )
-        );
         add_filter(
             'pre_move_uploaded_file',
             static fn( $move, $file, $new_file ) => copy( $file['tmp_name'], $new_file ),
@@ -424,6 +431,32 @@ class IdeationSourcesTranscriptionGuardTest extends TestCase
         $this->assertSame( '1', $this->localized_transcription_flag() );
     }
 
+    /**
+     * An administrator can add the key, so the refusal says where. The test
+     * backend has no credential screen, so that is the constant.
+     */
+    public function test_an_administrator_is_told_where_the_key_goes(): void
+    {
+        $this->use_backend( array() );
+        wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
+        $response = $this->upload( 'song.mp3', self::bytes( 'mp3' ), 'audio/mpeg' );
+
+        $this->assertSame( 422, $response->get_status() );
+        $this->assertSame( self::ADMIN_MESSAGE, $response->get_data()['message'] ?? null );
+    }
+
+    /**
+     * The drop zone shows the route's own sentence for this reader, sent with
+     * the page, so the two can't drift apart.
+     */
+    public function test_the_ideation_screen_gets_the_routes_sentence(): void
+    {
+        $this->use_backend( array() );
+
+        $this->assertSame( self::MESSAGE, $this->localized_ideation_data()['transcriptionUnavailableMessage'] ?? null );
+    }
+
 
     /** A genuine capability bypass, as used by sites allowing unfiltered uploads. */
     private function allow_unfiltered_upload(): void
@@ -434,28 +467,27 @@ class IdeationSourcesTranscriptionGuardTest extends TestCase
         $this->assertTrue( current_user_can( 'unfiltered_upload' ) );
     }
 
+    /**
+     * WordPress can't resolve video bytes under a `.png` name, and core would
+     * store the file under the client's `video/mp4` for this user, so the
+     * guard asks about that type and refuses.
+     */
     public function test_unfiltered_mp4_named_png_is_refused_before_storage(): void
     {
+        $this->use_backend( array() );
         $this->allow_unfiltered_upload();
-        $response = $this->upload( 'clip.png', self::bytes( 'mp4' ), 'video/mp4' );
-        if ( 201 === $response->get_status() ) {
-            $this->assert_accepted_and_queued( $response, 'video/' );
-            $data = $response->get_data();
-            $result = ( new MediaProcessor() )->transcribe_audio_video( get_attached_file( $data['attachment_id'] ) );
-            $this->assertSame( 'no_api_key', $result->get_error_code() );
-            $this->assertSame( array(), $this->fetched );
-        }
-        $this->assert_refused_untouched( $response );
+
+        $this->assert_refused_untouched( $this->upload( 'clip.png', self::bytes( 'mp4' ), 'video/mp4' ) );
+        $this->assertSame( array(), $this->fetched );
     }
 
+    /** The same, the other way round: image bytes under a video name. */
     public function test_unfiltered_png_named_mp4_is_refused_before_storage(): void
     {
+        $this->use_backend( array() );
         $this->allow_unfiltered_upload();
-        $response = $this->upload( 'image.mp4', self::bytes( 'png' ), 'video/mp4' );
-        if ( 201 === $response->get_status() ) {
-            $this->assert_accepted_and_queued( $response, 'video/' );
-        }
-        $this->assert_refused_untouched( $response );
+
+        $this->assert_refused_untouched( $this->upload( 'image.mp4', self::bytes( 'png' ), 'video/mp4' ) );
     }
 
     /** @dataProvider provide_names */
@@ -508,15 +540,30 @@ class IdeationSourcesTranscriptionGuardTest extends TestCase
         $this->assertSame( 400, $response->get_status() );
     }
 
-    /** @dataProvider provide_transport_errors */
-    public function test_transport_error_never_stores_media( int $error ): void
+    /**
+     * PHP's own upload errors keep core's refusal and its status, so the
+     * person hears the file didn't arrive rather than a key message: 400 for
+     * what arrived, 500 for a server that couldn't receive it. A non-positive
+     * error is one core would store, so the guard still refuses it.
+     *
+     * @dataProvider provide_transport_errors
+     *
+     * @param int $error    PHP upload error code.
+     * @param int $expected Expected response status.
+     */
+    public function test_transport_error_never_stores_media( int $error, int $expected ): void
     {
+        $this->use_backend( array() );
+
         $response = $this->upload( 'transport.mp3', self::bytes( 'mp3' ), 'audio/mpeg', $error );
-        if ( 201 === $response->get_status() ) {
-            $this->assert_accepted_and_queued( $response, 'audio/mpeg' );
-            $this->assertSame( 1, $this->attachment_count() );
+
+        if ( 422 === $expected ) {
+            $this->assert_refused_untouched( $response );
+            return;
         }
-        $this->assertNotSame( 201, $response->get_status(), wp_json_encode( $response->get_data() ) );
+
+        $this->assertSame( $expected, $response->get_status(), (string) wp_json_encode( $response->get_data() ) );
+        $this->assertNotSame( 'rest_transcription_unavailable', $response->get_data()['code'] ?? null );
         $this->assertSame( 0, $this->attachment_count() );
         $this->assertSame( 0, $this->row_count() );
         $this->assertFalse( as_has_scheduled_action( 'vip_workflows_process_source', null, 'vip-workflows' ) );
@@ -524,7 +571,17 @@ class IdeationSourcesTranscriptionGuardTest extends TestCase
 
     public static function provide_transport_errors(): array
     {
-        return array_map( static fn( $error ) => array( $error ), array( 1, 2, 3, 4, 6, 7, 8, -1, -7 ) );
+        return array(
+            'ini size'   => array( UPLOAD_ERR_INI_SIZE, 400 ),
+            'form size'  => array( UPLOAD_ERR_FORM_SIZE, 400 ),
+            'partial'    => array( UPLOAD_ERR_PARTIAL, 400 ),
+            'no file'    => array( UPLOAD_ERR_NO_FILE, 400 ),
+            'no tmp dir' => array( UPLOAD_ERR_NO_TMP_DIR, 500 ),
+            'cant write' => array( UPLOAD_ERR_CANT_WRITE, 500 ),
+            'extension'  => array( UPLOAD_ERR_EXTENSION, 500 ),
+            'minus one'  => array( -1, 422 ),
+            'minus 7'    => array( -7, 422 ),
+        );
     }
 
     /** @dataProvider provide_unfiltered_nonmedia */
@@ -552,17 +609,9 @@ class IdeationSourcesTranscriptionGuardTest extends TestCase
         $this->allow_unfiltered_upload();
         $this->use_backend( array( 'anthropic' => 'sk-ant-test' ) );
         update_option( 'vip_workflows_ai_provider', 'anthropic' );
-        $response = $this->upload( 'clip.unknown', self::bytes( 'mp4' ), $client );
-        if ( 201 === $response->get_status() ) {
-            $this->assert_accepted_and_queued( $response, sanitize_mime_type( $client ) );
-            $data = $response->get_data();
-            $result = ( new MediaProcessor() )->transcribe_audio_video( get_attached_file( $data['attachment_id'] ) );
-            $this->assertWPError( $result );
-            $this->assertSame( 'no_api_key', $result->get_error_code() );
-            $this->assertSame( self::MESSAGE, $result->get_error_message() );
-            $this->assertSame( array(), $this->fetched );
-        }
-        $this->assert_refused_untouched( $response );
+
+        $this->assert_refused_untouched( $this->upload( 'clip.unknown', self::bytes( 'mp4' ), $client ) );
+        $this->assertSame( array(), $this->fetched );
     }
 
     public static function provide_sanitized_media_types(): array
@@ -668,6 +717,19 @@ class IdeationSourcesTranscriptionGuardTest extends TestCase
      */
     private function localized_transcription_flag()
     {
+        $decoded = $this->localized_ideation_data();
+        $this->assertArrayHasKey( 'transcriptionAvailable', $decoded );
+
+        return $decoded['transcriptionAvailable'];
+    }
+
+    /**
+     * The `vipWorkflowsIdeation` object localized onto the admin script.
+     *
+     * @return array<string, mixed> The object as the page receives it.
+     */
+    private function localized_ideation_data(): array
+    {
         wp_deregister_script( 'vip-workflows-admin' );
         wp_register_script( 'vip-workflows-admin', false, array(), '1', true );
 
@@ -679,8 +741,7 @@ class IdeationSourcesTranscriptionGuardTest extends TestCase
 
         $decoded = json_decode( $matches[1], true );
         $this->assertIsArray( $decoded );
-        $this->assertArrayHasKey( 'transcriptionAvailable', $decoded );
 
-        return $decoded['transcriptionAvailable'];
+        return $decoded;
     }
 }

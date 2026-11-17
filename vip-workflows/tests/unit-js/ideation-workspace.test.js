@@ -317,18 +317,26 @@ describe( 'ideation workspace — dropping audio and video', () => {
 	const pdf = () =>
 		new File( [ 'x' ], 'report.pdf', { type: 'application/pdf' } );
 
+	// The fallback, for a page the server didn't send its sentence to.
 	const SKIP_MESSAGE =
-		'Audio and video need an OpenAI key for transcription. Ask an administrator to add one.';
+		'OpenAI transcribes audio and video. OpenAI is not connected. Ask an administrator to connect it.';
 
-	it( 'without a key, uploads only the image and names the skipped file', async () => {
-		window.vipWorkflowsIdeation = { transcriptionAvailable: false };
+	// What the server localizes for an administrator on the Connectors backend.
+	const SERVER_MESSAGE =
+		'OpenAI transcribes audio and video. OpenAI is not connected. Add its API key in Settings → Connectors.';
+
+	it( 'without a key, uploads only the image and names the skipped file in the server’s words', async () => {
+		window.vipWorkflowsIdeation = {
+			transcriptionAvailable: false,
+			transcriptionUnavailableMessage: SERVER_MESSAGE,
+		};
 		const { container } = await mountWorkspace( stateWith( {} ) );
 
 		await fireFileEvent( 'drop', [ mp3(), png() ] );
 
 		await waitFor( () =>
 			expect( uploadErrors( container ) ).toEqual( [
-				`song.mp3: ${ SKIP_MESSAGE }`,
+				`song.mp3: ${ SERVER_MESSAGE }`,
 			] )
 		);
 		expect( uploadedNames() ).toEqual( [ 'photo.png' ] );

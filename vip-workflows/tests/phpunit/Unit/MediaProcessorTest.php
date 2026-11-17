@@ -14,8 +14,12 @@ declare( strict_types=1 );
 
 namespace VIPWorkflows\Tests\Unit;
 
+use Brain\Monkey\Functions;
+use VIPWorkflows\Abilities\Requirement;
+use VIPWorkflows\AI\ConnectorsCredentialBackend;
 use VIPWorkflows\AI\CredentialBackend;
 use VIPWorkflows\AI\Credentials;
+use VIPWorkflows\AI\LegacyCredentialBackend;
 use VIPWorkflows\Integrations\MediaProcessor;
 use WP_Error;
 
@@ -168,16 +172,110 @@ class MediaProcessorTest extends TestCase
 
     /**
      * @test
-     * One sentence for the upload refusal, the job failure and the drop zone.
-     * It says what is needed and who can fix it, and stays inside the copy
-     * standard's ceiling.
+     * An administrator on the Connectors backend is told where the key goes,
+     * in the words every other missing-credential gate uses.
      */
-    public function transcription_unavailable_message_names_the_key_and_who_can_add_it(): void
+    public function transcription_unavailable_message_sends_an_administrator_to_connectors(): void
     {
-        $this->assertSame(
-            'Audio and video need an OpenAI key for transcription. Ask an administrator to add one.',
-            MediaProcessor::transcription_unavailable_message()
+        Functions\when( 'admin_url' )->alias(
+            static fn( string $path = '' ): string => 'https://example.test/wp-admin/' . $path
         );
+        Functions\when( 'current_user_can' )->justReturn( true );
+        Credentials::get_instance()->set_backend( new ConnectorsCredentialBackend() );
+
+        try {
+            $this->assert_copy(
+                'OpenAI transcribes audio and video. OpenAI is not connected. Add its API key in Settings → Connectors.',
+                MediaProcessor::transcription_unavailable_message()
+            );
+        } finally {
+            Credentials::get_instance()->set_backend( null );
+        }
+    }
+
+    /**
+     * @test
+     * An install with no credential screen names the constant instead, and the
+     * longest variant still fits the copy standard's ceiling.
+     */
+    public function transcription_unavailable_message_names_the_constant_without_a_credential_screen(): void
+    {
+        Functions\when( 'current_user_can' )->justReturn( true );
+        Credentials::get_instance()->set_backend( new LegacyCredentialBackend() );
+
+        try {
+            $this->assert_copy(
+                'OpenAI transcribes audio and video. OpenAI is not connected. Set the VIP_WORKFLOWS_OPENAI_KEY constant in wp-config.php.',
+                MediaProcessor::transcription_unavailable_message()
+            );
+        } finally {
+            Credentials::get_instance()->set_backend( null );
+        }
+    }
+
+    /**
+     * @test
+     * A reader who cannot reach either is told who can fix it, never a screen,
+     * whichever backend is installed.
+     */
+    public function transcription_unavailable_message_sends_an_editor_to_an_administrator(): void
+    {
+        Functions\when( 'admin_url' )->alias(
+            static fn( string $path = '' ): string => 'https://example.test/wp-admin/' . $path
+        );
+        Functions\when( 'current_user_can' )->justReturn( false );
+        Credentials::get_instance()->set_backend( new ConnectorsCredentialBackend() );
+
+        try {
+            $this->assert_copy(
+                'OpenAI transcribes audio and video. OpenAI is not connected. Ask an administrator to connect it.',
+                MediaProcessor::transcription_unavailable_message()
+            );
+        } finally {
+            Credentials::get_instance()->set_backend( null );
+        }
+    }
+
+    /**
+     * @test
+     * A caller with no current user, such as the job, names the register
+     * itself rather than being silently given one.
+     */
+    public function transcription_unavailable_message_takes_an_explicit_register(): void
+    {
+        Functions\expect( 'current_user_can' )->never();
+        Credentials::get_instance()->set_backend( new LegacyCredentialBackend() );
+
+        try {
+            $this->assert_copy(
+                'OpenAI transcribes audio and video. OpenAI is not connected. Ask an administrator to connect it.',
+                MediaProcessor::transcription_unavailable_message( Requirement::REGISTER_USER )
+            );
+        } finally {
+            Credentials::get_instance()->set_backend( null );
+        }
+    }
+
+    /**
+     * @test
+     * Audio and video are transcribed; nothing else is.
+     */
+    public function needs_transcription_is_audio_and_video_only(): void
+    {
+        $this->assertTrue( MediaProcessor::needs_transcription( 'audio/mpeg' ) );
+        $this->assertTrue( MediaProcessor::needs_transcription( 'video/mp4' ) );
+        $this->assertFalse( MediaProcessor::needs_transcription( 'image/png' ) );
+        $this->assertFalse( MediaProcessor::needs_transcription( 'application/pdf' ) );
+        $this->assertFalse( MediaProcessor::needs_transcription( '' ) );
+    }
+
+    /**
+     * Assert the exact message, and that it fits the copy standard's ceiling.
+     */
+    private function assert_copy( string $expected, string $actual ): void
+    {
+        $this->assertSame( $expected, $actual );
+        $this->assertLessThanOrEqual( 120, mb_strlen( $actual ) );
     }
 
     /**

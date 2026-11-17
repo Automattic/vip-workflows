@@ -60,29 +60,31 @@ class IdeationAdmin implements ModuleInterface {
 			'vip-workflows-admin',
 			'vipWorkflowsIdeation',
 			array(
-				'restUrl'                => rest_url( 'vip-workflows/v1/' ),
-				'nonce'                  => wp_create_nonce( 'wp_rest' ),
-				'currentUserId'          => get_current_user_id(),
-				'currentUser'            => array(
+				'restUrl'                         => rest_url( 'vip-workflows/v1/' ),
+				'nonce'                           => wp_create_nonce( 'wp_rest' ),
+				'currentUserId'                   => get_current_user_id(),
+				'currentUser'                     => array(
 					'id'     => get_current_user_id(),
 					'name'   => wp_get_current_user()->display_name,
 					'avatar' => get_avatar_url( get_current_user_id(), array( 'size' => 32 ) ),
 				),
-				'canManage'              => current_user_can( 'edit_others_posts' ),
-				'canEditOthersPosts'     => current_user_can( 'edit_others_posts' ),
-				'urgencyLevels'          => array(
+				'canManage'                       => current_user_can( 'edit_others_posts' ),
+				'canEditOthersPosts'              => current_user_can( 'edit_others_posts' ),
+				'urgencyLevels'                   => array(
 					'normal'   => __( 'Normal', 'vip-workflows' ),
 					'urgent'   => __( 'Urgent', 'vip-workflows' ),
 					'breaking' => __( 'Breaking', 'vip-workflows' ),
 				),
-				'users'                  => $this->get_assignable_users(),
-				'roles'                  => $this->get_available_roles(),
-				'sequences'              => $this->get_sequences(),
-				'phaseConfig'            => $this->get_phase_config(),
+				'users'                           => $this->get_assignable_users(),
+				'roles'                           => $this->get_available_roles(),
+				'sequences'                       => $this->get_sequences(),
+				'phaseConfig'                     => $this->get_phase_config(),
 				// Audio and video are transcribed by OpenAI, so they need its key
 				// whatever provider is selected. The upload route refuses them
-				// without one; this lets the screen say so before anyone tries.
-				'transcriptionAvailable' => MediaProcessor::transcription_available(),
+				// without one; this lets the screen say so before anyone tries,
+				// in the same words the route uses for this reader.
+				'transcriptionAvailable'          => MediaProcessor::transcription_available(),
+				'transcriptionUnavailableMessage' => MediaProcessor::transcription_unavailable_message(),
 			)
 		);
 	}

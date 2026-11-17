@@ -41,13 +41,20 @@ export function needsTranscription( file ) {
 /**
  * The message for an audio or video file that can't be transcribed.
  *
- * The same sentence the upload route and the processing job return.
+ * The server sends the sentence its upload route would return for this reader
+ * (`vipWorkflowsIdeation.transcriptionUnavailableMessage`), so the drop zone
+ * and the route can't drift apart, and an administrator is told where the key
+ * goes. The literal is only a fallback for a page without that value, and
+ * matches the server's wording for a reader who can't add the key.
  *
  * @return {string} Translated message.
  */
 export function transcriptionUnavailableMessage() {
-	return __(
-		'Audio and video need an OpenAI key for transcription. Ask an administrator to add one.',
-		'vip-workflows'
+	return (
+		window.vipWorkflowsIdeation?.transcriptionUnavailableMessage ||
+		__(
+			'OpenAI transcribes audio and video. OpenAI is not connected. Ask an administrator to connect it.',
+			'vip-workflows'
+		)
 	);
 }
