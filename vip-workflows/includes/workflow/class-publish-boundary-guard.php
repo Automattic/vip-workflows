@@ -13,7 +13,13 @@ use VIPWorkflows\Admin\Settings;
 
 /**
  * Vetoes a non-bypass user's post_status change across the publish boundary on
- * a workflow-managed post.
+ * a workflow-managed post, and a status change that would reseat the stage in
+ * a way the user couldn't take as a transition.
+ *
+ * The two rules are asked in that order, under the same exemptions: a change
+ * that crosses the publish boundary is refused by the first, and one that
+ * doesn't is held to the transition rules of the reseat it would cause
+ * (StatusManager::core_status_change_refusal()).
  *
  * This is the ONE place the workflow overrides a status change core would allow,
  * so it lives at the save layer and covers every path a person writes through —
@@ -28,6 +34,9 @@ use VIPWorkflows\Admin\Settings;
  *   revert.
  * - `admin_notices` surfaces the same message on the classic editor (post.php).
  *   Quick Edit and Bulk Edit cannot render it — see render_veto_notice().
+ * - `pre_untrash_post` refuses a wp_untrash_post() before it starts when the
+ *   status it would restore to is refused, so a refused restore leaves the
+ *   post in the Trash untouched — see check_untrash().
  *
  * The veto changes capabilities in no way: it gates one action and always offers
  * a first-class, audited way through (StatusManager::remove_sequence(), or
@@ -82,6 +91,83 @@ class PublishBoundaryGuard {
 
 		// Classic paths (post.php) surface the queued message.
 		add_action( 'admin_notices', array( $this, 'render_veto_notice' ) );
+
+		// wp_untrash_post() asks before it deletes its Trash bookkeeping. Last,
+		// so a plugin that has already decided the restore keeps its answer.
+		add_filter( 'pre_untrash_post', array( $this, 'check_untrash' ), PHP_INT_MAX, 3 );
+	}
+
+	/**
+	 * Refuse a wp_untrash_post() up front when the status it would write is refused.
+	 *
+	 * Core's wp_untrash_post() deletes `_wp_trash_meta_status` and
+	 * `_wp_trash_meta_time` and only then writes the status, and it reads any
+	 * truthy result of that write as success. A refusal at the save layer would revert the status and
+	 * leave the post trashed, without its bookkeeping, and reported as restored.
+	 * So the question is asked here, on `pre_untrash_post`, before anything
+	 * changes: the status the restore would write is worked out the way core
+	 * works it out (`draft`, or `inherit` for an attachment, through the
+	 * `wp_untrash_post_status` filter with core's arguments) and put to
+	 * resolve_veto(), the same decision the write itself gets.
+	 *
+	 * A refused restore returns false, which is how wp_untrash_post() reports
+	 * a restore that didn't happen (wp-admin shows its "Error in restoring"
+	 * screen). The post stays in the Trash with its bookkeeping intact, and a
+	 * later restore by someone who can make the move goes through. A restore
+	 * to `draft` is never refused (see resolve_veto()), so the default restore
+	 * and the block editor's always work.
+	 *
+	 * Nothing is recorded between this check and the write. The
+	 * `wp_untrash_post_status` filter runs twice, once here and once in core;
+	 * its result is only read here. The one write the check can cause is the
+	 * routing check settling an expired AI-stage job record as failed, the
+	 * same recovery a workflow panel read performs
+	 * (StatusManager::core_status_change_refusal()).
+	 *
+	 * @param  mixed    $untrash         Whether to go ahead; null unless another callback has decided.
+	 * @param  \WP_Post $post            Post being restored.
+	 * @param  string   $previous_status Status the post had when it was trashed.
+	 * @return mixed The value given, or false when the restore is refused.
+	 */
+	public function check_untrash( $untrash, $post, $previous_status = '' ) {
+		if ( null !== $untrash || ! $post instanceof \WP_Post || 'trash' !== $post->post_status ) {
+			return $untrash;
+		}
+
+		// Cheap tests first, so most restores on a site never run the status
+		// filter a second time: a post with no workflow, no user, or a user in
+		// the override roles is never refused.
+		if ( ! get_post_meta( (int) $post->ID, StatusManager::SEQUENCE_META_KEY, true ) ) {
+			return $untrash;
+		}
+
+		$user_id = get_current_user_id();
+		if ( ! $user_id || Settings::can_user_bypass_workflow( $user_id ) ) {
+			return $untrash;
+		}
+
+		$default_status = 'attachment' === $post->post_type ? 'inherit' : 'draft';
+		$restore_status = apply_filters( 'wp_untrash_post_status', $default_status, (int) $post->ID, (string) $previous_status );
+
+		$veto = $this->resolve_veto( (int) $post->ID, (string) $restore_status );
+		if ( null === $veto ) {
+			return $untrash;
+		}
+
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log(
+			sprintf(
+				'[VIP Workflows] Refused restoring post %d from the Trash to "%s" for user %d before anything changed. %s',
+				(int) $post->ID,
+				(string) $restore_status,
+				$user_id,
+				$veto['log'] ?? 'The restore would cross the publish boundary, and the user is not on the workflow override list.'
+			)
+		);
+
+		$this->queue_veto_notice( (int) $post->ID, $veto['message'] );
+
+		return false;
 	}
 
 	/**
@@ -125,8 +211,13 @@ class PublishBoundaryGuard {
 			return $data;
 		}
 
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( sprintf( '[VIP Workflows] Vetoed a publish-boundary status change on post %d by user %d: "%s" -> "%s"; the post is in a workflow and the user cannot bypass it.', $post_id, get_current_user_id(), $veto['current_status'], $veto['target_status'] ) );
+		if ( isset( $veto['log'] ) ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( $veto['log'] );
+		} else {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Vetoed a publish-boundary status change on post %d by user %d: "%s" -> "%s"; the post is in a workflow and the user is not on the workflow override list.', $post_id, get_current_user_id(), $veto['current_status'], $veto['target_status'] ) );
+		}
 
 		$this->queue_veto_notice( $post_id, $veto['message'] );
 
@@ -166,14 +257,21 @@ class PublishBoundaryGuard {
 			return $prepared_post;
 		}
 
-		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-		error_log( sprintf( '[VIP Workflows] Vetoed a publish-boundary status change on post %d by user %d via REST: "%s" -> "%s".', $post_id, get_current_user_id(), $veto['current_status'], $veto['target_status'] ) );
+		if ( isset( $veto['log'] ) ) {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( $veto['log'] . ' (REST)' );
+		} else {
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Vetoed a publish-boundary status change on post %d by user %d via REST: "%s" -> "%s".', $post_id, get_current_user_id(), $veto['current_status'], $veto['target_status'] ) );
+		}
 
+		// A transition-rules refusal is a 403 (the user may not make this
+		// move); a publish-boundary refusal stays a 409.
 		return new \WP_Error(
-			'vip_workflows_publish_boundary',
+			$veto['code'] ?? 'vip_workflows_publish_boundary',
 			$veto['message'],
 			array(
-				'status'  => 409,
+				'status'  => $veto['status'] ?? 409,
 				'post_id' => $post_id,
 			)
 		);
@@ -220,12 +318,13 @@ class PublishBoundaryGuard {
 	 * Decide whether a status change on a post must be vetoed.
 	 *
 	 * All of these must hold: the post is workflow-managed, the status genuinely
-	 * changes, the actor is a non-bypass user, the change crosses the publish
-	 * boundary, and the write is not a system context.
+	 * changes, the actor is a non-bypass user, the write is not a system
+	 * context, and either the change crosses the publish boundary or it would
+	 * reseat the stage in a way the user couldn't take as a transition.
 	 *
 	 * @param  int    $post_id       Post ID (0 for an insert of a brand-new post).
 	 * @param  string $target_status Status the write would set.
-	 * @return array{message: string, current_status: string, target_status: string, post_name: string, post_date: string, post_date_gmt: string}|null Veto details (including the stored slug/date the write must be reverted to), or null when the change is allowed.
+	 * @return array{message: string, current_status: string, target_status: string, post_name: string, post_date: string, post_date_gmt: string, code?: string, status?: int, log?: string}|null Veto details (including the stored slug/date the write must be reverted to; a transition-rules refusal adds its REST code, HTTP status and log line), or null when the change is allowed.
 	 */
 	private function resolve_veto( int $post_id, string $target_status ): ?array {
 		// A brand-new post has no workflow yet, and a write that names no status
@@ -285,18 +384,8 @@ class PublishBoundaryGuard {
 		// where the post is. crosses_publish_boundary() reads the current side of
 		// the boundary from that stage, and carves `trash` out only as a TARGET
 		// status, so without this every restore of a trashed workflow post seated
-		// in the publish region reads as an out-of-publish crossing.
-		//
-		// Vetoing a restore is not merely wrong, it is silently destructive:
-		// wp_untrash_post() has already deleted `_wp_trash_meta_status` /
-		// `_wp_trash_meta_time` by the time it calls wp_update_post(), and reads
-		// the truthy return of the reverted write as success — so the post stays
-		// trashed, loses its trash bookkeeping, and wp-admin reports it restored.
-		// (The block editor and the posts DataView restore by writing
-		// status=draft over REST instead, which the same veto would refuse with a
-		// 409.) Coming out of the Trash is core putting the post back where it
-		// was, not a user crossing the boundary; StatusManager::on_status_transition()
-		// reseats the stage afterwards exactly as it does today.
+		// in the publish region reads as an out-of-publish crossing. Coming out
+		// of the Trash to a non-publish status is therefore not a crossing.
 		//
 		// The carve-out stops short of the publish region, though. Exempting EVERY
 		// target would make the Trash a laundry for the one act this guard exists
@@ -308,8 +397,20 @@ class PublishBoundaryGuard {
 		// stage, so restoring it to `publish` compares publish to publish and is
 		// not a crossing — while a post that was never published cannot be
 		// laundered into the publish region by way of the Trash.
-		if ( 'trash' === $current_status
-			&& 'publish' !== $this->status_manager->status_to_region( $target_status ) ) {
+		//
+		// Leaving the Trash for `draft` is also exempt from the transition rules.
+		// It is what wp_untrash_post() writes by default and what the block
+		// editor and the DataView write to restore, so an ordinary restore always
+		// works, and a move to `draft` never takes a post further along the
+		// workflow. on_status_transition() still reseats it: the stage stays if
+		// it is in the draft region, otherwise it moves to the draft region's
+		// entry stage. Any other status written to a trashed post is held to
+		// the transition rules below, by whatever path it arrives. For
+		// wp_untrash_post() that question is asked earlier, in check_untrash(),
+		// before core deletes its Trash bookkeeping.
+		$leaving_trash = 'trash' === $current_status
+			&& 'publish' !== $this->status_manager->status_to_region( $target_status );
+		if ( $leaving_trash && 'draft' === $target_status ) {
 			return null;
 		}
 
@@ -328,9 +429,10 @@ class PublishBoundaryGuard {
 
 		// The shared predicate is the sole authority for the boundary (and is
 		// false for a post with no sequence, so it settles "workflow-managed"
-		// too).
-		if ( ! $this->status_manager->crosses_publish_boundary( $post_id, $target_status ) ) {
-			return null;
+		// too). A non-publish status out of the Trash skips it (see above) and
+		// is asked only the transition rules.
+		if ( $leaving_trash || ! $this->status_manager->crosses_publish_boundary( $post_id, $target_status ) ) {
+			return $this->transition_rules_veto( $post, $target_status, $user_id );
 		}
 
 		return array(
@@ -340,6 +442,50 @@ class PublishBoundaryGuard {
 			'post_name'      => (string) $post->post_name,
 			'post_date'      => (string) $post->post_date,
 			'post_date_gmt'  => (string) $post->post_date_gmt,
+		);
+	}
+
+	/**
+	 * Refuse a status change that would reseat the stage against the transition's rules.
+	 *
+	 * Asked only once every exemption above has passed and the change does not
+	 * cross the publish boundary. StatusManager::core_status_change_refusal()
+	 * decides; this shapes its answer like a publish veto, so the revert, the
+	 * notice and the REST error all work the same way, with a 403 instead of
+	 * the boundary's 409.
+	 *
+	 * @param  \WP_Post $post          Post being written, as stored.
+	 * @param  string   $target_status Status the write would set.
+	 * @param  int      $user_id       User making the change.
+	 * @return array|null Veto details, as resolve_veto(), or null when the change is allowed.
+	 */
+	private function transition_rules_veto( \WP_Post $post, string $target_status, int $user_id ): ?array {
+		$refusal = $this->status_manager->core_status_change_refusal( (int) $post->ID, $target_status, $user_id );
+		if ( null === $refusal ) {
+			return null;
+		}
+
+		$data = (array) $refusal->get_error_data();
+
+		return array(
+			'message'        => $refusal->get_error_message(),
+			'current_status' => (string) $post->post_status,
+			'target_status'  => $target_status,
+			'post_name'      => (string) $post->post_name,
+			'post_date'      => (string) $post->post_date,
+			'post_date_gmt'  => (string) $post->post_date_gmt,
+			'code'           => $refusal->get_error_code(),
+			'status'         => (int) ( $data['status'] ?? 403 ),
+			'log'            => sprintf(
+				'[VIP Workflows] Refused a status change on post %d by user %d: "%s" -> "%s" would move the stage from "%s" to "%s", and the user can\'t take that transition (failed check: %s).',
+				(int) $post->ID,
+				$user_id,
+				(string) $post->post_status,
+				$target_status,
+				(string) ( $data['from_stage'] ?? '' ),
+				(string) ( $data['to_stage'] ?? '' ),
+				(string) ( $data['check'] ?? '' )
+			),
 		);
 	}
 

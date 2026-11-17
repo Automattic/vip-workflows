@@ -47,7 +47,9 @@ import {
 	getPublishVetoMessage,
 	getStatusChangeConfirmLabel,
 	getStatusChangeConfirmTitle,
+	getStatusChangeRefusedMessage,
 	getStatusChangeWarning,
+	isTransitionRulesRefusal,
 } from '../../common/confirm-workflow-side-effect';
 import { useConfirm } from '../../common/use-confirm';
 import { STORE_NAME } from '../store';
@@ -167,13 +169,28 @@ export function WorkflowSaveGuard() {
 				);
 			}
 
-			const decision = evaluateStatusChange( {
+			// The stored status comes from the response just fetched, not the
+			// editor store: the post may have been trashed in another tab since
+			// this editor loaded it.
+			const currentStatus =
+				workflow.post_status ??
+				registry.select( editorStore ).getCurrentPost()?.status;
+
+			const guardInput = {
 				currentRegion: workflow.guard?.current_region,
 				targetStatus: edits.status,
 				canBypass: !! workflow.guard?.can_bypass,
-			} );
+				refusedRegions: workflow.guard?.refused_regions,
+				currentStatus,
+			};
+			const decision = evaluateStatusChange( guardInput );
 
 			if ( decision === DECISION_SILENT ) {
+				// A restore out of the Trash asks nothing, but it can still
+				// reseat the stage, so re-read the workflow once it lands.
+				if ( currentStatus === 'trash' ) {
+					reseatPendingRef.current = true;
+				}
 				return edits;
 			}
 
@@ -198,13 +215,27 @@ export function WorkflowSaveGuard() {
 				// An orphaned post is refused for a different reason and has a
 				// different way out — there is no workflow left to move it
 				// through, and no name to call it by.
-				const message = workflow.orphaned
-					? getOrphanedWorkflowMessage( { title } )
-					: getPublishVetoMessage( {
-							title,
-							workflowName,
-							targetStatus: edits.status,
-						} );
+				let message;
+				if ( workflow.orphaned ) {
+					message = getOrphanedWorkflowMessage( { title } );
+				} else if ( isTransitionRulesRefusal( guardInput ) ) {
+					// Not a publish-boundary crossing: the reseat this change
+					// causes is a transition the user can't take.
+					message = getStatusChangeRefusedMessage( {
+						title,
+						workflowName,
+						stageLabel:
+							getEntryStageLabels( workflow.all_statuses )[
+								edits.status
+							] || edits.status,
+					} );
+				} else {
+					message = getPublishVetoMessage( {
+						title,
+						workflowName,
+						targetStatus: edits.status,
+					} );
+				}
 
 				restoreEditorStatus();
 

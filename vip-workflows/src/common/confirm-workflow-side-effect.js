@@ -56,6 +56,10 @@ export const DECISION_WARN = 'warn';
  * the workflow is not offered here; only a post whose workflow was deleted is
  * pointed at removal (getOrphanedWorkflowMessage()).
  *
+ * Also the answer for a change that would reseat the post through a
+ * transition the user can't take (isTransitionRulesRefusal(), worded by
+ * getStatusChangeRefusedMessage()).
+ *
  * @type {string}
  */
 export const DECISION_VETO = 'veto';
@@ -93,21 +97,74 @@ export function statusToRegion( status ) {
 }
 
 /**
+ * Whether a status change is refused because the reseat it causes is a
+ * transition the user can't take.
+ *
+ * MIRRORS the second rule in `PublishBoundaryGuard::resolve_veto()`: asked
+ * only for a change that does not cross the publish boundary, and answered
+ * from the server's own list (`guard.refused_regions`, built by
+ * `StatusManager::refused_status_regions()`) rather than recomputed here,
+ * because the answer depends on the sequence's role limits, required tools
+ * and inputs, which the client does not hold.
+ *
+ * @param {Object}      options                 Evaluation input.
+ * @param {string|null} options.currentRegion   Boundary region, as evaluateStatusChange().
+ * @param {string}      options.targetStatus    Core post status the change would write.
+ * @param {boolean}     options.canBypass       Whether the user's role bypasses workflow rules.
+ * @param {string[]}    options.refusedRegions  Regions the server refuses a status change into for this user.
+ * @param {string}      [options.currentStatus] The post's persisted core status. A trashed post leaving for a non-publish status skips the boundary check, as on the server.
+ * @return {boolean} True when the change is refused by the transition rules.
+ */
+export function isTransitionRulesRefusal( {
+	currentRegion,
+	targetStatus,
+	canBypass,
+	refusedRegions,
+	currentStatus,
+} ) {
+	const leavingTrash = currentStatus === 'trash';
+
+	if (
+		canBypass ||
+		( ! currentRegion && ! leavingTrash ) ||
+		! Array.isArray( refusedRegions )
+	) {
+		return false;
+	}
+
+	const targetRegion = statusToRegion( targetStatus );
+
+	if ( targetRegion === 'publish' ) {
+		return false;
+	}
+
+	if ( currentRegion === 'publish' && ! leavingTrash ) {
+		return false;
+	}
+
+	return refusedRegions.includes( targetStatus );
+}
+
+/**
  * Decide how a pending post-status change on a workflow-managed post is treated.
  *
  * Only call this for posts that ARE in a workflow — an unmanaged post has no
  * current region and nothing to guard.
  *
- * @param {Object}      options               Evaluation input.
- * @param {string|null} options.currentRegion The side of the publish line the post is currently on, as the server resolved it (`StatusManager::boundary_region()`) — the stage's region, EXCEPT that a live post is publish-side whatever its stage says. Never recompute this from the stage: the two disagree when a core publish had no publish-region stage to re-seat at. Falsy when it could not be resolved.
- * @param {string}      options.targetStatus  Core post status the change would write.
- * @param {boolean}     options.canBypass     Whether the user's role bypasses workflow rules.
+ * @param {Object}      options                  Evaluation input.
+ * @param {string|null} options.currentRegion    The side of the publish line the post is currently on, as the server resolved it (`StatusManager::boundary_region()`) — the stage's region, EXCEPT that a live post is publish-side whatever its stage says. Never recompute this from the stage: the two disagree when a core publish had no publish-region stage to re-seat at. Falsy when it could not be resolved.
+ * @param {string}      options.targetStatus     Core post status the change would write.
+ * @param {boolean}     options.canBypass        Whether the user's role bypasses workflow rules.
+ * @param {string[]}    [options.refusedRegions] Regions the server refuses a status change into for this user (`guard.refused_regions`). See isTransitionRulesRefusal().
+ * @param {string}      [options.currentStatus]  The post's persisted core status, when known. Only `trash` changes the answer.
  * @return {string} One of DECISION_SILENT, DECISION_WARN, DECISION_VETO.
  */
 export function evaluateStatusChange( {
 	currentRegion,
 	targetStatus,
 	canBypass,
+	refusedRegions,
+	currentStatus,
 } ) {
 	// `trash` and `inherit` are not regions: `trash` is an overlay that suspends
 	// the workflow in place without moving the stage, in either direction, and
@@ -116,6 +173,37 @@ export function evaluateStatusChange( {
 	// StatusManager::crosses_publish_boundary() filters them.
 	if ( targetStatus === 'trash' || targetStatus === 'inherit' ) {
 		return DECISION_SILENT;
+	}
+
+	// MIRRORS the Trash branch of `PublishBoundaryGuard::resolve_veto()`. A
+	// trashed post's stage no longer says which side of the publish line it
+	// is on, so leaving the Trash for a non-publish status skips the boundary
+	// check: `draft` is never refused (it is the restore), and any other
+	// status is held only to the transition rules. A publish-side target
+	// falls through to the ordinary checks below.
+	if (
+		currentStatus === 'trash' &&
+		statusToRegion( targetStatus ) !== 'publish'
+	) {
+		if ( targetStatus === 'draft' ) {
+			return DECISION_SILENT;
+		}
+
+		if (
+			isTransitionRulesRefusal( {
+				currentRegion,
+				targetStatus,
+				canBypass,
+				refusedRegions,
+				currentStatus,
+			} )
+		) {
+			return DECISION_VETO;
+		}
+
+		return statusToRegion( targetStatus ) === currentRegion
+			? DECISION_SILENT
+			: DECISION_WARN;
 	}
 
 	// An unresolvable current region is a data-integrity condition, not a
@@ -139,6 +227,19 @@ export function evaluateStatusChange( {
 	// one place the workflow has teeth — and only for non-bypass users.
 	if ( currentRegion === 'publish' || targetRegion === 'publish' ) {
 		return canBypass ? DECISION_WARN : DECISION_VETO;
+	}
+
+	// The second rule: a change that would reseat the post through a
+	// transition this user can't take is refused too.
+	if (
+		isTransitionRulesRefusal( {
+			currentRegion,
+			targetStatus,
+			canBypass,
+			refusedRegions,
+		} )
+	) {
+		return DECISION_VETO;
 	}
 
 	return DECISION_WARN;
@@ -641,6 +742,40 @@ export function getPublishVetoMessage( { title, workflowName, targetStatus } ) {
 		title,
 		workflowName
 	);
+}
+
+/**
+ * Copy for a status change refused because the reseat it causes is a
+ * transition the user can't take.
+ *
+ * The same two sentences the server's
+ * `StatusManager::status_change_rules_message()` sends, to the character, so
+ * a refusal reads the same whichever layer says it.
+ *
+ * @param {Object} options              Message input.
+ * @param {string} options.title        Post title.
+ * @param {string} options.workflowName Sequence (workflow) name.
+ * @param {string} options.stageLabel   Label of the stage the change would move the post to.
+ * @return {string} Translated message.
+ */
+export function getStatusChangeRefusedMessage( {
+	title,
+	workflowName,
+	stageLabel,
+} ) {
+	return `${ sprintf(
+		/* translators: 1: post title, 2: workflow (sequence) name, 3: workflow stage label. */
+		__(
+			'“%1$s” is in the “%2$s” workflow, and this status change would move it to “%3$s”.',
+			'vip-workflows'
+		),
+		title,
+		workflowName,
+		stageLabel
+	) } ${ __(
+		'You can’t make that move from here. Use the workflow panel instead.',
+		'vip-workflows'
+	) }`;
 }
 
 /**

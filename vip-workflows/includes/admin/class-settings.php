@@ -178,7 +178,8 @@ class Settings {
 	 * The override grants three things: every transition is offered regardless
 	 * of its `allowed_roles`, empty required fields do not block a move into
 	 * the publish region, and the publish-boundary veto on a direct status
-	 * change becomes a confirm.
+	 * change becomes a confirm. A direct status change that would move the
+	 * post to another stage is also not held to that transition's rules.
 	 *
 	 * @param  int|null $user_id User ID. Default current user.
 	 * @return bool

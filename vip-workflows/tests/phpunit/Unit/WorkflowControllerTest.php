@@ -433,6 +433,11 @@ class WorkflowControllerTest extends TestCase
         // The guard payload's region comes through boundary_region(), the same
         // authority crosses_publish_boundary() uses; the double reproduces its
         // rule so the payload cannot drift from the predicate behind it.
+        // The regions a status change would be refused into for this user.
+        $status_manager->shouldReceive( 'refused_status_regions' )
+            ->with( 42, \Mockery::any() )
+            ->andReturn( $args['refused_regions'] ?? array() );
+
         $status_manager->shouldReceive( 'boundary_region' )
             ->andReturnUsing(
                 fn( $post_id, $stage_region ) => in_array( $post_status, array( 'publish', 'future' ), true )
@@ -462,12 +467,24 @@ class WorkflowControllerTest extends TestCase
         $this->assertTrue( $data['has_workflow'] );
         $this->assertArrayHasKey( 'guard', $data );
         $this->assertSame(
-            array( 'current_region', 'can_bypass', 'agent_pending' ),
+            array( 'current_region', 'can_bypass', 'agent_pending', 'refused_regions' ),
             array_keys( $data['guard'] )
         );
         $this->assertSame( 'draft', $data['guard']['current_region'] );
         $this->assertFalse( $data['guard']['can_bypass'] );
         $this->assertFalse( $data['guard']['agent_pending'] );
+        $this->assertSame( array(), $data['guard']['refused_regions'] );
+    }
+
+    /**
+     * The guard carries the regions the status manager refuses a status
+     * change into for this user, so the editor refuses before saving.
+     */
+    public function test_get_post_status_guard_carries_the_refused_regions(): void
+    {
+        $data = $this->get_status_data_for_workflow_post( 'review', array( 'refused_regions' => array( 'pending' ) ) );
+
+        $this->assertSame( array( 'pending' ), $data['guard']['refused_regions'] );
     }
 
     /**
@@ -739,6 +756,7 @@ class WorkflowControllerTest extends TestCase
         $this->assertArrayHasKey( 'guard', $data );
         $this->assertNull( $data['guard']['current_region'] );
         $this->assertFalse( $data['guard']['agent_pending'] );
+        $this->assertSame( array(), $data['guard']['refused_regions'] );
     }
 
     // =========================================================================

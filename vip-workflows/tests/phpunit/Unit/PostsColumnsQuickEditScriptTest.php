@@ -137,11 +137,12 @@ class PostsColumnsQuickEditScriptTest extends TestCase
     /**
      * Render the workflow column for a post seated at the given stage.
      *
-     * @param  string $stage_key   Stage the post is seated at.
-     * @param  string $post_status Committed post_status.
+     * @param  string   $stage_key       Stage the post is seated at.
+     * @param  string   $post_status     Committed post_status.
+     * @param  string[] $refused_regions Regions the status manager refuses for the current user.
      * @return string Rendered column markup.
      */
-    private function render_column_for_stage( string $stage_key, string $post_status = 'draft' ): string
+    private function render_column_for_stage( string $stage_key, string $post_status = 'draft', array $refused_regions = array() ): string
     {
         $sequence = $this->create_test_sequence();
 
@@ -152,6 +153,10 @@ class PostsColumnsQuickEditScriptTest extends TestCase
         $status_manager->shouldReceive( 'get_current_status' )
             ->with( self::POST_ID )
             ->andReturn( $sequence->get_status( $stage_key ) );
+
+        $status_manager->shouldReceive( 'refused_status_regions' )
+            ->with( self::POST_ID, Mockery::any() )
+            ->andReturn( $refused_regions );
 
         // The row's region comes from boundary_region(), the one authority the
         // server predicate also uses — the double reproduces its rule rather
@@ -164,6 +169,7 @@ class PostsColumnsQuickEditScriptTest extends TestCase
             );
 
         Functions\when( 'get_post_status' )->justReturn( $post_status );
+        Functions\when( 'get_current_user_id' )->justReturn( 7 );
 
         return $this->with_status_manager(
             $status_manager,
@@ -396,6 +402,40 @@ class PostsColumnsQuickEditScriptTest extends TestCase
 
         $this->assertStringContainsString( 'data-post-status="draft"', $markup );
         $this->assertStringContainsString( 'data-stage-region="pending"', $markup );
+    }
+
+    /**
+     * The row carries the regions a status change would be refused into for
+     * this user, so Quick Edit and Bulk Edit refuse before the request.
+     */
+    public function test_row_data_carries_the_refused_regions(): void
+    {
+        $markup = $this->render_column_for_stage( 'review', 'draft', array( 'pending' ) );
+
+        // The unit stubs leave esc_attr() a pass-through, so the JSON shows raw.
+        $this->assertStringContainsString( 'data-refused-regions="["pending"]"', $markup );
+        $this->assertStringContainsString( 'data-refused-regions="[]"', $this->render_column_for_stage( 'review' ) );
+    }
+
+    /**
+     * The preflight passes the row's refused regions to the shared module and
+     * words a refusal with the shared sentence, one post or many.
+     */
+    public function test_refused_regions_reach_the_shared_module(): void
+    {
+        $script = $this->capture_script();
+
+        $this->assertStringContainsString( 'data.dataset.refusedRegions', $script );
+        $this->assertStringContainsString( 'refusedRegions: refusedRegionsFor(data)', $script );
+        $this->assertStringContainsString( 'api.evaluateStatusChange(guardInputFor(data, targetStatus))', $script );
+        $this->assertStringContainsString( 'api.isTransitionRulesRefusal(guardInputFor(data, targetStatus))', $script );
+        $this->assertStringContainsString( 'api.getStatusChangeRefusedMessage({', $script );
+        $this->assertStringContainsString( 'guard.strings.bulkRefused', $script );
+        $this->assertStringContainsString( 'refused.length, checked.length, refused.join', $script );
+        $this->assertStringContainsString(
+            'dataInput.dataset.refusedRegions = JSON.stringify((resp.guard && resp.guard.refused_regions) || []);',
+            $script
+        );
     }
 
     /**
