@@ -684,12 +684,18 @@ class WorkflowRemovalPermissionTest extends TestCase
 		$this->assertSame( 'review', get_post_meta( $post_id, StatusManager::STAGE_META_KEY, true ) );
 	}
 
-	/** The MCP execution adapter must return the refusal text to its caller. */
+	/**
+	 * The MCP execution adapter must return the refusal text to its caller.
+	 *
+	 * The tests environment installs the adapter as a plugin
+	 * (`.wp-env.tests.json`) but never activates it, so its autoloader is
+	 * loaded here from the plugins directory rather than relied on.
+	 */
 	public function test_mcp_execution_adapter_returns_the_author_refusal(): void
 	{
-		$autoload = dirname( __DIR__, 4 ) . '/mcp-adapter/vendor/autoload.php';
+		$autoload = WP_PLUGIN_DIR . '/mcp-adapter/vendor/autoload.php';
 		if ( ! file_exists( $autoload ) ) {
-			$this->markTestSkipped( 'MCP adapter is not installed.' );
+			$this->markTestSkipped( 'The MCP adapter plugin is not installed in this environment.' );
 		}
 		require_once $autoload;
 		$post_id = $this->make_workflow_post();
