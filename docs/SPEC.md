@@ -123,7 +123,7 @@ flowchart LR
   ABIL -->|"transition-post,<br/>remove-from-workflow"| SM
   ABIL -->|"tools and checks"| TOOLS["Tool and agent abilities"]
   CTRL --> SM["StatusManager"]
-  CORE --> GUARD["PublishBoundaryGuard<br/>(save layer)"]
+  CORE --> GUARD["PublishBoundaryGuard and<br/>WorkflowRequirementGuard<br/>(save layer)"]
   GUARD -->|"allowed changes are reconciled"| SM
   SM --> DATA[("post_status, stage meta,<br/>vip_workflows_events")]
   SM -->|"vip_workflows_status_transition"| AGENT["StageAgentRunner<br/>(WP-Cron)"]
@@ -389,6 +389,7 @@ Who may do what, and where the check lives. When reviewing, check that a change 
 
 - A bypass user sees every transition, not just those their roles allow.
 - `PublishBoundaryGuard` (`vip-workflows/includes/workflow/class-publish-boundary-guard.php`) skips its veto for them, and the client shows a confirmation instead.
+- `WorkflowRequirementGuard` lets them publish a post with no workflow when the site requires one.
 - A separate list, `bypass_tool_check_roles` (default `['administrator']`, `can_user_bypass_tool_checks()`), lets users skip required tool checks on a transition.
 
 **The publish boundary guard.** It vetoes a non-bypass user's `post_status` change across the publish boundary on a workflow-managed post.
@@ -670,7 +671,7 @@ Each feature section has the same parts: **What it's for**, **How it works**, **
 - **Moves across regions change the status first.** The workflow writes the target region's status through WordPress, accepts whatever WordPress commits (for example, publish becomes scheduled for a future-dated post), and then compare-and-swaps the stage meta. A transition may target any stage in any region; there is no rule that a crossing must land on a particular stage.
 - **Status changes from outside the workflow are reconciled, not refused.** When the Publish button, Quick Edit, REST, WP-CLI, cron or an untrash moves a post into another region, the workflow reseats it at that region's entry stage and fires the stage events with `cause: 'core'`. Each used region has exactly one entry stage. Scheduled and trash are overlays and never reseat. A region the sequence doesn't model leaves the stage where it was and logs it.
 - **Posts join a sequence only when someone assigns one.** The post is seated at the entry stage of the region its current status maps to, never at the initial stage, and no status is written. Assignment is refused for a trashed post, for a sequence not mapped to the post's type, and with `unmodeled_post_status` when the sequence has no stage in the post's region. Assigning over REST also creates a Story for the post if it has none.
-- **Which sequences apply to a post type** comes from each active workflow sequence's list of post types, and a filter can change it. The "require or recommend a workflow" setting is enforced only by a modal in the editor.
+- **Which sequences apply to a post type** comes from each active workflow sequence's list of post types, and a filter can change it. The "require or recommend a workflow" setting shows a modal in the editor on new posts; "require" is also enforced on save (see Publish boundary).
 - **Editorial metadata fields** (text, textarea, select, date, user) are registered as post meta on the sequence's post types, readable over REST, and editable by anyone who can edit the post. Only active sequences register their fields. A required field is enforced only on a transition that crosses into the publish region (see Transitions and tools).
 - **Every config write goes through one gate.** For a workflow sequence it requires at least one stage, unique sanitized stage keys, a valid region on every stage, exactly one region entry stage per used region (picked automatically if none is set), exactly one initial stage (picked automatically if none is set), every transition target defined, and at most one transition per target per stage. A failure is returned as a 422. For a phase sequence it checks only the required lifecycle, Ideation → Editorial.
 - **A sequence write can't strand posts.** An update that removes or re-keys a stage posts sit at, or a delete of a sequence any post holds, is refused with a 409 that lists the posts. Posts in every status except `inherit` count, Trash and auto-drafts included. The admin moves or removes them first; nothing is remapped. Posts already pointing at a stage the stored sequence doesn't define don't block an unrelated save. The upgrade's stored-config replay applies the same rule: a row whose re-keyed stage holds posts is left as stored and recorded for review. `validate-sequence` with `update_of` reports in `would_strand` what an update would strand. For users with `manage_options`, the single-sequence GET and the update response carry `post_count` (every post holding the sequence) and `stage_post_counts` (stage key → posts there), both null if the count failed; they're cached until a post or post meta changes, while the write checks always read live rows. The sequence editor uses them to disable Delete sequence while any post holds it, and to make an occupied stage's key read-only and disable its delete, so the author isn't left to find out at Save.
@@ -717,7 +718,7 @@ flowchart LR
 - **Required metadata doesn't hold back a status change from outside the workflow.** A scheduled post going live, or a Quick Edit to Published, reseats the post with required fields still empty.
 - **MCP callers see only the message when a write would strand posts.** The MCP adapter reduces an ability's `WP_Error` to its message text, so the code and the post list in the 409's data don't reach the client. The message still names the stages and the post count.
 - **The strand check and the write aren't atomic.** A post seated or moved into a stage between the check and the write can still be stranded. It recovers through "Remove from workflow".
-- **Only the editor makes new posts join a workflow.** Posts created over REST, WP-CLI or Quick Draft have no workflow until someone assigns one.
+- **Only the editor makes new posts join a workflow.** Posts created over REST, WP-CLI or Quick Draft have no workflow until someone assigns one. In "require" mode they can't be published until then, except by the bypass list or WP-CLI.
 - **Phase transitions follow different rules from workflow transitions.** They don't consult the bypass list or the tool-check bypass list, and unacknowledged soft warnings return a 422 `tool_check_warnings` error instead of the 200 `warnings_pending` response workflow transitions use.
 - **A Story's status changes only twice.** It is set on create (`ideation` or `editorial`) and on Create Draft (`ideation` → `editorial`). Nothing moves a Story to `published`, `monitoring` or `refresh`.
 
@@ -729,7 +730,7 @@ flowchart LR
 - `vip-workflows/includes/workflow/class-status-manager.php`: `StatusManager::SEQUENCE_META_KEY` (`_vip_workflows_sequence_id`) and `STAGE_META_KEY` (`_vip_workflows_current_stage_key`); `transition()`; `commit_post_status()`, which writes through `wp_update_post()` and may see `publish` coerced to `future`; `StatusManager::on_status_transition()` → `resolve_reseat_stage()`; `StatusManager::assign_sequence()`; `get_sequence_for_post()`.
 - Assignment route: `POST /vip-workflows/v1/workflow/post/{id}/sequence`; error `unmodeled_post_status`.
 - `vip-workflows/includes/workflow/class-post-type-manager.php`: scoping from each sequence's `post_types`; filter `vip_workflows_sequences_for_post`.
-- `vip-workflows/src/editor/components/WorkflowRequiredModal.js`: the only enforcement of the require/recommend setting.
+- `vip-workflows/src/editor/components/WorkflowRequiredModal.js`: the editor's prompt for the require/recommend setting. `WorkflowRequirementGuard` enforces "require" on save (see Publish boundary).
 - `vip-workflows/includes/class-plugin.php`: `Plugin::register_metadata_fields()` registers `config.metadata_fields` (types `text`, `textarea`, `select`, `date`, `user`) as `wf_meta_{sequence_id}_{key}`, `show_in_rest`, `auth_callback` = `edit_post`; `required` fields.
 - `vip-workflows/includes/api/class-sequences-controller.php`: `SequencesController::create_item()`, `update_item()` and `delete_item()`; create and update run `validate_metadata_fields()`, `validate_status_agents()`, `validate_assignment_keys()` and `build_config()`. Routes `GET /sequences/{id}/export` (returns `name`, `type`, `description`, `config`) and `POST /sequences/import`.
 - `vip-workflows/includes/abilities/tools/`: abilities `create-sequence`, `update-sequence`, `import-sequence` (build a `WP_REST_Request`), `activate-sequence`, `validate-sequence`.
@@ -765,28 +766,34 @@ flowchart TD
   OK --> RS["The workflow moves the post to the<br/>matching stage if the region changed"]
 ```
 
-**Two ways through, both audited.** A person can publish by taking a workflow transition into a published stage (which still needs the WordPress capability to publish), or by removing the post from its workflow, which is logged and leaves the post unguarded from then on.
+**Two ways through, both audited.** A person can publish by taking a workflow transition into a published stage (which still needs the WordPress capability to publish), or by removing the post from its workflow, which is logged and takes the post out of this guard from then on. In "require" mode the rule for posts with no workflow, below, then applies instead.
+
+**Posts with no workflow, when the site requires one.** With workflow enforcement on and the mode set to "require", a second guard refuses publishing or scheduling a post that has no workflow, for anyone outside the bypass list, on the same save paths. It applies only when some sequence would take the post (the post type mapping and `vip_workflows_sequences_for_post`), so a post no workflow accepts is never trapped. Drafts, pending and private are always allowed, and so is any change to a post that is already published or scheduled. Every WP-CLI write is exempt, with or without `--user`, as are the system writes listed above. REST returns a 409 with a message; elsewhere an existing post keeps its stored status, slug and dates, while a new post, an auto-draft or a restore from Trash is written as a draft. "Recommend" mode refuses nothing.
 
 **Always true**
 
-- The guard never changes anyone's capabilities. It only refuses a status change, and there is always an audited way through: a transition, or removing the post from the workflow.
+- The guard never changes anyone's capabilities. It only refuses a status change, and there is always an audited way through: a transition, or (outside "require" mode) removing the post from the workflow.
 - WordPress publishing a scheduled post on time is never refused. The check uses the `DOING_CRON` constant as well as `wp_doing_cron()`, because the function can be filtered.
 - There is one definition of "crosses the boundary," and the editor's warnings, the posts list and the server all use it. If they drift, the editor warns where the server allows, or stays silent where it refuses. → `StatusManager::crosses_publish_boundary()`, `boundary_region()`
 - REST saves and every other save are guarded for the same posts. → the REST check is registered on every REST post type, not only those with a workflow.
 - Broken workflow state is refused, never allowed.
 - A trashed post can't be restored straight into the published side. Only restores to a draft-side status are exempt.
+- In "require" mode, a post with no workflow that some sequence would take moves into `publish` or `future` only through the bypass list, WP-CLI, a system write, or by joining a workflow. A post already published or scheduled stays that way. → `WorkflowRequirementGuard`
 
 **Footguns**
 
 - **Stages don't lock editing.** Anyone who can edit the post can change its content at any stage, including while an AI agent owns the stage. The guard protects the status, not the content. The only lock: a person can't start an AI stage while others are co-editing the post.
-- **On Quick Edit and Bulk Edit, a refused change looks like it worked.** WordPress reports the save and the status quietly reverts, because those screens can't show the guard's message.
+- **On Quick Edit, Bulk Edit and XML-RPC, a refused change looks like it worked.** WordPress reports the save (XML-RPC returns the post ID) and the status quietly reverts, because those surfaces can't show the guard's message.
 - **The bypass list is a list of role names, not a capability.** Adding a role to it lets every member publish any workflow post directly, limited only by their normal WordPress capabilities.
-- **Writes with no logged-in user are never refused:** WP-CLI without `--user`, importers and seeders.
+- **Writes with no logged-in user are never refused:** WP-CLI without `--user`, importers and seeders. The required-workflow rule also exempts every WP-CLI write.
+- **`wp_publish_post()` isn't guarded.** It writes the status straight to the database without `wp_insert_post_data`, so neither guard sees a plugin that calls it. Core calls it only to publish scheduled posts.
+- **A new post's eligibility is judged without its terms.** On create, `vip_workflows_sequences_for_post` sees the post's fields but no terms or meta yet, so a filter that narrows by category sees an uncategorized post.
 
 **Code**
 
 - `vip-workflows/includes/workflow/class-publish-boundary-guard.php`: `PublishBoundaryGuard`, with `resolve_veto()` and `is_system_context()`.
 - Hooks: `wp_insert_post_data` for every save that goes through `wp_insert_post()` or `wp_update_post()` (block and classic editor, Quick Edit, Bulk Edit, REST, XML-RPC, WP-CLI with `--user`), restoring the stored `post_status`, `post_name`, `post_date` and `post_date_gmt`; `rest_pre_insert_{post_type}`, registered at `rest_api_init` on every `show_in_rest` post type, which returns 409 `vip_workflows_publish_boundary`. Targets `trash` and `inherit` never cross. The classic-editor (`post.php`) notice is a 60-second transient shown on `admin_notices`. A workflow commit in progress is detected with `StatusManager::is_transition_in_progress()`.
+- `vip-workflows/includes/workflow/class-workflow-requirement-guard.php`: `WorkflowRequirementGuard`, on the same three hooks; REST returns 409 `vip_workflows_workflow_required`. Reads `Settings::get_workflow_enforcement_mode()` and `PostTypeManager::get_sequences_for_post()`.
 - `vip-workflows/includes/workflow/class-status-manager.php`: `StatusManager::crosses_publish_boundary()`, `boundary_region()`, and `status_to_region()`, which maps `future` to `publish` and `auto-draft` to `draft`.
 - Ways through: `StatusManager::remove_sequence()`, REST `DELETE /vip-workflows/v1/workflow/post/{id}/sequence`, ability `vip-workflows/remove-from-workflow`; logs `workflow.removed`.
 - Bypass: `Settings::can_user_bypass_workflow()` (`vip-workflows/includes/admin/class-settings.php`) and the `bypass_workflow_roles` setting.
@@ -1015,8 +1022,8 @@ flowchart TD
 - `vip-workflows/includes/admin/class-settings.php`: Settings page and stored settings, including `audit_log_roles`.
 - Capabilities: `edit_posts`, `edit_others_posts`, `manage_options`; every route and ability uses its own `permission_callback`.
 - `vip-workflows/includes/class-module-interface.php`: `ModuleInterface`, with `get_id()` and `init()`.
-- `vip-workflows/includes/class-plugin.php`: `Plugin::init_components()`, `register_module()` (keyed by `get_id()`), `get_module()`. Core services first: event bus, `PostTypeManager`, `StatusManager`, `PublishBoundaryGuard`.
-- Hooks: `vip_workflows_register_modules` (extensions add modules); `transition_post_status` and the save-layer hooks registered by `StatusManager` and `PublishBoundaryGuard`.
+- `vip-workflows/includes/class-plugin.php`: `Plugin::init_components()`, `register_module()` (keyed by `get_id()`), `get_module()`. Core services first: event bus, `PostTypeManager`, `StatusManager`, `PublishBoundaryGuard`, `WorkflowRequirementGuard`.
+- Hooks: `vip_workflows_register_modules` (extensions add modules); `transition_post_status` and the save-layer hooks registered by `StatusManager`, `PublishBoundaryGuard` and `WorkflowRequirementGuard`.
 
 ### Stage agents
 

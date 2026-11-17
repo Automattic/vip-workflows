@@ -18,6 +18,7 @@ use VIPWorkflows\Workflow\AgentRunner;
 use VIPWorkflows\Workflow\StageAgentRunner;
 use VIPWorkflows\Workflow\PostTypeManager;
 use VIPWorkflows\Workflow\PublishBoundaryGuard;
+use VIPWorkflows\Workflow\WorkflowRequirementGuard;
 use VIPWorkflows\Workflow\StatusManager;
 use VIPWorkflows\Workflow\WorkflowEvents;
 use VIPWorkflows\Maintenance\Cleanup;
@@ -148,6 +149,10 @@ final class Plugin {
 		// of the publish region on a workflow post is refused, with the audited
 		// "remove from workflow" escape as the way through.
 		( new PublishBoundaryGuard( $this->status_manager ) )->init();
+
+		// Save-layer required workflow: when the site requires a workflow, a
+		// non-override user can't publish a post that has none.
+		( new WorkflowRequirementGuard( $this->status_manager, $this->post_type_manager ) )->init();
 
 		if ( function_exists( 'wp_register_ability' ) ) {
 			add_action( 'wp_abilities_api_categories_init', array( $this, 'register_ability_categories' ) );
