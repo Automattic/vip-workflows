@@ -804,7 +804,12 @@ class StageAgent {
 		}
 		$cursor = array();
 
-		// Open openers by name: offsets (negative when already counted) and labels.
+		// Openers still waiting for a closer, by name, in two stacks pushed and
+		// popped together: offsets and labels. An opener already recorded when
+		// it was seen is stored as `-1 - offset`, so it is always negative
+		// (offset 0 included) and its closer knows not to record it again. Plain
+		// integers rather than one array per opener keep a post holding hundreds
+		// of thousands of unclosed openers within PHP's default memory limit.
 		$open_at    = array();
 		$open_label = array();
 
@@ -825,7 +830,7 @@ class StageAgent {
 				if ( ! empty( $open_at[ $name ] ) ) {
 					$opener       = array_pop( $open_at[ $name ] );
 					$opener_label = array_pop( $open_label[ $name ] );
-					if ( $opener >= 0 ) {
+					if ( $opener >= 0 ) { // Not yet recorded; see $open_at above.
 						$found[] = array(
 							'offset' => $opener,
 							'label'  => $opener_label,
