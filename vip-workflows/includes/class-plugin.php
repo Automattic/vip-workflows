@@ -386,11 +386,12 @@ final class Plugin {
 				 * auth_callback replaces core's protected-meta default deny for
 				 * this leading-underscore key, so this one denies: no site role,
 				 * administrators included, holds add_post_meta, edit_post_meta
-				 * or delete_post_meta on it (multisite super admins keep core's
-				 * exception, as for every protected key), which keeps it off
-				 * REST, XML-RPC custom_fields and the Custom Fields box, like the
-				 * unregistered stage key beside it. Don't change it to an
-				 * edit_post check. update_post_meta() and delete_post_meta()
+				 * or delete_post_meta on it, which keeps it off REST, XML-RPC
+				 * custom_fields and the Custom Fields box, like the unregistered
+				 * stage key beside it. A refused key maps to the meta capability
+				 * itself, not do_not_allow, so on multisite a super admin still
+				 * holds all three, as for every protected key. Don't change it to
+				 * an edit_post check. update_post_meta() and delete_post_meta()
 				 * never consult it.
 				 */
 				'show_in_rest'      => false,
