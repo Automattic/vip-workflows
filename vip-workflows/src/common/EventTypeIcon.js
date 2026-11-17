@@ -36,6 +36,7 @@ import {
 	tool,
 	trash,
 	unlock,
+	upload,
 } from '@wordpress/icons';
 import { Icon } from '@wordpress/ui';
 
@@ -79,7 +80,11 @@ const EVENT_TYPE_ICONS = {
 	'post.released': { icon: unlock, tone: 'neutral' },
 	'ability.executed': { icon: tool, tone: 'info' },
 	'ability.failed': { icon: error, tone: 'error' },
-	// Sequence configuration: edited, switched on, switched off.
+	// Sequence configuration: made, brought in, edited, switched on, switched
+	// off, removed.
+	'sequence.created': { icon: plusCircle, tone: 'info' },
+	'sequence.imported': { icon: upload, tone: 'info' },
+	'sequence.deleted': { icon: trash, tone: 'neutral' },
 	'sequence.updated': { icon: pencil, tone: 'neutral' },
 	'sequence.activated': { icon: check, tone: 'success' },
 	'sequence.deactivated': { icon: close, tone: 'neutral' },

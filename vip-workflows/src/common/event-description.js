@@ -36,6 +36,8 @@
 
 import { __, _n, sprintf } from '@wordpress/i18n';
 
+import { sequenceChangeCount } from './sequence-changes';
+
 /**
  * The per-stage event family, matched by pattern rather than named.
  *
@@ -302,9 +304,41 @@ export function eventDescription( event ) {
 				: failed;
 		}
 
-		// The sequence's name is the Workflow field; its size is what an edit
-		// changed that the entry can state in a line.
-		case 'sequence.updated':
+		// The sequence's name is the Workflow field. A creation says whether it
+		// went live; an import always lands as a draft.
+		case 'sequence.created':
+			return 'draft' === eventData.sequence_status
+				? __( 'Sequence created as a draft', 'vip-workflows' )
+				: __( 'Sequence created', 'vip-workflows' );
+
+		case 'sequence.imported':
+			return __( 'Sequence imported as a draft', 'vip-workflows' );
+
+		case 'sequence.deleted':
+			return __( 'Sequence deleted', 'vip-workflows' );
+
+		// An update counts what it changed; the notes under the entry list it.
+		// Rows written before the change summary existed state the stage count.
+		case 'sequence.updated': {
+			if ( eventData.repair ) {
+				return __( 'Stage regions repaired', 'vip-workflows' );
+			}
+
+			if ( eventData.changes ) {
+				const count = sequenceChangeCount( eventData.changes );
+
+				return sprintf(
+					/* translators: %d: number of changes the update made. */
+					_n(
+						'Sequence updated: %d change',
+						'Sequence updated: %d changes',
+						count,
+						'vip-workflows'
+					),
+					count
+				);
+			}
+
 			return eventData.statuses_count === undefined
 				? ''
 				: sprintf(
@@ -317,6 +351,7 @@ export function eventDescription( event ) {
 						),
 						eventData.statuses_count
 					);
+		}
 
 		// The direction is the whole fact: activation only ever moves
 		// draft → active, and the payload's `previous_status` /

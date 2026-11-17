@@ -274,3 +274,73 @@ describe( 'eventSummary', () => {
 		);
 	} );
 } );
+
+describe( 'sequence events', () => {
+	const changes = {
+		stages_added: [ { key: 'legal', label: 'Legal review' } ],
+		transitions_changed: [
+			{
+				from: 'review',
+				to: 'ready',
+				from_label: 'Review',
+				to_label: 'Ready',
+				roles_added: [ { slug: 'editor', name: 'Editor' } ],
+				roles_removed: [],
+				tools_added: [],
+				tools_removed: [],
+			},
+		],
+	};
+
+	it( 'says whether a created sequence went live', () => {
+		expect(
+			describeEvent( 'sequence.created', { sequence_status: 'active' } )
+		).toBe( 'Sequence created' );
+		expect(
+			describeEvent( 'sequence.created', { sequence_status: 'draft' } )
+		).toBe( 'Sequence created as a draft' );
+	} );
+
+	it( 'describes an import and a delete', () => {
+		expect( describeEvent( 'sequence.imported', {} ) ).toBe(
+			'Sequence imported as a draft'
+		);
+		expect( describeEvent( 'sequence.deleted', {} ) ).toBe(
+			'Sequence deleted'
+		);
+	} );
+
+	it( 'counts what an update changed', () => {
+		expect(
+			describeEvent( 'sequence.updated', { statuses_count: 5, changes } )
+		).toBe( 'Sequence updated: 2 changes' );
+		expect(
+			describeEvent( 'sequence.updated', {
+				changes: { fields_changed: [ 'name' ], previous_name: 'Desk' },
+			} )
+		).toBe( 'Sequence updated: 1 change' );
+	} );
+
+	it( 'counts entries a capped list left out', () => {
+		expect(
+			describeEvent( 'sequence.updated', {
+				changes: {
+					stages_added: [ { key: 'a', label: 'A' } ],
+					truncated: { stages_added: 10 },
+				},
+			} )
+		).toBe( 'Sequence updated: 11 changes' );
+	} );
+
+	it( 'names a region repair as one', () => {
+		expect(
+			describeEvent( 'sequence.updated', { repair: true, changes } )
+		).toBe( 'Stage regions repaired' );
+	} );
+
+	it( 'keeps the stage count for rows written before the summary', () => {
+		expect(
+			describeEvent( 'sequence.updated', { statuses_count: 5 } )
+		).toBe( 'Sequence updated, now 5 stages' );
+	} );
+} );
