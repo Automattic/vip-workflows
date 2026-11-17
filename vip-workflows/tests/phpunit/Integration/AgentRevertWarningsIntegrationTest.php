@@ -370,7 +370,9 @@ class AgentRevertWarningsIntegrationTest extends TestCase
 		$this->assertSame( 200, rest_do_request( $request )->get_status() );
 		$events = $this->events( $post_id, 'status_transition' );
 		$this->assertCount( 1, $events );
-		$this->assertNotSame( 'smuggled', $events[0]['comment'] ?? '' );
+		// A Go back carries no comment at all, so the trail records null.
+		$this->assertArrayHasKey( 'comment', $events[0] );
+		$this->assertNull( $events[0]['comment'] );
 	}
 
 	/** A Run again between the hold and confirmation wins; Go back loses. */
