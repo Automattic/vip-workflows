@@ -958,15 +958,16 @@ flowchart TD
 **How it works.** Each event is one row in a database table, with the post, the event type, a JSON payload, who did it, what kind of actor they were, and when. Rows older than one year are deleted.
 
 - **A stage change** writes one transition row. It records the from and to stages with their keys and labels as they were at that moment, whether the workflow or WordPress caused it, the previous status, any comment, assignment notes, and, for agent moves, the agent and whether it was a revert.
-- **Other events** are recorded too: a post assigned to or removed from a workflow, a blocked transition, tool warnings, claim and release, every Ability run and failure, and sequence edits, activations and deactivations made through the MCP abilities.
+- **Other events** are recorded too: a post assigned to or removed from a workflow, a blocked transition, tool warnings, claim and release, every Ability run and failure, and every sequence create, import, update, region repair, activation, deactivation and delete made through the sequence editor, REST or the sequence abilities. An update row lists what changed: stages added, removed or renamed, region changes, transitions added, removed or changed (roles and tools), and AI-stage changes, capped at 50 per list. It never stores the full config. Writes that call `SequenceRepository` directly, such as extension installers, are not recorded.
 - **Internal event-bus rows** (stage changed, stage entered, stage completed) are stored but left out of every audit read.
-- **Who gets recorded.** A person's move is recorded as that user. An agent's exit transition is recorded as an agent, with the ability ID stored alongside it and the actor set to whoever is logged in when it commits (0 under cron). A move made over MCP is recorded as the authenticated user, the same as an editor's move.
+- **Who gets recorded.** A person's move is recorded as that user. An agent's exit transition is recorded as an agent, with the ability ID stored alongside it and the actor set to whoever is logged in when it commits (0 under cron). A move made over MCP is recorded as the authenticated user, the same as an editor's move. A sequence change made through an ability is recorded as an agent, with that ability ID and the authenticated user.
 - **Reading it back.** A post's history shows only stage changes, and anyone who can edit the post can see it. The Audit Log needs a role in the audit roles list (administrator and editor by default). Users outside the full-access list (administrator by default) see only events they performed.
 
 **Always true**
 
 - Every saved stage change writes exactly one visible transition row.
 - Stage labels are copied at write time, so renaming a stage never rewrites history.
+- Every sequence create, import, update, activation, deactivation and delete that changes the sequence writes exactly one row of its type, and a save that changes nothing writes none. A save that both edits and activates writes one of each.
 - Every audit read leaves out the event-bus rows. → `StatusManager::bus_bookkeeping_exclusion()`
 - Users without full access see only their own actions, in the events, the event types and the user list.
 
@@ -981,7 +982,8 @@ flowchart TD
 - Table `{prefix}vip_workflows_events`: `post_id`, `event_type`, JSON `event_data`, `actor_id`, `actor_type` (`user` or `agent`), `created_at`.
 - Retention: `Cleanup` in `vip-workflows/includes/maintenance/class-cleanup.php`.
 - `vip-workflows/includes/workflow/class-status-manager.php`: `StatusManager::log_transition()` writes `status_transition` rows; `cause` is `workflow` or `core`; other fields include `previous_status`, `comment`, `agent_actor` (the ability ID) and `agent_revert`. `StatusManager::bus_bookkeeping_exclusion()` filters out `post.stage_changed`, `stage.%.entered` and `stage.%.completed`.
-- Other event types: `workflow.assigned`, `workflow.removed`, `transition_blocked`, `tool_warnings`, `post.claimed`, `post.released`, `ability.executed`, `ability.failed`, `sequence.updated`, `sequence.activated`, `sequence.deactivated`.
+- Other event types: `workflow.assigned`, `workflow.removed`, `transition_blocked`, `tool_warnings`, `post.claimed`, `post.released`, `ability.executed`, `ability.failed`, `sequence.created`, `sequence.imported`, `sequence.updated`, `sequence.activated`, `sequence.deactivated`, `sequence.deleted`.
+- Sequence rows: `SequenceAudit` in `vip-workflows/includes/sequences/class-sequence-audit.php`, called from `SequencesController`. `post_id` is null; `event_data.via` is `rest` or `ability`; an update's summary is `event_data.changes`.
 - Per-post history: `GET /vip-workflows/v1/workflow/post/{id}/history`, needs `edit_post`.
 - Audit Log: `GET /vip-workflows/v1/audit-log` in `vip-workflows/includes/api/class-audit-log-controller.php`; settings `audit_log_roles` (default administrator, editor) and `audit_log_full_access_roles` (default administrator).
 
