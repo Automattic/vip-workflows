@@ -152,7 +152,13 @@ class WorkflowRequirementGuard {
 	public function filter_post_data( array $data, array $postarr ): array {
 		$post_id = (int) ( $postarr['ID'] ?? 0 );
 		// The filter receives slashed data; the eligibility filter should not.
-		$refusal = $this->resolve_refusal( $post_id, (string) ( $data['post_status'] ?? '' ), (object) wp_unslash( $data ) );
+		// Unslashed only when a write gets that far: this runs on every post
+		// write on the site, and most are settled by the cheap tests first.
+		$refusal = $this->resolve_refusal(
+			$post_id,
+			(string) ( $data['post_status'] ?? '' ),
+			static fn (): \stdClass => (object) wp_unslash( $data )
+		);
 
 		if ( null === $refusal ) {
 			return $data;
@@ -257,12 +263,12 @@ class WorkflowRequirementGuard {
 	 * write on the site: the enforcement mode, the target region, the post's
 	 * own workflow, then the exemptions, and last the eligibility filter.
 	 *
-	 * @param  int       $post_id       Post ID (0 for a brand-new post).
-	 * @param  string    $target_status Status the write would set.
-	 * @param  \stdClass $incoming      The post as the write would leave it (used for a new post).
+	 * @param  int                $post_id       Post ID (0 for a brand-new post).
+	 * @param  string             $target_status Status the write would set.
+	 * @param  \stdClass|callable $incoming      The post as the write would leave it, or a callable returning it (built only when needed).
 	 * @return array{message: string, current_status: string, target_status: string, post: ?\WP_Post}|null Refusal details, or null when the write is allowed.
 	 */
-	private function resolve_refusal( int $post_id, string $target_status, \stdClass $incoming ): ?array {
+	private function resolve_refusal( int $post_id, string $target_status, $incoming ): ?array {
 		if ( '' === $target_status || 'require' !== Settings::get_workflow_enforcement_mode() ) {
 			return null;
 		}
@@ -289,6 +295,10 @@ class WorkflowRequirementGuard {
 			if ( 'publish' === $this->status_manager->status_to_region( (string) $stored->post_status ) ) {
 				return null;
 			}
+		}
+
+		if ( is_callable( $incoming ) ) {
+			$incoming = $incoming();
 		}
 
 		// A save can change the post type; eligibility follows the type the
@@ -399,8 +409,9 @@ class WorkflowRequirementGuard {
 	private function as_new_draft( array $data, array $postarr ): array {
 		$data['post_status'] = 'draft';
 
-		$requested_slug    = (string) ( $postarr['post_name'] ?? '' );
-		$data['post_name'] = '' === $requested_slug ? '' : sanitize_title( $requested_slug, '', 'old-save' );
+		$requested_slug = (string) ( $postarr['post_name'] ?? '' );
+		// The `save` context, as wp_insert_post() applies to a new post's slug.
+		$data['post_name'] = '' === $requested_slug ? '' : sanitize_title( $requested_slug );
 
 		$requested_gmt = (string) ( $postarr['post_date_gmt'] ?? '' );
 		if ( '' === $requested_gmt || self::FLOATING_GMT_DATE === $requested_gmt ) {

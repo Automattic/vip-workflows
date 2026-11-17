@@ -860,6 +860,7 @@ class RequiredWorkflowPublishTest extends TestCase
 		foreach ( array(
 			array(),
 			array( 'post_name' => 'Chosen Slug' ),
+			array( 'post_name' => 'Dash — and “quotes”' ),
 			array( 'post_date' => '2027-01-02 10:00:00', 'edit_date' => true ),
 			array( 'post_date_gmt' => '2027-01-02 10:00:00' ),
 			array( 'post_date' => '2027-01-02 10:00:00', 'post_date_gmt' => '2027-01-02 10:00:00', 'post_name' => 'named' ),
@@ -1030,4 +1031,71 @@ class RequiredWorkflowPublishTest extends TestCase
 		$this->assertFalse( wp_next_scheduled( 'publish_future_post', array( (int) $result ) ) );
 	}
 
+	/**
+	 * A refused publish from pending or private keeps the stored slug and dates,
+	 * not only the status.
+	 */
+	public function test_refused_publish_from_pending_and_private_keeps_slug_and_dates(): void
+	{
+		foreach ( array( 'pending', 'private' ) as $status ) {
+			$post_id = $this->make_post(
+				array(
+					'post_status' => $status,
+					'post_name'   => $status . '-slug',
+					'post_date'   => '2026-03-04 05:06:07',
+					'edit_date'   => true,
+				)
+			);
+			$before  = get_post( $post_id );
+
+			wp_update_post(
+				array(
+					'ID'          => $post_id,
+					'post_status' => 'publish',
+					'post_date'   => '2026-05-06 07:08:09',
+					'edit_date'   => true,
+				)
+			);
+
+			$after = get_post( $post_id );
+			foreach ( array( 'post_status', 'post_name', 'post_date', 'post_date_gmt' ) as $field ) {
+				$this->assertSame( $before->$field, $after->$field, $status . ' ' . $field );
+			}
+			$this->assertSame( $status . '-slug', $after->post_name );
+		}
+	}
+
+	/**
+	 * The status endpoint tells the editor which unassigned posts the rule
+	 * covers, so the editor can refuse the publish before saving.
+	 */
+	public function test_status_endpoint_marks_posts_that_need_a_workflow(): void
+	{
+		$post_id = $this->make_post();
+		$read    = static function ( int $id ): array {
+			return rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/post/' . $id . '/status' ) )->get_data();
+		};
+
+		$data = $read( $post_id );
+		$this->assertFalse( $data['has_workflow'] );
+		$this->assertSame(
+			array(
+				'workflow_required' => true,
+				'current_region'    => 'draft',
+				'can_bypass'        => false,
+				'agent_pending'     => false,
+			),
+			$data['guard']
+		);
+
+		wp_set_current_user( $this->admin_id );
+		$this->assertTrue( $read( $post_id )['guard']['can_bypass'] );
+
+		$this->set_mode( 'recommend' );
+		$this->assertArrayNotHasKey( 'guard', $read( $post_id ) );
+
+		$this->set_mode( 'require' );
+		$page_id = $this->make_post( array( 'post_type' => 'page' ) );
+		$this->assertArrayNotHasKey( 'guard', $read( $page_id ) );
+	}
 }

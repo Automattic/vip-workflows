@@ -348,6 +348,7 @@ class WorkflowRequirementGuardTest extends TestCase
         $this->assertSame( 'draft', $data['post_status'] );
         $this->assertSame( 'edited-title', $data['post_name'] );
         $this->assertSame( '2026-01-01 09:00:00', $data['post_date'] );
+        $this->assertSame( '2026-01-01 09:00:00', $data['post_date_gmt'] );
     }
 
     /**
