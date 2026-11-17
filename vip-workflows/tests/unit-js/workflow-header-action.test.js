@@ -1800,6 +1800,12 @@ describe( 'WorkflowHeaderAction', () => {
 					} ),
 				] )
 			);
+			// The agent-held dialog is a transition, never a Go back.
+			expect(
+				apiFetch.mock.calls.filter( ( [ { path } ] ) =>
+					String( path ).endsWith( '/agent-revert' )
+				)
+			).toHaveLength( 0 );
 			expect( savePost ).not.toHaveBeenCalled();
 		} finally {
 			jest.useRealTimers();

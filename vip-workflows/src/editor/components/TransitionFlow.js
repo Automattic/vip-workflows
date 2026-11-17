@@ -111,11 +111,6 @@ function whenSaveSettles( registry ) {
 }
 
 /**
- * Runs the transitions the rail and the header button ask for.
- *
- * @return {JSX.Element} The flow's dialogs, whichever are open.
- */
-/**
  * Whether a held Go back's question still describes the post.
  *
  * True while the post is still failed at the stage the question was asked
@@ -134,6 +129,11 @@ function isHeldRevertCurrent( modal, workflow ) {
 	);
 }
 
+/**
+ * Runs the transitions the rail and the header button ask for.
+ *
+ * @return {JSX.Element} The flow's dialogs, whichever are open.
+ */
 export function TransitionFlow() {
 	const { postId, postType, savedStatus, workflow, request } = useSelect(
 		( select ) => {
@@ -412,6 +412,7 @@ export function TransitionFlow() {
 		consentRef.current = {};
 
 		setWarningsModal( {
+			kind: 'transition',
 			toStatus: agentJobState.to_status,
 			warnings: agentJobState.soft_warnings,
 			inputData: null,
