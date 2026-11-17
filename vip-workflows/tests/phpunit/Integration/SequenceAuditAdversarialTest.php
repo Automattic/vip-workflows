@@ -63,15 +63,15 @@ class SequenceAuditAdversarialTest extends TestCase
         $stages[0]['key'] = '123';
         $id = $this->create( $stages );
         $stages[0]['label'] = 'Renamed numeric stage';
-        try {
-            $response = $this->request( 'PUT', '/vip-workflows/v1/sequences/' . $id, $this->payload( $stages ) );
-        } catch ( \TypeError $error ) {
-            $this->assertSame( 'Renamed numeric stage', ( new SequenceRepository() )->find( $id )->get_statuses()[0]['label'] );
-            $this->assertCount( 1, $this->rows( $id ), 'Only the creation row exists even though the edit persisted.' );
-            throw $error;
-        }
+        $response = $this->request( 'PUT', '/vip-workflows/v1/sequences/' . $id, $this->payload( $stages ) );
         $this->assertSame( 200, $response->get_status() );
-        $this->assertCount( 2, $this->rows( $id ) );
+        $rows = $this->rows( $id );
+        $this->assertCount( 2, $rows );
+        // PHP turns "123" into an integer array key; the row names it as stored.
+        $this->assertSame(
+            array( array( 'key' => '123', 'from' => 'Writing', 'to' => 'Renamed numeric stage' ) ),
+            json_decode( $rows[1]->event_data, true )['changes']['stages_renamed']
+        );
     }
 
     public function test_put_can_replace_a_legacy_array_transition_target(): void
@@ -263,12 +263,20 @@ class SequenceAuditAdversarialTest extends TestCase
         $rows = $this->rows( $id );
         $this->assertCount( 2, $rows );
         $this->assertSame( 'rest', json_decode( $rows[1]->event_data, true )['via'] );
+        // The sequence routes don't opt into batching, so WordPress refuses the
+        // sub-request before it reaches the controller. The forged body param
+        // plays no part in that: an unknown param is ignored, not rejected (see
+        // test_a_client_cannot_claim_to_be_an_ability). The name differs, so a
+        // sub-request that did get through would add a row.
+        $payload['name']                  = 'Batch edit';
         $payload['vip_workflows_ability'] = 'vip-workflows/update-sequence';
         $response = $this->request( 'POST', '/batch/v1', array( 'requests' => array(
             array( 'method' => 'PUT', 'path' => '/vip-workflows/v1/sequences/' . $id, 'body' => $payload ),
         ) ) );
         $this->assertSame( 207, $response->get_status() );
         $this->assertSame( 400, $response->get_data()['responses'][0]['status'] );
+        $this->assertSame( 'rest_batch_not_allowed', $response->get_data()['responses'][0]['body']['code'] );
         $this->assertCount( 2, $this->rows( $id ) );
+        $this->assertSame( 'Pre dispatch edit', ( new SequenceRepository() )->find( $id )->name );
     }
 }
