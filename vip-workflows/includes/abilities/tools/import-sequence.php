@@ -17,7 +17,7 @@ namespace VIPWorkflows\Abilities\Tools;
 
 use VIPWorkflows\Sequences\SequenceAudit;
 
-const IMPORT_SEQUENCE_ABILITY_ID = 'vip-workflows/import-sequence';
+const IMPORT_SEQUENCE_ABILITY_ID = SequenceAudit::IMPORT_ABILITY_ID;
 
 /**
  * Execute the sequence import.

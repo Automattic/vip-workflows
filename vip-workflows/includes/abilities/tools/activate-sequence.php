@@ -22,7 +22,7 @@ use VIPWorkflows\Sequences\Sequence;
 use VIPWorkflows\Sequences\SequenceAudit;
 use VIPWorkflows\Sequences\SequenceRepository;
 
-const ACTIVATE_SEQUENCE_ABILITY_ID = 'vip-workflows/activate-sequence';
+const ACTIVATE_SEQUENCE_ABILITY_ID = SequenceAudit::ACTIVATE_ABILITY_ID;
 
 /**
  * Execute the sequence activation state change.

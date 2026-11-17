@@ -30,7 +30,7 @@ use VIPWorkflows\Sequences\Sequence;
 use VIPWorkflows\Sequences\SequenceAudit;
 use VIPWorkflows\Sequences\SequenceRepository;
 
-const UPDATE_SEQUENCE_ABILITY_ID = 'vip-workflows/update-sequence';
+const UPDATE_SEQUENCE_ABILITY_ID = SequenceAudit::UPDATE_ABILITY_ID;
 
 /**
  * Fields this ability may hand to SequencesController::update_item().

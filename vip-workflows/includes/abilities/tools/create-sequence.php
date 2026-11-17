@@ -20,7 +20,7 @@ namespace VIPWorkflows\Abilities\Tools;
 use VIPWorkflows\Sequences\Sequence;
 use VIPWorkflows\Sequences\SequenceAudit;
 
-const CREATE_SEQUENCE_ABILITY_ID = 'vip-workflows/create-sequence';
+const CREATE_SEQUENCE_ABILITY_ID = SequenceAudit::CREATE_ABILITY_ID;
 
 /**
  * Execute the sequence creation.

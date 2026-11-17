@@ -25,6 +25,30 @@ use VIPWorkflows\Plugin;
 final class SequenceAudit {
 
 	/**
+	 * The create-sequence ability id.
+	 *
+	 * The four sequence write ability ids are spelled here, not in the ability
+	 * files: those load on `wp_abilities_api_init`, which may not have fired
+	 * when the controller checks an id against ABILITY_IDS.
+	 */
+	public const CREATE_ABILITY_ID = 'vip-workflows/create-sequence';
+
+	/**
+	 * The import-sequence ability id.
+	 */
+	public const IMPORT_ABILITY_ID = 'vip-workflows/import-sequence';
+
+	/**
+	 * The update-sequence ability id.
+	 */
+	public const UPDATE_ABILITY_ID = 'vip-workflows/update-sequence';
+
+	/**
+	 * The activate-sequence ability id.
+	 */
+	public const ACTIVATE_ABILITY_ID = 'vip-workflows/activate-sequence';
+
+	/**
 	 * The sequence abilities that call SequencesController.
 	 *
 	 * The controller accepts an ability id from its request attribute only when
@@ -33,10 +57,10 @@ final class SequenceAudit {
 	 * @var string[]
 	 */
 	public const ABILITY_IDS = array(
-		'vip-workflows/create-sequence',
-		'vip-workflows/import-sequence',
-		'vip-workflows/update-sequence',
-		'vip-workflows/activate-sequence',
+		self::CREATE_ABILITY_ID,
+		self::IMPORT_ABILITY_ID,
+		self::UPDATE_ABILITY_ID,
+		self::ACTIVATE_ABILITY_ID,
 	);
 
 	/**
