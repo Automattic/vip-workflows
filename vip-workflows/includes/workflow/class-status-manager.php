@@ -255,12 +255,20 @@ class StatusManager {
 	 * dispatch queues during the move (the origin can itself be an AI stage) is
 	 * never touched.
 	 *
-	 * @param  int $post_id Post ID.
+	 * A move held for soft warnings puts the failed state back and returns the
+	 * warnings; the caller confirms by asking again with `acknowledge_warnings`.
+	 *
+	 * @param  int   $post_id Post ID.
+	 * @param  array $options {
+	 *     Optional. Only `acknowledge_warnings` is honored; every other key is ignored.
+	 *
+	 *     @type bool $acknowledge_warnings Proceed despite soft warnings on the edge back.
+	 * }
 	 * @return bool|array|\WP_Error True on success, transition()'s warnings array
 	 *                              if one surfaces, WP_Error otherwise.
 	 * @throws \Throwable Whatever transition() throws, once the failed state is back.
 	 */
-	public function revert_failed_agent_stage( int $post_id ): bool|array|\WP_Error {
+	public function revert_failed_agent_stage( int $post_id, array $options = array() ): bool|array|\WP_Error {
 		$revert_to = $this->get_agent_revert_stage( $post_id );
 		if ( null === $revert_to ) {
 			return new \WP_Error(
@@ -301,15 +309,25 @@ class StatusManager {
 			);
 		}
 
+		// The loop guard starts again from the origin, but only a move that
+		// happens may reset it: one held or refused gets its count back.
+		$chain = get_post_meta( $post_id, StageAgentRunner::CHAIN_META, true );
 		delete_post_meta( $post_id, StageAgentRunner::CHAIN_META );
 
+		// `agent_revert` is only ever set here, inside the server process.
+		$transition_options = array( 'agent_revert' => true );
+		if ( ! empty( $options['acknowledge_warnings'] ) ) {
+			$transition_options['acknowledge_warnings'] = true;
+		}
+
 		try {
-			$result = $this->transition( $post_id, $revert_to, array( 'agent_revert' => true ) );
+			$result = $this->transition( $post_id, $revert_to, $transition_options );
 		} catch ( \Throwable $e ) {
 			// The move threw, so it didn't finish: put the failed state back
 			// before letting the error through, or Run again and Go back would
 			// both refuse until read_job_marker() times the marker out.
 			StageAgentRunner::take_job_marker( $post_id, $reverting, $failed_job );
+			$this->restore_agent_chain( $post_id, $chain );
 			throw $e;
 		}
 
@@ -318,6 +336,7 @@ class StatusManager {
 			// put the failed state back, unless something else has written a
 			// marker since.
 			StageAgentRunner::take_job_marker( $post_id, $reverting, $failed_job );
+			$this->restore_agent_chain( $post_id, $chain );
 			return $result;
 		}
 
@@ -326,6 +345,22 @@ class StatusManager {
 		StageAgentRunner::take_job_marker( $post_id, $reverting );
 
 		return true;
+	}
+
+	/**
+	 * Put back the agent loop guard a Go back cleared, when the move didn't happen.
+	 *
+	 * Added only if absent, so a count something else has written since is
+	 * left as it is.
+	 *
+	 * @param int   $post_id Post ID.
+	 * @param mixed $chain   The guard's value before the move, '' if none.
+	 */
+	private function restore_agent_chain( int $post_id, $chain ): void {
+		if ( '' === $chain || false === $chain ) {
+			return;
+		}
+		add_post_meta( $post_id, StageAgentRunner::CHAIN_META, $chain, true );
 	}
 
 	/**

@@ -1276,6 +1276,55 @@ class StatusManagerAgentGatingTest extends TestCase
     }
 
     /**
+     * A confirmed Go back passes the acknowledgement on to transition(), and
+     * nothing else: options such as `agent_actor` never reach the move.
+     *
+     * @dataProvider provide_revert_options
+     *
+     * @param array $options            What the caller passes.
+     * @param array $transition_options What transition() must receive.
+     */
+    public function test_revert_failed_agent_stage_forwards_only_the_acknowledgement( array $options, array $transition_options ): void
+    {
+        $this->stub_post_in_ai_stage( $this->failed_job() );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+        $this->wpdb_taking( 1 );
+
+        $manager = Mockery::mock( StatusManager::class )->makePartial();
+        $manager->shouldReceive( 'get_agent_revert_stage' )->with( 42 )->andReturn( 'draft' );
+        $manager->shouldReceive( 'transition' )
+            ->once()
+            ->with( 42, 'draft', $transition_options )
+            ->andReturn( true );
+
+        $this->assertTrue( $manager->revert_failed_agent_stage( 42, $options ) );
+    }
+
+    /**
+     * @return array<string, array{0: array, 1: array}>
+     */
+    public function provide_revert_options(): array
+    {
+        return array(
+            'no options'             => array( array(), array( 'agent_revert' => true ) ),
+            'acknowledged'           => array(
+                array( 'acknowledge_warnings' => true ),
+                array( 'agent_revert' => true, 'acknowledge_warnings' => true ),
+            ),
+            'not acknowledged'       => array( array( 'acknowledge_warnings' => false ), array( 'agent_revert' => true ) ),
+            'other keys are dropped' => array(
+                array(
+                    'acknowledge_warnings' => true,
+                    'agent_actor'          => 7,
+                    'comment'              => 'x',
+                    'input_data'           => array( 'a' => 'b' ),
+                ),
+                array( 'agent_revert' => true, 'acknowledge_warnings' => true ),
+            ),
+        );
+    }
+
+    /**
      * A Go back whose move throws puts the failed state back before the error
      * goes on, so Run again and Go back are still on offer afterwards.
      */

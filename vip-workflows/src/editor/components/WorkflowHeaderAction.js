@@ -103,10 +103,10 @@ export function WorkflowHeaderAction() {
 	const {
 		fetchWorkflowStatus,
 		requestTransition,
-		revertAgentStage,
+		requestRevert,
 		requestRerun,
 	} = useDispatch( STORE_NAME );
-	const { createErrorNotice, removeNotice } = useDispatch( noticesStore );
+	const { removeNotice } = useDispatch( noticesStore );
 
 	// The header is on screen from the first paint, whether or not the
 	// Workflow panel is ever opened, so it asks for the post's workflow
@@ -179,20 +179,9 @@ export function WorkflowHeaderAction() {
 		requestRerun( 'header' );
 	};
 
-	const goBack = async () => {
+	const goBack = () => {
 		removeNotice( HEADER_NOTICE_ID );
-		try {
-			await revertAgentStage();
-		} catch ( err ) {
-			createErrorNotice(
-				err.message ||
-					__(
-						'Could not move the post back. Try again.',
-						'vip-workflows'
-					),
-				{ id: HEADER_NOTICE_ID, isDismissible: true }
-			);
-		}
+		requestRevert( 'header' );
 	};
 
 	// One primary button per header. Standing in for Publish, this is the
