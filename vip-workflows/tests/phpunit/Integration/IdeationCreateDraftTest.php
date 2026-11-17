@@ -59,6 +59,14 @@ class IdeationCreateDraftTest extends TestCase
      */
     private $previous_auth = null;
 
+    /**
+     * Whether set_up replaced the OpenAI provider's authentication, so
+     * tear-down knows there is something to put back.
+     *
+     * @var bool
+     */
+    private bool $auth_replaced = false;
+
     public function set_up(): void
     {
         parent::set_up();
@@ -78,12 +86,17 @@ class IdeationCreateDraftTest extends TestCase
 
         // The plugin authenticates providers once, at boot, from the keys it
         // finds then. This test's key arrives later, so it is applied the same way.
-        $registry            = \WordPress\AiClient\AiClient::defaultRegistry();
+        // Tear-down puts the old authentication back through the client's
+        // private properties, so check they are all there before changing it.
+        $registry = \WordPress\AiClient\AiClient::defaultRegistry();
+        $this->require_restorable_provider_state( $registry );
+
         $this->previous_auth = $registry->getProviderRequestAuthentication( 'openai' );
         $registry->setProviderRequestAuthentication(
             'openai',
             new \WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication( 'test-key' )
         );
+        $this->auth_replaced = true;
 
         add_filter( 'pre_http_request', array( $this, 'answer_provider' ), 10, 3 );
     }
@@ -92,13 +105,36 @@ class IdeationCreateDraftTest extends TestCase
     {
         remove_filter( 'pre_http_request', array( $this, 'answer_provider' ), 10 );
 
-        $this->restore_provider_auth();
+        // A failed restore still reports, but never skips the rest of tear-down.
+        try {
+            if ( $this->auth_replaced ) {
+                $this->auth_replaced = false;
+                $this->restore_provider_auth();
+            }
+        } finally {
+            Credentials::get_instance()->set_backend( null );
+            delete_option( 'vip_workflows_ai_provider' );
+            delete_option( 'vip_workflows_ai_models' );
 
-        Credentials::get_instance()->set_backend( null );
-        delete_option( 'vip_workflows_ai_provider' );
-        delete_option( 'vip_workflows_ai_models' );
+            parent::tear_down();
+        }
+    }
 
-        parent::tear_down();
+    /**
+     * Fail before the test changes anything when a private property that
+     * restore_provider_auth() relies on is missing, for example after an AI
+     * Client update renames it.
+     *
+     * @param \WordPress\AiClient\Providers\ProviderRegistry $registry Default registry.
+     */
+    private function require_restorable_provider_state( $registry ): void
+    {
+        $this->require_property( $registry, 'providerAuthenticationInstances' );
+
+        foreach ( $this->provider_objects_holding_auth( $registry->getProviderClassName( 'openai' ) ) as $holder ) {
+            $this->require_property( $holder, 'requestAuthentication' );
+            $this->require_property( $holder, 'httpTransporter' );
+        }
     }
 
     /**
@@ -118,7 +154,7 @@ class IdeationCreateDraftTest extends TestCase
         } else {
             $class_name = $registry->getProviderClassName( 'openai' );
 
-            $instances = new \ReflectionProperty( $registry, 'providerAuthenticationInstances' );
+            $instances = $this->require_property( $registry, 'providerAuthenticationInstances' );
             $map       = $instances->getValue( $registry );
             unset( $map[ $class_name ] );
             $instances->setValue( $registry, $map );
@@ -168,7 +204,7 @@ class IdeationCreateDraftTest extends TestCase
      */
     private function clear_request_authentication( object $holder ): void
     {
-        $this->find_property( $holder, 'requestAuthentication' )->setValue( $holder, null );
+        $this->require_property( $holder, 'requestAuthentication' )->setValue( $holder, null );
     }
 
     /**
@@ -180,7 +216,24 @@ class IdeationCreateDraftTest extends TestCase
      */
     private function read_property( object $holder, string $name )
     {
-        return $this->find_property( $holder, $name )->getValue( $holder );
+        return $this->require_property( $holder, $name )->getValue( $holder );
+    }
+
+    /**
+     * Find a property declared anywhere in an object's class hierarchy, and
+     * fail the test naming it when it is not there.
+     *
+     * @param  object $holder Object.
+     * @param  string $name   Property name.
+     * @return \ReflectionProperty
+     */
+    private function require_property( object $holder, string $name ): \ReflectionProperty
+    {
+        $property = $this->find_property( $holder, $name );
+        if ( null === $property ) {
+            $this->fail( sprintf( 'The AI Client no longer has %s::$%s, which this test resets after each run.', get_class( $holder ), $name ) );
+        }
+        return $property;
     }
 
     /**
