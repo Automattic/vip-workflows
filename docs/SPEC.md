@@ -787,7 +787,7 @@ flowchart TD
 - **On Quick Edit, Bulk Edit and XML-RPC, a refused change looks like it worked.** WordPress reports the save (XML-RPC returns the post ID) and the status quietly reverts, because those surfaces can't show the guard's message.
 - **The bypass list is a list of role names, not a capability.** Adding a role to it lets every member publish any workflow post directly, limited only by their normal WordPress capabilities.
 - **Writes with no logged-in user are never refused:** WP-CLI without `--user`, importers and seeders. The required-workflow rule also exempts every WP-CLI write.
-- **`wp_publish_post()` isn't guarded.** It writes the status straight to the database without `wp_insert_post_data`, so neither guard sees a plugin that calls it. Core calls it only to publish scheduled posts.
+- **`wp_publish_post()` isn't guarded.** It writes `publish` straight to the database without `wp_insert_post_data` or the REST hooks, so neither guard runs: code that calls it directly on an unpublished post (draft, pending or private) publishes that post unchecked. Core's only call is the scheduled-post job (`check_and_publish_future_post()`), which publishes a `future` post. That post is already on the publish side, so the job skips nothing either guard enforces.
 - **A new post's eligibility is judged without its terms.** On create, `vip_workflows_sequences_for_post` sees the post's fields but no terms or meta yet, so a filter that narrows by category sees an uncategorized post.
 
 **Code**

@@ -32,6 +32,17 @@ use VIPWorkflows\Admin\Settings;
  *
  * The two guards apply to disjoint posts: PublishBoundaryGuard handles posts
  * that are in a workflow, and this one handles posts that aren't.
+ *
+ * Covered: every save that goes through wp_insert_post() (so also
+ * wp_update_post(), the classic editor, Quick Edit, Bulk Edit, XML-RPC and
+ * the REST posts endpoints, which the block editor uses). Not covered:
+ * wp_publish_post(). It writes `publish` to the database directly, without
+ * `wp_insert_post_data` or the REST hooks, so code that calls it on an
+ * unpublished post (draft, pending or private) publishes that post without
+ * this check. Core's only call is the scheduled-post job
+ * (check_and_publish_future_post()), which publishes a `future` post that is
+ * already in the publish region, so it skips nothing this rule enforces.
+ * docs/SPEC.md lists the same gap.
  */
 class WorkflowRequirementGuard {
 
