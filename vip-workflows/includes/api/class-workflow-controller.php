@@ -477,6 +477,19 @@ class WorkflowController extends WP_REST_Controller {
 					'can_bypass'     => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
 					'agent_pending'  => false,
 				);
+			} elseif ( 'require' === \VIPWorkflows\Admin\Settings::get_workflow_enforcement_mode() && ! empty( $available ) ) {
+				// WorkflowRequirementGuard acts on this post too: in "require"
+				// mode it refuses publishing a covered post that has no
+				// workflow. `workflow_required` tells the client which rule
+				// applies (evaluateRequiredWorkflow(), not the publish
+				// boundary's), and the region is the post's own status, which
+				// is what the server compares.
+				$payload['guard'] = array(
+					'workflow_required' => true,
+					'current_region'    => $status_manager->status_to_region( (string) $post->post_status ),
+					'can_bypass'        => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
+					'agent_pending'     => false,
+				);
 			}
 
 			return new WP_REST_Response( $payload );
