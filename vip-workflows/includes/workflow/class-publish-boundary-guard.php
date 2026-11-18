@@ -354,20 +354,20 @@ class PublishBoundaryGuard {
 	 * filterable, so the DOING_CRON constant is checked too — no filter may
 	 * disarm this.
 	 *
-	 * Autosaves and revisions are core bookkeeping, not editorial decisions, and
-	 * a plugin-driven workflow commit (a crossing written by
+	 * A write to an autosave or a revision is core bookkeeping, not an editorial
+	 * decision, and a plugin-driven workflow commit (a crossing written by
 	 * StatusManager::transition()/assign_sequence()) is the workflow moving the
 	 * post itself.
+	 *
+	 * The exemption follows the row that is written, not the request: an
+	 * autosave request that writes to the post itself is checked like any other
+	 * save. One that only saves content sets no new status, so it passes.
 	 *
 	 * @param  int $post_id Post ID.
 	 * @return bool
 	 */
 	private function is_system_context( int $post_id ): bool {
 		if ( wp_doing_cron() || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
-			return true;
-		}
-
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return true;
 		}
 

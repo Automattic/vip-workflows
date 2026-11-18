@@ -310,6 +310,24 @@ class PublishBoundaryGuardTest extends TestCase
         return $this->guard->veto_rest_insert( $prepared, null );
     }
 
+    /**
+     * assertSame() for a test that runs in its own process.
+     *
+     * There, a failed assertSame() reports a serialization error and not the
+     * difference: the comparison failure carries a stack trace that holds this
+     * class's mocks. This puts the difference in the message.
+     *
+     * @param mixed $expected Expected value.
+     * @param mixed $actual   Actual value.
+     */
+    private function assert_same_in_isolation( $expected, $actual ): void
+    {
+        $this->assertTrue(
+            $expected === $actual,
+            sprintf( 'Expected %s, got %s.', var_export( $expected, true ), var_export( $actual, true ) )
+        );
+    }
+
     // =========================================================================
     // The veto fires
     // =========================================================================
@@ -775,9 +793,10 @@ class PublishBoundaryGuardTest extends TestCase
     }
 
     /**
-     * Autosaves are core bookkeeping, not an editorial decision.
+     * A write to an autosave (a revision row) is core bookkeeping, not an
+     * editorial decision.
      */
-    public function test_autosave_is_exempt(): void
+    public function test_a_write_to_an_autosave_is_exempt(): void
     {
         $this->stub_workflow_post( 'review', 'draft' );
         Functions\when( 'wp_is_post_autosave' )->justReturn( true );
@@ -785,6 +804,60 @@ class PublishBoundaryGuardTest extends TestCase
         $data = $this->filter_data( 'publish' );
 
         $this->assertSame( 'publish', $data['post_status'] );
+    }
+
+    /**
+     * An autosave request that writes to the post itself is a save like any
+     * other: a status change it carries is checked at the boundary.
+     *
+     * DOING_AUTOSAVE stays defined once set, so each of these runs alone.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_checks_a_status_change_made_during_an_autosave_request(): void
+    {
+        define( 'DOING_AUTOSAVE', true );
+        $this->stub_workflow_post( 'review', 'draft' );
+
+        $data = $this->filter_data( 'publish' );
+
+        $this->assert_same_in_isolation( 'draft', $data['post_status'] );
+    }
+
+    /**
+     * Over REST, that change gets the error an ordinary save gets.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_rest_insert_returns_an_error_during_an_autosave_request(): void
+    {
+        define( 'DOING_AUTOSAVE', true );
+        $this->stub_workflow_post( 'review', 'draft' );
+
+        $result = $this->filter_rest( 'publish' );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assert_same_in_isolation( 'vip_workflows_publish_boundary', $result->get_error_code() );
+    }
+
+    /**
+     * The first autosave of a new post moves it from auto-draft to draft. Both
+     * are on the unpublished side, so the save lands and nothing is queued.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_an_autosave_request_can_move_an_auto_draft_to_draft(): void
+    {
+        define( 'DOING_AUTOSAVE', true );
+        $this->stub_workflow_post( 'draft', 'auto-draft' );
+
+        $data = $this->filter_data( 'draft' );
+
+        $this->assert_same_in_isolation( 'draft', $data['post_status'] );
+        $this->assert_same_in_isolation( array(), $this->transients );
     }
 
     /**
