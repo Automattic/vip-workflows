@@ -488,6 +488,12 @@ class IdeationSourcesTranscriptionUploadTest extends TestCase
         $this->assertSame( 'none', $destination['kind'] );
         $this->assertSame( '', $destination['url'] );
         $this->assertSame( 'Set the VIP_WORKFLOWS_OPENAI_KEY constant in wp-config.php.', $destination['hint'] );
+
+        // With a key there is nothing to fix, so nothing is sent.
+        $this->use_backend( array( 'openai' => 'sk-test' ) );
+        $keyed = $this->localized_ideation_data();
+        $this->assertArrayHasKey( 'transcriptionKeyDestination', $keyed );
+        $this->assertNull( $keyed['transcriptionKeyDestination'] );
     }
 
     /** @dataProvider provide_keys */

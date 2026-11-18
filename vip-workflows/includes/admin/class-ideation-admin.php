@@ -218,9 +218,14 @@ class IdeationAdmin implements ModuleInterface {
 	 * an install with no credential screen.
 	 *
 	 * @return array<string, string>|null The serialized destination, or null for
-	 *                                    a reader who can't add the key.
+	 *                                    a reader who can't add the key, or when
+	 *                                    the key is already set.
 	 */
 	private function transcription_key_destination(): ?array {
+		if ( MediaProcessor::transcription_available() ) {
+			return null;
+		}
+
 		if ( Requirement::REGISTER_ADMIN !== AvailabilitySerializer::register_for_current_user() ) {
 			return null;
 		}

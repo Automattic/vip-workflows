@@ -15,10 +15,11 @@ import {
 	FormFileUpload,
 	Notice,
 } from '@wordpress/components';
-import { Link, Stack, Text } from '@wordpress/ui';
+import { Stack, Text } from '@wordpress/ui';
 import apiFetch from '@wordpress/api-fetch';
 
 import { ModalActions } from '../../../common/ModalActions';
+import { RequirementDestination } from '../../../common/AgentRequirements';
 import {
 	isTranscriptionAvailable,
 	transcriptionKeyDestination,
@@ -206,17 +207,18 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 									<>
 										{ /* Keeps a space between the two in the announced text. */ }{ ' ' }
 										<br />
-										{ 'admin_url' === keyDestination.kind &&
-										keyDestination.url ? (
-											<Link
-												href={ keyDestination.url }
-												openInNewTab
-											>
-												{ keyDestination.hint }
-											</Link>
-										) : (
-											keyDestination.hint
-										) }
+										{ /*
+										 * The shared renderer links `label` ("Settings →
+										 * Connectors"). Here the whole sentence is the
+										 * link, as in the AI model settings, so the hint
+										 * stands in for the label.
+										 */ }
+										<RequirementDestination
+											destination={ {
+												...keyDestination,
+												label: keyDestination.hint,
+											} }
+										/>
 									</>
 								) }
 							</Notice>
