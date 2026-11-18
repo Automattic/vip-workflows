@@ -746,14 +746,14 @@ flowchart LR
 
 - **What the person sees:** in the block editor, an error explaining why. On the classic editor, an admin notice. The rest of their save (title, content, meta) still goes through. Only the status, slug and dates are put back to what was stored.
 - **Both directions count.** Unpublishing a workflow post outside the workflow is refused too.
-- **Some changes are always allowed:** WordPress publishing a scheduled post on time, cron and other writes with no logged-in user, autosaves and revisions, the workflow's own status writes during a transition, moves to Trash, restoring a post from Trash to a draft-side status, and anyone in the bypass list (administrators by default).
+- **Some changes are always allowed:** WordPress publishing a scheduled post on time, cron and other writes with no logged-in user, writes to a revision or an autosave (an autosave request that writes to the post itself is checked like any other save), the workflow's own status writes during a transition, moves to Trash, restoring a post from Trash to a draft-side status, and anyone in the bypass list (administrators by default).
 - **Broken workflow state is refused, not waved through.** If a post points at a sequence or stage that no longer exists, the guard treats every status change as a crossing.
 
 ```mermaid
 flowchart TD
   A["Status change on a post"] --> B{"Post is in<br/>a workflow?"}
   B -->|no| OK["Allowed"]
-  B -->|yes| C{"System context?<br/>cron, autosave or revision,<br/>workflow commit in progress,<br/>no current user"}
+  B -->|yes| C{"System context?<br/>cron, write to a revision or autosave,<br/>workflow commit in progress,<br/>no current user"}
   C -->|yes| OK
   C -->|no| D{"Exempt change?<br/>status unchanged, scheduled going live,<br/>restore from Trash to a draft-side status"}
   D -->|yes| OK
