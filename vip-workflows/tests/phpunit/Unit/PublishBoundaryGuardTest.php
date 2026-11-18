@@ -1115,6 +1115,32 @@ class PublishBoundaryGuardTest extends TestCase
     }
 
     /**
+     * An autosave request that writes to the post itself is held to the
+     * reseat's transition rules like any other save. Draft -> `pending` would
+     * reseat at Approval, skipping Review, with no edge between the two.
+     *
+     * DOING_AUTOSAVE stays defined once set, so this runs alone.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_checks_a_reseat_made_during_an_autosave_request(): void
+    {
+        define( 'DOING_AUTOSAVE', true );
+        $this->stub_workflow_post( 'draft', 'draft' );
+
+        $data = $this->filter_data( 'pending' );
+
+        $this->assert_same_in_isolation( 'draft', $data['post_status'] );
+
+        $result = $this->filter_rest( 'pending' );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assert_same_in_isolation( 'vip_workflows_status_change_rules', $result->get_error_code() );
+        $this->assert_same_in_isolation( 403, $result->get_error_data()['status'] ?? null );
+    }
+
+    /**
      * Leaving the Trash for `draft` is never held to the reseat's transition
      * rules, even when the reseat it causes (Approval -> Draft, no edge) is one
      * the user couldn't take: that is the default restore, and a move to
