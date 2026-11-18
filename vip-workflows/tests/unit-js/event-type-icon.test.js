@@ -36,6 +36,7 @@ const EVENT_TYPES = {
 	'ability.failed': 'error',
 	'sequence.created': 'info',
 	'sequence.imported': 'info',
+	'sequence.exported': 'info',
 	'sequence.deleted': 'neutral',
 	'sequence.updated': 'neutral',
 	'sequence.activated': 'success',

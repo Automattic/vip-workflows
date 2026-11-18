@@ -317,6 +317,9 @@ export function eventDescription( event ) {
 		case 'sequence.deleted':
 			return __( 'Sequence deleted', 'vip-workflows' );
 
+		case 'sequence.exported':
+			return __( 'Sequence exported', 'vip-workflows' );
+
 		// An update counts what it changed; the notes under the entry list it.
 		// Rows written before the change summary existed state the stage count.
 		case 'sequence.updated': {

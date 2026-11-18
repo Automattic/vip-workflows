@@ -2330,6 +2330,7 @@ class StatusManager {
 			'sequence.activated'   => __( 'Sequence activated', 'vip-workflows' ),
 			'sequence.deactivated' => __( 'Sequence deactivated', 'vip-workflows' ),
 			'sequence.deleted'     => __( 'Sequence deleted', 'vip-workflows' ),
+			'sequence.exported'    => __( 'Sequence exported', 'vip-workflows' ),
 			// Maintenance. Carries no post and no actor: the nightly prune runs
 			// on cron and belongs to no one.
 			'maintenance.cleanup'  => __( 'Cleanup run', 'vip-workflows' ),

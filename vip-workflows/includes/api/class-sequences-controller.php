@@ -1470,6 +1470,11 @@ class SequencesController extends WP_REST_Controller {
 			'config'      => $sequence->config,
 		);
 
+		// An export changes nothing, but it is recorded so the Audit Log shows who
+		// took a copy of the sequence. Only a served export is: a missing sequence
+		// returned above, and a refused request never reaches this callback.
+		SequenceAudit::record( 'sequence.exported', $sequence, array(), $this->acting_ability( $request ) );
+
 		return new WP_REST_Response( $export );
 	}
 

@@ -465,6 +465,179 @@ class SequenceAuditRestTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // Export
+    // -------------------------------------------------------------------------
+
+    /**
+     * GET a sequence's export.
+     *
+     * @param int $id Sequence ID.
+     * @return \WP_REST_Response
+     */
+    private function export( int $id ): \WP_REST_Response
+    {
+        return rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $id . '/export' ) );
+    }
+
+    /**
+     * Count of every sequence audit row in the table.
+     *
+     * @return int
+     */
+    private function sequence_row_count(): int
+    {
+        global $wpdb;
+
+        return (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE event_type LIKE %s', Schema::get_table_name( 'workflows_events' ), 'sequence.%' ) );
+    }
+
+    public function test_export_writes_one_exported_row_as_the_user(): void
+    {
+        $sequence = $this->create_sequence();
+        $editor   = self::factory()->user->create( array( 'role' => 'editor' ) );
+        wp_set_current_user( $editor );
+
+        $response = $this->export( $sequence->id );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( 'Audit Flow', $response->get_data()['name'] );
+
+        $rows = $this->rows_for( $sequence->id );
+        $this->assertCount( 1, $rows );
+        $this->assertSame( 'sequence.exported', $rows[0]['type'] );
+        $this->assertSame( 'user', $rows[0]['actor_type'] );
+        $this->assertSame( $editor, $rows[0]['actor_id'] );
+        $this->assertNull( $rows[0]['post_id'] );
+        $this->assertSame( 'rest', $rows[0]['data']['via'] );
+        $this->assertSame( $sequence->id, $rows[0]['data']['sequence_id'] );
+        $this->assertSame( 'Audit Flow', $rows[0]['data']['sequence_name'] );
+        $this->assertSame( $sequence->slug, $rows[0]['data']['sequence_slug'] );
+        $this->assertArrayNotHasKey( 'agent_actor', $rows[0]['data'] );
+        $this->assertArrayNotHasKey( 'config', $rows[0]['data'] );
+    }
+
+    public function test_each_export_writes_its_own_row(): void
+    {
+        $sequence = $this->create_sequence();
+
+        $this->export( $sequence->id );
+        $this->export( $sequence->id );
+
+        $this->assertSame( array( 'sequence.exported', 'sequence.exported' ), array_column( $this->rows_for( $sequence->id ), 'type' ) );
+    }
+
+    public function test_an_export_of_a_missing_sequence_writes_nothing(): void
+    {
+        $before = $this->sequence_row_count();
+
+        $this->assertSame( 404, $this->export( 999999 )->get_status() );
+
+        $this->assertSame( $before, $this->sequence_row_count() );
+    }
+
+    public function test_a_refused_export_writes_nothing(): void
+    {
+        $sequence = $this->create_sequence();
+        wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+
+        $this->assertSame( 403, $this->export( $sequence->id )->get_status() );
+
+        $this->assertSame( array(), $this->rows_for( $sequence->id ) );
+    }
+
+    public function test_the_audit_log_serves_the_export_row(): void
+    {
+        $sequence = $this->create_sequence();
+        $this->export( $sequence->id );
+
+        $request = new \WP_REST_Request( 'GET', '/vip-workflows/v1/audit-log' );
+        $request->set_param( 'event_type', 'sequence.exported' );
+        $response = rest_do_request( $request );
+
+        $this->assertSame( 200, $response->get_status() );
+        $events = $response->get_data()['events'];
+        $this->assertNotEmpty( $events );
+        $this->assertSame( 'sequence.exported', $events[0]['event_type'] );
+        $this->assertSame( 'Sequence exported', $events[0]['event_type_label'] );
+        $this->assertSame( 'Audit Flow', $events[0]['event_data']['sequence_name'] );
+        $this->assertNull( $events[0]['post'] );
+    }
+
+    public function test_logged_out_and_non_numeric_exports_write_nothing(): void
+    {
+        $sequence = $this->create_sequence();
+        $before   = $this->sequence_row_count();
+
+        wp_set_current_user( 0 );
+        $this->assertSame( 401, $this->export( $sequence->id )->get_status() );
+        wp_set_current_user( $this->admin_id );
+        $response = rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/not-a-number/export' ) );
+        $this->assertSame( 404, $response->get_status() );
+        $this->assertSame( $before, $this->sequence_row_count() );
+    }
+
+    public function test_export_query_body_and_attributes_cannot_forge_an_agent(): void
+    {
+        $sequence = $this->create_sequence();
+        $spoof    = array(
+            'vip_workflows_ability' => 'vip-workflows/update-sequence',
+            '_attributes'          => array( 'vip_workflows_ability' => 'vip-workflows/update-sequence' ),
+        );
+
+        foreach ( array( 'query', 'body', 'json' ) as $source ) {
+            $request = new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $sequence->id . '/export' );
+            $request->set_attributes( $spoof['_attributes'] );
+            if ( 'query' === $source ) {
+                $request->set_query_params( $spoof );
+            } elseif ( 'body' === $source ) {
+                $request->set_body_params( $spoof );
+            } else {
+                $request->set_header( 'Content-Type', 'application/json' );
+                $request->set_body( wp_json_encode( $spoof ) );
+            }
+            $this->assertSame( 200, rest_do_request( $request )->get_status() );
+        }
+
+        $rows = $this->rows_for( $sequence->id );
+        $this->assertCount( 3, $rows );
+        foreach ( $rows as $row ) {
+            $this->assertSame( 'sequence.exported', $row['type'] );
+            $this->assertSame( 'user', $row['actor_type'] );
+            $this->assertSame( $this->admin_id, $row['actor_id'] );
+            $this->assertSame( 'rest', $row['data']['via'] );
+            $this->assertArrayNotHasKey( 'agent_actor', $row['data'] );
+            $keys = array_keys( $row['data'] );
+            sort( $keys );
+            $this->assertSame( array( 'sequence_id', 'sequence_name', 'sequence_slug', 'sequence_type', 'via' ), $keys );
+        }
+    }
+
+    public function test_editors_see_only_their_own_exports_and_labeled_filter(): void
+    {
+        $sequence = $this->create_sequence();
+        $this->assertSame( 200, $this->export( $sequence->id )->get_status() );
+        $editor = self::factory()->user->create( array( 'role' => 'editor' ) );
+        wp_set_current_user( $editor );
+
+        $request = new \WP_REST_Request( 'GET', '/vip-workflows/v1/audit-log' );
+        $request->set_param( 'event_type', 'sequence.exported' );
+        $this->assertSame( array(), rest_do_request( $request )->get_data()['events'] );
+        $types_request = new \WP_REST_Request( 'GET', '/vip-workflows/v1/audit-log/event-types' );
+        $types = wp_list_pluck( rest_do_request( $types_request )->get_data(), 'label', 'value' );
+        $this->assertArrayNotHasKey( 'sequence.exported', $types );
+
+        $this->assertSame( 200, $this->export( $sequence->id )->get_status() );
+        $events = rest_do_request( $request )->get_data()['events'];
+        $this->assertCount( 1, $events );
+        $this->assertSame( $editor, (int) $events[0]['actor']['id'] );
+        $this->assertSame( 'sequence.exported', $events[0]['event_type'] );
+        $types = wp_list_pluck( rest_do_request( $types_request )->get_data(), 'label', 'value' );
+        $this->assertSame( 'Sequence exported', $types['sequence.exported'] );
+
+        wp_set_current_user( $this->admin_id );
+        $this->assertCount( 2, rest_do_request( $request )->get_data()['events'] );
+    }
+
+    // -------------------------------------------------------------------------
     // Audit Log
     // -------------------------------------------------------------------------
 

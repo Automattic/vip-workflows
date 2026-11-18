@@ -16,9 +16,10 @@ use VIPWorkflows\Plugin;
  * changed.
  *
  * SequencesController calls this after every successful write: create, import,
- * update, region repair, activation, deactivation and delete. The sequence
- * editor, REST clients and the sequence abilities all reach the controller, so
- * each change is recorded once, whichever path made it. Writes that call
+ * update, region repair, activation, deactivation and delete. It also records
+ * each served export, which changes nothing but takes a copy of the sequence.
+ * The sequence editor, REST clients and the sequence abilities all reach the
+ * controller, so each change is recorded once, whichever path made it. Writes that call
  * SequenceRepository directly (installers, CLI seeders, the schema upgrade's
  * replay) are not recorded.
  */

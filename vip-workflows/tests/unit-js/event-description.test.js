@@ -310,6 +310,14 @@ describe( 'sequence events', () => {
 		);
 	} );
 
+	it( 'describes an export', () => {
+		expect(
+			describeEvent( 'sequence.exported', {
+				sequence_name: 'Editorial Sequence',
+			} )
+		).toBe( 'Sequence exported' );
+	} );
+
 	it( 'counts what an update changed', () => {
 		expect(
 			describeEvent( 'sequence.updated', { statuses_count: 5, changes } )
