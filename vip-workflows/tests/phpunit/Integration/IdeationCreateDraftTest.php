@@ -490,18 +490,18 @@ class IdeationCreateDraftTest extends TestCase
         $this->assertContains( 'POST https://api.openai.com/v1/responses', $this->requests, 'The draft came from the canned provider reply.' );
     }
 
-    /** The real REST route stores the provider's decoded JSON exactly once. */
-    public function test_rest_do_request_preserves_title_and_block_attribute_escapes(): void
+    /**
+     * The title and block-attribute JSON the provider sent reach the post as sent:
+     * no extra slashing or escaping on the way, including inside block attributes.
+     */
+    public function test_title_and_block_attribute_escapes_reach_the_post_unchanged(): void
     {
         $title = 'C:\Users\tom "quoted"';
         $attrs = array( 'metadata' => array( 'name' => 'C:\Users\tom "quoted" <tag>' ) );
         $body = '<!-- wp:paragraph ' . wp_json_encode( $attrs, JSON_HEX_TAG ) . ' -->' . "\n"
             . '<p title="C:\Users\tom">C:\Users\tom and it\'s "quoted"</p>' . "\n<!-- /wp:paragraph -->";
         $this->reply_with( $title, $body );
-        $request = new WP_REST_Request( 'POST', sprintf( self::ROUTE, $this->project() ) );
-        $request->set_header( 'Content-Type', 'application/json' );
-        $request->set_body( wp_json_encode( array( 'word_count' => 500 ) ) );
-        $post = $this->created_post( rest_do_request( $request ) );
+        $post = $this->created_post( $this->dispatch_create_draft( $this->project() ) );
         $expected = DraftBuilder::markdown_to_blocks( $body );
         $this->assertSame( $title, $post->post_title );
         $this->assertSame( $expected, $post->post_content );
@@ -509,6 +509,10 @@ class IdeationCreateDraftTest extends TestCase
         $this->assertSame( 'C:\Users\tom "quoted" <tag>', parse_blocks( $post->post_content )[0]['attrs']['metadata']['name'] );
     }
 
+    /**
+     * For an author without unfiltered_html, core kses runs on the insert, and the
+     * route's slashing still keeps backslashes and quotes intact.
+     */
     public function test_author_create_draft_uses_core_kses_slashing_contract(): void
     {
         wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
@@ -517,10 +521,7 @@ class IdeationCreateDraftTest extends TestCase
         $title = 'C:\Users\tom "quoted"';
         $body = '<!-- wp:paragraph -->' . "\n" . '<p title="C:\Users\tom">C:\Users\tom and it\'s "quoted"</p>' . "\n<!-- /wp:paragraph -->";
         $this->reply_with( $title, $body );
-        $request = new WP_REST_Request( 'POST', sprintf( self::ROUTE, $this->project() ) );
-        $request->set_header( 'Content-Type', 'application/json' );
-        $request->set_body( wp_json_encode( array( 'word_count' => 500 ) ) );
-        $post = $this->created_post( rest_do_request( $request ) );
+        $post = $this->created_post( $this->dispatch_create_draft( $this->project() ) );
         $expected = DraftBuilder::markdown_to_blocks( $body );
         $this->assertSame( $title, $post->post_title );
         $this->assertSame( $expected, $post->post_content );
