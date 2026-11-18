@@ -401,6 +401,28 @@ describe( 'the provider select’s help', () => {
 		).toBeInTheDocument();
 	} );
 
+	it( 'puts the Connectors link on its own line, and the description still reads as two sentences', async () => {
+		await renderPanel(
+			payload( {
+				ai_provider_selected: true,
+				ai_model: 'claude-sonnet-5',
+			} )
+		);
+
+		const link = within( panel ).getByRole( 'link', {
+			name: /Add providers in Settings → Connectors/,
+		} );
+		expect( link.previousElementSibling?.tagName ).toBe( 'BR' );
+
+		const help = document.getElementById(
+			providerSelect().getAttribute( 'aria-describedby' )
+		);
+		expect( help ).toContainElement( link );
+		expect( help.textContent ).toMatch(
+			/whichever provider is chosen\. Add providers in Settings → Connectors/
+		);
+	} );
+
 	it( 'is not shown when no provider is connected', async () => {
 		await renderPanel(
 			payload( {
