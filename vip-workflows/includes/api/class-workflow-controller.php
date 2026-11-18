@@ -232,6 +232,12 @@ class WorkflowController extends WP_REST_Controller {
 
 		// POST /workflow/post/{id}/sequence - Assign a sequence to a post.
 		// DELETE /workflow/post/{id}/sequence - Remove workflow from a post.
+		//
+		// Both routes need only edit access to reach the handler, so 404 and the
+		// 403 for a post the user cannot edit stay as they are. Removing a post's
+		// workflow, or replacing the workflow of a post that already has one, is
+		// further limited to the workflow override roles; StatusManager enforces
+		// that and its 403 passes through. A first assignment is not limited.
 		register_rest_route(
 			$this->namespace,
 			'/' . $this->rest_base . '/post/(?P<id>[\d]+)/sequence',
@@ -476,6 +482,9 @@ class WorkflowController extends WP_REST_Controller {
 					'current_region' => null,
 					'can_bypass'     => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
 					'agent_pending'  => false,
+					// Who to ask: the client's refusal sentences name these, and
+					// must say what the server says.
+					'override_roles' => \VIPWorkflows\Admin\Settings::get_override_role_names(),
 				);
 			} elseif ( 'require' === \VIPWorkflows\Admin\Settings::get_workflow_enforcement_mode() && ! empty( $available ) ) {
 				// WorkflowRequirementGuard acts on this post too: in "require"
@@ -608,6 +617,9 @@ class WorkflowController extends WP_REST_Controller {
 					'current_region' => $current_region,
 					'can_bypass'     => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
 					'agent_pending'  => $agent_pending,
+					// Who to ask: the client's refusal sentences name these, and
+					// must say what the server says.
+					'override_roles' => \VIPWorkflows\Admin\Settings::get_override_role_names(),
 				),
 				'all_statuses'        => $sequence->get_statuses(),
 				// Served for an enrolled post too, not only for one with no
@@ -998,8 +1010,9 @@ class WorkflowController extends WP_REST_Controller {
 		}
 
 		// Seating can be refused — the sequence models no stage in the post's
-		// status region, the user may not cross into the named stage's region, or
-		// a crossing failed at the core status write. Each arrives as a WP_Error
+		// status region, the post already has a workflow and the user is not in
+		// an override role, the user may not cross into the named stage's region,
+		// or a crossing failed at the core status write. Each arrives as a WP_Error
 		// already carrying the message and status code the author should see;
 		// surface it rather than falling through to success.
 		if ( is_wp_error( $result ) ) {
@@ -1026,14 +1039,15 @@ class WorkflowController extends WP_REST_Controller {
 	}
 
 	/**
-	 * Remove a post from its workflow — the escape hatch behind the publish veto.
+	 * Remove a post from its workflow.
 	 *
 	 * Delegates wholly to StatusManager::remove_sequence(), the one authority
-	 * for removal: it deletes the workflow identity (sequence + stage meta),
-	 * lets any in-flight stage-agent job abandon itself, records the audited
-	 * `workflow.removed` event, and writes NO post_status — the post stays where
-	 * core has it and is simply no longer workflow-managed. Its WP_Error (post
-	 * missing, or the post not in a workflow) propagates to the client as-is.
+	 * for removal: it limits removal to the workflow override roles, deletes the
+	 * workflow identity (sequence + stage meta), lets any in-flight stage-agent
+	 * job abandon itself, records the audited `workflow.removed` event, and
+	 * writes NO post_status — the post stays where core has it and is simply no
+	 * longer workflow-managed. Its WP_Error (post missing, the post not in a
+	 * workflow, or a 403 naming who to ask) propagates to the client as-is.
 	 *
 	 * @param  WP_REST_Request $request Request object.
 	 * @return bool|WP_Error True on success.

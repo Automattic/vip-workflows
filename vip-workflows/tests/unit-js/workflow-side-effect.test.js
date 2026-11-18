@@ -512,12 +512,87 @@ describe( 'getOrphanedWorkflowMessage', () => {
 	// A post whose sequence row was deleted is frozen by the save layer but has
 	// no workflow left to name, so it cannot reuse the ordinary veto's copy —
 	// which both names the workflow and offers to move the post through it.
-	it( 'names the post, never a workflow, and points at the way out', () => {
-		const message = getOrphanedWorkflowMessage( { title: 'Budget piece' } );
+	// Removal is the only way out and only the override roles can take it, so
+	// the sentence names who to ask rather than telling the reader to remove it.
+	it( 'names the post, never a workflow, and who can free it', () => {
+		const message = getOrphanedWorkflowMessage( {
+			title: 'Budget piece',
+			overrideRoles: [ 'Administrator' ],
+		} );
 
-		expect( message ).toContain( 'Budget piece' );
+		expect( message ).toBe(
+			'“Budget piece” is in a deleted workflow, so its status can’t be changed. Ask someone with the Administrator role to remove it from the workflow.'
+		);
 		expect( message ).not.toContain( 'undefined' );
-		expect( message ).toContain( 'Remove it from the workflow' );
+	} );
+} );
+
+// Who to ask. The literal strings are the same ones
+// tests/phpunit/Unit/PublishBoundaryGuardTest.php asserts for the server's
+// veto_message(): the client and the server must say the same thing to the
+// character, so both suites pin the same words.
+describe( 'veto messages name the override roles', () => {
+	const publish =
+		'“Test Post” is in the “Test Workflow” workflow, so it can’t be published directly. Move it through the workflow to a published stage.';
+	const change =
+		'“Test Post” is in the “Test Workflow” workflow, so its status can’t be changed directly. Move it through the workflow instead.';
+	const deleted =
+		'“Test Post” is in a deleted workflow, so its status can’t be changed.';
+
+	it.each( [
+		[
+			'publish, one role',
+			[ 'Administrator' ],
+			'publish',
+			`${ publish } Ask someone with the Administrator role to publish it.`,
+		],
+		[
+			'publish, two roles',
+			[ 'Editor', 'Administrator' ],
+			'publish',
+			`${ publish } Ask someone with one of these roles to publish it: Editor, Administrator.`,
+		],
+		[ 'publish, no roles', [], 'publish', publish ],
+		[
+			'unpublish, one role',
+			[ 'Administrator' ],
+			'draft',
+			`${ change } Ask someone with the Administrator role to change it.`,
+		],
+		[
+			'unpublish, two roles',
+			[ 'Editor', 'Administrator' ],
+			'draft',
+			`${ change } Ask someone with one of these roles to change it: Editor, Administrator.`,
+		],
+		[ 'unpublish, no roles', [], 'draft', change ],
+	] )( '%s', ( label, overrideRoles, targetStatus, expected ) => {
+		expect(
+			getPublishVetoMessage( {
+				title: 'Test Post',
+				workflowName: 'Test Workflow',
+				targetStatus,
+				overrideRoles,
+			} )
+		).toBe( expected );
+	} );
+
+	it.each( [
+		[
+			'deleted, one role',
+			[ 'Administrator' ],
+			`${ deleted } Ask someone with the Administrator role to remove it from the workflow.`,
+		],
+		[
+			'deleted, two roles',
+			[ 'Editor', 'Administrator' ],
+			`${ deleted } Ask someone with one of these roles to remove it from the workflow: Editor, Administrator.`,
+		],
+		[ 'deleted, no roles', [], deleted ],
+	] )( '%s', ( label, overrideRoles, expected ) => {
+		expect(
+			getOrphanedWorkflowMessage( { title: 'Test Post', overrideRoles } )
+		).toBe( expected );
 	} );
 } );
 

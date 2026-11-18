@@ -52,9 +52,11 @@ export const DECISION_WARN = 'warn';
 
 /**
  * The change crosses the publish boundary for a non-bypass user — refuse it,
- * and say the way through is the workflow (getPublishVetoMessage()). Leaving
- * the workflow is not offered here; only a post whose workflow was deleted is
- * pointed at removal (getOrphanedWorkflowMessage()).
+ * say the way through is the workflow, and name the override roles to ask
+ * otherwise (getPublishVetoMessage()). Leaving the workflow is not offered
+ * here: only the override roles can remove a post from its workflow. A post
+ * whose workflow was deleted can only be freed by removal, so its sentence
+ * names who to ask to remove it (getOrphanedWorkflowMessage()).
  *
  * @type {string}
  */
@@ -594,24 +596,115 @@ function describeStatusChange( {
 }
 
 /**
- * Copy for the publish veto: the change can't be made directly, and the way through.
+ * Append the sentence naming who to ask, when there is anyone to name.
  *
- * The same sentence the server's `PublishBoundaryGuard::veto_message()` sends,
- * so a refusal reads the same whichever layer says it. The way through is the
- * workflow; leaving it is not suggested here, because this is what a habitual
- * Publish click produces and removal is a deliberate act in the sidebar.
+ * The same sentences, joined the same way, as the server's
+ * `PublishBoundaryGuard::with_ask_sentence()`. A separate sentence, not a
+ * clause of the first, so each translatable string is a whole sentence and
+ * the message stays readable when no role holds the override.
  *
- * The veto refuses a crossing in either direction, so the sentence follows the
+ * @param {string}   message First sentence of the veto message.
+ * @param {string}   action  What to ask for: `publish`, `change` or `remove`.
+ * @param {string[]} roles   Display names of the workflow override roles.
+ * @return {string} Translated message.
+ */
+function withAskSentence( message, action, roles ) {
+	if ( ! roles || roles.length === 0 ) {
+		return message;
+	}
+
+	const list = roles.join( ', ' );
+	const one = roles.length === 1;
+	let ask;
+
+	if ( action === 'publish' ) {
+		ask = one
+			? sprintf(
+					/* translators: %s: role name, e.g. "Administrator". */
+					__(
+						'Ask someone with the %s role to publish it.',
+						'vip-workflows'
+					),
+					list
+				)
+			: sprintf(
+					/* translators: %s: comma-separated role names, e.g. "Editor, Administrator". */
+					__(
+						'Ask someone with one of these roles to publish it: %s.',
+						'vip-workflows'
+					),
+					list
+				);
+	} else if ( action === 'remove' ) {
+		ask = one
+			? sprintf(
+					/* translators: %s: role name, e.g. "Administrator". */
+					__(
+						'Ask someone with the %s role to remove it from the workflow.',
+						'vip-workflows'
+					),
+					list
+				)
+			: sprintf(
+					/* translators: %s: comma-separated role names, e.g. "Editor, Administrator". */
+					__(
+						'Ask someone with one of these roles to remove it from the workflow: %s.',
+						'vip-workflows'
+					),
+					list
+				);
+	} else {
+		ask = one
+			? sprintf(
+					/* translators: %s: role name, e.g. "Administrator". */
+					__(
+						'Ask someone with the %s role to change it.',
+						'vip-workflows'
+					),
+					list
+				)
+			: sprintf(
+					/* translators: %s: comma-separated role names, e.g. "Editor, Administrator". */
+					__(
+						'Ask someone with one of these roles to change it: %s.',
+						'vip-workflows'
+					),
+					list
+				);
+	}
+
+	return `${ message } ${ ask }`;
+}
+
+/**
+ * Copy for the publish veto: the change can't be made directly, the way through, and who to ask.
+ *
+ * The same message the server's `PublishBoundaryGuard::veto_message()` sends,
+ * so a refusal reads the same whichever layer says it. The two MUST stay
+ * identical to the character; change them together. The way through is the
+ * workflow; leaving it is not suggested, because only the override roles can
+ * remove a post from its workflow and the person reading this is not one of
+ * them. Instead a second sentence names those roles, from the guard payload's
+ * `override_roles`, as the people to ask. With none configured there is no
+ * one to name, and the message is the first sentence alone.
+ *
+ * The veto refuses a crossing in either direction, so the sentences follow the
  * target: publishing names a published stage, and anything else (unpublishing,
  * making private) says the status can't be changed directly.
  *
- * @param {Object} options              Message input.
- * @param {string} options.title        Post title.
- * @param {string} options.workflowName Sequence (workflow) name.
- * @param {string} options.targetStatus Core post status the refused change would write.
+ * @param {Object}   options               Message input.
+ * @param {string}   options.title         Post title.
+ * @param {string}   options.workflowName  Sequence (workflow) name.
+ * @param {string}   options.targetStatus  Core post status the refused change would write.
+ * @param {string[]} options.overrideRoles Display names of the workflow override roles.
  * @return {string} Translated message.
  */
-export function getPublishVetoMessage( { title, workflowName, targetStatus } ) {
+export function getPublishVetoMessage( {
+	title,
+	workflowName,
+	targetStatus,
+	overrideRoles = [],
+} ) {
 	if ( ! targetStatus ) {
 		// The sentence names the direction of the refused change, and a missing
 		// status names none. Say so rather than quietly pick the generic one.
@@ -621,25 +714,33 @@ export function getPublishVetoMessage( { title, workflowName, targetStatus } ) {
 	}
 
 	if ( statusToRegion( targetStatus ) === 'publish' ) {
-		return sprintf(
+		return withAskSentence(
+			sprintf(
+				/* translators: 1: post title. 2: workflow (sequence) name. */
+				__(
+					'“%1$s” is in the “%2$s” workflow, so it can’t be published directly. Move it through the workflow to a published stage.',
+					'vip-workflows'
+				),
+				title,
+				workflowName
+			),
+			'publish',
+			overrideRoles
+		);
+	}
+
+	return withAskSentence(
+		sprintf(
 			/* translators: 1: post title. 2: workflow (sequence) name. */
 			__(
-				'“%1$s” is in the “%2$s” workflow, so it can’t be published directly. Move it through the workflow to a published stage.',
+				'“%1$s” is in the “%2$s” workflow, so its status can’t be changed directly. Move it through the workflow instead.',
 				'vip-workflows'
 			),
 			title,
 			workflowName
-		);
-	}
-
-	return sprintf(
-		/* translators: 1: post title. 2: workflow (sequence) name. */
-		__(
-			'“%1$s” is in the “%2$s” workflow, so its status can’t be changed directly. Move it through the workflow instead.',
-			'vip-workflows'
 		),
-		title,
-		workflowName
+		'change',
+		overrideRoles
 	);
 }
 
@@ -654,20 +755,29 @@ export function getPublishVetoMessage( { title, workflowName, targetStatus } ) {
  *
  * It gets its own sentence rather than the ordinary veto's, because the veto's
  * "move it through the workflow to a published stage" is not available here,
- * and because there is no workflow name left to put in it.
+ * and because there is no workflow name left to put in it. Removal is the only
+ * way out and only the override roles can take it, so the second sentence
+ * names them. The same message as the server's
+ * `PublishBoundaryGuard::veto_message()` for this post; the two MUST stay
+ * identical to the character.
  *
- * @param {Object} options       Message input.
- * @param {string} options.title Post title.
+ * @param {Object}   options               Message input.
+ * @param {string}   options.title         Post title.
+ * @param {string[]} options.overrideRoles Display names of the workflow override roles.
  * @return {string} Translated message.
  */
-export function getOrphanedWorkflowMessage( { title } ) {
-	return sprintf(
-		/* translators: %s: post title. */
-		__(
-			'“%s” is in a deleted workflow. Remove it from the workflow to change its status.',
-			'vip-workflows'
+export function getOrphanedWorkflowMessage( { title, overrideRoles = [] } ) {
+	return withAskSentence(
+		sprintf(
+			/* translators: %s: post title. */
+			__(
+				'“%s” is in a deleted workflow, so its status can’t be changed.',
+				'vip-workflows'
+			),
+			title
 		),
-		title
+		'remove',
+		overrideRoles
 	);
 }
 
@@ -805,8 +915,9 @@ export function getSwitchWorkflowConfirmLabel() {
 /**
  * Copy for the confirm that precedes moving a post to a different workflow.
  *
- * The server allows it — `StatusManager::assign_sequence()` treats a second
- * assignment as a replacement — but it is not a rename. The post is re-seated
+ * The server allows it for the workflow override roles —
+ * `StatusManager::assign_sequence()` treats a second assignment as a
+ * replacement, and refuses anyone else — but it is not a rename. The post is re-seated
  * at the entry stage of whichever region its status puts it in
  * (`Sequence::get_region_entry_stage()`), so wherever it had got to in the
  * sequence it is leaving is gone, and picking the old sequence back does not

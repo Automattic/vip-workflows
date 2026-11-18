@@ -45,10 +45,12 @@ import { WorkflowSaveGuard } from '../../src/editor/components/WorkflowSaveGuard
 /**
  * A workflow post, seen by a person who cannot bypass it.
  *
- * @param {string} currentRegion Side of the publish line the post is on.
+ * @param {string}   currentRegion   Side of the publish line the post is on.
+ * @param {string[]} [overrideRoles] Override role names the guard carries;
+ *                                   omitted, the guard has no such key.
  * @return {Object} Status endpoint response.
  */
-function statusResponse( currentRegion ) {
+function statusResponse( currentRegion, overrideRoles ) {
 	return {
 		has_workflow: true,
 		sequence: { id: 1, name: 'News desk' },
@@ -72,6 +74,30 @@ function statusResponse( currentRegion ) {
 			current_region: currentRegion,
 			can_bypass: false,
 			agent_pending: false,
+			...( overrideRoles ? { override_roles: overrideRoles } : {} ),
+		},
+	};
+}
+
+/**
+ * A post whose workflow was deleted, as the status endpoint reports it.
+ *
+ * @param {string[]} overrideRoles Override role names the guard carries.
+ * @return {Object} Status endpoint response.
+ */
+function orphanedResponse( overrideRoles ) {
+	return {
+		has_workflow: false,
+		orphaned: true,
+		sequence: null,
+		current: null,
+		all_statuses: [],
+		transitions: [],
+		guard: {
+			current_region: null,
+			can_bypass: false,
+			agent_pending: false,
+			override_roles: overrideRoles,
 		},
 	};
 }
@@ -123,6 +149,44 @@ describe( 'WorkflowSaveGuard veto message', () => {
 
 		expect( error.message ).toBe(
 			'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead.'
+		);
+	} );
+
+	it( 'names the one override role to ask when a publish is refused', async () => {
+		apiFetch.mockImplementation( () =>
+			Promise.resolve( statusResponse( 'draft', [ 'Administrator' ] ) )
+		);
+
+		const error = await refusal( 'publish' );
+
+		expect( error.message ).toBe(
+			'“Budget piece” is in the “News desk” workflow, so it can’t be published directly. Move it through the workflow to a published stage. Ask someone with the Administrator role to publish it.'
+		);
+	} );
+
+	it( 'lists every override role to ask when a status change is refused', async () => {
+		apiFetch.mockImplementation( () =>
+			Promise.resolve(
+				statusResponse( 'publish', [ 'Editor', 'Administrator' ] )
+			)
+		);
+
+		const error = await refusal( 'draft' );
+
+		expect( error.message ).toBe(
+			'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead. Ask someone with one of these roles to change it: Editor, Administrator.'
+		);
+	} );
+
+	it( 'names who can remove a post from a deleted workflow', async () => {
+		apiFetch.mockImplementation( () =>
+			Promise.resolve( orphanedResponse( [ 'Administrator' ] ) )
+		);
+
+		const error = await refusal( 'publish' );
+
+		expect( error.message ).toBe(
+			'“Budget piece” is in a deleted workflow, so its status can’t be changed. Ask someone with the Administrator role to remove it from the workflow.'
 		);
 	} );
 } );
