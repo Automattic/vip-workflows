@@ -15,12 +15,13 @@ import {
 	FormFileUpload,
 	Notice,
 } from '@wordpress/components';
-import { Stack, Text } from '@wordpress/ui';
+import { Link, Stack, Text } from '@wordpress/ui';
 import apiFetch from '@wordpress/api-fetch';
 
 import { ModalActions } from '../../../common/ModalActions';
 import {
 	isTranscriptionAvailable,
+	transcriptionKeyDestination,
 	transcriptionUnavailableWarning,
 } from './transcription';
 
@@ -53,6 +54,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 	// Audio and video go to OpenAI for transcription. Without its key they
 	// still upload, but won't be transcribed, so the dialog warns.
 	const transcriptionAvailable = isTranscriptionAvailable();
+	const keyDestination = transcriptionKeyDestination();
 
 	const handleUrlSubmit = useCallback( async () => {
 		if ( ! url.trim() ) {
@@ -200,6 +202,23 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 						) : (
 							<Notice status="warning" isDismissible={ false }>
 								{ transcriptionUnavailableWarning() }
+								{ keyDestination && (
+									<>
+										{ /* Keeps a space between the two in the announced text. */ }{ ' ' }
+										<br />
+										{ 'admin_url' === keyDestination.kind &&
+										keyDestination.url ? (
+											<Link
+												href={ keyDestination.url }
+												openInNewTab
+											>
+												{ keyDestination.hint }
+											</Link>
+										) : (
+											keyDestination.hint
+										) }
+									</>
+								) }
 							</Notice>
 						) }
 					</Stack>

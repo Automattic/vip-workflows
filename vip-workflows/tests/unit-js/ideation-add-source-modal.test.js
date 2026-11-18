@@ -184,3 +184,86 @@ describe( 'add source — upload mode with no localized value', () => {
 		expect( acceptOf( dialog ).startsWith( ALL_TYPES ) ).toBe( true );
 	} );
 } );
+
+/*
+ * A reader who can add the key is told where it goes; the server sends the
+ * destination only to them, so an editor's page has none.
+ */
+describe( 'add source — where the key goes', () => {
+	const CONNECTORS = {
+		kind: 'admin_url',
+		url: 'https://example.test/wp-admin/options-connectors.php',
+		label: 'Settings → Connectors',
+		hint: 'Add its API key in Settings → Connectors.',
+		credentials_url: '',
+	};
+
+	it( 'links an administrator to Settings → Connectors on its own line', () => {
+		window.vipWorkflowsIdeation = {
+			transcriptionAvailable: '',
+			transcriptionKeyDestination: CONNECTORS,
+		};
+		const dialog = openUploadMode();
+
+		const link = within( dialog ).getByRole( 'link', {
+			name: /Add its API key in Settings → Connectors\./,
+		} );
+		expect( link ).toHaveAttribute( 'href', CONNECTORS.url );
+		expect( link.previousElementSibling?.tagName ).toBe( 'BR' );
+		expect( within( dialog ).getByText( WARNING ) ).toBeInTheDocument();
+		expect( link.parentElement.textContent ).toMatch(
+			/won’t be transcribed\. Add its API key in Settings → Connectors\./
+		);
+	} );
+
+	it( 'gives an install with no credential screen its hint as text', () => {
+		window.vipWorkflowsIdeation = {
+			transcriptionAvailable: '',
+			transcriptionKeyDestination: {
+				kind: 'none',
+				url: '',
+				label: '',
+				hint: 'Set the VIP_WORKFLOWS_OPENAI_KEY constant in wp-config.php.',
+				credentials_url: '',
+			},
+		};
+		const dialog = openUploadMode();
+
+		expect(
+			within( dialog ).getByText(
+				/Set the VIP_WORKFLOWS_OPENAI_KEY constant in wp-config\.php\./
+			)
+		).toBeInTheDocument();
+		expect(
+			within( dialog ).queryByRole( 'link' )
+		).not.toBeInTheDocument();
+	} );
+
+	it( 'gives an editor the warning alone', () => {
+		window.vipWorkflowsIdeation = {
+			transcriptionAvailable: '',
+			transcriptionKeyDestination: null,
+		};
+		const dialog = openUploadMode();
+
+		expect( within( dialog ).getByText( WARNING ) ).toBeInTheDocument();
+		expect(
+			within( dialog ).queryByText( /Add its API key/ )
+		).not.toBeInTheDocument();
+		expect(
+			within( dialog ).queryByRole( 'link' )
+		).not.toBeInTheDocument();
+	} );
+
+	it( 'says nothing about the key when one is set', () => {
+		window.vipWorkflowsIdeation = {
+			transcriptionAvailable: '1',
+			transcriptionKeyDestination: CONNECTORS,
+		};
+		const dialog = openUploadMode();
+
+		expect(
+			within( dialog ).queryByText( /Add its API key/ )
+		).not.toBeInTheDocument();
+	} );
+} );

@@ -407,6 +407,28 @@ describe( 'ideation workspace — dropping audio and video', () => {
 		).toBeInTheDocument();
 	} );
 
+	it( 'tells an administrator where the key goes in the drop hint', async () => {
+		window.vipWorkflowsIdeation = {
+			transcriptionAvailable: '',
+			transcriptionKeyDestination: {
+				kind: 'admin_url',
+				url: 'https://example.test/wp-admin/options-connectors.php',
+				label: 'Settings → Connectors',
+				hint: 'Add its API key in Settings → Connectors.',
+				credentials_url: '',
+			},
+		};
+		await mountWorkspace( stateWith( {} ) );
+
+		await fireFileEvent( 'dragenter', [] );
+
+		expect(
+			screen.getByText(
+				`Images, audio, video, PDFs and documents. ${ WARNING } Add its API key in Settings → Connectors.`
+			)
+		).toBeInTheDocument();
+	} );
+
 	it( 'lists audio and video in the drop hint without a key, and warns', async () => {
 		window.vipWorkflowsIdeation = { transcriptionAvailable: false };
 		await mountWorkspace( stateWith( {} ) );

@@ -470,6 +470,26 @@ class IdeationSourcesTranscriptionUploadTest extends TestCase
     }
 
 
+    /**
+     * The pre-upload warning tells only a reader who can add the key where it
+     * goes. The test backend has no credential screen, so the destination is
+     * the constant rather than Settings → Connectors.
+     */
+    public function test_only_an_administrator_is_sent_where_the_key_goes(): void
+    {
+        $editor_data = $this->localized_ideation_data();
+        $this->assertArrayHasKey( 'transcriptionKeyDestination', $editor_data );
+        $this->assertNull( $editor_data['transcriptionKeyDestination'], 'An editor must not get a destination.' );
+
+        wp_set_current_user( self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+        $destination = $this->localized_ideation_data()['transcriptionKeyDestination'] ?? null;
+
+        $this->assertIsArray( $destination );
+        $this->assertSame( 'none', $destination['kind'] );
+        $this->assertSame( '', $destination['url'] );
+        $this->assertSame( 'Set the VIP_WORKFLOWS_OPENAI_KEY constant in wp-config.php.', $destination['hint'] );
+    }
+
     /** @dataProvider provide_keys */
     public function test_real_backends_and_job_agree( string $backend, string $key ): void
     {

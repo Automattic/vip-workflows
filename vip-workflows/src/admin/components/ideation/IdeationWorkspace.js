@@ -35,7 +35,7 @@ import { useDropZone } from './use-drop-zone';
 import { ToolFailuresModal } from '../../../common/ToolFailuresModal';
 import {
 	isTranscriptionAvailable,
-	transcriptionUnavailableWarning,
+	transcriptionUnavailableWarningText,
 } from './transcription';
 
 import './IdeationWorkspace.css';
@@ -790,7 +790,7 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 											'OpenAI transcribes audio and video.',
 											'vip-workflows'
 										)
-									: transcriptionUnavailableWarning()
+									: transcriptionUnavailableWarningText()
 							}` }
 						</span>
 					</Stack>
