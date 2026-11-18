@@ -895,13 +895,18 @@ class IdeationController extends WP_REST_Controller {
 
 		$blocks = DraftBuilder::markdown_to_blocks( $body );
 
+		// wp_insert_post() unslashes what it's given, so slash it first.
+		// Unslashed, every backslash in the drafted title and body is lost: a
+		// code sample's `C:\Users\tom` is saved as `C:Userstom`.
 		$post_id = wp_insert_post(
-			array(
-				'post_type'    => 'post',
-				'post_title'   => $title,
-				'post_content' => $blocks,
-				'post_status'  => 'draft',
-				'post_author'  => get_current_user_id(),
+			wp_slash(
+				array(
+					'post_type'    => 'post',
+					'post_title'   => $title,
+					'post_content' => $blocks,
+					'post_status'  => 'draft',
+					'post_author'  => get_current_user_id(),
+				)
 			),
 			true
 		);
