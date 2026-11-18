@@ -389,7 +389,7 @@ Who may do what, and where the check lives. When reviewing, check that a change 
 
 - A bypass user sees every transition, not just those their roles allow.
 - `PublishBoundaryGuard` (`vip-workflows/includes/workflow/class-publish-boundary-guard.php`) skips its veto for them, and the client shows a confirmation instead.
-- Only a bypass user can remove a post from its workflow, replace its workflow, or re-seat it in the same one (`StatusManager::remove_sequence()`, `assign_sequence()`). Anyone with `edit_post` can give an unassigned post its first workflow. The editor hides the Workflow row's picker and Remove button from everyone else and says who can. `Settings::get_override_role_names()` gives the roles' display names for every "ask someone" message, and the status payloads serve them as `guard.override_roles`.
+- Only a bypass user can remove a post from its workflow, replace its workflow, or re-seat it in the same one (`StatusManager::remove_sequence()`, `assign_sequence()`). Anyone with `edit_post` can give an unassigned post its first workflow. For everyone else, the editor shows the Workflow row of a post that has a workflow as plain text, with nothing to click. `Settings::get_override_role_names()` gives the roles' display names for every "ask someone" message, and the status payloads serve them as `guard.override_roles`.
 - A separate list, `bypass_tool_check_roles` (default `['administrator']`, `can_user_bypass_tool_checks()`), lets users skip required tool checks on a transition.
 
 **The publish boundary guard.** It vetoes a non-bypass user's `post_status` change across the publish boundary on a workflow-managed post.
