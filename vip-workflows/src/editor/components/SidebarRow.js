@@ -89,6 +89,12 @@ function SidebarRowHeader( { title, onClose } ) {
  *                                        closes, however it closes.
  * @param {Function} root0.renderContent  Renders the popover body below the
  *                                        header; receives `{ onClose }`.
+ *                                        Not called when `readOnly`.
+ * @param {boolean}  root0.readOnly       Whether this user can't change the
+ *                                        value. The value is drawn as plain
+ *                                        text with no trigger and no popover,
+ *                                        the way core's Status row reads for a
+ *                                        user who can't publish.
  */
 export function SidebarRow( {
 	label,
@@ -102,6 +108,7 @@ export function SidebarRow( {
 	errorMessage,
 	onPopoverClose,
 	renderContent,
+	readOnly = false,
 } ) {
 	// State (not a ref) so the component re-renders when the anchor mounts,
 	// exactly as core's PostAuthor panel does.
@@ -153,53 +160,63 @@ export function SidebarRow( {
 				align="flex-start"
 				gap="xs"
 			>
-				<Dropdown
-					popoverProps={ popoverProps }
-					// The string, not a bare `true`: `useFocusOnMount` only
-					// looks for a tabbable for 'firstElement' /
-					// 'firstInputElement' and focuses the popover container
-					// itself for every other value — so `focusOnMount` alone
-					// is weaker than the default it overrides, and lands a
-					// keyboard user on a div instead of the control.
-					focusOnMount="firstElement"
-					onClose={ onPopoverClose }
-					contentClassName="vip-workflows-sidebar-row__dialog"
-					// Closing goes through `onClose`, not `onToggle`: only
-					// `onClose` runs Dropdown's `close()`, which is what fires
-					// `onPopoverClose`. Toggling shut would skip it, and that
-					// callback is the row's only retry hook for a value whose
-					// lookup failed.
-					renderToggle={ ( { isOpen, onToggle, onClose } ) => (
-						<Button
-							size="compact"
-							variant="tertiary"
-							onClick={ isOpen ? onClose : onToggle }
-							disabled={ disabled }
-							aria-expanded={ isOpen }
-							aria-label={ accessibleName }
-							// The state itself, not a colour: this is what a
-							// screen reader announces, and what the row's
-							// styling keys off.
-							aria-invalid={ invalid || undefined }
-							aria-describedby={ invalid ? errorId : undefined }
-						>
-							{ hasValue ? valueLabel : emptyLabel }
-						</Button>
-					) }
-					renderContent={ ( { onClose } ) => (
-						<Stack
-							className="vip-workflows-sidebar-row__content"
-							direction="column"
-							gap="sm"
-						>
-							<SidebarRowHeader
-								title={ headerTitle }
-								onClose={ onClose }
-							/>
-							{ renderContent( { onClose } ) }
-						</Stack>
-					) }
-				/>
+				{ readOnly ? (
+					// Core's read-only row value (`.editor-post-status.is-read-only`):
+					// the value as text, nothing to press, nothing to explain.
+					<Text className="vip-workflows-sidebar-row__value is-read-only">
+						{ hasValue ? valueLabel : emptyLabel }
+					</Text>
+				) : (
+					<Dropdown
+						popoverProps={ popoverProps }
+						// The string, not a bare `true`: `useFocusOnMount` only
+						// looks for a tabbable for 'firstElement' /
+						// 'firstInputElement' and focuses the popover container
+						// itself for every other value — so `focusOnMount` alone
+						// is weaker than the default it overrides, and lands a
+						// keyboard user on a div instead of the control.
+						focusOnMount="firstElement"
+						onClose={ onPopoverClose }
+						contentClassName="vip-workflows-sidebar-row__dialog"
+						// Closing goes through `onClose`, not `onToggle`: only
+						// `onClose` runs Dropdown's `close()`, which is what fires
+						// `onPopoverClose`. Toggling shut would skip it, and that
+						// callback is the row's only retry hook for a value whose
+						// lookup failed.
+						renderToggle={ ( { isOpen, onToggle, onClose } ) => (
+							<Button
+								size="compact"
+								variant="tertiary"
+								onClick={ isOpen ? onClose : onToggle }
+								disabled={ disabled }
+								aria-expanded={ isOpen }
+								aria-label={ accessibleName }
+								// The state itself, not a colour: this is what a
+								// screen reader announces, and what the row's
+								// styling keys off.
+								aria-invalid={ invalid || undefined }
+								aria-describedby={
+									invalid ? errorId : undefined
+								}
+							>
+								{ hasValue ? valueLabel : emptyLabel }
+							</Button>
+						) }
+						renderContent={ ( { onClose } ) => (
+							<Stack
+								className="vip-workflows-sidebar-row__content"
+								direction="column"
+								gap="sm"
+							>
+								<SidebarRowHeader
+									title={ headerTitle }
+									onClose={ onClose }
+								/>
+								{ renderContent( { onClose } ) }
+							</Stack>
+						) }
+					/>
+				) }
 				{ invalid && (
 					<Text
 						id={ errorId }

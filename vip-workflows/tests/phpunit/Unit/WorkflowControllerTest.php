@@ -462,12 +462,14 @@ class WorkflowControllerTest extends TestCase
         $this->assertTrue( $data['has_workflow'] );
         $this->assertArrayHasKey( 'guard', $data );
         $this->assertSame(
-            array( 'current_region', 'can_bypass', 'agent_pending' ),
+            array( 'current_region', 'can_bypass', 'agent_pending', 'override_roles' ),
             array_keys( $data['guard'] )
         );
         $this->assertSame( 'draft', $data['guard']['current_region'] );
         $this->assertFalse( $data['guard']['can_bypass'] );
         $this->assertFalse( $data['guard']['agent_pending'] );
+        // Who to ask, by display name: the client's refusal sentences name these.
+        $this->assertSame( array( 'Administrator' ), $data['guard']['override_roles'] );
     }
 
     /**
@@ -739,6 +741,9 @@ class WorkflowControllerTest extends TestCase
         $this->assertArrayHasKey( 'guard', $data );
         $this->assertNull( $data['guard']['current_region'] );
         $this->assertFalse( $data['guard']['agent_pending'] );
+        // An orphaned post can only be freed by removal, which only these
+        // roles can do: the client names them.
+        $this->assertSame( array( 'Administrator' ), $data['guard']['override_roles'] );
     }
 
     // =========================================================================

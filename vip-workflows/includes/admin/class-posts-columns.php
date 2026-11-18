@@ -440,8 +440,11 @@ class PostsColumns {
 		// the fail-closed message shown when the guard itself cannot answer.
 		$guard = wp_json_encode(
 			array(
-				'canBypass' => Settings::can_user_bypass_workflow(),
-				'strings'   => array(
+				'canBypass'     => Settings::can_user_bypass_workflow(),
+				// Who to ask: the shared module's veto sentences name these, and
+				// must say what the server says.
+				'overrideRoles' => Settings::get_override_role_names(),
+				'strings'       => array(
 					// The publish boundary is symmetric, so the veto copy is
 					// direction-aware: a user un-publishing was never trying to
 					// publish, and telling them they can't would be a non-sequitur.
@@ -667,11 +670,15 @@ class PostsColumns {
 			// was deleted, so there is no workflow left to move the post through
 			// and no name to call it by. Same guard, different sentence.
 			window.alert(data.dataset.orphaned
-				? api.getOrphanedWorkflowMessage({ title: titleFor(row, postId) })
+				? api.getOrphanedWorkflowMessage({
+					title: titleFor(row, postId),
+					overrideRoles: guard.overrideRoles
+				})
 				: api.getPublishVetoMessage({
 					title: titleFor(row, postId),
 					workflowName: data.dataset.sequenceName,
-					targetStatus: targetStatus
+					targetStatus: targetStatus,
+					overrideRoles: guard.overrideRoles
 				}));
 			return false;
 		}

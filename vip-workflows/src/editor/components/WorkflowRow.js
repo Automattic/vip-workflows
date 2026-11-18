@@ -27,6 +27,13 @@
  * what holds every status change), and its popover offers the one way out —
  * removal — instead of a list: re-assigning on top of a dangling identity would
  * bury the broken state rather than clear it.
+ *
+ * Only the workflow override roles can remove a post from its workflow or
+ * change the workflow it is in; the server refuses anyone else. For them the
+ * caller passes `readOnly`, and an enrolled or orphaned post's row shows its
+ * workflow as plain text, with nothing to click, the way core's Status row reads
+ * for someone who can't publish. A post in no workflow is unaffected: anyone
+ * who can edit it can choose its first workflow.
  */
 
 import { Button, ComboboxControl } from '@wordpress/components';
@@ -61,6 +68,11 @@ const workflowLabel = () => __( 'Workflow', 'vip-workflows' );
  *                                            workflow is enforced.
  * @param {boolean}  root0.orphaned           Whether the post's sequence was
  *                                            deleted out from under it.
+ * @param {boolean}  root0.readOnly           For a post that has a workflow
+ *                                            (or a deleted one): whether this
+ *                                            user can't remove or change it.
+ *                                            The row then shows the value as
+ *                                            plain text, with no popover.
  */
 export function WorkflowRow( {
 	sequence,
@@ -69,6 +81,7 @@ export function WorkflowRow( {
 	onSelect,
 	onRemove,
 	orphaned = false,
+	readOnly = false,
 } ) {
 	const label = workflowLabel();
 
@@ -105,6 +118,7 @@ export function WorkflowRow( {
 					'This post’s workflow was deleted, so its status is locked.',
 					'vip-workflows'
 				) }
+				readOnly={ readOnly }
 				renderContent={ ( { onClose } ) => (
 					<>
 						<Text variant="body-md" render={ <p /> }>
@@ -119,6 +133,20 @@ export function WorkflowRow( {
 			/>
 		);
 	}
+
+	// An enrolled post this user can't move out of its workflow: the row names
+	// the workflow and offers nothing to click.
+	if ( sequence && readOnly ) {
+		return (
+			<SidebarRow
+				label={ label }
+				valueLabel={ sequence.name || '' }
+				emptyLabel={ __( 'Select a workflow', 'vip-workflows' ) }
+				readOnly
+			/>
+		);
+	}
+
 	const currentId = sequence?.id ? String( sequence.id ) : '';
 	const valueLabel = sequence?.name || '';
 

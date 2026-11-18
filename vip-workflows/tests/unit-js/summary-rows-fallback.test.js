@@ -80,6 +80,13 @@ const STATUS = {
 	available_sequences: [
 		{ id: 7, name: 'Weekend Magazine', slug: 'weekend-magazine' },
 	],
+	// A reader in the override roles, who is offered the picker.
+	guard: {
+		current_region: 'draft',
+		can_bypass: true,
+		agent_pending: false,
+		override_roles: [ 'Administrator' ],
+	},
 };
 
 /**

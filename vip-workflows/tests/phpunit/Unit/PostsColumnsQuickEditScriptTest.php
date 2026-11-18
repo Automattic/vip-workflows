@@ -110,6 +110,8 @@ class PostsColumnsQuickEditScriptTest extends TestCase
         Functions\when( 'wp_create_nonce' )->justReturn( 'nonce' );
         Functions\when( 'rest_url' )->justReturn( 'http://example.test/wp-json/vip-workflows/v1' );
         Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        // Default settings: the override roles are administrator alone.
+        Functions\when( 'get_option' )->justReturn( array() );
         Functions\when( 'wp_enqueue_script' )->alias(
             function ( ...$args ) {
                 $this->enqueued_scripts[] = $args;
@@ -614,6 +616,19 @@ class PostsColumnsQuickEditScriptTest extends TestCase
         $script = $this->capture_script();
 
         $this->assertStringContainsString( '"canBypass":false', $script );
+    }
+
+    /**
+     * The veto sentences name who to ask, so the role names they use are a
+     * server answer too, embedded beside the bypass flag and handed to both
+     * of the shared module's veto sentences.
+     */
+    public function test_override_roles_are_embedded_and_passed_to_the_veto_copy(): void
+    {
+        $script = $this->capture_script();
+
+        $this->assertStringContainsString( '"overrideRoles":["Administrator"]', $script );
+        $this->assertSame( 2, substr_count( $script, 'overrideRoles: guard.overrideRoles' ) );
     }
 
     /**

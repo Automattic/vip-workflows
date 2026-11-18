@@ -426,6 +426,10 @@ class StageLabelSnapshotIntegrationTest extends TestCase
 	{
 		$post_id = $this->make_workflow_post();
 
+		// Removal is limited to the workflow override roles (administrator by
+		// default); the editor this suite runs as is outside them.
+		wp_set_current_user( (int) self::factory()->user->create( array( 'role' => 'administrator' ) ) );
+
 		$result = ( new StatusManager() )->remove_sequence( $post_id );
 		$this->assertTrue( $result );
 
@@ -449,6 +453,10 @@ class StageLabelSnapshotIntegrationTest extends TestCase
 		global $wpdb;
 		$wpdb->delete( \VIPWorkflows\Database\Schema::get_table_name( 'sequences' ), array( 'id' => $this->sequence_id ), array( '%d' ) );
 		wp_cache_flush();
+
+		// Removal is limited to the workflow override roles (administrator by
+		// default); the editor this suite runs as is outside them.
+		wp_set_current_user( (int) self::factory()->user->create( array( 'role' => 'administrator' ) ) );
 
 		$result = ( new StatusManager() )->remove_sequence( $post_id );
 		$this->assertTrue( $result );

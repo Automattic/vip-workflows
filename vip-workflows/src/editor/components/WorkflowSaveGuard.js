@@ -198,12 +198,16 @@ export function WorkflowSaveGuard() {
 				// An orphaned post is refused for a different reason and has a
 				// different way out — there is no workflow left to move it
 				// through, and no name to call it by.
+				// Both sentences name who to ask, from the same role names
+				// the server's veto names.
+				const overrideRoles = workflow.guard?.override_roles || [];
 				const message = workflow.orphaned
-					? getOrphanedWorkflowMessage( { title } )
+					? getOrphanedWorkflowMessage( { title, overrideRoles } )
 					: getPublishVetoMessage( {
 							title,
 							workflowName,
 							targetStatus: edits.status,
+							overrideRoles,
 						} );
 
 				restoreEditorStatus();
@@ -213,7 +217,8 @@ export function WorkflowSaveGuard() {
 				// the notice the user sees — no notice is raised here, so there
 				// is exactly one, and no one-click way out of the workflow rides
 				// along with it. Removing the post from its workflow stays a
-				// deliberate act in the workflow panel, not a button on an error.
+				// deliberate act in the Workflow row, open only to the override
+				// roles, never a button on an error.
 				throw new Error( message );
 			}
 

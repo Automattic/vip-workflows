@@ -104,6 +104,22 @@ const AVAILABLE = [
 ];
 
 /**
+ * The guard payload the status endpoint serves a workflow-managed post: here
+ * for a user in the override roles, who may remove and switch the workflow.
+ *
+ * @param {boolean} canBypass Whether the reader holds an override role.
+ * @return {Object} Guard payload.
+ */
+function overrideGuard( canBypass = true ) {
+	return {
+		current_region: 'draft',
+		can_bypass: canBypass,
+		agent_pending: false,
+		override_roles: [ 'Editor', 'Administrator' ],
+	};
+}
+
+/**
  * A status payload for a post enrolled in Weekend Magazine.
  *
  * @return {Object} Status endpoint response.
@@ -125,6 +141,7 @@ function assignedStatus() {
 		transitions: [],
 		all_statuses: [],
 		available_sequences: AVAILABLE,
+		guard: overrideGuard(),
 	};
 }
 
@@ -142,6 +159,7 @@ function orphanedStatus() {
 		transitions: [],
 		all_statuses: [],
 		available_sequences: [],
+		guard: { ...overrideGuard(), current_region: null },
 	};
 }
 
@@ -630,6 +648,132 @@ describe( 'WorkflowSummaryRows', () => {
 		expect(
 			screen.queryByRole( 'button', { name: 'Remove from workflow' } )
 		).not.toBeInTheDocument();
+	} );
+
+	// Only the workflow override roles can remove a post from its workflow or
+	// change the workflow it is in; the server refuses anyone else. The row
+	// doesn't offer them what it would refuse: it names the workflow as plain
+	// text, with nothing to click, the way core's Status row reads for someone
+	// who can't publish.
+	describe( 'for a user outside the override roles', () => {
+		/**
+		 * Assert the Workflow row shows `value` as text and offers nothing to
+		 * press: no trigger, no popover, no picker, no removal, and no
+		 * who-to-ask sentence.
+		 *
+		 * @param {string} value The row's visible value.
+		 */
+		function expectReadOnlyRow( value ) {
+			const text = screen.getByText( value );
+			expect( text.closest( 'button' ) ).toBeNull();
+			expect( text ).toHaveClass( 'is-read-only' );
+			expect( text ).not.toHaveAttribute( 'role' );
+			expect( text ).not.toHaveAttribute( 'tabindex' );
+			text.focus();
+			expect( text ).not.toHaveFocus();
+			// The only buttons the rows draw are value triggers, so none at
+			// all means nothing in the row is clickable.
+			expect( screen.queryByRole( 'button' ) ).not.toBeInTheDocument();
+			fireEvent.click( text );
+			expect( screen.queryByRole( 'dialog' ) ).not.toBeInTheDocument();
+			expect( screen.queryByRole( 'combobox' ) ).not.toBeInTheDocument();
+			expect(
+				screen.queryByText( /can remove a post from its workflow/ )
+			).not.toBeInTheDocument();
+			expect(
+				screen.queryByText( /You can’t remove a post/ )
+			).not.toBeInTheDocument();
+		}
+
+		it( 'shows the workflow as plain text, with no picker, removal or popover', async () => {
+			await renderRows( {
+				...assignedStatus(),
+				guard: overrideGuard( false ),
+			} );
+
+			expect( screen.getByText( 'Workflow' ) ).toBeInTheDocument();
+			expectReadOnlyRow( 'Weekend Magazine' );
+			expect( assignPosts() ).toHaveLength( 0 );
+			expect( removeDeletes() ).toHaveLength( 0 );
+		} );
+
+		it.each( [
+			[ assignedStatus, 'Weekend Magazine' ],
+			[ orphanedStatus, 'Deleted workflow' ],
+		] )(
+			'shows plain text without a guard for %p (%s)',
+			async ( status, value ) => {
+				const { guard, ...withoutGuard } = status();
+				expect( guard ).toBeDefined();
+				await renderRows( withoutGuard );
+
+				expectReadOnlyRow( value );
+			}
+		);
+
+		it.each( [
+			[ assignedStatus, 'Weekend Magazine' ],
+			[ orphanedStatus, 'Deleted workflow' ],
+		] )(
+			'keeps an enforced workflow read-only for %p (%s)',
+			async ( status, value ) => {
+				seedEditorStore( {
+					metadataFields: [],
+					workflowEnforcement: 'require',
+				} );
+				await renderRows( {
+					...status(),
+					guard: overrideGuard( false ),
+				} );
+
+				expectReadOnlyRow( value );
+				expect( assignPosts() ).toHaveLength( 0 );
+				expect( removeDeletes() ).toHaveLength( 0 );
+			}
+		);
+
+		it( 'shows an orphaned post’s deleted workflow as plain text, with no removal', async () => {
+			await renderRows( {
+				...orphanedStatus(),
+				guard: { ...overrideGuard( false ), current_region: null },
+			} );
+
+			expectReadOnlyRow( 'Deleted workflow' );
+			// The row still says what is wrong with the post.
+			expect(
+				screen.getByText(
+					'This post’s workflow was deleted, so its status is locked.'
+				)
+			).toBeInTheDocument();
+		} );
+
+		it( 'still lets them give an unassigned post its first workflow', async () => {
+			await renderRows( unassignedStatus(), {
+				onAssign: {
+					...assignedStatus(),
+					guard: overrideGuard( false ),
+				},
+			} );
+
+			await pickWorkflow( 'Select a workflow', 'Weekend Magazine' );
+
+			expect( assignPosts() ).toHaveLength( 1 );
+			expect( assignPosts()[ 0 ][ 0 ].data ).toEqual( {
+				sequence_id: 7,
+			} );
+			// Once it is in one, the row stops offering a change: the
+			// workflow's name is plain text, not a button.
+			await waitFor( () =>
+				expect(
+					screen.getByText( 'Weekend Magazine' ).closest( 'button' )
+				).toBeNull()
+			);
+			expect(
+				screen.queryByRole( 'button', {
+					name: 'Change workflow: Weekend Magazine',
+				} )
+			).not.toBeInTheDocument();
+		} );
 	} );
 
 	it( 'offers no removal before the post is in a workflow', async () => {

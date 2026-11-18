@@ -697,8 +697,37 @@ class StatusManagerBoundaryTest extends TestCase
     }
 
     // =========================================================================
-    // remove_sequence() — the escape hatch
+    // remove_sequence()
     // =========================================================================
+
+    /**
+     * Make the current user (ID 5) hold the given roles, with the settings at
+     * their defaults (override roles: administrator) and the core role names
+     * registered, so a refusal can name who to ask.
+     *
+     * @param string[] $roles Role slugs.
+     */
+    private function stub_current_user_roles( array $roles ): void
+    {
+        Functions\when( 'get_current_user_id' )->justReturn( 5 );
+        Functions\when( 'get_userdata' )->justReturn(
+            (object) array(
+                'display_name' => 'Test',
+                'roles'        => $roles,
+            )
+        );
+        Functions\when( 'get_option' )->justReturn( array() );
+        Functions\when( 'wp_roles' )->justReturn(
+            (object) array(
+                'role_names' => array(
+                    'administrator' => 'Administrator',
+                    'editor'        => 'Editor',
+                    'author'        => 'Author',
+                ),
+            )
+        );
+        Functions\when( 'translate_user_role' )->returnArg();
+    }
 
     /**
      * Removal deletes both meta keys and writes no post_status.
@@ -706,7 +735,7 @@ class StatusManagerBoundaryTest extends TestCase
     public function test_remove_sequence_deletes_meta_and_writes_no_status(): void
     {
         $this->stub_workflow_post( 'approval' );
-        Functions\when( 'get_current_user_id' )->justReturn( 5 );
+        $this->stub_current_user_roles( array( 'administrator' ) );
 
         $inserts = array();
         $this->mock_wpdb( $inserts );
@@ -736,7 +765,7 @@ class StatusManagerBoundaryTest extends TestCase
     public function test_remove_sequence_logs_the_audit_event(): void
     {
         $this->stub_workflow_post( 'approval' );
-        Functions\when( 'get_current_user_id' )->justReturn( 5 );
+        $this->stub_current_user_roles( array( 'administrator' ) );
         Functions\when( 'delete_post_meta' )->justReturn( true );
 
         $inserts = array();
@@ -801,7 +830,7 @@ class StatusManagerBoundaryTest extends TestCase
             )
         );
         $this->sequence_repository->shouldReceive( 'find' )->with( 404 )->andReturn( null );
-        Functions\when( 'get_current_user_id' )->justReturn( 5 );
+        $this->stub_current_user_roles( array( 'administrator' ) );
 
         $deletes = array();
         Functions\when( 'delete_post_meta' )->alias(
@@ -823,5 +852,69 @@ class StatusManagerBoundaryTest extends TestCase
         $data = json_decode( $inserts[0]['event_data'], true );
         $this->assertSame( 404, $data['sequence_id'] );
         $this->assertSame( '', $data['sequence_name'] );
+    }
+
+    /**
+     * Only the workflow override roles can remove a post from its workflow. An
+     * editor outside them is refused with a 403 that names who to ask, and
+     * nothing is deleted or audited.
+     */
+    public function test_remove_sequence_refuses_a_user_outside_the_override_roles(): void
+    {
+        $this->stub_workflow_post( 'approval' );
+        $this->stub_current_user_roles( array( 'editor' ) );
+
+        Functions\expect( 'delete_post_meta' )->never();
+
+        $inserts = array();
+        $this->mock_wpdb( $inserts );
+
+        $result = $this->status_manager->remove_sequence( 1 );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'vip_workflows_removal_restricted', $result->get_error_code() );
+        $this->assertSame( array( 'status' => 403 ), $result->get_error_data() );
+        $this->assertSame(
+            'Only someone with the Administrator role can remove a post from its workflow or change its workflow.',
+            $result->get_error_message()
+        );
+        $this->assertCount( 0, $inserts, 'A refused removal changes nothing, so it is not audited.' );
+    }
+
+    /**
+     * A write with no logged-in user is a trusted system actor and is never
+     * refused.
+     */
+    public function test_remove_sequence_allows_a_userless_write(): void
+    {
+        $this->stub_workflow_post( 'approval' );
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+
+        $inserts = array();
+        $this->mock_wpdb( $inserts );
+
+        $this->assertTrue( $this->status_manager->remove_sequence( 1 ) );
+        $this->assertSame( 'workflow.removed', $inserts[0]['event_type'] );
+    }
+
+    /**
+     * The refusal names every override role, in the configured order, and says
+     * so plainly when none is configured.
+     */
+    public function test_workflow_change_restricted_message_variants(): void
+    {
+        $this->assertSame(
+            'Only someone with the Administrator role can remove a post from its workflow or change its workflow.',
+            StatusManager::workflow_change_restricted_message( array( 'Administrator' ) )
+        );
+        $this->assertSame(
+            'Only someone with one of these roles can remove a post from its workflow or change its workflow: Editor, Administrator.',
+            StatusManager::workflow_change_restricted_message( array( 'Editor', 'Administrator' ) )
+        );
+        $this->assertSame(
+            'You can’t remove a post from its workflow or change its workflow.',
+            StatusManager::workflow_change_restricted_message( array() )
+        );
     }
 }
