@@ -165,7 +165,6 @@ Retention: `vip-workflows/includes/maintenance/class-cleanup.php` runs nightly t
 | `_vip_workflows_agent_actor` | On a revision: the agent ability that made the edit | `vip-workflows/includes/workflow/class-stage-agent-runner.php` |
 | `wf_meta_{sequence_id}_{field_key}` | A sequence-defined metadata field. **Public key** | `vip-workflows/includes/class-plugin.php` (`register_metadata_fields()`) |
 | `_vip_ideation_*` | Ideation project state (keys listed below) | `vip-workflows/includes/ideation/assistants/class-ideation-orchestrator.php`, `vip-workflows/includes/api/class-ideation-controller.php` |
-| `vip_draft_ai_context` | AI provenance on a draft created from ideation. **Public key** (no underscore) | `vip-workflows/includes/api/class-ideation-controller.php` |
 | `_vip_discovery_prompt` | The discovery prompt on a project | `vip-workflows/includes/api/class-discovery-controller.php` |
 | `_vip_story_id` | The story a post belongs to | `vip-workflows/includes/story/class-story.php` |
 
@@ -219,13 +218,13 @@ Retention: `vip-workflows/includes/maintenance/class-cleanup.php` runs nightly t
 - Deactivation flushes rewrites except on VIP.
 - Uninstall drops the owned tables and deletes `vip_workflows_db_version`.
 
-**Schema versioning.** `Schema::VERSION` (currently `2.27.0`) is compared with the `vip_workflows_db_version` option by `maybe_upgrade_schema()` on `init` priority 1, on every request type (REST, cron, CLI, front end). When they differ:
+**Schema versioning.** `Schema::VERSION` (currently `2.28.0`) is compared with the `vip_workflows_db_version` option by `maybe_upgrade_schema()` on `init` priority 1, on every request type (REST, cron, CLI, front end). When they differ:
 
 1. `install()` re-runs `dbDelta` for all tables.
 2. `run_migrations()` runs every `get_migrations()` entry newer than the stored version.
 3. The new version is stored.
 
-A migration can throw `MigrationDeferred` (`vip-workflows/includes/database/class-migration-deferred.php`) to resume on a later request without bumping the version, which 2.27.0's time-boxed, leased backfill does. Any other failure is logged and retried on the next request.
+A migration can throw `MigrationDeferred` (`vip-workflows/includes/database/class-migration-deferred.php`) to resume on a later request without bumping the version. Two migrations are time-boxed this way: 2.27.0's leased backfill, and 2.28.0's paged delete of `vip_draft_ai_context`, a post meta key Create Draft no longer writes. The delete is idempotent, so it takes no lease. Any other failure is logged and retried on the next request.
 
 Rule for adding a migration (from the docblock on `run_migrations()`):
 
@@ -239,7 +238,7 @@ Rule for adding a migration (from the docblock on `run_migrations()`):
 - **Migrations have no lock.** Two requests can migrate at once.
 - **A schema change without a version bump never ships.** A column or table added to `create_tables()` needs a version bump, or existing sites never run `dbDelta`.
 - **A table missing from `get_owned_tables()` survives uninstall.** A new table must be added there, or uninstall leaves it behind.
-- **Two meta keys are public.** `wf_meta_{sequence_id}_{field_key}` is exposed in REST, and `vip_draft_ai_context` has no underscore prefix.
+- **A sequence metadata key is public.** `wf_meta_{sequence_id}_{field_key}` is exposed in REST.
 - **Story's post statuses exist on every site.** Because `register_post_status()` is global, `ideation`, `editorial`, `published`, `monitoring`, `refresh` and `archived` are registered for every post type, whether or not anyone uses ideation.
 
 ### REST and Abilities
@@ -1166,7 +1165,7 @@ flowchart LR
 - `vip-workflows/includes/ai/class-prompt-registry.php`: `PromptRegistry`. `vip-workflows/includes/ai/class-core-prompts.php`: `ideation/*` prompts; admin overrides in the `vip_workflows_prompts` option.
 - `vip-workflows/includes/assistants/class-assistant-registry.php`: `AssistantRegistry`, hook `vip_workflows_register_assistant_meta`, `assistants` REST routes.
 - `vip-workflows/includes/story/class-story.php`: the `Story` module, `vip_story` post type, `wp_vip_story_objects` table, `_vip_story_id` meta. `vip-workflows/includes/api/class-workflow-controller.php`: `WorkflowController` creates a story on sequence assignment.
-- `vip-workflows/includes/api/class-ideation-controller.php`: `POST ideation/{id}/create-draft`, `POST ideation/{id}/mentor`; writes `_vip_ideation_project_id` and `vip_draft_ai_context`.
+- `vip-workflows/includes/api/class-ideation-controller.php`: `POST ideation/{id}/create-draft`, `POST ideation/{id}/mentor`; writes `_vip_ideation_project_id`.
 - `vip-workflows/includes/database/class-seeder.php`: `Seeder::seed_phase_sequence()` (seeds `content-lifecycle`).
 - `vip-workflows/includes/api/class-sequences-controller.php`: `SequencesController` (phase sequences hidden while off).
 - `vip-workflows/includes/integrations/`: `class-safe-url.php` (`SafeUrl`), `class-ssrf-guard.php` (`SsrfGuard`), `class-media-processor.php` (`MediaProcessor`, OpenAI transcription).
