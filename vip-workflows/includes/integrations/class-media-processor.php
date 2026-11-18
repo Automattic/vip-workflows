@@ -44,8 +44,8 @@ class MediaProcessor {
 	 * whether the AI Client has OpenAI registered: the request below posts to
 	 * OpenAI directly and does not need it.
 	 *
-	 * The upload guard, the Ideation screen's localized data and the job all
-	 * read this, so they cannot disagree about whether a file will be accepted.
+	 * The Ideation screen's localized data and the job both read this, so the
+	 * screen warns exactly when the job would fail for lack of a key.
 	 *
 	 * @return bool True when an OpenAI key is configured.
 	 */
@@ -56,9 +56,7 @@ class MediaProcessor {
 	/**
 	 * Whether a file of this type is sent for transcription.
 	 *
-	 * The upload guard and `process_file()` both ask this, so the route refuses
-	 * exactly the files the job would transcribe. The Ideation screens keep a
-	 * client-side mirror in `transcription.js`, which is only a pre-filter.
+	 * `process_file()` asks this to route a file to transcription.
 	 *
 	 * @param string $mime_type File MIME type.
 	 * @return bool True for audio and video.
@@ -70,9 +68,8 @@ class MediaProcessor {
 	/**
 	 * The message shown when audio or video cannot be transcribed for lack of a key.
 	 *
-	 * Used by the upload refusal, the job failure and the Ideation drop zone
-	 * (through the screen's localized data). It says that OpenAI transcribes
-	 * audio and video, then lets `RequirementFactory::missing_credential()` say
+	 * Used by the job failure, which the source's card shows. It says that
+	 * OpenAI transcribes audio and video, then lets `RequirementFactory::missing_credential()` say
 	 * where the key goes, exactly as the other credential gates do: Settings →
 	 * Connectors on that backend, the `wp-config.php` constant on an install
 	 * with no credential screen, and "ask an administrator" for a reader who
@@ -95,6 +92,19 @@ class MediaProcessor {
 			: $requirement->get_user_message();
 
 		return __( 'OpenAI transcribes audio and video.', 'vip-workflows' ) . ' ' . $detail;
+	}
+
+	/**
+	 * The job's error for audio or video on a site with no OpenAI key.
+	 *
+	 * The failure is stored on the source row, which editors read as well as
+	 * administrators, and the job has no current user to ask, so it uses the
+	 * user register.
+	 *
+	 * @return WP_Error The error.
+	 */
+	private static function transcription_key_error(): WP_Error {
+		return new WP_Error( 'no_api_key', self::transcription_unavailable_message( Requirement::REGISTER_USER ) );
 	}
 
 	/**
@@ -131,6 +141,16 @@ class MediaProcessor {
 	 * @return array|WP_Error Processing result or error.
 	 */
 	public function process_file( string $file_path, string $mime_type ) {
+		/*
+		 * Audio and video upload without an OpenAI key, so a keyless site's
+		 * most likely missing piece is that key. Ask about it first, so the
+		 * card names it rather than a provider setting that transcription
+		 * doesn't use.
+		 */
+		if ( self::needs_transcription( $mime_type ) && ! self::transcription_available() ) {
+			return self::transcription_key_error();
+		}
+
 		$config_check = $this->check_configuration();
 		if ( is_wp_error( $config_check ) ) {
 			return $config_check;
@@ -309,21 +329,19 @@ class MediaProcessor {
 	/**
 	 * Call the OpenAI Whisper API for transcription.
 	 *
-	 * Sends the raw file to OpenAI whatever provider the site selected. The
-	 * upload route refuses audio and video up front when no OpenAI key is set
-	 * (see `transcription_available()`); this check stays for files that reach
-	 * the job anyway, such as a retry after the key was removed.
-	 *
-	 * The job's failure is stored on the source row, which editors read as well
-	 * as administrators, and the job has no current user to ask, so it uses the
-	 * user register.
+	 * Sends the raw file to OpenAI whatever provider the site selected. Audio
+	 * and video upload without an OpenAI key (the Ideation screens warn that
+	 * they won't be transcribed). `process_file()` fails them for that before
+	 * its provider-configuration check, so the card names the key; this check
+	 * stays for direct callers of `transcribe_audio_video()`. Either way no
+	 * request is made, and the source's retry runs again once a key is added.
 	 *
 	 * @param string $file_path Full path to the audio/video file.
 	 * @return string|WP_Error Transcript text or error.
 	 */
 	private function call_whisper_api( string $file_path ): string|WP_Error {
 		if ( ! self::transcription_available() ) {
-			return new WP_Error( 'no_api_key', self::transcription_unavailable_message( Requirement::REGISTER_USER ) );
+			return self::transcription_key_error();
 		}
 		$api_key = Credentials::get_instance()->api_key( 'openai' );
 

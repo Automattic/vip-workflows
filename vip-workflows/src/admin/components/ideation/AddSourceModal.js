@@ -19,7 +19,10 @@ import { Stack, Text } from '@wordpress/ui';
 import apiFetch from '@wordpress/api-fetch';
 
 import { ModalActions } from '../../../common/ModalActions';
-import { isTranscriptionAvailable } from './transcription';
+import {
+	isTranscriptionAvailable,
+	transcriptionUnavailableWarning,
+} from './transcription';
 
 import './AddSourceModal.css';
 
@@ -47,12 +50,9 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 	const [ uploading, setUploading ] = useState( false );
 	const [ error, setError ] = useState( null );
 
-	// Audio and video go to OpenAI for transcription, so without its key the
-	// picker doesn't offer them; the upload route would refuse them anyway.
+	// Audio and video go to OpenAI for transcription. Without its key they
+	// still upload, but won't be transcribed, so the dialog warns.
 	const transcriptionAvailable = isTranscriptionAvailable();
-	const accept = transcriptionAvailable
-		? 'image/*,audio/*,video/*,.pdf,.doc,.docx,.txt'
-		: 'image/*,.pdf,.doc,.docx,.txt';
 
 	const handleUrlSubmit = useCallback( async () => {
 		if ( ! url.trim() ) {
@@ -185,15 +185,10 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 				) : (
 					<Stack direction="column" gap="sm">
 						<Text variant="body-sm" render={ <p /> }>
-							{ transcriptionAvailable
-								? __(
-										'Upload images, PDFs, documents, audio or video.',
-										'vip-workflows'
-									)
-								: __(
-										'Upload images, PDFs or documents.',
-										'vip-workflows'
-									) }
+							{ __(
+								'Upload images, PDFs, documents, audio or video.',
+								'vip-workflows'
+							) }
 						</Text>
 						{ transcriptionAvailable ? (
 							<Text variant="body-sm" render={ <p /> }>
@@ -203,11 +198,8 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 								) }
 							</Text>
 						) : (
-							<Notice status="info" isDismissible={ false }>
-								{ __(
-									'Audio and video need an OpenAI key, which is used for transcription.',
-									'vip-workflows'
-								) }
+							<Notice status="warning" isDismissible={ false }>
+								{ transcriptionUnavailableWarning() }
 							</Notice>
 						) }
 					</Stack>
@@ -233,7 +225,7 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 					</Button>
 				) : (
 					<FormFileUpload
-						accept={ accept }
+						accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.txt"
 						onChange={ handleFileUpload }
 						variant="primary"
 						isBusy={ uploading }

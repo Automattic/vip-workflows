@@ -237,8 +237,8 @@ describe( 'ideation workspace — the first-load batch', () => {
 
 /*
  * Audio and video are transcribed by OpenAI whatever provider the site chose.
- * Without an OpenAI key the upload route refuses them, so the drop zone skips
- * them up front and says why, and still uploads everything else.
+ * Without an OpenAI key they still upload (the processing job fails them with
+ * a message on the card), and the drop zone's hint warns before the drop.
  */
 describe( 'ideation workspace — dropping audio and video', () => {
 	const UPLOAD_SUFFIX = '/sources/upload';
@@ -317,29 +317,19 @@ describe( 'ideation workspace — dropping audio and video', () => {
 	const pdf = () =>
 		new File( [ 'x' ], 'report.pdf', { type: 'application/pdf' } );
 
-	// The fallback, for a page the server didn't send its sentence to.
-	const SKIP_MESSAGE =
-		'OpenAI transcribes audio and video. OpenAI is not connected. Ask an administrator to connect it.';
+	const WARNING =
+		'OpenAI transcribes audio and video. OpenAI is not connected, so they won’t be transcribed.';
 
-	// What the server localizes for an administrator on the Connectors backend.
-	const SERVER_MESSAGE =
-		'OpenAI transcribes audio and video. OpenAI is not connected. Add its API key in Settings → Connectors.';
-
-	it( 'without a key, uploads only the image and names the skipped file in the server’s words', async () => {
-		window.vipWorkflowsIdeation = {
-			transcriptionAvailable: false,
-			transcriptionUnavailableMessage: SERVER_MESSAGE,
-		};
+	it( 'without a key, uploads audio alongside the image, with no per-file message', async () => {
+		window.vipWorkflowsIdeation = { transcriptionAvailable: false };
 		const { container } = await mountWorkspace( stateWith( {} ) );
 
 		await fireFileEvent( 'drop', [ mp3(), png() ] );
 
 		await waitFor( () =>
-			expect( uploadErrors( container ) ).toEqual( [
-				`song.mp3: ${ SERVER_MESSAGE }`,
-			] )
+			expect( uploadedNames() ).toEqual( [ 'song.mp3', 'photo.png' ] )
 		);
-		expect( uploadedNames() ).toEqual( [ 'photo.png' ] );
+		expect( uploadErrors( container ) ).toEqual( [] );
 	} );
 
 	it( 'without a key, still uploads images and PDFs as before', async () => {
@@ -354,18 +344,16 @@ describe( 'ideation workspace — dropping audio and video', () => {
 		expect( uploadErrors( container ) ).toEqual( [] );
 	} );
 
-	it( 'treats a missing localized value as no key', async () => {
+	it( 'with no localized value, still uploads video', async () => {
 		window.vipWorkflowsIdeation = {};
 		const { container } = await mountWorkspace( stateWith( {} ) );
 
 		await fireFileEvent( 'drop', [ mp4() ] );
 
 		await waitFor( () =>
-			expect( uploadErrors( container ) ).toEqual( [
-				`clip.mp4: ${ SKIP_MESSAGE }`,
-			] )
+			expect( uploadedNames() ).toEqual( [ 'clip.mp4' ] )
 		);
-		expect( uploadedNames() ).toEqual( [] );
+		expect( uploadErrors( container ) ).toEqual( [] );
 	} );
 
 	it( 'with a key, uploads audio as before', async () => {
@@ -380,7 +368,7 @@ describe( 'ideation workspace — dropping audio and video', () => {
 		expect( uploadErrors( container ) ).toEqual( [] );
 	} );
 
-	it( 'with a key, shows the server’s refusal per file', async () => {
+	it( 'shows the server’s upload error per file', async () => {
 		window.vipWorkflowsIdeation = { transcriptionAvailable: true };
 		apiFetch.mockImplementation( ( { path } ) => {
 			if ( path === ABILITIES_PATH ) {
@@ -390,7 +378,7 @@ describe( 'ideation workspace — dropping audio and video', () => {
 				return Promise.reject( new Error( 'no summary yet' ) );
 			}
 			if ( path.endsWith( UPLOAD_SUFFIX ) ) {
-				return Promise.reject( new Error( SKIP_MESSAGE ) );
+				return Promise.reject( new Error( 'File too large.' ) );
 			}
 			return Promise.resolve( stateWith( {} ) );
 		} );
@@ -400,7 +388,7 @@ describe( 'ideation workspace — dropping audio and video', () => {
 
 		await waitFor( () =>
 			expect( uploadErrors( container ) ).toEqual( [
-				`song.mp3: ${ SKIP_MESSAGE }`,
+				'song.mp3: File too large.',
 			] )
 		);
 		expect( uploadedNames() ).toEqual( [ 'song.mp3' ] );
@@ -419,14 +407,16 @@ describe( 'ideation workspace — dropping audio and video', () => {
 		).toBeInTheDocument();
 	} );
 
-	it( 'leaves audio and video out of the drop hint without a key', async () => {
+	it( 'lists audio and video in the drop hint without a key, and warns', async () => {
 		window.vipWorkflowsIdeation = { transcriptionAvailable: false };
 		await mountWorkspace( stateWith( {} ) );
 
 		await fireFileEvent( 'dragenter', [] );
 
 		expect(
-			screen.getByText( 'Images, PDFs and documents' )
+			screen.getByText(
+				`Images, audio, video, PDFs and documents. ${ WARNING }`
+			)
 		).toBeInTheDocument();
 	} );
 } );

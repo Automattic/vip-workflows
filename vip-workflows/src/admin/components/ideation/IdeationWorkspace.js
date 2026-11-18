@@ -35,8 +35,7 @@ import { useDropZone } from './use-drop-zone';
 import { ToolFailuresModal } from '../../../common/ToolFailuresModal';
 import {
 	isTranscriptionAvailable,
-	needsTranscription,
-	transcriptionUnavailableMessage,
+	transcriptionUnavailableWarning,
 } from './transcription';
 
 import './IdeationWorkspace.css';
@@ -704,24 +703,8 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 			setUploadQueue( queue );
 
 			const errors = [];
-			const transcriptionAvailable = isTranscriptionAvailable();
 			for ( let i = 0; i < files.length; i++ ) {
 				const file = files[ i ];
-
-				// Audio and video go to OpenAI for transcription. Without its
-				// key the upload route refuses them, so don't send them at all.
-				if ( ! transcriptionAvailable && needsTranscription( file ) ) {
-					errors.push(
-						`${ file.name }: ${ transcriptionUnavailableMessage() }`
-					);
-					setUploadQueue( ( prev ) =>
-						prev.map( ( item, idx ) =>
-							idx === i ? { ...item, status: 'error' } : item
-						)
-					);
-					continue;
-				}
-
 				const formData = new FormData();
 				formData.append( 'file', file );
 
@@ -803,10 +786,10 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 										'Images, audio, video, PDFs and documents. OpenAI transcribes audio and video.',
 										'vip-workflows'
 									)
-								: __(
-										'Images, PDFs and documents',
+								: `${ __(
+										'Images, audio, video, PDFs and documents.',
 										'vip-workflows'
-									) }
+									) } ${ transcriptionUnavailableWarning() }` }
 						</span>
 					</Stack>
 				</div>

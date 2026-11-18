@@ -323,7 +323,7 @@ Audit-log rows are limited to the user's own actions unless their role is in `au
 | `/ideation` (list), `/ideation/seed` (POST) — `class-ideation-controller.php` | GET/POST | `edit_posts` |
 | `/ideation/{id}` (GET/DELETE) and `/ideation/{id}/pin`, `/unpin`, `/dismiss`, `/restore`, `/run-assistant`, `/restart-analysis`, `/query`, `/mentor`, `/generate-image`, `/create-draft`, `/check-phase-transition`, `/summarize`, `/summary` — `class-ideation-controller.php` | GET/POST/DELETE | `edit_posts` and (project author or `edit_others_posts`) |
 | `/ideation/{id}/sources`, `/ideation/{id}/sources/{source_id}` (PUT/PATCH/DELETE), `/ideation/{id}/sources/{source_id}/summarize`, `/ideation/{id}/sources/{source_id}/retry` — `class-ideation-sources-controller.php` | POST/PUT/DELETE | The same author-or-`edit_others_posts` gate, plus a post type check |
-| `/ideation/{id}/sources/upload` — `class-ideation-sources-controller.php` | POST | `upload_files` and the author-or-`edit_others_posts` gate. Without an OpenAI key, audio and video get a 422 `rest_transcription_unavailable` before any attachment is created |
+| `/ideation/{id}/sources/upload` — `class-ideation-sources-controller.php` | POST | `upload_files` and the author-or-`edit_others_posts` gate |
 | `/discovery/providers`, `/discovery/recommend`, `/discovery/search`, `/discovery/filters`; `/discovery/select` (POST) — `class-discovery-controller.php` | GET/POST | `edit_posts` |
 | `/vip-ideation` (core posts controller for the CPT) — `vip-workflows/includes/ideation/research/class-ideation-post-types.php` | core | CPT custom caps; see [Capabilities and roles](#capabilities-and-roles) |
 
@@ -510,7 +510,7 @@ Other outbound behavior:
 
 **Footguns**
 
-- **Whisper always uses the OpenAI key.** The raw media file is sent directly with `wp_remote_post` to `api.openai.com/v1/audio/transcriptions`, whichever provider is selected. The AI model settings and the Ideation upload surfaces say so, and without an OpenAI key the UI and the upload route refuse audio and video up front; `call_whisper_api()` keeps its own key check for files that reach the job anyway, such as a retry.
+- **Whisper always uses the OpenAI key.** The raw media file is sent directly with `wp_remote_post` to `api.openai.com/v1/audio/transcriptions`, whichever provider is selected. The AI model settings and the Ideation upload surfaces say so. Without an OpenAI key, audio and video still upload and the Ideation surfaces warn that they won't be transcribed; `call_whisper_api()` then fails the source with that reason before any request, and the source's retry transcribes it once a key is added.
 - **Video transcripts depend on an undocumented endpoint.** The YouTube player call uses an undocumented YouTube endpoint and a spoofed browser user agent.
 - **Parse.ly receives post content.** Smart links and title suggestions send the post body to Parse.ly.
 - **Telemetry briefly switches the current user.** `Tracker::record()` calls `wp_set_current_user()` to attribute events that cron starts.
