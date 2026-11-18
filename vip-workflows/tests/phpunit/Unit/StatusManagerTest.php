@@ -1449,6 +1449,9 @@ class StatusManagerTest extends TestCase
      */
     public function test_assign_sequence_invalid_sequence(): void
     {
+        Functions\when( 'get_post' )->justReturn( $this->create_mock_post( array( 'ID' => 1 ) ) );
+        $this->stub_meta( array() );
+
         $this->sequence_repository
             ->shouldReceive( 'find' )
             ->once()
@@ -1465,11 +1468,9 @@ class StatusManagerTest extends TestCase
      */
     public function test_assign_sequence_invalid_post(): void
     {
-        $this->sequence_repository
-            ->shouldReceive( 'find' )
-            ->once()
-            ->with( 1 )
-            ->andReturn( $this->sequence );
+        // The post is resolved first; a missing post never reaches the
+        // sequence lookup.
+        $this->sequence_repository->shouldNotReceive( 'find' );
 
         Functions\expect( 'get_post' )
             ->once()
@@ -1503,6 +1504,7 @@ class StatusManagerTest extends TestCase
             ->once()
             ->with( 1 )
             ->andReturn( $post );
+        $this->stub_meta( array() );
 
         $this->post_type_manager
             ->shouldReceive( 'get_sequences_for_post' )
@@ -1564,6 +1566,68 @@ class StatusManagerTest extends TestCase
             array_filter( $events, fn( $e ) => str_starts_with( $e[0], 'vip_workflows_exited_' ) ),
             'No exited event fires when there was no prior stage.'
         );
+    }
+
+    /**
+     * Replacing or re-seating a post's workflow is limited to the workflow
+     * override roles: an editor outside them is refused with a 403 before
+     * anything is written. A first assignment (above) is not limited.
+     */
+    public function test_assign_refuses_replacing_a_workflow_outside_the_override_roles(): void
+    {
+        $post = $this->create_mock_post(
+            array(
+                'ID'          => 1,
+                'post_status' => 'draft',
+            )
+        );
+        $this->stub_assign_context( $post );
+        $this->stub_meta(
+            array(
+                StatusManager::SEQUENCE_META_KEY => '1',
+                StatusManager::STAGE_META_KEY     => 'review',
+            )
+        );
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+        Functions\when( 'get_option' )->justReturn( array() );
+        Functions\when( 'get_userdata' )->justReturn( (object) array( 'roles' => array( 'editor' ) ) );
+
+        Functions\expect( 'update_post_meta' )->never();
+
+        $result = $this->status_manager->assign_sequence( 1, 1 );
+
+        $this->assertInstanceOf( 'WP_Error', $result );
+        $this->assertSame( 'vip_workflows_removal_restricted', $result->get_error_code() );
+        $this->assertSame( array( 'status' => 403 ), $result->get_error_data() );
+    }
+
+    /**
+     * A write with no logged-in user is a system actor and may replace.
+     */
+    public function test_assign_lets_a_userless_write_replace_a_workflow(): void
+    {
+        $post = $this->create_mock_post(
+            array(
+                'ID'          => 1,
+                'post_status' => 'draft',
+            )
+        );
+        $this->stub_assign_context( $post );
+        $this->stub_meta(
+            array(
+                StatusManager::SEQUENCE_META_KEY => '1',
+                StatusManager::STAGE_META_KEY     => 'review',
+            )
+        );
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        Functions\when( 'update_post_meta' )->justReturn( true );
+        Functions\when( 'delete_post_meta' )->justReturn( true );
+
+        $events = array();
+        $this->capture_events( $events );
+
+        $this->assertTrue( $this->status_manager->assign_sequence( 1, 1 ) );
     }
 
     /**
@@ -1677,6 +1741,7 @@ class StatusManagerTest extends TestCase
             ->with( 2 )
             ->andReturn( $no_pending );
         Functions\when( 'get_post' )->justReturn( $post );
+        $this->stub_meta( array() );
         $this->post_type_manager
             ->shouldReceive( 'get_sequences_for_post' )
             ->with( $post )
@@ -1735,6 +1800,7 @@ class StatusManagerTest extends TestCase
             ->with( 3 )
             ->andReturn( $draft_only );
         Functions\when( 'get_post' )->justReturn( $post );
+        $this->stub_meta( array() );
         $this->post_type_manager
             ->shouldReceive( 'get_sequences_for_post' )
             ->with( $post )

@@ -311,6 +311,24 @@ class PublishBoundaryGuardTest extends TestCase
         return $this->guard->veto_rest_insert( $prepared, null );
     }
 
+    /**
+     * assertSame() for a test that runs in its own process.
+     *
+     * There, a failed assertSame() reports a serialization error and not the
+     * difference: the comparison failure carries a stack trace that holds this
+     * class's mocks. This puts the difference in the message.
+     *
+     * @param mixed $expected Expected value.
+     * @param mixed $actual   Actual value.
+     */
+    private function assert_same_in_isolation( $expected, $actual ): void
+    {
+        $this->assertTrue(
+            $expected === $actual,
+            sprintf( 'Expected %s, got %s.', var_export( $expected, true ), var_export( $actual, true ) )
+        );
+    }
+
     // =========================================================================
     // The veto fires
     // =========================================================================
@@ -356,10 +374,9 @@ class PublishBoundaryGuardTest extends TestCase
 
     /**
      * The veto queues the classic-path notice, naming the post and the workflow,
-     * saying the post can't be published directly, and naming the workflow as
-     * the way through. It does not suggest leaving the workflow: this is what a
-     * habitual Publish click produces, and removal is a deliberate act in the
-     * sidebar.
+     * saying the post can't be published directly, naming the workflow as the
+     * way through, and naming the override role to ask otherwise. It does not
+     * suggest leaving the workflow: only the override roles can.
      */
     public function test_veto_queues_an_admin_notice_naming_the_workflow_route(): void
     {
@@ -371,7 +388,7 @@ class PublishBoundaryGuardTest extends TestCase
 
         $message = (string) reset( $this->transients );
         $this->assertSame(
-            '“Test Post” is in the “Test Workflow” workflow, so it can’t be published directly. Move it through the workflow to a published stage.',
+            '“Test Post” is in the “Test Workflow” workflow, so it can’t be published directly. Move it through the workflow to a published stage. Ask someone with the Administrator role to publish it.',
             $message
         );
         $this->assertStringNotContainsStringIgnoringCase( 'remove', $message );
@@ -389,7 +406,7 @@ class PublishBoundaryGuardTest extends TestCase
 
         $message = (string) reset( $this->transients );
         $this->assertSame(
-            '“Test Post” is in the “Test Workflow” workflow, so its status can’t be changed directly. Move it through the workflow instead.',
+            '“Test Post” is in the “Test Workflow” workflow, so its status can’t be changed directly. Move it through the workflow instead. Ask someone with the Administrator role to change it.',
             $message
         );
     }
@@ -417,7 +434,9 @@ class PublishBoundaryGuardTest extends TestCase
     /**
      * A post whose sequence row is gone is the orphan the client calls a
      * deleted workflow, so the server refuses it in the client's own words
-     * (getOrphanedWorkflowMessage()): one sentence for one situation.
+     * (getOrphanedWorkflowMessage()): one message for one situation. Removal is
+     * the only way out and only the override roles can take it, so it names
+     * them rather than telling the reader to remove it.
      */
     public function test_a_post_in_a_deleted_workflow_gets_the_clients_sentence(): void
     {
@@ -430,7 +449,7 @@ class PublishBoundaryGuardTest extends TestCase
         );
 
         $this->assertSame(
-            '“Test Post” is in a deleted workflow. Remove it from the workflow to change its status.',
+            '“Test Post” is in a deleted workflow, so its status can’t be changed. Ask someone with the Administrator role to remove it from the workflow.',
             (string) reset( $this->transients )
         );
     }
@@ -454,8 +473,74 @@ class PublishBoundaryGuardTest extends TestCase
 
         $this->assertStringContainsString( 'built without the target status', $log );
         $this->assertSame(
-            '“Test Post” is in the “Test Workflow” workflow, so its status can’t be changed directly. Move it through the workflow instead.',
+            '“Test Post” is in the “Test Workflow” workflow, so its status can’t be changed directly. Move it through the workflow instead. Ask someone with the Administrator role to change it.',
             $message
+        );
+    }
+
+    /**
+     * Build the veto message for the fixture post with the given override
+     * roles configured.
+     *
+     * @param  string[] $roles           Override role slugs.
+     * @param  string   $target_status   Status the refused change would write.
+     * @param  bool     $sequence_exists Whether the post's sequence row still exists.
+     * @return string
+     */
+    private function veto_message_with_roles( array $roles, string $target_status, bool $sequence_exists = true ): string
+    {
+        $this->stub_workflow_post( 'review', 'draft', $sequence_exists );
+        Functions\when( 'get_option' )->justReturn( array( 'bypass_workflow_roles' => $roles ) );
+        $method = new \ReflectionMethod( PublishBoundaryGuard::class, 'veto_message' );
+
+        $message = '';
+        $this->capture_log(
+            function () use ( $method, $target_status, &$message ): void {
+                $message = $method->invoke( $this->guard, self::POST_ID, 'Test Post', $target_status );
+            }
+        );
+
+        return $message;
+    }
+
+    /**
+     * Each veto message names every override role, in the configured order,
+     * with a sentence for one role and one for several, and ends at the way
+     * through when no role is configured. The literal strings are the same
+     * ones tests/unit-js/workflow-side-effect.test.js asserts for the client.
+     *
+     * @dataProvider provide_veto_messages_by_roles
+     *
+     * @param string[] $roles           Override role slugs.
+     * @param string   $target_status   Status the refused change would write.
+     * @param bool     $sequence_exists Whether the post's sequence row still exists.
+     * @param string   $expected        The message.
+     */
+    public function test_veto_message_names_the_override_roles( array $roles, string $target_status, bool $sequence_exists, string $expected ): void
+    {
+        $this->assertSame( $expected, $this->veto_message_with_roles( $roles, $target_status, $sequence_exists ) );
+    }
+
+    /**
+     * @return array<string, array{0: string[], 1: string, 2: bool, 3: string}>
+     */
+    public static function provide_veto_messages_by_roles(): array
+    {
+        $publish = '“Test Post” is in the “Test Workflow” workflow, so it can’t be published directly. Move it through the workflow to a published stage.';
+        $change  = '“Test Post” is in the “Test Workflow” workflow, so its status can’t be changed directly. Move it through the workflow instead.';
+        $deleted = '“Test Post” is in a deleted workflow, so its status can’t be changed.';
+
+        return array(
+            'publish, one role'       => array( array( 'administrator' ), 'publish', true, $publish . ' Ask someone with the Administrator role to publish it.' ),
+            'publish, two roles'      => array( array( 'editor', 'administrator' ), 'publish', true, $publish . ' Ask someone with one of these roles to publish it: Editor, Administrator.' ),
+            'publish, no roles'       => array( array(), 'publish', true, $publish ),
+            'unpublish, one role'     => array( array( 'administrator' ), 'draft', true, $change . ' Ask someone with the Administrator role to change it.' ),
+            'unpublish, two roles'    => array( array( 'editor', 'administrator' ), 'draft', true, $change . ' Ask someone with one of these roles to change it: Editor, Administrator.' ),
+            'unpublish, no roles'     => array( array(), 'draft', true, $change ),
+            'deleted, one role'       => array( array( 'administrator' ), 'publish', false, $deleted . ' Ask someone with the Administrator role to remove it from the workflow.' ),
+            'deleted, two roles'      => array( array( 'editor', 'administrator' ), 'publish', false, $deleted . ' Ask someone with one of these roles to remove it from the workflow: Editor, Administrator.' ),
+            'deleted, no roles'       => array( array(), 'publish', false, $deleted ),
+            'unregistered role slug'  => array( array( 'no_such_role', 'editor' ), 'publish', true, $publish . ' Ask someone with the Editor role to publish it.' ),
         );
     }
 
@@ -709,9 +794,10 @@ class PublishBoundaryGuardTest extends TestCase
     }
 
     /**
-     * Autosaves are core bookkeeping, not an editorial decision.
+     * A write to an autosave (a revision row) is core bookkeeping, not an
+     * editorial decision.
      */
-    public function test_autosave_is_exempt(): void
+    public function test_a_write_to_an_autosave_is_exempt(): void
     {
         $this->stub_workflow_post( 'review', 'draft' );
         Functions\when( 'wp_is_post_autosave' )->justReturn( true );
@@ -719,6 +805,60 @@ class PublishBoundaryGuardTest extends TestCase
         $data = $this->filter_data( 'publish' );
 
         $this->assertSame( 'publish', $data['post_status'] );
+    }
+
+    /**
+     * An autosave request that writes to the post itself is a save like any
+     * other: a status change it carries is checked at the boundary.
+     *
+     * DOING_AUTOSAVE stays defined once set, so each of these runs alone.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_checks_a_status_change_made_during_an_autosave_request(): void
+    {
+        define( 'DOING_AUTOSAVE', true );
+        $this->stub_workflow_post( 'review', 'draft' );
+
+        $data = $this->filter_data( 'publish' );
+
+        $this->assert_same_in_isolation( 'draft', $data['post_status'] );
+    }
+
+    /**
+     * Over REST, that change gets the error an ordinary save gets.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_rest_insert_returns_an_error_during_an_autosave_request(): void
+    {
+        define( 'DOING_AUTOSAVE', true );
+        $this->stub_workflow_post( 'review', 'draft' );
+
+        $result = $this->filter_rest( 'publish' );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assert_same_in_isolation( 'vip_workflows_publish_boundary', $result->get_error_code() );
+    }
+
+    /**
+     * The first autosave of a new post moves it from auto-draft to draft. Both
+     * are on the unpublished side, so the save lands and nothing is queued.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_an_autosave_request_can_move_an_auto_draft_to_draft(): void
+    {
+        define( 'DOING_AUTOSAVE', true );
+        $this->stub_workflow_post( 'draft', 'auto-draft' );
+
+        $data = $this->filter_data( 'draft' );
+
+        $this->assert_same_in_isolation( 'draft', $data['post_status'] );
+        $this->assert_same_in_isolation( array(), $this->transients );
     }
 
     /**

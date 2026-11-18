@@ -42,6 +42,15 @@
 	max-width: 100%;
 }
 
+/* A value this user can't change, drawn as text where the trigger would be.
+   Core's `.editor-post-status.is-read-only` padding, so the text lines up with
+   the trigger labels in the rows around it. */
+.vip-workflows-sidebar-row__value.is-read-only {
+	/* wpds-allow R2 -- core's .editor-post-status.is-read-only padding (6px 12px), the inset of a compact Button's label; no wpds dimension token holds it. */
+	padding: 6px 12px;
+	overflow-wrap: anywhere;
+}
+
 /* The value trigger holds arbitrary editorial text, so it wraps like core's
    row-control buttons instead of clipping on one line. */
 /* wpds-allow R6 -- mirrors core's .editor-post-panel__row-control button treatment; Button exposes no multiline/left-aligned value props. */

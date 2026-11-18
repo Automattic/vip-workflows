@@ -231,6 +231,22 @@ abstract class TestCase extends YoastTestCase
                 // Cron teardown — no-op. Scheduling itself is stubbed per test,
                 // since its return value is what the code under test branches on.
                 'wp_clear_scheduled_hook' => 0,
+                // Core's roles, by display name. Settings::get_override_role_names()
+                // reads these to name who to ask in a refusal.
+                'wp_roles'            => function () {
+                    return (object) array(
+                        'role_names' => array(
+                            'administrator' => 'Administrator',
+                            'editor'        => 'Editor',
+                            'author'        => 'Author',
+                            'contributor'   => 'Contributor',
+                            'subscriber'    => 'Subscriber',
+                        ),
+                    );
+                },
+                'translate_user_role' => function ( $name ) {
+                    return $name;
+                },
             )
         );
 
