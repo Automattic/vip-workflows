@@ -781,15 +781,17 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 						</Text>
 						{ /* wpds-allow R7 -- muted hint text (body-md token + fg-weak color; no Text color prop) */ }
 						<span className="vip-workflows-ideation-workspace__drop-hint">
-							{ isTranscriptionAvailable()
-								? __(
-										'Images, audio, video, PDFs and documents. OpenAI transcribes audio and video.',
-										'vip-workflows'
-									)
-								: `${ __(
-										'Images, audio, video, PDFs and documents.',
-										'vip-workflows'
-									) } ${ transcriptionUnavailableWarning() }` }
+							{ `${ __(
+								'Images, audio, video, PDFs and documents.',
+								'vip-workflows'
+							) } ${
+								isTranscriptionAvailable()
+									? __(
+											'OpenAI transcribes audio and video.',
+											'vip-workflows'
+										)
+									: transcriptionUnavailableWarning()
+							}` }
 						</span>
 					</Stack>
 				</div>
