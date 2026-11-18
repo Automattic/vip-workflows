@@ -9,6 +9,11 @@
  * Create Draft leaves behind: the draft itself, its link to the project and the
  * story, and its category.
  *
+ * The model listing and the Responses call are the only canned layer; every
+ * other HTTP request is refused, so nothing reaches the network. Set the reply
+ * with `reply_with()`, call `dispatch_create_draft()`, and read the post back
+ * with `created_post()`.
+ *
  * @package VIPWorkflows\Tests\Integration
  */
 
@@ -39,7 +44,17 @@ class IdeationCreateDraftTest extends TestCase
     private const DRAFT_BODY = "Three councils will vote on rent caps this spring.\n\nTenant groups say the caps are overdue.";
 
     /**
-     * URLs the canned HTTP layer answered, in order.
+     * The draft the canned provider reply carries.
+     *
+     * @var array{title: string, body: string}
+     */
+    private array $reply = array(
+        'title' => self::DRAFT_TITLE,
+        'body'  => self::DRAFT_BODY,
+    );
+
+    /**
+     * HTTP requests the route made, in order, as "METHOD url".
      *
      * @var string[]
      */
@@ -254,23 +269,25 @@ class IdeationCreateDraftTest extends TestCase
     }
 
     /**
-     * Canned OpenAI replies: the model list, and one draft.
+     * Canned OpenAI replies: the model list, and one draft carrying
+     * `$this->reply`. Every other request is refused.
      *
      * @param  false|array $preempt Whether to preempt the request.
      * @param  array       $args    Request arguments.
      * @param  string      $url     Request URL.
-     * @return false|array
+     * @return array|\WP_Error
      */
     public function answer_provider( $preempt, $args, $url )
     {
-        $host = (string) wp_parse_url( $url, PHP_URL_HOST );
-        $path = (string) wp_parse_url( $url, PHP_URL_PATH );
+        $method           = strtoupper( (string) ( $args['method'] ?? 'GET' ) );
+        $this->requests[] = $method . ' ' . $url;
+
+        $host = (string) wp_parse_url( (string) $url, PHP_URL_HOST );
+        $path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
 
         if ( 'api.openai.com' !== $host ) {
-            return $preempt;
+            return new \WP_Error( 'http_request_blocked', 'No network in this test.' );
         }
-
-        $this->requests[] = $url;
 
         if ( '/v1/models' === $path ) {
             return $this->json_response(
@@ -298,12 +315,7 @@ class IdeationCreateDraftTest extends TestCase
                             'content' => array(
                                 array(
                                     'type' => 'output_text',
-                                    'text' => (string) wp_json_encode(
-                                        array(
-                                            'title' => self::DRAFT_TITLE,
-                                            'body'  => self::DRAFT_BODY,
-                                        )
-                                    ),
+                                    'text' => (string) wp_json_encode( $this->reply ),
                                 ),
                             ),
                         ),
@@ -317,7 +329,7 @@ class IdeationCreateDraftTest extends TestCase
             );
         }
 
-        return $preempt;
+        return new \WP_Error( 'http_request_blocked', 'No network in this test.' );
     }
 
     /**
@@ -346,8 +358,8 @@ class IdeationCreateDraftTest extends TestCase
         $this->assertSame( get_edit_post_link( $post_id, 'raw' ), $response->get_data()['edit_url'] );
 
         $this->assertSame(
-            array( 'https://api.openai.com/v1/responses' ),
-            array_values( array_filter( $this->requests, static fn ( string $url ): bool => str_ends_with( $url, '/responses' ) ) ),
+            array( 'POST https://api.openai.com/v1/responses' ),
+            array_values( array_filter( $this->requests, static fn ( string $request ): bool => str_ends_with( $request, '/responses' ) ) ),
             'Exactly one generation request is made.'
         );
     }
@@ -420,18 +432,148 @@ class IdeationCreateDraftTest extends TestCase
     }
 
     /**
+     * A drafted body keeps every backslash: a Windows path and a regex inside a
+     * code sample are stored exactly as the model wrote them.
+     */
+    public function test_backslashes_in_the_drafted_body_are_kept(): void
+    {
+        $body = "Open the folder first.\n\n```\ncd C:\\Users\\tom\npattern = /\\d+\\.\\w/\n```";
+
+        $this->reply_with( 'Working with paths', $body );
+
+        $post = $this->created_post( $this->dispatch_create_draft( $this->project() ) );
+
+        $this->assertStringContainsString( 'C:\\Users\\tom', $post->post_content );
+        $this->assertStringContainsString( '\\d+\\.\\w', $post->post_content );
+        $this->assertSame(
+            DraftBuilder::markdown_to_blocks( $body ),
+            $post->post_content,
+            'The stored content is exactly what the draft builder produced.'
+        );
+    }
+
+    /**
+     * A drafted title keeps its backslash after `sanitize_text_field()`.
+     */
+    public function test_backslashes_in_the_drafted_title_are_kept(): void
+    {
+        $title = 'Why C:\\temp fills up';
+
+        $this->reply_with( $title, 'A body.' );
+
+        $post = $this->created_post( $this->dispatch_create_draft( $this->project() ) );
+
+        $this->assertSame( sanitize_text_field( $title ), $post->post_title );
+        $this->assertStringContainsString( 'C:\\temp', $post->post_title );
+    }
+
+    /**
+     * A draft with no backslashes is stored byte for byte as built, and the rest
+     * of the post is what the route has always written.
+     */
+    public function test_a_draft_without_backslashes_is_unchanged(): void
+    {
+        $body = "First paragraph with \"quotes\" and it's apostrophe.\n\n- one\n- two\n\n> A quote.";
+
+        $this->reply_with( 'Plain "quoted" title', $body );
+
+        $project  = $this->project();
+        $response = $this->dispatch_create_draft( $project );
+        $post     = $this->created_post( $response );
+
+        $this->assertSame( DraftBuilder::markdown_to_blocks( $body ), $post->post_content );
+        $this->assertSame( 'Plain "quoted" title', $post->post_title );
+        $this->assertSame( 'post', $post->post_type );
+        $this->assertSame( 'draft', $post->post_status );
+        $this->assertSame( get_current_user_id(), (int) $post->post_author );
+        $this->assertSame( $project, (int) get_post_meta( $post->ID, '_vip_ideation_project_id', true ) );
+        $this->assertContains( 'POST https://api.openai.com/v1/responses', $this->requests, 'The draft came from the canned provider reply.' );
+    }
+
+    /** The real REST route stores the provider's decoded JSON exactly once. */
+    public function test_rest_do_request_preserves_title_and_block_attribute_escapes(): void
+    {
+        $title = 'C:\Users\tom "quoted"';
+        $attrs = array( 'metadata' => array( 'name' => 'C:\Users\tom "quoted" <tag>' ) );
+        $body = '<!-- wp:paragraph ' . wp_json_encode( $attrs, JSON_HEX_TAG ) . ' -->' . "\n"
+            . '<p title="C:\Users\tom">C:\Users\tom and it\'s "quoted"</p>' . "\n<!-- /wp:paragraph -->";
+        $this->reply_with( $title, $body );
+        $request = new WP_REST_Request( 'POST', sprintf( self::ROUTE, $this->project() ) );
+        $request->set_header( 'Content-Type', 'application/json' );
+        $request->set_body( wp_json_encode( array( 'word_count' => 500 ) ) );
+        $post = $this->created_post( rest_do_request( $request ) );
+        $expected = DraftBuilder::markdown_to_blocks( $body );
+        $this->assertSame( $title, $post->post_title );
+        $this->assertSame( $expected, $post->post_content );
+        $this->assertSame( parse_blocks( $expected )[0]['attrs'], parse_blocks( $post->post_content )[0]['attrs'] );
+        $this->assertSame( 'C:\Users\tom "quoted" <tag>', parse_blocks( $post->post_content )[0]['attrs']['metadata']['name'] );
+    }
+
+    public function test_author_create_draft_uses_core_kses_slashing_contract(): void
+    {
+        wp_set_current_user( self::factory()->user->create( array( 'role' => 'author' ) ) );
+        kses_init();
+        $this->assertFalse( current_user_can( 'unfiltered_html' ) );
+        $title = 'C:\Users\tom "quoted"';
+        $body = '<!-- wp:paragraph -->' . "\n" . '<p title="C:\Users\tom">C:\Users\tom and it\'s "quoted"</p>' . "\n<!-- /wp:paragraph -->";
+        $this->reply_with( $title, $body );
+        $request = new WP_REST_Request( 'POST', sprintf( self::ROUTE, $this->project() ) );
+        $request->set_header( 'Content-Type', 'application/json' );
+        $request->set_body( wp_json_encode( array( 'word_count' => 500 ) ) );
+        $post = $this->created_post( rest_do_request( $request ) );
+        $expected = DraftBuilder::markdown_to_blocks( $body );
+        $this->assertSame( $title, $post->post_title );
+        $this->assertSame( $expected, $post->post_content );
+        $this->assertSame( get_current_user_id(), (int) $post->post_author );
+    }
+
+    /**
+     * Set the draft the next provider reply carries.
+     *
+     * @param string $title Drafted title.
+     * @param string $body  Drafted markdown body.
+     */
+    private function reply_with( string $title, string $body ): void
+    {
+        $this->reply = array(
+            'title' => $title,
+            'body'  => $body,
+        );
+    }
+
+    /**
      * Dispatch the route and return the response.
      *
-     * @param  int $project_id Ideation project.
+     * @param  int   $project_id Ideation project.
+     * @param  array $body       Request body parameters.
      * @return WP_REST_Response
      */
-    private function dispatch_create_draft( int $project_id ): WP_REST_Response
+    private function dispatch_create_draft( int $project_id, array $body = array( 'word_count' => 300 ) ): WP_REST_Response
     {
         $request = new WP_REST_Request( 'POST', sprintf( self::ROUTE, $project_id ) );
         $request->set_header( 'Content-Type', 'application/json' );
-        $request->set_body( (string) wp_json_encode( array( 'word_count' => 300 ) ) );
+        $request->set_body( (string) wp_json_encode( $body ) );
 
         return rest_get_server()->dispatch( $request );
+    }
+
+    /**
+     * The post a successful response created.
+     *
+     * @param  WP_REST_Response $response Route response.
+     * @return \WP_Post
+     */
+    private function created_post( WP_REST_Response $response ): \WP_Post
+    {
+        $this->assertSame( 201, $response->get_status(), (string) wp_json_encode( $response->get_data() ) );
+
+        $post_id = (int) ( $response->get_data()['post_id'] ?? 0 );
+        clean_post_cache( $post_id );
+
+        $post = get_post( $post_id );
+        $this->assertInstanceOf( \WP_Post::class, $post );
+
+        return $post;
     }
 
     /**
