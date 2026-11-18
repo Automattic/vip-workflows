@@ -535,10 +535,15 @@ class WorkflowRequirementGuardTest extends TestCase
     }
 
     /**
-     * Autosaves, revisions and a workflow commit in progress are exempt.
+     * A write to an autosave or a revision, and a workflow commit in progress,
+     * are exempt.
      */
     public function test_allows_autosaves_revisions_and_workflow_commits(): void
     {
+        Functions\when( 'wp_is_post_autosave' )->justReturn( 7 );
+        $this->assertSame( 'publish', $this->filter_update( 'publish' )['post_status'] );
+
+        Functions\when( 'wp_is_post_autosave' )->justReturn( false );
         Functions\when( 'wp_is_post_revision' )->justReturn( 7 );
         $this->assertSame( 'publish', $this->filter_update( 'publish' )['post_status'] );
 
@@ -576,6 +581,44 @@ class WorkflowRequirementGuardTest extends TestCase
         define( 'DOING_CRON', true );
 
         $this->assertSame( 'publish', $this->filter_update( 'publish' )['post_status'] );
+    }
+
+    /**
+     * An autosave request that writes to the post itself is checked like any
+     * other save: the publish is refused and the stored status is kept.
+     *
+     * DOING_AUTOSAVE stays defined once set, so this runs alone. It compares
+     * with assertTrue(): in a separate process a failed assertSame() in this
+     * class reports a serialization error and not the difference, because the
+     * comparison failure's stack trace holds the class's mocks.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_refuses_a_publish_made_during_an_autosave_request(): void
+    {
+        define( 'DOING_AUTOSAVE', true );
+
+        $status = $this->filter_update( 'publish' )['post_status'];
+
+        $this->assertTrue( 'draft' === $status, "Expected 'draft', got '{$status}'." );
+    }
+
+    /**
+     * Over REST, that publish gets the 409 an ordinary save gets.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_rest_refuses_a_publish_made_during_an_autosave_request(): void
+    {
+        define( 'DOING_AUTOSAVE', true );
+
+        $result = $this->filter_rest( 'publish' );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $code = $result->get_error_code();
+        $this->assertTrue( 'vip_workflows_workflow_required' === $code, "Expected 'vip_workflows_workflow_required', got '{$code}'." );
     }
 
     /**
