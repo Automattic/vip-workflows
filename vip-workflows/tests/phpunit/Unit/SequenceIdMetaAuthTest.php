@@ -13,8 +13,8 @@ use Brain\Monkey\Functions;
 use VIPWorkflows\Plugin;
 
 /**
- * Verifies the _vip_workflows_sequence_id post meta enforces per-object edit
- * rights, not a bare edit_posts capability.
+ * Verifies the _vip_workflows_sequence_id post meta grants no meta capability
+ * to anyone, so it keeps core's protected-meta default deny.
  */
 class SequenceIdMetaAuthTest extends TestCase
 {
@@ -47,7 +47,10 @@ class SequenceIdMetaAuthTest extends TestCase
         return $captured;
     }
 
-    public function test_auth_callback_requires_edit_post_on_the_target_post(): void
+    /**
+     * Edit rights on the post don't grant the meta capability.
+     */
+    public function test_auth_callback_denies_a_user_who_can_edit_the_post(): void
     {
         $auth = $this->capture_sequence_id_auth_callback();
 
@@ -55,7 +58,19 @@ class SequenceIdMetaAuthTest extends TestCase
             fn( $capability, $post_id = null ) => 'edit_post' === $capability && 123 === $post_id
         );
 
-        $this->assertTrue( $auth( true, '_vip_workflows_sequence_id', 123 ) );
-        $this->assertFalse( $auth( true, '_vip_workflows_sequence_id', 456 ) );
+        $this->assertFalse( $auth( true, '_vip_workflows_sequence_id', 123 ) );
+        $this->assertFalse( $auth( false, '_vip_workflows_sequence_id', 123 ) );
+    }
+
+    /**
+     * Neither does holding every capability, as an administrator does.
+     */
+    public function test_auth_callback_denies_an_administrator(): void
+    {
+        $auth = $this->capture_sequence_id_auth_callback();
+
+        Functions\when( 'current_user_can' )->justReturn( true );
+
+        $this->assertFalse( $auth( true, '_vip_workflows_sequence_id', 123 ) );
     }
 }
