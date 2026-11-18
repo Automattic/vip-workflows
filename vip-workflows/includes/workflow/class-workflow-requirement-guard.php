@@ -347,10 +347,15 @@ class WorkflowRequirementGuard {
 	 *
 	 * WP-CLI is exempt outright, with or without `--user`: imports and
 	 * maintenance scripts run there. The constant is read directly and can't be
-	 * filtered. Cron, autosaves, revisions, a workflow commit in progress and
-	 * writes with no logged-in user are system contexts, as for
+	 * filtered. Cron, a write to an autosave or a revision, a workflow commit
+	 * in progress and writes with no logged-in user are system contexts, as for
 	 * PublishBoundaryGuard; wp_doing_cron() can be filtered, so DOING_CRON is
 	 * checked too. Override roles may publish without a workflow.
+	 *
+	 * The autosave exemption follows the row that is written, not the request:
+	 * an autosave request that writes to the post itself is checked like any
+	 * other save. One that only saves content sets no publish-side status, so
+	 * it passes.
 	 *
 	 * @param  int    $post_id   Post ID (0 for a new post).
 	 * @param  string $post_type Post type of the write.
@@ -362,10 +367,6 @@ class WorkflowRequirementGuard {
 		}
 
 		if ( wp_doing_cron() || ( defined( 'DOING_CRON' ) && DOING_CRON ) ) {
-			return true;
-		}
-
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
 			return true;
 		}
 
