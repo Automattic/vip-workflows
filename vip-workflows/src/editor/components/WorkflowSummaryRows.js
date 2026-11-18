@@ -42,7 +42,6 @@ import {
 	getSwitchWorkflowConfirmLabel,
 	getSwitchWorkflowConfirmTitle,
 	getSwitchWorkflowConfirmation,
-	getWorkflowChangeRestrictedMessage,
 } from '../../common/confirm-workflow-side-effect';
 import { MetadataPanel } from './MetadataPanel';
 import { WorkflowRow } from './WorkflowRow';
@@ -203,17 +202,14 @@ export function WorkflowSummaryRows( { grouped = true } = {} ) {
 		// Only the workflow override roles can remove a post from its workflow
 		// or change the workflow it is in; the server refuses anyone else with
 		// a 403. So for a post that has a workflow (or a deleted one), anyone
-		// else is shown who can rather than offered the picker and the Remove
-		// button. The server's check is the authority; this only hides what it
-		// would refuse. A missing guard on such a post is a data-integrity
-		// condition the save guard already reports; it hides the controls too.
-		const restrictedMessage =
-			( workflow?.has_workflow || workflow?.orphaned ) &&
-			! workflow?.guard?.can_bypass
-				? getWorkflowChangeRestrictedMessage(
-						workflow?.guard?.override_roles
-					)
-				: undefined;
+		// else sees the workflow as plain text, with no picker, no Remove
+		// button and nothing to click. The server's check is the authority;
+		// this only hides what it would refuse. A missing guard on such a post
+		// is a data-integrity condition the save guard already reports; it
+		// hides the controls too.
+		const readOnly =
+			( !! workflow?.has_workflow || !! workflow?.orphaned ) &&
+			! workflow?.guard?.can_bypass;
 
 		// The post's sequence was deleted out from under it. The save layer
 		// still reads the surviving sequence meta and refuses every status
@@ -225,7 +221,7 @@ export function WorkflowSummaryRows( { grouped = true } = {} ) {
 					orphaned
 					disabled={ busy || transitioning }
 					onRemove={ handleRemoveWorkflow }
-					restrictedMessage={ restrictedMessage }
+					readOnly={ readOnly }
 				/>
 			);
 		}
@@ -244,7 +240,7 @@ export function WorkflowSummaryRows( { grouped = true } = {} ) {
 				availableSequences={ availableSequences }
 				disabled={ busy || transitioning }
 				onSelect={ handleWorkflowSelect }
-				restrictedMessage={ restrictedMessage }
+				readOnly={ readOnly }
 				// An enforced workflow offers no way out.
 				onRemove={
 					'require' === workflowEnforcement

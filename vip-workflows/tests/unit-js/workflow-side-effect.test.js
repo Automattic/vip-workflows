@@ -22,7 +22,6 @@ import {
 	getStatusChangeWarning,
 	getTransitionPublishWarning,
 	getTransitionWarningsMessage,
-	getWorkflowChangeRestrictedMessage,
 	statusToRegion,
 } from '../../src/common/confirm-workflow-side-effect';
 
@@ -594,30 +593,6 @@ describe( 'veto messages name the override roles', () => {
 		expect(
 			getOrphanedWorkflowMessage( { title: 'Test Post', overrideRoles } )
 		).toBe( expected );
-	} );
-} );
-
-// The same sentence the server's 403 carries
-// (StatusManager::workflow_change_restricted_message(), pinned in
-// tests/phpunit/Unit/StatusManagerBoundaryTest.php).
-describe( 'getWorkflowChangeRestrictedMessage', () => {
-	it.each( [
-		[
-			[ 'Administrator' ],
-			'Only someone with the Administrator role can remove a post from its workflow or change its workflow.',
-		],
-		[
-			[ 'Editor', 'Administrator' ],
-			'Only someone with one of these roles can remove a post from its workflow or change its workflow: Editor, Administrator.',
-		],
-		[
-			[],
-			'You can’t remove a post from its workflow or change its workflow.',
-		],
-	] )( 'names %j', ( overrideRoles, expected ) => {
-		expect( getWorkflowChangeRestrictedMessage( overrideRoles ) ).toBe(
-			expected
-		);
 	} );
 } );
 

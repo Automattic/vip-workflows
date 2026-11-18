@@ -1948,11 +1948,6 @@ class StatusManager {
 	/**
 	 * The sentence for a refused removal or replacement: who can do it.
 	 *
-	 * The editor shows the same sentence in place of the controls it hides
-	 * (getWorkflowChangeRestrictedMessage() in
-	 * src/common/confirm-workflow-side-effect.js). The two MUST stay identical
-	 * to the character; change them together.
-	 *
 	 * @param  string[] $role_names Override role display names (Settings::get_override_role_names()).
 	 * @return string
 	 */

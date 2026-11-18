@@ -782,49 +782,6 @@ export function getOrphanedWorkflowMessage( { title, overrideRoles = [] } ) {
 }
 
 /**
- * Copy for a user who can't remove a post from its workflow or change it.
- *
- * Only the workflow override roles can remove a post from its workflow or
- * replace the workflow it is in. The editor shows this in place of the
- * controls it withholds from everyone else, and it is the same sentence the
- * server's 403 carries (`StatusManager::workflow_change_restricted_message()`).
- * The two MUST stay identical to the character; change them together.
- *
- * @param {string[]} overrideRoles Display names of the workflow override roles.
- * @return {string} Translated message.
- */
-export function getWorkflowChangeRestrictedMessage( overrideRoles = [] ) {
-	const roles = overrideRoles || [];
-
-	if ( roles.length === 0 ) {
-		return __(
-			'You can’t remove a post from its workflow or change its workflow.',
-			'vip-workflows'
-		);
-	}
-
-	if ( roles.length === 1 ) {
-		return sprintf(
-			/* translators: %s: role name, e.g. "Administrator". */
-			__(
-				'Only someone with the %s role can remove a post from its workflow or change its workflow.',
-				'vip-workflows'
-			),
-			roles[ 0 ]
-		);
-	}
-
-	return sprintf(
-		/* translators: %s: comma-separated role names, e.g. "Editor, Administrator". */
-		__(
-			'Only someone with one of these roles can remove a post from its workflow or change its workflow: %s.',
-			'vip-workflows'
-		),
-		roles.join( ', ' )
-	);
-}
-
-/**
  * Copy for the confirm that precedes removing a post from a deleted workflow.
  *
  * The sibling of getRemoveFromWorkflowConfirmation() for the case where there
