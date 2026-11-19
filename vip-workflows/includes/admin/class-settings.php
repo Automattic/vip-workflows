@@ -204,12 +204,14 @@ class Settings {
 	/**
 	 * Check if a user holds a workflow override role.
 	 *
-	 * The override grants four things: every transition is offered regardless
+	 * The override grants five things: every transition is offered regardless
 	 * of its `allowed_roles`, empty required fields do not block a move into
 	 * the publish region, the publish-boundary veto on a direct status change
-	 * becomes a confirm, and only an override user can remove a post from its
+	 * becomes a confirm, only an override user can remove a post from its
 	 * workflow or replace the workflow it is in
-	 * (StatusManager::remove_sequence(), StatusManager::assign_sequence()).
+	 * (StatusManager::remove_sequence(), StatusManager::assign_sequence()),
+	 * and a post with no workflow can be published when the enforcement
+	 * mode is "require" (WorkflowRequirementGuard).
 	 *
 	 * @param  int|null $user_id User ID. Default current user.
 	 * @return bool
