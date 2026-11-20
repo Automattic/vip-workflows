@@ -17,6 +17,7 @@ import {
 	useCallback,
 	lazy,
 	Suspense,
+	createPortal,
 } from '@wordpress/element';
 import { SnackbarList, Spinner } from '@wordpress/components';
 import { useSelect, useDispatch } from '@wordpress/data';
@@ -239,7 +240,22 @@ export default function AppShell() {
 					</ErrorBoundary>
 				</div>
 			</div>
-			<SnackbarList notices={ notices } onRemove={ removeNotice } />
+			{ /* The app's one notice region. Portalled to <body>, outside every
+			     screen's scrolling box and stacking context, so a message lands
+			     where it is read — the viewport — rather than at the end of
+			     whatever page raised it, which on a tall screen is below the
+			     fold. Screens report a notice to `core/notices`; where it
+			     appears, and what it paints over, is decided here and in
+			     layout.css, once. */ }
+			{ createPortal(
+				<div className="vip-workflows-notice-region">
+					<SnackbarList
+						notices={ notices }
+						onRemove={ removeNotice }
+					/>
+				</div>,
+				document.body
+			) }
 		</>
 	);
 }
