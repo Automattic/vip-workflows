@@ -225,6 +225,22 @@ class SequencesControllerTest extends TestCase
         $this->assertTrue( $result );
     }
 
+    /**
+     * Test export_item_permissions_check requires manage_options, not edit_posts.
+     */
+    public function test_export_requires_admin(): void
+    {
+        Functions\expect( 'current_user_can' )
+            ->once()
+            ->with( 'manage_options' )
+            ->andReturn( false );
+
+        $request = $this->create_mock_request( array( 'id' => 1 ) );
+        $result  = $this->controller->export_item_permissions_check( $request );
+
+        $this->assertFalse( $result );
+    }
+
     // =========================================================================
     // GET /sequences Tests
     // =========================================================================

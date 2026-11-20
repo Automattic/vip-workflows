@@ -494,8 +494,8 @@ class SequenceAuditRestTest extends TestCase
     public function test_export_writes_one_exported_row_as_the_user(): void
     {
         $sequence = $this->create_sequence();
-        $editor   = self::factory()->user->create( array( 'role' => 'editor' ) );
-        wp_set_current_user( $editor );
+        $exporter = self::factory()->user->create( array( 'role' => 'administrator' ) );
+        wp_set_current_user( $exporter );
 
         $response = $this->export( $sequence->id );
         $this->assertSame( 200, $response->get_status() );
@@ -505,7 +505,7 @@ class SequenceAuditRestTest extends TestCase
         $this->assertCount( 1, $rows );
         $this->assertSame( 'sequence.exported', $rows[0]['type'] );
         $this->assertSame( 'user', $rows[0]['actor_type'] );
-        $this->assertSame( $editor, $rows[0]['actor_id'] );
+        $this->assertSame( $exporter, $rows[0]['actor_id'] );
         $this->assertNull( $rows[0]['post_id'] );
         $this->assertSame( 'rest', $rows[0]['data']['via'] );
         $this->assertSame( $sequence->id, $rows[0]['data']['sequence_id'] );
@@ -534,13 +534,50 @@ class SequenceAuditRestTest extends TestCase
         $this->assertSame( $before, $this->sequence_row_count() );
     }
 
-    public function test_a_refused_export_writes_nothing(): void
+    /**
+     * Exporting needs manage_options, not just edit_posts: each export writes a row,
+     * so a user who can read sequences can't fill the Audit Log by repeating it.
+     *
+     * @dataProvider provide_roles_that_cannot_export
+     *
+     * @param string $role Role of the user asking for the export.
+     */
+    public function test_a_refused_export_writes_nothing( string $role ): void
     {
         $sequence = $this->create_sequence();
-        wp_set_current_user( self::factory()->user->create( array( 'role' => 'subscriber' ) ) );
+        $before   = $this->sequence_row_count();
+        wp_set_current_user( self::factory()->user->create( array( 'role' => $role ) ) );
 
         $this->assertSame( 403, $this->export( $sequence->id )->get_status() );
+        $this->assertSame( 403, $this->export( $sequence->id )->get_status() );
 
+        $this->assertSame( array(), $this->rows_for( $sequence->id ) );
+        $this->assertSame( $before, $this->sequence_row_count() );
+    }
+
+    /**
+     * Roles refused an export.
+     *
+     * @return array<string, array{string}>
+     */
+    public static function provide_roles_that_cannot_export(): array
+    {
+        return array(
+            'editor'      => array( 'editor' ),
+            'author'      => array( 'author' ),
+            'contributor' => array( 'contributor' ),
+            'subscriber'  => array( 'subscriber' ),
+        );
+    }
+
+    public function test_a_user_who_can_read_a_sequence_cannot_export_it(): void
+    {
+        $sequence = $this->create_sequence();
+        wp_set_current_user( self::factory()->user->create( array( 'role' => 'contributor' ) ) );
+
+        $read = rest_do_request( new \WP_REST_Request( 'GET', '/vip-workflows/v1/sequences/' . $sequence->id ) );
+        $this->assertSame( 200, $read->get_status() );
+        $this->assertSame( 403, $this->export( $sequence->id )->get_status() );
         $this->assertSame( array(), $this->rows_for( $sequence->id ) );
     }
 
@@ -611,7 +648,7 @@ class SequenceAuditRestTest extends TestCase
         }
     }
 
-    public function test_editors_see_only_their_own_exports_and_labeled_filter(): void
+    public function test_editors_neither_export_nor_see_others_exports(): void
     {
         $sequence = $this->create_sequence();
         $this->assertSame( 200, $this->export( $sequence->id )->get_status() );
@@ -620,21 +657,19 @@ class SequenceAuditRestTest extends TestCase
 
         $request = new \WP_REST_Request( 'GET', '/vip-workflows/v1/audit-log' );
         $request->set_param( 'event_type', 'sequence.exported' );
-        $this->assertSame( array(), rest_do_request( $request )->get_data()['events'] );
         $types_request = new \WP_REST_Request( 'GET', '/vip-workflows/v1/audit-log/event-types' );
+
+        $this->assertSame( 403, $this->export( $sequence->id )->get_status() );
+        $this->assertSame( array(), rest_do_request( $request )->get_data()['events'] );
         $types = wp_list_pluck( rest_do_request( $types_request )->get_data(), 'label', 'value' );
         $this->assertArrayNotHasKey( 'sequence.exported', $types );
 
-        $this->assertSame( 200, $this->export( $sequence->id )->get_status() );
+        wp_set_current_user( $this->admin_id );
         $events = rest_do_request( $request )->get_data()['events'];
         $this->assertCount( 1, $events );
-        $this->assertSame( $editor, (int) $events[0]['actor']['id'] );
-        $this->assertSame( 'sequence.exported', $events[0]['event_type'] );
+        $this->assertSame( $this->admin_id, (int) $events[0]['actor']['id'] );
         $types = wp_list_pluck( rest_do_request( $types_request )->get_data(), 'label', 'value' );
         $this->assertSame( 'Sequence exported', $types['sequence.exported'] );
-
-        wp_set_current_user( $this->admin_id );
-        $this->assertCount( 2, rest_do_request( $request )->get_data()['events'] );
     }
 
     // -------------------------------------------------------------------------

@@ -171,7 +171,7 @@ class SequencesController extends WP_REST_Controller {
 				array(
 					'methods'             => WP_REST_Server::READABLE,
 					'callback'            => array( $this, 'export_sequence' ),
-					'permission_callback' => array( $this, 'get_item_permissions_check' ),
+					'permission_callback' => array( $this, 'export_item_permissions_check' ),
 					'args'                => array(
 						'id' => array(
 							'description' => 'Sequence ID.',
@@ -547,6 +547,19 @@ class SequencesController extends WP_REST_Controller {
 	 */
 	public function get_item_permissions_check( $request ) {
 		return current_user_can( 'edit_posts' );
+	}
+
+	/**
+	 * Check if user can export a sequence.
+	 *
+	 * Stricter than viewing one: each served export writes an audit row, so only
+	 * the users who manage sequences can take a copy and add to the Audit Log.
+	 *
+	 * @param  WP_REST_Request $request Request object.
+	 * @return bool|WP_Error
+	 */
+	public function export_item_permissions_check( $request ) {
+		return current_user_can( 'manage_options' );
 	}
 
 	/**
