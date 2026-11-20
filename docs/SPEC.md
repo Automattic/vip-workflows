@@ -273,7 +273,8 @@ The sequence's transition rules are described in [Capabilities and roles](#capab
 
 | Route | Methods | Permission |
 | --- | --- | --- |
-| `/sequences`, `/sequences/{id}`, `/sequences/slug/{slug}`, `/sequences/{id}/export`, `/sequences/{id}/stats`, `/sequences/options` | GET | `edit_posts` |
+| `/sequences`, `/sequences/{id}`, `/sequences/slug/{slug}`, `/sequences/{id}/stats`, `/sequences/options` | GET | `edit_posts` |
+| `/sequences/{id}/export` | GET | `manage_options` |
 | `/sequences` | POST | `manage_options` |
 | `/sequences/import` | write | `manage_options` |
 | `/sequences/{id}` | POST/PUT/PATCH (full replace), DELETE | `manage_options` |
@@ -706,7 +707,7 @@ flowchart LR
 - Every config write (REST, MCP, import, activation, migration replay) passes through the one gate. A new validation rule there needs a schema migration that replays stored rows. → `Sequence::prepare_config_for_write()`
 - A sequence's type never changes.
 - A repository update that removes a stage, or a repository delete, is refused while posts hold that stage or sequence at the time of the check. The check runs in the repository, so REST, MCP, the region repair and extensions all get it; the migration replay, which writes with direct SQL, applies it itself. → `SequenceRepository::update()`, `delete()`, `Schema::stage_keys_with_posts_the_write_would_drop()`
-- Creating, updating, importing and deleting a sequence require `manage_options`. Reading, listing, exporting and stats require `edit_posts`.
+- Creating, updating, importing, exporting and deleting a sequence require `manage_options`; exporting does because each served export writes an audit row. Reading, listing and stats require `edit_posts`.
 
 **Footguns**
 
@@ -968,7 +969,7 @@ flowchart TD
 - Every saved stage change writes exactly one visible transition row.
 - Stage labels are copied at write time, so renaming a stage never rewrites history.
 - Every sequence create, import, update, activation, deactivation and delete that changes the sequence writes exactly one row of its type, and a save that changes nothing writes none. A save that both edits and activates writes one of each.
-- Every export that returns the sequence writes exactly one `sequence.exported` row, as the user who asked for it. An export of a missing sequence, or one refused for lack of `edit_posts`, writes none.
+- Every export that returns the sequence writes exactly one `sequence.exported` row, as the user who asked for it. An export of a missing sequence, or one refused for lack of `manage_options`, writes none.
 - Every audit read leaves out the event-bus rows. → `StatusManager::bus_bookkeeping_exclusion()`
 - Users without full access see only their own actions, in the events, the event types and the user list.
 

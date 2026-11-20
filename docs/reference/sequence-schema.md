@@ -127,4 +127,4 @@ Agent stages are validated by the REST/ability path, not by the bare write gate,
 - **Update** (`PUT /sequences/{id}`, `update-sequence`) is a **full replacement** — any field you omit is cleared. Read/validate the stored config first.
 - **Validate** (`vip-workflows/validate-sequence`) is a read-only dry run of the exact write gate; it reports what is wrong plus the normalized result. Fix everything it lists and re-run until valid.
 
-Create, update, import, activate, and validate require `manage_options` (validate is read-only but returns the full stored configuration); `export`, `options`, and `stats` require only `edit_posts`.
+Create, update, import, activate, export, and validate require `manage_options` (validate is read-only but returns the full stored configuration, and each export writes an audit row); `options` and `stats` require only `edit_posts`.
