@@ -454,6 +454,134 @@ class CoreStatusChangeRulesTest extends TestCase
 		$this->assertSame( 'Changed content.', get_post_field( 'post_content', $post_id ) );
 	}
 
+	public function test_a_refused_draft_to_pending_change_keeps_the_slug_title_and_date_edits(): void
+	{
+		$post_id = $this->make_post(
+			$this->create_sequence( array( 'allowed_roles' => array( 'editor' ) ) ),
+			'draft_a',
+			'draft',
+			$this->author_id
+		);
+		wp_set_current_user( $this->author_id );
+
+		wp_update_post(
+			array(
+				'ID'          => $post_id,
+				'post_status' => 'pending',
+				'post_name'   => 'renamed-slug',
+				'post_title'  => 'Renamed Post',
+				'post_date'   => '2026-03-04 05:06:07',
+				'edit_date'   => true,
+			)
+		);
+
+		$post = get_post( $post_id );
+		$this->assertSame( 'draft', $post->post_status );
+		$this->assertSame( 'draft_a', $this->stage_of( $post_id ) );
+		$this->assertSame( 'Renamed Post', $post->post_title );
+		$this->assertSame( 'renamed-slug', $post->post_name );
+		$this->assertSame( '2026-03-04 05:06:07', $post->post_date );
+		$this->assertSame( '0000-00-00 00:00:00', $post->post_date_gmt );
+	}
+
+	public function test_a_refused_pending_change_by_a_user_who_cannot_publish_keeps_the_stored_slug(): void
+	{
+		global $wpdb;
+
+		$post_id = $this->make_post( $this->create_sequence(), 'draft_a' );
+		$wpdb->update( $wpdb->posts, array( 'post_name' => 'stored-slug' ), array( 'ID' => $post_id ) );
+		clean_post_cache( $post_id );
+		wp_set_current_user( $this->contributor_id );
+
+		wp_update_post(
+			array(
+				'ID'          => $post_id,
+				'post_status' => 'pending',
+				'post_name'   => 'renamed-slug',
+				'post_title'  => 'Renamed Post',
+			)
+		);
+
+		$post = get_post( $post_id );
+		$this->assertSame( 'draft', $post->post_status );
+		$this->assertSame( 'Renamed Post', $post->post_title );
+		$this->assertSame( 'stored-slug', $post->post_name );
+	}
+
+	public function test_a_refused_pending_to_draft_change_by_a_user_who_cannot_publish_keeps_the_stored_slug(): void
+	{
+		$post_id = $this->make_post( $this->create_sequence(), 'review', 'pending' );
+		wp_set_current_user( $this->contributor_id );
+		$this->assertFalse( current_user_can( 'publish_post', $post_id ) );
+
+		wp_update_post(
+			array(
+				'ID'          => $post_id,
+				'post_status' => 'pending',
+				'post_name'   => 'pending-edit-slug',
+			)
+		);
+		$this->assertSame( '', get_post_field( 'post_name', $post_id ) );
+
+		wp_update_post(
+			array(
+				'ID'          => $post_id,
+				'post_status' => 'draft',
+				'post_name'   => 'draft-edit-slug',
+				'post_title'  => 'Renamed Post',
+			)
+		);
+
+		$post = get_post( $post_id );
+		$this->assertSame( 'pending', $post->post_status );
+		$this->assertSame( 'review', $this->stage_of( $post_id ) );
+		$this->assertSame( 'Renamed Post', $post->post_title );
+		$this->assertSame( '', $post->post_name );
+	}
+
+	public function test_a_refused_change_from_published_or_scheduled_to_draft_puts_the_slug_and_dates_back(): void
+	{
+		$sequence_id = $this->create_sequence();
+		$published   = $this->make_post( $sequence_id, 'published', 'publish', $this->author_id );
+		$scheduled   = (int) self::factory()->post->create(
+			array(
+				'post_status'  => 'future',
+				'post_author'  => $this->author_id,
+				'post_title'   => 'Scheduled Post',
+				'post_content' => 'Original content.',
+				'post_date'    => gmdate( 'Y-m-d H:i:s', time() + WEEK_IN_SECONDS ),
+			)
+		);
+		update_post_meta( $scheduled, StatusManager::SEQUENCE_META_KEY, $sequence_id );
+		update_post_meta( $scheduled, StatusManager::STAGE_META_KEY, 'published' );
+		wp_set_current_user( $this->author_id );
+
+		foreach ( array( $published => 'publish', $scheduled => 'future' ) as $post_id => $status ) {
+			$before = get_post( $post_id );
+			$this->assertSame( $status, $before->post_status );
+			$this->assertNotSame( '', $before->post_name );
+
+			wp_update_post(
+				array(
+					'ID'            => $post_id,
+					'post_status'   => 'draft',
+					'post_name'     => 'renamed-slug',
+					'post_title'    => 'Renamed Post',
+					'post_date'     => '2026-03-04 05:06:07',
+					'post_date_gmt' => '2026-03-04 05:06:07',
+					'edit_date'     => true,
+				)
+			);
+
+			$after = get_post( $post_id );
+			$this->assertSame( $status, $after->post_status );
+			$this->assertSame( 'Renamed Post', $after->post_title );
+			$this->assertSame( $before->post_name, $after->post_name );
+			$this->assertSame( $before->post_date, $after->post_date );
+			$this->assertSame( $before->post_date_gmt, $after->post_date_gmt );
+		}
+	}
+
 	public function test_bulk_edit_reverts_each_refused_post(): void
 	{
 		include_once ABSPATH . 'wp-admin/includes/post.php';

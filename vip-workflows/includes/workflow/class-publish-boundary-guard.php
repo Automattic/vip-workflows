@@ -198,12 +198,15 @@ class PublishBoundaryGuard {
 	 * Universal backstop: revert a vetoed status change before it is written.
 	 *
 	 * Reverting (rather than failing the write) keeps the rest of the save —
-	 * title, content, meta — intact; only the status the user is not allowed to
-	 * set is put back to the post's stored value.
+	 * title, content, meta — intact; the status the user is not allowed to set
+	 * is put back to the post's stored value. The stored slug and dates are put
+	 * back with it, except between `draft`, `pending` and `auto-draft`, where
+	 * core prepares them the same way for both statuses and the save's own
+	 * slug and date edits are kept (see prepares_slug_and_dates_alike()).
 	 *
 	 * @param  array $data    Sanitized post data about to be written.
 	 * @param  array $postarr Raw post data as passed to wp_insert_post().
-	 * @return array Post data, with post_status reverted when the change is vetoed.
+	 * @return array Post data, with post_status (and, outside draft and pending, the slug and dates) reverted when the change is vetoed.
 	 */
 	public function veto_post_data( array $data, array $postarr ): array {
 		$post_id = (int) ( $postarr['ID'] ?? 0 );
@@ -225,20 +228,60 @@ class PublishBoundaryGuard {
 
 		$data['post_status'] = $veto['current_status'];
 
+		// When core prepares the slug and dates the same way for both statuses
+		// (draft and pending), a slug or date edit made in the same save is
+		// kept. Every other refused change also puts the stored slug and dates
+		// back.
+		if ( $this->prepares_slug_and_dates_alike( $veto['current_status'], $veto['target_status'] ) ) {
+			// One difference remains: core empties the slug of a `pending` post
+			// the user can't publish, and keeps it for a draft. When either
+			// status is `pending` and the user can't publish the post, the slug
+			// core prepared doesn't match the status the post keeps, so keep
+			// the stored slug.
+			$pending = in_array( 'pending', array( $veto['current_status'], $veto['target_status'] ), true );
+			if ( $pending && ! current_user_can( 'publish_post', $post_id ) ) {
+				$data['post_name'] = $veto['post_name'];
+			}
+
+			return $data;
+		}
+
 		// Putting the status back is not enough on its own. wp_insert_post()
 		// derives the slug and the GMT date from the status BEFORE this filter
-		// runs — `post_name` is generated for any status outside
+		// runs — `post_name` is made unique for any status outside
 		// draft/pending/auto-draft, and `post_date`/`post_date_gmt` are what turn
 		// a publish into a `future`. Leaving those behind writes a draft carrying
 		// a public slug and a future date, and the next legitimate workflow
-		// publish then silently coerces to `future` off that stale date. Revert
-		// the whole shape of the write core prepared for a status the user may
-		// not set; the rest of the save (title, content, meta) still lands.
+		// publish then silently coerces to `future` off that stale date. Going
+		// the other way, a published or scheduled post would keep a slug that
+		// was never checked for uniqueness. Revert the whole shape of the write
+		// core prepared for a status the user may not set; the rest of the save
+		// (title, content, meta) still lands.
 		$data['post_name']     = $veto['post_name'];
 		$data['post_date']     = $veto['post_date'];
 		$data['post_date_gmt'] = $veto['post_date_gmt'];
 
 		return $data;
+	}
+
+	/**
+	 * Whether core prepares the slug and dates of a save the same way for both statuses.
+	 *
+	 * True only when both are `draft`, `pending` or `auto-draft`. For those,
+	 * wp_unique_post_slug() returns the slug unchanged and core leaves an unset
+	 * GMT date floating (all three are registered `date_floating`), so the slug
+	 * and dates core prepared for the refused status are the ones it would have
+	 * prepared for the status the post keeps. A custom `date_floating` status
+	 * is not on the list: its slug is still made unique.
+	 *
+	 * @param  string $current_status Status the post keeps.
+	 * @param  string $target_status  Status the refused change would have set.
+	 * @return bool
+	 */
+	private function prepares_slug_and_dates_alike( string $current_status, string $target_status ): bool {
+		$floating = array( 'draft', 'pending', 'auto-draft' );
+
+		return in_array( $current_status, $floating, true ) && in_array( $target_status, $floating, true );
 	}
 
 	/**

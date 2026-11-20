@@ -184,6 +184,7 @@ class PublishBoundaryGuardTest extends TestCase
         Functions\when( 'wp_doing_cron' )->justReturn( false );
         Functions\when( 'wp_is_post_autosave' )->justReturn( false );
         Functions\when( 'wp_is_post_revision' )->justReturn( false );
+        Functions\when( 'current_user_can' )->justReturn( true );
 
         Functions\when( 'set_transient' )->alias(
             function ( $key, $value ) {
