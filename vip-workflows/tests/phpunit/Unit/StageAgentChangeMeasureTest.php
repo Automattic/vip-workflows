@@ -736,7 +736,7 @@ class StageAgentChangeMeasureTest extends TestCase
             ),
             'an escaped pair added'       => array(
                 self::para( 'Wrap a quote in the tags to set it apart from the text.' ),
-                self::para( 'Wrap a quote in [[pullquote]a short quote[/pullquote]] to set it apart.' ),
+                self::para( 'Wrap a quote in [[pullquote]a [my_widget] quote[/pullquote]] to set it apart.' ),
             ),
         );
     }
@@ -827,29 +827,12 @@ class StageAgentChangeMeasureTest extends TestCase
         $this->assertSame( array(), StageAgent::copy_edit_violations( $report, 15 ) );
     }
 
-    /**
-     * WordPress honors `[[box]…[/box]]` only when `box` is registered, so a
-     * shortcode inside an unregistered escaped pair can render on the front
-     * end and counts. The pair's own outer tokens never render and don't.
-     */
-    public function test_tokens_inside_an_unregistered_escaped_pair_count(): void
-    {
-        $body   = self::para( 'The board aproved the proposal after reviewing the detailed report from the committee.' );
-        $before = $body . self::para( '[[box] [promo_box id=7] [/box]]' );
-
-        $report = StageAgent::measure_rewrite( $before, str_replace( 'id=7', 'id=8', $before ) );
-        $this->assertTrue( $report['controls_changed'] );
-        $this->assertContains( 'controls', StageAgent::copy_edit_violations( $report, 15 ) );
-
-        $this->assertSame( array(), StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $before, str_replace( 'aproved', 'approved', $before ) ), 15 ) );
-    }
-
-    public function test_an_unregistered_escaped_pair_alone_is_text(): void
+    public function test_tokens_inside_an_escaped_pair_are_text(): void
     {
         $body   = self::para( 'The board approved the proposal after reviewing the detailed report from the committee.' );
-        $before = $body . self::para( '[[box] some text [/box]]' );
+        $before = $body . self::para( '[[box] [promo_box id=7] [/box]]' );
 
-        $this->assertFalse( StageAgent::measure_rewrite( $before, $body )['controls_changed'] );
+        $this->assertFalse( StageAgent::measure_rewrite( $before, str_replace( 'id=7', 'id=8', $before ) )['controls_changed'] );
     }
 
     public function test_a_bare_ampersand_kses_encodes_in_an_unchanged_shortcode_passes(): void

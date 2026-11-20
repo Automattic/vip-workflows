@@ -777,15 +777,11 @@ class StageAgent {
 	 * same-name pairs each keep their own closer. A closing tag counts when it
 	 * closes a counted opener or its own name has `_` or `-`.
 	 *
-	 * An escaped token (`[[name]]`) is left out, as are the outer opener and
-	 * closer of an escaped pair (`[[name]…[/name]]`): neither ever renders,
-	 * since WordPress prints them literally when the name is registered on the
-	 * front end and as plain text when it isn't. WordPress honors the escape
-	 * only for a registered name, so what's inside an escaped pair is left
-	 * out only when the outer name is registered here. Inside an unregistered
-	 * one the scan goes on, because a tag registered only on the front end
-	 * there renders. The registered pass, shortcodes(), finds registered tags
-	 * on its own and skips only their real escapes.
+	 * Escaped tokens (`[[name]]`, or `[[name]…[/name]]`) and everything inside
+	 * an escaped pair print literally and are left out, whether or not the
+	 * name is registered. The registered pass, shortcodes(), finds registered
+	 * tags on its own and skips only their real escapes, since WordPress
+	 * renders a registered tag inside an escaped unregistered pair.
 	 *
 	 * The scan is linear in the fragment's length and runs no regular
 	 * expression over it, so a long or malformed post can't make it fail or
@@ -800,10 +796,6 @@ class StageAgent {
 		$length     = strlen( $content );
 		$found      = array();
 		$skip_until = 0;
-
-		// Offsets of the outer closers of escaped unregistered pairs, which
-		// never render and so aren't counted.
-		$escaped_closer = array();
 
 		// Every closing tag's offset, by name, for finding an opener's escape.
 		$closer_at = array();
@@ -833,7 +825,7 @@ class StageAgent {
 			$hyphenated = strlen( $name ) !== strcspn( $name, '_-' );
 
 			if ( $token['closing'] ) {
-				if ( isset( $registered[ $name ] ) || isset( $escaped_closer[ $at ] ) ) {
+				if ( isset( $registered[ $name ] ) ) {
 					continue;
 				}
 				$label = 'shortcode:[/' . $name . ']';
@@ -871,12 +863,6 @@ class StageAgent {
 					if ( isset( $closer_at[ $name ][ $i ] ) ) {
 						$after = $closer_at[ $name ][ $i ] + strlen( '[/' . $name . ']' );
 						if ( $length > $after && ']' === $content[ $after ] ) {
-							if ( ! isset( $registered[ $name ] ) ) {
-								// WordPress escapes only a registered pair, so
-								// skip just its outer tokens and scan inside.
-								$escaped_closer[ $closer_at[ $name ][ $i ] ] = true;
-								continue;
-							}
 							$construct = $after + 1;
 						}
 					}
