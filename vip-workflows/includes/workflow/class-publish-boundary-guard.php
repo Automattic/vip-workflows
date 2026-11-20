@@ -445,11 +445,11 @@ class PublishBoundaryGuard {
 		//
 		// Leaving the Trash for `draft` is also exempt from the transition rules.
 		// It is what wp_untrash_post() writes by default and what the block
-		// editor and the DataView write to restore, so an ordinary restore always
-		// works, and a move to `draft` never takes a post further along the
-		// workflow. on_status_transition() still reseats it: the stage stays if
-		// it is in the draft region, otherwise it moves to the draft region's
-		// entry stage. Any other status written to a trashed post is held to
+		// editor and the DataView write to restore, so every restore path
+		// works. on_status_transition() still reseats it: the stage stays if it
+		// is in the draft region, otherwise it moves to the draft region's entry
+		// stage, which can be a stage that comes after the one the post was
+		// trashed from. Any other status written to a trashed post is held to
 		// the transition rules below, by whatever path it arrives. For
 		// wp_untrash_post() that question is asked earlier, in check_untrash(),
 		// before core deletes its Trash bookkeeping.
