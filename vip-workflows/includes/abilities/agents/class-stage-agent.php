@@ -729,6 +729,9 @@ class StageAgent {
 	 * as unchanged. An enclosing shortcode's content is scanned too, since it
 	 * can hold others; the content's words are compared like any other text.
 	 * Escaped shortcodes (`[[gallery]]`) print literally and are left out.
+	 * WordPress honors the escape only for a registered tag, so a registered
+	 * shortcode inside an escaped unregistered pair renders and counts, as
+	 * `[gallery]` does in `[[box] [gallery] [/box]]`.
 	 *
 	 * Stage agents run under WP-Cron or REST, before front-end hooks fire, so
 	 * a shortcode a theme registers on `template_redirect` isn't registered
@@ -750,10 +753,9 @@ class StageAgent {
 			}
 		}
 
-		$scan       = self::unregistered_shortcodes( $content );
-		$shortcodes = $scan['shortcodes'];
+		$shortcodes = self::unregistered_shortcodes( $content );
 		if ( function_exists( 'get_shortcode_regex' ) && ! empty( $GLOBALS['shortcode_tags'] ) ) {
-			$shortcodes = array_merge( self::outside( self::shortcodes( $content, 0 ), $scan['escaped'] ), $shortcodes );
+			$shortcodes = array_merge( self::shortcodes( $content, 0 ), $shortcodes );
 		}
 		usort( $shortcodes, static fn( array $a, array $b ): int => $a['offset'] <=> $b['offset'] );
 
@@ -762,7 +764,7 @@ class StageAgent {
 
 	/**
 	 * Unregistered tokens in a fragment that have unmistakable shortcode
-	 * syntax, nested ones included, and the ranges of every escaped token.
+	 * syntax, nested ones included.
 	 *
 	 * A token follows WordPress's shortcode grammar (`[name]`, `[name attrs]`,
 	 * `[name /]` or `[/name]`, the name starting with a letter and going on
@@ -777,8 +779,9 @@ class StageAgent {
 	 *
 	 * Escaped tokens (`[[name]]`, or `[[name]…[/name]]`) and everything inside
 	 * an escaped pair print literally and are left out, whether or not the
-	 * name is registered. Their ranges are returned so the registered pass can
-	 * leave them out too.
+	 * name is registered. The registered pass, shortcodes(), finds registered
+	 * tags on its own and skips only their real escapes, since WordPress
+	 * renders a registered tag inside an escaped unregistered pair.
 	 *
 	 * The scan is linear in the fragment's length and runs no regular
 	 * expression over it, so a long or malformed post can't make it fail or
@@ -786,13 +789,12 @@ class StageAgent {
 	 * apart the same way whether or not its tag is registered.
 	 *
 	 * @param  string $content HTML.
-	 * @return array{shortcodes: array<int, array{offset: int, label: string}>, escaped: array<int, array{0: int, 1: int}>} Shortcodes in no set order; escaped `[start, end)` ranges in document order.
+	 * @return array<int, array{offset: int, label: string}> In no set order.
 	 */
 	private static function unregistered_shortcodes( string $content ): array {
 		$registered = isset( $GLOBALS['shortcode_tags'] ) && is_array( $GLOBALS['shortcode_tags'] ) ? $GLOBALS['shortcode_tags'] : array();
 		$length     = strlen( $content );
 		$found      = array();
-		$escaped    = array();
 		$skip_until = 0;
 
 		// Every closing tag's offset, by name, for finding an opener's escape.
@@ -869,7 +871,6 @@ class StageAgent {
 					$construct = $end + 1;
 				}
 				if ( null !== $construct ) {
-					$escaped[]  = array( $at - 1, $construct );
 					$skip_until = $construct;
 					continue;
 				}
@@ -899,10 +900,7 @@ class StageAgent {
 			$open_label[ $name ][] = $label;
 		}
 
-		return array(
-			'shortcodes' => $found,
-			'escaped'    => $escaped,
-		);
+		return $found;
 	}
 
 	/**
@@ -972,32 +970,6 @@ class StageAgent {
 		$attributes = str_replace( '&amp;', '&', $attributes );
 
 		return 'shortcode:[' . $name . ( '' === $attributes ? '' : ' ' . $attributes ) . ( $self_closing ? ' /' : '' ) . ']';
-	}
-
-	/**
-	 * The controls that lie outside every given range.
-	 *
-	 * @param  array<int, array{offset: int, label: string}> $controls Controls in document order.
-	 * @param  array<int, array{0: int, 1: int}>             $ranges   `[start, end)` ranges in document order.
-	 * @return array<int, array{offset: int, label: string}>
-	 */
-	private static function outside( array $controls, array $ranges ): array {
-		if ( empty( $ranges ) ) {
-			return $controls;
-		}
-
-		$kept = array();
-		$i    = 0;
-		foreach ( $controls as $control ) {
-			while ( isset( $ranges[ $i ] ) && $ranges[ $i ][1] <= $control['offset'] ) {
-				++$i;
-			}
-			if ( ! isset( $ranges[ $i ] ) || $control['offset'] < $ranges[ $i ][0] ) {
-				$kept[] = $control;
-			}
-		}
-
-		return $kept;
 	}
 
 	/**

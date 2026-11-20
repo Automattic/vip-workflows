@@ -95,9 +95,33 @@ class StageAgentShortcodeEdgeCasesIntegrationTest extends TestCase
         $this->assertFalse( StageAgent::measure_rewrite( $before, str_replace( 'id=7', 'id=8', $before ) )['controls_changed'] );
     }
 
-    public function test_an_escaped_unregistered_pair_hides_the_registered_tokens_inside(): void
+    public function test_a_registered_shortcode_inside_an_escaped_unregistered_pair_counts(): void
     {
-        $this->assertSame( array(), self::controls( '[[box] [gallery] [/box]]' ) );
+        $this->assertTrue( shortcode_exists( 'gallery' ) );
+        $this->assertFalse( shortcode_exists( 'foo' ) );
+        $this->assertSame(
+            array(
+                array(
+                    'offset' => 12,
+                    'label'  => 'shortcode:[gallery ids="1"]',
+                ),
+            ),
+            self::controls( 'Text [[foo] [gallery ids="1"] [/foo]] more' )
+        );
+
+        $before = self::BODY . '<p>Text [[foo] [gallery ids="1"] [/foo]] more</p>';
+        $report = StageAgent::measure_rewrite( $before, str_replace( 'ids="1"', 'ids="2"', $before ) );
+
+        $this->assertTrue( $report['controls_changed'] );
+        $this->assertContains( 'controls', StageAgent::copy_edit_violations( $report, 15 ) );
+    }
+
+    public function test_an_escaped_registered_shortcode_is_text(): void
+    {
+        $this->assertSame( array(), self::controls( 'Text [[gallery ids="1"]] more' ) );
+
+        $before = self::BODY . '<p>Text [[gallery ids="1"]] more</p>';
+        $this->assertFalse( StageAgent::measure_rewrite( $before, str_replace( 'ids="1"', 'ids="2"', $before ) )['controls_changed'] );
     }
 
     public function test_a_long_slash_attribute_does_not_hide_other_shortcodes(): void
@@ -216,6 +240,121 @@ class StageAgentShortcodeEdgeCasesIntegrationTest extends TestCase
             $this->assertContains( 'unpreservable_markup', StageAgent::copy_edit_violations( $report, 15 ) );
         } finally {
             remove_shortcode( $tag );
+        }
+    }
+
+    /**
+     * Fragments mixing escapes with registered and unregistered tags. Each row
+     * gives what WordPress renders (with `gallery` printing `rendered:<ids>`),
+     * the control labels the guard should count, and whether editing `ids`
+     * is refused. WordPress honors an escape only for a registered tag.
+     *
+     * @return array<string, array{0: string, 1: string, 2: string[], 3: bool}>
+     */
+    public function provide_mixed_escapes(): array
+    {
+        return array(
+            'registered single inside an unregistered escape' => array(
+                '[[foo] [gallery ids="1"] [/foo]]',
+                '[[foo] rendered:1 [/foo]]',
+                array( 'shortcode:[gallery ids="1"]' ),
+                true,
+            ),
+            'registered pair inside an unregistered escape' => array(
+                '[[foo] [gallery ids="1"] inner [/gallery] [/foo]]',
+                '[[foo] rendered:1 [/foo]]',
+                array( 'shortcode:[gallery ids="1"]', 'shortcode:[/gallery]' ),
+                true,
+            ),
+            'registered self-closing inside an unregistered escape' => array(
+                '[[foo] [gallery ids="1" /] [/foo]]',
+                '[[foo] rendered:1 [/foo]]',
+                array( 'shortcode:[gallery ids="1" /]' ),
+                true,
+            ),
+            'registered escape inside an unregistered pair' => array(
+                '[foo][[gallery ids="1"]][/foo]',
+                '[foo][gallery ids="1"][/foo]',
+                array( 'shortcode:[foo]', 'shortcode:[/foo]' ),
+                false,
+            ),
+            'unregistered tokens inside a registered escape' => array(
+                '[[gallery ids="1"] [foo x=1] [/gallery]]',
+                '[gallery ids="1"] [foo x=1] [/gallery]',
+                array(),
+                false,
+            ),
+            'registered escape nested inside an unregistered escape' => array(
+                '[[foo] [[gallery ids="1"] [promo_box] [/gallery]] [/foo]]',
+                '[[foo] [gallery ids="1"] [promo_box] [/gallery] [/foo]]',
+                array(),
+                false,
+            ),
+            'unregistered same-prefix escape' => array(
+                '[[gallery_box] [gallery ids="1"] [/gallery_box]]',
+                '[[gallery_box] rendered:1 [/gallery_box]]',
+                array( 'shortcode:[gallery ids="1"]' ),
+                true,
+            ),
+            'registered and unregistered same-prefix siblings' => array(
+                '[gallery_box x=1][gallery ids="1"][/gallery_box]',
+                '[gallery_box x=1]rendered:1[/gallery_box]',
+                array( 'shortcode:[gallery_box x=1]', 'shortcode:[gallery ids="1"]', 'shortcode:[/gallery_box]' ),
+                true,
+            ),
+            'unregistered escape hides only its own tokens' => array(
+                '[[foo] [promo_box x=1] [gallery ids="1"] [/foo]]',
+                '[[foo] [promo_box x=1] rendered:1 [/foo]]',
+                array( 'shortcode:[gallery ids="1"]' ),
+                true,
+            ),
+            'real registered escape beside an active registered tag' => array(
+                '[[gallery ids="1"]] [gallery ids="1"]',
+                '[gallery ids="1"] rendered:1',
+                array( 'shortcode:[gallery ids="1"]' ),
+                true,
+            ),
+        );
+    }
+
+    /**
+     * @dataProvider provide_mixed_escapes
+     *
+     * @param string[] $labels Expected control labels in document order.
+     */
+    public function test_mixed_escapes_match_wordpress_rendering_and_refusals( string $fragment, string $rendered, array $labels, bool $refuse ): void
+    {
+        $registered = $GLOBALS['shortcode_tags'];
+        add_shortcode( 'gallery', static fn( $attributes ) => 'rendered:' . $attributes['ids'] );
+
+        try {
+            foreach ( array( 'foo', 'promo_box', 'gallery_box' ) as $name ) {
+                $this->assertFalse( shortcode_exists( $name ) );
+            }
+            $this->assertSame( $rendered, do_shortcode( $fragment ) );
+            $controls = ( new \ReflectionMethod( StageAgent::class, 'controls' ) )->invoke( null, $fragment );
+            $this->assertSame( $labels, array_column( $controls, 'label' ) );
+            $offsets = array_column( $controls, 'offset' );
+            $this->assertSame( $offsets, array_values( array_unique( $offsets ) ), 'Each token must be emitted once.' );
+            foreach ( $controls as $control ) {
+                $this->assertSame( '[', $fragment[ $control['offset'] ] );
+            }
+
+            $before = '<p>The board aproved the proposal after reviewing the detailed report from the committee.</p><p>' . $fragment . '</p>';
+            $this->assertSame( $before, wp_kses_post( $before ) );
+            $report = StageAgent::measure_rewrite( $before, str_replace( 'ids="1"', 'ids="2"', $before ) );
+            $this->assertSame( $refuse, $report['controls_changed'] );
+            $violations = StageAgent::copy_edit_violations( $report, 15 );
+            if ( $refuse ) {
+                $this->assertContains( 'controls', $violations );
+            } else {
+                $this->assertSame( array(), $violations );
+            }
+
+            $prose_report = StageAgent::measure_rewrite( $before, str_replace( 'aproved', 'approved', $before ) );
+            $this->assertSame( array(), StageAgent::copy_edit_violations( $prose_report, 15 ) );
+        } finally {
+            $GLOBALS['shortcode_tags'] = $registered;
         }
     }
 }
