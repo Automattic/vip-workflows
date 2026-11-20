@@ -552,8 +552,9 @@ class SequencesController extends WP_REST_Controller {
 	/**
 	 * Check if user can export a sequence.
 	 *
-	 * Stricter than viewing one: each served export writes an audit row, so only
-	 * the users who manage sequences can take a copy and add to the Audit Log.
+	 * Stricter than viewing one because each served export writes an audit row:
+	 * only users who manage sequences can add those rows. Reading the same config
+	 * through GET /sequences/{id} still needs only edit_posts.
 	 *
 	 * @param  WP_REST_Request $request Request object.
 	 * @return bool|WP_Error

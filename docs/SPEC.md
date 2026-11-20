@@ -375,7 +375,7 @@ Who may do what, and where the check lives. When reviewing, check that a change 
 | --- | --- | --- |
 | Use Workflows screens (My Dashboard, Kanban, Calendar, Ideation) | `edit_posts` | `vip-workflows/includes/admin/class-admin.php` |
 | Read or move a specific post | `edit_post` on the post, then the transition's rules (below) | `vip-workflows/includes/api/class-workflow-controller.php`, `vip-workflows/includes/sequences/class-sequence.php` (`get_role_permitted_transitions()`), `vip-workflows/includes/workflow/class-status-manager.php` |
-| Create, edit, activate, import or delete sequences | `manage_options` (read: `edit_posts`) | `vip-workflows/includes/api/class-sequences-controller.php`, sequence abilities |
+| Create, edit, activate, import, export or delete sequences | `manage_options` (read and stats: `edit_posts`) | `vip-workflows/includes/api/class-sequences-controller.php`, sequence abilities |
 | Settings, experiments, tools, agents, prompts, notifications, assistants | `manage_options` | The controllers in [REST and Abilities](#rest-and-abilities), `vip-workflows/includes/admin/class-settings.php`, `vip-workflows/includes/admin/class-admin.php` |
 | Audit log visibility | Role in `audit_log_roles` (below) | `vip-workflows/includes/admin/class-settings.php` (`can_user_view_audit_log()`, `can_user_view_all_audit_logs()`) |
 | Ideation projects | `edit_posts` and (author or `edit_others_posts`); uploads also need `upload_files` | `vip-workflows/includes/api/class-ideation-controller.php`, `vip-workflows/includes/api/class-ideation-sources-controller.php` |
