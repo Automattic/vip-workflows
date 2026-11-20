@@ -461,7 +461,7 @@ The provider is the stored `vip_workflows_ai_provider` setting, or is derived fr
 | --- | --- | --- |
 | Stage agents (copy edit, tag sanity, smart linking) | A post enters an AI stage that the sequence author configured (WP-Cron, see [Background work](#background-work)) | Post title, body and tags, wrapped as untrusted input. Copy edit writes a revision back to the post |
 | Source processing | An ideation source is uploaded or reprocessed (Action Scheduler) | Image bytes (vision), extracted PDF text, and summaries of transcripts |
-| Whisper transcription | Audio or video source, 25 MB maximum, 120 s timeout | **The raw media file** (see footguns) |
+| Whisper transcription | Audio or video source, whatever provider is selected. Needs an OpenAI key (`MediaProcessor::transcription_available()`); 25 MB maximum, 120 s timeout | **The raw media file**, to OpenAI (see footguns) |
 | Ideation assistants (seed analyst, editorial mentor, archive search, draft generation, source and project summaries, AI images) | An editor acts in the Ideation UI (REST) | Seed text, source content, project context and site search results |
 | Video analysis | An editor pins a video card. Runs only when AI is configured | The YouTube transcript |
 
@@ -511,7 +511,7 @@ Other outbound behavior:
 
 **Footguns**
 
-- **Whisper always uses the OpenAI key.** The raw media file is sent directly with `wp_remote_post` to `api.openai.com/v1/audio/transcriptions`, whichever provider is selected.
+- **Whisper always uses the OpenAI key.** The raw media file is sent directly with `wp_remote_post` to `api.openai.com/v1/audio/transcriptions`, whichever provider is selected. The AI model settings and the Ideation upload surfaces say so. Without an OpenAI key, audio and video still upload and the Ideation surfaces warn that they won't be transcribed, adding where the key goes for a `manage_options` reader; the job's `MediaProcessor::process_file()` then fails the source with that reason, before its selected-provider check and before any request. Once a key is added, the source's retry transcribes it, provided the selected provider is configured: `process_file()` still checks that before transcribing.
 - **Video transcripts depend on an undocumented endpoint.** The YouTube player call uses an undocumented YouTube endpoint and a spoofed browser user agent.
 - **Parse.ly receives post content.** Smart links and title suggestions send the post body to Parse.ly.
 - **Telemetry briefly switches the current user.** `Tracker::record()` calls `wp_set_current_user()` to attribute events that cron starts.
@@ -1143,7 +1143,7 @@ flowchart LR
   DR --> WF["Joins an editorial sequence<br/>when assigned"]
 ```
 
-**Outside services it calls.** The configured AI provider through the WordPress AI Client (seed analysis, the mentor, archive reranking, source and image analysis, draft generation, AI image generation); Tavily at `api.tavily.com` (web, image and video search); the YouTube Data API at `www.googleapis.com/youtube/v3`, and the YouTube player endpoint for transcripts; OpenAI at `api.openai.com/v1/audio/transcriptions` for uploaded audio and video; any URL a user supplies, for content extraction and image download, through the SSRF guard; and whatever each discovery provider or research extension calls.
+**Outside services it calls.** The configured AI provider through the WordPress AI Client (seed analysis, the mentor, archive reranking, source and image analysis, draft generation); OpenAI through the WordPress AI Client for AI image generation, which needs an OpenAI key whatever provider is selected; Tavily at `api.tavily.com` (web, image and video search); the YouTube Data API at `www.googleapis.com/youtube/v3`, and the YouTube player endpoint for transcripts; OpenAI at `api.openai.com/v1/audio/transcriptions` for uploaded audio and video, whatever provider is selected; any URL a user supplies, for content extraction and image download, through the SSRF guard; and whatever each discovery provider or research extension calls.
 
 **Always true**
 

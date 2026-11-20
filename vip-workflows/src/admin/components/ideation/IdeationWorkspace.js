@@ -33,6 +33,10 @@ import { useCardActions } from './use-card-actions';
 import { useMentor } from './use-mentor';
 import { useDropZone } from './use-drop-zone';
 import { ToolFailuresModal } from '../../../common/ToolFailuresModal';
+import {
+	isTranscriptionAvailable,
+	transcriptionUnavailableWarningText,
+} from './transcription';
 
 import './IdeationWorkspace.css';
 
@@ -640,7 +644,9 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 				console.error( 'Retry failed:', err );
 				createErrorNotice(
 					err.message || __( 'Retry failed.', 'vip-workflows' ),
-					{ type: 'snackbar' }
+					{
+						type: 'snackbar',
+					}
 				);
 			}
 		},
@@ -775,10 +781,17 @@ export default function IdeationWorkspace( { state, onStateChange, onBack } ) {
 						</Text>
 						{ /* wpds-allow R7 -- muted hint text (body-md token + fg-weak color; no Text color prop) */ }
 						<span className="vip-workflows-ideation-workspace__drop-hint">
-							{ __(
-								'Images, videos, PDFs, and documents',
+							{ `${ __(
+								'Images, audio, video, PDFs and documents.',
 								'vip-workflows'
-							) }
+							) } ${
+								isTranscriptionAvailable()
+									? __(
+											'OpenAI transcribes audio and video.',
+											'vip-workflows'
+										)
+									: transcriptionUnavailableWarningText()
+							}` }
 						</span>
 					</Stack>
 				</div>

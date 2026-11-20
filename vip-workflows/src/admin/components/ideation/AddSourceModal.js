@@ -19,6 +19,12 @@ import { Stack, Text } from '@wordpress/ui';
 import apiFetch from '@wordpress/api-fetch';
 
 import { ModalActions } from '../../../common/ModalActions';
+import { RequirementDestination } from '../../../common/AgentRequirements';
+import {
+	isTranscriptionAvailable,
+	transcriptionKeyDestination,
+	transcriptionUnavailableWarning,
+} from './transcription';
 
 import './AddSourceModal.css';
 
@@ -45,6 +51,11 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 	const [ sourceType, setSourceType ] = useState( 'article' );
 	const [ uploading, setUploading ] = useState( false );
 	const [ error, setError ] = useState( null );
+
+	// Audio and video go to OpenAI for transcription. Without its key they
+	// still upload, but won't be transcribed, so the dialog warns.
+	const transcriptionAvailable = isTranscriptionAvailable();
+	const keyDestination = transcriptionKeyDestination();
 
 	const handleUrlSubmit = useCallback( async () => {
 		if ( ! url.trim() ) {
@@ -175,12 +186,44 @@ export default function AddSourceModal( { projectId, onClose, onAdded } ) {
 						/>
 					</Stack>
 				) : (
-					<Text variant="body-sm" render={ <p /> }>
-						{ __(
-							'Upload images, PDFs, or documents.',
-							'vip-workflows'
+					<Stack direction="column" gap="sm">
+						<Text variant="body-sm" render={ <p /> }>
+							{ __(
+								'Upload images, PDFs, documents, audio or video.',
+								'vip-workflows'
+							) }
+						</Text>
+						{ transcriptionAvailable ? (
+							<Text variant="body-sm" render={ <p /> }>
+								{ __(
+									'Audio and video files are sent to OpenAI to be transcribed.',
+									'vip-workflows'
+								) }
+							</Text>
+						) : (
+							<Notice status="warning" isDismissible={ false }>
+								{ transcriptionUnavailableWarning() }
+								{ keyDestination && (
+									<>
+										{ /* Keeps a space between the two in the announced text. */ }{ ' ' }
+										<br />
+										{ /*
+										 * The shared renderer links `label` ("Settings →
+										 * Connectors"). Here the whole sentence is the
+										 * link, as in the AI model settings, so the hint
+										 * stands in for the label.
+										 */ }
+										<RequirementDestination
+											destination={ {
+												...keyDestination,
+												label: keyDestination.hint,
+											} }
+										/>
+									</>
+								) }
+							</Notice>
 						) }
-					</Text>
+					</Stack>
 				) }
 			</Stack>
 
