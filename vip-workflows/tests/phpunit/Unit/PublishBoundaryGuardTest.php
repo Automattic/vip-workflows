@@ -1074,6 +1074,62 @@ class PublishBoundaryGuardTest extends TestCase
     }
 
     /**
+     * Run the backstop for a refused draft -> `pending` save that also edits
+     * the slug and date, with `publish_post` answering as given.
+     *
+     * @param  bool $can_publish What current_user_can( 'publish_post' ) returns.
+     * @return array Filtered post data.
+     */
+    private function filter_refused_pending_save_with_edits( bool $can_publish ): array
+    {
+        $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
+        $this->stub_workflow_post( 'review', 'draft' );
+        Functions\when( 'current_user_can' )->alias(
+            static function ( $capability, ...$args ) use ( $can_publish ) {
+                return 'publish_post' === $capability && array( self::POST_ID ) === $args ? $can_publish : true;
+            }
+        );
+
+        return $this->guard->veto_post_data(
+            array(
+                'post_status'   => 'pending',
+                'post_type'     => 'post',
+                'post_name'     => 'edited-slug',
+                'post_date'     => '2026-03-04 05:06:07',
+                'post_date_gmt' => '0000-00-00 00:00:00',
+            ),
+            array( 'ID' => self::POST_ID )
+        );
+    }
+
+    /**
+     * Between draft and pending, a refused status change keeps the save's slug
+     * and date edits when the user can publish the post.
+     */
+    public function test_backstop_keeps_slug_and_date_edits_between_draft_and_pending(): void
+    {
+        $data = $this->filter_refused_pending_save_with_edits( true );
+
+        $this->assertSame( 'draft', $data['post_status'] );
+        $this->assertSame( 'edited-slug', $data['post_name'] );
+        $this->assertSame( '2026-03-04 05:06:07', $data['post_date'] );
+        $this->assertSame( '0000-00-00 00:00:00', $data['post_date_gmt'] );
+    }
+
+    /**
+     * When the user can't publish the post, core prepares a `pending` slug
+     * differently, so the stored slug is kept; the date edit still is too.
+     */
+    public function test_backstop_keeps_the_stored_slug_when_the_user_cannot_publish_the_post(): void
+    {
+        $data = $this->filter_refused_pending_save_with_edits( false );
+
+        $this->assertSame( 'draft', $data['post_status'] );
+        $this->assertSame( 'test-post', $data['post_name'] );
+        $this->assertSame( '2026-03-04 05:06:07', $data['post_date'] );
+    }
+
+    /**
      * A required tool on the reseat edge refuses the change for a user outside
      * the tool-check list.
      */
@@ -1144,8 +1200,9 @@ class PublishBoundaryGuardTest extends TestCase
     /**
      * Leaving the Trash for `draft` is never held to the reseat's transition
      * rules, even when the reseat it causes (Approval -> Draft, no edge) is one
-     * the user couldn't take: that is the default restore, and a move to
-     * `draft` takes the post no further along the workflow.
+     * the user couldn't take: the default restore and the editor restore
+     * paths write `draft`, so they have to work. Where the stage lands is
+     * on_status_transition()'s to decide.
      */
     public function test_leaving_the_trash_for_draft_is_not_held_to_the_reseat_rules(): void
     {

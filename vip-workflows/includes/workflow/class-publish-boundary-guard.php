@@ -237,7 +237,8 @@ class PublishBoundaryGuard {
 			// the user can't publish, and keeps it for a draft. When either
 			// status is `pending` and the user can't publish the post, the slug
 			// core prepared doesn't match the status the post keeps, so keep
-			// the stored slug.
+			// the stored slug. This is the same `publish_post` meta capability
+			// check core makes for an update.
 			$pending = in_array( 'pending', array( $veto['current_status'], $veto['target_status'] ), true );
 			if ( $pending && ! current_user_can( 'publish_post', $post_id ) ) {
 				$data['post_name'] = $veto['post_name'];
