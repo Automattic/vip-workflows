@@ -476,6 +476,212 @@ describe( 'WorkflowHeaderAction', () => {
 	} );
 
 	/**
+	 * A Go back held for soft warnings is not a success: the header opens the
+	 * same warnings dialog a held transition does, and Continue sends it again
+	 * with the acknowledgement. The button stands down while each request is
+	 * in flight and comes back while the dialog asks.
+	 */
+	it( 'shows the warnings when Go back is held, and confirms it', async () => {
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		await renderHeader( failed );
+
+		let answerRevert;
+		apiFetch.mockImplementation( ( { path } ) => {
+			if ( path.endsWith( '/agent-revert' ) ) {
+				return new Promise( ( resolve ) => {
+					answerRevert = resolve;
+				} );
+			}
+			return Promise.resolve( failed );
+		} );
+
+		const goBack = await screen.findByRole( 'button', {
+			name: 'Go back to Draft',
+		} );
+		await act( async () => {
+			goBack.click();
+		} );
+
+		// In flight: the header stands down.
+		expect(
+			screen.getByRole( 'button', { name: 'Go back to Draft' } )
+		).toHaveAttribute( 'aria-disabled', 'true' );
+
+		await act( async () => {
+			answerRevert( {
+				warnings_pending: true,
+				soft_warnings: [ { message: 'Readability is low' } ],
+			} );
+		} );
+
+		expect(
+			await screen.findByText( 'Warnings detected' )
+		).toBeInTheDocument();
+		expect( screen.getByText( 'Readability is low' ) ).toBeInTheDocument();
+		expect( createErrorNotice ).not.toHaveBeenCalled();
+		// Behind the dialog, so out of the accessibility tree while it is open.
+		expect(
+			screen.getByRole( 'button', {
+				name: 'Go back to Draft',
+				hidden: true,
+			} )
+		).not.toHaveAttribute( 'aria-disabled', 'true' );
+
+		const continueButton = screen.getByRole( 'button', {
+			name: 'Continue',
+		} );
+		await act( async () => {
+			continueButton.click();
+		} );
+		await act( async () => {
+			answerRevert( statusResponse() );
+		} );
+
+		expect( apiFetch ).toHaveBeenLastCalledWith( {
+			path: '/vip-workflows/v1/workflow/post/42/agent-revert',
+			method: 'POST',
+			data: { acknowledge_warnings: true },
+		} );
+		expect(
+			await screen.findByRole( 'button', { name: 'Send to Review' } )
+		).toBeInTheDocument();
+		expect( screen.queryByText( 'Warnings detected' ) ).toBeNull();
+	} );
+
+	/**
+	 * A refused Go back started from the header is reported in the editor's
+	 * own notice area, where the person pressing it is looking.
+	 */
+	it( 'reports a refused Go back in the editor notice', async () => {
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+		await renderHeader( failed );
+
+		apiFetch.mockImplementation( ( { path } ) =>
+			path.endsWith( '/agent-revert' )
+				? Promise.reject( {
+						code: 'agent_revert_conflict',
+						message:
+							'This agent run changed while you were going back. Reload the post to see where it is now.',
+					} )
+				: Promise.resolve( failed )
+		);
+
+		const goBack = await screen.findByRole( 'button', {
+			name: 'Go back to Draft',
+		} );
+		await act( async () => {
+			goBack.click();
+		} );
+
+		await waitFor( () =>
+			expect( createErrorNotice ).toHaveBeenCalledWith(
+				'This agent run changed while you were going back. Reload the post to see where it is now.',
+				expect.objectContaining( {
+					id: 'vip-workflows-transition-refused',
+				} )
+			)
+		);
+	} );
+
+	describe( 'Go back blocked by a required tool', () => {
+		const failed = statusResponse( {
+			transitions: [],
+			agent_job: {
+				status: 'failed',
+				error: 'Timed out.',
+				revert_to: { key: 'draft', label: 'Draft' },
+			},
+		} );
+
+		/**
+		 * Render the header, have the server refuse Go back with `refusal`,
+		 * and press Go back.
+		 *
+		 * @param {Object} refusal The rejected apiFetch error.
+		 */
+		async function pressBlockedGoBack( refusal ) {
+			await renderHeader( failed );
+			apiFetch.mockImplementation( ( { path } ) =>
+				path.endsWith( '/agent-revert' )
+					? Promise.reject( refusal )
+					: Promise.resolve( failed )
+			);
+
+			const goBack = await screen.findByRole( 'button', {
+				name: 'Go back to Draft',
+			} );
+			await act( async () => {
+				goBack.click();
+			} );
+		}
+
+		it( 'lists the failed checks in the Transition blocked dialog', async () => {
+			await pressBlockedGoBack( {
+				code: 'tool_check_failed',
+				message: 'Transition blocked by required checks.',
+				data: {
+					status: 422,
+					hard_failures: [
+						{
+							tool: 'acme/fact-check',
+							key: 'execution_error',
+							message: 'The fact check service is unreachable.',
+							severity: 'hard',
+						},
+					],
+					soft_warnings: [],
+				},
+			} );
+
+			expect(
+				await screen.findByText( 'Transition blocked' )
+			).toBeInTheDocument();
+			expect(
+				screen.getByText( 'The fact check service is unreachable.' )
+			).toBeInTheDocument();
+			expect(
+				screen.getByText( 'acme/fact-check:' )
+			).toBeInTheDocument();
+			expect( createErrorNotice ).not.toHaveBeenCalledWith(
+				'Transition blocked by required checks.',
+				expect.anything()
+			);
+		} );
+
+		it( 'falls back to the editor notice when the refusal lists no checks', async () => {
+			await pressBlockedGoBack( {
+				code: 'tool_check_failed',
+				message: 'Transition blocked by required checks.',
+				data: { status: 422 },
+			} );
+
+			await waitFor( () =>
+				expect( createErrorNotice ).toHaveBeenCalledWith(
+					'Transition blocked by required checks.',
+					expect.objectContaining( {
+						id: 'vip-workflows-transition-refused',
+					} )
+				)
+			);
+			expect( screen.queryByText( 'Transition blocked' ) ).toBeNull();
+		} );
+	} );
+
+	/**
 	 * When the failed run can run again, that is the header's action: the post
 	 * stays at its stage and a fresh run starts, instead of a trip back.
 	 */
@@ -1594,6 +1800,12 @@ describe( 'WorkflowHeaderAction', () => {
 					} ),
 				] )
 			);
+			// The agent-held dialog is a transition, never a Go back.
+			expect(
+				apiFetch.mock.calls.filter( ( [ { path } ] ) =>
+					String( path ).endsWith( '/agent-revert' )
+				)
+			).toHaveLength( 0 );
 			expect( savePost ).not.toHaveBeenCalled();
 		} finally {
 			jest.useRealTimers();

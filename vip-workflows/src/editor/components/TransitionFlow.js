@@ -111,6 +111,25 @@ function whenSaveSettles( registry ) {
 }
 
 /**
+ * Whether a held Go back's question still describes the post.
+ *
+ * True while the post is still failed at the stage the question was asked
+ * about, with the same stage to go back to.
+ *
+ * @param {Object} modal    The open warnings dialog's state.
+ * @param {Object} workflow The current workflow status.
+ * @return {boolean} Whether Continue may send the acknowledgement.
+ */
+function isHeldRevertCurrent( modal, workflow ) {
+	return (
+		workflow?.agent_job?.status === 'failed' &&
+		!! modal?.fromStatus &&
+		workflow?.current?.key === modal.fromStatus &&
+		workflow?.agent_job?.revert_to?.key === modal.toStatus
+	);
+}
+
+/**
  * Runs the transitions the rail and the header button ask for.
  *
  * @return {JSX.Element} The flow's dialogs, whichever are open.
@@ -148,7 +167,7 @@ export function TransitionFlow() {
 	const otherEditorsOpen = useHasOtherEditorsOpen( postId, postType );
 
 	const [ toolFailures, setToolFailures ] = useState( null ); // blocked transition details
-	const [ warningsModal, setWarningsModal ] = useState( null ); // { toStatus, warnings, inputData, comment }
+	const [ warningsModal, setWarningsModal ] = useState( null ); // { kind: 'transition'|'revert', fromStatus (revert only), toStatus, warnings, inputData, comment }
 	/*
 	 * The transition currently asking for an assignee.
 	 *
@@ -214,6 +233,7 @@ export function TransitionFlow() {
 		receiveWorkflowStatus,
 		clearTransitionRequest,
 		rerunAgentStage,
+		revertAgentStage,
 		setTransitioningTo,
 		setTransitionError,
 		showWorkflowPanel,
@@ -243,6 +263,17 @@ export function TransitionFlow() {
 		setTransitionError( null );
 		removeNotice( HEADER_NOTICE_ID );
 	};
+
+	// A held Go back asks about one failed job and its way back. When a status
+	// read shows the post somewhere else, the question no longer applies.
+	useEffect( () => {
+		if (
+			warningsModal?.kind === 'revert' &&
+			! isHeldRevertCurrent( warningsModal, workflow )
+		) {
+			setWarningsModal( null );
+		}
+	}, [ warningsModal, workflow ] );
 
 	// While an agent is working, poll so every surface picks up the outcome
 	// (transition away, or fail-in-place) without a manual reload.
@@ -381,6 +412,7 @@ export function TransitionFlow() {
 		consentRef.current = {};
 
 		setWarningsModal( {
+			kind: 'transition',
 			toStatus: agentJobState.to_status,
 			warnings: agentJobState.soft_warnings,
 			inputData: null,
@@ -639,6 +671,77 @@ export function TransitionFlow() {
 			} );
 	};
 
+	/**
+	 * Move a post back from its failed AI stage to the stage it came from.
+	 *
+	 * The edge back can carry required tools, so the move can be held for
+	 * soft warnings like any transition: the same dialog asks, and Continue
+	 * sends it again with the acknowledgement. Go back does not save first.
+	 *
+	 * @param {boolean} acknowledgeWarnings Proceed despite soft warnings.
+	 */
+	const handleRevert = ( acknowledgeWarnings = false ) => {
+		clearErrors();
+		setToolFailures( null );
+
+		revertAgentStage( { acknowledgeWarnings } )
+			.then( ( response ) => {
+				if (
+					response?.warnings_pending &&
+					response.soft_warnings?.length > 0
+				) {
+					// The question is about this failed job and its way
+					// back; isHeldRevertCurrent() retires it if either
+					// changes before it is answered.
+					setWarningsModal( {
+						kind: 'revert',
+						fromStatus: workflow?.current?.key ?? null,
+						toStatus: workflow?.agent_job?.revert_to?.key ?? null,
+						warnings: response.soft_warnings,
+					} );
+					return;
+				}
+
+				setWarningsModal( null );
+
+				// Held with nothing to show: nothing moved and there is
+				// nothing to confirm, so re-read where the post is.
+				if ( response?.warnings_pending ) {
+					fetchWorkflowStatus();
+				}
+			} )
+			.catch( ( err ) => {
+				setWarningsModal( null );
+
+				// A required tool on the edge back refused: the same
+				// "Transition blocked" dialog a blocked transition opens,
+				// listing which check failed. Without that list there is
+				// nothing for the dialog to add, so the notice says it.
+				const hardFailures = err?.data?.hard_failures;
+				if (
+					err?.code === 'tool_check_failed' &&
+					Array.isArray( hardFailures ) &&
+					hardFailures.length > 0
+				) {
+					setToolFailures( {
+						code: err.code,
+						message: err.message,
+						hardFailures,
+						softWarnings: err.data.soft_warnings || [],
+					} );
+					return;
+				}
+
+				reportError(
+					err?.message ||
+						__(
+							'Could not move the post back. Try again.',
+							'vip-workflows'
+						)
+				);
+			} );
+	};
+
 	const handleTransition = (
 		toStatus,
 		acknowledgeWarnings = false,
@@ -718,6 +821,7 @@ export function TransitionFlow() {
 					response.soft_warnings?.length > 0
 				) {
 					setWarningsModal( {
+						kind: 'transition',
 						toStatus,
 						warnings: response.soft_warnings,
 						inputData,
@@ -806,6 +910,17 @@ export function TransitionFlow() {
 	// Handle proceeding despite warnings — re-sending the attempt's input,
 	// which the first request captured but the server has not yet consumed.
 	const handleIgnoreWarnings = () => {
+		if ( warningsModal?.kind === 'revert' ) {
+			// The server works out the way back again when asked, so an
+			// answer given about a job that has since changed would waive
+			// the warnings of a different move.
+			if ( ! isHeldRevertCurrent( warningsModal, workflow ) ) {
+				setWarningsModal( null );
+				return;
+			}
+			handleRevert( true );
+			return;
+		}
 		if ( warningsModal ) {
 			handleTransition(
 				warningsModal.toStatus,
@@ -986,6 +1101,10 @@ export function TransitionFlow() {
 		sourceRef.current = request.source;
 		if ( request.rerun ) {
 			handleRerun();
+			return;
+		}
+		if ( request.revert ) {
+			handleRevert();
 			return;
 		}
 		handleTransitionClick( request.transition, request.anchor );

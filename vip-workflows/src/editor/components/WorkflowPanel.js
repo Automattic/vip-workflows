@@ -198,7 +198,7 @@ export function WorkflowPanel() {
 	const {
 		fetchWorkflowStatus,
 		requestTransition,
-		revertAgentStage,
+		requestRevert,
 		requestRerun,
 		setWorkflowWriting,
 		setTransitionError,
@@ -239,24 +239,12 @@ export function WorkflowPanel() {
 	// The failed AI stage's two actions. Run again retries the agent in place,
 	// started by — and so acting as — whoever presses it; the transition flow
 	// runs it, saving unsaved edits first, as it does before any move into an
-	// AI stage. Go back returns the post to the stage it came from. Both are
-	// shared with the header's button, so they are the same moves.
+	// AI stage. Go back returns the post to the stage it came from, through
+	// the flow too, so a move back held for warnings asks the same way. Both
+	// are shared with the header's button, so they are the same moves.
 	const handleAgentRerun = () => requestRerun( 'panel' );
 
-	const handleAgentRevert = async () => {
-		clearErrors();
-		try {
-			await revertAgentStage();
-		} catch ( err ) {
-			setActionError(
-				err.message ||
-					__(
-						'Could not move the post back. Try again.',
-						'vip-workflows'
-					)
-			);
-		}
-	};
+	const handleAgentRevert = () => requestRevert( 'panel' );
 
 	const handleClaim = () => {
 		setWorkflowWriting( true );

@@ -1399,6 +1399,87 @@ class WorkflowControllerTest extends TestCase
     }
 
     // =========================================================================
+    // POST /workflow/post/{id}/agent-revert Tests
+    // =========================================================================
+
+    /**
+     * A Go back held for soft warnings answers with the warnings, not with a
+     * status payload that reads as success: nothing moved.
+     */
+    public function test_revert_agent_stage_returns_held_warnings(): void
+    {
+        $held = array(
+            'warnings_pending' => true,
+            'soft_warnings'    => array( array( 'message' => 'Readability is low' ) ),
+        );
+
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
+        $status_manager->shouldReceive( 'revert_failed_agent_stage' )
+            ->once()
+            ->with( 42, array( 'acknowledge_warnings' => false ) )
+            ->andReturn( $held );
+
+        $controller = new class() extends WorkflowController {
+            public function get_post_status( $request ) {
+                throw new \LogicException( 'A held Go back must not build the status payload.' );
+            }
+        };
+        $request = $this->create_mock_request( array( 'id' => 42 ) );
+
+        $response = $this->with_status_manager(
+            $status_manager,
+            fn() => $controller->revert_agent_stage( $request )
+        );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( $held, $response->get_data() );
+    }
+
+    /**
+     * A confirmed Go back passes the acknowledgement through and answers with
+     * the status payload once the post has moved.
+     */
+    public function test_revert_agent_stage_passes_the_acknowledgement_and_returns_status(): void
+    {
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
+        $status_manager->shouldReceive( 'revert_failed_agent_stage' )
+            ->once()
+            ->with( 42, array( 'acknowledge_warnings' => true ) )
+            ->andReturn( true );
+
+        $controller = new class() extends WorkflowController {
+            public function get_post_status( $request ) {
+                return new \WP_REST_Response( array( 'current' => array( 'key' => 'draft' ) ) );
+            }
+        };
+        $request = $this->create_mock_request(
+            array(
+                'id'                   => 42,
+                'acknowledge_warnings' => true,
+            )
+        );
+
+        $response = $this->with_status_manager(
+            $status_manager,
+            fn() => $controller->revert_agent_stage( $request )
+        );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertSame(
+            array(
+                'current' => array(
+                    'key'       => 'draft',
+                    'wp_status' => 'draft',
+                ),
+            ),
+            $response->get_data()
+        );
+    }
+
+    // =========================================================================
     // GET /workflow/my-queue Tests
     // =========================================================================
 

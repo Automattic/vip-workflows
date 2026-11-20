@@ -215,6 +215,21 @@ const actions = {
 	},
 
 	/**
+	 * Ask the transition flow to move this post back from its failed AI stage.
+	 *
+	 * Through the flow rather than straight to the server, so a Go back held
+	 * for soft warnings opens the same dialog a held transition does.
+	 *
+	 * @param {string} source 'panel' or 'header' — where a refusal is reported.
+	 */
+	requestRevert( source = 'panel' ) {
+		return {
+			type: 'REQUEST_TRANSITION',
+			request: { revert: true, source },
+		};
+	},
+
+	/**
 	 * Mark the pending request as taken by the transition flow.
 	 */
 	clearTransitionRequest() {
@@ -385,12 +400,20 @@ const actions = {
 	 * Return a post whose stage agent failed to the stage it came from.
 	 *
 	 * The failed AI stage's one exit, offered by the workflow panel and the
-	 * header button alike. It runs as the move in flight (`transitioningTo`),
-	 * so both surfaces stand down together while it does. Rejects with the
-	 * server's error for the caller to report where the author is looking.
+	 * header button alike, and run by the transition flow (see requestRevert).
+	 * It runs as the move in flight (`transitioningTo`), so both surfaces
+	 * stand down together while it does. Rejects with the server's error for
+	 * the caller to report where the author is looking.
+	 *
+	 * Resolves with the server's answer. When the move back is held for soft
+	 * warnings that answer is `{ warnings_pending, soft_warnings }`, nothing
+	 * moved, and the status is left alone for the caller to ask about them.
+	 *
+	 * @param {Object}  options
+	 * @param {boolean} options.acknowledgeWarnings Proceed despite soft warnings.
 	 */
 	revertAgentStage:
-		() =>
+		( { acknowledgeWarnings = false } = {} ) =>
 		async ( { dispatch, select, registry } ) => {
 			const postId = select.getPostId();
 			const revertTo = select.getWorkflowStatus()?.agent_job?.revert_to;
@@ -398,16 +421,25 @@ const actions = {
 			dispatch.setTransitioningTo( revertTo?.key ?? null );
 
 			try {
-				// The response is a full status payload, exactly like a
-				// transition's: a revert can cross a region boundary, so the
-				// editor chrome must adopt the change too.
-				const status = await apiFetch( {
+				const request = {
 					path: `/vip-workflows/v1/workflow/post/${ postId }/agent-revert`,
 					method: 'POST',
-				} );
+				};
+				if ( acknowledgeWarnings ) {
+					request.data = { acknowledge_warnings: true };
+				}
+				const status = await apiFetch( request );
 
+				if ( status?.warnings_pending ) {
+					return status;
+				}
+
+				// Otherwise a full status payload, exactly like a
+				// transition's: a revert can cross a region boundary, so the
+				// editor chrome must adopt the change too.
 				dispatch.receiveWorkflowStatus( status );
 				refreshPostEntity( registry, select.getPostType(), postId );
+				return status;
 			} catch ( error ) {
 				// As with Run again: a refusal (someone else ran it again or
 				// took it back first) means the failed state on screen is

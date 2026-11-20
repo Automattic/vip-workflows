@@ -137,10 +137,15 @@ class WorkflowController extends WP_REST_Controller {
 					'callback'            => array( $this, 'revert_agent_stage' ),
 					'permission_callback' => array( $this, 'transition_permissions_check' ),
 					'args'                => array(
-						'id' => array(
+						'id'                   => array(
 							'description' => 'Post ID.',
 							'type'        => 'integer',
 							'required'    => true,
+						),
+						'acknowledge_warnings' => array(
+							'description' => 'Set to true to proceed despite soft warnings.',
+							'type'        => 'boolean',
+							'default'     => false,
 						),
 					),
 				),
@@ -852,9 +857,18 @@ class WorkflowController extends WP_REST_Controller {
 		$post_id = (int) $request->get_param( 'id' );
 
 		$status_manager = Plugin::get_instance()->get_status_manager();
-		$result         = $status_manager->revert_failed_agent_stage( $post_id );
+		$result         = $status_manager->revert_failed_agent_stage(
+			$post_id,
+			array( 'acknowledge_warnings' => (bool) $request->get_param( 'acknowledge_warnings' ) )
+		);
 		if ( is_wp_error( $result ) ) {
 			return $result;
+		}
+
+		// Held for soft warnings: nothing moved. Same answer transition_status()
+		// gives, so the editor can show them and confirm.
+		if ( is_array( $result ) && ! empty( $result['warnings_pending'] ) ) {
+			return new WP_REST_Response( $result, 200 );
 		}
 
 		// Return the updated status payload, with the committed post status the
