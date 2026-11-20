@@ -51,6 +51,7 @@ class StageAgentShortcodeEdgeCasesIntegrationTest extends TestCase
             'incomplete escape'            => array( '[[promo_box]', '[[other_box]' ),
             'extra closing bracket'        => array( '[promo_box]]', '[other_box]]' ),
             'nested outer closer removed'  => array( '[box][box]Text[/box][/box]', '[box][box]Text[/box]' ),
+            'in an unregistered escape'    => array( '', '[[box] [promo_box] [/box]]' ),
         );
     }
 
@@ -74,7 +75,7 @@ class StageAgentShortcodeEdgeCasesIntegrationTest extends TestCase
             'scores, ranges, formulas' => array( '[3-1] [2020-2024] [x = y]' ),
             'escaped self-closing'     => array( '[[promo_box /]]' ),
             'escaped bare'             => array( '[[promo_box]]' ),
-            'escaped pair with inside' => array( '[[box] [promo_box] [/box]]' ),
+            'escaped plain pair'       => array( '[[box] some text [/box]]' ),
         );
     }
 
@@ -122,6 +123,26 @@ class StageAgentShortcodeEdgeCasesIntegrationTest extends TestCase
 
         $before = self::BODY . '<p>Text [[gallery ids="1"]] more</p>';
         $this->assertFalse( StageAgent::measure_rewrite( $before, str_replace( 'ids="1"', 'ids="2"', $before ) )['controls_changed'] );
+    }
+
+    public function test_an_unregistered_shortcode_inside_an_escaped_unregistered_pair_counts(): void
+    {
+        $this->assertFalse( shortcode_exists( 'box' ) );
+        $this->assertSame(
+            array(
+                array(
+                    'offset' => 7,
+                    'label'  => 'shortcode:[promo_box]',
+                ),
+            ),
+            self::controls( '[[box] [promo_box] [/box]]' )
+        );
+
+        $before = self::BODY . '<p>Text [[box] [promo_box id=7] [/box]] more</p>';
+        $report = StageAgent::measure_rewrite( $before, str_replace( 'id=7', 'id=8', $before ) );
+
+        $this->assertTrue( $report['controls_changed'] );
+        $this->assertContains( 'controls', StageAgent::copy_edit_violations( $report, 15 ) );
     }
 
     public function test_a_long_slash_attribute_does_not_hide_other_shortcodes(): void
@@ -302,10 +323,10 @@ class StageAgentShortcodeEdgeCasesIntegrationTest extends TestCase
                 array( 'shortcode:[gallery_box x=1]', 'shortcode:[gallery ids="1"]', 'shortcode:[/gallery_box]' ),
                 true,
             ),
-            'unregistered escape hides only its own tokens' => array(
+            'unregistered escape hides only its outer tokens' => array(
                 '[[foo] [promo_box x=1] [gallery ids="1"] [/foo]]',
                 '[[foo] [promo_box x=1] rendered:1 [/foo]]',
-                array( 'shortcode:[gallery ids="1"]' ),
+                array( 'shortcode:[promo_box x=1]', 'shortcode:[gallery ids="1"]' ),
                 true,
             ),
             'real registered escape beside an active registered tag' => array(
@@ -353,6 +374,98 @@ class StageAgentShortcodeEdgeCasesIntegrationTest extends TestCase
 
             $prose_report = StageAgent::measure_rewrite( $before, str_replace( 'aproved', 'approved', $before ) );
             $this->assertSame( array(), StageAgent::copy_edit_violations( $prose_report, 15 ) );
+        } finally {
+            $GLOBALS['shortcode_tags'] = $registered;
+        }
+    }
+
+    /**
+     * Escaped unregistered pairs holding a tag registered only on the front
+     * end. Each row gives what WordPress renders once `promo_box` is
+     * registered (printing `rendered:<x>`), and the controls the guard
+     * counts while nothing is registered.
+     *
+     * @return array<string, array{0: string, 1: string, 2: string[]}>
+     */
+    public function provide_late_registered_inner_tokens(): array
+    {
+        return array(
+            'two same-name escapes' => array(
+                '[[box] [promo_box x=1] [/box]] [[box] [promo_box x=1] [/box]]',
+                '[[box] rendered:1 [/box]] [[box] rendered:1 [/box]]',
+                array( 'shortcode:[promo_box x=1]', 'shortcode:[promo_box x=1]' ),
+            ),
+            'underscore outer' => array(
+                '[[outer_box] [promo_box x=1] [/outer_box]]',
+                '[[outer_box] rendered:1 [/outer_box]]',
+                array( 'shortcode:[promo_box x=1]' ),
+            ),
+            'hyphen outer' => array(
+                '[[outer-box] [promo_box x=1] [/outer-box]]',
+                '[[outer-box] rendered:1 [/outer-box]]',
+                array( 'shortcode:[promo_box x=1]' ),
+            ),
+            'nested different-name escapes' => array(
+                '[[box] [[inner] [promo_box x=1] [/inner]] [/box]]',
+                '[[box] [[inner] rendered:1 [/inner]] [/box]]',
+                array( 'shortcode:[promo_box x=1]' ),
+            ),
+            'nested same-name escapes share a closer' => array(
+                '[[box] [[box] [promo_box x=1] [/box]] [/box]]',
+                '[[box] [[box] rendered:1 [/box]] [/box]]',
+                array( 'shortcode:[promo_box x=1]' ),
+            ),
+            'single escape before a doubled closer' => array(
+                '[[box]] [promo_box x=1] [/box]]',
+                '[[box]] rendered:1 [/box]]',
+                array( 'shortcode:[promo_box x=1]' ),
+            ),
+            'earlier opener shares the outer closer' => array(
+                '[box x=1] [[box] [promo_box x=1] [/box]]',
+                '[box x=1] [[box] rendered:1 [/box]]',
+                array( 'shortcode:[box x=1]', 'shortcode:[promo_box x=1]' ),
+            ),
+            'paired inner token' => array(
+                '[[box] [promo_box x=1] text [/promo_box] [/box]]',
+                '[[box] rendered:1 [/box]]',
+                array( 'shortcode:[promo_box x=1]', 'shortcode:[/promo_box]' ),
+            ),
+            'self-closing inner token' => array(
+                '[[box] [promo_box x=1 /] [/box]]',
+                '[[box] rendered:1 [/box]]',
+                array( 'shortcode:[promo_box x=1 /]' ),
+            ),
+        );
+    }
+
+    /**
+     * @dataProvider provide_late_registered_inner_tokens
+     *
+     * @param string[] $labels Expected control labels in document order.
+     */
+    public function test_late_registered_inner_tokens_render_and_edits_are_refused( string $fragment, string $rendered, array $labels ): void
+    {
+        $registered = $GLOBALS['shortcode_tags'];
+        try {
+            foreach ( array( 'box', 'inner', 'outer_box', 'outer-box', 'promo_box' ) as $name ) {
+                remove_shortcode( $name );
+            }
+            add_shortcode( 'promo_box', static fn( $attributes ) => 'rendered:' . $attributes['x'] );
+            $this->assertSame( $rendered, do_shortcode( $fragment ) );
+            $this->assertNotSame( $rendered, do_shortcode( str_replace( 'x=1', 'x=2', $fragment ) ) );
+            remove_shortcode( 'promo_box' );
+
+            $controls = ( new \ReflectionMethod( StageAgent::class, 'controls' ) )->invoke( null, $fragment );
+            $this->assertSame( $labels, array_column( $controls, 'label' ) );
+            $offsets = array_column( $controls, 'offset' );
+            $this->assertSame( $offsets, array_values( array_unique( $offsets ) ) );
+
+            $before = self::BODY . '<p>' . $fragment . '</p>';
+            $this->assertSame( $before, wp_kses_post( $before ) );
+            $report = StageAgent::measure_rewrite( $before, str_replace( 'x=1', 'x=2', $before ) );
+            $this->assertTrue( $report['controls_changed'] );
+            $this->assertContains( 'controls', StageAgent::copy_edit_violations( $report, 15 ) );
+            $this->assertSame( array(), StageAgent::copy_edit_violations( StageAgent::measure_rewrite( $before, str_replace( 'aproved', 'approved', $before ) ), 15 ) );
         } finally {
             $GLOBALS['shortcode_tags'] = $registered;
         }
