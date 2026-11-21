@@ -33,6 +33,12 @@ class StageAgentControlsAndScriptsIntegrationTest extends TestCase
             'a More tag removed'           => array( self::BODY . '<!--more-->' . $second, self::BODY . $second ),
             'a gallery added'              => array( self::BODY, self::BODY . '<p>[gallery ids="1,2"]</p>' ),
             'a shortcode attribute edited' => array( self::BODY . '<p>[gallery ids="1,2"]</p>', self::BODY . '<p>[gallery ids="1,3"]</p>' ),
+            // Tags no one registered, as with a theme that registers them on a front-end hook.
+            'an unregistered attribute edited'    => array( self::BODY . '<p>[promo_box id="7"]</p>', self::BODY . '<p>[promo_box id="8"]</p>' ),
+            'an unregistered hyphenated added'    => array( self::BODY, self::BODY . '<p>[newsletter-signup]</p>' ),
+            'an unregistered pair removed'        => array( self::BODY . '<p>[pullquote]The plan passed.[/pullquote]</p>', self::BODY . '<p>The plan passed.</p>' ),
+            'an unregistered shortcode moved'     => array( self::BODY . '<p>[promo_box id="7"]</p>' . $second, self::BODY . $second . '<p>[promo_box id="7"]</p>' ),
+            'an unregistered self-closing added'  => array( self::BODY, self::BODY . '<p>[divider /]</p>' ),
         );
     }
 
@@ -56,8 +62,8 @@ class StageAgentControlsAndScriptsIntegrationTest extends TestCase
 
     public function test_a_copy_edit_around_unchanged_controls_passes(): void
     {
-        $before = '<p>The board aproved the proposal after reviewing the detailed report from the committee.</p><!--more--><p>[gallery ids="1,2"]</p>';
-        $after  = '<p>The board approved the proposal after reviewing the detailed report from the committee.</p><!--more--><p>[gallery ids="1,2"]</p>';
+        $before = '<p>The board aproved the proposal after reviewing the detailed report from the committee.</p><!--more--><p>[gallery ids="1,2"]</p><p>[promo_box id="7"]</p>';
+        $after  = '<p>The board approved the proposal after reviewing the detailed report from the committee.</p><!--more--><p>[gallery ids="1,2"]</p><p>[promo_box id="7"]</p>';
 
         $report = StageAgent::measure_rewrite( $before, $after );
 
@@ -70,6 +76,51 @@ class StageAgentControlsAndScriptsIntegrationTest extends TestCase
         $report = StageAgent::measure_rewrite( self::BODY, self::BODY . '<p>Type [[gallery]] to add one.</p>' );
 
         $this->assertFalse( $report['controls_changed'] );
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public function provide_bracketed_prose(): array
+    {
+        return array(
+            '[sic] removed'               => array( '<p>The mayor said it was "to large [sic] to pass" this year.</p>', '<p>The mayor said it was "to large to pass" this year.</p>' ),
+            '[1] added'                   => array( self::BODY, '<p>The board approved the proposal after reviewing the detailed report from the committee.[1]</p>' ),
+            '[Ed.] kept, sentence edited' => array( '<p>The council [Ed.] voted to aprove the library on Tuesday night.</p>', '<p>The council [Ed.] voted to approve the library on Tuesday evening.</p>' ),
+            '[citation needed] added'     => array( self::BODY, '<p>The board approved the proposal [citation needed] after reviewing the detailed report from the committee.</p>' ),
+            'escaped unregistered added'  => array( self::BODY, '<p>The board approved the proposal [[promo_box id="7"]] after reviewing the detailed report from the committee.</p>' ),
+        );
+    }
+
+    /**
+     * @dataProvider provide_bracketed_prose
+     *
+     * @param string $before Original content.
+     * @param string $after  Edited content.
+     */
+    public function test_bracketed_prose_is_text( string $before, string $after ): void
+    {
+        $this->assertSame( $after, wp_kses_post( $after ), 'The fixture must survive real kses.' );
+
+        $report = StageAgent::measure_rewrite( $before, $after );
+
+        $this->assertFalse( $report['controls_changed'] );
+        $this->assertNotContains( 'controls', StageAgent::copy_edit_violations( $report, 15 ) );
+    }
+
+    public function test_a_registered_shortcode_is_counted_once(): void
+    {
+        $this->assertTrue( shortcode_exists( 'gallery' ) );
+        $this->assertFalse( shortcode_exists( 'promo_box' ) );
+
+        $shape = new \ReflectionMethod( StageAgent::class, 'content_shape' );
+
+        $controls = $shape->invoke( null, '<p>[gallery ids="1,2"]</p><p>[promo_box id="7"][caption]Photo[/caption]</p>' )['controls'];
+
+        $this->assertSame(
+            array( '0:shortcode:[gallery ids="1,2"]', '1:shortcode:[promo_box id="7"]', '1:shortcode:[caption]', '1:shortcode:[/caption]' ),
+            $controls
+        );
     }
 
     public function test_a_one_character_fix_in_chinese_is_small(): void

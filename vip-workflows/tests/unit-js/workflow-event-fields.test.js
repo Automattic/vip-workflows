@@ -209,3 +209,52 @@ describe( 'activityView', () => {
 		expect( view.fields ?? [] ).not.toContain( view.descriptionField );
 	} );
 } );
+
+describe( 'a sequence event', () => {
+	it( 'offers its change summary as notes', () => {
+		const update = {
+			id: 2,
+			event_type: 'sequence.updated',
+			event_type_label: 'Sequence updated',
+			event_data: {
+				sequence_name: 'Editorial Sequence',
+				changes: {
+					stages_added: [ { key: 'legal', label: 'Legal review' } ],
+				},
+			},
+			actor: { type: 'user', display_name: 'Ada Lovelace' },
+			created_at: '2026-01-01 00:00:00',
+		};
+		const onShowNotes = jest.fn();
+
+		expect( viewNotesAction( { onShowNotes } ).isEligible( update ) ).toBe(
+			true
+		);
+		viewNotesAction( { onShowNotes } ).callback( [ update ] );
+		expect( onShowNotes ).toHaveBeenCalledWith( {
+			notes: [ { label: 'Stages added', value: 'Legal review' } ],
+			title: 'Sequence changes',
+		} );
+	} );
+
+	it( 'shows a delete with no post and the sequence as its Workflow', () => {
+		const deleted = {
+			id: 3,
+			post: null,
+			event_type: 'sequence.deleted',
+			event_type_label: 'Sequence deleted',
+			event_data: { sequence_name: 'Editorial Sequence' },
+			actor: { type: 'user', display_name: 'Ada Lovelace' },
+			created_at: '2026-01-01 00:00:00',
+		};
+
+		expect(
+			eventDescriptionField( { onShowNotes: () => {} } ).getValue( {
+				item: deleted,
+			} )
+		).toBe( 'Sequence deleted' );
+		expect( eventWorkflowField().getValue( { item: deleted } ) ).toBe(
+			'Editorial Sequence'
+		);
+	} );
+} );

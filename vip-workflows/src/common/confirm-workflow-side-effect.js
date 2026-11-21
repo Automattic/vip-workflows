@@ -917,6 +917,70 @@ export function getOrphanedWorkflowMessage( { title, overrideRoles = [] } ) {
 }
 
 /**
+ * Decide whether publishing a post with no workflow is refused.
+ *
+ * MIRRORS `WorkflowRequirementGuard::resolve_refusal()` (PHP), for the posts
+ * the status endpoint marks `workflow_required`: the site is in "require" mode
+ * and a workflow covers the post. The server is the authority; this only keeps
+ * the user from walking into its 409. Moving into the publish region
+ * (`publish`, `future`) is refused for a non-bypass user unless the post is
+ * already there. Drafts, pending and private stay allowed.
+ *
+ * Kept apart from evaluateStatusChange(): that table is for posts IN a
+ * workflow, where every crossing re-seats a stage. Here nothing re-seats, so
+ * there is no warn, only allowed or refused.
+ *
+ * @param {Object}  options               Evaluation input.
+ * @param {string}  options.currentRegion Region of the post's stored status.
+ * @param {string}  options.targetStatus  Core post status the change would write.
+ * @param {boolean} options.canBypass     Whether the user's role is on the bypass list.
+ * @return {string} DECISION_SILENT or DECISION_VETO.
+ */
+export function evaluateRequiredWorkflow( {
+	currentRegion,
+	targetStatus,
+	canBypass,
+} ) {
+	if (
+		canBypass ||
+		statusToRegion( targetStatus ) !== 'publish' ||
+		currentRegion === 'publish'
+	) {
+		return DECISION_SILENT;
+	}
+
+	return DECISION_VETO;
+}
+
+/**
+ * Copy for a publish refused because the post has no workflow.
+ *
+ * Says the same thing as `WorkflowRequirementGuard::message()`, but points at
+ * the editor's Workflow row, which is where the block editor offers the choice.
+ *
+ * @param {Object} options       Message input.
+ * @param {string} options.title Post title (may be empty).
+ * @return {string} Translated message.
+ */
+export function getWorkflowRequiredMessage( { title } ) {
+	if ( ! title || ! title.trim() ) {
+		return __(
+			'This post can’t be published without a workflow. Choose one in the Workflow row, then move it to a published stage.',
+			'vip-workflows'
+		);
+	}
+
+	return sprintf(
+		/* translators: %s: post title. */
+		__(
+			'“%s” can’t be published without a workflow. Choose one in the Workflow row, then move it to a published stage.',
+			'vip-workflows'
+		),
+		title
+	);
+}
+
+/**
  * Copy for the confirm that precedes removing a post from a deleted workflow.
  *
  * The sibling of getRemoveFromWorkflowConfirmation() for the case where there

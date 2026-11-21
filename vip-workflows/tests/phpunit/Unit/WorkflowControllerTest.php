@@ -688,14 +688,16 @@ class WorkflowControllerTest extends TestCase
     }
 
     /**
-     * A post outside any workflow has nothing to guard: the branch is unchanged
-     * and carries no guard payload.
+     * A post outside any workflow, on a site that doesn't require one, has
+     * nothing to guard: the branch is unchanged and carries no guard payload.
      */
     public function test_get_post_status_omits_guard_for_non_workflow_post(): void
     {
         $post = $this->create_mock_post( array( 'ID' => 42 ) );
 
         Functions\when( 'get_post' )->justReturn( $post );
+        // Enforcement off: Settings::get_workflow_enforcement_mode() reads this.
+        Functions\when( 'get_option' )->justReturn( array() );
 
         $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
         $status_manager->shouldReceive( 'get_sequence_for_post' )->with( 42 )->andReturn( null );
@@ -716,6 +718,51 @@ class WorkflowControllerTest extends TestCase
         $this->assertArrayNotHasKey( 'guard', $data );
         // A genuinely unmanaged post is offered the sequence selector.
         $this->assertNotEmpty( $data['available_sequences'] );
+    }
+
+    /**
+     * In "require" mode an unassigned post a workflow covers IS acted on at the
+     * save layer (WorkflowRequirementGuard), so it gets a guard payload that
+     * says which rule applies, with its own status as the region.
+     */
+    public function test_get_post_status_marks_an_unassigned_post_when_a_workflow_is_required(): void
+    {
+        $post = $this->create_mock_post( array( 'ID' => 42, 'post_status' => 'pending' ) );
+
+        Functions\when( 'get_post' )->justReturn( $post );
+        Functions\when( 'get_current_user_id' )->justReturn( 5 );
+        Functions\when( 'get_userdata' )->justReturn( (object) array( 'ID' => 5, 'roles' => array( 'author' ) ) );
+        Functions\when( 'get_option' )->justReturn(
+            array(
+                'workflow_enforcement'      => true,
+                'workflow_enforcement_mode' => 'require',
+                'bypass_workflow_roles'     => array( 'administrator' ),
+            )
+        );
+
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
+        $status_manager->shouldReceive( 'get_sequence_for_post' )->with( 42 )->andReturn( null );
+        $status_manager->shouldReceive( 'has_dangling_sequence' )->with( 42 )->andReturn( false );
+        $status_manager->shouldReceive( 'get_available_sequences_for_post' )->with( 42 )->andReturn( array( array( 'id' => 7, 'name' => 'News' ) ) );
+        $status_manager->shouldReceive( 'status_to_region' )->with( 'pending' )->andReturn( 'pending' );
+
+        $request  = $this->create_mock_request( array( 'id' => 42 ) );
+        $response = $this->with_status_manager(
+            $status_manager,
+            fn() => $this->controller->get_post_status( $request )
+        );
+
+        $data = $response->get_data();
+        $this->assertFalse( $data['has_workflow'] );
+        $this->assertSame(
+            array(
+                'workflow_required' => true,
+                'current_region'    => 'pending',
+                'can_bypass'        => false,
+                'agent_pending'     => false,
+            ),
+            $data['guard']
+        );
     }
 
     /**
@@ -1366,6 +1413,87 @@ class WorkflowControllerTest extends TestCase
         $this->assertSame(
             array( array( 42, \VIPWorkflows\Workflow\StageAgentRunner::JOB_META, $held_job ) ),
             $deletes
+        );
+    }
+
+    // =========================================================================
+    // POST /workflow/post/{id}/agent-revert Tests
+    // =========================================================================
+
+    /**
+     * A Go back held for soft warnings answers with the warnings, not with a
+     * status payload that reads as success: nothing moved.
+     */
+    public function test_revert_agent_stage_returns_held_warnings(): void
+    {
+        $held = array(
+            'warnings_pending' => true,
+            'soft_warnings'    => array( array( 'message' => 'Readability is low' ) ),
+        );
+
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
+        $status_manager->shouldReceive( 'revert_failed_agent_stage' )
+            ->once()
+            ->with( 42, array( 'acknowledge_warnings' => false ) )
+            ->andReturn( $held );
+
+        $controller = new class() extends WorkflowController {
+            public function get_post_status( $request ) {
+                throw new \LogicException( 'A held Go back must not build the status payload.' );
+            }
+        };
+        $request = $this->create_mock_request( array( 'id' => 42 ) );
+
+        $response = $this->with_status_manager(
+            $status_manager,
+            fn() => $controller->revert_agent_stage( $request )
+        );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertSame( 200, $response->get_status() );
+        $this->assertSame( $held, $response->get_data() );
+    }
+
+    /**
+     * A confirmed Go back passes the acknowledgement through and answers with
+     * the status payload once the post has moved.
+     */
+    public function test_revert_agent_stage_passes_the_acknowledgement_and_returns_status(): void
+    {
+        Functions\when( 'get_post_status' )->justReturn( 'draft' );
+
+        $status_manager = Mockery::mock( \VIPWorkflows\Workflow\StatusManager::class );
+        $status_manager->shouldReceive( 'revert_failed_agent_stage' )
+            ->once()
+            ->with( 42, array( 'acknowledge_warnings' => true ) )
+            ->andReturn( true );
+
+        $controller = new class() extends WorkflowController {
+            public function get_post_status( $request ) {
+                return new \WP_REST_Response( array( 'current' => array( 'key' => 'draft' ) ) );
+            }
+        };
+        $request = $this->create_mock_request(
+            array(
+                'id'                   => 42,
+                'acknowledge_warnings' => true,
+            )
+        );
+
+        $response = $this->with_status_manager(
+            $status_manager,
+            fn() => $controller->revert_agent_stage( $request )
+        );
+
+        $this->assertInstanceOf( 'WP_REST_Response', $response );
+        $this->assertSame(
+            array(
+                'current' => array(
+                    'key'       => 'draft',
+                    'wp_status' => 'draft',
+                ),
+            ),
+            $response->get_data()
         );
     }
 

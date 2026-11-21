@@ -7,6 +7,12 @@
  * publish boundary is refused outright at the save layer
  * (`PublishBoundaryGuard`). This component says so BEFORE the write.
  *
+ * It does the same for a post with no workflow on a site that requires one:
+ * `WorkflowRequirementGuard` refuses publishing it, so the guard refuses the
+ * save first and points at the Workflow row. If such a save reaches the server
+ * anyway, core shows the 409's message and the guard takes the refused status
+ * edit back out, so the next save doesn't try to publish again.
+ *
  * It renders no chrome of its own on purpose. It used to live inside
  * `WorkflowStatusPanel`, which is mounted by a `PluginDocumentSettingPanel` —
  * and the core `PanelBody` that panel is built on renders
@@ -35,12 +41,14 @@
 import { useEffect, useRef } from '@wordpress/element';
 import { useDispatch, useRegistry, useSelect } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
+import { store as coreStore } from '@wordpress/core-data';
 import { addFilter, removeFilter } from '@wordpress/hooks';
 import apiFetch from '@wordpress/api-fetch';
 
 import {
 	DECISION_SILENT,
 	DECISION_VETO,
+	evaluateRequiredWorkflow,
 	evaluateStatusChange,
 	getEntryStageLabels,
 	getOrphanedWorkflowMessage,
@@ -49,6 +57,7 @@ import {
 	getStatusChangeConfirmTitle,
 	getStatusChangeRefusedMessage,
 	getStatusChangeWarning,
+	getWorkflowRequiredMessage,
 	isTransitionRulesRefusal,
 } from '../../common/confirm-workflow-side-effect';
 import { useConfirm } from '../../common/use-confirm';
@@ -64,6 +73,29 @@ import { STORE_NAME } from '../store';
  * @type {string}
  */
 const GUARD_HOOK_NAMESPACE = 'vip-workflows/workflow-save-guard';
+
+/**
+ * REST error code `WorkflowRequirementGuard` refuses a publish with.
+ *
+ * @type {string}
+ */
+const WORKFLOW_REQUIRED_ERROR_CODE = 'vip_workflows_workflow_required';
+
+/**
+ * Take a refused status back out of the editor.
+ *
+ * `editPost` clears an edit that matches the persisted value, so this leaves
+ * the post with no status change pending rather than trading one pending edit
+ * for another.
+ *
+ * @param {Object}                  registry Data registry.
+ * @param {(edits: Object) => void} editPost The editor store's `editPost` action.
+ */
+function restorePersistedStatus( registry, editPost ) {
+	editPost( {
+		status: registry.select( editorStore ).getCurrentPost().status,
+	} );
+}
 
 export function WorkflowSaveGuard() {
 	const postId = useSelect(
@@ -109,6 +141,9 @@ export function WorkflowSaveGuard() {
 	// workflow write makes the open copy stale, not dirty, and faking dirtiness
 	// caused a P1 on this branch.
 	useEffect( () => {
+		const restoreEditorStatus = () =>
+			restorePersistedStatus( registry, editPost );
+
 		const guardSave = async ( edits, options ) => {
 			// Autosaves never write an edited status — core deliberately holds
 			// it back (see `saveEntityRecord`'s autosave payload) — so there is
@@ -155,8 +190,38 @@ export function WorkflowSaveGuard() {
 			// sequence meta, which is still there, and refuses every status
 			// change. Skipping the guard here is what walked the user into that
 			// refusal with no explanation and no way out.
+			//
+			// A post with no workflow at all can still be refused: in "require"
+			// mode WorkflowRequirementGuard refuses publishing it, and the
+			// endpoint marks that with `guard.workflow_required`. Nothing
+			// re-seats, so the answer is only allowed or refused.
 			if ( ! workflow?.has_workflow && ! workflow?.orphaned ) {
-				return edits;
+				if ( ! workflow?.guard?.workflow_required ) {
+					return edits;
+				}
+
+				const required = evaluateRequiredWorkflow( {
+					currentRegion: workflow.guard.current_region,
+					targetStatus: edits.status,
+					canBypass: !! workflow.guard.can_bypass,
+				} );
+
+				if ( required !== DECISION_VETO ) {
+					return edits;
+				}
+
+				restoreEditorStatus();
+
+				// Thrown, like the publish veto below: core's save-failure
+				// notice carries the message, and the way through is the
+				// Workflow row, not a button on the error.
+				throw new Error(
+					getWorkflowRequiredMessage( {
+						title: registry
+							.select( editorStore )
+							.getEditedPostAttribute( 'title' ),
+					} )
+				);
 			}
 
 			if ( ! workflow.guard ) {
@@ -193,17 +258,6 @@ export function WorkflowSaveGuard() {
 				}
 				return edits;
 			}
-
-			// Take the status back out of both the pending save and the editor.
-			// `editPost` clears an edit that matches the persisted value, so
-			// this leaves the post with no status change pending rather than
-			// trading one pending edit for another.
-			const restoreEditorStatus = () => {
-				editPost( {
-					status: registry.select( editorStore ).getCurrentPost()
-						.status,
-				} );
-			};
 
 			const workflowName = workflow.sequence?.name;
 
@@ -315,6 +369,17 @@ export function WorkflowSaveGuard() {
 		let wasSaving = false;
 		let wasAutosaving = false;
 
+		// The code of the REST error the last save of this post got, if any.
+		// Read from core-data, which keeps the error object (with its code)
+		// that the editor store reduces to a yes/no.
+		const lastSaveErrorCode = () => {
+			const post = registry.select( editorStore ).getCurrentPost();
+			return registry
+				.select( coreStore )
+				?.getLastEntitySaveError?.( 'postType', post?.type, post?.id )
+				?.code;
+		};
+
 		return registry.subscribe( () => {
 			const editor = registry.select( editorStore );
 			const isSaving = editor.isSavingPost();
@@ -331,6 +396,20 @@ export function WorkflowSaveGuard() {
 
 			wasSaving = false;
 
+			// The server refused a publish because the post has no workflow —
+			// the filter above could not predict it (its status read failed,
+			// or a setting changed between that read and the write). Core's
+			// notice already shows the 409's message; what it leaves behind is
+			// the status edit, still pending, so the next save would try to
+			// publish again. Put it back.
+			if (
+				! wasAutosaving &&
+				! editor.didPostSaveRequestSucceed() &&
+				lastSaveErrorCode() === WORKFLOW_REQUIRED_ERROR_CODE
+			) {
+				restorePersistedStatus( registry, editPost );
+			}
+
 			if ( wasAutosaving || ! reseatPendingRef.current ) {
 				return;
 			}
@@ -341,7 +420,7 @@ export function WorkflowSaveGuard() {
 				fetchWorkflowStatus();
 			}
 		}, editorStore );
-	}, [ fetchWorkflowStatus, registry ] );
+	}, [ editPost, fetchWorkflowStatus, registry ] );
 
 	return confirmDialog;
 }

@@ -24,7 +24,7 @@ import './EventNotesModal.css';
 
 /**
  * @param {Object}   props         Props.
- * @param {Array}    props.notes   Notes, each `{ label, value }`.
+ * @param {Array}    props.notes   Notes, each `{ label, value }`; a note with an empty label shows its value alone.
  * @param {string}   props.title   Dialog title.
  * @param {Function} props.onClose Close handler.
  * @return {JSX.Element} The dialog.
@@ -49,13 +49,15 @@ export function EventNotesModal( { notes, title, onClose } ) {
 						gap="sm"
 						className="vip-workflows-event-note-item"
 					>
-						<Text
-							variant="heading-sm"
-							render={ <div /> }
-							className="vip-workflows-event-note-item__label vip-workflows-eyebrow"
-						>
-							{ note.label }
-						</Text>
+						{ note.label && (
+							<Text
+								variant="heading-sm"
+								render={ <div /> }
+								className="vip-workflows-event-note-item__label vip-workflows-eyebrow"
+							>
+								{ note.label }
+							</Text>
+						) }
 						{ /* The value is a box (tinted, ruled, padded) wrapping
 						     author-written text, so the box and the type are
 						     separate elements: no WPDS component draws that

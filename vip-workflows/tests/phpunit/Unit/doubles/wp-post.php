@@ -8,10 +8,10 @@
  * columns such as `->ID`, `->post_type`, `->post_title`, and `->post_content`.
  *
  * Real WP_Post's constructor takes an object and fronts magic accessors; this
- * double accepts a plain array of columns instead, which is all the unit tests
- * need. It is loaded only for the non-integration suite. Under integration the
- * real WP_Post from WordPress core is used instead; the class_exists guard
- * makes this a no-op there.
+ * double accepts a plain array of columns, or an object like core, which is all
+ * the unit tests need. It is loaded only for the non-integration suite. Under
+ * integration the real WP_Post from WordPress core is used instead; the
+ * class_exists guard makes this a no-op there.
  *
  * @package VIPWorkflows\Tests\Unit
  */
@@ -37,10 +37,11 @@ if ( ! class_exists( 'WP_Post' ) ) {
         public int $comment_count       = 0;
 
         /**
-         * @param array<string, mixed> $data Post columns to seed the object with.
+         * @param array<string, mixed>|object $data Post columns to seed the object with. An object is
+         *                                          accepted too, as real WP_Post's constructor takes one.
          */
-        public function __construct( array $data = array() ) {
-            foreach ( $data as $key => $value ) {
+        public function __construct( $data = array() ) {
+            foreach ( ( is_object( $data ) ? get_object_vars( $data ) : $data ) as $key => $value ) {
                 $this->$key = $value;
             }
         }
