@@ -272,7 +272,8 @@ The sequence's transition rules are described in [Capabilities and roles](#capab
 
 | Route | Methods | Permission |
 | --- | --- | --- |
-| `/sequences`, `/sequences/{id}`, `/sequences/slug/{slug}`, `/sequences/{id}/export`, `/sequences/{id}/stats`, `/sequences/options` | GET | `edit_posts` |
+| `/sequences`, `/sequences/{id}`, `/sequences/slug/{slug}`, `/sequences/{id}/stats`, `/sequences/options` | GET | `edit_posts` |
+| `/sequences/{id}/export` | GET | `manage_options` |
 | `/sequences` | POST | `manage_options` |
 | `/sequences/import` | write | `manage_options` |
 | `/sequences/{id}` | POST/PUT/PATCH (full replace), DELETE | `manage_options` |
@@ -373,7 +374,7 @@ Who may do what, and where the check lives. When reviewing, check that a change 
 | --- | --- | --- |
 | Use Workflows screens (My Dashboard, Kanban, Calendar, Ideation) | `edit_posts` | `vip-workflows/includes/admin/class-admin.php` |
 | Read or move a specific post | `edit_post` on the post, then the transition's rules (below) | `vip-workflows/includes/api/class-workflow-controller.php`, `vip-workflows/includes/sequences/class-sequence.php` (`get_role_permitted_transitions()`), `vip-workflows/includes/workflow/class-status-manager.php` |
-| Create, edit, activate, import or delete sequences | `manage_options` (read: `edit_posts`) | `vip-workflows/includes/api/class-sequences-controller.php`, sequence abilities |
+| Create, edit, activate, import, export or delete sequences | `manage_options` (read and stats: `edit_posts`) | `vip-workflows/includes/api/class-sequences-controller.php`, sequence abilities |
 | Settings, experiments, tools, agents, prompts, notifications, assistants | `manage_options` | The controllers in [REST and Abilities](#rest-and-abilities), `vip-workflows/includes/admin/class-settings.php`, `vip-workflows/includes/admin/class-admin.php` |
 | Audit log visibility | Role in `audit_log_roles` (below) | `vip-workflows/includes/admin/class-settings.php` (`can_user_view_audit_log()`, `can_user_view_all_audit_logs()`) |
 | Ideation projects | `edit_posts` and (author or `edit_others_posts`); uploads also need `upload_files` | `vip-workflows/includes/api/class-ideation-controller.php`, `vip-workflows/includes/api/class-ideation-sources-controller.php` |
@@ -676,7 +677,7 @@ Each feature section has the same parts: **What it's for**, **How it works**, **
 - **Every config write goes through one gate.** For a workflow sequence it requires at least one stage, unique sanitized stage keys, a valid region on every stage, exactly one region entry stage per used region (picked automatically if none is set), exactly one initial stage (picked automatically if none is set), every transition target defined, and at most one transition per target per stage. A failure is returned as a 422. For a phase sequence it checks only the required lifecycle, Ideation → Editorial.
 - **A sequence write can't strand posts.** An update that removes or re-keys a stage posts sit at, or a delete of a sequence any post holds, is refused with a 409 that lists the posts. Posts in every status except `inherit` count, Trash and auto-drafts included. The admin moves or removes them first; nothing is remapped. Posts already pointing at a stage the stored sequence doesn't define don't block an unrelated save. The upgrade's stored-config replay applies the same rule: a row whose re-keyed stage holds posts is left as stored and recorded for review. `validate-sequence` with `update_of` reports in `would_strand` what an update would strand. For users with `manage_options`, the single-sequence GET and the update response carry `post_count` (every post holding the sequence) and `stage_post_counts` (stage key → posts there), both null if the count failed; they're cached until a post or post meta changes, while the write checks always read live rows. The sequence editor uses them to disable Delete sequence while any post holds it, and to make an occupied stage's key read-only and disable its delete, so the author isn't left to find out at Save.
 - **REST and MCP share one path.** Create and update run the REST controller, which first validates metadata fields, stage agents and assignment keys, then builds the config. The MCP create, update and import abilities build a REST request and call the same controller methods. Activating re-runs the gate as a dry run and then writes only the sequence's status. Validating runs every check without writing.
-- **Export and import make independent copies.** Export returns the name, type, description and config. Import always creates a new row with a fresh unique slug, status draft, and regenerated assignment slot keys. Nothing links a copy to its source, and sequence tables are per site, so there is no network sharing.
+- **Export and import make independent copies.** Export returns the name, type, description and config. Import always creates a new row with a fresh unique slug, status draft, and regenerated assignment slot keys. Nothing links a copy to its source, and sequence tables are per site, so there is no network sharing. Each export is recorded in the Audit Log.
 - **The phase sequence** holds one transition, Ideation → Editorial, with a label, required tools, allowed roles and notifications. It is seeded as `content-lifecycle` when the `ideation` experiment is turned on, and phase sequences can be created or imported only while that experiment is on. The check runs against the first active phase sequence when a draft is created from ideation: a missing transition or a role not allowed returns 403, and tools run with `project_id` as input.
 
 An example sequence for an approval workflow. Each stage sits in one WordPress status region. Moves inside a region change only the stage; moves across regions also change `post_status`.
@@ -707,7 +708,7 @@ flowchart LR
 - Every config write (REST, MCP, import, activation, migration replay) passes through the one gate. A new validation rule there needs a schema migration that replays stored rows. → `Sequence::prepare_config_for_write()`
 - A sequence's type never changes.
 - A repository update that removes a stage, or a repository delete, is refused while posts hold that stage or sequence at the time of the check. The check runs in the repository, so REST, MCP, the region repair and extensions all get it; the migration replay, which writes with direct SQL, applies it itself. → `SequenceRepository::update()`, `delete()`, `Schema::stage_keys_with_posts_the_write_would_drop()`
-- Creating, updating, importing and deleting a sequence require `manage_options`. Reading, listing, exporting and stats require `edit_posts`.
+- Creating, updating, importing, exporting and deleting a sequence require `manage_options`; exporting does because each served export writes an audit row. Reading, listing and stats require `edit_posts`.
 
 **Footguns**
 
@@ -967,15 +968,17 @@ flowchart TD
 **How it works.** Each event is one row in a database table, with the post, the event type, a JSON payload, who did it, what kind of actor they were, and when. Rows older than one year are deleted.
 
 - **A stage change** writes one transition row. It records the from and to stages with their keys and labels as they were at that moment, whether the workflow or WordPress caused it, the previous status, any comment, assignment notes, and, for agent moves, the agent and whether it was a revert.
-- **Other events** are recorded too: a post assigned to or removed from a workflow, a blocked transition, tool warnings, claim and release, every Ability run and failure, and sequence edits, activations and deactivations made through the MCP abilities.
+- **Other events** are recorded too: a post assigned to or removed from a workflow, a blocked transition, tool warnings, claim and release, every Ability run and failure, every sequence create, import, update, region repair, activation, deactivation and delete made through the sequence editor, REST or the sequence abilities, and every sequence export. An update row lists what changed: stages added, removed or renamed, region changes, transitions added, removed or changed (roles and tools), and AI-stage changes, capped at 50 per list. It never stores the full config. Writes that call `SequenceRepository` directly, such as extension installers, are not recorded.
 - **Internal event-bus rows** (stage changed, stage entered, stage completed) are stored but left out of every audit read.
-- **Who gets recorded.** A person's move is recorded as that user. An agent's exit transition is recorded as an agent, with the ability ID stored alongside it and the actor set to whoever is logged in when it commits (0 under cron). A move made over MCP is recorded as the authenticated user, the same as an editor's move.
+- **Who gets recorded.** A person's move is recorded as that user. An agent's exit transition is recorded as an agent, with the ability ID stored alongside it and the actor set to whoever is logged in when it commits (0 under cron). A move made over MCP is recorded as the authenticated user, the same as an editor's move. A sequence change made through an ability is recorded as an agent, with that ability ID and the authenticated user.
 - **Reading it back.** A post's history shows only stage changes, and anyone who can edit the post can see it. The Audit Log needs a role in the audit roles list (administrator and editor by default). Users outside the full-access list (administrator by default) see only events they performed.
 
 **Always true**
 
 - Every saved stage change writes exactly one visible transition row.
 - Stage labels are copied at write time, so renaming a stage never rewrites history.
+- Every sequence create, import, update, activation, deactivation and delete that changes the sequence writes exactly one row of its type, and a save that changes nothing writes none. A save that both edits and activates writes one of each.
+- Every export that returns the sequence writes exactly one `sequence.exported` row, as the user who asked for it. An export of a missing sequence, or one refused for lack of `manage_options`, writes none.
 - Every audit read leaves out the event-bus rows. → `StatusManager::bus_bookkeeping_exclusion()`
 - Users without full access see only their own actions, in the events, the event types and the user list.
 
@@ -990,7 +993,8 @@ flowchart TD
 - Table `{prefix}vip_workflows_events`: `post_id`, `event_type`, JSON `event_data`, `actor_id`, `actor_type` (`user` or `agent`), `created_at`.
 - Retention: `Cleanup` in `vip-workflows/includes/maintenance/class-cleanup.php`.
 - `vip-workflows/includes/workflow/class-status-manager.php`: `StatusManager::log_transition()` writes `status_transition` rows; `cause` is `workflow` or `core`; other fields include `previous_status`, `comment`, `agent_actor` (the ability ID) and `agent_revert`. `StatusManager::bus_bookkeeping_exclusion()` filters out `post.stage_changed`, `stage.%.entered` and `stage.%.completed`.
-- Other event types: `workflow.assigned`, `workflow.removed`, `transition_blocked`, `tool_warnings`, `post.claimed`, `post.released`, `ability.executed`, `ability.failed`, `sequence.updated`, `sequence.activated`, `sequence.deactivated`.
+- Other event types: `workflow.assigned`, `workflow.removed`, `transition_blocked`, `tool_warnings`, `post.claimed`, `post.released`, `ability.executed`, `ability.failed`, `sequence.created`, `sequence.imported`, `sequence.updated`, `sequence.activated`, `sequence.deactivated`, `sequence.deleted`, `sequence.exported`.
+- Sequence rows: `SequenceAudit` in `vip-workflows/includes/sequences/class-sequence-audit.php`, called from `SequencesController`. `post_id` is null; `event_data.via` is `rest` or `ability`; an update's summary is `event_data.changes`.
 - Per-post history: `GET /vip-workflows/v1/workflow/post/{id}/history`, needs `edit_post`.
 - Audit Log: `GET /vip-workflows/v1/audit-log` in `vip-workflows/includes/api/class-audit-log-controller.php`; settings `audit_log_roles` (default administrator, editor) and `audit_log_full_access_roles` (default administrator).
 

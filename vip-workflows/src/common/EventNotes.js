@@ -24,6 +24,7 @@ import { useEffect, useRef, useState } from '@wordpress/element';
 import { Text } from '@wordpress/ui';
 import { __, sprintf } from '@wordpress/i18n';
 
+import { sequenceChangeNotes } from './sequence-changes';
 import './EventNotes.css';
 
 /**
@@ -39,6 +40,11 @@ import './EventNotes.css';
  * @return {Array} Notes with something written in them.
  */
 export function collectedNotes( event ) {
+	// A sequence update has no transition input; its notes are what it changed.
+	if ( isSequenceUpdate( event ) ) {
+		return sequenceChangeNotes( event.event_data.changes );
+	}
+
 	return ( event.event_data.notes ?? [] ).filter( ( note ) =>
 		note.value?.trim()
 	);
@@ -56,8 +62,22 @@ export function collectedNotes( event ) {
 export function notesDialogProps( event ) {
 	return {
 		notes: collectedNotes( event ),
-		title: __( 'Transition notes', 'vip-workflows' ),
+		title: isSequenceUpdate( event )
+			? __( 'Sequence changes', 'vip-workflows' )
+			: __( 'Transition notes', 'vip-workflows' ),
 	};
+}
+
+/**
+ * Whether an event is a sequence update that recorded what it changed.
+ *
+ * @param {Object} event Event in canonical shape.
+ * @return {boolean} True for a `sequence.updated` row with a change summary.
+ */
+function isSequenceUpdate( event ) {
+	return (
+		'sequence.updated' === event.event_type && !! event.event_data.changes
+	);
 }
 
 /**
@@ -73,17 +93,25 @@ export function notesDialogProps( event ) {
  */
 function previewText( notes ) {
 	return notes
-		.map( ( note ) =>
-			sprintf(
+		.map( ( note ) => {
+			// Answers are free text and may be typed across several lines.
+			// The preview is a run of text, so its own line breaks are the
+			// only ones that should decide where it wraps.
+			const value = note.value.trim().replace( /\s+/g, ' ' );
+
+			// A note with no label is a line of its own, such as the count
+			// that closes a capped list of sequence changes.
+			if ( ! note.label ) {
+				return value;
+			}
+
+			return sprintf(
 				/* translators: 1: the question a transition asked. 2: the answer written to it. */
 				__( '%1$s: %2$s', 'vip-workflows' ),
 				note.label,
-				// Answers are free text and may be typed across several lines.
-				// The preview is a run of text, so its own line breaks are the
-				// only ones that should decide where it wraps.
-				note.value.trim().replace( /\s+/g, ' ' )
-			)
-		)
+				value
+			);
+		} )
 		.join( ' · ' );
 }
 

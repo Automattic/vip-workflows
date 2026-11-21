@@ -50,7 +50,40 @@ class SequencesControllerTest extends TestCase
         $this->wpdb->last_error = '';
         $wpdb                   = $this->wpdb;
 
+        // Successful writes record an audit row through the EventBus.
+        $this->event_bus = Mockery::mock( \VIPWorkflows\Automation\EventBus::class );
+        $this->event_bus->shouldIgnoreMissing();
+        $this->seed_plugin();
+        Functions\when( 'get_current_user_id' )->justReturn( 1 );
+
         $this->controller = new SequencesController();
+    }
+
+    /**
+     * EventBus double that receives the audit rows.
+     *
+     * @var \Mockery\MockInterface
+     */
+    private $event_bus;
+
+    /**
+     * Seed the Plugin singleton with the EventBus double and, optionally, an
+     * experiment registry.
+     *
+     * @param object|null $registry Experiment registry.
+     */
+    private function seed_plugin( $registry = null ): void
+    {
+        $reflection = new \ReflectionClass( \VIPWorkflows\Plugin::class );
+        $instance   = $reflection->newInstanceWithoutConstructor();
+
+        $reflection->getProperty( 'event_bus' )->setValue( $instance, $this->event_bus );
+
+        if ( null !== $registry ) {
+            $reflection->getProperty( 'experiment_registry' )->setValue( $instance, $registry );
+        }
+
+        $reflection->getProperty( 'instance' )->setValue( null, $instance );
     }
 
     protected function tearDown(): void
@@ -118,6 +151,7 @@ class SequencesControllerTest extends TestCase
     private function create_mock_request( array $params = array() ): object
     {
         $request = Mockery::mock( 'WP_REST_Request' );
+        $request->shouldReceive( 'get_attributes' )->andReturn( array() );
 
         $request->shouldReceive( 'get_param' )
             ->andReturnUsing(
@@ -189,6 +223,22 @@ class SequencesControllerTest extends TestCase
         $result  = $this->controller->create_item_permissions_check( $request );
 
         $this->assertTrue( $result );
+    }
+
+    /**
+     * Test export_item_permissions_check requires manage_options, not edit_posts.
+     */
+    public function test_export_requires_admin(): void
+    {
+        Functions\expect( 'current_user_can' )
+            ->once()
+            ->with( 'manage_options' )
+            ->andReturn( false );
+
+        $request = $this->create_mock_request( array( 'id' => 1 ) );
+        $result  = $this->controller->export_item_permissions_check( $request );
+
+        $this->assertFalse( $result );
     }
 
     // =========================================================================
@@ -298,14 +348,7 @@ class SequencesControllerTest extends TestCase
         $registry = Mockery::mock( \VIPWorkflows\Experiments\ExperimentRegistry::class );
         $registry->shouldReceive( 'is_enabled' )->with( 'ideation' )->andReturn( $enabled );
 
-        $reflection = new \ReflectionClass( \VIPWorkflows\Plugin::class );
-        $instance   = $reflection->newInstanceWithoutConstructor();
-
-        $registry_prop = $reflection->getProperty( 'experiment_registry' );
-        $registry_prop->setValue( $instance, $registry );
-
-        $instance_prop = $reflection->getProperty( 'instance' );
-        $instance_prop->setValue( null, $instance );
+        $this->seed_plugin( $registry );
     }
 
     /**

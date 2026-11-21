@@ -329,4 +329,15 @@ class AuditLogControllerTest extends TestCase
 		$this->assertSame( 'Draft', $data['events'][0]['event_data']['from_label'] );
 		$this->assertSame( 'In Review', $data['events'][0]['event_data']['to_label'] );
 	}
+
+	/**
+	 * Every sequence event type reads as words, including the post-less ones
+	 * written by create, import and delete.
+	 */
+	public function test_sequence_event_types_have_labels(): void
+	{
+		$this->assertSame( 'Sequence created', StatusManager::event_type_label( 'sequence.created' ) );
+		$this->assertSame( 'Sequence imported', StatusManager::event_type_label( 'sequence.imported' ) );
+		$this->assertSame( 'Sequence deleted', StatusManager::event_type_label( 'sequence.deleted' ) );
+	}
 }

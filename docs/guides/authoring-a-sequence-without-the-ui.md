@@ -4,7 +4,7 @@ This guide builds a simple **Draft -> Review -> Published** workflow and makes i
 
 ## Prerequisites
 
-- A user with `manage_options`. Create, import, activate, and the validate dry run all require it. Only the reads — `export`, `options`, `stats` — need just `edit_posts`.
+- A user with `manage_options`. Create, import, activate, export, and the validate dry run all require it. Only the reads `options` and `stats` need just `edit_posts`.
 - A way to make authenticated REST calls. The examples use an [application password](https://make.wordpress.org/core/2020/11/05/application-passwords-integration-guide/) with HTTP Basic auth (`-u "$USER:$APP_PASSWORD"`), which works from any shell. A logged-in cookie plus an `X-WP-Nonce` header works too, but only with the cookie sent alongside it.
 
 ```bash
