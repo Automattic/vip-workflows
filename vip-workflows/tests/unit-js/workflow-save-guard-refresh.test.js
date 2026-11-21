@@ -246,4 +246,28 @@ describe( 'WorkflowSaveGuard refresh after save', () => {
 
 		expect( statusReads() ).toBe( 0 );
 	} );
+
+	it( 're-reads the workflow state once a restore from the Trash has saved', async () => {
+		// The restore asks nothing, so there is no confirm to answer.
+		const trashed = { ...statusResponse( 'live' ), post_status: 'trash' };
+		apiFetch.mockImplementation( () => Promise.resolve( trashed ) );
+
+		let edits;
+		await act( async () => {
+			edits = await applyFiltersAsync(
+				'editor.preSavePost',
+				{ status: 'draft' },
+				{}
+			);
+		} );
+		expect( edits ).toEqual( { status: 'draft' } );
+		expect( statusReads() ).toBe( 1 );
+
+		apiFetch.mockImplementation( () =>
+			Promise.resolve( statusResponse( 'writing' ) )
+		);
+		await completeSave();
+
+		expect( statusReads() ).toBe( 2 );
+	} );
 } );

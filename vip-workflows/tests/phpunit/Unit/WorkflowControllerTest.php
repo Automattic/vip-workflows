@@ -433,6 +433,11 @@ class WorkflowControllerTest extends TestCase
         // The guard payload's region comes through boundary_region(), the same
         // authority crosses_publish_boundary() uses; the double reproduces its
         // rule so the payload cannot drift from the predicate behind it.
+        // The regions a status change would be refused into for this user.
+        $status_manager->shouldReceive( 'refused_status_regions' )
+            ->with( 42, \Mockery::any() )
+            ->andReturn( $args['refused_regions'] ?? array() );
+
         $status_manager->shouldReceive( 'boundary_region' )
             ->andReturnUsing(
                 fn( $post_id, $stage_region ) => in_array( $post_status, array( 'publish', 'future' ), true )
@@ -462,7 +467,7 @@ class WorkflowControllerTest extends TestCase
         $this->assertTrue( $data['has_workflow'] );
         $this->assertArrayHasKey( 'guard', $data );
         $this->assertSame(
-            array( 'current_region', 'can_bypass', 'agent_pending', 'override_roles' ),
+            array( 'current_region', 'can_bypass', 'agent_pending', 'override_roles', 'refused_regions' ),
             array_keys( $data['guard'] )
         );
         $this->assertSame( 'draft', $data['guard']['current_region'] );
@@ -470,6 +475,18 @@ class WorkflowControllerTest extends TestCase
         $this->assertFalse( $data['guard']['agent_pending'] );
         // Who to ask, by display name: the client's refusal sentences name these.
         $this->assertSame( array( 'Administrator' ), $data['guard']['override_roles'] );
+        $this->assertSame( array(), $data['guard']['refused_regions'] );
+    }
+
+    /**
+     * The guard carries the regions the status manager refuses a status
+     * change into for this user, so the editor refuses before saving.
+     */
+    public function test_get_post_status_guard_carries_the_refused_regions(): void
+    {
+        $data = $this->get_status_data_for_workflow_post( 'review', array( 'refused_regions' => array( 'pending' ) ) );
+
+        $this->assertSame( array( 'pending' ), $data['guard']['refused_regions'] );
     }
 
     /**
@@ -791,6 +808,7 @@ class WorkflowControllerTest extends TestCase
         // An orphaned post can only be freed by removal, which only these
         // roles can do: the client names them.
         $this->assertSame( array( 'Administrator' ), $data['guard']['override_roles'] );
+        $this->assertSame( array(), $data['guard']['refused_regions'] );
     }
 
     // =========================================================================

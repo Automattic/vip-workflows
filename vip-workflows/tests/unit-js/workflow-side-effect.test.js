@@ -19,8 +19,10 @@ import {
 	getOrphanedWorkflowMessage,
 	getPublishVetoMessage,
 	getRegionLabel,
+	getStatusChangeRefusedMessage,
 	getStatusChangeWarning,
 	getTransitionPublishWarning,
+	isTransitionRulesRefusal,
 	getTransitionWarningsMessage,
 	statusToRegion,
 } from '../../src/common/confirm-workflow-side-effect';
@@ -645,5 +647,152 @@ describe( 'shared region-math fixture', () => {
 				} )
 			).toBe( DECISION_WARN );
 		}
+	);
+} );
+
+describe( 'a status change refused by the transition rules', () => {
+	it( 'is vetoed for a region the server lists', () => {
+		expect(
+			evaluateStatusChange( {
+				currentRegion: 'draft',
+				targetStatus: 'pending',
+				canBypass: false,
+				refusedRegions: [ 'pending' ],
+			} )
+		).toBe( DECISION_VETO );
+	} );
+
+	it( 'is still a warn for a region the server does not list', () => {
+		expect(
+			evaluateStatusChange( {
+				currentRegion: 'pending',
+				targetStatus: 'draft',
+				canBypass: false,
+				refusedRegions: [ 'pending' ],
+			} )
+		).toBe( DECISION_WARN );
+	} );
+
+	it( 'is a warn for an override role even with the list set', () => {
+		expect(
+			evaluateStatusChange( {
+				currentRegion: 'draft',
+				targetStatus: 'pending',
+				canBypass: true,
+				refusedRegions: [ 'pending' ],
+			} )
+		).toBe( DECISION_WARN );
+	} );
+
+	it( 'is a warn when the payload carries no list', () => {
+		expect(
+			evaluateStatusChange( {
+				currentRegion: 'draft',
+				targetStatus: 'pending',
+				canBypass: false,
+			} )
+		).toBe( DECISION_WARN );
+	} );
+
+	it( 'leaves the publish side to the publish veto', () => {
+		const input = {
+			currentRegion: 'draft',
+			targetStatus: 'publish',
+			canBypass: false,
+			refusedRegions: [ 'publish' ],
+		};
+
+		expect( isTransitionRulesRefusal( input ) ).toBe( false );
+		expect( evaluateStatusChange( input ) ).toBe( DECISION_VETO );
+	} );
+
+	it( 'is told apart from a publish veto', () => {
+		expect(
+			isTransitionRulesRefusal( {
+				currentRegion: 'draft',
+				targetStatus: 'pending',
+				canBypass: false,
+				refusedRegions: [ 'pending' ],
+			} )
+		).toBe( true );
+	} );
+
+	describe( 'out of the Trash', () => {
+		it( 'never refuses draft, even from a publish-region stage', () => {
+			expect(
+				evaluateStatusChange( {
+					currentRegion: 'publish',
+					targetStatus: 'draft',
+					canBypass: false,
+					refusedRegions: [],
+					currentStatus: 'trash',
+				} )
+			).toBe( DECISION_SILENT );
+		} );
+
+		it( 'holds pending to the transition rules, skipping the boundary', () => {
+			const input = {
+				currentRegion: 'publish',
+				targetStatus: 'pending',
+				canBypass: false,
+				refusedRegions: [ 'pending' ],
+				currentStatus: 'trash',
+			};
+
+			expect( isTransitionRulesRefusal( input ) ).toBe( true );
+			expect( evaluateStatusChange( input ) ).toBe( DECISION_VETO );
+			expect(
+				evaluateStatusChange( { ...input, refusedRegions: [] } )
+			).toBe( DECISION_WARN );
+		} );
+
+		it( 'is silent for a status in the region the stage is in', () => {
+			expect(
+				evaluateStatusChange( {
+					currentRegion: 'pending',
+					targetStatus: 'pending',
+					canBypass: false,
+					refusedRegions: [],
+					currentStatus: 'trash',
+				} )
+			).toBe( DECISION_SILENT );
+		} );
+
+		it( 'leaves a publish-side target to the publish veto', () => {
+			expect(
+				evaluateStatusChange( {
+					currentRegion: 'draft',
+					targetStatus: 'publish',
+					canBypass: false,
+					refusedRegions: [],
+					currentStatus: 'trash',
+				} )
+			).toBe( DECISION_VETO );
+		} );
+	} );
+
+	it( 'uses the server’s sentence, to the character', () => {
+		// The literal StatusManager::status_change_rules_message() returns.
+		expect(
+			getStatusChangeRefusedMessage( {
+				title: 'Rules Post',
+				workflowName: 'Rules Flow',
+				stageLabel: 'Review',
+			} )
+		).toBe(
+			'“Rules Post” is in the “Rules Flow” workflow, and this status change would move it to “Review”. You can’t make that move from here. Use the workflow panel instead.'
+		);
+	} );
+} );
+
+it( 'preserves quotes, percent signs and markup in status refusal copy', () => {
+	expect(
+		getStatusChangeRefusedMessage( {
+			title: 'Title "quoted" 50% <em>x</em>',
+			workflowName: 'Flow & desk',
+			stageLabel: 'Review %s <b>now</b>',
+		} )
+	).toBe(
+		'“Title "quoted" 50% <em>x</em>” is in the “Flow & desk” workflow, and this status change would move it to “Review %s <b>now</b>”. You can’t make that move from here. Use the workflow panel instead.'
 	);
 } );

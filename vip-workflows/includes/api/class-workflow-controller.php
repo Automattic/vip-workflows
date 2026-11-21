@@ -484,12 +484,15 @@ class WorkflowController extends WP_REST_Controller {
 			// waves the save into a refusal it can neither explain nor escape.
 			if ( $orphaned ) {
 				$payload['guard'] = array(
-					'current_region' => null,
-					'can_bypass'     => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
-					'agent_pending'  => false,
+					'current_region'  => null,
+					'can_bypass'      => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
+					'agent_pending'   => false,
 					// Who to ask: the client's refusal sentences name these, and
 					// must say what the server says.
-					'override_roles' => \VIPWorkflows\Admin\Settings::get_override_role_names(),
+					'override_roles'  => \VIPWorkflows\Admin\Settings::get_override_role_names(),
+					// Nothing reseats a post whose workflow is gone; every status
+					// change on it is already refused by the boundary above.
+					'refused_regions' => array(),
 				);
 			} elseif ( 'require' === \VIPWorkflows\Admin\Settings::get_workflow_enforcement_mode() && ! empty( $available ) ) {
 				// WorkflowRequirementGuard acts on this post too: in "require"
@@ -619,12 +622,15 @@ class WorkflowController extends WP_REST_Controller {
 				'agent_job'           => $this->get_agent_job_state( $post_id, $current_status['key'] ?? '' ),
 				'agent_last_run'      => $this->get_agent_last_run( $post_id ),
 				'guard'               => array(
-					'current_region' => $current_region,
-					'can_bypass'     => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
-					'agent_pending'  => $agent_pending,
+					'current_region'  => $current_region,
+					'can_bypass'      => \VIPWorkflows\Admin\Settings::can_user_bypass_workflow( get_current_user_id() ),
+					'agent_pending'   => $agent_pending,
 					// Who to ask: the client's refusal sentences name these, and
 					// must say what the server says.
-					'override_roles' => \VIPWorkflows\Admin\Settings::get_override_role_names(),
+					'override_roles'  => \VIPWorkflows\Admin\Settings::get_override_role_names(),
+					// Regions a status change would be refused into because the
+					// reseat it causes is a transition this user can't take.
+					'refused_regions' => $status_manager->refused_status_regions( $post_id, get_current_user_id() ),
 				),
 				'all_statuses'        => $sequence->get_statuses(),
 				// Served for an enrolled post too, not only for one with no

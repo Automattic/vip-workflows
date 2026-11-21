@@ -23,6 +23,9 @@ jest.mock( '@wordpress/editor', () => ( { store: 'core/editor' } ) );
 import { createReduxStore, register } from '@wordpress/data';
 import { applyFiltersAsync } from '@wordpress/hooks';
 
+// The post's persisted status, as the editor store reports it.
+let persistedStatus = 'draft';
+
 register(
 	createReduxStore( 'core/editor', {
 		reducer: ( state = {} ) => state,
@@ -30,7 +33,7 @@ register(
 			isSavingPost: () => false,
 			isAutosavingPost: () => false,
 			didPostSaveRequestSucceed: () => false,
-			getCurrentPost: () => ( { status: 'draft' } ),
+			getCurrentPost: () => ( { status: persistedStatus } ),
 			getEditedPostAttribute: () => 'Budget piece',
 		},
 		actions: {
@@ -123,6 +126,7 @@ async function refusal( targetStatus ) {
 
 describe( 'WorkflowSaveGuard veto message', () => {
 	beforeEach( () => {
+		persistedStatus = 'draft';
 		apiFetch.mockReset();
 		seedEditorStore();
 		render( <WorkflowSaveGuard /> );
@@ -150,6 +154,67 @@ describe( 'WorkflowSaveGuard veto message', () => {
 		expect( error.message ).toBe(
 			'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead.'
 		);
+	} );
+
+	it( 'refuses a status change whose stage move the person can’t take', async () => {
+		const response = statusResponse( 'draft' );
+		response.all_statuses.push( {
+			key: 'review',
+			label: 'Copy desk',
+			status: 'pending',
+			region_entry: true,
+		} );
+		response.guard.refused_regions = [ 'pending' ];
+		apiFetch.mockImplementation( () => Promise.resolve( response ) );
+
+		const error = await refusal( 'pending' );
+
+		expect( error.message ).toBe(
+			'“Budget piece” is in the “News desk” workflow, and this status change would move it to “Copy desk”. You can’t make that move from here. Use the workflow panel instead.'
+		);
+	} );
+
+	it( 'lets a trashed post seated on the published side be restored to draft', async () => {
+		persistedStatus = 'trash';
+		const response = statusResponse( 'publish' );
+		response.guard.refused_regions = [];
+		apiFetch.mockImplementation( () => Promise.resolve( response ) );
+
+		await expect(
+			applyFiltersAsync( 'editor.preSavePost', { status: 'draft' }, {} )
+		).resolves.toEqual( { status: 'draft' } );
+	} );
+
+	it( 'refuses a trashed post leaving for a status the person can’t take', async () => {
+		persistedStatus = 'trash';
+		const response = statusResponse( 'publish' );
+		response.all_statuses.push( {
+			key: 'review',
+			label: 'Copy desk',
+			status: 'pending',
+			region_entry: true,
+		} );
+		response.guard.refused_regions = [ 'pending' ];
+		apiFetch.mockImplementation( () => Promise.resolve( response ) );
+
+		const error = await refusal( 'pending' );
+
+		expect( error.message ).toBe(
+			'“Budget piece” is in the “News desk” workflow, and this status change would move it to “Copy desk”. You can’t make that move from here. Use the workflow panel instead.'
+		);
+	} );
+
+	it( 'reads the stored status from the fresh response, not a stale editor', async () => {
+		// The editor loaded the post live; it was trashed in another tab since.
+		persistedStatus = 'publish';
+		const response = statusResponse( 'publish' );
+		response.post_status = 'trash';
+		response.guard.refused_regions = [];
+		apiFetch.mockImplementation( () => Promise.resolve( response ) );
+
+		await expect(
+			applyFiltersAsync( 'editor.preSavePost', { status: 'draft' }, {} )
+		).resolves.toEqual( { status: 'draft' } );
 	} );
 
 	it( 'names the one override role to ask when a publish is refused', async () => {

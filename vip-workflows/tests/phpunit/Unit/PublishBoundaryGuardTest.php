@@ -109,9 +109,10 @@ class PublishBoundaryGuardTest extends TestCase
      * draft(draft*) -> review(draft) -> approval(pending*) -> published(publish*) -> promote(publish).
      * Asterisks mark region entry stages.
      *
+     * @param  array $review_to_approval Extra keys for the review -> approval edge.
      * @return Sequence
      */
-    private function create_test_sequence(): Sequence
+    private function create_test_sequence( array $review_to_approval = array() ): Sequence
     {
         $config = array(
             'statuses' => array(
@@ -126,7 +127,7 @@ class PublishBoundaryGuardTest extends TestCase
                     'key'         => 'review',
                     'label'       => 'In Review',
                     'status'      => 'draft',
-                    'transitions' => array( array( 'to' => 'approval' ) ),
+                    'transitions' => array( array_merge( array( 'to' => 'approval' ), $review_to_approval ) ),
                 ),
                 array(
                     'key'          => 'approval',
@@ -183,6 +184,7 @@ class PublishBoundaryGuardTest extends TestCase
         Functions\when( 'wp_doing_cron' )->justReturn( false );
         Functions\when( 'wp_is_post_autosave' )->justReturn( false );
         Functions\when( 'wp_is_post_revision' )->justReturn( false );
+        Functions\when( 'current_user_can' )->justReturn( true );
 
         Functions\when( 'set_transient' )->alias(
             function ( $key, $value ) {
@@ -1031,5 +1033,301 @@ class PublishBoundaryGuardTest extends TestCase
         $result   = $this->guard->veto_rest_insert( $prepared, null );
 
         $this->assertSame( $prepared, $result );
+    }
+
+    // =========================================================================
+    // Transition rules on a status change that reseats the stage
+    // =========================================================================
+
+    /**
+     * A change that does not cross the publish boundary but would reseat the
+     * stage through a transition the user's role can't take is refused over
+     * REST with a 403, not the boundary's 409.
+     */
+    public function test_rest_insert_refuses_a_reseat_the_user_could_not_take(): void
+    {
+        $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
+        $this->stub_workflow_post( 'review', 'draft' );
+
+        $result = $this->filter_rest( 'pending' );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'vip_workflows_status_change_rules', $result->get_error_code() );
+        $this->assertSame( 403, $result->get_error_data()['status'] );
+        $this->assertSame( self::POST_ID, $result->get_error_data()['post_id'] );
+        $this->assertStringContainsString( 'would move it to “Approval”', $result->get_error_message() );
+    }
+
+    /**
+     * The backstop reverts the same refusal and queues its message.
+     */
+    public function test_backstop_reverts_a_reseat_the_user_could_not_take(): void
+    {
+        $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
+        $this->stub_workflow_post( 'review', 'draft' );
+
+        $data = $this->filter_data( 'pending' );
+
+        $this->assertSame( 'draft', $data['post_status'] );
+        $this->assertCount( 1, $this->transients );
+        $this->assertStringContainsString( 'Use the workflow panel instead.', (string) current( $this->transients ) );
+    }
+
+    /**
+     * Run the backstop for a refused draft -> `pending` save that also edits
+     * the slug and date, with `publish_post` answering as given.
+     *
+     * @param  bool $can_publish What current_user_can( 'publish_post' ) returns.
+     * @return array Filtered post data.
+     */
+    private function filter_refused_pending_save_with_edits( bool $can_publish ): array
+    {
+        $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
+        $this->stub_workflow_post( 'review', 'draft' );
+        Functions\when( 'current_user_can' )->alias(
+            static function ( $capability, ...$args ) use ( $can_publish ) {
+                return 'publish_post' === $capability && array( self::POST_ID ) === $args ? $can_publish : true;
+            }
+        );
+
+        return $this->guard->veto_post_data(
+            array(
+                'post_status'   => 'pending',
+                'post_type'     => 'post',
+                'post_name'     => 'edited-slug',
+                'post_date'     => '2026-03-04 05:06:07',
+                'post_date_gmt' => '0000-00-00 00:00:00',
+            ),
+            array( 'ID' => self::POST_ID )
+        );
+    }
+
+    /**
+     * Between draft and pending, a refused status change keeps the save's slug
+     * and date edits when the user can publish the post.
+     */
+    public function test_backstop_keeps_slug_and_date_edits_between_draft_and_pending(): void
+    {
+        $data = $this->filter_refused_pending_save_with_edits( true );
+
+        $this->assertSame( 'draft', $data['post_status'] );
+        $this->assertSame( 'edited-slug', $data['post_name'] );
+        $this->assertSame( '2026-03-04 05:06:07', $data['post_date'] );
+        $this->assertSame( '0000-00-00 00:00:00', $data['post_date_gmt'] );
+    }
+
+    /**
+     * When the user can't publish the post, core prepares a `pending` slug
+     * differently, so the stored slug is kept; the date edit still is too.
+     */
+    public function test_backstop_keeps_the_stored_slug_when_the_user_cannot_publish_the_post(): void
+    {
+        $data = $this->filter_refused_pending_save_with_edits( false );
+
+        $this->assertSame( 'draft', $data['post_status'] );
+        $this->assertSame( 'test-post', $data['post_name'] );
+        $this->assertSame( '2026-03-04 05:06:07', $data['post_date'] );
+    }
+
+    /**
+     * A required tool on the reseat edge refuses the change for a user outside
+     * the tool-check list.
+     */
+    public function test_refuses_a_reseat_whose_edge_requires_tools(): void
+    {
+        $this->sequence = $this->create_test_sequence( array( 'required_tools' => array( 'vip-workflows/seo-check' ) ) );
+        $this->stub_workflow_post( 'review', 'draft' );
+
+        $result = $this->filter_rest( 'pending' );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'vip_workflows_status_change_rules', $result->get_error_code() );
+    }
+
+    /**
+     * Override roles are not held to the reseat's transition rules.
+     */
+    public function test_override_user_is_not_held_to_the_reseat_rules(): void
+    {
+        $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
+        $this->stub_workflow_post( 'review', 'draft' );
+        $this->stub_current_user_roles( array( 'administrator' ) );
+
+        $result = $this->filter_rest( 'pending' );
+
+        $this->assertNotInstanceOf( \WP_Error::class, $result );
+    }
+
+    /**
+     * A move between two stages with no edge between them is refused.
+     */
+    public function test_refuses_a_reseat_with_no_edge(): void
+    {
+        $this->stub_workflow_post( 'approval', 'pending' );
+
+        $result = $this->filter_rest( 'draft' );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'vip_workflows_status_change_rules', $result->get_error_code() );
+    }
+
+    /**
+     * An autosave request that writes to the post itself is held to the
+     * reseat's transition rules like any other save. Draft -> `pending` would
+     * reseat at Approval, skipping Review, with no edge between the two.
+     *
+     * DOING_AUTOSAVE stays defined once set, so this runs alone.
+     *
+     * @runInSeparateProcess
+     * @preserveGlobalState disabled
+     */
+    public function test_checks_a_reseat_made_during_an_autosave_request(): void
+    {
+        define( 'DOING_AUTOSAVE', true );
+        $this->stub_workflow_post( 'draft', 'draft' );
+
+        $data = $this->filter_data( 'pending' );
+
+        $this->assert_same_in_isolation( 'draft', $data['post_status'] );
+
+        $result = $this->filter_rest( 'pending' );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assert_same_in_isolation( 'vip_workflows_status_change_rules', $result->get_error_code() );
+        $this->assert_same_in_isolation( 403, $result->get_error_data()['status'] ?? null );
+    }
+
+    /**
+     * Leaving the Trash for `draft` is never held to the reseat's transition
+     * rules, even when the reseat it causes (Approval -> Draft, no edge) is one
+     * the user couldn't take: the default restore and the editor restore
+     * paths write `draft`, so they have to work. Where the stage lands is
+     * on_status_transition()'s to decide.
+     */
+    public function test_leaving_the_trash_for_draft_is_not_held_to_the_reseat_rules(): void
+    {
+        $this->stub_workflow_post( 'approval', 'trash' );
+
+        $this->assertSame( 'draft', $this->filter_data( 'draft' )['post_status'] );
+        $this->assertNotInstanceOf( \WP_Error::class, $this->filter_rest( 'draft' ) );
+        $this->assertSame( array(), $this->transients );
+    }
+
+    /**
+     * Any other non-publish status out of the Trash is held to the reseat's
+     * transition rules, like any other status change.
+     */
+    public function test_leaving_the_trash_for_pending_is_held_to_the_reseat_rules(): void
+    {
+        $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
+        $this->stub_workflow_post( 'review', 'trash' );
+
+        $this->assertSame( 'trash', $this->filter_data( 'pending' )['post_status'] );
+
+        $result = $this->filter_rest( 'pending' );
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'vip_workflows_status_change_rules', $result->get_error_code() );
+        $this->assertSame( 403, $result->get_error_data()['status'] );
+    }
+
+    /**
+     * Leaving the Trash for pending is not a publish-boundary crossing, even
+     * from a stage in the publish region; a transition the user can take goes
+     * through.
+     */
+    public function test_leaving_the_trash_for_pending_with_an_allowed_transition_is_not_refused(): void
+    {
+        $this->stub_workflow_post( 'review', 'trash' );
+
+        $this->assertSame( 'pending', $this->filter_data( 'pending' )['post_status'] );
+        $this->assertSame( array(), $this->transients );
+    }
+
+    /**
+     * A wp_untrash_post() whose restore status the user can't take is refused
+     * before core changes anything, with false and the notice queued.
+     */
+    public function test_check_untrash_refuses_a_restore_the_user_could_not_make(): void
+    {
+        $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
+        $this->stub_workflow_post( 'review', 'trash' );
+        $asked = array();
+        Functions\when( 'apply_filters' )->alias(
+            function ( $tag, $value, ...$args ) use ( &$asked ) {
+                $asked[] = array_merge( array( $tag, $value ), $args );
+                return 'wp_untrash_post_status' === $tag ? 'pending' : $value;
+            }
+        );
+
+        $post = $this->create_mock_post( array( 'ID' => self::POST_ID, 'post_status' => 'trash' ) );
+
+        $this->assertFalse( $this->guard->check_untrash( null, $post, 'draft' ) );
+        $this->assertContains( array( 'wp_untrash_post_status', 'draft', self::POST_ID, 'draft' ), $asked, 'the restore status is worked out with core\'s arguments' );
+        $this->assertCount( 1, $this->transients );
+    }
+
+    /**
+     * The default restore (to `draft`) goes ahead untouched, even when the
+     * reseat it causes (Approval -> Draft, no edge) is one the user couldn't
+     * take.
+     */
+    public function test_check_untrash_lets_the_default_draft_restore_through(): void
+    {
+        $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
+        $this->stub_workflow_post( 'approval', 'trash' );
+
+        $post = $this->create_mock_post( array( 'ID' => self::POST_ID, 'post_status' => 'trash' ) );
+
+        $this->assertNull( $this->guard->check_untrash( null, $post, 'pending' ) );
+        $this->assertSame( array(), $this->transients );
+    }
+
+    /**
+     * A restore to a non-draft status goes ahead untouched when the user's
+     * role may take the transition it causes (Review -> Approval, limited to
+     * authors).
+     */
+    public function test_check_untrash_lets_a_restore_the_user_can_make_through(): void
+    {
+        $this->sequence = $this->create_test_sequence( array( 'allowed_roles' => array( 'author' ) ) );
+        $this->stub_workflow_post( 'review', 'trash' );
+        $this->stub_current_user_roles( array( 'author' ) );
+        $asked = 0;
+        Functions\when( 'apply_filters' )->alias(
+            function ( $tag, $value ) use ( &$asked ) {
+                if ( 'wp_untrash_post_status' !== $tag ) {
+                    return $value;
+                }
+                ++$asked;
+                return 'pending';
+            }
+        );
+
+        $post = $this->create_mock_post( array( 'ID' => self::POST_ID, 'post_status' => 'trash' ) );
+
+        $this->assertNull( $this->guard->check_untrash( null, $post, 'pending' ) );
+        $this->assertSame( 1, $asked, 'the restore status was worked out as pending, not the draft default' );
+        $this->assertSame( array(), $this->transients );
+    }
+
+    /**
+     * Another callback's decision on `pre_untrash_post` is kept, and the
+     * restore status is not worked out for it.
+     */
+    public function test_check_untrash_keeps_another_callbacks_decision(): void
+    {
+        $this->stub_workflow_post( 'review', 'trash' );
+        $asked = 0;
+        Functions\when( 'apply_filters' )->alias(
+            function ( $tag, $value ) use ( &$asked ) {
+                $asked += 'wp_untrash_post_status' === $tag ? 1 : 0;
+                return $value;
+            }
+        );
+
+        $post = $this->create_mock_post( array( 'ID' => self::POST_ID, 'post_status' => 'trash' ) );
+
+        $this->assertFalse( $this->guard->check_untrash( false, $post, 'draft' ) );
+        $this->assertSame( 0, $asked );
     }
 }
