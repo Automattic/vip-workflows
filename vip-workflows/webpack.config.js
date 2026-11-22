@@ -16,7 +16,10 @@ const MiniCSSExtractPlugin = require(
 
 // Lazily loaded CSS chunks need a version in their URL too, or browsers and
 // the edge serve the previous release's chunk CSS (#219). The default plugin
-// sets only `filename`, so replace it with one that also hashes chunks.
+// is built with only `filename: '[name].css'`, so replace it with one built
+// from the same option plus a hashed `chunkFilename`. The options are written
+// out rather than copied from the default instance, whose `options` field is
+// private to mini-css-extract-plugin.
 const cssExtractPlugins = defaultConfig.plugins.filter(
 	( plugin ) => plugin instanceof MiniCSSExtractPlugin
 );
@@ -27,7 +30,7 @@ if ( cssExtractPlugins.length !== 1 ) {
 	);
 }
 const versionedCssExtractPlugin = new MiniCSSExtractPlugin( {
-	...cssExtractPlugins[ 0 ].options,
+	filename: '[name].css',
 	chunkFilename: '[name].css?ver=[contenthash]',
 } );
 
@@ -73,8 +76,9 @@ module.exports = {
 	},
 	// Keep the upstream output defaults: `chunkFilename` versions lazily
 	// loaded JS chunks with `?ver=[chunkhash]` so a release never pairs the new
-	// runtime with a cached old chunk, and `clean` empties build/ of files the
-	// build no longer emits. Only `path` is pinned to this plugin's build/.
+	// runtime with a cached old chunk, and `clean` removes files the build no
+	// longer emits from build/ (keeping fonts/ and images/). Only `path` is
+	// pinned to this plugin's build/.
 	output: {
 		...defaultConfig.output,
 		path: path.resolve( __dirname, 'build' ),
