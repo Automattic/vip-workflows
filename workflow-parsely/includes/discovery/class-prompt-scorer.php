@@ -215,8 +215,17 @@ class PromptScorer {
 	 * The batch is removed and the queue saved *before* any scoring, so a run that
 	 * dies partway through does not leave its candidates queued forever. Anything
 	 * lost that way is unscored, and decorate() queues it again on the next load.
+	 *
+	 * Stops while Ideation is off: the run drops the queue, scores nothing and
+	 * doesn't reschedule. The queue is only a work list, and the next poll after
+	 * Ideation comes back rebuilds it.
 	 */
 	public static function warm(): void {
+		if ( ! \WorkflowParsely\ideation_enabled() ) {
+			delete_option( self::QUEUE_OPTION );
+			return;
+		}
+
 		$queue = self::queue();
 		$batch = array_slice( $queue, 0, self::WARM_BATCH, true );
 
@@ -267,6 +276,24 @@ class PromptScorer {
 	}
 
 	/**
+	 * Stop the warm-up once Ideation is off.
+	 *
+	 * Unschedules the pending drain and drops the queue. Dropped rather than
+	 * paused: a stale queue would make `schedule_warm()` skip those candidates
+	 * when they arrive again, so nothing would drain until a new headline did.
+	 * Cached scores are left to expire. Does nothing while Ideation is still on,
+	 * for example when the `vip_workflows_experiments` filter keeps it on.
+	 */
+	public static function stop_if_ideation_off(): void {
+		if ( \WorkflowParsely\ideation_enabled() ) {
+			return;
+		}
+
+		wp_clear_scheduled_hook( self::WARM_HOOK );
+		delete_option( self::QUEUE_OPTION );
+	}
+
+	/**
 	 * Reduce a full lens result to what a card needs.
 	 *
 	 * The card shows a multiplier and a confidence, not five articles and a
@@ -300,6 +327,10 @@ class PromptScorer {
 	 * @param array $candidates Unscored candidates.
 	 */
 	private static function schedule_warm( array $candidates ): void {
+		if ( ! \WorkflowParsely\ideation_enabled() ) {
+			return;
+		}
+
 		$queue = self::queue();
 		$added = false;
 

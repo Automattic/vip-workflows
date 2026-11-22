@@ -13,6 +13,10 @@
  * afterwards. Registering fakes alongside the real Parse.ly provider would leak
  * into every later test in the suite.
  *
+ * The poll only runs while the Ideation experiment is on, so set_up() turns it
+ * on and tear_down() turns it off again. The registry caches its resolved state
+ * in memory, which the database rollback doesn't reach.
+ *
  * @package WorkflowParsely\Tests
  */
 
@@ -22,7 +26,10 @@ namespace WorkflowParsely\Tests;
 
 use ReflectionProperty;
 use VIPWorkflows\Discovery\DiscoveryProviderRegistry;
+use VIPWorkflows\Experiments\ExperimentRegistry;
+use VIPWorkflows\Plugin;
 use WorkflowParsely\Discovery\DiscoveryPoller;
+use WorkflowParsely\Discovery\PromptScorer;
 use Yoast\WPTestUtils\WPIntegration\TestCase;
 
 class DiscoveryPollerTest extends TestCase {
@@ -42,6 +49,11 @@ class DiscoveryPollerTest extends TestCase {
 				'api_secret' => 'a-secret',
 			)
 		);
+
+		$this->experiments()->enable( 'ideation' );
+
+		// Enabling schedules the poll; each test starts from nothing scheduled.
+		DiscoveryPoller::unschedule();
 	}
 
 	public function tear_down(): void {
@@ -50,7 +62,12 @@ class DiscoveryPollerTest extends TestCase {
 			$this->saved_providers = null;
 		}
 
+		remove_all_filters( ExperimentRegistry::FILTER_NAME );
+		$this->experiments()->disable( 'ideation' );
+		$this->experiments()->disable( 'kanban' );
+
 		DiscoveryPoller::unschedule();
+		wp_clear_scheduled_hook( PromptScorer::WARM_HOOK );
 
 		remove_all_filters( 'workflow_parsely_poll_interval' );
 		delete_option( self::QUEUE_OPTION );
@@ -61,6 +78,28 @@ class DiscoveryPollerTest extends TestCase {
 	}
 
 	// ── Helpers ──────────────────────────────────────────────────────
+
+	private function experiments(): ExperimentRegistry {
+		return Plugin::get_instance()->get_experiment_registry();
+	}
+
+	/**
+	 * A provider that records each time its recommend callback is called.
+	 *
+	 * @param int $calls Incremented on every call.
+	 * @return array
+	 */
+	private function counting_provider( int &$calls ): array {
+		$provider = $this->fake_provider( 'fake-counted', array( 'Counted' ) );
+		$inner    = $provider['callbacks']['recommend'];
+
+		$provider['callbacks']['recommend'] = static function ( ...$args ) use ( &$calls, $inner ): array {
+			++$calls;
+			return $inner( ...$args );
+		};
+
+		return $provider;
+	}
 
 	private function providers_property(): ReflectionProperty {
 		$property = new ReflectionProperty( DiscoveryProviderRegistry::class, 'providers' );
@@ -222,6 +261,126 @@ class DiscoveryPollerTest extends TestCase {
 		}
 
 		return $found;
+	}
+
+	// ── Ideation gate ────────────────────────────────────────────────
+
+	public function test_nothing_is_scheduled_while_ideation_is_off(): void {
+		$this->experiments()->disable( 'ideation' );
+
+		DiscoveryPoller::ensure_scheduled();
+
+		$this->assertFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+	}
+
+	/**
+	 * A filter change or a direct option edit fires no action, so `init` is what
+	 * removes an event left over from when Ideation was on.
+	 */
+	public function test_ensure_scheduled_removes_the_poll_while_ideation_is_off(): void {
+		$this->experiments()->disable( 'ideation' );
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', DiscoveryPoller::POLL_HOOK );
+		$this->assertNotFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+
+		DiscoveryPoller::ensure_scheduled();
+
+		$this->assertFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+	}
+
+	public function test_poll_calls_no_provider_while_ideation_is_off(): void {
+		$calls = 0;
+		$this->only_providers( array( 'fake-counted' => $this->counting_provider( $calls ) ) );
+		$this->experiments()->disable( 'ideation' );
+
+		DiscoveryPoller::poll();
+
+		$this->assertSame( 0, $calls );
+		$this->assertFalse( get_option( self::QUEUE_OPTION ) );
+	}
+
+	public function test_turning_ideation_on_schedules_the_poll(): void {
+		$this->experiments()->disable( 'ideation' );
+		$this->assertFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+
+		$this->experiments()->enable( 'ideation' );
+
+		$this->assertNotFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+	}
+
+	public function test_turning_ideation_on_does_not_schedule_when_parsely_is_disabled(): void {
+		$this->experiments()->disable( 'ideation' );
+		update_option(
+			'vip_discovery_provider_settings',
+			array( 'parsely-trending' => array( 'enabled' => false ) )
+		);
+
+		$this->experiments()->enable( 'ideation' );
+
+		$this->assertFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+	}
+
+	public function test_turning_ideation_off_unschedules_the_poll(): void {
+		DiscoveryPoller::ensure_scheduled();
+		$this->assertNotFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+
+		$this->experiments()->disable( 'ideation' );
+
+		$this->assertFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+	}
+
+	/**
+	 * `disable()` fires its action even when the filter keeps Ideation on, so the
+	 * listener has to read the effective state rather than trust the action.
+	 */
+	public function test_the_poll_stays_when_a_filter_keeps_ideation_on(): void {
+		DiscoveryPoller::ensure_scheduled();
+		add_filter(
+			ExperimentRegistry::FILTER_NAME,
+			static fn( array $enabled ): array => array_values( array_unique( array_merge( $enabled, array( 'ideation' ) ) ) )
+		);
+
+		$this->experiments()->disable( 'ideation' );
+
+		$this->assertNotFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+	}
+
+	public function test_toggling_another_experiment_leaves_the_poll_alone(): void {
+		// Ideation is on but the poll isn't scheduled, so a stray ensure_scheduled() would show.
+		DiscoveryPoller::unschedule();
+
+		$this->experiments()->enable( 'kanban' );
+		$this->assertFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+
+		$this->experiments()->disable( 'kanban' );
+		$this->assertFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+	}
+
+	/**
+	 * Without VIP Workflows' experiment registry there's no way to tell whether
+	 * Ideation is on, so the background work stays off.
+	 */
+	public function test_nothing_runs_when_the_experiment_registry_is_missing(): void {
+		DiscoveryPoller::ensure_scheduled();
+		$calls = 0;
+		$this->only_providers( array( 'fake-counted' => $this->counting_provider( $calls ) ) );
+
+		$property = new ReflectionProperty( Plugin::class, 'experiment_registry' );
+		$property->setAccessible( true );
+		$registry = $property->getValue( Plugin::get_instance() );
+
+		try {
+			$property->setValue( Plugin::get_instance(), null );
+
+			$this->assertFalse( \WorkflowParsely\ideation_enabled() );
+
+			DiscoveryPoller::ensure_scheduled();
+			DiscoveryPoller::poll();
+		} finally {
+			$property->setValue( Plugin::get_instance(), $registry );
+		}
+
+		$this->assertFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+		$this->assertSame( 0, $calls );
 	}
 
 	// ── Interval ─────────────────────────────────────────────────────
