@@ -335,6 +335,8 @@ class NotificationQueueIntegrationTest extends TestCase {
 
 		\ActionScheduler::runner()->process_action( (int) key( $jobs ) );
 
+		// Completed, not failed: the job returned without sending.
+		$this->assertSame( \ActionScheduler_Store::STATUS_COMPLETE, \ActionScheduler::store()->get_status( (string) key( $jobs ) ) );
 		$this->assertSame( array(), self::$sent );
 	}
 
