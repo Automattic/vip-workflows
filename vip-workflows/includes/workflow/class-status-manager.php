@@ -1160,6 +1160,26 @@ class StatusManager {
 		$crossed_region   = $from_region !== $to_region;
 		$committed_status = $previous_status;
 		if ( $crossed_region ) {
+			// The checks above can take seconds (required tools), and another
+			// transition may have moved the post meanwhile. Re-read the stage
+			// before writing a status, so a move that has already lost writes
+			// nothing and fires no core status hooks. This narrows the window to
+			// one wp_update_post(); the compare-and-swap below still decides.
+			$stage_now = $this->read_stage_uncached( $post_id );
+			if ( $stage_now !== $current_stage ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log(
+					sprintf(
+						'[VIP Workflows] Post %d: transition "%s" -> "%s" was abandoned before its status write; the stage is now "%s".',
+						$post_id,
+						$current_stage,
+						$to_status,
+						$stage_now
+					)
+				);
+				return $this->transition_conflict( $sequence, $current_stage, $stage_now );
+			}
+
 			$committed = $this->commit_post_status( $post_id, $to_region );
 			if ( is_wp_error( $committed ) ) {
 				return $committed;

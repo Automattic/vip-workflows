@@ -430,6 +430,58 @@ class TransitionInvariantsIntegrationTest extends TestCase
 	}
 
 	/**
+	 * A crossing that has already lost by the time its required tools finish
+	 * writes no status, so WordPress never sees a status change for it.
+	 */
+	public function test_a_crossing_that_lost_during_its_tools_writes_no_status(): void
+	{
+		$post_id = $this->make_tool_gated_post();
+
+		$move = function ( int $tool_post_id ) use ( $post_id ): void {
+			if ( $tool_post_id === $post_id ) {
+				$this->write_from_another_request( $post_id, 'review' );
+			}
+		};
+		add_action( self::RACE_TOOL_HOOK, $move );
+
+		$status_changes = array();
+		$spy            = static function ( $new_status, $old_status, $post ) use ( &$status_changes, $post_id ): void {
+			if ( (int) $post->ID === $post_id ) {
+				$status_changes[] = array( $old_status, $new_status );
+			}
+		};
+		add_action( 'transition_post_status', $spy, 10, 3 );
+
+		try {
+			$result = ( new StatusManager() )->transition( $post_id, 'live' );
+		} finally {
+			remove_action( self::RACE_TOOL_HOOK, $move );
+			remove_action( 'transition_post_status', $spy, 10 );
+		}
+
+		$this->assertInstanceOf( 'WP_Error', $result );
+		$this->assertSame( 'transition_conflict', $result->get_error_code() );
+		$this->assertSame(
+			'This post moved from “Draft” to “Review” before your move was saved. Reload to see where it is now.',
+			$result->get_error_message()
+		);
+		$this->assertSame( array(), $status_changes );
+		$this->assertSame( array( 'review', 'draft' ), $this->stored_state( $post_id ) );
+	}
+
+	/**
+	 * The re-read before the status write doesn't refuse a move nobody raced,
+	 * even with this request's stage cache primed.
+	 */
+	public function test_a_crossing_with_required_tools_and_no_race_publishes(): void
+	{
+		$post_id = $this->make_tool_gated_post();
+
+		$this->assertTrue( ( new StatusManager() )->transition( $post_id, 'live' ) );
+		$this->assertSame( array( 'live', 'publish' ), $this->stored_state( $post_id ) );
+	}
+
+	/**
 	 * A post in a sequence whose crossing and same-region edges out of `draft`
 	 * both run the race tool, with an editor (who doesn't skip tool checks) as
 	 * the current user.
