@@ -13,6 +13,9 @@
  *  - Core-driven: transition_post_status notifies for cron future→publish,
  *    quick edit, etc. — suppressed while a workflow transition is mid-commit.
  *
+ * Both paths queue a job; nothing is sent during the hook. Each test runs the
+ * queued jobs to check what the channel finally receives.
+ *
  * @package VIPWorkflows\Tests\Unit
  */
 
@@ -33,6 +36,8 @@ use VIPWorkflows\Workflow\StatusManager;
  */
 class NotificationDispatcherGoLiveTest extends TestCase
 {
+    use QueuedNotifications;
+
     private NotificationDispatcher $dispatcher;
 
     protected function setUp(): void
@@ -43,8 +48,8 @@ class NotificationDispatcherGoLiveTest extends TestCase
         // setting per built-in channel; SlackChannel reads a destinations option.
         Functions\when( 'register_setting' )->justReturn( true );
         Functions\when( 'get_option' )->justReturn( [] );
-        Functions\when( 'get_transient' )->justReturn( false );
-        Functions\when( 'set_transient' )->justReturn( true );
+        $this->stub_transients();
+        $this->capture_enqueues();
 
         $this->dispatcher = new NotificationDispatcher();
     }
@@ -54,29 +59,20 @@ class NotificationDispatcherGoLiveTest extends TestCase
     // -------------------------------------------------------------------------
 
     /**
-     * A workflow transition whose crossing committed `publish` sends the
-     * Published template to the transition's configured channels — with NO
+     * A workflow transition whose crossing committed `publish` queues the
+     * Published template for the transition's configured channels — with NO
      * global matrix routing configured (legacy parity).
      */
-    public function test_workflow_publish_sends_published_template_to_transition_channels(): void
+    public function test_workflow_publish_queues_published_template_for_transition_channels(): void
     {
         $this->stub_workflow_transition_environment( 'draft' );
 
         $sequence = $this->sequence_with_transition( array( 'to' => 'published-stage', 'notifications' => array( 'slack' ) ) );
 
-        $received = null;
-        $channel  = $this->make_channel( 'slack' );
+        $received = array();
         // No routing configured: a transition's own `notifications` list is what
         // sends this, not the event-routing table.
-        $channel->shouldReceive( 'send' )
-            ->once()
-            ->andReturnUsing(
-                function ( $notification ) use ( &$received ) {
-                    $received = $notification;
-                    return true;
-                }
-            );
-        $this->dispatcher->register_channel( $channel );
+        $this->dispatcher->register_channel( $this->recording_channel( 'slack', $received ) );
 
         $this->dispatcher->handle_status_transition(
             42,
@@ -90,10 +86,20 @@ class NotificationDispatcherGoLiveTest extends TestCase
             )
         );
 
-        $this->assertInstanceOf( Notification::class, $received );
-        $this->assertSame( 'published', $received->type );
-        $this->assertSame( 'draft', $received->data['previous_status'] );
-        $this->assertSame( 'publish', $received->data['committed_status'] );
+        $this->assertSame( array(), $received, 'Nothing is sent during the transition.' );
+        $this->assertCount( 1, $this->enqueued );
+        $this->assertSame( NotificationDispatcher::SEND_HOOK, $this->enqueued[0]['hook'] );
+        $this->assertSame( NotificationDispatcher::SEND_GROUP, $this->enqueued[0]['group'] );
+        $this->assertSame( 'published', $this->enqueued[0]['args']['event_type'] );
+        $this->assert_event_facts_only( $this->enqueued[0]['args']['data'] );
+
+        $this->run_enqueued( $this->dispatcher );
+
+        $this->assertCount( 1, $received );
+        $this->assertSame( 'published', $received[0]->type );
+        $this->assertSame( 'draft', $received[0]->data['previous_status'] );
+        $this->assertSame( 'publish', $received[0]->data['committed_status'] );
+        $this->assertSame( '“Test Post” published by Jane', $received[0]->message );
     }
 
     /**
@@ -110,17 +116,8 @@ class NotificationDispatcherGoLiveTest extends TestCase
         // No transition config at all (e.g. an assignment seat).
         $sequence->shouldReceive( 'get_transition' )->andReturn( null );
 
-        $received = null;
-        $channel  = $this->make_channel( 'slack' );
-        $channel->shouldReceive( 'send' )
-            ->once()
-            ->andReturnUsing(
-                function ( $notification ) use ( &$received ) {
-                    $received = $notification;
-                    return true;
-                }
-            );
-        $this->dispatcher->register_channel( $channel );
+        $received = array();
+        $this->dispatcher->register_channel( $this->recording_channel( 'slack', $received ) );
 
         $this->dispatcher->handle_status_transition(
             42,
@@ -134,11 +131,47 @@ class NotificationDispatcherGoLiveTest extends TestCase
             )
         );
 
-        $this->assertInstanceOf( Notification::class, $received );
-        $this->assertSame( 'published', $received->type );
+        $this->assertCount( 1, $this->enqueued );
+        $this->assert_event_facts_only( $this->enqueued[0]['args']['data'] );
+
+        $this->run_enqueued( $this->dispatcher );
+
+        $this->assertCount( 1, $received );
+        $this->assertSame( 'published', $received[0]->type );
         // The workflow path's stage is the action's new stage, by definition.
-        $this->assertSame( 'published-stage', $received->data['stage'] );
-        $this->assertSame( 'pending', $received->data['previous_status'] );
+        $this->assertSame( 'published-stage', $received[0]->data['stage'] );
+        $this->assertSame( 'pending', $received[0]->data['previous_status'] );
+    }
+
+    /**
+     * A channel that gets the matrix `published` job is not queued again by the
+     * transition's own list: one go-live, one message per channel.
+     */
+    public function test_workflow_publish_queues_once_when_matrix_and_transition_both_list_a_channel(): void
+    {
+        $this->stub_workflow_transition_environment( 'draft' );
+        $this->stub_matrix_routing( array( 'published' => array( 'slack' ) ) );
+
+        $sequence = $this->sequence_with_transition( array( 'to' => 'published-stage', 'notifications' => array( 'slack' ) ) );
+
+        $received = array();
+        $this->dispatcher->register_channel( $this->recording_channel( 'slack', $received ) );
+
+        $this->dispatcher->handle_status_transition(
+            42,
+            'published-stage',
+            'review',
+            $sequence,
+            array(
+                'cause'            => 'workflow',
+                'committed_status' => 'publish',
+                'previous_status'  => 'draft',
+            )
+        );
+
+        $this->assertCount( 1, $this->enqueued );
+        $this->assertSame( 'slack', $this->enqueued[0]['args']['channel_id'] );
+        $this->assertSame( 'published', $this->enqueued[0]['args']['event_type'] );
     }
 
     /**
@@ -155,16 +188,7 @@ class NotificationDispatcherGoLiveTest extends TestCase
         $sequence = $this->sequence_with_transition( array( 'to' => 'published-stage', 'notifications' => array( 'slack' ) ) );
 
         $received = array();
-        $channel  = $this->make_channel( 'slack' );
-        $channel->shouldReceive( 'send' )
-            ->twice()
-            ->andReturnUsing(
-                function ( $notification ) use ( &$received ) {
-                    $received[] = $notification;
-                    return true;
-                }
-            );
-        $this->dispatcher->register_channel( $channel );
+        $this->dispatcher->register_channel( $this->recording_channel( 'slack', $received ) );
 
         // 1. The workflow gate transition: committed as `future` — no go-live.
         $this->dispatcher->handle_status_transition(
@@ -186,6 +210,8 @@ class NotificationDispatcherGoLiveTest extends TestCase
         $post = $this->create_mock_post( array( 'ID' => 42, 'post_title' => 'Scheduled Post' ) );
         $this->dispatcher->handle_go_live( 'publish', 'future', $post );
 
+        $this->run_enqueued( $this->dispatcher );
+
         $this->assertCount( 2, $received );
         $this->assertSame( 'transition', $received[0]->type );
         $this->assertSame( 'future', $received[0]->data['committed_status'] );
@@ -206,25 +232,17 @@ class NotificationDispatcherGoLiveTest extends TestCase
 
         $sequence = $this->sequence_with_transition( array( 'to' => 'review', 'notifications' => array( 'slack' ) ) );
 
-        $received = null;
-        $channel  = $this->make_channel( 'slack' );
-        $channel->shouldReceive( 'send' )
-            ->once()
-            ->andReturnUsing(
-                function ( $notification ) use ( &$received ) {
-                    $received = $notification;
-                    return true;
-                }
-            );
-        $this->dispatcher->register_channel( $channel );
+        $received = array();
+        $this->dispatcher->register_channel( $this->recording_channel( 'slack', $received ) );
 
         $this->dispatcher->handle_status_transition( 42, 'review', 'draft', $sequence );
 
-        $this->assertInstanceOf( Notification::class, $received );
-        $this->assertSame( 'transition', $received->type );
-        $this->assertSame( 'workflow', $received->data['cause'] );
-        $this->assertSame( 'draft', $received->data['committed_status'] );
-        $this->assertSame( 'draft', $received->data['previous_status'] );
+        $this->assertCount( 1, $this->enqueued );
+        $this->assertSame( 'transition', $this->enqueued[0]['args']['event_type'] );
+        $data = $this->enqueued[0]['args']['data'];
+        $this->assertSame( 'workflow', $data['cause'] );
+        $this->assertSame( 'draft', $data['committed_status'] );
+        $this->assertSame( 'draft', $data['previous_status'] );
     }
 
     // -------------------------------------------------------------------------
@@ -236,31 +254,31 @@ class NotificationDispatcherGoLiveTest extends TestCase
         Functions\when( 'get_post_meta' )->alias(
             fn( $post_id, $key ) => StatusManager::SEQUENCE_META_KEY === $key ? '7' : 'live-stage'
         );
-        Functions\when( 'get_userdata' )->justReturn( (object) array( 'display_name' => 'Jane' ) );
-        Functions\when( 'get_edit_post_link' )->justReturn( 'https://example.com/edit' );
-        Functions\when( 'get_permalink' )->justReturn( 'https://example.com/view' );
         $this->stub_matrix_routing( array( 'published' => array( 'slack' ) ) );
 
-        $received = null;
-        $channel  = $this->make_channel( 'slack' );
-        $channel->shouldReceive( 'send' )
-            ->once()
-            ->andReturnUsing(
-                function ( $notification ) use ( &$received ) {
-                    $received = $notification;
-                    return true;
-                }
-            );
-        $this->dispatcher->register_channel( $channel );
+        $received = array();
+        $this->dispatcher->register_channel( $this->recording_channel( 'slack', $received ) );
 
-        $post = $this->create_mock_post( array( 'ID' => 42, 'post_title' => 'Live Post' ) );
+        $post = $this->create_mock_post( array( 'ID' => 42, 'post_title' => 'Live Post', 'post_status' => 'publish' ) );
         $this->dispatcher->handle_go_live( 'publish', 'draft', $post );
 
-        $this->assertInstanceOf( Notification::class, $received );
-        $this->assertSame( 'published', $received->type );
-        $this->assertSame( 42, $received->post_id );
-        $this->assertSame( 'draft', $received->data['previous_status'] );
-        $this->assertSame( 'live-stage', $received->data['stage'] );
+        $this->assertSame( array(), $received, 'Nothing is sent during the status change.' );
+        $this->assertCount( 1, $this->enqueued );
+        $this->assert_event_facts_only( $this->enqueued[0]['args']['data'] );
+
+        // A scheduled publish runs on cron, where no user is logged in: the
+        // link is built without a capability check.
+        $this->stub_send_time_reads( $post );
+        Functions\expect( 'get_edit_post_link' )->never();
+        $this->run_enqueued( $this->dispatcher );
+
+        $this->assertCount( 1, $received );
+        $this->assertSame( 'published', $received[0]->type );
+        $this->assertSame( 42, $received[0]->post_id );
+        $this->assertSame( 'draft', $received[0]->data['previous_status'] );
+        $this->assertSame( 'live-stage', $received[0]->data['stage'] );
+        $this->assertSame( '“Live Post” published by Jane', $received[0]->message );
+        $this->assertSame( 'https://example.com/wp-admin/post.php?post=42&action=edit', $received[0]->data['edit_url'] );
     }
 
     /**
@@ -271,6 +289,7 @@ class NotificationDispatcherGoLiveTest extends TestCase
     public function test_core_go_live_suppressed_while_workflow_transition_in_progress(): void
     {
         Functions\expect( 'get_post_meta' )->never();
+        Functions\expect( 'as_enqueue_async_action' )->never();
 
         $channel = $this->make_channel( 'slack' );
         $channel->shouldNotReceive( 'send' );
@@ -291,6 +310,7 @@ class NotificationDispatcherGoLiveTest extends TestCase
     {
         // No sequence meta → not workflow-managed → no dispatch.
         Functions\when( 'get_post_meta' )->justReturn( '' );
+        Functions\expect( 'as_enqueue_async_action' )->never();
 
         $channel = $this->make_channel( 'slack' );
         $channel->shouldNotReceive( 'send' );
@@ -306,6 +326,7 @@ class NotificationDispatcherGoLiveTest extends TestCase
     {
         // Neither a publish→publish update nor an unpublish is a go-live.
         Functions\expect( 'get_post_meta' )->never();
+        Functions\expect( 'as_enqueue_async_action' )->never();
 
         $channel = $this->make_channel( 'slack' );
         $channel->shouldNotReceive( 'send' );
@@ -323,13 +344,13 @@ class NotificationDispatcherGoLiveTest extends TestCase
     // -------------------------------------------------------------------------
 
     /**
-     * Stub the WP functions the workflow transition handler reads.
+     * Stub the WP functions the workflow transition handler and the job read.
      *
      * @param string $post_status The post's committed status at handler time.
      */
     private function stub_workflow_transition_environment( string $post_status ): void
     {
-        Functions\when( 'get_post' )->justReturn(
+        $this->stub_send_time_reads(
             $this->create_mock_post(
                 array(
                     'ID'          => 42,
@@ -338,9 +359,6 @@ class NotificationDispatcherGoLiveTest extends TestCase
                 )
             )
         );
-        Functions\when( 'get_userdata' )->justReturn( (object) array( 'display_name' => 'Jane' ) );
-        Functions\when( 'get_edit_post_link' )->justReturn( 'https://example.com/edit' );
-        Functions\when( 'get_permalink' )->justReturn( 'https://example.com/view' );
     }
 
     /**
@@ -390,6 +408,24 @@ class NotificationDispatcherGoLiveTest extends TestCase
         $previous = $property->getValue();
         $property->setValue( null, $value );
         return $previous;
+    }
+
+    /**
+     * A configured channel that appends each notification it is sent to $received.
+     *
+     * @param string $id       Channel ID.
+     * @param array  $received Notifications sent, in order.
+     */
+    private function recording_channel( string $id, array &$received ): NotificationChannel&Mockery\MockInterface
+    {
+        $channel = $this->make_channel( $id );
+        $channel->shouldReceive( 'send' )->andReturnUsing(
+            function ( Notification $notification ) use ( &$received ) {
+                $received[] = $notification;
+                return true;
+            }
+        );
+        return $channel;
     }
 
     private function make_channel( string $id, bool $configured = true ): NotificationChannel&Mockery\MockInterface

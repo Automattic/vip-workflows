@@ -18,13 +18,15 @@ use VIPWorkflows\Notifications\NotificationDispatcher;
 /**
  * Smoke tests for NotificationDispatcher.
  *
- * Tests channel registration, dispatch routing, async send, and static helpers.
- * Tests that call get_channel() / get_channels() trigger the internal
- * register_channels() guard, which instantiates SlackChannel + EmailChannel;
- * setUp() stubs the WP functions those classes require.
+ * Tests channel registration, dispatch routing, queueing, the queued send, and
+ * static helpers. Tests that call get_channel() / get_channels() trigger the
+ * internal register_channels() guard, which instantiates SlackChannel +
+ * EmailChannel; setUp() stubs the WP functions those classes require.
  */
 class NotificationDispatcherTest extends TestCase
 {
+    use QueuedNotifications;
+
     private NotificationDispatcher $dispatcher;
 
     protected function setUp(): void
@@ -83,9 +85,10 @@ class NotificationDispatcherTest extends TestCase
 
     public function test_dispatch_does_nothing_when_no_channels_registered(): void
     {
-        // Should complete without errors when there are no matching channels.
+        Functions\expect( 'as_enqueue_async_action' )->never();
+
         $this->dispatcher->dispatch( 'published', [ 'post_id' => 1 ] );
-        $this->assertTrue( true );
+        $this->addToAssertionCount( 1 );
     }
 
     // -------------------------------------------------------------------------
@@ -94,6 +97,9 @@ class NotificationDispatcherTest extends TestCase
 
     public function test_dispatch_skips_unconfigured_channel(): void
     {
+        $this->stub_matrix_routing( [ 'published' => [ 'slack' ] ] );
+        Functions\expect( 'as_enqueue_async_action' )->never();
+
         $channel = $this->make_channel( 'slack', configured: false );
         $channel->shouldNotReceive( 'send' );
 
@@ -107,14 +113,8 @@ class NotificationDispatcherTest extends TestCase
 
     public function test_dispatch_skips_channel_when_event_not_in_routing(): void
     {
-        Functions\when( 'get_option' )->alias(
-            function ( $option, $default = [] ) {
-                if ( 'vip_workflows_notification_routing' === $option ) {
-                    return [ 'transition' => [ 'slack' ] ]; // only transition → slack
-                }
-                return $default;
-            }
-        );
+        $this->stub_matrix_routing( [ 'transition' => [ 'slack' ] ] ); // only transition → slack
+        Functions\expect( 'as_enqueue_async_action' )->never();
 
         $channel = $this->make_channel( 'slack', configured: true );
         $channel->shouldNotReceive( 'send' );
@@ -125,15 +125,178 @@ class NotificationDispatcherTest extends TestCase
         $this->dispatcher->dispatch( 'published', [ 'post_id' => 1 ] );
     }
 
+    public function test_dispatch_queues_one_job_per_routed_channel_and_sends_nothing(): void
+    {
+        $this->stub_matrix_routing( [ 'published' => [ 'slack' ] ] );
+        $this->stub_transients();
+        $this->capture_enqueues();
+
+        $channel = $this->make_channel( 'slack' );
+        $channel->shouldNotReceive( 'send' );
+        $this->dispatcher->register_channel( $channel );
+
+        $this->dispatcher->dispatch( 'published', [ 'post_id' => 42, 'stage' => 'live' ] );
+
+        $this->assertSame(
+            [
+                [
+                    'hook'  => 'vip_workflows_send_notification',
+                    'args'  => [
+                        'channel_id' => 'slack',
+                        'event_type' => 'published',
+                        'data'       => [ 'post_id' => 42, 'stage' => 'live' ],
+                    ],
+                    'group' => 'vip-workflows-notifications',
+                ],
+            ],
+            $this->enqueued
+        );
+        $this->assertArrayHasKey( 'vip_notification_slack_published_42', $this->transients );
+    }
+
+    public function test_dispatch_skips_a_channel_still_inside_the_debounce_window(): void
+    {
+        $this->stub_matrix_routing( [ 'published' => [ 'slack' ] ] );
+        Functions\when( 'get_transient' )->alias(
+            fn( $key ) => 'vip_notification_slack_published_42' === $key ? time() : false
+        );
+        Functions\expect( 'as_enqueue_async_action' )->never();
+
+        $this->dispatcher->register_channel( $this->make_channel( 'slack' ) );
+        $this->dispatcher->dispatch( 'published', [ 'post_id' => 42 ] );
+
+        $this->addToAssertionCount( 1 );
+    }
+
+    // -------------------------------------------------------------------------
+    // queue_transition_notifications
+    // -------------------------------------------------------------------------
+
+    public function test_queue_transition_notifications_does_nothing_for_empty_notifications(): void
+    {
+        Functions\expect( 'as_enqueue_async_action' )->never();
+
+        $this->dispatcher->queue_transition_notifications( [ 'notifications' => [] ], [ 'post_id' => 1 ], false );
+
+        $this->addToAssertionCount( 1 );
+    }
+
+    public function test_queue_transition_notifications_skips_unregistered_and_unconfigured_channels(): void
+    {
+        $this->stub_transients();
+        Functions\expect( 'as_enqueue_async_action' )->never();
+
+        $channel = $this->make_channel( 'slack', configured: false );
+        $channel->shouldNotReceive( 'send' );
+        $this->dispatcher->register_channel( $channel );
+
+        $this->dispatcher->queue_transition_notifications(
+            [ 'notifications' => [ 'slack', 'not-registered' ] ],
+            [ 'post_id' => 1 ],
+            false
+        );
+
+        $this->assertSame( [], $this->transients );
+    }
+
+    public function test_queue_transition_notifications_queues_each_listed_channel_and_sends_nothing(): void
+    {
+        $this->stub_transients();
+        $this->capture_enqueues();
+
+        foreach ( [ 'slack', 'mail' ] as $id ) {
+            $channel = $this->make_channel( $id );
+            $channel->shouldNotReceive( 'send' );
+            $this->dispatcher->register_channel( $channel );
+        }
+
+        $this->dispatcher->queue_transition_notifications(
+            [ 'notifications' => [ 'slack', 'mail' ] ],
+            [ 'post_id' => 7, 'from_label' => 'Draft', 'to_label' => 'Review' ],
+            false
+        );
+
+        $this->assertSame( [ 'slack', 'mail' ], array_map( fn( $job ) => $job['args']['channel_id'], $this->enqueued ) );
+        $this->assertSame( [ 'transition', 'transition' ], array_map( fn( $job ) => $job['args']['event_type'], $this->enqueued ) );
+        $this->assertSame(
+            [ 'vip_notification_slack_transition_7', 'vip_notification_mail_transition_7' ],
+            array_keys( $this->transients )
+        );
+    }
+
+    public function test_queue_transition_notifications_uses_published_event_type_for_a_go_live(): void
+    {
+        $this->stub_transients();
+        $this->capture_enqueues();
+        $this->dispatcher->register_channel( $this->make_channel( 'slack' ) );
+
+        $this->dispatcher->queue_transition_notifications( [ 'notifications' => [ 'slack' ] ], [ 'post_id' => 1 ], true );
+
+        $this->assertCount( 1, $this->enqueued );
+        $this->assertSame( 'published', $this->enqueued[0]['args']['event_type'] );
+    }
+
+    /**
+     * Action Scheduler returns 0 when it couldn't store the job: no debounce is
+     * left behind, nothing is thrown, and the next channel is still queued.
+     */
+    public function test_a_job_that_was_not_queued_sets_no_debounce_and_the_next_channel_still_queues(): void
+    {
+        $this->stub_transients();
+        $calls = [];
+        Functions\when( 'as_enqueue_async_action' )->alias(
+            function ( $hook, $args ) use ( &$calls ) {
+                $calls[] = $args['channel_id'];
+                return 'slack' === $args['channel_id'] ? 0 : 99;
+            }
+        );
+
+        $this->dispatcher->register_channel( $this->make_channel( 'slack' ) );
+        $this->dispatcher->register_channel( $this->make_channel( 'mail' ) );
+
+        $this->dispatcher->queue_transition_notifications( [ 'notifications' => [ 'slack', 'mail' ] ], [ 'post_id' => 3 ], false );
+
+        $this->assertSame( [ 'slack', 'mail' ], $calls );
+        $this->assertSame( [ 'vip_notification_mail_transition_3' ], array_keys( $this->transients ) );
+    }
+
+    /**
+     * An enqueue that throws (a store error, oversized arguments) is caught, sets
+     * no debounce, and doesn't stop the next channel.
+     */
+    public function test_an_enqueue_that_throws_is_caught_and_the_next_channel_still_queues(): void
+    {
+        $this->stub_transients();
+        $calls = [];
+        Functions\when( 'as_enqueue_async_action' )->alias(
+            function ( $hook, $args ) use ( &$calls ) {
+                $calls[] = $args['channel_id'];
+                if ( 'slack' === $args['channel_id'] ) {
+                    throw new \RuntimeException( 'Error saving action.' );
+                }
+                return 99;
+            }
+        );
+
+        $this->dispatcher->register_channel( $this->make_channel( 'slack' ) );
+        $this->dispatcher->register_channel( $this->make_channel( 'mail' ) );
+
+        $this->dispatcher->queue_transition_notifications( [ 'notifications' => [ 'slack', 'mail' ] ], [ 'post_id' => 3 ], false );
+
+        $this->assertSame( [ 'slack', 'mail' ], $calls );
+        $this->assertSame( [ 'vip_notification_mail_transition_3' ], array_keys( $this->transients ) );
+    }
+
     // -------------------------------------------------------------------------
     // handle_async_send
     // -------------------------------------------------------------------------
 
     public function test_handle_async_send_skips_unknown_channel(): void
     {
-        // Should not throw for a non-existent channel_id.
+        Functions\expect( 'get_post' )->never();
+
         $this->dispatcher->handle_async_send( 'nonexistent', 'published', [] );
-        $this->assertTrue( true );
+        $this->addToAssertionCount( 1 );
     }
 
     public function test_handle_async_send_skips_unconfigured_channel(): void
@@ -143,6 +306,90 @@ class NotificationDispatcherTest extends TestCase
         $this->dispatcher->register_channel( $channel );
 
         $this->dispatcher->handle_async_send( 'email', 'published', [] );
+    }
+
+    /**
+     * Title, author and links come from the live post when the job runs; the
+     * stage labels come from the job. A title stored by an older job is
+     * overwritten by the live one.
+     */
+    public function test_handle_async_send_renders_the_live_title_with_the_stored_labels(): void
+    {
+        $this->stub_send_time_reads( $this->create_mock_post( [ 'ID' => 42, 'post_title' => 'Renamed headline' ] ) );
+
+        $received = null;
+        $channel  = $this->make_channel( 'slack' );
+        $channel->shouldReceive( 'send' )->once()->andReturnUsing(
+            function ( Notification $notification ) use ( &$received ) {
+                $received = $notification;
+                return true;
+            }
+        );
+        $this->dispatcher->register_channel( $channel );
+
+        $this->dispatcher->handle_async_send(
+            'slack',
+            'transition',
+            [
+                'post_id'    => 42,
+                'post_title' => 'Headline when queued',
+                'from_label' => 'Writing',
+                'to_label'   => 'Copy desk',
+            ]
+        );
+
+        $this->assertInstanceOf( Notification::class, $received );
+        $this->assertSame( '“Renamed headline” moved from Writing to Copy desk', $received->message );
+        $this->assertSame( 'Renamed headline', $received->data['post_title'] );
+        $this->assertSame( 'Jane', $received->data['author_name'] );
+        $this->assertSame( 'https://example.com/view', $received->data['view_url'] );
+    }
+
+    public function test_handle_async_send_sends_nothing_for_a_deleted_post(): void
+    {
+        Functions\when( 'get_post' )->justReturn( null );
+
+        $channel = $this->make_channel( 'slack' );
+        $channel->shouldNotReceive( 'send' );
+        $this->dispatcher->register_channel( $channel );
+
+        $this->dispatcher->handle_async_send( 'slack', 'transition', [ 'post_id' => 42 ] );
+    }
+
+    public function test_handle_async_send_sends_nothing_for_a_trashed_post(): void
+    {
+        $this->stub_send_time_reads( $this->create_mock_post( [ 'ID' => 42, 'post_status' => 'trash' ] ) );
+
+        $channel = $this->make_channel( 'slack' );
+        $channel->shouldNotReceive( 'send' );
+        $this->dispatcher->register_channel( $channel );
+
+        $this->dispatcher->handle_async_send( 'slack', 'transition', [ 'post_id' => 42 ] );
+    }
+
+    /**
+     * The queue runner has no current user, so get_edit_post_link() would return
+     * nothing there. The link is built without a capability check.
+     */
+    public function test_handle_async_send_builds_the_edit_link_without_a_current_user(): void
+    {
+        $this->stub_send_time_reads( $this->create_mock_post( [ 'ID' => 42 ] ) );
+        Functions\expect( 'get_edit_post_link' )->never();
+        Functions\expect( 'current_user_can' )->never();
+
+        $received = null;
+        $channel  = $this->make_channel( 'slack' );
+        $channel->shouldReceive( 'send' )->once()->andReturnUsing(
+            function ( Notification $notification ) use ( &$received ) {
+                $received = $notification;
+                return true;
+            }
+        );
+        $this->dispatcher->register_channel( $channel );
+
+        $this->dispatcher->handle_async_send( 'slack', 'transition', [ 'post_id' => 42 ] );
+
+        $this->assertSame( 'https://example.com/wp-admin/post.php?post=42&action=edit', $received->get_post_url( 'edit' ) );
     }
 
     // -------------------------------------------------------------------------
@@ -161,87 +408,25 @@ class NotificationDispatcherTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
-    // send_transition_notifications
-    // -------------------------------------------------------------------------
-
-    public function test_send_transition_notifications_does_nothing_for_empty_notifications(): void
-    {
-        Functions\when( 'get_transient' )->justReturn( false );
-
-        $this->dispatcher->send_transition_notifications(
-            1,
-            [ 'notifications' => [] ],
-            [ 'post_id' => 1 ],
-            false
-        );
-
-        $this->assertTrue( true );
-    }
-
-    public function test_send_transition_notifications_skips_unconfigured_channel(): void
-    {
-        Functions\when( 'get_transient' )->justReturn( false );
-
-        $channel = $this->make_channel( 'slack', configured: false );
-        $channel->shouldNotReceive( 'send' );
-        $this->dispatcher->register_channel( $channel );
-
-        $this->dispatcher->send_transition_notifications(
-            1,
-            [ 'notifications' => [ 'slack' ] ],
-            [ 'post_id' => 1 ],
-            false
-        );
-    }
-
-    public function test_send_transition_notifications_sends_to_configured_channel(): void
-    {
-        Functions\when( 'get_transient' )->justReturn( false );
-        Functions\when( 'set_transient' )->justReturn( true );
-
-        $channel = $this->make_channel( 'slack', configured: true );
-        $channel->shouldReceive( 'send' )->once()->andReturn( true );
-        $this->dispatcher->register_channel( $channel );
-
-        $this->dispatcher->send_transition_notifications(
-            1,
-            [ 'notifications' => [ 'slack' ] ],
-            [ 'post_id' => 1, 'post_title' => 'Test', 'from_label' => 'Draft', 'to_label' => 'Review' ],
-            false
-        );
-    }
-
-    public function test_send_transition_notifications_uses_published_event_type(): void
-    {
-        Functions\when( 'get_transient' )->justReturn( false );
-        Functions\when( 'set_transient' )->justReturn( true );
-
-        $received_notification = null;
-        $channel               = $this->make_channel( 'slack', configured: true );
-        $channel->shouldReceive( 'send' )
-            ->once()
-            ->andReturnUsing(
-                function ( $n ) use ( &$received_notification ) {
-                    $received_notification = $n;
-                    return true;
-                }
-            );
-        $this->dispatcher->register_channel( $channel );
-
-        $this->dispatcher->send_transition_notifications(
-            1,
-            [ 'notifications' => [ 'slack' ] ],
-            [ 'post_id' => 1, 'post_title' => 'Test Post', 'author_name' => 'Jane' ],
-            true // is_published
-        );
-
-        $this->assertInstanceOf( Notification::class, $received_notification );
-        $this->assertSame( 'published', $received_notification->type );
-    }
-
-    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Configure the global event-matrix routing option.
+     *
+     * @param array $routing Event type => channel IDs.
+     */
+    private function stub_matrix_routing( array $routing ): void
+    {
+        Functions\when( 'get_option' )->alias(
+            function ( $option, $default = [] ) use ( $routing ) {
+                if ( 'vip_workflows_notification_routing' === $option ) {
+                    return $routing;
+                }
+                return $default;
+            }
+        );
+    }
 
     private function make_channel( string $id, bool $configured = true ): NotificationChannel&Mockery\MockInterface
     {
