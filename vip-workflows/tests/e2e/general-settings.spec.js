@@ -20,10 +20,12 @@ async function openGeneralTab( admin, page ) {
 
 test.describe( 'VIP Workflows — general settings', () => {
 	let original;
+	let originalMode;
 
 	test.beforeEach( async ( { requestUtils } ) => {
 		const settings = await requestUtils.rest( { path: GENERAL_SETTINGS } );
 		original = settings.workflow_enforcement;
+		originalMode = settings.workflow_enforcement_mode;
 
 		await requestUtils.rest( {
 			path: GENERAL_SETTINGS,
@@ -36,7 +38,10 @@ test.describe( 'VIP Workflows — general settings', () => {
 		await requestUtils.rest( {
 			path: GENERAL_SETTINGS,
 			method: 'POST',
-			data: { workflow_enforcement: original },
+			data: {
+				workflow_enforcement: original,
+				workflow_enforcement_mode: originalMode,
+			},
 		} );
 	} );
 

@@ -166,12 +166,12 @@ class MyQueuePerObjectGateTest extends TestCase {
 	}
 
 	/**
-	 * An Editor's own post that is assigned to another user stays out of their queue.
+	 * An Editor's own post that is claimed by someone else stays out of their queue.
 	 */
-	public function test_editor_does_not_see_their_own_post_assigned_to_someone_else(): void {
+	public function test_editor_does_not_see_their_own_post_claimed_by_someone_else(): void {
 		$own_post = $this->own_post_at_review_as_editor();
-		$assignee = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
-		update_post_meta( $own_post, '_vip_workflows_assigned_to', $assignee );
+		$claimer  = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
+		update_post_meta( $own_post, '_vip_workflows_assigned_to', $claimer );
 
 		$items = (array) rest_do_request( new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/my-queue' ) )->get_data();
 
