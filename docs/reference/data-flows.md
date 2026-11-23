@@ -188,24 +188,30 @@ NotificationDispatcher::handle_status_transition() (hooked at priority 10)
     ↓
 NotificationDispatcher::dispatch($event_type, $data)
     ↓
-For each registered, configured channel:
+For each registered channel:
     ↓
     1. should_notify_channel(): debug/mirror-everything ON for this channel,
        OR the routing option lists this channel under $event_type
-    2. is_rate_limited(): a transient keyed on channel+event+post_id — skip
-       if still within the debounce window (default 60s, filterable via
-       vip_workflows_notification_rate_limit_ttl)
-    3. If Action Scheduler is available: as_enqueue_async_action('vip_workflows_send_notification', ...)
-       Otherwise: send synchronously
+    2. queue(): skip an unconfigured channel; skip if is_rate_limited() (a
+       transient keyed on channel+event+post_id, default 60s, filterable via
+       vip_workflows_notification_rate_limit_ttl); otherwise
+       as_enqueue_async_action('vip_workflows_send_notification', ...) with
+       event facts only (post ID, stages, labels, statuses, cause), then start
+       the debounce. A failed enqueue is logged and starts no debounce.
         ↓
-        build_notification() — fills in a templated title/message for known
-        event types ('published', 'transition'), a generic one otherwise
+Later, the Action Scheduler runner: handle_async_send()
+    ↓
+    1. Skip if the post is gone or in the Trash
+    2. Read title, author name, permalink and edit link (built without a
+       capability check: the runner has no user) from the live post
+    3. build_notification() — fills in a templated title/message for known
+       event types ('published', 'transition'), a generic one otherwise
         ↓
         EmailChannel::send($notification) → wp_mail()
         SlackChannel::send($notification) → POST to the channel's webhook URL
 ```
 
-A transition's own `notifications` list is sent separately via `send_transition_notifications()`, using the Published template if the transition was a go-live (legacy parity) or a generic "stage changed" template otherwise — a channel already notified by the matrix dispatch above is deduplicated by the same rate limit, not sent twice.
+A transition's own `notifications` list is queued separately via `queue_transition_notifications()`, through the same `queue()`, using the Published template if the transition was a go-live (legacy parity) or a generic "stage changed" template otherwise — a channel already queued by the matrix dispatch above is deduplicated by the same rate limit, not sent twice.
 
 ### Flow 6: Nightly Cleanup
 
