@@ -818,10 +818,10 @@ class StatusManagerTest extends TestCase
         );
         $this->stub_transition_context( $post, 'draft' );
         Functions\when( 'current_user_can' )->justReturn( true );
-        $status_reads = 0;
+        $committed = array();
         Functions\when( 'get_post_status' )->alias(
-            function () use ( &$status_reads ) {
-                return 1 === ++$status_reads ? 'draft' : 'publish';
+            function () use ( &$committed ) {
+                return array() === $committed ? 'draft' : 'publish';
             }
         );
 
@@ -832,7 +832,6 @@ class StatusManagerTest extends TestCase
                 return true;
             }
         );
-        $committed = array();
         Functions\when( 'wp_update_post' )->alias(
             function ( $data, $wp_error = false ) use ( &$committed ) {
                 $committed[] = $data['post_status'];
@@ -872,16 +871,15 @@ class StatusManagerTest extends TestCase
         );
         $this->stub_transition_context( $post, 'review' );
         Functions\when( 'current_user_can' )->justReturn( true );
-        // First read (previous_status capture, before any write) sees draft;
+        // Reads before the status write (previous_status capture) see draft;
         // every later read sees the committed publish.
-        $status_reads = 0;
+        $sequence = array();
         Functions\when( 'get_post_status' )->alias(
-            function () use ( &$status_reads ) {
-                return 1 === ++$status_reads ? 'draft' : 'publish';
+            function () use ( &$sequence ) {
+                return array() === $sequence ? 'draft' : 'publish';
             }
         );
 
-        $sequence = array();
         Functions\when( 'wp_update_post' )->alias(
             function ( $data, $wp_error = false ) use ( &$sequence ) {
                 $sequence[] = array( 'wp_update_post', $data['post_status'] );
@@ -998,13 +996,18 @@ class StatusManagerTest extends TestCase
         );
         $this->stub_transition_context( $post, 'review' );
         Functions\when( 'current_user_can' )->justReturn( true );
-        Functions\when( 'wp_update_post' )->justReturn( 1 );
+        $written = false;
+        Functions\when( 'wp_update_post' )->alias(
+            function () use ( &$written ) {
+                $written = true;
+                return 1;
+            }
+        );
         // Core committed `future`, not the `publish` that was asked for; the
-        // pre-write read sees the old draft.
-        $status_reads = 0;
+        // pre-write reads see the old draft.
         Functions\when( 'get_post_status' )->alias(
-            function () use ( &$status_reads ) {
-                return 1 === ++$status_reads ? 'draft' : 'future';
+            function () use ( &$written ) {
+                return $written ? 'future' : 'draft';
             }
         );
         Functions\when( 'update_post_meta' )->justReturn( true );
