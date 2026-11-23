@@ -293,20 +293,30 @@ class NotificationDispatcher implements ModuleInterface {
 			return;
 		}
 
-		$author = get_userdata( (int) $post->post_author );
+		// A shared channel gets the site language, even when an administrator
+		// runs the job by hand from Scheduled Actions in another profile language.
+		$switched = switch_to_locale( get_locale() );
 
-		// Live values win over anything the job carried.
-		$data = array_merge(
-			$data,
-			array(
-				'post_title'  => $post->post_title,
-				'author_name' => $author ? $author->display_name : __( 'Unknown', 'vip-workflows' ),
-				'edit_url'    => $this->edit_url( $post ),
-				'view_url'    => (string) get_permalink( $post ),
-			)
-		);
+		try {
+			$author = get_userdata( (int) $post->post_author );
 
-		$channel->send( $this->build_notification( $event_type, $data ) );
+			// Live values win over anything the job carried.
+			$data = array_merge(
+				$data,
+				array(
+					'post_title'  => $post->post_title,
+					'author_name' => $author ? $author->display_name : __( 'Unknown', 'vip-workflows' ),
+					'edit_url'    => $this->edit_url( $post ),
+					'view_url'    => (string) get_permalink( $post ),
+				)
+			);
+
+			$channel->send( $this->build_notification( $event_type, $data ) );
+		} finally {
+			if ( $switched ) {
+				restore_previous_locale();
+			}
+		}
 	}
 
 	/**

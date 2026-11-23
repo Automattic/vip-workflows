@@ -392,6 +392,29 @@ class NotificationDispatcherTest extends TestCase
         $this->assertSame( 'https://example.com/wp-admin/post.php?post=42&action=edit', $received->get_post_url( 'edit' ) );
     }
 
+    /**
+     * An administrator can run a job by hand from Scheduled Actions in another
+     * profile language. The message is built in the site language, and the
+     * previous locale comes back even when the channel throws.
+     */
+    public function test_handle_async_send_switches_to_the_site_language_and_restores_it(): void
+    {
+        Functions\when( 'get_post' )->justReturn( $this->create_mock_post( [ 'ID' => 42 ] ) );
+        Functions\when( 'get_userdata' )->justReturn( false );
+        Functions\when( 'get_permalink' )->justReturn( 'https://example.com/view' );
+        Functions\when( 'get_post_type_object' )->justReturn( null );
+        Functions\when( 'get_locale' )->justReturn( 'fr_FR' );
+        Functions\expect( 'switch_to_locale' )->once()->with( 'fr_FR' )->andReturn( true );
+        Functions\expect( 'restore_previous_locale' )->once()->andReturn( 'de_DE' );
+
+        $channel = $this->make_channel( 'slack' );
+        $channel->shouldReceive( 'send' )->once()->andThrow( new \RuntimeException( 'Channel failed.' ) );
+        $this->dispatcher->register_channel( $channel );
+
+        $this->expectException( \RuntimeException::class );
+        $this->dispatcher->handle_async_send( 'slack', 'transition', [ 'post_id' => 42 ] );
+    }
+
     // -------------------------------------------------------------------------
     // Static helpers
     // -------------------------------------------------------------------------

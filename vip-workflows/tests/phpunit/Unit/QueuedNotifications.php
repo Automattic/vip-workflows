@@ -81,6 +81,9 @@ trait QueuedNotifications
         Functions\when( 'get_permalink' )->justReturn( 'https://example.com/view' );
         Functions\when( 'get_post_type_object' )->justReturn( (object) array( '_edit_link' => 'post.php?post=%d' ) );
         Functions\when( 'admin_url' )->alias( fn( $path = '' ) => 'https://example.com/wp-admin/' . $path );
+        // Already in the site language, as in a cron or async runner.
+        Functions\when( 'get_locale' )->justReturn( 'en_US' );
+        Functions\when( 'switch_to_locale' )->justReturn( false );
     }
 
     /**

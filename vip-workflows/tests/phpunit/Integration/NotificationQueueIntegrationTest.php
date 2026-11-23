@@ -353,6 +353,44 @@ class NotificationQueueIntegrationTest extends TestCase {
 	}
 
 	/**
+	 * Scheduled Actions also runs jobs inside an administrator's request.
+	 * Observe the template's locale without requiring a language pack on disk.
+	 */
+	public function test_a_manual_admin_run_uses_the_site_language_for_the_template(): void {
+		$this->seed( self::RECORDING_CHANNEL );
+		$this->assertTrue( ( new StatusManager() )->transition( $this->post_id, 'copy_desk' ) );
+		$jobs = $this->pending_jobs();
+		$this->assertCount( 1, $jobs );
+
+		$site_locale  = get_locale();
+		$user_locale  = 'de_DE' === $site_locale ? 'fr_FR' : 'de_DE';
+		$user_id      = get_current_user_id();
+		$prior_screen = $GLOBALS['current_screen'] ?? null;
+		update_user_meta( $user_id, 'locale', $user_locale );
+		wp_set_current_user( 0 );
+		wp_set_current_user( $user_id );
+		set_current_screen( 'tools_page_action-scheduler' );
+
+		$template_locales = array();
+		$record_locale    = static function ( $translation, $text, $domain ) use ( &$template_locales ) {
+			if ( 'vip-workflows' === $domain && 'Stage changed' === $text ) {
+				$template_locales[] = determine_locale();
+			}
+			return $translation;
+		};
+		add_filter( 'gettext', $record_locale, 10, 3 );
+		try {
+			$this->assertSame( $user_locale, determine_locale(), 'The manual runner starts in the operator locale.' );
+			\ActionScheduler::runner()->process_action( (int) key( $jobs ), 'Admin List Table' );
+			$this->assertCount( 1, self::$sent );
+			$this->assertSame( array( $site_locale ), $template_locales, 'The shared notification template uses the site language.' );
+		} finally {
+			remove_filter( 'gettext', $record_locale, 10 );
+			$GLOBALS['current_screen'] = $prior_screen;
+		}
+	}
+
+	/**
 	 * A queued job can't be recalled, so the stage-change event has to fire only
 	 * after every point where transition() can still roll back. Here the stage
 	 * write loses after the status write landed: transition() restores the status
