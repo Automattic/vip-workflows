@@ -494,7 +494,7 @@ Parse.ly calls require the wp-parsely plugin and its `apikey`/`api_secret` optio
 
 | Destination | Timeout and failure | Owner |
 | --- | --- | --- |
-| Slack | 3 s: a webhook slower than 3 s fails, and a failed notification isn't retried. Logged and returns false | `vip-workflows/includes/notifications/channels/class-slack-channel.php` |
+| Slack | 3 s: a webhook slower than 3 s fails, and a failed notification isn't retried. Returns false on failure; transport errors (including timeouts) are logged, HTTP non-2xx responses are not | `vip-workflows/includes/notifications/channels/class-slack-channel.php` |
 | `wp_mail` | Platform mailer | `vip-workflows/includes/notifications/channels/class-email-channel.php` |
 | Tavily | 30 s / 20 s. Returns an error or an empty result | `vip-workflows/includes/ideation/research/search-providers/class-tavily-provider.php`, `vip-workflows/includes/ideation/assistants/class-tavily-*-provider.php` |
 | YouTube Data API | 5 s through `vip_safe_wp_remote_get` | `vip-workflows/includes/ideation/assistants/class-you-tube-video-provider.php` |
@@ -948,7 +948,7 @@ flowchart TD
 - **Per-transition messages, set on the transition.** A transition can list channels to notify. Each listed channel gets a "moved from X to Y" message, or the go-live message if the move publishes the post. These are sent inline, during the request that made the move.
 - **Repeats are suppressed.** The same channel, event and post won't get a second message within 60 seconds.
 - **A debug mode** can mirror every event to channels an admin chooses.
-- **A failed delivery never blocks a move.** Messages go out only after the status and stage are saved. A failed send just reports failure, and Slack logs the error.
+- **A failed delivery never blocks a move.** Messages go out only after the status and stage are saved. A failed send just reports failure; Slack logs transport errors such as a timeout, but not an HTTP error response.
 
 **Always true**
 
