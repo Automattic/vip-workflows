@@ -432,7 +432,7 @@ On VIP, Cron Control runs both queues. With `DISABLE_WP_CRON` and no runner, whi
 
 **Footguns**
 
-- **A notification that fails to queue or to send is gone.** Neither is retried. A queue failure is logged; a failed send marks its job Failed in Tools → Scheduled Actions, and Slack also logs request errors. Stage labels have no length limit, and labels long enough to push the job past Action Scheduler's 8,000-character argument limit keep it from being queued.
+- **A notification that fails to queue or to send is gone.** Neither is retried. A queue failure is logged; a failed send marks its job Failed in Tools → Scheduled Actions, and Slack also logs request errors. An email with no recipients isn't a failed send: its job completes and logs the channel and post ID. Stage labels have no length limit, and labels long enough to push the job past Action Scheduler's 8,000-character argument limit keep it from being queued.
 - **A notification job for a post deleted or trashed before it runs sends nothing.**
 - **A killed source job strands the source.** A job killed mid-run leaves the source in `processing` permanently, with no retry.
 - **The cleanup's first run time is computed in UTC.** `strtotime` reads 02:00 of the site's date as UTC.

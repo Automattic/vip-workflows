@@ -267,6 +267,25 @@ class NotificationQueueIntegrationTest extends TestCase {
 	}
 
 	/**
+	 * Run a callback with error_log() captured, and return what was logged.
+	 *
+	 * @param callable $callback Work that may log.
+	 * @return string The log output.
+	 */
+	private function capture_log( callable $callback ): string {
+		$file     = wp_tempnam( 'vipwf-notification-log' );
+		$previous = ini_set( 'error_log', $file ); // phpcs:ignore WordPress.PHP.IniSet.Risky -- capturing this test's own log output.
+		try {
+			$callback();
+		} finally {
+			ini_set( 'error_log', (string) $previous ); // phpcs:ignore WordPress.PHP.IniSet.Risky -- restoring the setting changed above.
+		}
+		$log = (string) file_get_contents( $file );
+		unlink( $file );
+		return $log;
+	}
+
+	/**
 	 * Pending notification jobs for the post under test.
 	 *
 	 * @return array<int, \ActionScheduler_Action> Keyed by action ID.
@@ -395,8 +414,59 @@ class NotificationQueueIntegrationTest extends TestCase {
 				\ActionScheduler_Logger::instance()->get_logs( $action_id )
 			)
 		);
-		$this->assertStringContainsString( self::REJECTING_CHANNEL, $log );
-		$this->assertStringContainsString( (string) $this->post_id, $log );
+		$this->assertStringContainsString(
+			sprintf( 'Channel "%s" did not deliver the "transition" notification for post %d.', self::REJECTING_CHANNEL, $this->post_id ),
+			$log,
+			'Scheduled Actions shows the quotes, not &quot;.'
+		);
+		$this->assertStringNotContainsString( '&quot;', $log );
+		$this->assertStringNotContainsString( 'Headline when moved', $log, 'The log holds no post content.' );
+	}
+
+	/**
+	 * An email channel that resolves no recipients has nothing to deliver, which
+	 * is not a failed send: the job completes, and the server log names the
+	 * channel and the post.
+	 */
+	public function test_an_email_job_with_no_recipients_completes_and_is_logged(): void {
+		$dispatcher = Plugin::get_instance()->get_module( 'notifications' );
+		$email      = $dispatcher->get_channel( 'email' );
+		$this->assertNotNull( $email );
+
+		// "Notify author" alone: the job carries no author ID, so nobody is emailed.
+		$email->update_settings( array( 'notify_author' => true ) );
+		$this->assertTrue( $email->is_configured() );
+
+		$mails = array();
+		add_filter(
+			'pre_wp_mail',
+			static function ( $short_circuit, $atts ) use ( &$mails ) {
+				$mails[] = $atts;
+				return true;
+			},
+			10,
+			2
+		);
+
+		$this->seed( 'email' );
+		$this->assertTrue( ( new StatusManager() )->transition( $this->post_id, 'copy_desk' ) );
+
+		$jobs = $this->pending_jobs();
+		$this->assertCount( 1, $jobs );
+		$action_id = (int) key( $jobs );
+
+		$log = $this->capture_log(
+			static function () use ( $action_id ): void {
+				\ActionScheduler::runner()->process_action( $action_id );
+			}
+		);
+
+		$this->assertSame( \ActionScheduler_Store::STATUS_COMPLETE, \ActionScheduler::store()->get_status( (string) $action_id ) );
+		$this->assertSame( array(), $mails, 'Nobody is emailed.' );
+		$this->assertStringContainsString(
+			sprintf( 'Channel "email" has no recipients for the "transition" notification for post %d', $this->post_id ),
+			$log
+		);
 		$this->assertStringNotContainsString( 'Headline when moved', $log, 'The log holds no post content.' );
 	}
 
@@ -420,6 +490,16 @@ class NotificationQueueIntegrationTest extends TestCase {
 
 		$this->assertSame( \ActionScheduler_Store::STATUS_FAILED, \ActionScheduler::store()->get_status( (string) $action_id ) );
 		$this->assertSame( array(), self::$sent );
+
+		$log = implode(
+			"\n",
+			array_map(
+				static fn( \ActionScheduler_LogEntry $entry ): string => $entry->get_message(),
+				\ActionScheduler_Logger::instance()->get_logs( $action_id )
+			)
+		);
+		$this->assertStringContainsString( sprintf( 'Notification job for channel "%s" has no post ID.', self::RECORDING_CHANNEL ), $log );
+		$this->assertStringNotContainsString( '&quot;', $log );
 	}
 
 	/**

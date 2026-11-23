@@ -276,8 +276,9 @@ class NotificationDispatcher implements ModuleInterface {
 	 *
 	 * Reads the post's title, author and links from the live post, and sends
 	 * nothing for a post that was deleted or moved to the Trash after the job was
-	 * queued. A job with no post ID, or a send that fails, throws, so Action
-	 * Scheduler marks the job Failed.
+	 * queued. An email with no recipients is logged and sends nothing. A job
+	 * with no post ID, or a send that fails, throws, so Action Scheduler marks
+	 * the job Failed.
 	 *
 	 * @param string $channel_id Channel ID.
 	 * @param string $event_type Event type.
@@ -294,7 +295,7 @@ class NotificationDispatcher implements ModuleInterface {
 		// return the global post, which is some other post.
 		$post_id = (int) ( $data['post_id'] ?? 0 );
 		if ( $post_id <= 0 ) {
-			throw new \RuntimeException( esc_html( sprintf( 'Notification job for channel "%s" has no post ID.', $channel_id ) ) );
+			throw new \RuntimeException( sprintf( 'Notification job for channel "%s" has no post ID.', esc_html( $channel_id ) ) );
 		}
 
 		$post = get_post( $post_id );
@@ -320,9 +321,30 @@ class NotificationDispatcher implements ModuleInterface {
 				)
 			);
 
-			if ( ! $channel->send( $this->build_notification( $event_type, $data ) ) ) {
+			$notification = $this->build_notification( $event_type, $data );
+
+			// No recipients means nothing to deliver, not a failed send.
+			if ( $channel instanceof Channels\EmailChannel && ! $channel->has_recipients( $notification ) ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging of an undeliverable notification.
+				error_log(
+					sprintf(
+						'VIP Workflows: Channel "%1$s" has no recipients for the "%2$s" notification for post %3$d; nothing was sent.',
+						$channel_id,
+						$event_type,
+						$post_id
+					)
+				);
+				return;
+			}
+
+			if ( ! $channel->send( $notification ) ) {
 				throw new \RuntimeException(
-					esc_html( sprintf( 'Channel "%1$s" did not deliver the "%2$s" notification for post %3$d.', $channel_id, $event_type, $post_id ) )
+					sprintf(
+						'Channel "%1$s" did not deliver the "%2$s" notification for post %3$d.',
+						esc_html( $channel_id ),
+						esc_html( $event_type ),
+						$post_id
+					)
 				);
 			}
 		} finally {

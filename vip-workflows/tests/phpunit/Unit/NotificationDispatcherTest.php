@@ -354,6 +354,7 @@ class NotificationDispatcherTest extends TestCase
     public function test_handle_async_send_fails_a_job_without_a_post_id(): void
     {
         Functions\expect( 'get_post' )->never();
+        $this->escape_like_wordpress();
 
         $channel = $this->make_channel( 'slack' );
         $channel->shouldNotReceive( 'send' );
@@ -371,6 +372,7 @@ class NotificationDispatcherTest extends TestCase
     public function test_handle_async_send_fails_the_job_when_the_channel_does_not_deliver(): void
     {
         $this->stub_send_time_reads( $this->create_mock_post( [ 'ID' => 42, 'post_title' => 'Secret headline' ] ) );
+        $this->escape_like_wordpress();
 
         $channel = $this->make_channel( 'slack' );
         $channel->shouldReceive( 'send' )->once()->andReturn( false );
@@ -379,6 +381,17 @@ class NotificationDispatcherTest extends TestCase
         $this->expectException( \RuntimeException::class );
         $this->expectExceptionMessage( 'Channel "slack" did not deliver the "transition" notification for post 42.' );
         $this->dispatcher->handle_async_send( 'slack', 'transition', [ 'post_id' => 42 ] );
+    }
+
+    /**
+     * The suite's escape stubs return their input unchanged. Escape quotes the way
+     * esc_html() does at runtime, so a message asserts what Scheduled Actions shows.
+     */
+    private function escape_like_wordpress(): void
+    {
+        Functions\when( 'esc_html' )->alias(
+            static fn( $text ): string => htmlspecialchars( (string) $text, ENT_QUOTES, 'UTF-8' )
+        );
     }
 
     public function test_handle_async_send_sends_nothing_for_a_deleted_post(): void
