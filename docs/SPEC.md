@@ -912,7 +912,7 @@ flowchart TD
 - **Pending user assignments are copied into one lookup key,** one row per user, rebuilt after every slot change.
 - **A move from a stage back to itself writes its slot by compare-and-set,** and returns 409 `assignment_conflict` if it lost a race.
 - **My Work** (on My Dashboard) lists posts the user wrote (modified in the last 60 days), claimed, or has a pending user assignment on, filtered to posts they can read. The assignee shown is the most recent pending assignment, otherwise the claimer.
-- **My Queue** (behind the `my_queue` experiment) lists posts at stages marked to show in the queue, filtered to moves the user's role allows. It skips the user's own posts unless self-review is allowed, and skips posts someone else has claimed. Its quick actions are transitions marked to show in the queue and not locked.
+- **My Queue** (behind the `my_queue` experiment) lists posts at stages marked to show in the queue, filtered to moves the user's role allows. It skips posts someone else has claimed. Its quick actions are transitions marked to show in the queue and not locked.
 - **Claims still exist in code.** A user can claim a post and release it, which is logged. Claiming fails with 409 if someone else holds the claim. Only the claimer or a user with `manage_options` can release it, and releasing deletes only the claim it read, so a release with no claim to clear, or one that lost a race to another release, returns 409 `post_not_claimed` and logs nothing. In the editor, the claim has its own "Claimed by" row with Release beside it; the assignment row offers no Release.
 
 **Always true**
@@ -1016,7 +1016,7 @@ flowchart TD
 
 - **Anyone who can edit posts** gets My Dashboard, plus Ideation when that experiment is on.
 - **Anyone who can edit others' posts** also gets Kanban and Calendar when those experiments are on.
-- **Admins only (`manage_options`):** Sequences (the graph editor), Notifications, Agents, Tools and Settings. Settings hold the bypass list and the tool-check bypass list, the audit roles, self-review, and workflow enforcement.
+- **Admins only (`manage_options`):** Sequences (the graph editor), Notifications, Agents, Tools and Settings. Settings hold the bypass list and the tool-check bypass list, the audit roles and workflow enforcement.
 - **Audit Log** needs `edit_others_posts` when the user's role is in the audit roles list, and `manage_options` otherwise.
 - **The menu isn't the security boundary.** Each page is a React app over the plugin's REST routes, and each route checks its own capability.
 
