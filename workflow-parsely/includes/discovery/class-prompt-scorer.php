@@ -289,8 +289,10 @@ class PromptScorer {
 			return;
 		}
 
-		wp_clear_scheduled_hook( self::WARM_HOOK );
+		// Queue first: a request that dies between the two leaves a drain with
+		// nothing to do, not a queue that no event will ever drain.
 		delete_option( self::QUEUE_OPTION );
+		wp_clear_scheduled_hook( self::WARM_HOOK );
 	}
 
 	/**

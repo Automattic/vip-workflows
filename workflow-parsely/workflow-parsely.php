@@ -102,8 +102,8 @@ function wp_parsely_is_active(): bool {
  *
  * Discovery is only shown in Ideation, so the background poll and the
  * prompt-score warm-up only run while it is. Read at the moment of use rather
- * than cached, so a toggle or a `vip_workflows_experiments` filter takes effect
- * at once.
+ * than cached, so a toggle takes effect in the same request. A change to the
+ * `vip_workflows_experiments` filter is picked up on the next request.
  *
  * False when VIP Workflows isn't loaded or hasn't initialized yet: with no way
  * to tell, the background work stays off.

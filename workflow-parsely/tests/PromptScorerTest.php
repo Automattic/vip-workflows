@@ -192,6 +192,39 @@ class PromptScorerTest extends TestCase {
 		$this->assertSame( array( 'Harvest Falters', 'Rates Held' ), $this->queued_titles() );
 	}
 
+	/**
+	 * A request that dies partway through turning Ideation off must not leave a
+	 * queue with no drain event: the same item queued again after Ideation comes
+	 * back would be skipped as already queued, and never scored.
+	 */
+	public function test_an_interrupted_stop_leaves_nothing_that_blocks_the_warm_up(): void {
+		$prompts = $this->prompts( array( 'Harvest Falters' ) );
+		PromptScorer::queue_prompts( $prompts );
+
+		$interrupt = static function ( string $option ): void {
+			if ( self::QUEUE_OPTION === $option ) {
+				throw new \RuntimeException( 'Request died.' );
+			}
+		};
+		add_action( 'delete_option', $interrupt );
+
+		try {
+			$this->experiments()->disable( 'ideation' );
+			$this->fail( 'Deleting the queue should have been interrupted.' );
+		} catch ( \RuntimeException $exception ) {
+			$this->assertSame( 'Request died.', $exception->getMessage() );
+		} finally {
+			remove_action( 'delete_option', $interrupt );
+		}
+
+		DiscoveryPoller::ensure_scheduled();
+		$this->experiments()->enable( 'ideation' );
+		PromptScorer::queue_prompts( $prompts );
+
+		$this->assertSame( array( 'Harvest Falters' ), $this->queued_titles() );
+		$this->assertNotFalse( wp_next_scheduled( PromptScorer::WARM_HOOK ) );
+	}
+
 	// ── Ideation on ──────────────────────────────────────────────────
 
 	public function test_warm_scores_a_batch_and_reschedules_for_the_rest(): void {
@@ -199,6 +232,7 @@ class PromptScorerTest extends TestCase {
 
 		PromptScorer::warm();
 
+		$this->assertGreaterThan( 0, $this->requests, 'Scoring should reach the HTTP stub.' );
 		$this->assertSame( array( 'Queued Story 5', 'Queued Story 6' ), $this->queued_titles() );
 		$this->assertNotFalse( wp_next_scheduled( PromptScorer::WARM_HOOK ) );
 
