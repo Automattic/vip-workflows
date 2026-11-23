@@ -15,6 +15,7 @@ use VIPWorkflows\Automation\EventRegistry;
 use VIPWorkflows\Admin\Admin;
 use VIPWorkflows\Editor\EditorIntegration;
 use VIPWorkflows\Workflow\AgentRunner;
+use VIPWorkflows\Workflow\MetadataOptionGuard;
 use VIPWorkflows\Workflow\StageAgentRunner;
 use VIPWorkflows\Workflow\PostTypeManager;
 use VIPWorkflows\Workflow\PublishBoundaryGuard;
@@ -69,6 +70,15 @@ final class Plugin {
 	 */
 	private ?StatusManager $status_manager = null;
 
+	/**
+	 * Guard that keeps select metadata fields to their options.
+	 *
+	 * One instance for the life of the request, so registering the metadata
+	 * fields again replaces what it knows and hooks nothing twice.
+	 *
+	 * @var MetadataOptionGuard|null
+	 */
+	private ?MetadataOptionGuard $metadata_option_guard = null;
 
 	/**
 	 * Feature registry.
@@ -419,6 +429,7 @@ final class Plugin {
 		$sequences  = $repository->get_all( array( 'status' => 'active' ) );
 
 		$targeted_post_types = array();
+		$select_fields       = array();
 
 		foreach ( $sequences as $sequence ) {
 			$metadata_fields = $sequence->get_metadata_fields();
@@ -431,6 +442,13 @@ final class Plugin {
 
 			foreach ( $metadata_fields as $field ) {
 				$meta_key = 'wf_meta_' . $sequence->id . '_' . $field['key'];
+
+				if ( 'select' === $field['type'] ) {
+					$select_fields[ $meta_key ] = array(
+						'label'   => $field['label'] ?? $field['key'],
+						'options' => $field['options'] ?? array(),
+					);
+				}
 
 				$type = match ( $field['type'] ) {
 					'user'  => 'integer',
@@ -477,6 +495,23 @@ final class Plugin {
 		// MetadataController remains the gated way to read them.
 		foreach ( array_unique( $targeted_post_types ) as $post_type ) {
 			add_filter( "rest_prepare_{$post_type}", array( $this, 'restrict_metadata_in_rest_response' ), 10, 2 );
+		}
+
+		// A select field is string meta, so nothing above holds it to its
+		// options. The guard does, on every path that writes the value.
+		if ( null === $this->metadata_option_guard ) {
+			if ( empty( $select_fields ) ) {
+				return;
+			}
+
+			$this->metadata_option_guard = new MetadataOptionGuard();
+		}
+
+		$this->metadata_option_guard->set_fields( $select_fields );
+		$this->metadata_option_guard->init();
+
+		foreach ( array_unique( $targeted_post_types ) as $post_type ) {
+			$this->metadata_option_guard->guard_rest_post_type( $post_type );
 		}
 	}
 
