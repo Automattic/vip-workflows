@@ -99,6 +99,28 @@ export function statusToRegion( status ) {
 }
 
 /**
+ * Whether a status change schedules a post that is already live.
+ *
+ * MIRRORS `PublishBoundaryGuard::schedules_a_live_post()` (PHP); change them
+ * together. `publish` and `future` are both publish-side, so the region
+ * compare finds no crossing between them, but a live post that becomes
+ * scheduled leaves the site until its date. The server refuses that for a
+ * non-bypass user, as it refuses any other unpublish.
+ *
+ * Naming `future` is not enough to schedule a post. Core writes `future` only
+ * for a post dated at least a minute ahead, and writes `publish` again for
+ * any other, so evaluateStatusChange() asks this only of a save that dates the
+ * post ahead (`datedAhead`).
+ *
+ * @param {string} currentStatus The post's persisted core status.
+ * @param {string} targetStatus  Core post status the change would write.
+ * @return {boolean} True when the change takes a live post off the site.
+ */
+function schedulesALivePost( currentStatus, targetStatus ) {
+	return currentStatus === 'publish' && targetStatus === 'future';
+}
+
+/**
  * Whether a status change is refused because the reseat it causes is a
  * transition the user can't take.
  *
@@ -158,7 +180,8 @@ export function isTransitionRulesRefusal( {
  * @param {string}      options.targetStatus     Core post status the change would write.
  * @param {boolean}     options.canBypass        Whether the user's role bypasses workflow rules.
  * @param {string[]}    [options.refusedRegions] Regions the server refuses a status change into for this user (`guard.refused_regions`). See isTransitionRulesRefusal().
- * @param {string}      [options.currentStatus]  The post's persisted core status, when known. Only `trash` changes the answer.
+ * @param {string}      [options.currentStatus]  The post's persisted core status, when known. `trash` changes the answer, and so does `publish` when the target is `future`.
+ * @param {boolean}     [options.datedAhead]     Whether the save leaves the post dated at least a minute ahead, which is when core writes `future`. The block editor knows (`isEditedPostBeingScheduled()`). Quick Edit and Bulk Edit leave it out: neither can send a later date together with `future` for a live post, so core writes `publish` again and the save changes nothing.
  * @return {string} One of DECISION_SILENT, DECISION_WARN, DECISION_VETO.
  */
 export function evaluateStatusChange( {
@@ -167,6 +190,7 @@ export function evaluateStatusChange( {
 	canBypass,
 	refusedRegions,
 	currentStatus,
+	datedAhead,
 } ) {
 	// `trash` and `inherit` are not regions: `trash` is an overlay that suspends
 	// the workflow in place without moving the stage, in either direction, and
@@ -216,6 +240,19 @@ export function evaluateStatusChange( {
 	// predicate), so they get the confirm instead.
 	if ( ! currentRegion ) {
 		return canBypass ? DECISION_WARN : DECISION_VETO;
+	}
+
+	// Scheduling a live post is refused on the server although both statuses
+	// are publish-side (see schedulesALivePost()). A bypass user is not
+	// refused, and `future` reseats nothing, so they fall through to the
+	// compare below, which has nothing to confirm. So does a save that does
+	// not date the post ahead: core writes `publish` again.
+	if (
+		! canBypass &&
+		datedAhead &&
+		schedulesALivePost( currentStatus, targetStatus )
+	) {
+		return DECISION_VETO;
 	}
 
 	const targetRegion = statusToRegion( targetStatus );
@@ -791,13 +828,15 @@ function withAskSentence( message, action, roles ) {
  *
  * The veto refuses a crossing in either direction, so the sentences follow the
  * target: publishing names a published stage, and anything else (unpublishing,
- * making private) says the status can't be changed directly.
+ * making private, scheduling a post that is already live) says the status
+ * can't be changed directly.
  *
- * @param {Object}   options               Message input.
- * @param {string}   options.title         Post title.
- * @param {string}   options.workflowName  Sequence (workflow) name.
- * @param {string}   options.targetStatus  Core post status the refused change would write.
- * @param {string[]} options.overrideRoles Display names of the workflow override roles.
+ * @param {Object}   options                 Message input.
+ * @param {string}   options.title           Post title.
+ * @param {string}   options.workflowName    Sequence (workflow) name.
+ * @param {string}   options.targetStatus    Core post status the refused change would write.
+ * @param {string[]} options.overrideRoles   Display names of the workflow override roles.
+ * @param {string}   [options.currentStatus] The post's persisted core status. Needed to tell scheduling a live post from scheduling an unpublished one.
  * @return {string} Translated message.
  */
 export function getPublishVetoMessage( {
@@ -805,6 +844,7 @@ export function getPublishVetoMessage( {
 	workflowName,
 	targetStatus,
 	overrideRoles = [],
+	currentStatus,
 } ) {
 	if ( ! targetStatus ) {
 		// The sentence names the direction of the refused change, and a missing
@@ -814,7 +854,10 @@ export function getPublishVetoMessage( {
 		);
 	}
 
-	if ( statusToRegion( targetStatus ) === 'publish' ) {
+	if (
+		statusToRegion( targetStatus ) === 'publish' &&
+		! schedulesALivePost( currentStatus, targetStatus )
+	) {
 		return withAskSentence(
 			sprintf(
 				/* translators: 1: post title. 2: workflow (sequence) name. */

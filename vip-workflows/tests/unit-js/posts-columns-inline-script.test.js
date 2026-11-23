@@ -121,6 +121,7 @@ describe( 'posts list preflight for trashed posts', () => {
 					<option value="-1">— No Change —</option>
 					<option value="draft">Draft</option>
 					<option value="pending">Pending</option>
+					<option value="future">Scheduled</option>
 				</select>
 				<button type="button" id="bulk_edit">Update</button>
 			</div>`;
@@ -251,6 +252,25 @@ describe( 'posts list preflight for trashed posts', () => {
 				targetStatus: 'draft',
 			} )
 		);
+	} );
+
+	// Bulk Edit offers Scheduled but sends no date with it, so core writes
+	// `publish` again for a live post: the save changes no status, and the
+	// preflight must not report it as an attempt to schedule a live post.
+	it( 'does not stop a Bulk Edit to Scheduled over a live post, which changes nothing', () => {
+		load( [
+			{
+				id: 1,
+				title: 'Live Story',
+				postStatus: 'publish',
+				stageRegion: 'publish',
+			},
+		] );
+
+		bulkEdit( 'future' );
+
+		expect( window.alert ).not.toHaveBeenCalled();
+		expect( window.confirm ).not.toHaveBeenCalled();
 	} );
 
 	it( 'lets Bulk Edit restore trashed posts to draft whatever their stage', () => {
