@@ -32,7 +32,10 @@ class SlackChannel extends NotificationChannel {
 	/**
 	 * Seconds to wait for Slack's webhook before giving up.
 	 *
-	 * The queued notification job and the admin Test button both wait this long on a dead destination.
+	 * Every send waits this long on a dead destination: the queued notification job, the admin Test button,
+	 * and per-transition notifications (NotificationDispatcher::send_transition_notifications()), which
+	 * send inline, so the editor's move request blocks on the webhook for up to this long. A slower webhook
+	 * counts as a failed send, and nothing retries it.
 	 */
 	public const WEBHOOK_TIMEOUT = 3;
 

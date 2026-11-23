@@ -494,7 +494,7 @@ Parse.ly calls require the wp-parsely plugin and its `apikey`/`api_secret` optio
 
 | Destination | Timeout and failure | Owner |
 | --- | --- | --- |
-| Slack | 3 s. Logged and returns false. No retry | `vip-workflows/includes/notifications/channels/class-slack-channel.php` |
+| Slack | 3 s: a webhook slower than 3 s fails, and a failed notification isn't retried. Logged and returns false | `vip-workflows/includes/notifications/channels/class-slack-channel.php` |
 | `wp_mail` | Platform mailer | `vip-workflows/includes/notifications/channels/class-email-channel.php` |
 | Tavily | 30 s / 20 s. Returns an error or an empty result | `vip-workflows/includes/ideation/research/search-providers/class-tavily-provider.php`, `vip-workflows/includes/ideation/assistants/class-tavily-*-provider.php` |
 | YouTube Data API | 5 s through `vip_safe_wp_remote_get` | `vip-workflows/includes/ideation/assistants/class-you-tube-video-provider.php` |
