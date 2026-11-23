@@ -76,11 +76,15 @@ class LLMAssistedWPSearch implements ArchiveSearchInterface {
 				continue;
 			}
 
+			// A password-protected post's text is for readers who have its
+			// password, and the cards and the re-rank prompt carry that text, so
+			// the search leaves those posts out, for every user.
 			$posts = get_posts(
 				array(
 					's'              => $query_term,
 					'post_type'      => 'post',
 					'post_status'    => 'publish',
+					'has_password'   => false,
 					'posts_per_page' => 10,
 					'orderby'        => 'relevance',
 					'order'          => 'DESC',
