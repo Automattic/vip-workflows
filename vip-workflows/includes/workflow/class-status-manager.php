@@ -1212,7 +1212,13 @@ class StatusManager {
 			$swapped = update_post_meta( $post_id, self::STAGE_META_KEY, $to_status, $current_stage );
 
 			if ( ! $swapped ) {
-				return $this->abort_lost_transition( $post_id, $sequence, $current_stage, $to_status, $crossed_region, $previous_status, $committed_status );
+				$status_write = $crossed_region
+					? array(
+						'previous'  => $previous_status,
+						'committed' => $committed_status,
+					)
+					: null;
+				return $this->abort_lost_transition( $post_id, $sequence, $current_stage, $to_status, $status_write );
 			}
 		}
 
@@ -1412,21 +1418,20 @@ class StatusManager {
 	 * read before this move's write and the write itself, or between the abort's
 	 * check and its put-back, can still be overwritten.
 	 *
-	 * @param  int      $post_id          Post ID.
-	 * @param  Sequence $sequence         The post's sequence.
-	 * @param  string   $expected_stage   Stage this transition validated against.
-	 * @param  string   $to_status        Stage it was trying to reach.
-	 * @param  bool     $crossed_region   Whether a status write already landed.
-	 * @param  string   $previous_status  The post's status, read just before that write.
-	 * @param  string   $committed_status The status that write committed.
+	 * @param  int        $post_id        Post ID.
+	 * @param  Sequence   $sequence       The post's sequence.
+	 * @param  string     $expected_stage Stage this transition validated against.
+	 * @param  string     $to_status      Stage it was trying to reach.
+	 * @param  array|null $status_write   The status write that already landed, or null when there was none: `previous` is the post's status read just before it, `committed` is what it committed.
 	 * @return \WP_Error
 	 */
-	private function abort_lost_transition( int $post_id, Sequence $sequence, string $expected_stage, string $to_status, bool $crossed_region, string $previous_status, string $committed_status ): \WP_Error {
+	private function abort_lost_transition( int $post_id, Sequence $sequence, string $expected_stage, string $to_status, ?array $status_write ): \WP_Error {
 		$actual_stage = $this->read_stage_uncached( $post_id );
 
-		if ( $crossed_region ) {
-			$status_now = $this->read_status_uncached( $post_id );
-			$kept_by    = $this->why_lost_status_stays( $post_id, $sequence, $actual_stage, $status_now, $committed_status );
+		if ( null !== $status_write ) {
+			$previous_status = $status_write['previous'];
+			$status_now      = $this->read_status_uncached( $post_id );
+			$kept_by         = $this->why_lost_status_stays( $post_id, $sequence, $actual_stage, $status_now, $status_write['committed'] );
 
 			if ( null !== $kept_by ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
