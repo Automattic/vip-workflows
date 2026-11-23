@@ -1148,17 +1148,11 @@ class StatusManager {
 			);
 		}
 
-		// The committed post_status BEFORE this transition writes anything —
-		// go-live consumers compare it against committed_status (equals it on
-		// same-region moves, which write no status).
-		$previous_status = (string) get_post_status( $post_id );
-
 		// Region crossing: write the target region's status through core BEFORE the
 		// stage-meta write; a core failure surfaces and the stage does not move.
 		// Same-region moves never touch post_status — pending, future, whatever core
 		// set stays exactly as it is.
-		$crossed_region   = $from_region !== $to_region;
-		$committed_status = $previous_status;
+		$crossed_region = $from_region !== $to_region;
 		if ( $crossed_region ) {
 			// The checks above can take seconds (required tools), and another
 			// transition may have moved the post meanwhile. Re-read the stage
@@ -1191,6 +1185,11 @@ class StatusManager {
 				return $committed;
 			}
 			$committed_status = $committed;
+		} else {
+			// The committed post_status BEFORE this transition; a same-region
+			// move writes no status, so it equals committed_status.
+			$previous_status  = (string) get_post_status( $post_id );
+			$committed_status = $previous_status;
 		}
 
 		// Update workflow stage meta (authoritative), as a COMPARE-AND-SWAP against
@@ -1418,11 +1417,11 @@ class StatusManager {
 	 * read before this move's write and the write itself, or between the abort's
 	 * check and its put-back, can still be overwritten.
 	 *
-	 * @param  int        $post_id        Post ID.
-	 * @param  Sequence   $sequence       The post's sequence.
-	 * @param  string     $expected_stage Stage this transition validated against.
-	 * @param  string     $to_status      Stage it was trying to reach.
-	 * @param  array|null $status_write   The status write that already landed, or null when there was none: `previous` is the post's status read just before it, `committed` is what it committed.
+	 * @param  int                                             $post_id        Post ID.
+	 * @param  Sequence                                        $sequence       The post's sequence.
+	 * @param  string                                          $expected_stage Stage this transition validated against.
+	 * @param  string                                          $to_status      Stage it was trying to reach.
+	 * @param  array{previous: string, committed: string}|null $status_write   The status write that already landed, or null when there was none: `previous` is the post's status read just before it, `committed` is what it committed.
 	 * @return \WP_Error
 	 */
 	private function abort_lost_transition( int $post_id, Sequence $sequence, string $expected_stage, string $to_status, ?array $status_write ): \WP_Error {

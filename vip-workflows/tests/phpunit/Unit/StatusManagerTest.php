@@ -1897,13 +1897,18 @@ class StatusManagerTest extends TestCase
         Functions\when( 'current_user_can' )->justReturn( false );
         Functions\when( 'user_can' )->justReturn( true );
 
-        $status_reads = 0;
+        $written = false;
         Functions\when( 'get_post_status' )->alias(
-            function () use ( &$status_reads ) {
-                return 1 === ++$status_reads ? 'draft' : 'publish';
+            function () use ( &$written ) {
+                return $written ? 'publish' : 'draft';
             }
         );
-        Functions\when( 'wp_update_post' )->alias( fn( $data ) => $data['ID'] );
+        Functions\when( 'wp_update_post' )->alias(
+            function ( $data ) use ( &$written ) {
+                $written = true;
+                return $data['ID'];
+            }
+        );
         Functions\when( 'update_post_meta' )->justReturn( true );
 
         $result = $this->status_manager->transition(
