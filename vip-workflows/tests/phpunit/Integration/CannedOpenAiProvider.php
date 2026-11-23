@@ -78,32 +78,32 @@ trait CannedOpenAiProvider
     {
         // A second set-up before tear-down would record the test's own key as
         // the authentication to put back, and leave it in the shared registry.
-        if ($this->auth_replaced ) {
-            $this->fail('set_up_canned_openai_provider() was called twice without tear_down_canned_openai_provider() in between.');
+        if ( $this->auth_replaced ) {
+            $this->fail( 'set_up_canned_openai_provider() was called twice without tear_down_canned_openai_provider() in between.' );
         }
 
         $this->canned_model = $model;
 
         // An OpenAI key and model, as an administrator would configure them.
-        Credentials::get_instance()->set_backend($this->backend_with_openai_key());
-        update_option('vip_workflows_ai_provider', 'openai');
-        update_option('vip_workflows_ai_models', array( 'openai' => $model ));
+        Credentials::get_instance()->set_backend( $this->backend_with_openai_key() );
+        update_option( 'vip_workflows_ai_provider', 'openai' );
+        update_option( 'vip_workflows_ai_models', array( 'openai' => $model ) );
 
         // The plugin authenticates providers once, at boot, from the keys it
         // finds then. This test's key arrives later, so it is applied the same way.
         // Tear-down puts the old authentication back through the client's
         // private properties, so check they are all there before changing it.
         $registry = \WordPress\AiClient\AiClient::defaultRegistry();
-        $this->require_restorable_provider_state($registry);
+        $this->require_restorable_provider_state( $registry );
 
-        $this->previous_auth = $registry->getProviderRequestAuthentication('openai');
+        $this->previous_auth = $registry->getProviderRequestAuthentication( 'openai' );
         $registry->setProviderRequestAuthentication(
             'openai',
-            new \WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication('test-key')
+            new \WordPress\AiClient\Providers\Http\DTO\ApiKeyRequestAuthentication( 'test-key' )
         );
         $this->auth_replaced = true;
 
-        add_filter('pre_http_request', array( $this, 'answer_provider' ), 10, 3);
+        add_filter( 'pre_http_request', array( $this, 'answer_provider' ), 10, 3 );
     }
 
     /**
@@ -111,18 +111,18 @@ trait CannedOpenAiProvider
      */
     private function tear_down_canned_openai_provider(): void
     {
-        remove_filter('pre_http_request', array( $this, 'answer_provider' ), 10);
+        remove_filter( 'pre_http_request', array( $this, 'answer_provider' ), 10 );
 
         // A failed restore still reports, but never skips the rest of tear-down.
         try {
-            if ($this->auth_replaced ) {
+            if ( $this->auth_replaced ) {
                 $this->auth_replaced = false;
                 $this->restore_provider_auth();
             }
         } finally {
-            Credentials::get_instance()->set_backend(null);
-            delete_option('vip_workflows_ai_provider');
-            delete_option('vip_workflows_ai_models');
+            Credentials::get_instance()->set_backend( null );
+            delete_option( 'vip_workflows_ai_provider' );
+            delete_option( 'vip_workflows_ai_models' );
         }
     }
 
@@ -135,11 +135,11 @@ trait CannedOpenAiProvider
      */
     private function require_restorable_provider_state( $registry ): void
     {
-        $this->require_property($registry, 'providerAuthenticationInstances');
+        $this->require_property( $registry, 'providerAuthenticationInstances' );
 
-        foreach ( $this->provider_objects_holding_auth($registry->getProviderClassName('openai')) as $holder ) {
-            $this->require_property($holder, 'requestAuthentication');
-            $this->require_property($holder, 'httpTransporter');
+        foreach ( $this->provider_objects_holding_auth( $registry->getProviderClassName( 'openai' ) ) as $holder ) {
+            $this->require_property( $holder, 'requestAuthentication' );
+            $this->require_property( $holder, 'httpTransporter' );
         }
     }
 
@@ -155,27 +155,27 @@ trait CannedOpenAiProvider
     {
         $registry = \WordPress\AiClient\AiClient::defaultRegistry();
 
-        if (null !== $this->previous_auth ) {
-            $registry->setProviderRequestAuthentication('openai', $this->previous_auth);
+        if ( null !== $this->previous_auth ) {
+            $registry->setProviderRequestAuthentication( 'openai', $this->previous_auth );
         } else {
-            $class_name = $registry->getProviderClassName('openai');
+            $class_name = $registry->getProviderClassName( 'openai' );
 
-            $instances = $this->require_property($registry, 'providerAuthenticationInstances');
-            $map       = $instances->getValue($registry);
-            unset($map[ $class_name ]);
-            $instances->setValue($registry, $map);
+            $instances = $this->require_property( $registry, 'providerAuthenticationInstances' );
+            $map       = $instances->getValue( $registry );
+            unset( $map[ $class_name ] );
+            $instances->setValue( $registry, $map );
 
-            foreach ( $this->provider_objects_holding_auth($class_name) as $holder ) {
-                $this->clear_request_authentication($holder);
+            foreach ( $this->provider_objects_holding_auth( $class_name ) as $holder ) {
+                $this->clear_request_authentication( $holder );
             }
         }
 
-        $this->assertSame($this->previous_auth, $registry->getProviderRequestAuthentication('openai'));
+        $this->assertSame( $this->previous_auth, $registry->getProviderRequestAuthentication( 'openai' ) );
 
-        $class_name = $registry->getProviderClassName('openai');
-        foreach ( $this->provider_objects_holding_auth($class_name) as $holder ) {
-            $this->assertSame($this->previous_auth, $this->read_property($holder, 'requestAuthentication'));
-            $this->assertSame($registry->getHttpTransporter(), $this->read_property($holder, 'httpTransporter'));
+        $class_name = $registry->getProviderClassName( 'openai' );
+        foreach ( $this->provider_objects_holding_auth( $class_name ) as $holder ) {
+            $this->assertSame( $this->previous_auth, $this->read_property( $holder, 'requestAuthentication' ) );
+            $this->assertSame( $registry->getHttpTransporter(), $this->read_property( $holder, 'httpTransporter' ) );
         }
     }
 
@@ -190,13 +190,13 @@ trait CannedOpenAiProvider
     {
         $candidates   = array( $class_name::modelMetadataDirectory() );
         $availability = $class_name::availability();
-        if ($this->find_property($availability, 'modelMetadataDirectory') ) {
-            $candidates[] = $this->read_property($availability, 'modelMetadataDirectory');
+        if ( $this->find_property( $availability, 'modelMetadataDirectory' ) ) {
+            $candidates[] = $this->read_property( $availability, 'modelMetadataDirectory' );
         }
 
         $holders = array();
         foreach ( $candidates as $candidate ) {
-            if ($candidate instanceof \WordPress\AiClient\Providers\Http\Contracts\WithRequestAuthenticationInterface && ! in_array($candidate, $holders, true) ) {
+            if ( $candidate instanceof \WordPress\AiClient\Providers\Http\Contracts\WithRequestAuthenticationInterface && ! in_array( $candidate, $holders, true ) ) {
                 $holders[] = $candidate;
             }
         }
@@ -210,7 +210,7 @@ trait CannedOpenAiProvider
      */
     private function clear_request_authentication( object $holder ): void
     {
-        $this->require_property($holder, 'requestAuthentication')->setValue($holder, null);
+        $this->require_property( $holder, 'requestAuthentication' )->setValue( $holder, null );
     }
 
     /**
@@ -222,7 +222,7 @@ trait CannedOpenAiProvider
      */
     private function read_property( object $holder, string $name )
     {
-        return $this->require_property($holder, $name)->getValue($holder);
+        return $this->require_property( $holder, $name )->getValue( $holder );
     }
 
     /**
@@ -235,9 +235,9 @@ trait CannedOpenAiProvider
      */
     private function require_property( object $holder, string $name ): \ReflectionProperty
     {
-        $property = $this->find_property($holder, $name);
-        if (null === $property ) {
-            $this->fail(sprintf('The AI Client no longer has %s::$%s, which this test resets after each run.', get_class($holder), $name));
+        $property = $this->find_property( $holder, $name );
+        if ( null === $property ) {
+            $this->fail( sprintf( 'The AI Client no longer has %s::$%s, which this test resets after each run.', get_class( $holder ), $name ) );
         }
         return $property;
     }
@@ -251,9 +251,9 @@ trait CannedOpenAiProvider
      */
     private function find_property( object $holder, string $name ): ?\ReflectionProperty
     {
-        for ( $class = new \ReflectionClass($holder); $class; $class = $class->getParentClass() ) {
-            if ($class->hasProperty($name) && $class->getProperty($name)->getDeclaringClass()->getName() === $class->getName() ) {
-                return $class->getProperty($name);
+        for ( $class = new \ReflectionClass( $holder ); $class; $class = $class->getParentClass() ) {
+            if ( $class->hasProperty( $name ) && $class->getProperty( $name )->getDeclaringClass()->getName() === $class->getName() ) {
+                return $class->getProperty( $name );
             }
         }
         return null;
@@ -270,19 +270,19 @@ trait CannedOpenAiProvider
      */
     public function answer_provider( $preempt, $args, $url )
     {
-        $method                 = strtoupper((string) ( $args['method'] ?? 'GET' ));
+        $method                 = strtoupper( (string) ( $args['method'] ?? 'GET' ) );
         $this->requests[]       = $method . ' ' . $url;
         $body                   = $args['body'] ?? '';
-        $this->request_bodies[] = is_string($body) ? $body : (string) wp_json_encode($body);
+        $this->request_bodies[] = is_string( $body ) ? $body : (string) wp_json_encode( $body );
 
-        $host = (string) wp_parse_url((string) $url, PHP_URL_HOST);
-        $path = (string) wp_parse_url((string) $url, PHP_URL_PATH);
+        $host = (string) wp_parse_url( (string) $url, PHP_URL_HOST );
+        $path = (string) wp_parse_url( (string) $url, PHP_URL_PATH );
 
-        if ('api.openai.com' !== $host ) {
-            return new \WP_Error('http_request_blocked', 'No network in this test.');
+        if ( 'api.openai.com' !== $host ) {
+            return new \WP_Error( 'http_request_blocked', 'No network in this test.' );
         }
 
-        if ('/v1/models' === $path ) {
+        if ( '/v1/models' === $path ) {
             return $this->json_response(
                 array(
                     'object' => 'list',
@@ -296,7 +296,7 @@ trait CannedOpenAiProvider
             );
         }
 
-        if ('/v1/responses' === $path ) {
+        if ( '/v1/responses' === $path ) {
             return $this->json_response(
                 array(
                     'id'     => 'resp_test',
@@ -322,7 +322,7 @@ trait CannedOpenAiProvider
             );
         }
 
-        return new \WP_Error('http_request_blocked', 'No network in this test.');
+        return new \WP_Error( 'http_request_blocked', 'No network in this test.' );
     }
 
     /**
@@ -335,8 +335,8 @@ trait CannedOpenAiProvider
     {
         $bodies = array();
         foreach ( $this->requests as $index => $request ) {
-            list( , $url ) = explode(' ', $request, 2);
-            if ($path === (string) wp_parse_url($url, PHP_URL_PATH) ) {
+            list( , $url ) = explode( ' ', $request, 2 );
+            if ( $path === (string) wp_parse_url( $url, PHP_URL_PATH ) ) {
                 $bodies[] = $this->request_bodies[ $index ];
             }
         }
@@ -368,7 +368,7 @@ trait CannedOpenAiProvider
     {
         return array(
             'headers'  => array( 'content-type' => 'application/json' ),
-            'body'     => (string) wp_json_encode($data),
+            'body'     => (string) wp_json_encode( $data ),
             'response' => array(
                 'code'    => 200,
                 'message' => 'OK',
