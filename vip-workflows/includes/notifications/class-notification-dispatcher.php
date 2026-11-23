@@ -275,8 +275,8 @@ class NotificationDispatcher implements ModuleInterface {
 	 * Deliver one queued notification (the Action Scheduler job).
 	 *
 	 * Reads the post's title, author and links from the live post, and sends
-	 * nothing for a post that was deleted or moved to the Trash after the job was
-	 * queued.
+	 * nothing for a job with no post ID or for a post that was deleted or moved to
+	 * the Trash after the job was queued.
 	 *
 	 * @param string $channel_id Channel ID.
 	 * @param string $event_type Event type.
@@ -288,7 +288,13 @@ class NotificationDispatcher implements ModuleInterface {
 			return;
 		}
 
-		$post = get_post( (int) ( $data['post_id'] ?? 0 ) );
+		// get_post( 0 ) returns the global post, which is some other post.
+		$post_id = (int) ( $data['post_id'] ?? 0 );
+		if ( $post_id <= 0 ) {
+			return;
+		}
+
+		$post = get_post( $post_id );
 		if ( ! $post || 'trash' === $post->post_status ) {
 			return;
 		}

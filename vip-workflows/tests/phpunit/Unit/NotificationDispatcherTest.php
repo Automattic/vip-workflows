@@ -301,6 +301,8 @@ class NotificationDispatcherTest extends TestCase
 
     public function test_handle_async_send_skips_unconfigured_channel(): void
     {
+        Functions\expect( 'get_post' )->never();
+
         $channel = $this->make_channel( 'email', configured: false );
         $channel->shouldNotReceive( 'send' );
         $this->dispatcher->register_channel( $channel );
@@ -343,6 +345,20 @@ class NotificationDispatcherTest extends TestCase
         $this->assertSame( 'Renamed headline', $received->data['post_title'] );
         $this->assertSame( 'Jane', $received->data['author_name'] );
         $this->assertSame( 'https://example.com/view', $received->data['view_url'] );
+    }
+
+    /**
+     * get_post( 0 ) would return the global post, an unrelated one.
+     */
+    public function test_handle_async_send_sends_nothing_for_a_job_without_a_post_id(): void
+    {
+        Functions\expect( 'get_post' )->never();
+
+        $channel = $this->make_channel( 'slack' );
+        $channel->shouldNotReceive( 'send' );
+        $this->dispatcher->register_channel( $channel );
+
+        $this->dispatcher->handle_async_send( 'slack', 'transition', [ 'from_label' => 'Writing' ] );
     }
 
     public function test_handle_async_send_sends_nothing_for_a_deleted_post(): void
