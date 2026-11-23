@@ -66,18 +66,24 @@ class SlackChannelTest extends TestCase
 
     public function test_send_and_test_connection_post_with_the_webhook_timeout(): void
     {
-        if ( ! gethostbynamel( 'hooks.slack.com' ) ) {
-            $this->markTestSkipped( 'hooks.slack.com does not resolve here; the SSRF guard rejects the webhook before posting.' );
-        }
-
         $captured = array();
 
         Functions\stubs(
             array(
-                'is_wp_error'                      => fn( $thing ) => $thing instanceof WP_Error,
-                'wp_remote_retrieve_response_code' => fn( $response ) => $response['response']['code'] ?? 0,
-                'wp_json_encode'                   => fn( $data ) => json_encode( $data ),
-                'wp_safe_remote_post'              => function ( $url, $args ) use ( &$captured ) {
+                // Stub both resolver paths before the guard's first hostname lookup.
+                // Returning public addresses keeps the real SSRF validation in play.
+                'VIPWorkflows\\Integrations\\dns_get_record' => function ( $host, $type ) {
+                    $this->assertSame( 'hooks.slack.com', $host );
+                    return DNS_A === $type ? array( array( 'ip' => '8.8.8.8' ) ) : array();
+                },
+                'VIPWorkflows\\Integrations\\gethostbynamel' => function ( $host ) {
+                    $this->assertSame( 'hooks.slack.com', $host );
+                    return array( '8.8.8.8' );
+                },
+                'is_wp_error'                                => fn( $thing ) => $thing instanceof WP_Error,
+                'wp_remote_retrieve_response_code'           => fn( $response ) => $response['response']['code'] ?? 0,
+                'wp_json_encode'                             => fn( $data ) => json_encode( $data ),
+                'wp_safe_remote_post'                        => function ( $url, $args ) use ( &$captured ) {
                     $captured[] = $args['timeout'] ?? null;
                     return array( 'response' => array( 'code' => 200 ) );
                 },
