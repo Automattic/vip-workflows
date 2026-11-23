@@ -432,7 +432,7 @@ On VIP, Cron Control runs both queues. With `DISABLE_WP_CRON` and no runner, whi
 
 **Footguns**
 
-- **A failed notification is gone.** It is logged, not retried.
+- **A notification that fails to queue or to send is gone.** It is logged, not retried. Stage labels have no length limit, and labels long enough to push the job past Action Scheduler's 8,000-character argument limit keep it from being queued.
 - **A notification job for a post deleted or trashed before it runs sends nothing.**
 - **A killed source job strands the source.** A job killed mid-run leaves the source in `processing` permanently, with no retry.
 - **The cleanup's first run time is computed in UTC.** `strtotime` reads 02:00 of the site's date as UTC.

@@ -235,7 +235,9 @@ class NotificationDispatcher implements ModuleInterface {
 				),
 				self::SEND_GROUP
 			);
-		} catch ( \Throwable $e ) {
+		} catch ( \Exception $e ) {
+			// A store or validation failure. Errors (a missing Action Scheduler,
+			// a TypeError) are bugs in a required dependency and fail loudly.
 			$this->log_queue_failure( $channel_id, $event_type, $data, $e->getMessage() );
 			return;
 		}
