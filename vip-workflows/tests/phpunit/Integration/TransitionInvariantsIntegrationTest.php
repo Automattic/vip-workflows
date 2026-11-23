@@ -498,6 +498,21 @@ class TransitionInvariantsIntegrationTest extends TestCase
 	}
 
 	/**
+	 * A stored stage the sequence doesn't define is a data-integrity error, and
+	 * the loser puts its status back as for any other loss.
+	 */
+	public function test_losing_a_race_to_an_unknown_stage_puts_the_status_back(): void
+	{
+		$post_id = $this->make_post( 'draft', 'draft' );
+
+		$result = $this->lose_race_after_status_write( $post_id, 'live', 'not_a_stage' );
+
+		$this->assertInstanceOf( 'WP_Error', $result );
+		$this->assertSame( 'transition_conflict', $result->get_error_code() );
+		$this->assertSame( array( 'not_a_stage', 'draft' ), $this->stored_state( $post_id ) );
+	}
+
+	/**
 	 * The re-read before the status write doesn't refuse a move nobody raced,
 	 * even with this request's stage cache primed.
 	 */
