@@ -59,6 +59,44 @@ class SlackChannelTest extends TestCase
         $this->assertFalse( $post_called, 'SlackChannel must not POST to non-Slack webhook hosts.' );
     }
 
+    public function test_webhook_timeout_is_three_seconds(): void
+    {
+        $this->assertSame( 3, SlackChannel::WEBHOOK_TIMEOUT );
+    }
+
+    public function test_send_and_test_connection_post_with_the_webhook_timeout(): void
+    {
+        if ( ! gethostbynamel( 'hooks.slack.com' ) ) {
+            $this->markTestSkipped( 'hooks.slack.com does not resolve here; the SSRF guard rejects the webhook before posting.' );
+        }
+
+        $captured = array();
+
+        Functions\stubs(
+            array(
+                'is_wp_error'                      => fn( $thing ) => $thing instanceof WP_Error,
+                'wp_remote_retrieve_response_code' => fn( $response ) => $response['response']['code'] ?? 0,
+                'wp_json_encode'                   => fn( $data ) => json_encode( $data ),
+                'wp_safe_remote_post'              => function ( $url, $args ) use ( &$captured ) {
+                    $captured[] = $args['timeout'] ?? null;
+                    return array( 'response' => array( 'code' => 200 ) );
+                },
+            )
+        );
+
+        $channel = new SlackChannel(
+            'timeout-test',
+            array(
+                'name'        => 'Timeout Test',
+                'webhook_url' => 'https://hooks.slack.com/services/T000/B000/XXXX',
+            )
+        );
+
+        $this->assertTrue( $channel->send( $this->make_notification() ) );
+        $this->assertTrue( $channel->test_connection() );
+        $this->assertSame( array( 3, 3 ), $captured );
+    }
+
     private function make_notification(): Notification
     {
         $notification          = new Notification();

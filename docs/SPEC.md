@@ -432,7 +432,7 @@ On VIP, Cron Control runs both queues. With `DISABLE_WP_CRON` and no runner, whi
 
 **Footguns**
 
-- **Without Action Scheduler, notifications send inside the transition request.** If AS is missing, the send runs synchronously (Slack timeout is 15 s).
+- **Without Action Scheduler, notifications send inside the transition request.** If AS is missing, the send runs synchronously (Slack timeout is 3 s).
 - **A failed notification is gone.** It is logged, not retried.
 - **A killed source job strands the source.** A job killed mid-run leaves the source in `processing` permanently, with no retry.
 - **The cleanup's first run time is computed in UTC.** `strtotime` reads 02:00 of the site's date as UTC.
@@ -494,7 +494,7 @@ Parse.ly calls require the wp-parsely plugin and its `apikey`/`api_secret` optio
 
 | Destination | Timeout and failure | Owner |
 | --- | --- | --- |
-| Slack | 15 s. Logged and returns false. No retry | `vip-workflows/includes/notifications/channels/class-slack-channel.php` |
+| Slack | 3 s. Logged and returns false. No retry | `vip-workflows/includes/notifications/channels/class-slack-channel.php` |
 | `wp_mail` | Platform mailer | `vip-workflows/includes/notifications/channels/class-email-channel.php` |
 | Tavily | 30 s / 20 s. Returns an error or an empty result | `vip-workflows/includes/ideation/research/search-providers/class-tavily-provider.php`, `vip-workflows/includes/ideation/assistants/class-tavily-*-provider.php` |
 | YouTube Data API | 5 s through `vip_safe_wp_remote_get` | `vip-workflows/includes/ideation/assistants/class-you-tube-video-provider.php` |
@@ -958,7 +958,7 @@ flowchart TD
 
 **Footguns**
 
-- **Per-transition messages slow the move down.** They're sent during the request, and each Slack destination can add up to 15 seconds to it.
+- **Per-transition messages slow the move down.** They're sent during the request, and each Slack destination can add up to 3 seconds to it.
 - **A custom channel that throws an error breaks the request after the move is already saved.** The move stands, but the request fails.
 - **Email can look set up when it sends to nobody.** With no email settings saved, the Email channel reports itself configured but has no recipients. "Notify admins" emails every administrator, with one `wp_mail()` call each.
 - **Two moves inside 60 seconds send one message.** For the same post, event and channel, the second message in that window is dropped.
