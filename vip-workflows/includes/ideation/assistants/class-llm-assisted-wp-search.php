@@ -78,7 +78,10 @@ class LLMAssistedWPSearch implements ArchiveSearchInterface {
 
 			// A password-protected post's text is for readers who have its
 			// password, and the cards and the re-rank prompt carry that text, so
-			// the search leaves those posts out, for every user.
+			// the search leaves those posts out, for every user. The query's
+			// empty-password condition matches a password made of spaces on
+			// databases that ignore trailing spaces, so each post is tested
+			// again below.
 			$posts = get_posts(
 				array(
 					's'              => $query_term,
@@ -92,6 +95,9 @@ class LLMAssistedWPSearch implements ArchiveSearchInterface {
 			);
 
 			foreach ( $posts as $post ) {
+				if ( '' !== $post->post_password ) {
+					continue;
+				}
 				if ( isset( $seen[ $post->ID ] ) ) {
 					continue;
 				}

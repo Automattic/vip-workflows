@@ -130,6 +130,25 @@ class ArchiveScoutPasswordProtectedPostsTest extends TestCase {
 		$this->assertSame( 'No related articles found in your archive.', $result['summary'] );
 	}
 
+	public function test_archive_scout_leaves_out_posts_with_a_space_password(): void {
+		$this->log_in_as( 'contributor' );
+		$open_id      = $this->open_post();
+		$protected_id = $this->protected_post();
+		wp_update_post(
+			array(
+				'ID'            => $protected_id,
+				'post_password' => ' ',
+			)
+		);
+
+		$this->assertSame( ' ', get_post( $protected_id )->post_password );
+		$this->assertTrue( post_password_required( $protected_id ) );
+
+		$result = $this->run_archive_scout();
+
+		$this->assertSame( array( $open_id ), array_column( $result['cards'], 'post_id' ) );
+	}
+
 	/**
 	 * Log in as a new user with a role.
 	 *
