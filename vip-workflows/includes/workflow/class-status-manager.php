@@ -1180,6 +1180,12 @@ class StatusManager {
 				return $this->transition_conflict( $sequence, $current_stage, $stage_now );
 			}
 
+			// What this write replaces, read past this request's caches: a
+			// winner may have written its status during the checks above, and
+			// a lost swap must put back that status, not the one cached when
+			// this transition started.
+			$previous_status = $this->read_status_uncached( $post_id );
+
 			$committed = $this->commit_post_status( $post_id, $to_region );
 			if ( is_wp_error( $committed ) ) {
 				return $committed;
@@ -1398,19 +1404,20 @@ class StatusManager {
 	 *   was the same as this one. It is left as it is.
 	 * - Otherwise (the stage is still the one validated against, or the winner
 	 *   is in another region): it is put back to exactly what the post held
-	 *   before (not to the source region: core may have coerced the original,
-	 *   e.g. `publish` → `future`, and the region would not reproduce that).
+	 *   just before this move's write, read from the database (not to the
+	 *   source region: core may have coerced the original, e.g. `publish` →
+	 *   `future`, and the region would not reproduce that).
 	 *
-	 * The put-back never writes a status that neither this move nor the post
-	 * held. The check and the write aren't atomic: a third write landing between
-	 * them can still be overwritten.
+	 * None of these reads and writes are atomic: a write landing between the
+	 * read before this move's write and the write itself, or between the abort's
+	 * check and its put-back, can still be overwritten.
 	 *
 	 * @param  int      $post_id          Post ID.
 	 * @param  Sequence $sequence         The post's sequence.
 	 * @param  string   $expected_stage   Stage this transition validated against.
 	 * @param  string   $to_status        Stage it was trying to reach.
 	 * @param  bool     $crossed_region   Whether a status write already landed.
-	 * @param  string   $previous_status  The post's status before that write.
+	 * @param  string   $previous_status  The post's status, read just before that write.
 	 * @param  string   $committed_status The status that write committed.
 	 * @return \WP_Error
 	 */

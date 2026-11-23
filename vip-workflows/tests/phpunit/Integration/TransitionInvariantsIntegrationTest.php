@@ -470,6 +470,34 @@ class TransitionInvariantsIntegrationTest extends TestCase
 	}
 
 	/**
+	 * A winner writes its status, then its stage. When the loser's tools finish
+	 * between the two, the loser passes its stage re-check and loses the swap.
+	 * The put-back restores the winner's status, which the post held when the
+	 * loser wrote, not the one it held when the loser started.
+	 */
+	public function test_losing_a_race_puts_back_the_status_the_winner_wrote_before_it(): void
+	{
+		$post_id = $this->make_tool_gated_post();
+
+		$winner_writes_status = function ( int $tool_post_id ) use ( $post_id ): void {
+			if ( $tool_post_id === $post_id ) {
+				$this->write_from_another_request( $post_id, 'draft', 'pending' );
+			}
+		};
+		add_action( self::RACE_TOOL_HOOK, $winner_writes_status );
+
+		try {
+			$result = $this->lose_race_after_status_write( $post_id, 'live', 'review' );
+		} finally {
+			remove_action( self::RACE_TOOL_HOOK, $winner_writes_status );
+		}
+
+		$this->assertInstanceOf( 'WP_Error', $result );
+		$this->assertSame( 'transition_conflict', $result->get_error_code() );
+		$this->assertSame( array( 'review', 'pending' ), $this->stored_state( $post_id ) );
+	}
+
+	/**
 	 * The re-read before the status write doesn't refuse a move nobody raced,
 	 * even with this request's stage cache primed.
 	 */
