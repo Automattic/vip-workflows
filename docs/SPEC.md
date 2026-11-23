@@ -433,7 +433,7 @@ On VIP, Cron Control runs both queues. With `DISABLE_WP_CRON` and no runner, whi
 **Footguns**
 
 - **Without Action Scheduler, notifications send inside the transition request.** If AS is missing, the send runs synchronously (Slack timeout is 3 s).
-- **A failed notification is gone.** It is logged, not retried.
+- **A failed notification is gone.** It is not retried.
 - **A killed source job strands the source.** A job killed mid-run leaves the source in `processing` permanently, with no retry.
 - **The cleanup's first run time is computed in UTC.** `strtotime` reads 02:00 of the site's date as UTC.
 
