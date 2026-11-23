@@ -100,7 +100,6 @@ class DiscoveryPoller {
 		}
 
 		self::ensure_scheduled();
-		PromptScorer::stop_if_ideation_off();
 	}
 
 	/**

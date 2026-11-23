@@ -118,6 +118,25 @@ class PromptScorer {
 	public static function register(): void {
 		add_filter( 'vip_workflows_discovery_prompts', array( self::class, 'decorate' ) );
 		add_action( self::WARM_HOOK, array( self::class, 'warm' ) );
+		add_action( 'vip_workflows_experiment_enabled', array( self::class, 'on_experiment_toggled' ) );
+		add_action( 'vip_workflows_experiment_disabled', array( self::class, 'on_experiment_toggled' ) );
+	}
+
+	/**
+	 * Stop the warm-up in the same request when Ideation is turned off.
+	 *
+	 * Listens for both directions and re-reads the effective state, because
+	 * `disable()` fires even when the `vip_workflows_experiments` filter keeps
+	 * Ideation on.
+	 *
+	 * @param mixed $experiment_id The experiment that was toggled.
+	 */
+	public static function on_experiment_toggled( $experiment_id ): void {
+		if ( 'ideation' !== $experiment_id ) {
+			return;
+		}
+
+		self::stop_if_ideation_off();
 	}
 
 	/**
@@ -284,7 +303,7 @@ class PromptScorer {
 	 * Cached scores are left to expire. Does nothing while Ideation is still on,
 	 * for example when the `vip_workflows_experiments` filter keeps it on.
 	 */
-	public static function stop_if_ideation_off(): void {
+	private static function stop_if_ideation_off(): void {
 		if ( \WorkflowParsely\ideation_enabled() ) {
 			return;
 		}
