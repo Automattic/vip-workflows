@@ -134,6 +134,11 @@ class NotificationQueueIntegrationTest extends TestCase {
 	private const THROWING_CHANNEL = 'queue-fixture-throwing';
 
 	/**
+	 * Returns false from send(), as a channel does when it fails to deliver.
+	 */
+	private const REJECTING_CHANNEL = 'queue-fixture-rejecting';
+
+	/**
 	 * Notifications the recording channel was sent, in order.
 	 *
 	 * @var array<int, Notification>
@@ -185,6 +190,17 @@ class NotificationQueueIntegrationTest extends TestCase {
 					self::THROWING_CHANNEL,
 					static function (): bool {
 						throw new \RuntimeException( 'The fixture channel exploded.' );
+					}
+				)
+			);
+		}
+
+		if ( ! $dispatcher->get_channel( self::REJECTING_CHANNEL ) ) {
+			$dispatcher->register_channel(
+				new QueueFixtureChannel(
+					self::REJECTING_CHANNEL,
+					static function (): bool {
+						return false;
 					}
 				)
 			);
@@ -352,6 +368,58 @@ class NotificationQueueIntegrationTest extends TestCase {
 
 		$this->assertSame( \ActionScheduler_Store::STATUS_FAILED, \ActionScheduler::store()->get_status( (string) key( $jobs ) ) );
 		$this->assertSame( 'copy_desk', get_post_meta( $this->post_id, StatusManager::STAGE_META_KEY, true ) );
+	}
+
+	/**
+	 * A send that returns false fails its job, so Tools → Scheduled Actions shows
+	 * it. The logged reason names the channel and the post, never the content.
+	 */
+	public function test_a_send_that_returns_false_fails_its_job_and_not_the_transition(): void {
+		$this->seed( self::REJECTING_CHANNEL );
+
+		$this->assertTrue( ( new StatusManager() )->transition( $this->post_id, 'copy_desk' ) );
+
+		$jobs = $this->pending_jobs();
+		$this->assertCount( 1, $jobs );
+		$action_id = (int) key( $jobs );
+
+		\ActionScheduler::runner()->process_action( $action_id );
+
+		$this->assertSame( \ActionScheduler_Store::STATUS_FAILED, \ActionScheduler::store()->get_status( (string) $action_id ) );
+		$this->assertSame( 'copy_desk', get_post_meta( $this->post_id, StatusManager::STAGE_META_KEY, true ) );
+
+		$log = implode(
+			"\n",
+			array_map(
+				static fn( \ActionScheduler_LogEntry $entry ): string => $entry->get_message(),
+				\ActionScheduler_Logger::instance()->get_logs( $action_id )
+			)
+		);
+		$this->assertStringContainsString( self::REJECTING_CHANNEL, $log );
+		$this->assertStringContainsString( (string) $this->post_id, $log );
+		$this->assertStringNotContainsString( 'Headline when moved', $log, 'The log holds no post content.' );
+	}
+
+	/**
+	 * Every queued job carries a post ID, so one without is malformed data, and
+	 * get_post( 0 ) would describe an unrelated post.
+	 */
+	public function test_a_job_without_a_post_id_fails_and_sends_nothing(): void {
+		$action_id = (int) as_enqueue_async_action(
+			NotificationDispatcher::SEND_HOOK,
+			array(
+				'channel_id' => self::RECORDING_CHANNEL,
+				'event_type' => 'transition',
+				'data'       => array( 'from_label' => 'Writing' ),
+			),
+			NotificationDispatcher::SEND_GROUP
+		);
+		$this->assertGreaterThan( 0, $action_id );
+
+		\ActionScheduler::runner()->process_action( $action_id );
+
+		$this->assertSame( \ActionScheduler_Store::STATUS_FAILED, \ActionScheduler::store()->get_status( (string) $action_id ) );
+		$this->assertSame( array(), self::$sent );
 	}
 
 	/**

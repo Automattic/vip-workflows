@@ -275,12 +275,14 @@ class NotificationDispatcher implements ModuleInterface {
 	 * Deliver one queued notification (the Action Scheduler job).
 	 *
 	 * Reads the post's title, author and links from the live post, and sends
-	 * nothing for a job with no post ID or for a post that was deleted or moved to
-	 * the Trash after the job was queued.
+	 * nothing for a post that was deleted or moved to the Trash after the job was
+	 * queued. A job with no post ID, or a send that fails, throws, so Action
+	 * Scheduler marks the job Failed.
 	 *
 	 * @param string $channel_id Channel ID.
 	 * @param string $event_type Event type.
 	 * @param array  $data       Event facts.
+	 * @throws \RuntimeException When the job has no post ID or the channel does not deliver.
 	 */
 	public function handle_async_send( string $channel_id, string $event_type, array $data ): void {
 		$channel = $this->get_channel( $channel_id );
@@ -288,10 +290,11 @@ class NotificationDispatcher implements ModuleInterface {
 			return;
 		}
 
-		// get_post( 0 ) returns the global post, which is some other post.
+		// Every queued job carries a post ID. Without one, get_post( 0 ) would
+		// return the global post, which is some other post.
 		$post_id = (int) ( $data['post_id'] ?? 0 );
 		if ( $post_id <= 0 ) {
-			return;
+			throw new \RuntimeException( esc_html( sprintf( 'Notification job for channel "%s" has no post ID.', $channel_id ) ) );
 		}
 
 		$post = get_post( $post_id );
@@ -317,7 +320,11 @@ class NotificationDispatcher implements ModuleInterface {
 				)
 			);
 
-			$channel->send( $this->build_notification( $event_type, $data ) );
+			if ( ! $channel->send( $this->build_notification( $event_type, $data ) ) ) {
+				throw new \RuntimeException(
+					esc_html( sprintf( 'Channel "%1$s" did not deliver the "%2$s" notification for post %3$d.', $channel_id, $event_type, $post_id ) )
+				);
+			}
 		} finally {
 			if ( $switched ) {
 				restore_previous_locale();

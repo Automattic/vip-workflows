@@ -348,9 +348,10 @@ class NotificationDispatcherTest extends TestCase
     }
 
     /**
-     * get_post( 0 ) would return the global post, an unrelated one.
+     * Every queued job carries a post ID, so a job without one is malformed and
+     * fails. get_post( 0 ) would return the global post, an unrelated one.
      */
-    public function test_handle_async_send_sends_nothing_for_a_job_without_a_post_id(): void
+    public function test_handle_async_send_fails_a_job_without_a_post_id(): void
     {
         Functions\expect( 'get_post' )->never();
 
@@ -358,7 +359,26 @@ class NotificationDispatcherTest extends TestCase
         $channel->shouldNotReceive( 'send' );
         $this->dispatcher->register_channel( $channel );
 
+        $this->expectException( \RuntimeException::class );
+        $this->expectExceptionMessage( 'Notification job for channel "slack" has no post ID.' );
         $this->dispatcher->handle_async_send( 'slack', 'transition', [ 'from_label' => 'Writing' ] );
+    }
+
+    /**
+     * A failed send throws, so Action Scheduler marks the job Failed. The message
+     * names the channel and the post, not the post's content.
+     */
+    public function test_handle_async_send_fails_the_job_when_the_channel_does_not_deliver(): void
+    {
+        $this->stub_send_time_reads( $this->create_mock_post( [ 'ID' => 42, 'post_title' => 'Secret headline' ] ) );
+
+        $channel = $this->make_channel( 'slack' );
+        $channel->shouldReceive( 'send' )->once()->andReturn( false );
+        $this->dispatcher->register_channel( $channel );
+
+        $this->expectException( \RuntimeException::class );
+        $this->expectExceptionMessage( 'Channel "slack" did not deliver the "transition" notification for post 42.' );
+        $this->dispatcher->handle_async_send( 'slack', 'transition', [ 'post_id' => 42 ] );
     }
 
     public function test_handle_async_send_sends_nothing_for_a_deleted_post(): void
