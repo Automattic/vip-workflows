@@ -400,6 +400,55 @@ class PublishBoundaryGuardTest extends TestCase
     }
 
     /**
+     * Core prepares the slug the same way for `publish` and `future`, so a
+     * slug edit made in the same save is kept. Only the status and the dates
+     * go back.
+     */
+    public function test_scheduling_a_live_post_keeps_a_slug_edit_from_the_same_save(): void
+    {
+        $this->stub_workflow_post( 'promote', 'publish' );
+
+        $data = $this->guard->veto_post_data(
+            array(
+                'post_status'   => 'future',
+                'post_type'     => 'post',
+                'post_name'     => 'edited-slug',
+                'post_date'     => '2099-01-01 00:00:00',
+                'post_date_gmt' => '2099-01-01 00:00:00',
+            ),
+            array( 'ID' => self::POST_ID )
+        );
+
+        $this->assertSame( 'publish', $data['post_status'] );
+        $this->assertSame( 'edited-slug', $data['post_name'] );
+        $this->assertSame( '2026-01-01 00:00:00', $data['post_date'] );
+        $this->assertSame( '2026-01-01 00:00:00', $data['post_date_gmt'] );
+    }
+
+    /**
+     * Scheduling a post that is not live still puts the stored slug back: core
+     * prepares a slug for `future` that a draft or pending post must not keep.
+     */
+    public function test_scheduling_out_of_a_non_publish_region_puts_the_stored_slug_back(): void
+    {
+        $this->stub_workflow_post( 'approval', 'pending' );
+
+        $data = $this->guard->veto_post_data(
+            array(
+                'post_status'   => 'future',
+                'post_type'     => 'post',
+                'post_name'     => 'edited-slug',
+                'post_date'     => '2099-01-01 00:00:00',
+                'post_date_gmt' => '2099-01-01 00:00:00',
+            ),
+            array( 'ID' => self::POST_ID )
+        );
+
+        $this->assertSame( 'pending', $data['post_status'] );
+        $this->assertSame( 'test-post', $data['post_name'] );
+    }
+
+    /**
      * The same holds for a live post whose stage is in another region (a
      * sequence with no publish-region stage leaves the stage where it was).
      */

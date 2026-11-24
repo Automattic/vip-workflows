@@ -1311,6 +1311,63 @@ class CoreStatusChangeRulesTest extends TestCase
 		$this->assertSame( 'published', $this->stage_of( $post_id ) );
 	}
 
+	public function test_a_refused_later_date_keeps_a_slug_edit_from_the_same_save(): void
+	{
+		$post_id = $this->make_post( $this->create_sequence(), 'published', 'publish', $this->author_id );
+		$before  = get_post( $post_id );
+		$later   = gmdate( 'Y-m-d H:i:s', time() + WEEK_IN_SECONDS );
+		wp_set_current_user( $this->author_id );
+
+		// Core checks a slug the same way for `publish` and `future`, so the
+		// slug it prepared fits the status the post keeps.
+		wp_update_post(
+			array(
+				'ID'            => $post_id,
+				'post_status'   => 'publish',
+				'post_name'     => 'renamed-slug',
+				'post_date'     => $later,
+				'post_date_gmt' => $later,
+				'edit_date'     => true,
+			)
+		);
+
+		$after = get_post( $post_id );
+		$this->assertSame( 'publish', $after->post_status );
+		$this->assertSame( 'renamed-slug', $after->post_name );
+		$this->assertSame( $before->post_date, $after->post_date );
+		$this->assertSame( $before->post_date_gmt, $after->post_date_gmt );
+	}
+
+	public function test_a_slug_edit_kept_after_a_refused_later_date_is_unique(): void
+	{
+		$sequence_id = $this->create_sequence();
+		$other_id    = $this->make_post( $sequence_id, 'published', 'publish', $this->author_id );
+		$post_id     = $this->make_post( $sequence_id, 'published', 'publish', $this->author_id );
+		$later       = gmdate( 'Y-m-d H:i:s', time() + WEEK_IN_SECONDS );
+		wp_update_post(
+			array(
+				'ID'        => $other_id,
+				'post_name' => 'taken-slug',
+			)
+		);
+		wp_set_current_user( $this->author_id );
+
+		wp_update_post(
+			array(
+				'ID'            => $post_id,
+				'post_status'   => 'publish',
+				'post_name'     => 'taken-slug',
+				'post_date'     => $later,
+				'post_date_gmt' => $later,
+				'edit_date'     => true,
+			)
+		);
+
+		$this->assertSame( 'publish', get_post_status( $post_id ) );
+		$this->assertSame( 'taken-slug', get_post( $other_id )->post_name );
+		$this->assertSame( 'taken-slug-2', get_post( $post_id )->post_name );
+	}
+
 	public function test_an_override_role_and_a_userless_write_can_schedule_a_live_post(): void
 	{
 		$sequence_id = $this->create_sequence();

@@ -204,7 +204,10 @@ class PublishBoundaryGuard {
 	 * is put back to the post's stored value. The stored slug and dates are put
 	 * back with it, except between `draft`, `pending` and `auto-draft`, where
 	 * core prepares them the same way for both statuses and the save's own
-	 * slug and date edits are kept (see prepares_slug_and_dates_alike()).
+	 * slug and date edits are kept (see prepares_slug_and_dates_alike()). A live
+	 * post that would be scheduled keeps the save's slug edit: core prepares
+	 * the slug the same way for `publish` and `future`, so only its status and
+	 * dates are put back.
 	 *
 	 * @param  array $data    Sanitized post data about to be written.
 	 * @param  array $postarr Raw post data as passed to wp_insert_post().
@@ -232,8 +235,8 @@ class PublishBoundaryGuard {
 
 		// When core prepares the slug and dates the same way for both statuses
 		// (draft and pending), a slug or date edit made in the same save is
-		// kept. Every other refused change also puts the stored slug and dates
-		// back.
+		// kept. Every other refused change also puts the stored dates back, and
+		// the stored slug with them unless a live post would be scheduled.
 		if ( $this->prepares_slug_and_dates_alike( $veto['current_status'], $veto['target_status'] ) ) {
 			// One difference remains: core empties the slug of a `pending` post
 			// the user can't publish, and keeps it for a draft. When either
@@ -260,7 +263,14 @@ class PublishBoundaryGuard {
 		// was never checked for uniqueness. Revert the whole shape of the write
 		// core prepared for a status the user may not set; the rest of the save
 		// (title, content, meta) still lands.
-		$data['post_name']     = $veto['post_name'];
+		//
+		// A live post that would be scheduled keeps the save's slug. Core
+		// prepares the slug the same way for `publish` and `future`, so the
+		// one it prepared fits the status the post keeps, and only the status
+		// and the dates go back.
+		if ( ! $this->schedules_a_live_post( $veto['current_status'], $veto['target_status'] ) ) {
+			$data['post_name'] = $veto['post_name'];
+		}
 		$data['post_date']     = $veto['post_date'];
 		$data['post_date_gmt'] = $veto['post_date_gmt'];
 
