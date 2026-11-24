@@ -276,8 +276,9 @@ class MetadataOptionGuard {
 	 * These writes can carry a value that was an option when it was stored and
 	 * is not one now. Refusing them would lose it:
 	 *
-	 * - No logged-in user: WP-CLI, an importer, a seeder or cron. The same
-	 *   rule PublishBoundaryGuard applies to a status change.
+	 * - No logged-in user: WP-CLI, a seeder or cron. An import run from
+	 *   wp-admin is checked. The same rule PublishBoundaryGuard applies to a
+	 *   status change.
 	 * - A revision or autosave row that takes a value its post holds: core
 	 *   copies a post's meta to each revision and autosave. An autosave also
 	 *   takes values from the request, and the row is restored onto the post
