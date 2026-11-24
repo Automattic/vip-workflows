@@ -290,7 +290,9 @@ class AssigneeRoleFilterTest extends TestCase {
 		$empty   = $this->make_draft();
 		$filled  = $this->make_draft();
 
-		$this->assertSame( 400, $this->transition( $refused, 'optional', array( 'reviewer' => $this->editor_id ) )->get_status() );
+		$response = $this->transition( $refused, 'optional', array( 'reviewer' => $this->editor_id ) );
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'assignee_role_not_allowed', $response->get_data()['code'] );
 		$this->assertSame( 'drafting', $this->stage_of( $refused ) );
 
 		$this->assertSame( 200, $this->transition( $empty, 'optional', array() )->get_status() );
