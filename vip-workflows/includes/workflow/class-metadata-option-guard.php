@@ -106,12 +106,17 @@ class MetadataOptionGuard {
 	 * to the stored one is not this request's choice and is let through; core
 	 * then sees no change and writes nothing for it.
 	 *
+	 * An autosave is not refused here. Core's autosaves route runs this filter
+	 * and does not read an error from it, so an error would store the autosave
+	 * without its title and content. An autosave's value is held where it is
+	 * written (see is_exempt_write()), and the person's own save gets the 400.
+	 *
 	 * @param  \stdClass|\WP_Error $prepared_post Post object prepared for the database.
 	 * @param  \WP_REST_Request    $request       The REST request.
 	 * @return \stdClass|\WP_Error The prepared post, or WP_Error when a value is refused.
 	 */
 	public function check_rest_insert( $prepared_post, $request ) {
-		if ( is_wp_error( $prepared_post ) || ! $request instanceof \WP_REST_Request ) {
+		if ( is_wp_error( $prepared_post ) || ! $request instanceof \WP_REST_Request || $this->is_autosave_request( $request ) ) {
 			return $prepared_post;
 		}
 
@@ -151,6 +156,19 @@ class MetadataOptionGuard {
 		}
 
 		return $prepared_post;
+	}
+
+	/**
+	 * Whether a REST request is handled by core's autosaves controller.
+	 *
+	 * @param  \WP_REST_Request $request The REST request.
+	 * @return bool
+	 */
+	private function is_autosave_request( \WP_REST_Request $request ): bool {
+		$attributes = $request->get_attributes();
+		$callback   = is_array( $attributes ) ? ( $attributes['callback'] ?? null ) : null;
+
+		return is_array( $callback ) && ( $callback[0] ?? null ) instanceof \WP_REST_Autosaves_Controller;
 	}
 
 	/**

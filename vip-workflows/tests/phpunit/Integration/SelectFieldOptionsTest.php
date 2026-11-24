@@ -570,6 +570,50 @@ class SelectFieldOptionsTest extends TestCase
 	}
 
 	/**
+	 * Core's autosave route runs the REST check and does not read an error
+	 * from it, so an error there would store the autosave without its text.
+	 */
+	public function test_an_autosave_keeps_its_text_when_its_value_is_not_an_option(): void
+	{
+		$this->publish_the_post();
+
+		$response = $this->rest_autosave(
+			array(
+				'title'   => 'Typed title',
+				'content' => 'Typed content.',
+				'meta'    => array( $this->select_key => 'Banana' ),
+			)
+		);
+
+		$autosave = $this->autosave_row();
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'Typed title', $autosave->post_title );
+		$this->assertSame( 'Typed content.', $autosave->post_content );
+		$this->assertSame( '', (string) get_metadata( 'post', $autosave->ID, $this->select_key, true ) );
+		$this->assertSame( '', $this->stored() );
+	}
+
+	/**
+	 * An autosave of the author's own draft writes the post itself.
+	 */
+	public function test_an_autosave_of_the_authors_own_draft_keeps_its_text_when_its_value_is_not_an_option(): void
+	{
+		$response = $this->rest_autosave(
+			array(
+				'title'   => 'Typed title',
+				'content' => 'Typed content.',
+				'meta'    => array( $this->select_key => 'Banana' ),
+			)
+		);
+
+		$post = get_post( $this->post_id );
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'Typed title', $post->post_title );
+		$this->assertSame( 'Typed content.', $post->post_content );
+		$this->assertSame( '', $this->stored() );
+	}
+
+	/**
 	 * The classic editor's autosave reads revisioned meta from the posted form.
 	 */
 	public function test_a_classic_autosave_does_not_store_a_value_that_is_not_an_option(): void

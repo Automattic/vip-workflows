@@ -433,6 +433,29 @@ class MetadataOptionGuardTest extends TestCase
         $this->assertInstanceOf( \WP_Error::class, $result );
     }
 
+    /**
+     * Core's autosaves controller runs this filter and does not read an error
+     * from it, so an autosave is not refused here. Its row is held at the
+     * write.
+     */
+    public function test_rest_does_not_refuse_an_autosave(): void
+    {
+        $prepared = (object) array( 'ID' => self::POST_ID );
+        $request  = $this->request( array( self::KEY => 'Banana' ) );
+        $request->set_attributes( array( 'callback' => array( \Mockery::mock( 'WP_REST_Autosaves_Controller' ), 'create_item' ) ) );
+
+        $this->assertSame( $prepared, $this->guard->check_rest_insert( $prepared, $request ) );
+    }
+
+    public function test_rest_refuses_a_save_whatever_other_controller_handles_it(): void
+    {
+        $prepared = (object) array( 'ID' => self::POST_ID );
+        $request  = $this->request( array( self::KEY => 'Banana' ) );
+        $request->set_attributes( array( 'callback' => array( \Mockery::mock( 'WP_REST_Posts_Controller' ), 'update_item' ) ) );
+
+        $this->assertInstanceOf( \WP_Error::class, $this->guard->check_rest_insert( $prepared, $request ) );
+    }
+
     public function test_rest_keeps_an_error_an_earlier_callback_returned(): void
     {
         $earlier = new \WP_Error( 'earlier', 'Refused earlier.' );
