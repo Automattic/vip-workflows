@@ -483,6 +483,58 @@ class SelectFieldOptionsTest extends TestCase
 	}
 
 	// =========================================================================
+	// More than one row for a field
+	// =========================================================================
+
+	/**
+	 * Give the test post two rows for the select field, as old or imported
+	 * data can have. The first is not an option.
+	 */
+	private function store_two_rows(): void
+	{
+		wp_set_current_user( 0 );
+		add_post_meta( $this->post_id, $this->select_key, 'Old option' );
+		add_post_meta( $this->post_id, $this->select_key, 'Staff photo' );
+		wp_set_current_user( $this->author_id );
+	}
+
+	/**
+	 * The editor sends the first row back with every save. Core writes it when
+	 * the post has more than one row, so the save is refused before the post
+	 * is written, with the message that names the field.
+	 */
+	public function test_rest_refuses_a_stored_value_that_is_one_of_two_rows_before_anything_is_saved(): void
+	{
+		$this->store_two_rows();
+
+		$response = $this->rest_save(
+			array(
+				'title' => 'New title',
+				'meta'  => array(
+					$this->text_key   => 'New brief',
+					$this->select_key => 'Old option',
+				),
+			)
+		);
+
+		$this->assertSame( 400, $response->get_status() );
+		$this->assertSame( 'vip_workflows_invalid_metadata_option', $response->get_data()['code'] );
+		$this->assertSame( 'Select field post', get_post( $this->post_id )->post_title );
+		$this->assertSame( '', (string) get_post_meta( $this->post_id, $this->text_key, true ) );
+		$this->assertSame( array( 'Old option', 'Staff photo' ), get_post_meta( $this->post_id, $this->select_key, false ) );
+	}
+
+	public function test_rest_stores_an_option_over_two_rows(): void
+	{
+		$this->store_two_rows();
+
+		$response = $this->rest_save( array( 'meta' => array( $this->select_key => 'No photo needed' ) ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( array( 'No photo needed', 'No photo needed' ), get_post_meta( $this->post_id, $this->select_key, false ) );
+	}
+
+	// =========================================================================
 	// Autosaves
 	// =========================================================================
 

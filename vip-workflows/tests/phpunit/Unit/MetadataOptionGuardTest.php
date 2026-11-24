@@ -50,7 +50,7 @@ class MetadataOptionGuardTest extends TestCase
      * Every row stored for the select field, when a test needs more than the
      * one row `$stored` stands for.
      *
-     * @var string[]|null
+     * @var array<int, mixed>|null
      */
     private ?array $rows = null;
 
@@ -418,6 +418,38 @@ class MetadataOptionGuardTest extends TestCase
 
         $this->assertSame( $prepared, $this->guard->check_rest_insert( $prepared, $this->request( array( self::KEY => 'Archive photo' ) ) ) );
         $this->assertInstanceOf( \WP_Error::class, $this->guard->check_rest_insert( $prepared, $this->request( array( self::KEY => 'Banana' ) ) ) );
+    }
+
+    /**
+     * Core skips the write of an unchanged value only when the post has one
+     * row for the key. With more rows it writes, and that write would be
+     * refused after the post is saved, so the value is refused here first.
+     */
+    public function test_rest_refuses_a_stored_value_when_the_post_has_more_than_one_row(): void
+    {
+        $this->rows = array( 'Archive photo', 'No photo needed' );
+        $prepared   = (object) array( 'ID' => self::POST_ID );
+
+        $result = $this->guard->check_rest_insert( $prepared, $this->request( array( self::KEY => 'Archive photo' ) ) );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'vip_workflows_invalid_metadata_option', $result->get_error_code() );
+    }
+
+    public function test_rest_counts_a_row_that_is_not_text_as_a_row(): void
+    {
+        $this->rows = array( array( 'not text' ), 'Archive photo' );
+        $prepared   = (object) array( 'ID' => self::POST_ID );
+
+        $this->assertInstanceOf( \WP_Error::class, $this->guard->check_rest_insert( $prepared, $this->request( array( self::KEY => 'Archive photo' ) ) ) );
+    }
+
+    public function test_rest_passes_an_option_whatever_rows_the_post_has(): void
+    {
+        $this->rows = array( 'Archive photo', 'No photo needed' );
+        $prepared   = (object) array( 'ID' => self::POST_ID );
+
+        $this->assertSame( $prepared, $this->guard->check_rest_insert( $prepared, $this->request( array( self::KEY => 'No photo needed' ) ) ) );
     }
 
     public function test_rest_has_no_stored_value_to_compare_for_a_new_post(): void

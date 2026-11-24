@@ -104,7 +104,10 @@ class MetadataOptionGuard {
 	 * Runs before the post is written, so nothing from a refused request is
 	 * saved. The editor sends every meta value with a save, so a value equal
 	 * to the stored one is not this request's choice and is let through; core
-	 * then sees no change and writes nothing for it.
+	 * then sees no change and writes nothing for it. That holds only when the
+	 * post has one row for the key. With more rows core writes the value, and
+	 * the write would be refused after the post is saved, so the value is
+	 * refused here first.
 	 *
 	 * An autosave is not refused here. Core's autosaves route runs this filter
 	 * and does not read an error from it, so an error would store the autosave
@@ -135,7 +138,7 @@ class MetadataOptionGuard {
 
 			$value = $this->as_stored( $value );
 
-			if ( $post_id > 0 && (string) get_post_meta( $post_id, (string) $meta_key, true ) === $value ) {
+			if ( $post_id > 0 && array( $value ) === $this->stored_values( $post_id, (string) $meta_key ) ) {
 				continue;
 			}
 
@@ -307,15 +310,13 @@ class MetadataOptionGuard {
 	 *
 	 * @param  int    $post_id  Post ID.
 	 * @param  string $meta_key Meta key of a select field.
-	 * @return string[]
+	 * @return array<int, string|null> A row that isn't text is null, so it counts as a row and equals no value.
 	 */
 	private function stored_values( int $post_id, string $meta_key ): array {
 		$values = array();
 
 		foreach ( (array) get_post_meta( $post_id, $meta_key, false ) as $row ) {
-			if ( is_scalar( $row ) ) {
-				$values[] = (string) $row;
-			}
+			$values[] = is_scalar( $row ) ? (string) $row : null;
 		}
 
 		return $values;
