@@ -395,9 +395,11 @@ async function expectOneControl( { main, toggle } ) {
 	const toggleBox = await toggle.boundingBox();
 
 	expect( toggleBox.x - ( mainBox.x + mainBox.width ) ).toBeCloseTo( 1, 0 );
-	// Subpixel layout differs by platform (Linux CI renders the halves up to 0.6px apart); 1px is still a single seam.
+	// Subpixel layout differs by platform (Linux CI renders the halves up to 0.6px apart); 1px of difference in the top edge or the height is still a single seam.
 	expect( Math.abs( toggleBox.y - mainBox.y ) ).toBeLessThanOrEqual( 1 );
-	expect( toggleBox.height ).toBeCloseTo( mainBox.height, 0 );
+	expect( Math.abs( toggleBox.height - mainBox.height ) ).toBeLessThanOrEqual(
+		1
+	);
 
 	const mainRadii = await cornerRadii( main );
 	expect( mainRadii.topRight ).toBe( '0px' );
