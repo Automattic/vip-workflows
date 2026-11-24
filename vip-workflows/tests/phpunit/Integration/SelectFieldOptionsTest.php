@@ -221,13 +221,14 @@ class SelectFieldOptionsTest extends TestCase
 	}
 
 	/**
-	 * The meta id of the select field's row on the test post.
+	 * The meta id of the select field's row on a post.
 	 *
+	 * @param  int $post_id Post or revision that holds the row; the test post when 0.
 	 * @return int
 	 */
-	private function select_meta_id(): int
+	private function select_meta_id( int $post_id = 0 ): int
 	{
-		foreach ( (array) has_meta( $this->post_id ) as $meta ) {
+		foreach ( (array) has_meta( $post_id ? $post_id : $this->post_id ) as $meta ) {
 			if ( $this->select_key === $meta['meta_key'] ) {
 				return (int) $meta['meta_id'];
 			}
@@ -479,5 +480,162 @@ class SelectFieldOptionsTest extends TestCase
 		$latest = current( wp_get_post_revisions( $this->post_id ) );
 		$this->assertSame( 'A later version.', $latest->post_content );
 		$this->assertSame( 'Archive photo', get_metadata( 'post', $latest->ID, $this->select_key, true ) );
+	}
+
+	// =========================================================================
+	// Autosaves
+	// =========================================================================
+
+	/**
+	 * Publish the test post, so an autosave is stored in its own row and does
+	 * not write the post.
+	 */
+	private function publish_the_post(): void
+	{
+		wp_set_current_user( 0 );
+		wp_update_post(
+			array(
+				'ID'          => $this->post_id,
+				'post_status' => 'publish',
+			)
+		);
+		update_post_meta( $this->post_id, StatusManager::STAGE_META_KEY, 'live' );
+		wp_set_current_user( $this->author_id );
+	}
+
+	/**
+	 * Autosave the test post over REST as the current user.
+	 *
+	 * @param  array $params Body params.
+	 * @return \WP_REST_Response
+	 */
+	private function rest_autosave( array $params ): \WP_REST_Response
+	{
+		// Core's autosaves route defines DOING_AUTOSAVE as true for the rest
+		// of the PHP process, and no later test in the run would then save a
+		// revision. Core leaves the constant alone when it is defined, and
+		// reads `false` the same as not defined.
+		if ( ! defined( 'DOING_AUTOSAVE' ) ) {
+			define( 'DOING_AUTOSAVE', false );
+		}
+
+		$request = new \WP_REST_Request( 'POST', "/wp/v2/posts/{$this->post_id}/autosaves" );
+		foreach ( $params as $key => $value ) {
+			$request->set_param( $key, $value );
+		}
+
+		return rest_do_request( $request );
+	}
+
+	/**
+	 * The current user's autosave of the test post.
+	 *
+	 * @return \WP_Post
+	 */
+	private function autosave_row(): \WP_Post
+	{
+		$autosave = wp_get_post_autosave( $this->post_id, get_current_user_id() );
+		$this->assertInstanceOf( \WP_Post::class, $autosave, 'the post has an autosave' );
+
+		return $autosave;
+	}
+
+	/**
+	 * An autosave's row is restored onto the post with no check, so the row
+	 * must not take a value the post could not.
+	 */
+	public function test_restoring_an_autosave_does_not_put_a_value_that_is_not_an_option_on_the_post(): void
+	{
+		$this->publish_the_post();
+		$this->rest_autosave(
+			array(
+				'title'   => 'Typed title',
+				'content' => 'Typed content.',
+			)
+		);
+		$this->rest_autosave(
+			array(
+				'title'   => 'Typed title again',
+				'content' => 'Typed content again.',
+				'meta'    => array( $this->select_key => 'Banana' ),
+			)
+		);
+
+		$autosave = $this->autosave_row();
+		$this->assertSame( '', (string) get_metadata( 'post', $autosave->ID, $this->select_key, true ) );
+
+		wp_restore_post_revision( $autosave->ID );
+
+		$this->assertSame( '', $this->stored() );
+	}
+
+	/**
+	 * The classic editor's autosave reads revisioned meta from the posted form.
+	 */
+	public function test_a_classic_autosave_does_not_store_a_value_that_is_not_an_option(): void
+	{
+		$this->publish_the_post();
+		$form = array(
+			'post_ID'         => $this->post_id,
+			'post_type'       => 'post',
+			'post_title'      => 'Typed title',
+			'content'         => 'Typed content.',
+			$this->select_key => 'Banana',
+		);
+
+		$_POST = $form;
+		try {
+			wp_create_post_autosave( wp_slash( $form ) );
+		} finally {
+			$_POST = array();
+		}
+
+		$autosave = $this->autosave_row();
+		$this->assertSame( 'Typed title', $autosave->post_title );
+		$this->assertSame( '', (string) get_metadata( 'post', $autosave->ID, $this->select_key, true ) );
+	}
+
+	/**
+	 * The Custom Fields box and XML-RPC change a row by its meta id, and an
+	 * autosave's row has one too.
+	 */
+	public function test_an_autosave_row_edited_by_its_meta_id_does_not_take_a_value_that_is_not_an_option(): void
+	{
+		$this->publish_the_post();
+		$this->rest_autosave(
+			array(
+				'title'   => 'Typed title',
+				'content' => 'Typed content.',
+				'meta'    => array( $this->select_key => 'Staff photo' ),
+			)
+		);
+		$autosave = $this->autosave_row();
+
+		$updated = update_metadata_by_mid( 'post', $this->select_meta_id( $autosave->ID ), 'Banana' );
+
+		$this->assertFalse( $updated );
+		$this->assertSame( 'Staff photo', get_metadata( 'post', $autosave->ID, $this->select_key, true ) );
+	}
+
+	/**
+	 * The editor sends every meta value with an autosave too, so the autosave
+	 * takes a value the post holds, whatever it is.
+	 */
+	public function test_an_autosave_takes_a_stored_value_whose_option_was_removed(): void
+	{
+		$this->rest_save( array( 'meta' => array( $this->select_key => 'Archive photo' ) ) );
+		$this->publish_the_post();
+		$this->replace_options( array( 'No photo needed', 'Staff photo' ) );
+
+		$response = $this->rest_autosave(
+			array(
+				'title'   => 'Typed title',
+				'content' => 'Typed content.',
+				'meta'    => array( $this->select_key => 'Archive photo' ),
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'Archive photo', get_metadata( 'post', $this->autosave_row()->ID, $this->select_key, true ) );
 	}
 }

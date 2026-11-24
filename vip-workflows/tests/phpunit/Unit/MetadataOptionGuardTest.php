@@ -46,6 +46,21 @@ class MetadataOptionGuardTest extends TestCase
      */
     private string $stored = '';
 
+    /**
+     * Every row stored for the select field, when a test needs more than the
+     * one row `$stored` stands for.
+     *
+     * @var string[]|null
+     */
+    private ?array $rows = null;
+
+    /**
+     * Post IDs the guard read the stored rows of.
+     *
+     * @var int[]
+     */
+    private array $posts_read = array();
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -59,8 +74,11 @@ class MetadataOptionGuardTest extends TestCase
         Functions\when( 'wp_is_post_revision' )->justReturn( false );
         Functions\when( 'doing_action' )->justReturn( false );
         Functions\when( 'get_post_meta' )->alias(
-            function () {
-                return $this->stored;
+            function ( $post_id, $key = '', $single = false ) {
+                $this->posts_read[] = (int) $post_id;
+                $rows               = $this->rows ?? ( '' === $this->stored ? array() : array( $this->stored ) );
+
+                return $single ? ( $rows[0] ?? '' ) : $rows;
             }
         );
 
@@ -227,9 +245,46 @@ class MetadataOptionGuardTest extends TestCase
         $this->assertNull( $this->write( 'Banana' ) );
     }
 
-    public function test_a_write_to_a_revision_row_is_let_through(): void
+    /**
+     * Core copies a post's rows to each revision and autosave, so a revision
+     * row takes a value its post holds.
+     */
+    public function test_a_revision_row_takes_a_value_its_post_holds(): void
     {
         Functions\when( 'wp_is_post_revision' )->justReturn( 41 );
+        $this->rows = array( 'Old option', 'Archive  photo' );
+
+        $this->assertNull( $this->write( 'Old option' ) );
+        $this->assertNull( $this->write( 'Archive  photo' ) );
+        $this->assertSame( array( 41, 41 ), $this->posts_read );
+    }
+
+    /**
+     * A revision row is restored onto the post with no check, so it takes no
+     * other value the post could not.
+     */
+    public function test_a_revision_row_does_not_take_a_value_its_post_does_not_hold(): void
+    {
+        Functions\when( 'wp_is_post_revision' )->justReturn( 41 );
+        $this->rows = array( 'Old option' );
+
+        $this->assertFalse( $this->write( 'Banana' ) );
+        $this->assertFalse( $this->write( 'old option' ) );
+    }
+
+    public function test_a_revision_row_takes_an_option_and_nothing(): void
+    {
+        Functions\when( 'wp_is_post_revision' )->justReturn( 41 );
+
+        $this->assertNull( $this->write( 'No photo needed' ) );
+        $this->assertNull( $this->write( '' ) );
+        $this->assertSame( array(), $this->posts_read );
+    }
+
+    public function test_a_revision_row_is_not_checked_with_no_logged_in_user(): void
+    {
+        Functions\when( 'wp_is_post_revision' )->justReturn( 41 );
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
 
         $this->assertNull( $this->write( 'Banana' ) );
     }

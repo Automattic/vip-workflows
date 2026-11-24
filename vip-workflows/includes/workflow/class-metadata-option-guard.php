@@ -37,6 +37,9 @@ namespace VIPWorkflows\Workflow;
  * would empty those posts' values on their next save. It is also why three
  * kinds of write are let through below (see is_exempt_write()).
  *
+ * A revision or autosave row is held too, to an option or a value its post
+ * holds, because a restore copies the row onto the post.
+ *
  * Only fields of active sequences are known here, the same fields that are
  * registered as post meta.
  */
@@ -211,7 +214,7 @@ class MetadataOptionGuard {
 	 * @return bool
 	 */
 	private function refuses( int $post_id, string $meta_key, $value ): bool {
-		if ( $this->is_allowed_value( $meta_key, $value ) || $this->is_exempt_write( $post_id ) ) {
+		if ( $this->is_allowed_value( $meta_key, $value ) || $this->is_exempt_write( $post_id, $meta_key, $value ) ) {
 			return false;
 		}
 
@@ -254,24 +257,49 @@ class MetadataOptionGuard {
 	 *
 	 * - No logged-in user: WP-CLI, an importer, a seeder or cron. The same
 	 *   rule PublishBoundaryGuard applies to a status change.
-	 * - A revision row: core copies a post's meta to each revision and
-	 *   autosave. The row is not the post's own value.
+	 * - A revision or autosave row that takes a value its post holds: core
+	 *   copies a post's meta to each revision and autosave. An autosave also
+	 *   takes values from the request, and the row is restored onto the post
+	 *   with no check, so the row takes no other value the post could not.
 	 * - A revision restore: core deletes the post's row and adds the
 	 *   revision's value (wp_restore_post_revision_meta()), so refusing the
 	 *   add would leave the field empty.
 	 *
-	 * @param  int $post_id Post the value would be stored on.
+	 * @param  int    $post_id  Post the value would be stored on.
+	 * @param  string $meta_key Meta key of a select field.
+	 * @param  mixed  $value    Value to store.
 	 * @return bool
 	 */
-	private function is_exempt_write( int $post_id ): bool {
+	private function is_exempt_write( int $post_id, string $meta_key, $value ): bool {
 		if ( ! get_current_user_id() ) {
 			return true;
 		}
 
-		if ( wp_is_post_revision( $post_id ) ) {
-			return true;
+		$parent_id = (int) wp_is_post_revision( $post_id );
+		if ( $parent_id > 0 ) {
+			// Compared as given: core copies a row as it is stored.
+			return is_scalar( $value ) && in_array( (string) $value, $this->stored_values( $parent_id, $meta_key ), true );
 		}
 
 		return (bool) doing_action( 'wp_restore_post_revision' );
+	}
+
+	/**
+	 * The values a post holds for a select field, one for each meta row.
+	 *
+	 * @param  int    $post_id  Post ID.
+	 * @param  string $meta_key Meta key of a select field.
+	 * @return string[]
+	 */
+	private function stored_values( int $post_id, string $meta_key ): array {
+		$values = array();
+
+		foreach ( (array) get_post_meta( $post_id, $meta_key, false ) as $row ) {
+			if ( is_scalar( $row ) ) {
+				$values[] = (string) $row;
+			}
+		}
+
+		return $values;
 	}
 }
