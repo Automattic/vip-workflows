@@ -1417,10 +1417,12 @@ class CoreStatusChangeRulesTest extends TestCase
 		wp_set_current_user( $this->author_id );
 
 		// The post is not live, so nothing is taken off the site.
-		$response = $this->rest_update( $post_id, array( 'date_gmt' => $this->a_later_date() ) );
+		$later    = $this->a_later_date();
+		$response = $this->rest_update( $post_id, array( 'date_gmt' => $later ) );
 
 		$this->assertSame( 200, $response->get_status() );
 		$this->assertSame( 'future', get_post_status( $post_id ) );
+		$this->assertSame( str_replace( 'T', ' ', $later ), get_post( $post_id )->post_date_gmt );
 		$this->assertSame( 'published', $this->stage_of( $post_id ) );
 	}
 
