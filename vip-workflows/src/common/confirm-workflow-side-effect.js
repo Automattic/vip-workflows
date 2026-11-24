@@ -181,7 +181,7 @@ export function isTransitionRulesRefusal( {
  * @param {boolean}     options.canBypass        Whether the user's role bypasses workflow rules.
  * @param {string[]}    [options.refusedRegions] Regions the server refuses a status change into for this user (`guard.refused_regions`). See isTransitionRulesRefusal().
  * @param {string}      [options.currentStatus]  The post's persisted core status, when known. `trash` changes the answer, and so does `publish` when the target is `future`.
- * @param {boolean}     [options.datedAhead]     Whether the save leaves the post dated at least a minute ahead, which is when core writes `future`. The block editor knows (`isEditedPostBeingScheduled()`). Quick Edit and Bulk Edit leave it out: neither can send a later date together with `future` for a live post, so core writes `publish` again and the save changes nothing.
+ * @param {boolean}     [options.datedAhead]     Whether the save leaves the post dated at least a minute ahead, which is when core writes `future`. The block editor knows (`isEditedPostBeingScheduled()`). Quick Edit and Bulk Edit leave it out, so a Quick Edit that moves a live post's date forward isn't caught here: the server's backstop puts the date back with no message.
  * @return {string} One of DECISION_SILENT, DECISION_WARN, DECISION_VETO.
  */
 export function evaluateStatusChange( {

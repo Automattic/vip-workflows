@@ -170,8 +170,9 @@ describe( 'evaluateStatusChange', () => {
 			).toBe( DECISION_SILENT );
 		} );
 
-		// Quick Edit and Bulk Edit: no later date goes with the status, so
-		// core writes `publish` again and the server refuses nothing.
+		// Scheduled with no later date: core writes `publish` again and the
+		// server refuses nothing. The posts list leaves `datedAhead` out, so
+		// this is the answer it gets for every save of a live post.
 		it.each( [ false, undefined ] )(
 			'says nothing when the save does not date the post ahead (datedAhead: %s)',
 			( datedAhead ) => {
