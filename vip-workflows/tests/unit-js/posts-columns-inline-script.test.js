@@ -254,9 +254,9 @@ describe( 'posts list preflight for trashed posts', () => {
 		);
 	} );
 
-	// Bulk Edit offers Scheduled but sends no date with it, so core writes
-	// `publish` again for a live post: the save changes no status, and the
-	// preflight must not report it as an attempt to schedule a live post.
+	// Core hides Scheduled in Bulk Edit, but a programmatic `_status=future`
+	// sends no date, so core writes `publish` again for a live post: the save
+	// changes no status, and the preflight must not report it as scheduling.
 	it( 'does not stop a Bulk Edit to Scheduled over a live post, which changes nothing', () => {
 		load( [
 			{

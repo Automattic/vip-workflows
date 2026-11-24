@@ -1425,8 +1425,9 @@ class CoreStatusChangeRulesTest extends TestCase
 	}
 
 	/**
-	 * The posts list preflight relies on this: Bulk Edit sends no date, so core
-	 * writes `publish` again and the save changes no status.
+	 * The posts list preflight relies on this. Core hides Scheduled in Bulk
+	 * Edit, and a request that names it anyway sends no date, so core writes
+	 * `publish` again and the save changes no status.
 	 */
 	public function test_bulk_edit_to_scheduled_changes_nothing_on_a_live_post(): void
 	{
