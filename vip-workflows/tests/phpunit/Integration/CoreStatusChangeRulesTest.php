@@ -1219,6 +1219,266 @@ class CoreStatusChangeRulesTest extends TestCase
 	}
 
 	// =========================================================================
+	// Scheduling a live post
+	// =========================================================================
+
+	/**
+	 * A date at least a minute ahead, in the format the REST `date_gmt` field takes.
+	 *
+	 * @return string
+	 */
+	private function a_later_date(): string
+	{
+		return gmdate( 'Y-m-d\TH:i:s', time() + WEEK_IN_SECONDS );
+	}
+
+	public function test_rest_refuses_scheduling_a_live_post(): void
+	{
+		$post_id = $this->make_post( $this->create_sequence(), 'published', 'publish', $this->author_id );
+		$before  = get_post( $post_id );
+		$history = $this->status_manager()->count_transition_history( $post_id );
+		wp_set_current_user( $this->author_id );
+
+		$response = $this->rest_update(
+			$post_id,
+			array(
+				'status'   => 'future',
+				'date_gmt' => $this->a_later_date(),
+			)
+		);
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( 'vip_workflows_publish_boundary', $response->get_data()['code'] );
+		$this->assertStringContainsString( 'its status can’t be changed directly', $response->get_data()['message'] );
+
+		$after = get_post( $post_id );
+		$this->assertSame( 'publish', $after->post_status );
+		$this->assertSame( $before->post_date_gmt, $after->post_date_gmt );
+		$this->assertSame( 'published', $this->stage_of( $post_id ) );
+		$this->assertSame( $history, $this->status_manager()->count_transition_history( $post_id ) );
+	}
+
+	public function test_rest_refuses_a_later_date_on_a_live_post(): void
+	{
+		$post_id = $this->make_post( $this->create_sequence(), 'published', 'publish', $this->author_id );
+		$before  = get_post( $post_id );
+		wp_set_current_user( $this->author_id );
+
+		// No status is named. Core would turn `publish` into `future` for this date.
+		$response = $this->rest_update(
+			$post_id,
+			array(
+				'title'    => 'Renamed Post',
+				'date_gmt' => $this->a_later_date(),
+			)
+		);
+
+		$this->assertSame( 409, $response->get_status() );
+		$this->assertSame( 'vip_workflows_publish_boundary', $response->get_data()['code'] );
+
+		$after = get_post( $post_id );
+		$this->assertSame( 'publish', $after->post_status );
+		$this->assertSame( $before->post_date_gmt, $after->post_date_gmt );
+		$this->assertSame( 'Rules Post', $after->post_title );
+	}
+
+	public function test_wp_update_post_keeps_a_live_post_live_when_it_is_dated_ahead(): void
+	{
+		$post_id = $this->make_post( $this->create_sequence(), 'published', 'publish', $this->author_id );
+		$before  = get_post( $post_id );
+		$later   = gmdate( 'Y-m-d H:i:s', time() + WEEK_IN_SECONDS );
+		wp_set_current_user( $this->author_id );
+
+		// The classic editor and Quick Edit write this: the status stays
+		// `publish` in the request, and core makes it `future` from the date.
+		wp_update_post(
+			array(
+				'ID'            => $post_id,
+				'post_status'   => 'publish',
+				'post_title'    => 'Renamed Post',
+				'post_date'     => $later,
+				'post_date_gmt' => $later,
+				'edit_date'     => true,
+			)
+		);
+
+		$after = get_post( $post_id );
+		$this->assertSame( 'publish', $after->post_status );
+		$this->assertSame( 'Renamed Post', $after->post_title );
+		$this->assertSame( $before->post_name, $after->post_name );
+		$this->assertSame( $before->post_date, $after->post_date );
+		$this->assertSame( $before->post_date_gmt, $after->post_date_gmt );
+		$this->assertSame( 'published', $this->stage_of( $post_id ) );
+	}
+
+	public function test_a_refused_later_date_keeps_a_slug_edit_from_the_same_save(): void
+	{
+		$post_id = $this->make_post( $this->create_sequence(), 'published', 'publish', $this->author_id );
+		$before  = get_post( $post_id );
+		$later   = gmdate( 'Y-m-d H:i:s', time() + WEEK_IN_SECONDS );
+		wp_set_current_user( $this->author_id );
+
+		// Core checks a slug the same way for `publish` and `future`, so the
+		// slug it prepared fits the status the post keeps.
+		wp_update_post(
+			array(
+				'ID'            => $post_id,
+				'post_status'   => 'publish',
+				'post_name'     => 'renamed-slug',
+				'post_date'     => $later,
+				'post_date_gmt' => $later,
+				'edit_date'     => true,
+			)
+		);
+
+		$after = get_post( $post_id );
+		$this->assertSame( 'publish', $after->post_status );
+		$this->assertSame( 'renamed-slug', $after->post_name );
+		$this->assertSame( $before->post_date, $after->post_date );
+		$this->assertSame( $before->post_date_gmt, $after->post_date_gmt );
+	}
+
+	public function test_a_slug_edit_kept_after_a_refused_later_date_is_unique(): void
+	{
+		$sequence_id = $this->create_sequence();
+		$other_id    = $this->make_post( $sequence_id, 'published', 'publish', $this->author_id );
+		$post_id     = $this->make_post( $sequence_id, 'published', 'publish', $this->author_id );
+		$later       = gmdate( 'Y-m-d H:i:s', time() + WEEK_IN_SECONDS );
+		wp_update_post(
+			array(
+				'ID'        => $other_id,
+				'post_name' => 'taken-slug',
+			)
+		);
+		wp_set_current_user( $this->author_id );
+
+		wp_update_post(
+			array(
+				'ID'            => $post_id,
+				'post_status'   => 'publish',
+				'post_name'     => 'taken-slug',
+				'post_date'     => $later,
+				'post_date_gmt' => $later,
+				'edit_date'     => true,
+			)
+		);
+
+		$this->assertSame( 'publish', get_post_status( $post_id ) );
+		$this->assertSame( 'taken-slug', get_post( $other_id )->post_name );
+		$this->assertSame( 'taken-slug-2', get_post( $post_id )->post_name );
+	}
+
+	public function test_an_override_role_and_a_userless_write_can_schedule_a_live_post(): void
+	{
+		$sequence_id = $this->create_sequence();
+		$by_admin    = $this->make_post( $sequence_id, 'published', 'publish', $this->author_id );
+		$userless    = $this->make_post( $sequence_id, 'published', 'publish', $this->author_id );
+		$later       = gmdate( 'Y-m-d H:i:s', time() + WEEK_IN_SECONDS );
+
+		wp_set_current_user( $this->admin_id );
+		$response = $this->rest_update(
+			$by_admin,
+			array(
+				'status'   => 'future',
+				'date_gmt' => $this->a_later_date(),
+			)
+		);
+
+		wp_set_current_user( 0 );
+		wp_update_post(
+			array(
+				'ID'            => $userless,
+				'post_status'   => 'future',
+				'post_date'     => $later,
+				'post_date_gmt' => $later,
+				'edit_date'     => true,
+			)
+		);
+
+		$this->assertSame( 200, $response->get_status() );
+		foreach ( array( $by_admin, $userless ) as $post_id ) {
+			$this->assertSame( 'future', get_post_status( $post_id ) );
+			$this->assertSame( 'published', $this->stage_of( $post_id ) );
+		}
+	}
+
+	public function test_a_scheduled_post_can_be_given_another_later_date(): void
+	{
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_status' => 'future',
+				'post_author' => $this->author_id,
+				'post_title'  => 'Scheduled Post',
+				'post_date'   => gmdate( 'Y-m-d H:i:s', time() + DAY_IN_SECONDS ),
+			)
+		);
+		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->create_sequence() );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'published' );
+		wp_set_current_user( $this->author_id );
+
+		// The post is not live, so nothing is taken off the site.
+		$later    = $this->a_later_date();
+		$response = $this->rest_update( $post_id, array( 'date_gmt' => $later ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'future', get_post_status( $post_id ) );
+		$this->assertSame( str_replace( 'T', ' ', $later ), get_post( $post_id )->post_date_gmt );
+		$this->assertSame( 'published', $this->stage_of( $post_id ) );
+	}
+
+	/**
+	 * The posts list preflight relies on this. Core hides Scheduled in Bulk
+	 * Edit, and a request that names it anyway sends no date, so core writes
+	 * `publish` again and the save changes no status.
+	 */
+	public function test_bulk_edit_to_scheduled_changes_nothing_on_a_live_post(): void
+	{
+		include_once ABSPATH . 'wp-admin/includes/post.php';
+
+		$post_id = $this->make_post( $this->create_sequence(), 'published', 'publish', $this->author_id );
+		$before  = get_post( $post_id );
+		wp_set_current_user( $this->author_id );
+
+		bulk_edit_posts(
+			array(
+				'post_type' => 'post',
+				'post'      => array( $post_id ),
+				'_status'   => 'future',
+			)
+		);
+
+		$after = get_post( $post_id );
+		$this->assertSame( 'publish', $after->post_status );
+		$this->assertSame( $before->post_date_gmt, $after->post_date_gmt );
+		$this->assertSame( 'published', $this->stage_of( $post_id ) );
+	}
+
+	public function test_rest_scheduled_without_a_later_date_changes_nothing_on_a_live_post(): void
+	{
+		$post_id = $this->make_post( $this->create_sequence(), 'published', 'publish', $this->author_id );
+		wp_set_current_user( $this->author_id );
+
+		// Core writes `publish` again for a post dated in the past.
+		$response = $this->rest_update( $post_id, array( 'status' => 'future' ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'publish', get_post_status( $post_id ) );
+		$this->assertSame( 'published', $this->stage_of( $post_id ) );
+	}
+
+	public function test_a_date_edit_that_keeps_a_live_post_in_the_past_is_not_refused(): void
+	{
+		$post_id = $this->make_post( $this->create_sequence(), 'published', 'publish', $this->author_id );
+		wp_set_current_user( $this->author_id );
+
+		$response = $this->rest_update( $post_id, array( 'date_gmt' => '2026-03-04T05:06:07' ) );
+
+		$this->assertSame( 200, $response->get_status() );
+		$this->assertSame( 'publish', get_post_status( $post_id ) );
+		$this->assertSame( '2026-03-04 05:06:07', get_post( $post_id )->post_date_gmt );
+	}
+
+	// =========================================================================
 	// The client payload
 	// =========================================================================
 

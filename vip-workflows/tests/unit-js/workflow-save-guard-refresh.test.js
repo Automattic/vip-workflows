@@ -48,6 +48,7 @@ register(
 			didPostSaveRequestSucceed: ( state ) => state.succeeded,
 			getCurrentPost: () => ( { status: 'publish' } ),
 			getEditedPostAttribute: () => 'A post',
+			isEditedPostBeingScheduled: () => false,
 		},
 		actions: {
 			editPost: () => ( { type: 'NOOP' } ),

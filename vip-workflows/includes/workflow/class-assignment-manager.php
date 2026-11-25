@@ -881,7 +881,9 @@ class AssignmentManager {
 	 * StatusManager calls this before tools, publishing, and process_transition_input().
 	 *
 	 * Missing values and explicit empty selections are handled by the transition's
-	 * required/optional input rules. Other values must identify a valid assignee.
+	 * required/optional input rules. Other values must identify a valid assignee,
+	 * and a user assignee must hold one of the roles the input allows
+	 * (role_filter_refusal()).
 	 *
 	 * @param  array $transition Transition config from sequence.
 	 * @param  array $input_data User-provided input data.
@@ -910,6 +912,11 @@ class AssignmentManager {
 
 			$assignee_type = $input_config['assignee_type'] ?? 'user';
 			if ( $this->is_valid_assignee( $assignee_type, $value ) ) {
+				$refusal = $this->role_filter_refusal( $input_config, $assignee_type, $value );
+				if ( null !== $refusal ) {
+					return $refusal;
+				}
+
 				continue;
 			}
 
@@ -939,6 +946,74 @@ class AssignmentManager {
 		}
 
 		return true;
+	}
+
+	/**
+	 * Why a user assignee is refused by the input's role filter, if they are.
+	 *
+	 * An assignment input can limit who may be chosen with `filter.roles`. The
+	 * editor's picker applies it by asking AssignableUsersController for the
+	 * users with those roles (`role__in`). The same limit is applied here, so
+	 * a request that names anyone else is refused whatever client sent it,
+	 * including one that names the person making the move.
+	 *
+	 * The two must offer and accept the same people, so this reads the filter
+	 * the way the picker's route does: the slugs go through sanitize_key(),
+	 * a user qualifies by holding any one of them, and no usable slug means
+	 * no limit. Only a user assignee is checked. The role picker takes no
+	 * filter, so a role assignee is not held to one.
+	 *
+	 * @param  array  $input_config  Assignment input config from the transition.
+	 * @param  string $assignee_type Assignee type.
+	 * @param  mixed  $value         A valid assignee value of that type.
+	 * @return \WP_Error|null 400 `assignee_role_not_allowed` naming the field and the roles, or null when the assignee is allowed.
+	 */
+	private function role_filter_refusal( array $input_config, string $assignee_type, $value ): ?\WP_Error {
+		if ( 'user' !== $assignee_type ) {
+			return null;
+		}
+
+		$roles = $input_config['filter']['roles'] ?? array();
+		$roles = is_array( $roles ) ? array_values( array_filter( array_map( 'sanitize_key', array_filter( $roles, 'is_string' ) ) ) ) : array();
+		if ( empty( $roles ) ) {
+			return null;
+		}
+
+		$user = get_userdata( (int) $value );
+		if ( $user && array_intersect( $roles, (array) $user->roles ) ) {
+			return null;
+		}
+
+		// A slug with no registered role is shown as it is, so whoever reads
+		// the message can see what the sequence asks for.
+		$role_names = wp_roles()->role_names;
+		$names      = array();
+		foreach ( $roles as $slug ) {
+			$names[] = isset( $role_names[ $slug ] ) ? translate_user_role( $role_names[ $slug ] ) : $slug;
+		}
+
+		$meta_key = (string) ( $input_config['meta_key'] ?? '' );
+		$message  = 1 === count( $names )
+			/* translators: 1: Display name of the chosen assignee, 2: Assignment field label, 3: role name, e.g. "Editor". */
+			? __( '%1$s can’t be assigned to “%2$s”. Choose someone with the %3$s role.', 'vip-workflows' )
+			/* translators: 1: Display name of the chosen assignee, 2: Assignment field label, 3: comma-separated role names, e.g. "Editor, Administrator". */
+			: __( '%1$s can’t be assigned to “%2$s”. Choose someone with one of these roles: %3$s.', 'vip-workflows' );
+
+		return new \WP_Error(
+			'assignee_role_not_allowed',
+			sprintf(
+				$message,
+				$user ? $user->display_name : (string) $value,
+				$input_config['label'] ?? $meta_key,
+				implode( ', ', $names )
+			),
+			array(
+				'status'   => 400,
+				'meta_key' => $meta_key,
+				'user_id'  => (int) $value,
+				'roles'    => $roles,
+			)
+		);
 	}
 
 	/**

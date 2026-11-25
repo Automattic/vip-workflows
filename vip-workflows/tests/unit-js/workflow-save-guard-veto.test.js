@@ -26,6 +26,10 @@ import { applyFiltersAsync } from '@wordpress/hooks';
 // The post's persisted status, as the editor store reports it.
 let persistedStatus = 'draft';
 
+// Whether the edited date is at least a minute ahead, as the editor store
+// reports it.
+let datedAhead = false;
+
 register(
 	createReduxStore( 'core/editor', {
 		reducer: ( state = {} ) => state,
@@ -35,6 +39,7 @@ register(
 			didPostSaveRequestSucceed: () => false,
 			getCurrentPost: () => ( { status: persistedStatus } ),
 			getEditedPostAttribute: () => 'Budget piece',
+			isEditedPostBeingScheduled: () => datedAhead,
 		},
 		actions: {
 			editPost: () => ( { type: 'NOOP' } ),
@@ -127,6 +132,7 @@ async function refusal( targetStatus ) {
 describe( 'WorkflowSaveGuard veto message', () => {
 	beforeEach( () => {
 		persistedStatus = 'draft';
+		datedAhead = false;
 		apiFetch.mockReset();
 		seedEditorStore();
 		render( <WorkflowSaveGuard /> );
@@ -154,6 +160,46 @@ describe( 'WorkflowSaveGuard veto message', () => {
 		expect( error.message ).toBe(
 			'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead.'
 		);
+	} );
+
+	it( 'tells an attempt to schedule a live post its status can’t be changed directly', async () => {
+		persistedStatus = 'publish';
+		datedAhead = true;
+		const response = statusResponse( 'publish', [ 'Administrator' ] );
+		response.post_status = 'publish';
+		apiFetch.mockImplementation( () => Promise.resolve( response ) );
+
+		const error = await refusal( 'future' );
+
+		expect( error.message ).toBe(
+			'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead. Ask someone with the Administrator role to change it.'
+		);
+	} );
+
+	it( 'lets Scheduled through on a live post when the date is not ahead', async () => {
+		// Core writes `publish` again for a post dated in the past, so the
+		// save changes no status and the server refuses nothing.
+		persistedStatus = 'publish';
+		const response = statusResponse( 'publish' );
+		response.post_status = 'publish';
+		apiFetch.mockImplementation( () => Promise.resolve( response ) );
+
+		await expect(
+			applyFiltersAsync( 'editor.preSavePost', { status: 'future' }, {} )
+		).resolves.toEqual( { status: 'future' } );
+	} );
+
+	it( 'lets a post that is scheduled already keep its scheduled status', async () => {
+		// The editor loaded the post live; it was scheduled in another tab since.
+		persistedStatus = 'publish';
+		datedAhead = true;
+		const response = statusResponse( 'publish' );
+		response.post_status = 'future';
+		apiFetch.mockImplementation( () => Promise.resolve( response ) );
+
+		await expect(
+			applyFiltersAsync( 'editor.preSavePost', { status: 'future' }, {} )
+		).resolves.toEqual( { status: 'future' } );
 	} );
 
 	it( 'refuses a status change whose stage move the person can’t take', async () => {

@@ -247,6 +247,11 @@ export function WorkflowSaveGuard() {
 				canBypass: !! workflow.guard?.can_bypass,
 				refusedRegions: workflow.guard?.refused_regions,
 				currentStatus,
+				// Core writes `future` only for a post dated at least a
+				// minute ahead. This is the editor's own form of that test.
+				datedAhead: registry
+					.select( editorStore )
+					.isEditedPostBeingScheduled(),
 			};
 			const decision = evaluateStatusChange( guardInput );
 
@@ -295,6 +300,7 @@ export function WorkflowSaveGuard() {
 						workflowName,
 						targetStatus: edits.status,
 						overrideRoles,
+						currentStatus,
 					} );
 				}
 

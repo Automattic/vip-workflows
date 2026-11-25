@@ -19,7 +19,9 @@ use VIPWorkflows\Admin\Settings;
  * The two rules are asked in that order, under the same exemptions: a change
  * that crosses the publish boundary is refused by the first, and one that
  * doesn't is held to the transition rules of the reseat it would cause
- * (StatusManager::core_status_change_refusal()).
+ * (StatusManager::core_status_change_refusal()). Scheduling a post that is
+ * already live is refused with the first: it crosses no region, but it takes
+ * the post off the site until its date (see schedules_a_live_post()).
  *
  * This is the ONE place the workflow overrides a status change core would allow,
  * so it lives at the save layer and covers every path a person writes through —
@@ -202,7 +204,10 @@ class PublishBoundaryGuard {
 	 * is put back to the post's stored value. The stored slug and dates are put
 	 * back with it, except between `draft`, `pending` and `auto-draft`, where
 	 * core prepares them the same way for both statuses and the save's own
-	 * slug and date edits are kept (see prepares_slug_and_dates_alike()).
+	 * slug and date edits are kept (see prepares_slug_and_dates_alike()). A live
+	 * post that would be scheduled keeps the save's slug edit: core prepares
+	 * the slug the same way for `publish` and `future`, so only its status and
+	 * dates are put back.
 	 *
 	 * @param  array $data    Sanitized post data about to be written.
 	 * @param  array $postarr Raw post data as passed to wp_insert_post().
@@ -230,8 +235,8 @@ class PublishBoundaryGuard {
 
 		// When core prepares the slug and dates the same way for both statuses
 		// (draft and pending), a slug or date edit made in the same save is
-		// kept. Every other refused change also puts the stored slug and dates
-		// back.
+		// kept. Every other refused change also puts the stored dates back, and
+		// the stored slug with them unless a live post would be scheduled.
 		if ( $this->prepares_slug_and_dates_alike( $veto['current_status'], $veto['target_status'] ) ) {
 			// One difference remains: core empties the slug of a `pending` post
 			// the user can't publish, and keeps it for a draft. When either
@@ -258,7 +263,14 @@ class PublishBoundaryGuard {
 		// was never checked for uniqueness. Revert the whole shape of the write
 		// core prepared for a status the user may not set; the rest of the save
 		// (title, content, meta) still lands.
-		$data['post_name']     = $veto['post_name'];
+		//
+		// A live post that would be scheduled keeps the save's slug. Core
+		// prepares the slug the same way for `publish` and `future`, so the
+		// one it prepared fits the status the post keeps, and only the status
+		// and the dates go back.
+		if ( ! $this->schedules_a_live_post( $veto['current_status'], $veto['target_status'] ) ) {
+			$data['post_name'] = $veto['post_name'];
+		}
 		$data['post_date']     = $veto['post_date'];
 		$data['post_date_gmt'] = $veto['post_date_gmt'];
 
@@ -297,7 +309,7 @@ class PublishBoundaryGuard {
 	 */
 	public function veto_rest_insert( $prepared_post, $request ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed -- required by rest_pre_insert_{post_type} filter
 		$post_id = (int) ( $prepared_post->ID ?? 0 );
-		$veto    = $this->resolve_veto( $post_id, (string) ( $prepared_post->post_status ?? '' ) );
+		$veto    = $this->resolve_veto( $post_id, $this->rest_target_status( $post_id, $prepared_post ) );
 
 		if ( null === $veto ) {
 			return $prepared_post;
@@ -321,6 +333,54 @@ class PublishBoundaryGuard {
 				'post_id' => $post_id,
 			)
 		);
+	}
+
+	/**
+	 * The status a REST write leaves a live post in, once core has read its date.
+	 *
+	 * Between `publish` and `future`, wp_insert_post() decides from the date
+	 * and not from the status the write names: a post dated at least a minute
+	 * ahead is written as `future`, and any other as `publish`. It decides
+	 * after this filter has run. So a write that moves a live post's date
+	 * forward schedules the post without naming `future` (it names no status,
+	 * or `publish`), and a write that names `future` without a later date
+	 * schedules nothing.
+	 *
+	 * Read from the named status alone, the first would pass here and reach
+	 * the backstop, which puts the status and dates back with no message, and
+	 * the second would be refused although it changes nothing. Reading both
+	 * as the status core will write gives each the answer the backstop gives.
+	 *
+	 * Only a live post is read this way. On any other post the named status
+	 * is on the same side of the boundary whichever of the two core writes.
+	 *
+	 * @param  int       $post_id       Post ID.
+	 * @param  \stdClass $prepared_post Post object prepared for the database.
+	 * @return string The status to check, or '' when the write sets none.
+	 */
+	private function rest_target_status( int $post_id, $prepared_post ): string {
+		$status   = (string) ( $prepared_post->post_status ?? '' );
+		$date_gmt = (string) ( $prepared_post->post_date_gmt ?? '' );
+
+		// Nothing here for core to decide: another status is named, or the
+		// write names no status and no date.
+		if ( ! in_array( $status, array( '', 'publish', 'future' ), true ) || ( '' === $status && '' === $date_gmt ) ) {
+			return $status;
+		}
+
+		$post = $post_id > 0 ? get_post( $post_id ) : null;
+		if ( ! $post || 'publish' !== $post->post_status ) {
+			return $status;
+		}
+
+		if ( '' === $date_gmt ) {
+			$date_gmt = (string) $post->post_date_gmt;
+		}
+
+		// The same test, on the same clock, as wp_insert_post().
+		$dated_ahead = strtotime( $date_gmt ) - strtotime( gmdate( 'Y-m-d H:i:s' ) ) >= MINUTE_IN_SECONDS;
+
+		return $dated_ahead ? 'future' : 'publish';
 	}
 
 	/**
@@ -365,8 +425,9 @@ class PublishBoundaryGuard {
 	 *
 	 * All of these must hold: the post is workflow-managed, the status genuinely
 	 * changes, the actor is a non-bypass user, the write is not a system
-	 * context, and either the change crosses the publish boundary or it would
-	 * reseat the stage in a way the user couldn't take as a transition.
+	 * context, and the change crosses the publish boundary, schedules a post
+	 * that is already live, or would reseat the stage in a way the user
+	 * couldn't take as a transition.
 	 *
 	 * @param  int    $post_id       Post ID (0 for an insert of a brand-new post).
 	 * @param  string $target_status Status the write would set.
@@ -476,19 +537,49 @@ class PublishBoundaryGuard {
 		// The shared predicate is the sole authority for the boundary (and is
 		// false for a post with no sequence, so it settles "workflow-managed"
 		// too). A non-publish status out of the Trash skips it (see above) and
-		// is asked only the transition rules.
-		if ( $leaving_trash || ! $this->status_manager->crosses_publish_boundary( $post_id, $target_status ) ) {
+		// is asked only the transition rules. Scheduling a live post is refused
+		// before either is asked: the predicate reports no crossing for it, and
+		// `future` reseats nothing, so neither would refuse it.
+		$schedules_a_live_post = $this->schedules_a_live_post( $current_status, $target_status );
+
+		if ( ! $schedules_a_live_post
+			&& ( $leaving_trash || ! $this->status_manager->crosses_publish_boundary( $post_id, $target_status ) ) ) {
 			return $this->transition_rules_veto( $post, $target_status, $user_id );
 		}
 
 		return array(
-			'message'        => $this->veto_message( $post_id, (string) $post->post_title, $target_status ),
+			'message'        => $this->veto_message( $post_id, (string) $post->post_title, $target_status, $current_status ),
 			'current_status' => $current_status,
 			'target_status'  => $target_status,
 			'post_name'      => (string) $post->post_name,
 			'post_date'      => (string) $post->post_date,
 			'post_date_gmt'  => (string) $post->post_date_gmt,
 		);
+	}
+
+	/**
+	 * Whether a status change schedules a post that is already live.
+	 *
+	 * `publish` and `future` are both on the publish side of the boundary, so
+	 * StatusManager::crosses_publish_boundary() reports no crossing between
+	 * them. That is right for the workflow, where scheduling is a delayed
+	 * publish. For a reader it is not: a live post that becomes scheduled
+	 * leaves the site until its date. So `publish` -> `future` is an unpublish,
+	 * and is refused like any other, with the unpublish sentence.
+	 *
+	 * The reverse, `future` -> `publish`, is core's own move and is exempt in
+	 * resolve_veto(). A post that is scheduled already is not live, so giving
+	 * it another date changes no status and is not asked here.
+	 *
+	 * The client makes the same decision in evaluateStatusChange()
+	 * (src/common/confirm-workflow-side-effect.js); change them together.
+	 *
+	 * @param  string $current_status Status the post has now.
+	 * @param  string $target_status  Status the write would set.
+	 * @return bool
+	 */
+	private function schedules_a_live_post( string $current_status, string $target_status ): bool {
+		return 'publish' === $current_status && 'future' === $target_status;
 	}
 
 	/**
@@ -580,19 +671,21 @@ class PublishBoundaryGuard {
 	 *
 	 * The veto refuses a crossing in either direction, so the sentences follow
 	 * the target: publishing names a published stage, and anything else
-	 * (unpublishing, making private) says the status can't be changed directly.
+	 * (unpublishing, making private, scheduling a post that is already live)
+	 * says the status can't be changed directly.
 	 *
 	 * The client builds the same message (getPublishVetoMessage() and
 	 * getOrphanedWorkflowMessage() in src/common/confirm-workflow-side-effect.js)
 	 * from the same role names, served as `guard.override_roles`. The two MUST
 	 * stay identical to the character; change them together.
 	 *
-	 * @param  int    $post_id       Post ID.
-	 * @param  string $post_title    Post title.
-	 * @param  string $target_status Core status the refused change would write.
+	 * @param  int    $post_id        Post ID.
+	 * @param  string $post_title     Post title.
+	 * @param  string $target_status  Core status the refused change would write.
+	 * @param  string $current_status Core status the post has now.
 	 * @return string
 	 */
-	private function veto_message( int $post_id, string $post_title, string $target_status ): string {
+	private function veto_message( int $post_id, string $post_title, string $target_status, string $current_status ): string {
 		$sequence = $this->status_manager->get_sequence_for_post( $post_id );
 		$roles    = Settings::get_override_role_names();
 
@@ -626,7 +719,8 @@ class PublishBoundaryGuard {
 			error_log( sprintf( '[VIP Workflows] The publish-veto message for post %d was built without the target status, so it cannot name the direction of the refused change.', $post_id ) );
 		}
 
-		if ( 'publish' === $this->status_manager->status_to_region( $target_status ) ) {
+		if ( 'publish' === $this->status_manager->status_to_region( $target_status )
+			&& ! $this->schedules_a_live_post( $current_status, $target_status ) ) {
 			return self::with_ask_sentence(
 				sprintf(
 					/* translators: 1: post title, 2: workflow (sequence) name. */
