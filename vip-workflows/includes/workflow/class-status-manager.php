@@ -1764,7 +1764,10 @@ class StatusManager {
 	 * workflow's authority), not from its post_status: a post whose status core
 	 * has already moved is still seated where the workflow left it, and the
 	 * stage is what a crossing would disturb. The target side comes from
-	 * status_to_region(), so `future` is publish-side here.
+	 * status_to_region(), so `future` is publish-side here. That makes
+	 * scheduling a post that is already live no crossing. The save guard
+	 * refuses it by a rule of its own
+	 * (PublishBoundaryGuard::schedules_a_live_post()).
 	 *
 	 * Trashing crosses nothing in either direction: `trash` is an overlay that
 	 * suspends the workflow in place. So is `inherit`, which is core-internal.
