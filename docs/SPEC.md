@@ -1173,7 +1173,7 @@ flowchart LR
 - A draft is created only after the phase gate passes. A required tool that's disabled or fails is a hard failure.
 - URLs from providers and agents are limited to `http` and `https` before they're stored. Fetching a user's URL goes through the SSRF guard: public unicast IPs only, and image downloads are also allowlisted with no redirects. → `SafeUrl`, `SsrfGuard`
 - A research agent that isn't available reports `unavailable` with structured requirements, and is never run.
-- Archive scout reads only published posts.
+- Archive scout reads only published posts that have no password.
 - Every prompt the ideation features send is registered where admins can read and override it. This is the "configurable, transparent AI" promise for ideation. → `PromptRegistry`
 - Nothing in the ideation path depends on Jetpack.
 
