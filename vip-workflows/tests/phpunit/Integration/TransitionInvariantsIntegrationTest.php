@@ -498,18 +498,42 @@ class TransitionInvariantsIntegrationTest extends TestCase
 	}
 
 	/**
-	 * Two requests publish the same post. The one that will lose the stage swap
-	 * has already written `publish` when the winner reaches its status write.
-	 * The winner still reports the go-live, since it was decided from `draft`;
-	 * the loser refuses before it dispatches anything.
+	 * Two requests publish the same post, and the other one has already written
+	 * `publish` when this one reaches its status write. This request wins the
+	 * stage swap and still reports the go-live, since it was decided from
+	 * `draft`. The other request's own refusal is covered by the put-back tests
+	 * above.
 	 */
 	public function test_the_winner_of_a_double_publish_reports_its_go_live(): void
 	{
+		$this->assert_winner_of_a_double_publish_reports_its_go_live( false );
+	}
+
+	/**
+	 * As above, with this request's post cache flushed after the other
+	 * request's write, as a required tool or a cache eviction can do. The
+	 * go-live still comes from the status this request started from.
+	 */
+	public function test_the_winner_of_a_double_publish_reports_its_go_live_after_a_cache_flush(): void
+	{
+		$this->assert_winner_of_a_double_publish_reports_its_go_live( true );
+	}
+
+	/**
+	 * Run a double publish that this request wins, and check its go-live.
+	 *
+	 * @param bool $flush_cache Whether to clear the post cache after the other request's write.
+	 */
+	private function assert_winner_of_a_double_publish_reports_its_go_live( bool $flush_cache ): void
+	{
 		$post_id = $this->make_tool_gated_post();
 
-		$other = function ( int $tool_post_id ) use ( $post_id ): void {
+		$other = function ( int $tool_post_id ) use ( $post_id, $flush_cache ): void {
 			if ( $tool_post_id === $post_id ) {
 				$this->write_from_another_request( $post_id, 'draft', 'publish' );
+				if ( $flush_cache ) {
+					clean_post_cache( $post_id );
+				}
 			}
 		};
 		add_action( self::RACE_TOOL_HOOK, $other );
@@ -520,15 +544,27 @@ class TransitionInvariantsIntegrationTest extends TestCase
 		};
 		add_action( 'vip_workflows_event_emitted', $spy );
 
+		$contexts    = array();
+		$context_spy = static function ( $moved_id, $new_stage, $old_stage, $sequence, $context ) use ( &$contexts, $post_id ): void {
+			if ( (int) $moved_id === $post_id ) {
+				$contexts[] = $context;
+			}
+		};
+		add_action( 'vip_workflows_status_transition', $context_spy, 10, 5 );
+
 		try {
 			$result = ( new StatusManager() )->transition( $post_id, 'live' );
 		} finally {
 			remove_action( self::RACE_TOOL_HOOK, $other );
 			remove_action( 'vip_workflows_event_emitted', $spy );
+			remove_action( 'vip_workflows_status_transition', $context_spy, 10 );
 		}
 
 		$this->assertTrue( $result );
 		$this->assertSame( array( 'live', 'publish' ), $this->stored_state( $post_id ) );
+		$this->assertCount( 1, $contexts );
+		$this->assertSame( 'draft', $contexts[0]['previous_status'] );
+		$this->assertSame( 'publish', $contexts[0]['committed_status'] );
 		$this->assertContains( 'post.published', $events );
 	}
 

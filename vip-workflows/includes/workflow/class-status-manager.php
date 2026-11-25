@@ -1148,11 +1148,13 @@ class StatusManager {
 			);
 		}
 
-		// The status this request saw when it started, before it wrote anything.
-		// Go-live consumers compare it against committed_status, so it stays the
-		// status this move was decided from even when another request has written
-		// a status since: the move that wins still reports the go-live it made.
-		$previous_status = (string) get_post_status( $post_id );
+		// The status this move was decided from: the post as read at the top of
+		// this method, before the checks and required tools ran. Go-live
+		// consumers compare it against committed_status, so it must not be
+		// re-read here: another request may have written a status since, and a
+		// cache flush would surface it. The move that wins still reports the
+		// go-live it made.
+		$previous_status = (string) get_post_status( $post );
 
 		// Region crossing: write the target region's status through core BEFORE the
 		// stage-meta write; a core failure surfaces and the stage does not move.
@@ -1287,8 +1289,8 @@ class StatusManager {
 		}
 
 		// The context carries the COMMITTED status — core may have coerced the
-		// write (publish → future for future-dated posts) — plus the status the
-		// post held before this transition wrote anything.
+		// write (publish → future for future-dated posts) — plus the status this
+		// move was decided from.
 		$context = array(
 			'cause'            => 'workflow',
 			'committed_status' => (string) get_post_status( $post_id ),
@@ -1664,7 +1666,7 @@ class StatusManager {
 	 * @param string   $new_stage New stage key.
 	 * @param string   $old_stage Old stage key ('' when a sequence assignment seats a post with no prior stage).
 	 * @param Sequence $sequence Sequence.
-	 * @param array    $context   Event context: 'cause' ('workflow' for an edge traversal or assignment seat, 'core' for a checkpoint reseat after a core-driven status change), 'committed_status' (the post_status core actually committed), and 'previous_status' (the committed post_status immediately before this stage change wrote anything; equals committed_status when no status was written).
+	 * @param array    $context   Event context: 'cause' ('workflow' for an edge traversal or assignment seat, 'core' for a checkpoint reseat after a core-driven status change), 'committed_status' (the post_status core actually committed), and 'previous_status' (the post_status this stage change started from: for an edge traversal, the status read before its checks and required tools ran, even if another request has written one since; equals committed_status when no status was written and nothing else wrote one).
 	 */
 	private function dispatch_stage_change( int $post_id, string $new_stage, string $old_stage, Sequence $sequence, array $context ): void {
 		/**
