@@ -631,7 +631,7 @@ Activate and deactivate side effects:
 
 The kanban, calendar and my_queue gates are in `vip-workflows/includes/admin/class-admin.php`, `vip-workflows/includes/api/class-workflow-controller.php` and the React `AppShell.js` and `MyDashboardPage.js`.
 
-**What disabling does to data:** nothing is deleted.
+**What disabling does to data:** nothing is deleted, except the Parse.ly extension's prompt-score warm-up queue (`workflow_parsely_prompt_warm_queue`).
 
 - The ideation tables `vip_ideation_sources` and `vip_ideation_analyses` are created by the schema for every install, regardless of the flag.
 - `vip_ideation` posts stay in `wp_posts` but their post type is no longer registered.
