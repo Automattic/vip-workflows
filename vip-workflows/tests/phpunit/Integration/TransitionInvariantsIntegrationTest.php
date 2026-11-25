@@ -569,6 +569,60 @@ class TransitionInvariantsIntegrationTest extends TestCase
 	}
 
 	/**
+	 * Another request writes a status after this request's crossing has
+	 * committed `publish` and swapped its stage, and this request's post cache
+	 * is flushed before the event is built. The event still reports the status
+	 * this request committed, so the go-live is neither lost nor taken from
+	 * the other request's write.
+	 */
+	public function test_a_status_written_after_the_commit_does_not_change_the_committed_status(): void
+	{
+		$post_id = $this->make_post( 'draft', 'draft' );
+
+		// updated_post_meta fires after the stage swap, before the event is built.
+		$other = static function ( $meta_id, $object_id, $meta_key ) use ( $post_id ): void {
+			global $wpdb;
+
+			if ( (int) $object_id !== $post_id || StatusManager::STAGE_META_KEY !== $meta_key ) {
+				return;
+			}
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery
+			$wpdb->update( $wpdb->posts, array( 'post_status' => 'draft' ), array( 'ID' => $post_id ) );
+			clean_post_cache( $post_id );
+		};
+		add_action( 'updated_post_meta', $other, 10, 3 );
+
+		$events = array();
+		$spy    = static function ( $event_type ) use ( &$events ): void {
+			$events[] = (string) $event_type;
+		};
+		add_action( 'vip_workflows_event_emitted', $spy );
+
+		$contexts    = array();
+		$context_spy = static function ( $moved_id, $new_stage, $old_stage, $sequence, $context ) use ( &$contexts, $post_id ): void {
+			if ( (int) $moved_id === $post_id ) {
+				$contexts[] = $context;
+			}
+		};
+		add_action( 'vip_workflows_status_transition', $context_spy, 10, 5 );
+
+		try {
+			$result = ( new StatusManager() )->transition( $post_id, 'live' );
+		} finally {
+			remove_action( 'updated_post_meta', $other, 10 );
+			remove_action( 'vip_workflows_event_emitted', $spy );
+			remove_action( 'vip_workflows_status_transition', $context_spy, 10 );
+		}
+
+		$this->assertTrue( $result );
+		$this->assertSame( array( 'live', 'draft' ), $this->stored_state( $post_id ) );
+		$this->assertCount( 1, $contexts );
+		$this->assertSame( 'draft', $contexts[0]['previous_status'] );
+		$this->assertSame( 'publish', $contexts[0]['committed_status'] );
+		$this->assertContains( 'post.published', $events );
+	}
+
+	/**
 	 * A stored stage the sequence doesn't define is a data-integrity error, and
 	 * the loser puts its status back as for any other loss.
 	 */

@@ -1288,12 +1288,15 @@ class StatusManager {
 			$this->store_transition_data( $post_id, $to_status, $options['input_data'] );
 		}
 
-		// The context carries the COMMITTED status — core may have coerced the
-		// write (publish → future for future-dated posts) — plus the status this
-		// move was decided from.
+		// The context carries the status this move committed, as
+		// commit_post_status() read it back straight after its own write (so
+		// core's coercions, such as publish → future for a future-dated post,
+		// are kept), or the status it was decided from when it wrote none. Like
+		// previous_status, it must not be re-read here: another request may
+		// have written a status since, and a cache flush would surface it.
 		$context = array(
 			'cause'            => 'workflow',
-			'committed_status' => (string) get_post_status( $post_id ),
+			'committed_status' => $committed_status,
 			'previous_status'  => $previous_status,
 		);
 
@@ -1666,7 +1669,7 @@ class StatusManager {
 	 * @param string   $new_stage New stage key.
 	 * @param string   $old_stage Old stage key ('' when a sequence assignment seats a post with no prior stage).
 	 * @param Sequence $sequence Sequence.
-	 * @param array    $context   Event context: 'cause' ('workflow' for an edge traversal or assignment seat, 'core' for a checkpoint reseat after a core-driven status change), 'committed_status' (the post_status core actually committed), and 'previous_status' (the post_status this stage change started from: for an edge traversal, the status read before its checks and required tools ran, even if another request has written one since; equals committed_status when no status was written and nothing else wrote one).
+	 * @param array    $context   Event context: 'cause' ('workflow' for an edge traversal or assignment seat, 'core' for a checkpoint reseat after a core-driven status change), 'committed_status' (the post_status core actually committed: for an edge traversal, the status read back straight after its own write, or previous_status when it wrote none, even if another request has written one since), and 'previous_status' (the post_status this stage change started from: for an edge traversal, the status read before its checks and required tools ran, even if another request has written one since; equals committed_status when no status was written and nothing else wrote one).
 	 */
 	private function dispatch_stage_change( int $post_id, string $new_stage, string $old_stage, Sequence $sequence, array $context ): void {
 		/**
