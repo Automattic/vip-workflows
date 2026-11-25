@@ -666,29 +666,150 @@ class SelectFieldOptionsTest extends TestCase
 	}
 
 	/**
-	 * The classic editor's autosave reads revisioned meta from the posted form.
+	 * Autosave the test post as the classic editor does.
+	 *
+	 * Core reads revisioned meta from the posted fields: `$_POST` itself for
+	 * the editor form, or `$_POST['data']['wp_autosave']` for the heartbeat.
+	 *
+	 * @param array $fields    Posted fields beside the post ID and type.
+	 * @param bool  $heartbeat Whether the fields arrive in a heartbeat.
 	 */
-	public function test_a_classic_autosave_does_not_store_a_value_that_is_not_an_option(): void
+	private function classic_autosave( array $fields, bool $heartbeat = false ): void
 	{
-		$this->publish_the_post();
-		$form = array(
-			'post_ID'         => $this->post_id,
-			'post_type'       => 'post',
-			'post_title'      => 'Typed title',
-			'content'         => 'Typed content.',
-			$this->select_key => 'Banana',
+		$form = array_merge(
+			array(
+				'post_ID'   => $this->post_id,
+				'post_type' => 'post',
+				'content'   => 'Typed content.',
+			),
+			$fields
 		);
 
-		$_POST = $form;
+		$_POST = $heartbeat ? array( 'data' => array( 'wp_autosave' => wp_slash( $form ) ) ) : wp_slash( $form );
 		try {
 			wp_create_post_autosave( wp_slash( $form ) );
 		} finally {
 			$_POST = array();
 		}
+	}
+
+	/**
+	 * The two shapes the classic editor posts its autosave fields in.
+	 *
+	 * @return array<string, array{0: bool}>
+	 */
+	public static function provide_classic_autosave_shapes(): array
+	{
+		return array(
+			'the editor form' => array( false ),
+			'the heartbeat'   => array( true ),
+		);
+	}
+
+	/**
+	 * The classic editor's autosave reads revisioned meta from the posted form.
+	 */
+	public function test_a_classic_autosave_does_not_store_a_value_that_is_not_an_option(): void
+	{
+		$this->publish_the_post();
+
+		$this->classic_autosave(
+			array(
+				'post_title'      => 'Typed title',
+				$this->select_key => 'Banana',
+			)
+		);
 
 		$autosave = $this->autosave_row();
 		$this->assertSame( 'Typed title', $autosave->post_title );
 		$this->assertSame( '', (string) get_metadata( 'post', $autosave->ID, $this->select_key, true ) );
+	}
+
+	/**
+	 * A published post that holds an option, an autosave of it, and then a
+	 * second autosave that posts a value that isn't an option.
+	 *
+	 * @param  bool $heartbeat Whether the fields arrive in a heartbeat.
+	 * @return \WP_Post The autosave.
+	 */
+	private function refuse_a_classic_autosave( bool $heartbeat ): \WP_Post
+	{
+		$this->rest_save( array( 'meta' => array( $this->select_key => 'Staff photo' ) ) );
+		$this->publish_the_post();
+		$this->classic_autosave( array( 'post_title' => 'Typed title' ), $heartbeat );
+
+		$this->classic_autosave(
+			array(
+				'post_title'      => 'Typed title again',
+				$this->select_key => 'Banana',
+			),
+			$heartbeat
+		);
+
+		return $this->autosave_row();
+	}
+
+	/**
+	 * Core deletes an autosave's row before it adds the posted value. When
+	 * the value is refused, the autosave keeps the row it had.
+	 *
+	 * @dataProvider provide_classic_autosave_shapes
+	 *
+	 * @param bool $heartbeat Whether the fields arrive in a heartbeat.
+	 */
+	public function test_a_refused_classic_autosave_keeps_the_value_the_autosave_had( bool $heartbeat ): void
+	{
+		$autosave = $this->refuse_a_classic_autosave( $heartbeat );
+
+		$this->assertSame( 'Typed title again', $autosave->post_title );
+		$this->assertSame( 'Staff photo', get_metadata( 'post', $autosave->ID, $this->select_key, true ) );
+	}
+
+	/**
+	 * A restore copies the autosave's row onto the post, and an autosave with
+	 * no row would empty the post's field.
+	 *
+	 * @dataProvider provide_classic_autosave_shapes
+	 *
+	 * @param bool $heartbeat Whether the fields arrive in a heartbeat.
+	 */
+	public function test_restoring_a_refused_classic_autosave_keeps_the_posts_value( bool $heartbeat ): void
+	{
+		$autosave = $this->refuse_a_classic_autosave( $heartbeat );
+
+		wp_restore_post_revision( $autosave->ID );
+
+		$this->assertSame( 'Typed title again', get_post( $this->post_id )->post_title );
+		$this->assertSame( 'Staff photo', $this->stored() );
+	}
+
+	/**
+	 * @dataProvider provide_classic_autosave_shapes
+	 *
+	 * @param bool $heartbeat Whether the fields arrive in a heartbeat.
+	 */
+	public function test_a_classic_autosave_stores_an_option_and_clears_the_field( bool $heartbeat ): void
+	{
+		$this->rest_save( array( 'meta' => array( $this->select_key => 'Staff photo' ) ) );
+		$this->publish_the_post();
+
+		$this->classic_autosave(
+			array(
+				'post_title'      => 'Typed title',
+				$this->select_key => 'Archive photo',
+			),
+			$heartbeat
+		);
+		$this->assertSame( 'Archive photo', get_metadata( 'post', $this->autosave_row()->ID, $this->select_key, true ) );
+
+		$this->classic_autosave(
+			array(
+				'post_title'      => 'Typed title again',
+				$this->select_key => '',
+			),
+			$heartbeat
+		);
+		$this->assertSame( '', (string) get_metadata( 'post', $this->autosave_row()->ID, $this->select_key, true ) );
 	}
 
 	/**

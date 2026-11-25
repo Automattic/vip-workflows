@@ -501,10 +501,17 @@ class MetadataOptionGuardTest extends TestCase
 
     public function test_hooks_the_three_meta_api_writes_and_the_rest_save(): void
     {
-        $hooks = array();
+        $hooks   = array();
+        $actions = array();
         Functions\when( 'add_filter' )->alias(
             function ( $hook, $callback ) use ( &$hooks ) {
                 $hooks[ $hook ] = $callback[1];
+                return true;
+            }
+        );
+        Functions\when( 'add_action' )->alias(
+            function ( $hook, $callback, $priority = 10 ) use ( &$actions ) {
+                $actions[ $hook ] = array( $callback[1], $priority );
                 return true;
             }
         );
@@ -521,5 +528,136 @@ class MetadataOptionGuardTest extends TestCase
             ),
             $hooks
         );
+        // Core's own callback on this action runs at 10 and reads the posted fields.
+        $this->assertSame( array( 'wp_creating_autosave' => array( 'drop_refused_autosave_fields', 9 ) ), $actions );
+    }
+
+    // =========================================================================
+    // The classic editor's autosave
+    // =========================================================================
+
+    /**
+     * Run the autosave callback over posted fields and return what is left of them.
+     *
+     * @param  array $posted    Posted autosave fields.
+     * @param  bool  $heartbeat Whether the fields arrive in a heartbeat.
+     * @param  array $autosave  The autosave, as core passes it.
+     * @return array The posted fields after the callback.
+     */
+    private function posted_after_autosave_callback( array $posted, bool $heartbeat = false, array $autosave = array( 'ID' => 77, 'post_parent' => 41 ) ): array
+    {
+        Functions\when( 'wp_is_post_revision' )->justReturn( 41 );
+        Functions\when( 'wp_unslash' )->alias(
+            static function ( $value ) {
+                return is_string( $value ) ? stripslashes( $value ) : $value;
+            }
+        );
+
+        $previous = $_POST;
+        $_POST    = $heartbeat ? array( 'data' => array( 'wp_autosave' => $posted ) ) : $posted;
+        try {
+            $this->capture_log(
+                function () use ( $autosave ): void {
+                    $this->guard->drop_refused_autosave_fields( $autosave );
+                }
+            );
+
+            return $heartbeat ? $_POST['data']['wp_autosave'] : $_POST;
+        } finally {
+            $_POST = $previous;
+        }
+    }
+
+    /**
+     * @return array<string, array{0: bool}>
+     */
+    public static function provide_posted_shapes(): array
+    {
+        return array(
+            'the editor form' => array( false ),
+            'the heartbeat'   => array( true ),
+        );
+    }
+
+    /**
+     * Core deletes the autosave's row before it adds the posted value, so a
+     * value that would be refused is taken out of the posted fields first.
+     *
+     * @dataProvider provide_posted_shapes
+     *
+     * @param bool $heartbeat Whether the fields arrive in a heartbeat.
+     */
+    public function test_autosave_drops_a_posted_value_that_would_be_refused( bool $heartbeat ): void
+    {
+        $posted = array(
+            'post_title' => 'Typed title',
+            self::KEY    => 'Banana',
+        );
+
+        $this->assertSame( array( 'post_title' => 'Typed title' ), $this->posted_after_autosave_callback( $posted, $heartbeat ) );
+    }
+
+    /**
+     * @dataProvider provide_posted_shapes
+     *
+     * @param bool $heartbeat Whether the fields arrive in a heartbeat.
+     */
+    public function test_autosave_keeps_a_posted_value_the_row_takes( bool $heartbeat ): void
+    {
+        $this->rows = array( 'It\'s an old option' );
+
+        foreach ( array( 'No photo needed', '', 'It\\\'s an old option' ) as $value ) {
+            $posted = array(
+                'post_title' => 'Typed title',
+                self::KEY    => $value,
+            );
+
+            $this->assertSame( $posted, $this->posted_after_autosave_callback( $posted, $heartbeat ), $value );
+        }
+    }
+
+    public function test_autosave_leaves_other_posted_fields_and_other_keys_alone(): void
+    {
+        $posted = array(
+            'post_title'          => 'Banana',
+            'wf_meta_4_photo_txt' => 'Banana',
+        );
+
+        $this->assertSame( $posted, $this->posted_after_autosave_callback( $posted ) );
+        $this->assertSame( array(), $this->posted_after_autosave_callback( array() ) );
+    }
+
+    public function test_autosave_with_no_logged_in_user_keeps_the_posted_value(): void
+    {
+        Functions\when( 'get_current_user_id' )->justReturn( 0 );
+        $posted = array( self::KEY => 'Banana' );
+
+        $this->assertSame( $posted, $this->posted_after_autosave_callback( $posted ) );
+    }
+
+    public function test_autosave_without_an_id_changes_nothing(): void
+    {
+        $posted = array( self::KEY => 'Banana' );
+
+        $this->assertSame( $posted, $this->posted_after_autosave_callback( $posted, false, array() ) );
+    }
+
+    public function test_a_value_dropped_from_an_autosave_is_logged(): void
+    {
+        Functions\when( 'wp_is_post_revision' )->justReturn( 41 );
+        Functions\when( 'wp_unslash' )->returnArg();
+        $_POST = array( self::KEY => 'Banana' );
+
+        try {
+            $log = $this->capture_log(
+                function (): void {
+                    $this->guard->drop_refused_autosave_fields( array( 'ID' => 77 ) );
+                }
+            );
+        } finally {
+            $_POST = array();
+        }
+
+        $this->assertStringContainsString( 'the select field "' . self::KEY . '" on post 77 for user 5', $log );
     }
 }

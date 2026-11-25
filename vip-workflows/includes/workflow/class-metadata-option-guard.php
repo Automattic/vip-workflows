@@ -38,7 +38,10 @@ namespace VIPWorkflows\Workflow;
  * kinds of write are let through below (see is_exempt_write()).
  *
  * A revision or autosave row is held too, to an option or a value its post
- * holds, because a restore copies the row onto the post.
+ * holds, because a restore copies the row onto the post. The classic editor's
+ * autosave deletes its row before it adds a value, so a value that would be
+ * refused is taken out of its posted fields first (see
+ * drop_refused_autosave_fields()).
  *
  * Only fields of active sequences are known here, the same fields that are
  * registered as post meta.
@@ -81,12 +84,16 @@ class MetadataOptionGuard {
 	}
 
 	/**
-	 * Hook the meta API. Safe to call again: the same callbacks replace themselves.
+	 * Hook the meta API and the classic editor's autosave. Safe to call again:
+	 * the same callbacks replace themselves.
 	 */
 	public function init(): void {
 		add_filter( 'add_post_metadata', array( $this, 'check_write' ), 10, 4 );
 		add_filter( 'update_post_metadata', array( $this, 'check_write' ), 10, 4 );
 		add_filter( 'update_post_metadata_by_mid', array( $this, 'check_write_by_mid' ), 10, 4 );
+
+		// Before core's own callback at 10, which reads the posted fields.
+		add_action( 'wp_creating_autosave', array( $this, 'drop_refused_autosave_fields' ), 9 );
 	}
 
 	/**
@@ -224,6 +231,47 @@ class MetadataOptionGuard {
 		}
 
 		return $this->refuses( (int) $row->post_id, $meta_key, $meta_value ) ? false : $check;
+	}
+
+	/**
+	 * The classic editor's autosave: take a value that would be refused out of
+	 * the posted fields.
+	 *
+	 * Core's callback on `wp_creating_autosave` reads each revisioned meta key
+	 * from the posted fields, deletes the autosave's row and adds the posted
+	 * value (wp_autosave_post_revisioned_meta_fields()). When the add is
+	 * refused the row is gone, and a restore of that autosave would empty the
+	 * post's field. With the key out of the posted fields, core leaves the
+	 * autosave's row as it is.
+	 *
+	 * The fields are `$_POST` for the editor form, or
+	 * `$_POST['data']['wp_autosave']` for the heartbeat, the same two places
+	 * core reads. Core has checked the nonce before this action fires.
+	 *
+	 * @param array $new_autosave The autosave revision, as an array.
+	 */
+	public function drop_refused_autosave_fields( $new_autosave ): void {
+		$autosave_id = is_array( $new_autosave ) ? (int) ( $new_autosave['ID'] ?? 0 ) : 0;
+		if ( $autosave_id <= 0 ) {
+			return;
+		}
+
+		// phpcs:disable WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- core verified the nonce before this action; the values are only compared here, never stored.
+		$in_heartbeat = isset( $_POST['data']['wp_autosave'] ) && is_array( $_POST['data']['wp_autosave'] );
+		$posted       = $in_heartbeat ? $_POST['data']['wp_autosave'] : $_POST;
+
+		foreach ( array_keys( array_intersect_key( $this->fields, $posted ) ) as $meta_key ) {
+			if ( ! $this->refuses( $autosave_id, (string) $meta_key, wp_unslash( $posted[ $meta_key ] ) ) ) {
+				continue;
+			}
+
+			if ( $in_heartbeat ) {
+				unset( $_POST['data']['wp_autosave'][ $meta_key ] );
+			} else {
+				unset( $_POST[ $meta_key ] );
+			}
+		}
+		// phpcs:enable
 	}
 
 	/**
