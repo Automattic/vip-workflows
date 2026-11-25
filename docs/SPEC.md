@@ -597,7 +597,7 @@ There are no SlotFills of Workflows' own.
 
 ### Experiments
 
-How unfinished features are switched on and off, what each one gates, and what turning one off does to data. When reviewing, check that new experimental surfaces sit behind a gate, that turning the experiment off stops its background work, and that nothing deletes data on disable.
+How unfinished features are switched on and off, what each one gates, and what turning one off does to data. When reviewing, check that new experimental surfaces sit behind a gate, that turning the experiment off stops its background work, and that nothing deletes content or configuration on disable; only a work queue the feature rebuilds may be dropped.
 
 Experiments are stored in the option `vip_workflows_experiments`, an array of enabled IDs that is not autoloaded. Resolution order is filter `vip_workflows_experiments` > option > disabled, so **every experiment is off by default**.
 
@@ -631,7 +631,7 @@ Activate and deactivate side effects:
 
 The kanban, calendar and my_queue gates are in `vip-workflows/includes/admin/class-admin.php`, `vip-workflows/includes/api/class-workflow-controller.php` and the React `AppShell.js` and `MyDashboardPage.js`.
 
-**What disabling does to data:** nothing is deleted, except the Parse.ly extension's prompt-score warm-up queue (`workflow_parsely_prompt_warm_queue`).
+**What disabling does to data:** nothing is deleted. Turning `ideation` off also drops the Parse.ly extension's prompt-score warm-up queue (`workflow_parsely_prompt_warm_queue`), a work list that polls refill once `ideation` is back on.
 
 - The ideation tables `vip_ideation_sources` and `vip_ideation_analyses` are created by the schema for every install, regardless of the flag.
 - `vip_ideation` posts stay in `wp_posts` but their post type is no longer registered.
