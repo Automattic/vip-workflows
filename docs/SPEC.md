@@ -905,9 +905,9 @@ flowchart TD
 
 **What it's for.** Assignments say who handles a post next. When someone moves a post to a stage, they can name the person, role or agent responsible for it, and that person sees the post in their own work lists.
 
-**How it works.** An assignment is an input on a transition. A transition can declare an assignment slot with a meta key, a label, an assignee type, whether it's required, and what happens on assign. The assignee type is a user (the default), a role or an agent, and extensions can add more types. Assigning an agent fires a hook that queues the agent's task. Free-text note inputs are retired, and are stripped on import and by a migration.
+**How it works.** An assignment is an input on a transition. A transition can declare an assignment slot with a meta key, a label, an assignee type, whether it's required, the roles a user assignee may hold, and what happens on assign. The assignee type is a user (the default), a role or an agent, and extensions can add more types. Assigning an agent fires a hook that queues the agent's task. Free-text note inputs are retired, and are stripped on import and by a migration.
 
-- **Checked during the transition, before anything is written.** Undeclared keys are rejected. A required slot must be filled (422 `required_assignment_missing`). The user or role must exist. A user assignee must be able to read the post at the status the move will commit (400 `assignee_cannot_read`). A role whose members can't all read the post is accepted, with a warning in the response.
+- **Checked during the transition, before anything is written.** Undeclared keys are rejected. A required slot must be filled (422 `required_assignment_missing`). The user or role must exist. When the slot lists `filter.roles`, a user assignee must hold one of them (400 `assignee_role_not_allowed`): the same users the editor's picker lists, as long as every listed role is still registered, and the person making the move isn't exempt. A user assignee must be able to read the post at the status the move will commit (400 `assignee_cannot_read`). A role whose members can't all read the post is accepted, with a warning in the response.
 - **Each slot is stored as post meta** holding the value, the type, a status (pending, completed or expired), when it was assigned and who assigned it.
 - **Leaving a stage completes the person assignments.** When a post leaves a stage by a transition, a core reseat, reassignment or removal from the workflow, pending user and role slots are marked completed. Agent slots are not.
 - **Pending user assignments are copied into one lookup key,** one row per user, rebuilt after every slot change.
@@ -931,9 +931,9 @@ flowchart TD
 **Code**
 
 - `vip-workflows/includes/workflow/class-assignment-manager.php`: `AssignmentManager`, which validates inside `StatusManager::transition()` (`vip-workflows/includes/workflow/class-status-manager.php`); fires `vip_workflows_agent_assigned` and applies the filter `vip_workflows_assignee_types`.
-- Input shape: `{ type: 'assignment', meta_key, label, assignee_type, required, on_assign }`; `assignee_type` is `user` (default), `role` or `agent`.
+- Input shape: `{ type: 'assignment', meta_key, label, assignee_type, required, filter: { roles }, on_assign }`; `assignee_type` is `user` (default), `role` or `agent`. `filter.roles` applies to a `user` assignee only, read as the picker's route reads it (`AssignmentManager::role_filter_refusal()`, `AssignableUsersController`).
 - `vip-workflows/includes/workflow/class-agent-runner.php`: `AgentRunner` queues the agent task on `vip_workflows_agent_assigned`.
-- Errors: 422 `required_assignment_missing`, 400 `assignee_cannot_read`, 409 `assignment_conflict`; the role warning comes back as a `warnings` entry.
+- Errors: 422 `required_assignment_missing`, 400 `assignee_role_not_allowed`, 400 `assignee_cannot_read`, 409 `assignment_conflict`; the role warning comes back as a `warnings` entry.
 - Meta: slot `_vip_workflows_assignment_{meta_key}` with `value`, `type`, `status` (`pending` / `completed` / `expired`), `assigned_at`, `assigned_by`; derived `_vip_workflows_pending_assignee`; claim `_vip_workflows_assigned_to`.
 - `vip-workflows/includes/api/class-workflow-controller.php`: `GET /workflow/my-work` (filtered by `read_post`), `GET /workflow/my-queue` (`my_queue` experiment; uses stage and transition `show_in_queue`), `POST /workflow/post/{id}/claim`, `DELETE /workflow/post/{id}/unclaim` (409 `post_not_claimed` when there's nothing to release). Logs `post.claimed` and `post.released`.
 - `vip-workflows/includes/sequences/class-sequence.php`: `Sequence::can_user_claim()` reads `reviewer_roles` and sets only `can_claim`.
