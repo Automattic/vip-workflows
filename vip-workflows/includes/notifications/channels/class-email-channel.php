@@ -97,6 +97,16 @@ class EmailChannel extends NotificationChannel {
 	}
 
 	/**
+	 * Whether the notification resolves to at least one email address.
+	 *
+	 * @param  Notification $notification Notification.
+	 * @return bool True when there is someone to email.
+	 */
+	public function has_recipients( Notification $notification ): bool {
+		return ! empty( $this->get_recipients( $notification ) );
+	}
+
+	/**
 	 * {@inheritdoc}
 	 */
 	public function test_connection() {
