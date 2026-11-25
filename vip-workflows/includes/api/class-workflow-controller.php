@@ -1557,16 +1557,10 @@ class WorkflowController extends WP_REST_Controller {
 						continue;
 					}
 
-						$current_user_id = get_current_user_id();
+					$current_user_id = get_current_user_id();
+					$assigned_id     = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
 
-						// Skip posts authored by current user (unless self-review is allowed).
-					if ( (int) $post->post_author === $current_user_id && ! \VIPWorkflows\Admin\Settings::is_self_review_allowed() ) {
-						continue;
-					}
-
-						$assigned_id = get_post_meta( $post->ID, '_vip_workflows_assigned_to', true );
-
-						// Skip posts assigned to someone else.
+					// Skip posts assigned to someone else.
 					if ( $assigned_id && (int) $assigned_id !== $current_user_id ) {
 						continue;
 					}

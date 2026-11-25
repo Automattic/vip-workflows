@@ -164,9 +164,6 @@ class SiteTimezoneTimestampsIntegrationTest extends TestCase
 			array(
 				'post_status' => 'draft',
 				'post_title'  => 'Timezone post',
-				// Somebody else's: My Queue leaves out the caller's own posts
-				// unless self-review is allowed.
-				'post_author' => (int) self::factory()->user->create( array( 'role' => 'author' ) ),
 			)
 		);
 		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->sequence_id );

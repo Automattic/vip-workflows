@@ -235,10 +235,10 @@ class GeneralSettingsModelTest extends TestCase
     public function test_a_rejected_provider_does_not_discard_other_settings(): void
     {
         ( new GeneralSettingsController() )->save_settings(
-            $this->request( array( 'ai_provider' => 'google', 'allow_self_review' => true ) )
+            $this->request( array( 'ai_provider' => 'google', 'workflow_enforcement' => true ) )
         );
 
-        $this->assertTrue( $this->options['vip_workflows_settings']['allow_self_review'] );
+        $this->assertTrue( $this->options['vip_workflows_settings']['workflow_enforcement'] );
     }
 
     public function test_save_ignores_invalid_model(): void

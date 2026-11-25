@@ -85,7 +85,6 @@ class GeneralSettingsController extends WP_REST_Controller {
 			array(
 				'workflow_enforcement'        => $settings['workflow_enforcement'] ?? false,
 				'workflow_enforcement_mode'   => $settings['workflow_enforcement_mode'] ?? 'require',
-				'allow_self_review'           => $settings['allow_self_review'] ?? false,
 				'bypass_workflow_roles'       => $settings['bypass_workflow_roles'] ?? array( 'administrator' ),
 				'bypass_tool_check_roles'     => $settings['bypass_tool_check_roles'] ?? array( 'administrator' ),
 				'audit_log_roles'             => $settings['audit_log_roles'] ?? array( 'administrator', 'editor' ),
@@ -124,10 +123,6 @@ class GeneralSettingsController extends WP_REST_Controller {
 			$settings['workflow_enforcement_mode'] = in_array( $input['workflow_enforcement_mode'], array( 'require', 'recommend' ), true )
 				? $input['workflow_enforcement_mode']
 				: 'require';
-		}
-
-		if ( isset( $input['allow_self_review'] ) ) {
-			$settings['allow_self_review'] = (bool) $input['allow_self_review'];
 		}
 
 		if ( isset( $input['bypass_workflow_roles'] ) ) {
