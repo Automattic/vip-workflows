@@ -30,6 +30,16 @@ class SlackChannel extends NotificationChannel {
 	public const DESTINATIONS_OPTION = 'vip_workflows_slack_destinations';
 
 	/**
+	 * Seconds to wait for Slack's webhook before giving up.
+	 *
+	 * Every send waits this long on a dead destination: the queued notification job, the admin Test button,
+	 * and per-transition notifications (NotificationDispatcher::send_transition_notifications()), which
+	 * send inline, so the editor's move request blocks on the webhook for up to this long. A slower webhook
+	 * counts as a failed send, and nothing retries it.
+	 */
+	public const WEBHOOK_TIMEOUT = 3;
+
+	/**
 	 * Allowed hosts for Slack webhook delivery.
 	 */
 	private const WEBHOOK_ALLOWED_HOSTS = array(
@@ -113,8 +123,7 @@ class SlackChannel extends NotificationChannel {
 		$response = SsrfGuard::remote_post_allowlisted(
 			$webhook_url,
 			array(
-				// phpcs:ignore WordPressVIPMinimum.Performance.RemoteRequestTimeout.timeout_timeout -- Slack webhook fires from async notification dispatch.
-				'timeout' => 15,
+				'timeout' => self::WEBHOOK_TIMEOUT,
 				'headers' => array( 'Content-Type' => 'application/json' ),
 				'body'    => wp_json_encode( $message ),
 			),

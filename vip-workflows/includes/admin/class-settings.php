@@ -84,9 +84,6 @@ class Settings {
 			$sanitized['workflow_enforcement_mode'] = 'require';
 		}
 
-		// Allow self-review setting.
-		$sanitized['allow_self_review'] = ! empty( $input['allow_self_review'] );
-
 		// Roles that can bypass workflow lock.
 		if ( isset( $input['bypass_workflow_roles'] ) && is_array( $input['bypass_workflow_roles'] ) ) {
 			$sanitized['bypass_workflow_roles'] = array_map( 'sanitize_text_field', $input['bypass_workflow_roles'] );
@@ -150,16 +147,6 @@ class Settings {
 		}
 
 		return $settings['workflow_enforcement_mode'] ?? 'require';
-	}
-
-	/**
-	 * Check if self-review is allowed.
-	 *
-	 * @return bool
-	 */
-	public static function is_self_review_allowed(): bool {
-		$settings = self::get_settings();
-		return ! empty( $settings['allow_self_review'] );
 	}
 
 	/**

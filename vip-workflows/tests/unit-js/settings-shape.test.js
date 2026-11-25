@@ -73,7 +73,6 @@ register(
 const generalSettings = () => ( {
 	workflow_enforcement: false,
 	workflow_enforcement_mode: 'require',
-	allow_self_review: false,
 	bypass_workflow_roles: [ 'administrator' ],
 	bypass_tool_check_roles: [ 'administrator' ],
 	audit_log_roles: [ 'administrator' ],
@@ -330,7 +329,7 @@ describe( 'Settings screen shape', () => {
 
 		fireEvent.click(
 			screen.getByRole( 'checkbox', {
-				name: 'Allow users to review their own posts',
+				name: 'Prompt workflow selection for new posts',
 			} )
 		);
 
@@ -346,7 +345,7 @@ describe( 'Settings screen shape', () => {
 
 		fireEvent.click(
 			screen.getByRole( 'checkbox', {
-				name: 'Allow users to review their own posts',
+				name: 'Prompt workflow selection for new posts',
 			} )
 		);
 		await waitFor( () =>
@@ -363,7 +362,7 @@ describe( 'Settings screen shape', () => {
 					path: '/vip-workflows/v1/settings/general',
 					method: 'POST',
 					data: expect.objectContaining( {
-						allow_self_review: true,
+						workflow_enforcement: true,
 					} ),
 				} )
 			)
@@ -381,7 +380,7 @@ describe( 'Settings screen shape', () => {
 
 		fireEvent.click(
 			screen.getByRole( 'checkbox', {
-				name: 'Allow users to review their own posts',
+				name: 'Prompt workflow selection for new posts',
 			} )
 		);
 		await waitFor( () =>
@@ -413,7 +412,7 @@ describe( 'Settings screen shape', () => {
 
 		fireEvent.click(
 			screen.getByRole( 'checkbox', {
-				name: 'Allow users to review their own posts',
+				name: 'Prompt workflow selection for new posts',
 			} )
 		);
 		await waitFor( () =>
@@ -447,7 +446,7 @@ describe( 'Settings screen shape', () => {
 
 		fireEvent.click(
 			screen.getByRole( 'checkbox', {
-				name: 'Allow users to review their own posts',
+				name: 'Prompt workflow selection for new posts',
 			} )
 		);
 		await waitFor( () =>
@@ -465,7 +464,7 @@ describe( 'Settings screen shape', () => {
 
 		expect(
 			await screen.findByRole( 'checkbox', {
-				name: 'Allow users to review their own posts',
+				name: 'Prompt workflow selection for new posts',
 			} )
 		).toBeChecked();
 	} );

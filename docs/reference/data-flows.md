@@ -34,10 +34,12 @@ StatusManager::transition($post_id, 'review', $options)
     ↓
     If user lacks role → return WP_Error (403)
     ↓
-    Validate submitted assignees: a user assignee must exist and pass
+    Validate submitted assignees: a user assignee must exist, hold one of
+    the slot's filter.roles when it lists any, and pass
     user_can($assignee, 'read_post', $post_id), judged against the status
     the post will hold after the move → else WP_Error (422
-    invalid_assignee / 400 assignee_cannot_read), nothing written
+    invalid_assignee / 400 assignee_role_not_allowed / 400
+    assignee_cannot_read), nothing written
 5. Run required tools (if not bypassed)
     ↓
     AbilityExecutor::execute('readability', ['post_id' => $post_id], 'transition')

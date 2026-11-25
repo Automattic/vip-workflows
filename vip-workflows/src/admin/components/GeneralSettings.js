@@ -1,7 +1,7 @@
 /**
  * General settings panel.
  *
- * Workflow enforcement, self-review, role bypass and audit-log access, as three
+ * Workflow enforcement, role bypass and audit-log access, as three
  * `SettingsSection`s — core's borderless fieldset-and-legend grouping, not a card
  * titled after the tab it sits in.
  *
@@ -147,7 +147,6 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 			data: {
 				workflow_enforcement: settings.workflow_enforcement,
 				workflow_enforcement_mode: settings.workflow_enforcement_mode,
-				allow_self_review: settings.allow_self_review,
 				bypass_workflow_roles: settings.bypass_workflow_roles,
 				bypass_tool_check_roles: settings.bypass_tool_check_roles,
 				audit_log_roles: settings.audit_log_roles,
@@ -238,21 +237,6 @@ export function GeneralSettings( { onDirtyChange, registerSave } ) {
 						}
 					/>
 				) }
-
-				<ToggleControl
-					__nextHasNoMarginBottom
-					label={ __(
-						'Allow users to review their own posts',
-						'vip-workflows'
-					) }
-					checked={ settings.allow_self_review }
-					onChange={ ( val ) =>
-						setSettings( {
-							...settings,
-							allow_self_review: val,
-						} )
-					}
-				/>
 			</SettingsSection>
 
 			<SettingsSection
