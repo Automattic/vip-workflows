@@ -498,6 +498,41 @@ class TransitionInvariantsIntegrationTest extends TestCase
 	}
 
 	/**
+	 * Two requests publish the same post. The one that will lose the stage swap
+	 * has already written `publish` when the winner reaches its status write.
+	 * The winner still reports the go-live, since it was decided from `draft`;
+	 * the loser refuses before it dispatches anything.
+	 */
+	public function test_the_winner_of_a_double_publish_reports_its_go_live(): void
+	{
+		$post_id = $this->make_tool_gated_post();
+
+		$other = function ( int $tool_post_id ) use ( $post_id ): void {
+			if ( $tool_post_id === $post_id ) {
+				$this->write_from_another_request( $post_id, 'draft', 'publish' );
+			}
+		};
+		add_action( self::RACE_TOOL_HOOK, $other );
+
+		$events = array();
+		$spy    = static function ( $event_type ) use ( &$events ): void {
+			$events[] = (string) $event_type;
+		};
+		add_action( 'vip_workflows_event_emitted', $spy );
+
+		try {
+			$result = ( new StatusManager() )->transition( $post_id, 'live' );
+		} finally {
+			remove_action( self::RACE_TOOL_HOOK, $other );
+			remove_action( 'vip_workflows_event_emitted', $spy );
+		}
+
+		$this->assertTrue( $result );
+		$this->assertSame( array( 'live', 'publish' ), $this->stored_state( $post_id ) );
+		$this->assertContains( 'post.published', $events );
+	}
+
+	/**
 	 * A stored stage the sequence doesn't define is a data-integrity error, and
 	 * the loser puts its status back as for any other loss.
 	 */

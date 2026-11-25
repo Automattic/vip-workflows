@@ -1148,6 +1148,12 @@ class StatusManager {
 			);
 		}
 
+		// The status this request saw when it started, before it wrote anything.
+		// Go-live consumers compare it against committed_status, so it stays the
+		// status this move was decided from even when another request has written
+		// a status since: the move that wins still reports the go-live it made.
+		$previous_status = (string) get_post_status( $post_id );
+
 		// Region crossing: write the target region's status through core BEFORE the
 		// stage-meta write; a core failure surfaces and the stage does not move.
 		// Same-region moves never touch post_status — pending, future, whatever core
@@ -1177,8 +1183,8 @@ class StatusManager {
 			// What this write replaces, read past this request's caches: a
 			// winner may have written its status during the checks above, and
 			// a lost swap must put back that status, not the one cached when
-			// this transition started.
-			$previous_status = $this->read_status_uncached( $post_id );
+			// this transition started. Used only for that put-back.
+			$status_before_write = $this->read_status_uncached( $post_id );
 
 			$committed = $this->commit_post_status( $post_id, $to_region );
 			if ( is_wp_error( $committed ) ) {
@@ -1186,9 +1192,7 @@ class StatusManager {
 			}
 			$committed_status = $committed;
 		} else {
-			// The committed post_status BEFORE this transition; a same-region
-			// move writes no status, so it equals committed_status.
-			$previous_status  = (string) get_post_status( $post_id );
+			// A same-region move writes no status.
 			$committed_status = $previous_status;
 		}
 
@@ -1213,7 +1217,7 @@ class StatusManager {
 			if ( ! $swapped ) {
 				$status_write = $crossed_region
 					? array(
-						'previous'  => $previous_status,
+						'previous'  => $status_before_write,
 						'committed' => $committed_status,
 					)
 					: null;
