@@ -30,6 +30,7 @@ import {
 	useState,
 } from '@wordpress/element';
 import { Button, Dropdown, Fill, Tooltip } from '@wordpress/components';
+import { Stack } from '@wordpress/ui';
 import { chevronDown } from '@wordpress/icons';
 import { useSelect, useDispatch } from '@wordpress/data';
 import { store as editorStore } from '@wordpress/editor';
@@ -262,7 +263,11 @@ export function WorkflowHeaderAction() {
 
 	return (
 		<Fill name="PinnedItems/core">
-			<div className="vip-workflows-header-action">
+			<Stack
+				direction="row"
+				align="center"
+				className="vip-workflows-header-action"
+			>
 				{ /* Always wrapped, with nothing to say unless the move is
 				     held: wrapping only while locked would swap the element
 				     at this position each time the lock came or went, and
@@ -322,7 +327,7 @@ export function WorkflowHeaderAction() {
 						</div>
 					) }
 				/>
-			</div>
+			</Stack>
 		</Fill>
 	);
 }

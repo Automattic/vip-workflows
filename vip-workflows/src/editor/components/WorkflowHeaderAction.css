@@ -26,9 +26,10 @@ body.vip-workflows-replaces-publish .editor-editor-interface:not(.is-distraction
 /* Last among the pinned items, whatever order the fills registered in, so the
    button sits where Publish sat: just before the options menu. */
 .vip-workflows-header-action {
-	display: flex;
-	align-items: center;
 	order: 99;
+	/* The hairline seam between the halves. The gap scale starts at 4px, so no
+	   token holds it. */
+	gap: 1px;
 }
 
 /* The pinned-items slot hides every button below the small breakpoint except
@@ -37,21 +38,25 @@ body.vip-workflows-replaces-publish .editor-editor-interface:not(.is-distraction
    way forward, and keeping it there pushes Publish and the options menu off a
    phone-width header — so it yields like any other pinned item, and the
    sidebar's rail stays one menu away. */
-body.vip-workflows-replaces-publish .interface-pinned-items .vip-workflows-header-action .components-button {
+body.vip-workflows-replaces-publish .interface-pinned-items .vip-workflows-header-action__main,
+body.vip-workflows-replaces-publish .interface-pinned-items .vip-workflows-header-action__toggle {
 	display: inline-flex;
 }
 
-/* The two halves read as one control: no gap, and the seam squared off. */
+/* The two halves read as one control, squared off where they meet. */
 .vip-workflows-header-action .vip-workflows-header-action__main {
+	/* wpds-allow system/override -- squares the split button's seam; <Button> has no radius prop and the design system ships no split button. */
 	border-top-right-radius: 0;
+	/* wpds-allow system/override -- squares the split button's seam; <Button> has no radius prop and the design system ships no split button. */
 	border-bottom-right-radius: 0;
 	white-space: nowrap;
 }
 
 .vip-workflows-header-action .vip-workflows-header-action__toggle {
+	/* wpds-allow system/override -- squares the split button's seam; <Button> has no radius prop and the design system ships no split button. */
 	border-top-left-radius: 0;
+	/* wpds-allow system/override -- squares the split button's seam; <Button> has no radius prop and the design system ships no split button. */
 	border-bottom-left-radius: 0;
-	margin-left: 1px;
 }
 
 /* The rail measures itself on mount, so it needs a definite width to measure
@@ -60,5 +65,5 @@ body.vip-workflows-replaces-publish .interface-pinned-items .vip-workflows-heade
 	box-sizing: border-box;
 	width: 320px;
 	max-width: calc(100vw - 32px);
-	padding: 16px;
+	padding: var(--wpds-dimension-padding-lg);
 }

@@ -868,7 +868,13 @@ class RequiredWorkflowPublishTest extends TestCase
 			$draft = get_post( $this->make_post( $args ) );
 			$refused = get_post( $this->make_post( array_merge( $args, array( 'post_status' => 'publish' ) ) ) );
 			foreach ( array( 'post_status', 'post_name', 'post_date', 'post_date_gmt' ) as $field ) {
-				$this->assertSame( $draft->$field, $refused->$field, $field . ' ' . wp_json_encode( $args ) );
+				$message = $field . ' ' . wp_json_encode( $args );
+				// Two inserts can straddle a second boundary, so a date the case does not set may differ by one second.
+				if ( ! in_array( $field, array( 'post_date', 'post_date_gmt' ), true ) || array_key_exists( $field, $args ) || '0000-00-00 00:00:00' === $draft->$field || '0000-00-00 00:00:00' === $refused->$field ) {
+					$this->assertSame( $draft->$field, $refused->$field, $message );
+				} else {
+					$this->assertLessThanOrEqual( 1, abs( strtotime( $draft->$field ) - strtotime( $refused->$field ) ), $message );
+				}
 			}
 			$this->assertSame( get_option( 'home' ) . '/?p=' . $refused->ID, $refused->guid );
 		}

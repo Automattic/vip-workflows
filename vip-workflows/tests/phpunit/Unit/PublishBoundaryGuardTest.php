@@ -374,6 +374,124 @@ class PublishBoundaryGuardTest extends TestCase
     }
 
     /**
+     * Scheduling a post that is already live takes it off the site until its
+     * date. Both statuses are publish-side, so no region is crossed, but it is
+     * an unpublish and is refused like one. The stored dates go back with the
+     * status, so the post does not keep the later date.
+     */
+    public function test_vetoes_scheduling_a_live_post(): void
+    {
+        $this->stub_workflow_post( 'promote', 'publish' );
+
+        $data = $this->guard->veto_post_data(
+            array(
+                'post_status'   => 'future',
+                'post_type'     => 'post',
+                'post_name'     => 'test-post',
+                'post_date'     => '2099-01-01 00:00:00',
+                'post_date_gmt' => '2099-01-01 00:00:00',
+            ),
+            array( 'ID' => self::POST_ID )
+        );
+
+        $this->assertSame( 'publish', $data['post_status'] );
+        $this->assertSame( '2026-01-01 00:00:00', $data['post_date'] );
+        $this->assertSame( '2026-01-01 00:00:00', $data['post_date_gmt'] );
+    }
+
+    /**
+     * Core prepares the slug the same way for `publish` and `future`, so a
+     * slug edit made in the same save is kept. Only the status and the dates
+     * go back.
+     */
+    public function test_scheduling_a_live_post_keeps_a_slug_edit_from_the_same_save(): void
+    {
+        $this->stub_workflow_post( 'promote', 'publish' );
+
+        $data = $this->guard->veto_post_data(
+            array(
+                'post_status'   => 'future',
+                'post_type'     => 'post',
+                'post_name'     => 'edited-slug',
+                'post_date'     => '2099-01-01 00:00:00',
+                'post_date_gmt' => '2099-01-01 00:00:00',
+            ),
+            array( 'ID' => self::POST_ID )
+        );
+
+        $this->assertSame( 'publish', $data['post_status'] );
+        $this->assertSame( 'edited-slug', $data['post_name'] );
+        $this->assertSame( '2026-01-01 00:00:00', $data['post_date'] );
+        $this->assertSame( '2026-01-01 00:00:00', $data['post_date_gmt'] );
+    }
+
+    /**
+     * Scheduling a post that is not live still puts the stored slug back: core
+     * prepares a slug for `future` that a draft or pending post must not keep.
+     */
+    public function test_scheduling_out_of_a_non_publish_region_puts_the_stored_slug_back(): void
+    {
+        $this->stub_workflow_post( 'approval', 'pending' );
+
+        $data = $this->guard->veto_post_data(
+            array(
+                'post_status'   => 'future',
+                'post_type'     => 'post',
+                'post_name'     => 'edited-slug',
+                'post_date'     => '2099-01-01 00:00:00',
+                'post_date_gmt' => '2099-01-01 00:00:00',
+            ),
+            array( 'ID' => self::POST_ID )
+        );
+
+        $this->assertSame( 'pending', $data['post_status'] );
+        $this->assertSame( 'test-post', $data['post_name'] );
+    }
+
+    /**
+     * The same holds for a live post whose stage is in another region (a
+     * sequence with no publish-region stage leaves the stage where it was).
+     */
+    public function test_vetoes_scheduling_a_live_post_seated_outside_the_publish_region(): void
+    {
+        $this->stub_workflow_post( 'review', 'publish' );
+
+        $data = $this->filter_data( 'future' );
+
+        $this->assertSame( 'publish', $data['post_status'] );
+    }
+
+    /**
+     * Scheduling a live post is an unpublish, so it gets the unpublish sentence
+     * and not the advice to move the post to a published stage.
+     */
+    public function test_scheduling_a_live_post_says_the_status_cannot_be_changed_directly(): void
+    {
+        $this->stub_workflow_post( 'promote', 'publish' );
+
+        $this->filter_data( 'future' );
+
+        $this->assertSame(
+            '“Test Post” is in the “Test Workflow” workflow, so its status can’t be changed directly. Move it through the workflow instead. Ask someone with the Administrator role to change it.',
+            (string) reset( $this->transients )
+        );
+    }
+
+    /**
+     * An override role may schedule a live post.
+     */
+    public function test_does_not_veto_a_bypass_user_scheduling_a_live_post(): void
+    {
+        $this->stub_workflow_post( 'promote', 'publish' );
+        $this->stub_current_user_roles( array( 'administrator' ) );
+
+        $data = $this->filter_data( 'future' );
+
+        $this->assertSame( 'future', $data['post_status'] );
+        $this->assertSame( array(), $this->transients );
+    }
+
+    /**
      * The veto queues the classic-path notice, naming the post and the workflow,
      * saying the post can't be published directly, naming the workflow as the
      * way through, and naming the override role to ask otherwise. It does not
@@ -468,7 +586,7 @@ class PublishBoundaryGuardTest extends TestCase
         $message = null;
         $log     = $this->capture_log(
             function () use ( $method, &$message ): void {
-                $message = $method->invoke( $this->guard, self::POST_ID, 'Test Post', '' );
+                $message = $method->invoke( $this->guard, self::POST_ID, 'Test Post', '', 'draft' );
             }
         );
 
@@ -497,7 +615,7 @@ class PublishBoundaryGuardTest extends TestCase
         $message = '';
         $this->capture_log(
             function () use ( $method, $target_status, &$message ): void {
-                $message = $method->invoke( $this->guard, self::POST_ID, 'Test Post', $target_status );
+                $message = $method->invoke( $this->guard, self::POST_ID, 'Test Post', $target_status, 'draft' );
             }
         );
 
@@ -1033,6 +1151,117 @@ class PublishBoundaryGuardTest extends TestCase
         $result   = $this->guard->veto_rest_insert( $prepared, null );
 
         $this->assertSame( $prepared, $result );
+    }
+
+    /**
+     * Statuses a write can name while core schedules the post from its date.
+     *
+     * @return array<string, array{0: string|null}>
+     */
+    public static function provide_statuses_core_writes_as_scheduled(): array
+    {
+        return array(
+            'future named'    => array( 'future' ),
+            'no status named' => array( null ),
+            'publish named'   => array( 'publish' ),
+        );
+    }
+
+    /**
+     * Scheduling a live post over REST is refused with the boundary's error and
+     * the unpublish sentence. Core writes `future` for any post dated at least
+     * a minute ahead, after the REST filter has run, so a write that moves a
+     * live post's date forward schedules it whether it names `future`, names
+     * `publish` or names no status. Each is read as the `future` it becomes,
+     * and gets the error and not a silent revert.
+     *
+     * @dataProvider provide_statuses_core_writes_as_scheduled
+     *
+     * @param string|null $named_status Status the write names, or null for none.
+     */
+    public function test_rest_insert_returns_an_error_on_scheduling_a_live_post( ?string $named_status ): void
+    {
+        $this->stub_workflow_post( 'promote', 'publish' );
+
+        $prepared = (object) array(
+            'ID'            => self::POST_ID,
+            'post_date'     => gmdate( 'Y-m-d H:i:s', time() + 3600 ),
+            'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() + 3600 ),
+        );
+        if ( null !== $named_status ) {
+            $prepared->post_status = $named_status;
+        }
+
+        $result = $this->guard->veto_rest_insert( $prepared, null );
+
+        $this->assertInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( 'vip_workflows_publish_boundary', $result->get_error_code() );
+        $this->assertSame( 409, $result->get_error_data()['status'] );
+        $this->assertStringContainsString( 'its status can’t be changed directly', $result->get_error_message() );
+    }
+
+    /**
+     * A write that names `future` and no later date schedules nothing: core
+     * writes `publish` again for a post dated in the past. It is not refused.
+     */
+    public function test_rest_insert_passes_scheduled_named_without_a_later_date_on_a_live_post(): void
+    {
+        $this->stub_workflow_post( 'promote', 'publish' );
+
+        $result = $this->filter_rest( 'future' );
+
+        $this->assertNotInstanceOf( \WP_Error::class, $result );
+        $this->assertSame( array(), $this->transients );
+    }
+
+    /**
+     * A date edit that leaves a live post dated in the past schedules nothing.
+     */
+    public function test_rest_insert_passes_a_date_edit_that_keeps_a_live_post_live(): void
+    {
+        $this->stub_workflow_post( 'promote', 'publish' );
+
+        $prepared = (object) array(
+            'ID'            => self::POST_ID,
+            'post_date'     => '2025-06-01 00:00:00',
+            'post_date_gmt' => '2025-06-01 00:00:00',
+        );
+
+        $this->assertSame( $prepared, $this->guard->veto_rest_insert( $prepared, null ) );
+    }
+
+    /**
+     * A later date on a post that is not live changes no status: a draft keeps
+     * its status whatever its date.
+     */
+    public function test_rest_insert_passes_a_later_date_on_a_draft(): void
+    {
+        $this->stub_workflow_post( 'review', 'draft' );
+
+        $prepared = (object) array(
+            'ID'            => self::POST_ID,
+            'post_date'     => gmdate( 'Y-m-d H:i:s', time() + 3600 ),
+            'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() + 3600 ),
+        );
+
+        $this->assertSame( $prepared, $this->guard->veto_rest_insert( $prepared, null ) );
+    }
+
+    /**
+     * An override role may move a live post's date forward.
+     */
+    public function test_rest_insert_passes_a_bypass_user_dating_a_live_post_ahead(): void
+    {
+        $this->stub_workflow_post( 'promote', 'publish' );
+        $this->stub_current_user_roles( array( 'administrator' ) );
+
+        $prepared = (object) array(
+            'ID'            => self::POST_ID,
+            'post_date'     => gmdate( 'Y-m-d H:i:s', time() + 3600 ),
+            'post_date_gmt' => gmdate( 'Y-m-d H:i:s', time() + 3600 ),
+        );
+
+        $this->assertSame( $prepared, $this->guard->veto_rest_insert( $prepared, null ) );
     }
 
     // =========================================================================

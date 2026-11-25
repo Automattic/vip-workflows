@@ -131,6 +131,58 @@ describe( 'evaluateStatusChange', () => {
 		).toBe( DECISION_VETO );
 	} );
 
+	// MIRRORS the live-to-scheduled rule in PublishBoundaryGuard::resolve_veto().
+	// Both statuses are publish-side, so the region compare alone says nothing.
+	describe( 'scheduling a post that is already live', () => {
+		const scheduling = {
+			currentRegion: 'publish',
+			targetStatus: 'future',
+			canBypass: false,
+			currentStatus: 'publish',
+			datedAhead: true,
+		};
+
+		it( 'is refused for a non-bypass user, although no region is crossed', () => {
+			expect( evaluateStatusChange( scheduling ) ).toBe( DECISION_VETO );
+		} );
+
+		it( 'is refused as a boundary change, not by the transition rules', () => {
+			expect(
+				isTransitionRulesRefusal( {
+					...scheduling,
+					refusedRegions: [ 'draft', 'pending' ],
+				} )
+			).toBe( false );
+		} );
+
+		it( 'says nothing to a bypass user: the server allows it and the stage stays', () => {
+			expect(
+				evaluateStatusChange( { ...scheduling, canBypass: true } )
+			).toBe( DECISION_SILENT );
+		} );
+
+		it( 'says nothing about a post that is scheduled already', () => {
+			expect(
+				evaluateStatusChange( {
+					...scheduling,
+					currentStatus: 'future',
+				} )
+			).toBe( DECISION_SILENT );
+		} );
+
+		// Scheduled with no later date: core writes `publish` again and the
+		// server refuses nothing. The posts list leaves `datedAhead` out, so
+		// this is the answer it gets for every save of a live post.
+		it.each( [ false, undefined ] )(
+			'says nothing when the save does not date the post ahead (datedAhead: %s)',
+			( datedAhead ) => {
+				expect(
+					evaluateStatusChange( { ...scheduling, datedAhead } )
+				).toBe( DECISION_SILENT );
+			}
+		);
+	} );
+
 	// `trash` and `inherit` are not regions. The server filters BOTH before its
 	// region compare; the client used to filter only `trash`, so `inherit` was
 	// vetoed here while the server allowed it.
@@ -482,6 +534,21 @@ describe( 'getPublishVetoMessage', () => {
 			expect( message.toLowerCase() ).not.toContain( 'remove' );
 		}
 	);
+
+	// Scheduling a post that is already live takes it off the site, so it is
+	// an unpublish too, and is not told to move the post to a published stage.
+	it( 'says the status cannot be changed directly for scheduling a live post', () => {
+		expect(
+			getPublishVetoMessage( {
+				title: 'Budget piece',
+				workflowName: 'News desk',
+				targetStatus: 'future',
+				currentStatus: 'publish',
+			} )
+		).toBe(
+			'“Budget piece” is in the “News desk” workflow, so its status can’t be changed directly. Move it through the workflow instead.'
+		);
+	} );
 } );
 
 describe( 'getPublishVetoMessage without a target status', () => {

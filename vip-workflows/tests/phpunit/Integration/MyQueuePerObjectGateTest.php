@@ -150,4 +150,54 @@ class MyQueuePerObjectGateTest extends TestCase {
 		$this->assertCount( 1, $items );
 		$this->assertSame( $this->other_users_post, $items[0]['post_id'] );
 	}
+
+	/**
+	 * An Editor's own post at a queue stage is in their queue.
+	 */
+	public function test_editor_sees_their_own_post(): void {
+		$own_post = $this->own_post_at_review_as_editor();
+
+		$items = (array) rest_do_request( new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/my-queue' ) )->get_data();
+
+		$this->assertEqualsCanonicalizing(
+			array( $this->other_users_post, $own_post ),
+			array_column( $items, 'post_id' )
+		);
+	}
+
+	/**
+	 * An Editor's own post that is claimed by someone else stays out of their queue.
+	 */
+	public function test_editor_does_not_see_their_own_post_claimed_by_someone_else(): void {
+		$own_post = $this->own_post_at_review_as_editor();
+		$claimer  = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
+		update_post_meta( $own_post, '_vip_workflows_assigned_to', $claimer );
+
+		$items = (array) rest_do_request( new WP_REST_Request( 'GET', '/vip-workflows/v1/workflow/my-queue' ) )->get_data();
+
+		$this->assertNotContains( $own_post, array_column( $items, 'post_id' ) );
+		$this->assertContains( $this->other_users_post, array_column( $items, 'post_id' ) );
+	}
+
+	/**
+	 * Log in as a new Editor and give them a post at the queue-visible stage.
+	 *
+	 * @return int Post ID.
+	 */
+	private function own_post_at_review_as_editor(): int {
+		$editor = (int) self::factory()->user->create( array( 'role' => 'editor' ) );
+		wp_set_current_user( $editor );
+
+		$post_id = (int) self::factory()->post->create(
+			array(
+				'post_status' => 'draft',
+				'post_author' => $editor,
+				'post_title'  => 'Editor own draft',
+			)
+		);
+		update_post_meta( $post_id, StatusManager::SEQUENCE_META_KEY, $this->sequence_id );
+		update_post_meta( $post_id, StatusManager::STAGE_META_KEY, 'review' );
+
+		return $post_id;
+	}
 }

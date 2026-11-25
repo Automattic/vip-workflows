@@ -102,13 +102,23 @@ jobs:
       # wp-env needs only the root install and the PHP dependencies. Boot it in
       # the background so the image pull and WordPress install overlap with the
       # plugin installs and build. Seeding waits until the build is done.
+      # Every shard builds its own image, so a registry 429 or an apt mirror
+      # reset during the build is common enough to retry with a backoff.
       - name: Start WordPress test environment (background)
         if: steps.changes.outputs.run == 'true'
         run: |
           node scripts/gen-wp-env-tests.js
           (
-            node_modules/.bin/wp-env start --config .wp-env.tests.json > "$RUNNER_TEMP/wp-env.log" 2>&1
-            echo $? > "$RUNNER_TEMP/wp-env.exit"
+            status=1
+            for attempt in 1 2 3; do
+              if node_modules/.bin/wp-env start --config .wp-env.tests.json >> "$RUNNER_TEMP/wp-env.log" 2>&1; then
+                status=0
+                break
+              fi
+              echo "wp-env start attempt $attempt failed." >> "$RUNNER_TEMP/wp-env.log"
+              [ "$attempt" -lt 3 ] && sleep $(( attempt * 30 ))
+            done
+            echo $status > "$RUNNER_TEMP/wp-env.exit"
           ) &
 
       - name: Install plugin dependencies
@@ -137,7 +147,8 @@ jobs:
       - name: Wait for WordPress test environment and seed it
         if: steps.changes.outputs.run == 'true'
         run: |
-          for _ in $( seq 1 300 ); do
+          # Long enough for three start attempts and their backoff.
+          for _ in $( seq 1 900 ); do
             [ -f "$RUNNER_TEMP/wp-env.exit" ] && break
             sleep 1
           done
