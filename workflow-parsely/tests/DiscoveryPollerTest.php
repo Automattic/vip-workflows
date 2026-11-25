@@ -244,6 +244,24 @@ class DiscoveryPollerTest extends TestCase {
 	}
 
 	/**
+	 * Replace this request's cached copy of an option without touching the database.
+	 *
+	 * @param string $option Option name.
+	 * @param mixed  $value  Value the cache should hold.
+	 */
+	private function set_cached_option( string $option, $value ): void {
+		$alloptions = wp_load_alloptions();
+
+		if ( array_key_exists( $option, $alloptions ) ) {
+			$alloptions[ $option ] = maybe_serialize( $value );
+			wp_cache_set( 'alloptions', $alloptions, 'options' );
+			return;
+		}
+
+		wp_cache_set( $option, maybe_serialize( $value ), 'options' );
+	}
+
+	/**
 	 * Every occurrence of the poll hook in the cron array.
 	 *
 	 * `wp_next_scheduled()` only reports the soonest one, so a duplicate
@@ -285,6 +303,45 @@ class DiscoveryPollerTest extends TestCase {
 		DiscoveryPoller::ensure_scheduled();
 
 		$this->assertFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+	}
+
+	/**
+	 * Another request can remove the event after this one loaded the `cron`
+	 * option. This request's copy still has the event, the write changes no
+	 * rows, and the copy stays as it was. Unscheduling has to return anyway,
+	 * because `init` calls it on every request while Ideation is off.
+	 */
+	public function test_unschedule_returns_when_another_request_already_removed_the_event(): void {
+		wp_schedule_event( time() + HOUR_IN_SECONDS, 'hourly', DiscoveryPoller::POLL_HOOK );
+		$stale = get_option( 'cron' );
+
+		// The other request: the event leaves the database and this request's copy.
+		wp_clear_scheduled_hook( DiscoveryPoller::POLL_HOOK );
+		$this->assertFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+
+		// Put this request's copy back to what it loaded before that.
+		$this->set_cached_option( 'cron', $stale );
+		$this->assertNotFalse( wp_next_scheduled( DiscoveryPoller::POLL_HOOK ) );
+
+		$writes = 0;
+		$count  = static function ( $value ) use ( &$writes ) {
+			++$writes;
+			if ( $writes > 20 ) {
+				throw new \RuntimeException( 'unschedule() kept rewriting the cron option.' );
+			}
+			return $value;
+		};
+		add_filter( 'pre_update_option_cron', $count );
+
+		try {
+			DiscoveryPoller::unschedule();
+		} finally {
+			remove_filter( 'pre_update_option_cron', $count );
+			wp_cache_delete( 'alloptions', 'options' );
+			wp_cache_delete( 'cron', 'options' );
+		}
+
+		$this->assertSame( 1, $writes );
 	}
 
 	public function test_poll_calls_no_provider_while_ideation_is_off(): void {

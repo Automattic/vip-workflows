@@ -172,15 +172,14 @@ class DiscoveryPoller {
 	 * Stop polling.
 	 *
 	 * Called on deactivation so a disabled plugin does not leave a recurring
-	 * event behind firing at an action nobody handles.
+	 * event behind firing at an action nobody handles, and on every `init` while
+	 * Ideation is off. One pass over the cron array, not a loop until
+	 * `wp_next_scheduled()` comes back empty: when another request has already
+	 * removed the event, this request's copy of the `cron` option still shows
+	 * it, and no write here can change that copy.
 	 */
 	public static function unschedule(): void {
-		$next = wp_next_scheduled( self::POLL_HOOK );
-
-		while ( $next ) {
-			wp_unschedule_event( $next, self::POLL_HOOK );
-			$next = wp_next_scheduled( self::POLL_HOOK );
-		}
+		wp_clear_scheduled_hook( self::POLL_HOOK );
 	}
 
 	/**
