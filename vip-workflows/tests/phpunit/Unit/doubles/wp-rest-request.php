@@ -22,6 +22,8 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
         protected array $params = array();
         /** @var mixed */
         protected $body;
+        /** @var array<string, mixed> */
+        protected array $attributes = array();
 
         /**
          * @param string               $method     HTTP method.
@@ -29,6 +31,21 @@ if ( ! class_exists( 'WP_REST_Request' ) ) {
          * @param array<string, mixed> $attributes Route attributes.
          */
         public function __construct( string $method = '', string $route = '', array $attributes = array() ) {
+            $this->attributes = $attributes;
+        }
+
+        /**
+         * @return array<string, mixed> Attributes of the route the request matched.
+         */
+        public function get_attributes() {
+            return $this->attributes;
+        }
+
+        /**
+         * @param array<string, mixed> $attributes Attributes of the matched route.
+         */
+        public function set_attributes( $attributes ): void {
+            $this->attributes = $attributes;
         }
 
         /**
