@@ -33,6 +33,16 @@ class NotificationDispatcher implements ModuleInterface {
 	public const DEBUG_OPTION = 'vip_workflows_notification_debug';
 
 	/**
+	 * Action Scheduler hook that delivers one notification to one channel.
+	 */
+	public const SEND_HOOK = 'vip_workflows_send_notification';
+
+	/**
+	 * Action Scheduler group for notification jobs.
+	 */
+	public const SEND_GROUP = 'vip-workflows-notifications';
+
+	/**
 	 * Get the identifier.
 	 *
 	 * @inheritDoc
@@ -113,8 +123,8 @@ class NotificationDispatcher implements ModuleInterface {
 			return;
 		}
 
-		// Async delivery handler.
-		add_action( 'vip_workflows_send_notification', array( $this, 'handle_async_send' ), 10, 3 );
+		// Queued delivery handler (Action Scheduler).
+		add_action( self::SEND_HOOK, array( $this, 'handle_async_send' ), 10, 3 );
 
 		// Listen for workflow events.
 		add_action( 'vip_workflows_status_transition', array( $this, 'handle_status_transition' ), 10, 5 );
@@ -176,64 +186,104 @@ class NotificationDispatcher implements ModuleInterface {
 	}
 
 	/**
-	 * Dispatch a notification to all enabled channels.
+	 * Queue a notification for every channel the routing option lists for the event.
 	 *
 	 * @param string $event_type Event type (e.g., 'published').
-	 * @param array  $data       Event data.
+	 * @param array  $data       Event facts (post ID, stage, statuses, cause).
 	 */
 	public function dispatch( string $event_type, array $data ): void {
-		foreach ( $this->channels as $channel ) {
-			if ( ! $channel->is_configured() ) {
+		foreach ( $this->get_channels() as $channel ) {
+			if ( ! $this->should_notify_channel( $event_type, $channel->get_id() ) ) {
 				continue;
 			}
 
-			$should_notify = $this->should_notify_channel( $event_type, $channel->get_id() );
-
-			if ( ! $should_notify ) {
-				continue;
-			}
-
-			if ( $this->is_rate_limited( $channel->get_id(), $event_type, $data ) ) {
-				continue;
-			}
-
-			// Pre-set rate limit to prevent double-scheduling.
-			$this->update_rate_limit( $channel->get_id(), $event_type, $data );
-
-			if ( function_exists( 'as_enqueue_async_action' ) ) {
-				as_enqueue_async_action(
-					'vip_workflows_send_notification',
-					array(
-						'channel_id' => $channel->get_id(),
-						'event_type' => $event_type,
-						'data'       => $data,
-					),
-					'vip-workflows-notifications'
-				);
-			} else {
-				$this->send_to_channel( $channel, $event_type, $data );
-			}
+			$this->queue( $channel, $event_type, $data );
 		}
 	}
 
 	/**
-	 * Send a notification to a specific channel (used by async handler and fallback).
+	 * Queue one notification for one channel, debounced per channel, event and post.
+	 *
+	 * The job stores only the facts of the event. Post title, author and links are
+	 * read when it runs (see handle_async_send()), so the queue tables hold no post
+	 * content. The debounce starts once the job is queued, whatever the send later
+	 * returns. A job that can't be queued is logged, leaves no debounce, and never
+	 * fails the request that made the move.
 	 *
 	 * @param NotificationChannel $channel    Channel instance.
 	 * @param string              $event_type Event type.
-	 * @param array               $data       Event data.
+	 * @param array               $data       Event facts.
 	 */
-	private function send_to_channel( NotificationChannel $channel, string $event_type, array $data ): void {
-		$notification = $this->build_notification( $event_type, $data );
-		$channel->send( $notification );
+	private function queue( NotificationChannel $channel, string $event_type, array $data ): void {
+		if ( ! $channel->is_configured() ) {
+			return;
+		}
+
+		$channel_id = $channel->get_id();
+
+		if ( $this->is_rate_limited( $channel_id, $event_type, $data ) ) {
+			return;
+		}
+
+		try {
+			$action_id = as_enqueue_async_action(
+				self::SEND_HOOK,
+				array(
+					'channel_id' => $channel_id,
+					'event_type' => $event_type,
+					'data'       => $data,
+				),
+				self::SEND_GROUP
+			);
+		} catch ( \Exception $e ) {
+			// A store or validation failure. Errors (a missing Action Scheduler,
+			// a TypeError) are bugs in a required dependency and fail loudly.
+			$this->log_queue_failure( $channel_id, $event_type, $data, $e->getMessage() );
+			return;
+		}
+
+		if ( (int) $action_id <= 0 ) {
+			$this->log_queue_failure( $channel_id, $event_type, $data, 'Action Scheduler returned no action ID.' );
+			return;
+		}
+
+		$this->update_rate_limit( $channel_id, $event_type, $data );
 	}
 
 	/**
-	 * Handle async notification delivery via Action Scheduler.
+	 * Log a notification that could not be queued.
 	 *
 	 * @param string $channel_id Channel ID.
 	 * @param string $event_type Event type.
-	 * @param array  $data       Event data.
+	 * @param array  $data       Event facts.
+	 * @param string $reason     Why it was not queued.
+	 */
+	private function log_queue_failure( string $channel_id, string $event_type, array $data, string $reason ): void {
+		// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging of notification queue failures.
+		error_log(
+			sprintf(
+				'VIP Workflows: could not queue the "%s" notification for channel "%s" on post %d: %s',
+				$event_type,
+				$channel_id,
+				(int) ( $data['post_id'] ?? 0 ),
+				$reason
+			)
+		);
+	}
+
+	/**
+	 * Deliver one queued notification (the Action Scheduler job).
+	 *
+	 * Reads the post's title, author and links from the live post, and sends
+	 * nothing for a post that was deleted or moved to the Trash after the job was
+	 * queued. An email with no recipients is logged and sends nothing. A job
+	 * with no post ID, or a send that fails, throws, so Action Scheduler marks
+	 * the job Failed.
+	 *
+	 * @param string $channel_id Channel ID.
+	 * @param string $event_type Event type.
+	 * @param array  $data       Event facts.
+	 * @throws \RuntimeException When the job has no post ID or the channel does not deliver.
 	 */
 	public function handle_async_send( string $channel_id, string $event_type, array $data ): void {
 		$channel = $this->get_channel( $channel_id );
@@ -241,7 +291,90 @@ class NotificationDispatcher implements ModuleInterface {
 			return;
 		}
 
-		$this->send_to_channel( $channel, $event_type, $data );
+		// Every queued job carries a post ID. Without one, get_post( 0 ) would
+		// return the global post, which is some other post.
+		$post_id = (int) ( $data['post_id'] ?? 0 );
+		if ( $post_id <= 0 ) {
+			throw new \RuntimeException( sprintf( 'Notification job for channel "%s" has no post ID.', esc_html( $channel_id ) ) );
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post || 'trash' === $post->post_status ) {
+			return;
+		}
+
+		// A shared channel gets the site language, even when an administrator
+		// runs the job by hand from Scheduled Actions in another profile language.
+		$switched = switch_to_locale( get_locale() );
+
+		try {
+			$author = get_userdata( (int) $post->post_author );
+
+			// Live values win over anything the job carried.
+			$data = array_merge(
+				$data,
+				array(
+					'post_title'  => $post->post_title,
+					'author_name' => $author ? $author->display_name : __( 'Unknown', 'vip-workflows' ),
+					'edit_url'    => $this->edit_url( $post ),
+					'view_url'    => (string) get_permalink( $post ),
+				)
+			);
+
+			$notification = $this->build_notification( $event_type, $data );
+
+			// No recipients means nothing to deliver, not a failed send.
+			if ( $channel instanceof Channels\EmailChannel && ! $channel->has_recipients( $notification ) ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- intentional server-side logging of an undeliverable notification.
+				error_log(
+					sprintf(
+						'VIP Workflows: Channel "%1$s" has no recipients for the "%2$s" notification for post %3$d; nothing was sent.',
+						$channel_id,
+						$event_type,
+						$post_id
+					)
+				);
+				return;
+			}
+
+			if ( ! $channel->send( $notification ) ) {
+				throw new \RuntimeException(
+					sprintf(
+						'Channel "%1$s" did not deliver the "%2$s" notification for post %3$d.',
+						esc_html( $channel_id ),
+						esc_html( $event_type ),
+						$post_id
+					)
+				);
+			}
+		} finally {
+			if ( $switched ) {
+				restore_previous_locale();
+			}
+		}
+	}
+
+	/**
+	 * The post's edit screen URL, built without a capability check.
+	 *
+	 * Core's get_edit_post_link() returns nothing when the current user can't edit
+	 * the post, and a queued job runs with no user. This builds the URL core builds,
+	 * from the post type's edit link, and applies core's filter. The link only
+	 * opens for people who can edit the post.
+	 *
+	 * @param  \WP_Post $post Post.
+	 * @return string Edit URL, or '' when the post type has no edit screen.
+	 */
+	private function edit_url( \WP_Post $post ): string {
+		$post_type = get_post_type_object( $post->post_type );
+		if ( ! $post_type || empty( $post_type->_edit_link ) ) {
+			return '';
+		}
+
+		$link = admin_url( sprintf( $post_type->_edit_link . '&action=edit', $post->ID ) );
+
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- applies core's own filter, as get_edit_post_link() does.
+		return (string) apply_filters( 'get_edit_post_link', $link, $post->ID, 'raw' );
 	}
 
 	/**
@@ -371,7 +504,7 @@ class NotificationDispatcher implements ModuleInterface {
 	/**
 	 * Handle workflow status transition event.
 	 *
-	 * Sends notifications configured on the specific transition in the sequence.
+	 * Queues the notifications configured on the specific transition in the sequence.
 	 * Does NOT use the global event matrix - transitions are configured per-sequence.
 	 *
 	 * Go-live (workflow-driven path): a workflow stage change whose crossing
@@ -414,9 +547,6 @@ class NotificationDispatcher implements ModuleInterface {
 			&& 'publish' === $committed_status
 			&& 'publish' !== $previous_status;
 
-		$author      = get_userdata( $post->post_author );
-		$author_name = $author ? $author->display_name : __( 'Unknown', 'vip-workflows' );
-
 		// Workflow-driven go-live routes through the global event matrix before
 		// any per-transition config check: assignment seats and transitions
 		// without configured channels still count as go-lives. Repeat go-lives
@@ -427,14 +557,10 @@ class NotificationDispatcher implements ModuleInterface {
 				'published',
 				array(
 					'post_id'          => $post_id,
-					'post_title'       => $post->post_title,
-					'author_name'      => $author_name,
 					'stage'            => $new_status,
 					'previous_status'  => $previous_status,
 					'committed_status' => $committed_status,
 					'cause'            => $cause,
-					'edit_url'         => get_edit_post_link( $post_id, 'raw' ),
-					'view_url'         => get_permalink( $post_id ),
 				)
 			);
 		}
@@ -449,18 +575,16 @@ class NotificationDispatcher implements ModuleInterface {
 		$from_config = $sequence->get_status( $old_status );
 		$to_config   = $sequence->get_status( $new_status );
 
+		// The labels are stored with the job, so a later sequence edit doesn't
+		// rewrite a past move. Title, author and links are read when it runs.
 		$data = array(
 			'post_id'          => $post_id,
-			'post_title'       => $post->post_title,
 			'from_status'      => $old_status,
 			'to_status'        => $new_status,
-			// Live lookup, and no humanized key on the fallback: a notification body
-			// reaching Slack or a webhook should not present "Status_3" as a name.
+			// No humanized key on the fallback: a notification body reaching
+			// Slack or a webhook should not present "Status_3" as a name.
 			'from_label'       => $from_config['label'] ?? $old_status,
 			'to_label'         => $to_config['label'] ?? $new_status,
-			'author_name'      => $author_name,
-			'edit_url'         => get_edit_post_link( $post_id, 'raw' ),
-			'view_url'         => get_permalink( $post_id ),
 			'cause'            => $cause,
 			'committed_status' => $committed_status,
 			'previous_status'  => $previous_status,
@@ -468,9 +592,9 @@ class NotificationDispatcher implements ModuleInterface {
 
 		// A go-live transition sends the Published template to its configured
 		// channels (legacy parity); anything else is a plain stage change. A
-		// channel that already received the matrix `published` dispatch above is
+		// channel that already got the matrix `published` job above is
 		// debounced by the rate limit — no double delivery.
-		$this->send_transition_notifications( $post_id, $transition, $data, $is_go_live );
+		$this->queue_transition_notifications( $transition, $data, $is_go_live );
 	}
 
 	/**
@@ -505,14 +629,10 @@ class NotificationDispatcher implements ModuleInterface {
 			return;
 		}
 
-		$author = get_userdata( $post->post_author );
-
 		$this->dispatch(
 			'published',
 			array(
 				'post_id'          => $post->ID,
-				'post_title'       => $post->post_title,
-				'author_name'      => $author ? $author->display_name : __( 'Unknown', 'vip-workflows' ),
 				// The checkpoint reseat (StatusManager, core-service init order)
 				// has already run by the time this fires, so the stage meta read
 				// here is the post's correct, current stage.
@@ -520,45 +640,27 @@ class NotificationDispatcher implements ModuleInterface {
 				'previous_status'  => $old_status,
 				'committed_status' => 'publish',
 				'cause'            => 'core',
-				'edit_url'         => get_edit_post_link( $post->ID, 'raw' ),
-				'view_url'         => get_permalink( $post->ID ),
 			)
 		);
 	}
 
 	/**
-	 * Send transition notifications configured in sequence.
+	 * Queue the notifications a transition lists, one job per listed channel.
 	 *
-	 * @param int   $post_id      Post ID.
 	 * @param array $transition   Transition config from sequence.
-	 * @param array $data         Event data.
-	 * @param bool  $is_published Whether this is a publish transition.
+	 * @param array $data         Event facts.
+	 * @param bool  $is_published Whether this transition is a go-live.
 	 */
-	public function send_transition_notifications( int $post_id, array $transition, array $data, bool $is_published ): void {
-		$notifications = $transition['notifications'] ?? array();
-		if ( empty( $notifications ) ) {
-			return;
-		}
-
+	public function queue_transition_notifications( array $transition, array $data, bool $is_published ): void {
 		$event_type = $is_published ? 'published' : 'transition';
 
-		foreach ( $notifications as $channel_id ) {
-			$channel = $this->get_channel( $channel_id );
-			if ( ! $channel || ! $channel->is_configured() ) {
+		foreach ( (array) ( $transition['notifications'] ?? array() ) as $channel_id ) {
+			$channel = $this->get_channel( (string) $channel_id );
+			if ( ! $channel ) {
 				continue;
 			}
 
-			// Skip if rate limited.
-			if ( $this->is_rate_limited( $channel_id, $event_type, $data ) ) {
-				continue;
-			}
-
-			$notification = $this->build_notification( $event_type, $data );
-			$sent         = $channel->send( $notification );
-
-			if ( $sent ) {
-				$this->update_rate_limit( $channel_id, $event_type, $data );
-			}
+			$this->queue( $channel, $event_type, $data );
 		}
 	}
 

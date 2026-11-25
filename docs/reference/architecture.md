@@ -347,7 +347,9 @@ add_filter( 'vip_workflows_media_providers', function( $providers ) {
 
 **Notification Types** (routed via the event-to-channel matrix; see below):
 - `published` — a post's first crossing into the `publish` region, whether the crossing was workflow-driven or a core-driven publish (scheduled post, quick edit, REST, CLI)
-- Per-transition — any transition a sequence configures `notifications: [...]` on sends its own template to those channels directly, independent of the routing matrix
+- Per-transition — any transition a sequence configures `notifications: [...]` on sends its own template to those channels, independent of the routing matrix
+
+Both kinds are queued as Action Scheduler jobs (`vip_workflows_send_notification`) and sent by the queue runner, never during the request that made the move. See [data-flows.md, Flow 5](data-flows.md#flow-5-notification-dispatch).
 
 **Channel Configuration** — **Workflows → Notifications**, two tabs, one Save for the screen:
 - **Channels** — one card per registered channel (Slack supports multiple webhook destinations, each its own card). Email uses `wp_mail()`; Slack needs a webhook URL

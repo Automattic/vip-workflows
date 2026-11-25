@@ -82,7 +82,7 @@ For these teams, Workflows is about approvals. The question each story answers i
 *Always true:* `future` is treated as publish-side everywhere the publish boundary is checked. Core's scheduled `future` → `publish` write is the only exemption. → [Publish boundary](#publish-boundary)
 
 **M4. A research blog replaces custom statuses and email chains.** A team whose process was Draft → Design Review → Editorial Approval → Author Sign-off → Scheduled models it one stage per step. Transitions send email or Slack messages to configured recipients, and everyone can see live status in WordPress instead of in a separate tracker.
-*Always true:* notifications are sent after a move commits. A failing channel never blocks or rolls back a move. → [Notifications](#notifications)
+*Always true:* notifications are queued after a move commits and sent in the background. A failing channel never blocks or rolls back a move. → [Notifications](#notifications)
 
 **M5. A team sets up a workflow by describing it.** Someone connected over MCP describes their process in plain language (for example, an eight-stage approval flow), and an agent creates the sequence through the `create-sequence` ability. The sequence is active by default, or saved as a draft for review when the caller asks.
 *Always true:* sequences created over MCP or REST go through the same validation as the sequence editor. The sequence schema is the contract. → [Sequences and stages](#sequences-and-stages), [REST and Abilities](#rest-and-abilities)
@@ -127,7 +127,7 @@ flowchart LR
   GUARD -->|"allowed changes are reconciled"| SM
   SM --> DATA[("post_status, stage meta,<br/>vip_workflows_events")]
   SM -->|"vip_workflows_status_transition"| AGENT["StageAgentRunner<br/>(WP-Cron)"]
-  SM -->|"vip_workflows_status_transition"| NOTIFY["NotificationDispatcher<br/>(Action Scheduler or inline)"]
+  SM -->|"vip_workflows_status_transition"| NOTIFY["NotificationDispatcher<br/>(Action Scheduler)"]
   AGENT --> TOOLS
   AGENT -->|"exit transition"| SM
 ```
@@ -421,7 +421,7 @@ On VIP, Cron Control runs both queues. With `DISABLE_WP_CRON` and no runner, whi
 | --- | --- | --- | --- |
 | `vip_workflows_run_stage_agent` (`$post_id, $stage_key`) | WP-Cron single event at `time()`, when a post enters a stage with `agent.ability_id` (on `vip_workflows_status_transition`) | Runs the stage's agent, then routes the post by pass, fail or error | `_vip_workflows_agent_job` stays `pending`; after `PENDING_TTL` (15 min) `StatusManager::has_pending_agent_job()` treats it as failed, so the post isn't gated forever |
 | `vip_workflows_run_agent` (`$task_data`) | WP-Cron single event, on `vip_workflows_agent_assigned` | Legacy agent path: calls a handler from the `vip_workflows_agents` filter and marks the assignment completed or expired | The assignment stays open. Nothing in this repo registers a handler |
-| `vip_workflows_send_notification` (`channel_id, event_type, data`) | AS async action, group `vip-workflows-notifications`, from `NotificationDispatcher::dispatch()` on transitions and core go-live | Sends one notification to one channel (Slack webhook or `wp_mail`) | Notifications queue up unsent |
+| `vip_workflows_send_notification` (`channel_id, event_type, data`; `data` holds event facts only: post ID, stages and their labels, statuses, cause) | AS async action, group `vip-workflows-notifications`, from `NotificationDispatcher` for go-live and for every transition with notifications | Reads the post's title, author and links, then sends one notification to one channel (Slack webhook or `wp_mail`) | Notifications queue up unsent; nothing is sent until a runner drains the queue |
 | `vip_workflows_process_source` (`$project_id, $source_id`) | AS async action, group `vip-workflows`, from the ideation source upload and retry routes; registered only while `ideation` is on | Extracts, transcribes and summarizes an uploaded source with AI (see [Outbound calls](#outbound-calls)) | The source stays `pending` with no summary |
 | `vip_workflows_cleanup` | AS recurring, daily from 02:00 of the site's date read as UTC; scheduled on `admin_init` if missing | One `DELETE` per table: `vip_ability_results` older than 90 days and `vip_workflows_events` older than 1 year; then logs `maintenance.cleanup` | Both tables grow without bound |
 | `workflow_parsely_poll_discovery` | WP-Cron recurring, schedule `workflow_parsely_poll` (default 15 min, filter `workflow_parsely_poll_interval`, minimum 60 s), scheduled on `init` when Parse.ly is enabled and configured | Calls every discovery provider's `recommend` callback and queues unscored items | Scores fill in only after someone opens Ideation |
@@ -432,8 +432,8 @@ On VIP, Cron Control runs both queues. With `DISABLE_WP_CRON` and no runner, whi
 
 **Footguns**
 
-- **Without Action Scheduler, notifications send inside the transition request.** If AS is missing, the send runs synchronously (Slack timeout is 3 s).
-- **A failed notification is gone.** It is not retried.
+- **A notification that fails to queue or to send is gone.** Neither is retried. A queue failure is logged; a failed send marks its job Failed in Tools → Scheduled Actions, and Slack also logs transport errors such as a timeout, but not an HTTP error response. An email with no recipients isn't a failed send: its job completes and logs the channel and post ID. Stage labels have no length limit, and labels long enough to push the job past Action Scheduler's 8,000-character argument limit keep it from being queued.
+- **A notification job for a post deleted or trashed before it runs sends nothing.**
 - **A killed source job strands the source.** A job killed mid-run leaves the source in `processing` permanently, with no retry.
 - **The cleanup's first run time is computed in UTC.** `strtotime` reads 02:00 of the site's date as UTC.
 
@@ -480,8 +480,8 @@ Every AI call above starts from one of three places: a sequence an administrator
 
 | Destination | When | Data sent |
 | --- | --- | --- |
-| `hooks.slack.com`, `hooks.slack-gov.com` (host allowlist through `SsrfGuard`) | Notification send, or the "test" button | Post title, author name, stage labels |
-| `wp_mail` | Email channel | The same fields, sent to the configured recipients |
+| `hooks.slack.com`, `hooks.slack-gov.com` (host allowlist through `SsrfGuard`) | Notification job (Action Scheduler), or the "test" button | Post title, author name, stage labels |
+| `wp_mail` | Email channel's notification job (Action Scheduler) | The same fields, sent to the configured recipients |
 | `api.tavily.com/search` | Web researcher assistant, media scout, and stage-agent web grounding (only when a Tavily key is set) | The search query |
 | `www.googleapis.com/youtube/v3/*` | Media scout (only when a YouTube key is set) | The search query |
 | `www.youtube.com/youtubei/v1/player` and caption URLs | Pinning a video card | The video ID |
@@ -947,28 +947,29 @@ flowchart TD
 
 **How it works.** The plugin has a set of channels: one Slack channel per configured webhook, Email, and any channel an extension adds. A message reaches a channel by one of two routes.
 
-- **Go-live messages, routed site-wide.** When a workflow post goes live, the `published` event is sent to the channels the routing setting lists for it. It fires once per go-live, whether a workflow move published the post (a move that commits the published status from any other status) or WordPress published a workflow post on its own. While a workflow commit is in progress, the WordPress path stays quiet so the same publish isn't counted twice. These sends go through Action Scheduler when it's available, and otherwise go out inline.
-- **Per-transition messages, set on the transition.** A transition can list channels to notify. Each listed channel gets a "moved from X to Y" message, or the go-live message if the move publishes the post. These are sent inline, during the request that made the move.
-- **Repeats are suppressed.** The same channel, event and post won't get a second message within 60 seconds.
+- **Go-live messages, routed site-wide.** When a workflow post goes live, the `published` event is sent to the channels the routing setting lists for it. It fires once per go-live, whether a workflow move published the post (a move that commits the published status from any other status) or WordPress published a workflow post on its own. While a workflow commit is in progress, the WordPress path stays quiet so the same publish isn't counted twice. Sent through Action Scheduler.
+- **Per-transition messages, set on the transition.** A transition can list channels to notify. Each listed channel gets a "moved from X to Y" message, or the go-live message if the move publishes the post. Queued the same way, after the move is saved.
+- **The job reads the post when it runs.** It stores the stage labels as they were at the move; the title, author and links come from the live post, and the message text is in the site language. The edit link is built without a capability check, because the runner has no user.
+- **Repeats are suppressed.** The same channel, event and post won't get a second message within 60 seconds. The window starts when the message is queued.
 - **A debug mode** can mirror every event to channels an admin chooses.
-- **A failed delivery never blocks a move.** Messages go out only after the status and stage are saved. A failed send just reports failure; Slack logs transport errors such as a timeout, but not an HTTP error response.
+- **A failed delivery never blocks a move.** Messages are queued only after the status and stage are saved. A failed send just reports failure; Slack logs transport errors such as a timeout, but not an HTTP error response.
 
 **Always true**
 
 - A go-live sends exactly one message per publish, whichever path caused it.
-- Notifications are sent after the move is saved, and can't refuse or undo a transition.
+- Notifications are queued after the move is saved, never sent during the request, and can't refuse or undo a transition.
 - Each routing key has to match an event ID the dispatcher actually sends. A key that doesn't match is silently never used. → `get_event_types()`
 
 **Footguns**
 
-- **Per-transition messages slow the move down.** They're sent during the request, and each Slack destination can add up to 3 seconds to it.
-- **A custom channel that throws an error breaks the request after the move is already saved.** The move stands, but the request fails.
+- **Messages arrive only when the queue runs.** With WP-Cron off and no runner, they never arrive.
+- **A custom channel that throws marks its job failed in Scheduled Actions.** The move and its request are unaffected.
 - **Email can look set up when it sends to nobody.** With no email settings saved, the Email channel reports itself configured but has no recipients. "Notify admins" emails every administrator, with one `wp_mail()` call each.
 - **Two moves inside 60 seconds send one message.** For the same post, event and channel, the second message in that window is dropped.
 
 **Code**
 
-- `vip-workflows/includes/notifications/class-notification-dispatcher.php`: `NotificationDispatcher`, with `dispatch()` and `get_event_types()`.
+- `vip-workflows/includes/notifications/class-notification-dispatcher.php`: `NotificationDispatcher`, with `dispatch()`, `queue_transition_notifications()`, `handle_async_send()` and `get_event_types()`.
 - Channels: `vip-workflows/includes/notifications/channels/class-slack-channel.php`, `vip-workflows/includes/notifications/channels/class-email-channel.php`; each channel's `send()` returns false on failure.
 - Hooks: `vip_workflows_register_notification_channels` (extensions add channels); `vip_workflows_status_transition` and `transition_post_status` (the two go-live triggers); `vip_workflows_notification_rate_limit_ttl` (the 60-second debounce).
 - Options: `vip_workflows_notification_routing` (event → channel IDs) and `vip_workflows_notification_debug` (the debug mirror).
