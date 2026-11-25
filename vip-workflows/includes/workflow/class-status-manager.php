@@ -1148,10 +1148,13 @@ class StatusManager {
 			);
 		}
 
-		// The committed post_status BEFORE this transition writes anything —
-		// go-live consumers compare it against committed_status (equals it on
-		// same-region moves, which write no status).
-		$previous_status = (string) get_post_status( $post_id );
+		// The status this move was decided from: the post as read at the top of
+		// this method, before the checks and required tools ran. Go-live
+		// consumers compare it against committed_status, so it must not be
+		// re-read here: another request may have written a status since, and a
+		// cache flush would surface it. The move that wins still reports the
+		// go-live it made.
+		$previous_status = (string) get_post_status( $post );
 
 		// Region crossing: write the target region's status through core BEFORE the
 		// stage-meta write; a core failure surfaces and the stage does not move.
@@ -1159,10 +1162,40 @@ class StatusManager {
 		// set stays exactly as it is.
 		$crossed_region = $from_region !== $to_region;
 		if ( $crossed_region ) {
+			// The checks above can take seconds (required tools), and another
+			// transition may have moved the post meanwhile. Re-read the stage
+			// before writing a status, so a move that has already lost writes
+			// nothing and fires no core status hooks. This narrows the window to
+			// one wp_update_post(); the compare-and-swap below still decides.
+			$stage_now = $this->read_stage_uncached( $post_id );
+			if ( $stage_now !== $current_stage ) {
+				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				error_log(
+					sprintf(
+						'[VIP Workflows] Post %d: transition "%s" -> "%s" was abandoned before its status write; the stage is now "%s".',
+						$post_id,
+						$current_stage,
+						$to_status,
+						$stage_now
+					)
+				);
+				return $this->transition_conflict( $sequence, $current_stage, $stage_now );
+			}
+
+			// What this write replaces, read past this request's caches: a
+			// winner may have written its status during the checks above, and
+			// a lost swap must put back that status, not the one cached when
+			// this transition started. Used only for that put-back.
+			$status_before_write = $this->read_status_uncached( $post_id );
+
 			$committed = $this->commit_post_status( $post_id, $to_region );
 			if ( is_wp_error( $committed ) ) {
 				return $committed;
 			}
+			$committed_status = $committed;
+		} else {
+			// A same-region move writes no status.
+			$committed_status = $previous_status;
 		}
 
 		// Update workflow stage meta (authoritative), as a COMPARE-AND-SWAP against
@@ -1184,7 +1217,13 @@ class StatusManager {
 			$swapped = update_post_meta( $post_id, self::STAGE_META_KEY, $to_status, $current_stage );
 
 			if ( ! $swapped ) {
-				return $this->abort_lost_transition( $post_id, $current_stage, $to_status, $crossed_region, $previous_status );
+				$status_write = $crossed_region
+					? array(
+						'previous'  => $status_before_write,
+						'committed' => $committed_status,
+					)
+					: null;
+				return $this->abort_lost_transition( $post_id, $sequence, $current_stage, $to_status, $status_write );
 			}
 		}
 
@@ -1249,12 +1288,15 @@ class StatusManager {
 			$this->store_transition_data( $post_id, $to_status, $options['input_data'] );
 		}
 
-		// The context carries the COMMITTED status — core may have coerced the
-		// write (publish → future for future-dated posts) — plus the status the
-		// post held before this transition wrote anything.
+		// The context carries the status this move committed, as
+		// commit_post_status() read it back straight after its own write (so
+		// core's coercions, such as publish → future for a future-dated post,
+		// are kept), or the status it was decided from when it wrote none. Like
+		// previous_status, it must not be re-read here: another request may
+		// have written a status since, and a cache flush would surface it.
 		$context = array(
 			'cause'            => 'workflow',
-			'committed_status' => (string) get_post_status( $post_id ),
+			'committed_status' => $committed_status,
 			'previous_status'  => $previous_status,
 		);
 
@@ -1361,44 +1403,76 @@ class StatusManager {
 	 * Two ways to get here. Either a concurrent transition moved the post while
 	 * this one was validating — the stage no longer matches what every check
 	 * above was decided from — or the meta write genuinely failed. Both are
-	 * refusals, not partial successes.
+	 * refusals, not partial successes. The assignment, input-data, log and event
+	 * calls all come after the swap, so the only write this move can have made
+	 * is its status, and only when it crossed regions.
 	 *
-	 * The status write, if this was a region crossing, has already landed. It is
-	 * put back to exactly what the post held before (not to the source region:
-	 * core may have coerced the original, e.g. `publish` → `future`, and the
-	 * region would not reproduce that). Nothing else has been written yet — the
-	 * assignment, input-data, log and event calls all come after the swap — so
-	 * restoring the status is the whole rollback.
+	 * That status is put back only when nobody else wants it. The stage and the
+	 * status are read from the database, since another request's writes don't
+	 * reach this request's caches. Then:
 	 *
-	 * @param  int    $post_id         Post ID.
-	 * @param  string $expected_stage  Stage this transition validated against.
-	 * @param  string $to_status       Stage it was trying to reach.
-	 * @param  bool   $crossed_region  Whether a status write already landed.
-	 * @param  string $previous_status The post's status before that write.
+	 * - The post holds a different status: someone wrote after this move (the
+	 *   winner, or a core edit that reseated). It is left as it is.
+	 * - The post still holds this move's status, and the stage now stored is in
+	 *   that status's region: the winner went to the same region, so its write
+	 *   was the same as this one. It is left as it is.
+	 * - Otherwise (the stage is still the one validated against, or the winner
+	 *   is in another region): it is put back to exactly what the post held
+	 *   just before this move's write, read from the database (not to the
+	 *   source region: core may have coerced the original, e.g. `publish` →
+	 *   `future`, and the region would not reproduce that).
+	 *
+	 * None of these reads and writes are atomic: a write landing between the
+	 * read before this move's write and the write itself, or between the abort's
+	 * check and its put-back, can still be overwritten.
+	 *
+	 * @param  int                                             $post_id        Post ID.
+	 * @param  Sequence                                        $sequence       The post's sequence.
+	 * @param  string                                          $expected_stage Stage this transition validated against.
+	 * @param  string                                          $to_status      Stage it was trying to reach.
+	 * @param  array{previous: string, committed: string}|null $status_write   The status write that already landed, or null when there was none: `previous` is the post's status read just before it, `committed` is what it committed.
 	 * @return \WP_Error
 	 */
-	private function abort_lost_transition( int $post_id, string $expected_stage, string $to_status, bool $crossed_region, string $previous_status ): \WP_Error {
-		$actual_stage = (string) get_post_meta( $post_id, self::STAGE_META_KEY, true );
+	private function abort_lost_transition( int $post_id, Sequence $sequence, string $expected_stage, string $to_status, ?array $status_write ): \WP_Error {
+		$actual_stage = $this->read_stage_uncached( $post_id );
 
-		if ( $crossed_region ) {
-			$restored = $this->commit_post_status( $post_id, $previous_status );
-			if ( is_wp_error( $restored ) ) {
-				// The rollback itself failed: the post now holds the target
-				// region's status at the source stage. Nothing here can fix that,
-				// so say so as loudly as possible rather than returning a tidy
-				// error that hides it.
+		if ( null !== $status_write ) {
+			$previous_status = $status_write['previous'];
+			$status_now      = $this->read_status_uncached( $post_id );
+			$kept_by         = $this->why_lost_status_stays( $post_id, $sequence, $actual_stage, $status_now, $status_write['committed'] );
+
+			if ( null !== $kept_by ) {
 				// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 				error_log(
 					sprintf(
-						'[VIP Workflows] Post %d: transition "%s" -> "%s" was abandoned (stage is now "%s"), and restoring post_status "%s" ALSO failed: %s. The post is left with a committed status that its stage does not match.',
+						'[VIP Workflows] Post %d: transition "%s" -> "%s" was abandoned; post_status "%s" was left in place because %s.',
 						$post_id,
 						$expected_stage,
 						$to_status,
-						$actual_stage,
-						$previous_status,
-						$restored->get_error_message()
+						$status_now,
+						$kept_by
 					)
 				);
+			} else {
+				$restored = $this->commit_post_status( $post_id, $previous_status );
+				if ( is_wp_error( $restored ) ) {
+					// The rollback itself failed: the post now holds the target
+					// region's status at a stage that doesn't match it. Nothing
+					// here can fix that, so say so as loudly as possible rather
+					// than returning a tidy error that hides it.
+					// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					error_log(
+						sprintf(
+							'[VIP Workflows] Post %d: transition "%s" -> "%s" was abandoned (stage is now "%s"), and restoring post_status "%s" ALSO failed: %s. The post is left with a committed status that its stage does not match.',
+							$post_id,
+							$expected_stage,
+							$to_status,
+							$actual_stage,
+							$previous_status,
+							$restored->get_error_message()
+						)
+					);
+				}
 			}
 		}
 
@@ -1414,22 +1488,80 @@ class StatusManager {
 		);
 
 		if ( $actual_stage !== $expected_stage ) {
-			return new \WP_Error(
-				'transition_conflict',
-				sprintf(
-					/* translators: 1: stage the transition started from, 2: stage the post is in now. */
-					__( 'This post moved from “%1$s” to “%2$s” in the meantime. Reload and try again.', 'vip-workflows' ),
-					$expected_stage,
-					$actual_stage
-				),
-				array( 'status' => 409 )
-			);
+			return $this->transition_conflict( $sequence, $expected_stage, $actual_stage );
 		}
 
 		return new \WP_Error(
 			'transition_write_failed',
 			__( 'The workflow stage could not be saved. The post was not moved.', 'vip-workflows' ),
 			array( 'status' => 500 )
+		);
+	}
+
+	/**
+	 * Why a lost transition's status write stays, or null when it is put back.
+	 *
+	 * @param  int      $post_id          Post ID.
+	 * @param  Sequence $sequence         The post's sequence.
+	 * @param  string   $actual_stage     Stage stored now.
+	 * @param  string   $status_now       Status stored now.
+	 * @param  string   $committed_status Status the lost transition committed.
+	 * @return string|null The reason, for the log, or null to put the status back.
+	 */
+	private function why_lost_status_stays( int $post_id, Sequence $sequence, string $actual_stage, string $status_now, string $committed_status ): ?string {
+		if ( $status_now !== $committed_status ) {
+			return 'another writer changed it after this transition wrote it';
+		}
+
+		try {
+			$winner_region = $sequence->get_stage_status( $actual_stage );
+		} catch ( \InvalidArgumentException $e ) {
+			// The stored stage isn't one this sequence defines, which is a
+			// data-integrity error. Put the status back, as for any other loss.
+			// phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			error_log( sprintf( '[VIP Workflows] Post %d: %s', $post_id, $e->getMessage() ) );
+			return null;
+		}
+
+		if ( $winner_region === $this->status_to_region( $committed_status ) ) {
+			return sprintf( 'stage "%s" is in its region', $actual_stage );
+		}
+
+		return null;
+	}
+
+	/**
+	 * Read a post's status from the database, not the object cache.
+	 *
+	 * The counterpart of read_stage_uncached(), for the same reason.
+	 *
+	 * @param  int $post_id Post ID.
+	 * @return string The stored post status, or '' when the post is gone.
+	 */
+	private function read_status_uncached( int $post_id ): string {
+		wp_cache_delete( $post_id, 'posts' );
+
+		return (string) get_post_status( $post_id );
+	}
+
+	/**
+	 * The 409 for a transition that lost a race to another move of the post.
+	 *
+	 * @param  Sequence $sequence   The post's sequence.
+	 * @param  string   $from_stage Stage the transition was checked from.
+	 * @param  string   $now_stage  Stage the post is in now.
+	 * @return \WP_Error
+	 */
+	private function transition_conflict( Sequence $sequence, string $from_stage, string $now_stage ): \WP_Error {
+		return new \WP_Error(
+			'transition_conflict',
+			sprintf(
+				/* translators: 1: stage the transition started from, 2: stage the post is in now. */
+				__( 'This post moved from “%1$s” to “%2$s” before your move was saved. Reload to see where it is now.', 'vip-workflows' ),
+				self::snapshot_stage_label( $sequence, $from_stage ) ?? $from_stage,
+				self::snapshot_stage_label( $sequence, $now_stage ) ?? $now_stage
+			),
+			array( 'status' => 409 )
 		);
 	}
 
@@ -1537,7 +1669,7 @@ class StatusManager {
 	 * @param string   $new_stage New stage key.
 	 * @param string   $old_stage Old stage key ('' when a sequence assignment seats a post with no prior stage).
 	 * @param Sequence $sequence Sequence.
-	 * @param array    $context   Event context: 'cause' ('workflow' for an edge traversal or assignment seat, 'core' for a checkpoint reseat after a core-driven status change), 'committed_status' (the post_status core actually committed), and 'previous_status' (the committed post_status immediately before this stage change wrote anything; equals committed_status when no status was written).
+	 * @param array    $context   Event context: 'cause' ('workflow' for an edge traversal or assignment seat, 'core' for a checkpoint reseat after a core-driven status change), 'committed_status' (the post_status core actually committed: for an edge traversal, the status read back straight after its own write, or previous_status when it wrote none, even if another request has written one since), and 'previous_status' (the post_status this stage change started from: for an edge traversal, the status read before its checks and required tools ran, even if another request has written one since; equals committed_status when no status was written and nothing else wrote one).
 	 */
 	private function dispatch_stage_change( int $post_id, string $new_stage, string $old_stage, Sequence $sequence, array $context ): void {
 		/**
