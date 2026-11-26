@@ -98,6 +98,22 @@ function wp_parsely_is_active(): bool {
 }
 
 /**
+ * Whether VIP Workflows' Ideation experiment is on.
+ *
+ * Discovery is only shown in Ideation, so the background poll and the
+ * prompt-score warm-up only run while it is. Read at the moment of use rather
+ * than cached, so a toggle takes effect in the same request. A change to the
+ * `vip_workflows_experiments` filter is picked up on the next request.
+ *
+ * False when VIP Workflows isn't loaded or hasn't initialized yet: with no way
+ * to tell, the background work stays off.
+ */
+function ideation_enabled(): bool {
+	return class_exists( \VIPWorkflows\Plugin::class )
+		&& \VIPWorkflows\Plugin::experiment_enabled( 'ideation' );
+}
+
+/**
  * Whether Parse.ly credentials are stored.
  *
  * Reads wp-parsely's own option rather than asking this plugin's user to enter

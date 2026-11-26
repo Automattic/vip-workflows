@@ -12,6 +12,12 @@
  * So discovery is polled on a schedule instead, and anything new is queued
  * shortly after it appears rather than the next time somebody looks.
  *
+ * Only while VIP Workflows' Ideation experiment is on. Discovery is only shown
+ * in Ideation, so polling with it off would call every provider for scores
+ * nobody can see. Toggling Ideation schedules or unschedules the poll in the
+ * same request, and `init` corrects the schedule on any path that fires no
+ * action, such as a filter change.
+ *
  * WHAT THIS DOES NOT DO
  * ---------------------
  * It does not rescore. A score is cached for a day, `queue_prompts()` skips
@@ -75,6 +81,25 @@ class DiscoveryPoller {
 		add_filter( 'cron_schedules', array( self::class, 'add_schedule' ) );
 		add_action( self::POLL_HOOK, array( self::class, 'poll' ) );
 		add_action( 'init', array( self::class, 'ensure_scheduled' ) );
+		add_action( 'vip_workflows_experiment_enabled', array( self::class, 'on_experiment_toggled' ) );
+		add_action( 'vip_workflows_experiment_disabled', array( self::class, 'on_experiment_toggled' ) );
+	}
+
+	/**
+	 * Follow an Ideation toggle in the same request.
+	 *
+	 * Re-reads the effective state rather than trusting which action fired:
+	 * `disable()` fires even when the `vip_workflows_experiments` filter keeps
+	 * Ideation on, and then the poll has to stay.
+	 *
+	 * @param mixed $experiment_id The experiment that was toggled.
+	 */
+	public static function on_experiment_toggled( $experiment_id ): void {
+		if ( 'ideation' !== $experiment_id ) {
+			return;
+		}
+
+		self::ensure_scheduled();
 	}
 
 	/**
@@ -120,6 +145,11 @@ class DiscoveryPoller {
 	 * Make sure the poll is scheduled, and only once.
 	 */
 	public static function ensure_scheduled(): void {
+		if ( ! \WorkflowParsely\ideation_enabled() ) {
+			self::unschedule();
+			return;
+		}
+
 		$settings = self::provider_settings();
 
 		if ( ! self::parsely_is_enabled( $settings ) ) {
@@ -142,21 +172,25 @@ class DiscoveryPoller {
 	 * Stop polling.
 	 *
 	 * Called on deactivation so a disabled plugin does not leave a recurring
-	 * event behind firing at an action nobody handles.
+	 * event behind firing at an action nobody handles, and on every `init` while
+	 * Ideation is off. One pass over the cron array, not a loop until
+	 * `wp_next_scheduled()` comes back empty: when another request has already
+	 * removed the event, this request's copy of the `cron` option still shows
+	 * it, and no write here can change that copy.
 	 */
 	public static function unschedule(): void {
-		$next = wp_next_scheduled( self::POLL_HOOK );
-
-		while ( $next ) {
-			wp_unschedule_event( $next, self::POLL_HOOK );
-			$next = wp_next_scheduled( self::POLL_HOOK );
-		}
+		wp_clear_scheduled_hook( self::POLL_HOOK );
 	}
 
 	/**
 	 * Ask every available provider what it has, and queue anything unscored.
 	 */
 	public static function poll(): void {
+		// The event can still fire once after Ideation is turned off, before `init` removes it.
+		if ( ! \WorkflowParsely\ideation_enabled() ) {
+			return;
+		}
+
 		$settings = self::provider_settings();
 
 		if ( ! self::parsely_is_enabled( $settings ) ) {

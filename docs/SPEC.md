@@ -424,8 +424,8 @@ On VIP, Cron Control runs both queues. With `DISABLE_WP_CRON` and no runner, whi
 | `vip_workflows_send_notification` (`channel_id, event_type, data`; `data` holds event facts only: post ID, stages and their labels, statuses, cause) | AS async action, group `vip-workflows-notifications`, from `NotificationDispatcher` for go-live and for every transition with notifications | Reads the post's title, author and links, then sends one notification to one channel (Slack webhook or `wp_mail`) | Notifications queue up unsent; nothing is sent until a runner drains the queue |
 | `vip_workflows_process_source` (`$project_id, $source_id`) | AS async action, group `vip-workflows`, from the ideation source upload and retry routes; registered only while `ideation` is on | Extracts, transcribes and summarizes an uploaded source with AI (see [Outbound calls](#outbound-calls)) | The source stays `pending` with no summary |
 | `vip_workflows_cleanup` | AS recurring, daily from 02:00 of the site's date read as UTC; scheduled on `admin_init` if missing | One `DELETE` per table: `vip_ability_results` older than 90 days and `vip_workflows_events` older than 1 year; then logs `maintenance.cleanup` | Both tables grow without bound |
-| `workflow_parsely_poll_discovery` | WP-Cron recurring, schedule `workflow_parsely_poll` (default 15 min, filter `workflow_parsely_poll_interval`, minimum 60 s), scheduled on `init` when Parse.ly is enabled and configured | Calls every discovery provider's `recommend` callback and queues unscored items | Scores fill in only after someone opens Ideation |
-| `workflow_parsely_warm_prompt_scores` | WP-Cron single event at `time() + 30`, rescheduling while the queue has items | Scores 4 queued prompts per run against Parse.ly (queue option capped at 200; scores cached 1 day, errors 15 min) | Cards show no score |
+| `workflow_parsely_poll_discovery` | WP-Cron recurring, schedule `workflow_parsely_poll` (default 15 min, filter `workflow_parsely_poll_interval`, minimum 60 s), scheduled on `init` and on an `ideation` toggle while `ideation` is on and Parse.ly is enabled and configured; unscheduled when `ideation` is off or the provider is disabled | Calls every discovery provider's `recommend` callback and queues unscored items | Scores fill in only after someone opens Ideation |
+| `workflow_parsely_warm_prompt_scores` | WP-Cron single event at `time() + 30`, rescheduling while the queue has items and `ideation` is on; with `ideation` off, a run drops the queue | Scores 4 queued prompts per run against Parse.ly (queue option capped at 200; scores cached 1 day, errors 15 min) | Cards show no score |
 | `workflow_parsely_warm_performance_checks` | WP-Cron single event at `time() + 30`, self-rescheduling | Warms the performance-check cache, 2 posts per run (queue capped at 200) | The check computes on demand, more slowly |
 
 **What bounds these loops:** stage agent chains stop after `MAX_CHAIN` = 10 consecutive agent-to-agent hops, and the post then fails in place, never along an error route. A duplicate stage-agent event for the same post and stage counts as already queued. The Parse.ly warmers are bounded by batch size, the queue cap and `wp_next_scheduled()` dedupe. There are no other retries.
@@ -597,7 +597,7 @@ There are no SlotFills of Workflows' own.
 
 ### Experiments
 
-How unfinished features are switched on and off, what each one gates, and what turning one off does to data. When reviewing, check that new experimental surfaces sit behind a gate, that turning the experiment off stops its background work, and that nothing deletes data on disable.
+How unfinished features are switched on and off, what each one gates, and what turning one off does to data. When reviewing, check that new experimental surfaces sit behind a gate, that turning the experiment off stops its background work, and that nothing deletes content or configuration on disable; only a work queue the feature rebuilds may be dropped.
 
 Experiments are stored in the option `vip_workflows_experiments`, an array of enabled IDs that is not autoloaded. Resolution order is filter `vip_workflows_experiments` > option > disabled, so **every experiment is off by default**.
 
@@ -631,7 +631,7 @@ Activate and deactivate side effects:
 
 The kanban, calendar and my_queue gates are in `vip-workflows/includes/admin/class-admin.php`, `vip-workflows/includes/api/class-workflow-controller.php` and the React `AppShell.js` and `MyDashboardPage.js`.
 
-**What disabling does to data:** nothing is deleted.
+**What disabling does to data:** nothing is deleted. Turning `ideation` off also drops the Parse.ly extension's prompt-score warm-up queue (`workflow_parsely_prompt_warm_queue`), a work list that polls refill once `ideation` is back on.
 
 - The ideation tables `vip_ideation_sources` and `vip_ideation_analyses` are created by the schema for every install, regardless of the flag.
 - `vip_ideation` posts stay in `wp_posts` but their post type is no longer registered.
@@ -1215,7 +1215,7 @@ flowchart LR
   - `smart-linking-check`: a stage agent that leaves block notes rather than inserting links.
   - `parsely-trending`: a discovery provider (`recommend` only).
   - A listener on `vip_workflows_discovery_prompts` that attaches cached performance tiers to other providers' prompts.
-  - A recurring poll, every 15 minutes by default and never more often than once a minute, that queues new prompts for scoring.
+  - A recurring poll, while the `ideation` experiment is on, every 15 minutes by default and never more often than once a minute, that queues new prompts for scoring.
 - **Outside calls.** Parse.ly's Content API (`/analytics/posts`, `/related`, plus a local `/search` endpoint class) and Suggestions API (smart links, title suggestions), all through wp-parsely's service classes, which own the hosts and authentication.
 - **Caching.** Results are cached in transients: performance signals for one day, cohorts for `cohort_cache_days`. Queues of items waiting to be warmed are kept in `workflow_parsely_*_queue` options.
 
@@ -1226,7 +1226,7 @@ flowchart LR
 - `smart-linking-check` passes only on `NO_LINKS` (Parse.ly looked and found nothing) or an empty post. Every other API error, including `NO_DATA`, is an error.
 - `performance-check` never hard-blocks a transition. It reads only its cache: a hit shows the tier as a soft warning; a miss shows "still being gathered" as a soft warning and queues a background warm.
 - `performance-check` checks permission against the specific post, because it sends that post's headline, excerpt, tags and permalink to Parse.ly.
-- The poll isn't scheduled, and does nothing, unless Parse.ly is configured and the `parsely-trending` provider is enabled. It's unscheduled when the extension is deactivated.
+- The poll runs only while the `ideation` experiment is on, Parse.ly is configured and the `parsely-trending` provider is enabled. It's unscheduled when the extension is deactivated, the provider is disabled or `ideation` is turned off; removing the credentials leaves it scheduled but doing nothing. Turning `ideation` off also stops the prompt-score warm-up and drops its queue.
 
 **Footguns**
 
