@@ -248,12 +248,11 @@ export default function AppShell() {
 			     appears, and what it paints over, is decided here and in
 			     layout.css, once. */ }
 			{ createPortal(
-				<div className="vip-workflows-notice-region">
-					<SnackbarList
-						notices={ notices }
-						onRemove={ removeNotice }
-					/>
-				</div>,
+				<SnackbarList
+					className="vip-workflows-notice-region"
+					notices={ notices }
+					onRemove={ removeNotice }
+				/>,
 				document.body
 			) }
 		</>

@@ -39,9 +39,12 @@
    ============================================================================ */
 
 /*
- * The one place the admin app's snackbars appear. AppShell portals it to
- * <body>, so no screen's scrolling or stacking can bury it: pinned to the
- * bottom of the viewport, clear of the admin menu at each of its widths.
+ * The one place the admin app's snackbars appear: AppShell portals the
+ * SnackbarList itself to <body>, so no screen's scrolling or stacking can bury
+ * it, and this pins it to the bottom of the viewport, clear of the admin menu
+ * at each of its widths. Only the list's placement is set here; core keeps the
+ * rest, including the snackbar's own width cap and the pointer-events pair
+ * that lets clicks pass the list but not a snackbar.
  *
  * The stacking decision is made here and nowhere else. The region sits above
  * every layer the app or wp-admin paints, the full-screen ideation drop
@@ -52,26 +55,16 @@
 .vip-workflows-notice-region {
 	--vip-workflows-notice-region-gap: var( --wpds-dimension-gap-lg );
 	/* The admin menu's width at this screen size: 160px expanded. The one
-	   value the rules below change, so `left` and `max-width` agree. */
+	   value the rules below change. */
 	--vip-workflows-notice-region-menu: 160px;
 	position: fixed;
 	z-index: 100001;
 	bottom: var( --vip-workflows-notice-region-gap );
 	left: calc( var( --vip-workflows-notice-region-menu ) + var( --vip-workflows-notice-region-gap ) );
-	max-width: min( 600px, calc( 100vw - var( --vip-workflows-notice-region-menu ) - var( --vip-workflows-notice-region-gap ) * 2 ) );
-	/* The region never takes a click meant for what is under it; the
-	   snackbars themselves do. */
-	pointer-events: none;
-}
-
-/* In normal flow inside the region, rather than core's own absolute
-   placement, so the region's edge is the list's edge. */
-.vip-workflows-notice-region .components-snackbar-list {
-	position: static;
-}
-
-.vip-workflows-notice-region .components-snackbar {
-	pointer-events: auto;
+	right: var( --vip-workflows-notice-region-gap );
+	/* Core sizes the list to 100% of its offset parent; here `left` and
+	   `right` size it instead. */
+	width: auto;
 }
 
 /* The folded admin menu is 36px wide: folded by choice, or auto-folded on a
@@ -94,7 +87,5 @@
 	.folded .vip-workflows-notice-region,
 	.auto-fold .vip-workflows-notice-region {
 		--vip-workflows-notice-region-menu: 0px;
-		right: var( --vip-workflows-notice-region-gap );
-		max-width: none;
 	}
 }
