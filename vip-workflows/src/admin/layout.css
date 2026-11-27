@@ -33,3 +33,59 @@
 		transition: none;
 	}
 }
+
+/* ============================================================================
+   Notice Region
+   ============================================================================ */
+
+/*
+ * The one place the admin app's snackbars appear: AppShell portals the
+ * SnackbarList itself to <body>, so no screen's scrolling or stacking can bury
+ * it, and this pins it to the bottom of the viewport, clear of the admin menu
+ * at each of its widths. Only the list's placement is set here; core keeps the
+ * rest, including the snackbar's own width cap and the pointer-events pair
+ * that lets clicks pass the list but not a snackbar.
+ *
+ * Stacking is core's: the list's own z-index (100000) ties with core's modals
+ * and the ideation drop overlay, and a tie goes to whichever comes later in
+ * the DOM. The region mounts with the app, so it paints over the page's
+ * overlays but under any modal opened after it: a modal is modal, and a
+ * notice raised behind one waits until it closes. A message the user must
+ * read inside a modal is an inline Notice in that modal, not a snackbar.
+ */
+.vip-workflows-notice-region {
+	--vip-workflows-notice-region-gap: var( --wpds-dimension-gap-lg );
+	/* The admin menu's width at this screen size: 160px expanded. The one
+	   value the rules below change. */
+	--vip-workflows-notice-region-menu: 160px;
+	position: fixed;
+	bottom: var( --vip-workflows-notice-region-gap );
+	left: calc( var( --vip-workflows-notice-region-menu ) + var( --vip-workflows-notice-region-gap ) );
+	right: var( --vip-workflows-notice-region-gap );
+	/* Core sizes the list to 100% of its offset parent; here `left` and
+	   `right` size it instead. */
+	width: auto;
+}
+
+/* The folded admin menu is 36px wide: folded by choice, or auto-folded on a
+   medium screen. */
+.folded .vip-workflows-notice-region {
+	--vip-workflows-notice-region-menu: 36px;
+}
+
+@media screen and (max-width: 960px) {
+	.auto-fold .vip-workflows-notice-region {
+		--vip-workflows-notice-region-menu: 36px;
+	}
+}
+
+/* Below 783px the admin menu is off-canvas, whether or not it is folded, so
+   the region spans the screen. Each menu-state selector is listed so this
+   out-specifies the rules above rather than losing to them. */
+@media screen and (max-width: 782px) {
+	.vip-workflows-notice-region,
+	.folded .vip-workflows-notice-region,
+	.auto-fold .vip-workflows-notice-region {
+		--vip-workflows-notice-region-menu: 0px;
+	}
+}
