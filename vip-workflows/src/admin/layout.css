@@ -46,11 +46,12 @@
  * rest, including the snackbar's own width cap and the pointer-events pair
  * that lets clicks pass the list but not a snackbar.
  *
- * The stacking decision is made here and nowhere else. The region sits above
- * every layer the app or wp-admin paints, the full-screen ideation drop
- * overlay (100000) and core's modals (100000) included, because a notice that
- * a layer can cover is a notice that can go unread. A new overlay should sit
- * below this, not compete with it.
+ * Stacking is core's: the list's own z-index (100000) ties with core's modals
+ * and the ideation drop overlay, and a tie goes to whichever comes later in
+ * the DOM. The region mounts with the app, so it paints over the page's
+ * overlays but under any modal opened after it: a modal is modal, and a
+ * notice raised behind one waits until it closes. A message the user must
+ * read inside a modal is an inline Notice in that modal, not a snackbar.
  */
 .vip-workflows-notice-region {
 	--vip-workflows-notice-region-gap: var( --wpds-dimension-gap-lg );
@@ -58,7 +59,6 @@
 	   value the rules below change. */
 	--vip-workflows-notice-region-menu: 160px;
 	position: fixed;
-	z-index: 100001;
 	bottom: var( --vip-workflows-notice-region-gap );
 	left: calc( var( --vip-workflows-notice-region-menu ) + var( --vip-workflows-notice-region-gap ) );
 	right: var( --vip-workflows-notice-region-gap );
